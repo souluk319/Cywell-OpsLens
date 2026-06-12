@@ -42,7 +42,8 @@ import { fileURLToPath } from "node:url";
 const sensitivePattern =
   /(token|password|passwd|secret|api[_-]?key|bearer\s+[a-z0-9._-]+)/gi;
 const moduleDir = dirname(fileURLToPath(import.meta.url));
-const runbookRoot = join(moduleDir, "../../../data/runbooks");
+const repoRoot = join(moduleDir, "../../..");
+const runbookRoot = join(repoRoot, "data/runbooks");
 const localRagIndex = buildLocalRagIndex(runbookRoot);
 
 function stableStringify(value: unknown): string {
@@ -329,14 +330,14 @@ type ImageBuildReadinessEvidenceArtifact = {
 function lightspeedReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_READINESS_EVIDENCE ??
-    join(process.cwd(), "test-results", "cywell-opslens-lightspeed-readiness.json")
+    join(repoRoot, "test-results", "cywell-opslens-lightspeed-readiness.json")
   );
 }
 
 function imageBuildReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_IMAGE_BUILD_READINESS_EVIDENCE ??
-    join(process.cwd(), "test-results", "cywell-opslens-image-build-readiness.json")
+    join(repoRoot, "test-results", "cywell-opslens-image-build-readiness.json")
   );
 }
 
