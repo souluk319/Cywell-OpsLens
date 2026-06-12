@@ -954,6 +954,18 @@ export function OpsLensAdminDashboard() {
                   </span>
                 ))}
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-ocp-network-commands"
+              >
+                {ocpConnectivity.readOnlyTroubleshootingCommands
+                  .slice(0, 3)
+                  .map((command) => (
+                    <span key={command.id}>
+                      {command.id} mutation={String(command.mutation)}
+                    </span>
+                  ))}
+              </div>
               <div className="remediation-notes">
                 <p>
                   {ocpConnectivity.risk[0] ??

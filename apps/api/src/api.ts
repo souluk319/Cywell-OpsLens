@@ -1404,6 +1404,15 @@ type OcpConnectivityDiagnosticArtifact = {
     evidence?: string;
     nextCheck?: string;
   }>;
+  readOnlyTroubleshootingCommands?: Array<{
+    id?: string;
+    command?: string;
+    purpose?: string;
+    phase?: string;
+    requiresNetwork?: boolean;
+    mutation?: boolean;
+    writesEvidence?: boolean;
+  }>;
   missingEvidence?: string[];
   risk?: string[];
   rollbackPath?: string[];
@@ -1714,6 +1723,34 @@ function mapOcpConnectivityActionHints(
   return mapped.length > 0
     ? mapped
     : defaultOcpConnectivityActionHints(classification);
+}
+
+function mapOcpTroubleshootingCommands(
+  artifact?: OcpConnectivityDiagnosticArtifact
+): OpsLensOcpConnectivityDiagnosticSummary["readOnlyTroubleshootingCommands"] {
+  return (artifact?.readOnlyTroubleshootingCommands ?? []).map((command) => ({
+    id: command.id ?? "ocp-network-read-only",
+    command: command.command ?? "npm run verify:ocp:connectivity",
+    purpose: command.purpose ?? "Collect read-only OCP network troubleshooting evidence.",
+    phase: command.phase ?? "local-network-read-only",
+    requiresNetwork: command.requiresNetwork === true,
+    mutation: command.mutation === true,
+    writesEvidence: command.writesEvidence === true
+  }));
+}
+
+function defaultOcpTroubleshootingCommands(): OpsLensOcpConnectivityDiagnosticSummary["readOnlyTroubleshootingCommands"] {
+  return [
+    {
+      id: "generate-ocp-connectivity",
+      command: "npm run verify:ocp:connectivity",
+      purpose: "Generate read-only OCP connectivity diagnostic evidence.",
+      phase: "local-contract",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: true
+    }
+  ];
 }
 
 function getLightspeedMcpReadiness(): {
@@ -2213,6 +2250,7 @@ function getOcpConnectivityDiagnosticReadiness(): {
           oc: "missing"
         },
         actionHints: defaultOcpConnectivityActionHints("missing"),
+        readOnlyTroubleshootingCommands: defaultOcpTroubleshootingCommands(),
         missingEvidence: [
           `OCP connectivity diagnostic evidence is missing at ${evidencePath}`
         ],
@@ -2250,6 +2288,8 @@ function getOcpConnectivityDiagnosticReadiness(): {
       artifact,
       classification
     );
+    const readOnlyTroubleshootingCommands =
+      mapOcpTroubleshootingCommands(artifact);
 
     return {
       status,
@@ -2270,6 +2310,7 @@ function getOcpConnectivityDiagnosticReadiness(): {
         },
         diagnostics,
         actionHints,
+        readOnlyTroubleshootingCommands,
         missingEvidence: artifact.missingEvidence ?? [],
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? []
@@ -2308,6 +2349,7 @@ function getOcpConnectivityDiagnosticReadiness(): {
           oc: "unknown"
         },
         actionHints: defaultOcpConnectivityActionHints("invalid-evidence"),
+        readOnlyTroubleshootingCommands: defaultOcpTroubleshootingCommands(),
         missingEvidence: [
           error instanceof Error ? error.message : "unknown evidence parse error"
         ],

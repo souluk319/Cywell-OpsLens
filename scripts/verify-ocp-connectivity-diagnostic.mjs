@@ -500,7 +500,66 @@ function classify({ config, endpoint, dnsResult, tcpResult, tlsResult, httpResul
   return "api-unreachable";
 }
 
-function actionHintsForClassification(classification) {
+function readOnlyTroubleshootingCommands(endpoint, dnsResult) {
+  if (!endpoint) return [];
+  const firstAddress = dnsResult.addresses?.[0];
+  const target = firstAddress ?? endpoint.hostname;
+  const host = endpoint.hostname;
+  const port = endpoint.port;
+
+  return [
+    {
+      id: "windows-test-netconnection",
+      command: `powershell -NoProfile -Command "Test-NetConnection -ComputerName ${host} -Port ${port} -InformationLevel Detailed"`,
+      purpose: "Confirm whether Windows can open a TCP session to the OpenShift API port.",
+      phase: "local-network-read-only",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: false
+    },
+    {
+      id: "windows-resolve-dns",
+      command: `powershell -NoProfile -Command "Resolve-DnsName ${host}"`,
+      purpose: "Confirm the resolver returns the expected company OCP API address.",
+      phase: "local-network-read-only",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: false
+    },
+    {
+      id: "windows-route-print",
+      command: `route print ${target}`,
+      purpose: "Inspect the local route selected for the resolved OpenShift API address.",
+      phase: "local-network-read-only",
+      requiresNetwork: false,
+      mutation: false,
+      writesEvidence: false
+    },
+    {
+      id: "windows-tracert",
+      command: `tracert -d ${target}`,
+      purpose: "Trace the network path without DNS expansion to identify VPN, gateway, or firewall drops.",
+      phase: "local-network-read-only",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: false
+    },
+    {
+      id: "oc-server-version-read",
+      command: "oc get --raw=/version",
+      purpose: "Confirm the Kubernetes /version read once TCP reachability is restored.",
+      phase: "oc-read-only",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: false
+    }
+  ];
+}
+
+function actionHintsForClassification(classification, troubleshootingCommands = []) {
+  const tcpNextCheck =
+    troubleshootingCommands.find((command) => command.id === "windows-test-netconnection")?.command ??
+    "Test TCP reachability to the API host and port, then rerun npm run verify:ocp:connectivity.";
   const common = [
     {
       id: "rerun-read-only-diagnostic",
@@ -554,14 +613,14 @@ function actionHintsForClassification(classification) {
         severity: "blocked",
         summary: "Check VPN, firewall, route table, bastion, and security group access to the API port.",
         evidence: "DNS resolved, but TCP connect to the OpenShift API port timed out.",
-        nextCheck: "Test TCP reachability to the API host and port, then rerun npm run verify:ocp:connectivity."
+        nextCheck: tcpNextCheck
       },
       {
         id: "confirm-company-network-path",
         severity: "warning",
         summary: "Confirm the MacBook/local network is allowed to reach the company OCP API endpoint.",
         evidence: "A timeout usually means packets are dropped before TLS or Kubernetes auth starts.",
-        nextCheck: "After TCP passes, rerun verify:lightspeed and verify:operator:dry-run."
+        nextCheck: "After Test-NetConnection succeeds, rerun npm run verify:lightspeed and npm run verify:operator:dry-run."
       }
     ],
     "tcp-unreachable": [
@@ -668,7 +727,8 @@ async function main() {
   if (worktreeDirty) {
     missingEvidence.push(`current git worktree dirty=true currentHead=${headSha}`);
   }
-  const actionHints = actionHintsForClassification(classification);
+  const troubleshootingCommands = readOnlyTroubleshootingCommands(endpoint, dnsResult);
+  const actionHints = actionHintsForClassification(classification, troubleshootingCommands);
 
   const artifact = {
     schema: "cywell.opslens.ocp-connectivity-diagnostic.v0.1",
@@ -721,6 +781,7 @@ async function main() {
       oc: ocResult
     },
     actionHints,
+    readOnlyTroubleshootingCommands: troubleshootingCommands,
     missingEvidence,
     evidence: [
       "diagnostic performs DNS lookup, TCP connect, TLS handshake, Kubernetes /version GET, and oc get --raw=/version only",

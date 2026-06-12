@@ -120,7 +120,7 @@ function artifactFresh(artifact, currentHeadSha) {
   return ref.headSha === currentHeadSha && ref.worktreeDirty === false;
 }
 
-function commandPlan(mcpUrlConfigured) {
+function commandPlan(mcpUrlConfigured, troubleshootingCommands = []) {
   return [
     {
       id: "env-contract",
@@ -141,6 +141,15 @@ function commandPlan(mcpUrlConfigured) {
       writesEvidence: true,
       evidenceOut: defaults.ocpConnectivityEvidence
     },
+    ...troubleshootingCommands.map((command) => ({
+      id: command.id ?? "ocp-network-read-only",
+      command: command.command ?? "npm run verify:ocp:connectivity",
+      purpose: command.purpose ?? "Collect read-only OCP network troubleshooting evidence.",
+      phase: command.phase ?? "local-network-read-only",
+      requiresNetwork: command.requiresNetwork === true,
+      mutation: false,
+      writesEvidence: command.writesEvidence === true
+    })),
     {
       id: "operator-server-dry-run",
       command: "npm run verify:operator:dry-run",
@@ -272,7 +281,9 @@ async function main() {
   };
 
   const mcpUrlConfigured = Boolean(process.env.CYWELL_OPSLENS_MCP_URL);
-  const commands = commandPlan(mcpUrlConfigured);
+  const troubleshootingCommands =
+    artifacts.ocpConnectivity?.readOnlyTroubleshootingCommands ?? [];
+  const commands = commandPlan(mcpUrlConfigured, troubleshootingCommands);
   const forbiddenHits = forbiddenCommandHits(commands);
   if (forbiddenHits.length > 0) {
     fail("handoff mutation boundary", `mutating command(s) detected: ${forbiddenHits.join(", ")}`);
@@ -346,7 +357,8 @@ async function main() {
     currentGap: {
       classification: ocpClassification,
       target: artifacts.ocpConnectivity?.target ?? {},
-      actionHints: actionHints.slice(0, 4)
+      actionHints: actionHints.slice(0, 4),
+      readOnlyTroubleshootingCommands: troubleshootingCommands
     },
     sourceArtifacts,
     readOnlyCommands: commands,

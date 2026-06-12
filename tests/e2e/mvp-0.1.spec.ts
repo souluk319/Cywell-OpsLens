@@ -966,6 +966,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             evidence?: string;
             nextCheck?: string;
           }>;
+          readOnlyTroubleshootingCommands?: Array<{
+            id?: string;
+            command?: string;
+            mutation?: boolean;
+          }>;
           missingEvidence?: string[];
           risk?: string[];
           rollbackPath?: string[];
@@ -1013,7 +1018,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           clusterMutationAttempted?: boolean;
           mutationAllowedByThisVerifier?: boolean;
           requiredApprovals?: string[];
-          externalImages?: Array<{ name?: string; status?: string }>;
+          externalImages?: Array<{
+            name?: string;
+            status?: string;
+            draftStatus?: string;
+          }>;
+          evidenceDrafts?: Array<{ name?: string; status?: string }>;
           mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
           risk?: string[];
           rollbackPath?: string[];
@@ -1349,6 +1359,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         ?.map((hint) => `${hint.id} ${hint.summary} ${hint.nextCheck}`)
         .join(" ")
     ).toMatch(/ocp:connectivity|vpn|firewall|dns|token|tls|api/i);
+    expect(
+      body.installReadiness?.connectivity?.readOnlyTroubleshootingCommands
+        ?.every((command) => command.mutation === false)
+    ).toBe(true);
+    expect(
+      body.installReadiness?.connectivity?.readOnlyTroubleshootingCommands
+        ?.map((command) => `${command.id} ${command.command}`)
+        .join(" ")
+    ).toMatch(/Test-NetConnection|Resolve-DnsName|verify:ocp:connectivity/i);
     expect(body.installReadiness?.connectivity?.target).toMatchObject({
       tokenConfigured: expect.any(Boolean),
       tlsVerify: expect.any(Boolean)

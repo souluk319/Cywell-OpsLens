@@ -1096,6 +1096,15 @@ export interface OpsLensOcpConnectivityDiagnosticSummary {
     evidence: string;
     nextCheck: string;
   }>;
+  readOnlyTroubleshootingCommands: Array<{
+    id: string;
+    command: string;
+    purpose: string;
+    phase: string;
+    requiresNetwork: boolean;
+    mutation: boolean;
+    writesEvidence: boolean;
+  }>;
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
