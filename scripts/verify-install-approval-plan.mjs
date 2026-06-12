@@ -18,6 +18,7 @@ const defaults = {
   lightspeedPatchPreviewEvidence: "test-results/cywell-opslens-lightspeed-patch-preview.json",
   imageEvidence: "test-results/cywell-opslens-image-build-readiness.json",
   mvpEvidence: "test-results/cywell-opslens-mvp-0.1-gate.json",
+  ragApprovalQueueEvidence: "test-results/cywell-opslens-rag-approval-queue.json",
   timeoutMs: 10000
 };
 
@@ -56,6 +57,8 @@ const options = {
     parsed.values.get("lightspeed-patch-preview-evidence") ?? defaults.lightspeedPatchPreviewEvidence,
   imageEvidence: parsed.values.get("image-evidence") ?? defaults.imageEvidence,
   mvpEvidence: parsed.values.get("mvp-evidence") ?? defaults.mvpEvidence,
+  ragApprovalQueueEvidence:
+    parsed.values.get("rag-approval-queue-evidence") ?? defaults.ragApprovalQueueEvidence,
   timeoutMs: Number(parsed.values.get("timeout-ms") ?? defaults.timeoutMs)
 };
 
@@ -284,6 +287,7 @@ function buildApprovalChecklist({
   patchPreview,
   image,
   mvp,
+  ragApprovalQueue,
   currentHeadSha,
   currentWorktreeDirty
 }) {
@@ -320,6 +324,21 @@ function buildApprovalChecklist({
     image?.actualBuildRequested === true &&
     actualImageBuilds.length > 0 &&
     actualImageBuildFailures.length === 0;
+  const approvedIngestionPlan = ragApprovalQueue?.ingestionPlan?.approved ?? {};
+  const ragApprovalQueueEvidenceReady =
+    ragApprovalQueue?.status === "PASS" &&
+    evidenceDirty(ragApprovalQueue) === false &&
+    evidenceHeadMatches(ragApprovalQueue, currentHeadSha) &&
+    ragApprovalQueue?.policy?.rawDocumentReturned === false &&
+    ragApprovalQueue?.policy?.rawMarkdownPersisted === false &&
+    ragApprovalQueue?.policy?.vectorWriteAllowed === false &&
+    ragApprovalQueue?.policy?.clusterMutationAllowed === false &&
+    ragApprovalQueue?.policy?.ingestionAllowed === false &&
+    approvedIngestionPlan.actionMode === "ingestionPlanOnly" &&
+    approvedIngestionPlan.status === "ready-for-ingestion-job" &&
+    approvedIngestionPlan.ingestionJobCreated === false &&
+    approvedIngestionPlan.vectorWriteAllowed === false &&
+    approvedIngestionPlan.ingestionAllowed === false;
 
   return [
     {
@@ -374,6 +393,17 @@ function buildApprovalChecklist({
         `head=${evidenceHeadSha(image) ?? "unknown"} currentHead=${currentHeadSha} ` +
         `actualBuildRequested=${String(image?.actualBuildRequested ?? "unknown")} actualBuilds=${actualImageBuilds.length} ` +
         `actualBuildFailures=${actualImageBuildFailures.length}`
+    },
+    {
+      id: "rag-ingestion-plan-evidence",
+      required: true,
+      status: ragApprovalQueueEvidenceReady ? "pass" : "needs-evidence",
+      evidence:
+        `RAG approval queue status=${evidenceStatus(ragApprovalQueue)} dirty=${String(evidenceDirty(ragApprovalQueue) ?? "unknown")} ` +
+        `head=${evidenceHeadSha(ragApprovalQueue) ?? "unknown"} currentHead=${currentHeadSha} ` +
+        `approvedPlan=${approvedIngestionPlan.status ?? "unknown"} ` +
+        `ingestionJobCreated=${String(approvedIngestionPlan.ingestionJobCreated ?? "unknown")} ` +
+        `vectorWriteAllowed=${String(approvedIngestionPlan.vectorWriteAllowed ?? "unknown")}`
     },
     {
       id: "human-approval",
@@ -454,6 +484,10 @@ async function buildPlan() {
   );
   const image = loadJsonArtifact(options.imageEvidence, "Image readiness evidence");
   const mvp = loadJsonArtifact(options.mvpEvidence, "MVP gate evidence");
+  const ragApprovalQueue = loadJsonArtifact(
+    options.ragApprovalQueueEvidence,
+    "RAG approval queue evidence"
+  );
   const currentHeadSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
   const worktreeStatus = await gitStatusShort();
   const checklist = buildApprovalChecklist({
@@ -462,6 +496,7 @@ async function buildPlan() {
     patchPreview,
     image,
     mvp,
+    ragApprovalQueue,
     currentHeadSha,
     currentWorktreeDirty: worktreeStatus.length > 0
   });
@@ -472,6 +507,11 @@ async function buildPlan() {
   }
   const commands = buildCommands(subscription, installation);
   const status = planStatus(checklist);
+  const approvedIngestionPlan = ragApprovalQueue?.ingestionPlan?.approved ?? {};
+  const ragIngestionStatus =
+    approvedIngestionPlan.status === "ready-for-ingestion-job"
+      ? "ready-for-ingestion-job"
+      : "needs-evidence";
 
   return {
     schema: "cywell.opslens.install-approval-plan.v0.1",
@@ -510,6 +550,48 @@ async function buildPlan() {
       "security-reviewer",
       "product-owner"
     ],
+    ragIngestion: {
+      actionMode: "ingestionPlanOnly",
+      status: ragIngestionStatus,
+      queueEvidenceStatus: evidenceStatus(ragApprovalQueue),
+      approvedPlanStatus: approvedIngestionPlan.status ?? "missing",
+      clusterMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: approvedIngestionPlan.ingestionJobCreated === true,
+      mutationAllowedByThisVerifier: false,
+      requiredApprovals: [
+        "rag-owner",
+        "cluster-sre",
+        "data-steward"
+      ],
+      mutatingCommands: [
+        {
+          id: "future-rag-vector-ingestion-job",
+          phase: "rag-ingestion",
+          requiresExplicitApproval: true
+        }
+      ],
+      risk: [
+        "RAG ingestion can change future operational recommendations even when no cluster resource is mutated.",
+        "Only an approved external source-of-truth document should feed a future ingestion worker.",
+        "This install approval plan does not create an ingestion job or write to a vector store."
+      ],
+      rollbackPath: [
+        "Reject or delete the queue item before running any future ingestion worker if the draft is withdrawn.",
+        "A production ingestion worker must export previous vector chunk IDs before replacing indexed guidance.",
+        "Re-run npm run verify:rag:approval-queue after any RAG approval or source document change."
+      ],
+      missingEvidence:
+        ragIngestionStatus === "ready-for-ingestion-job"
+          ? [
+              "production ingestion worker approval",
+              "source commit or change request containing raw Markdown outside OpsLens",
+              "vector store write audit sink and rollback export path"
+            ]
+          : [
+              `RAG approval queue evidence is not ready: ${approvedIngestionPlan.status ?? "missing"}`
+            ]
+    },
     checklist,
     commands,
     risk: [
@@ -530,7 +612,8 @@ async function buildPlan() {
       lightspeedReadiness: resolve(options.lightspeedReadinessEvidence),
       lightspeedPatchPreview: resolve(options.lightspeedPatchPreviewEvidence),
       image: resolve(options.imageEvidence),
-      mvp: resolve(options.mvpEvidence)
+      mvp: resolve(options.mvpEvidence),
+      ragApprovalQueue: resolve(options.ragApprovalQueueEvidence)
     },
     missingEvidence: checklist
       .filter((item) => item.status === "needs-evidence")

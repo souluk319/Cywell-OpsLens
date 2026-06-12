@@ -971,6 +971,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           mutationAllowedByThisVerifier?: boolean;
           requiredApprovals?: string[];
           mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
+          ragIngestion?: {
+            actionMode?: string;
+            status?: string;
+            queueEvidenceStatus?: string;
+            approvedPlanStatus?: string;
+            clusterMutationAttempted?: boolean;
+            vectorWriteAttempted?: boolean;
+            ingestionJobCreated?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+            requiredApprovals?: string[];
+            mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
+          };
           risk?: string[];
           rollbackPath?: string[];
         };
@@ -1289,6 +1301,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "product-owner"
       ])
     );
+    expect(body.installReadiness?.approvalPlan?.ragIngestion).toMatchObject({
+      actionMode: "ingestionPlanOnly",
+      clusterMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect([
+      "ready-for-ingestion-job",
+      "needs-evidence",
+      "failed"
+    ]).toContain(body.installReadiness?.approvalPlan?.ragIngestion?.status);
+    expect(
+      body.installReadiness?.approvalPlan?.ragIngestion?.requiredApprovals
+    ).toEqual(expect.arrayContaining(["rag-owner", "cluster-sre"]));
     expect(["ready", "needs-evidence", "failed"]).toContain(
       body.installReadiness?.imageBuilds
     );
@@ -1687,6 +1714,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Install Plan"
     );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "RAG Ingestion"
+    );
     await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
       "approvalPlanOnly"
     );
@@ -1696,6 +1726,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
       "cluster-admin"
     );
+    await expect(
+      page.getByTestId("opslens-rag-ingestion-approval-plan")
+    ).toContainText("ingestionPlanOnly");
+    await expect(
+      page.getByTestId("opslens-rag-ingestion-approval-plan")
+    ).toContainText("vectorWriteAttempted=false");
+    await expect(
+      page.getByTestId("opslens-rag-ingestion-approval-plan")
+    ).toContainText("mutationAllowedByThisVerifier=false");
     await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
       "approvalPlanOnly"
     );

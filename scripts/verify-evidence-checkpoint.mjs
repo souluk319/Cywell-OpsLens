@@ -391,6 +391,47 @@ function checkRagApprovalQueuePolicy(queueArtifact) {
   );
 }
 
+function checkInstallPlanRagIngestion(installPlanArtifact) {
+  if (!installPlanArtifact) return;
+  const ragIngestion = installPlanArtifact.ragIngestion ?? {};
+  const violations = [];
+
+  if (ragIngestion.actionMode !== "ingestionPlanOnly") {
+    violations.push("actionMode");
+  }
+  if (ragIngestion.status !== "ready-for-ingestion-job") {
+    violations.push("status");
+  }
+  if (ragIngestion.clusterMutationAttempted !== false) {
+    violations.push("clusterMutationAttempted");
+  }
+  if (ragIngestion.vectorWriteAttempted !== false) {
+    violations.push("vectorWriteAttempted");
+  }
+  if (ragIngestion.ingestionJobCreated !== false) {
+    violations.push("ingestionJobCreated");
+  }
+  if (ragIngestion.mutationAllowedByThisVerifier !== false) {
+    violations.push("mutationAllowedByThisVerifier");
+  }
+  if (!ragIngestion.requiredApprovals?.includes("rag-owner")) {
+    violations.push("requiredApprovals.rag-owner");
+  }
+  if (!ragIngestion.requiredApprovals?.includes("cluster-sre")) {
+    violations.push("requiredApprovals.cluster-sre");
+  }
+
+  if (violations.length > 0) {
+    fail("install plan RAG ingestion boundary", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "install plan RAG ingestion boundary",
+    "install approval plan carries RAG ingestion as plan-only, explicitly approved, and non-mutating"
+  );
+}
+
 function checkPatchPreview(patchArtifact) {
   if (!patchArtifact) return;
   if (patchArtifact.clusterMutationAttempted === true) {
@@ -546,6 +587,7 @@ async function main() {
 
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
   checkRagApprovalQueuePolicy(artifacts.ragApprovalQueue);
+  checkInstallPlanRagIngestion(artifacts.installPlan);
   checkImageActualBuilds(artifacts.imageBuild);
   checkOcpConnectivityDiagnostic(artifacts.ocpConnectivity);
   checkPatchPreview(artifacts.lightspeedPatchPreview);

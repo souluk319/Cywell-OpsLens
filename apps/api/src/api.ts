@@ -43,6 +43,7 @@ import type {
   OpsLensReleasePublishPlanSummary,
   OpsLensReleasePublishReadiness,
   OpsLensRemediationProposal,
+  OpsLensRagIngestionApprovalPlanSummary,
   OpsLensRuntimeDependencyReadiness,
   OpsLensRuntimeReadiness,
   OpsLensRuntimeReadinessStatus,
@@ -1046,6 +1047,25 @@ type InstallApprovalPlanEvidenceArtifact = {
     worktreeDirty?: boolean;
   };
   requiredApprovals?: string[];
+  ragIngestion?: {
+    actionMode?: string;
+    status?: string;
+    queueEvidenceStatus?: string;
+    approvedPlanStatus?: string;
+    clusterMutationAttempted?: boolean;
+    vectorWriteAttempted?: boolean;
+    ingestionJobCreated?: boolean;
+    mutationAllowedByThisVerifier?: boolean;
+    requiredApprovals?: string[];
+    mutatingCommands?: Array<{
+      id?: string;
+      phase?: string;
+      requiresExplicitApproval?: boolean;
+    }>;
+    risk?: string[];
+    rollbackPath?: string[];
+    missingEvidence?: string[];
+  };
   commands?: Array<{
     id?: string;
     phase?: string;
@@ -1806,6 +1826,76 @@ function getOcpConnectivityDiagnosticReadiness(): {
   }
 }
 
+function missingRagIngestionPlan(
+  reason: string,
+  status: OpsLensRagIngestionApprovalPlanSummary["status"] = "needs-evidence"
+): OpsLensRagIngestionApprovalPlanSummary {
+  return {
+    actionMode: "ingestionPlanOnly",
+    status,
+    queueEvidenceStatus: "missing",
+    approvedPlanStatus: "missing",
+    clusterMutationAttempted: false,
+    vectorWriteAttempted: false,
+    ingestionJobCreated: false,
+    mutationAllowedByThisVerifier: false,
+    requiredApprovals: ["rag-owner", "cluster-sre", "data-steward"],
+    mutatingCommands: [],
+    risk: [
+      "RAG ingestion readiness is unknown; future guidance changes must remain blocked."
+    ],
+    rollbackPath: [
+      "Regenerate RAG approval queue evidence before planning or approving ingestion."
+    ],
+    missingEvidence: [reason]
+  };
+}
+
+function mapRagIngestionApprovalPlan(
+  artifact:
+    | InstallApprovalPlanEvidenceArtifact["ragIngestion"]
+    | undefined
+): OpsLensRagIngestionApprovalPlanSummary {
+  if (!artifact) {
+    return missingRagIngestionPlan(
+      "install approval plan does not include RAG ingestion evidence"
+    );
+  }
+
+  const rawStatus = artifact.status ?? "needs-evidence";
+  const status: OpsLensRagIngestionApprovalPlanSummary["status"] =
+    rawStatus === "ready-for-ingestion-job"
+      ? "ready-for-ingestion-job"
+      : rawStatus === "failed"
+        ? "failed"
+        : "needs-evidence";
+
+  return {
+    actionMode: "ingestionPlanOnly",
+    status,
+    queueEvidenceStatus: artifact.queueEvidenceStatus ?? "unknown",
+    approvedPlanStatus: artifact.approvedPlanStatus ?? "unknown",
+    clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+    vectorWriteAttempted: artifact.vectorWriteAttempted === true,
+    ingestionJobCreated: artifact.ingestionJobCreated === true,
+    mutationAllowedByThisVerifier:
+      artifact.mutationAllowedByThisVerifier === true,
+    requiredApprovals: artifact.requiredApprovals ?? [
+      "rag-owner",
+      "cluster-sre",
+      "data-steward"
+    ],
+    mutatingCommands: (artifact.mutatingCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      phase: command.phase ?? "unknown",
+      requiresExplicitApproval: command.requiresExplicitApproval === true
+    })),
+    risk: artifact.risk ?? [],
+    rollbackPath: artifact.rollbackPath ?? [],
+    missingEvidence: artifact.missingEvidence ?? []
+  };
+}
+
 function getInstallApprovalPlanReadiness(): {
   status: OpsLensInstallPlanReadiness;
   evidence: string[];
@@ -1836,7 +1926,10 @@ function getInstallApprovalPlanReadiness(): {
         ],
         missingEvidence: [
           `install approval plan evidence is missing at ${evidencePath}`
-        ]
+        ],
+        ragIngestion: missingRagIngestionPlan(
+          "install approval plan evidence is missing"
+        )
       },
       evidence: [
         "run npm run verify:install-plan to create install approval plan evidence",
@@ -1861,6 +1954,13 @@ function getInstallApprovalPlanReadiness(): {
     const mutatingCommandNames = mutatingCommands
       .map((command) => command.id)
       .join(", ");
+    const ragIngestion = mapRagIngestionApprovalPlan(
+      artifact.ragIngestion
+    );
+    const ragIngestionEvidence =
+      `RAG ingestion plan ${ragIngestion.actionMode} status=${ragIngestion.status} ` +
+      `approvedPlan=${ragIngestion.approvedPlanStatus} ingestionJobCreated=${String(ragIngestion.ingestionJobCreated)} ` +
+      `vectorWriteAttempted=${String(ragIngestion.vectorWriteAttempted)}`;
 
     return {
       status,
@@ -1874,7 +1974,8 @@ function getInstallApprovalPlanReadiness(): {
         mutatingCommands,
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? [],
-        missingEvidence: artifact.missingEvidence ?? []
+        missingEvidence: artifact.missingEvidence ?? [],
+        ragIngestion
       },
       evidence: [
         `Install approval plan evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
@@ -1884,6 +1985,7 @@ function getInstallApprovalPlanReadiness(): {
         mutatingCommandNames
           ? `mutating commands require explicit approval: ${mutatingCommandNames}`
           : "mutating commands are not listed in latest approval plan",
+        ragIngestionEvidence,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads install approval plan evidence only; it does not run install commands"
       ]
@@ -1906,7 +2008,11 @@ function getInstallApprovalPlanReadiness(): {
         ],
         missingEvidence: [
           error instanceof Error ? error.message : "unknown evidence parse error"
-        ]
+        ],
+        ragIngestion: missingRagIngestionPlan(
+          error instanceof Error ? error.message : "unknown evidence parse error",
+          "failed"
+        )
       },
       evidence: [
         `Install approval plan evidence could not be parsed from ${evidencePath}`,

@@ -1039,6 +1039,26 @@ export interface OpsLensOcpConnectivityDiagnosticSummary {
   rollbackPath: string[];
 }
 
+export interface OpsLensRagIngestionApprovalPlanSummary {
+  actionMode: "ingestionPlanOnly";
+  status: "ready-for-ingestion-job" | "needs-evidence" | "failed";
+  queueEvidenceStatus: string;
+  approvedPlanStatus: string;
+  clusterMutationAttempted: boolean;
+  vectorWriteAttempted: boolean;
+  ingestionJobCreated: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  requiredApprovals: string[];
+  mutatingCommands: Array<{
+    id: string;
+    phase: string;
+    requiresExplicitApproval: boolean;
+  }>;
+  risk: string[];
+  rollbackPath: string[];
+  missingEvidence: string[];
+}
+
 export interface OpsLensInstallApprovalPlanSummary {
   status: OpsLensInstallPlanReadiness;
   actionMode: "approvalPlanOnly";
@@ -1053,6 +1073,7 @@ export interface OpsLensInstallApprovalPlanSummary {
   risk: string[];
   rollbackPath: string[];
   missingEvidence: string[];
+  ragIngestion: OpsLensRagIngestionApprovalPlanSummary;
 }
 
 export interface OpsLensReleasePublishPlanSummary {

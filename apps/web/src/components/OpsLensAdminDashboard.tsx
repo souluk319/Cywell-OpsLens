@@ -55,7 +55,9 @@ function percentText(value: number | undefined) {
 }
 
 function statusClass(status: string) {
-  if (status === "indexed" || status === "ready") return "fresh";
+  if (status === "indexed" || status === "ready" || status === "ready-for-ingestion-job") {
+    return "fresh";
+  }
   if (
     status === "stale" ||
     status === "missing" ||
@@ -844,6 +846,8 @@ export function OpsLensAdminDashboard() {
                   "OCP Connectivity": overview.installReadiness.ocpConnectivity,
                   "Operator Dry-run": overview.installReadiness.operatorDryRun,
                   "Install Plan": overview.installReadiness.installPlan,
+                  "RAG Ingestion":
+                    overview.installReadiness.approvalPlan.ragIngestion.status,
                   "Image Builds": overview.installReadiness.imageBuilds,
                   "External Runtime":
                     overview.installReadiness.externalRuntimeImages,
@@ -1002,6 +1006,30 @@ export function OpsLensAdminDashboard() {
                       : "blocked until evidence exists"}
                   </strong>
                 </div>
+                <div>
+                  <span>RAG Ingestion</span>
+                  <strong>
+                    {approvalPlan.ragIngestion.status} / jobCreated=
+                    {String(approvalPlan.ragIngestion.ingestionJobCreated)}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-rag-ingestion-approval-plan"
+              >
+                <span>{approvalPlan.ragIngestion.actionMode}</span>
+                <span>
+                  queueEvidence={approvalPlan.ragIngestion.queueEvidenceStatus}
+                </span>
+                <span>
+                  vectorWriteAttempted=
+                  {String(approvalPlan.ragIngestion.vectorWriteAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(approvalPlan.ragIngestion.mutationAllowedByThisVerifier)}
+                </span>
               </div>
               <div className="remediation-notes">
                 <p>
