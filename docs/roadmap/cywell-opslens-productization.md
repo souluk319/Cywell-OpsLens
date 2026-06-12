@@ -61,7 +61,7 @@ Primary references:
 | Install path is visible | OLSConfig template exists under `deploy/lightspeed/` |
 | Local private RAG path works | `cywell-payments` query retrieves indexed Markdown runbooks from `data/runbooks/cywell-payments` through `packages/rag`; draft runbook intake validates and exports evidence without applying changes |
 | Runtime endpoint wiring can be checked safely | `npm run verify:runtime` verifies the Qdrant/vLLM service DNS, API route, and read-only readiness contract; `--live` additionally probes configured endpoints without mutation |
-| Runtime RAG retrieval is evidence-gated | `npm run verify:runtime-rag` verifies `/ask`, `/mcp`, and incident analysis include `audit.runtimeRag`, default to local fallback, and only attempt vLLM/Qdrant when `CYWELL_OPSLENS_RAG_RUNTIME_MODE` is explicitly enabled |
+| Runtime RAG retrieval is evidence-gated | `npm run verify:runtime-rag` verifies `/ask`, `/mcp`, and incident analysis include `audit.runtimeRag`, default to local fallback, and only attempt vLLM/Qdrant when `CYWELL_OPSLENS_RAG_RUNTIME_MODE` is explicitly enabled; `npm run verify:runtime-rag:fixture` proves the hybrid success path against mock vLLM/Qdrant endpoints |
 | Live cluster readiness can be checked safely | `npm run verify:lightspeed` reads the OLSConfig CRD and, when `CYWELL_OPSLENS_MCP_URL` is set, proves `tools/list` + `tools/call` without applying changes |
 
 ## Next Implementation Lane
@@ -69,7 +69,7 @@ Primary references:
 1. Run `npm run verify:evidence-checkpoint` after the latest dry-run, Lightspeed patch preview, `verify:images:build` actual image build evidence, release/runtime plans, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install, OLSConfig patch, image push, signing, or mirroring.
 2. Run `npm run verify:operator:dry-run` and `npm run verify:lightspeed -- --mcp-url <cluster-or-local-mcp-url> --require-mcp` against a real OpenShift Lightspeed environment.
 3. Implement durable RAG approval queue persistence after the approval-state contract is reviewed.
-4. Run `npm run verify:runtime -- --live` after Qdrant/vLLM services are reachable, then enable `CYWELL_OPSLENS_RAG_RUNTIME_MODE=hybrid` for controlled live retrieval checks before replacing the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs.
+4. Run `npm run verify:runtime-rag:fixture` before each runtime adapter change, then run `npm run verify:runtime -- --live` after Qdrant/vLLM services are reachable and enable `CYWELL_OPSLENS_RAG_RUNTIME_MODE=hybrid` for controlled live retrieval checks before replacing the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs.
 5. Build and test the scaffolded Go/controller-runtime Operator manager once Go and Operator SDK are available, then run live OLSConfig patch, install, upgrade, uninstall, and rollback smoke tests.
 6. Run a live OLM install/upgrade/uninstall smoke test once images and a lab OpenShift cluster are available.
 7. Run `npm run verify:external-runtime-plan` and `npm run verify:release-plan` after same-HEAD actual image build evidence is fresh; then collect vLLM/Qdrant digest, scan, SBOM, provenance, mirror, and approval evidence, replace catalog/certification placeholders, run `opm`, `operator-sdk bundle validate`, `operator-sdk scorecard`, image scanning, and Partner Connect submission once external tooling and images are available.

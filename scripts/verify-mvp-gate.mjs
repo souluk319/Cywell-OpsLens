@@ -70,6 +70,13 @@ const steps = [
     purpose: "Verify /ask, /mcp, and incident analysis carry the Qdrant/vLLM runtime RAG adapter contract with safe local fallback."
   },
   {
+    id: "RUNTIME-RAG-FIXTURE",
+    command: "npm",
+    args: ["run", "verify:runtime-rag:fixture"],
+    acceptance: ["AC-LS-001", "AC-RAG-001"],
+    purpose: "Verify the hybrid runtime RAG success path against mock vLLM embeddings and Qdrant redacted snippet search."
+  },
+  {
     id: "LIGHTSPEED",
     command: "npm",
     args: ["run", "verify:lightspeed:fixture"],

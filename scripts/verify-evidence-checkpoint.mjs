@@ -16,6 +16,7 @@ const evidenceDefaults = {
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
   runtimeRag: "test-results/cywell-opslens-runtime-rag-contract.json",
+  runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
@@ -308,6 +309,13 @@ async function main() {
     label: "runtime RAG contract",
     artifact: artifacts.runtimeRag,
     desiredStatuses: ["PASS", "NEEDS_LIVE_EVIDENCE"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "runtimeRagFixture",
+    label: "runtime RAG fixture",
+    artifact: artifacts.runtimeRagFixture,
+    desiredStatuses: ["PASS"],
     currentHeadSha: headSha
   });
   laneResult({
