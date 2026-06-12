@@ -28,7 +28,7 @@ Primary references:
 | 1. Lightspeed MCP validation | Route internal/custom questions from Lightspeed to Cywell OpsLens | `/mcp`, `/api/opslens/tools`, `/api/opslens/ask`, `packages/rag`, `deploy/lightspeed/olsconfig-cywell-opslens-mcp.yaml` | AC-LS-001 and AC-RAG-001 pass; a live OLSConfig smoke test proves `tools/list` + `tools/call` |
 | 2. AI Ops pipeline | Combine alerts with logs, metrics, events, and plan-only remediation proposals | `/api/opslens/incidents/analyze`, OCP read-only APIs, private RAG citations, `propose_remediation` plan-only tool | Alert-driven prompt includes last 10 minutes of logs/events/Prometheus metrics without mutation |
 | 3. Dedicated dashboard | Provide monitoring, token usage, validate-only RAG document management, evidence export, and plugin links | `/api/opslens/admin/overview`, `/api/opslens/admin/rag/validate`, `/api/opslens/admin/rag/evidence-export`, OpsLens Admin Dashboard, future ConsolePlugin route | Dashboard surfaces RAG health, validate-only draft checks, audit-safe evidence export, token usage, GPU/runtime samples, incident metric status, and install readiness |
-| 4. Operator packaging | Install API, vector DB, dashboard, RAG safety policy, Console/Lightspeed ingress policy, and MCP registration as one product | `deploy/operator/config/**`, `deploy/operator/bundle/**`, `deploy/operator/controller-runtime/**`, `packages/operator-controller`, `OpsLensInstallation.spec.rag`, `cywell-opslens-rag-policy`, ingress NetworkPolicies, CSV, static package verifier, live server-side dry-run preflight, OLSConfig reconciliation core | Static package, Go source parity, reconcile verifiers, and non-mutating live dry-run pass first; local Go/SDK execution plus live install/upgrade/uninstall smoke follow |
+| 4. Operator packaging | Install API, vector DB, dashboard, RAG safety policy, Console/Lightspeed ingress policy, and MCP registration as one product | `deploy/operator/config/**`, `deploy/operator/bundle/**`, `deploy/operator/controller-runtime/**`, `packages/operator-controller`, `OpsLensInstallation.spec.rag`, `cywell-opslens-rag-policy`, ingress NetworkPolicies, CSV, static package verifier, live server-side dry-run preflight, install approval plan, OLSConfig reconciliation core | Static package, Go source parity, reconcile verifiers, non-mutating live dry-run, and install approval plan pass first; human-approved live install/upgrade/uninstall smoke follows |
 | 5. Certification/GTM | Prepare Red Hat catalog and B2B packaging | `deploy/catalog/**`, scorecard config, certification annotations, security/support/release docs, readiness verifier | Static catalog/certification readiness passes first; Red Hat hosted/local certification pipeline and Partner Connect submission follow |
 
 ## Stage 1 MVP Lock
@@ -63,12 +63,13 @@ Primary references:
 
 ## Next Implementation Lane
 
-1. Run `npm run verify:operator:dry-run` and `npm run verify:lightspeed -- --mcp-url <cluster-or-local-mcp-url> --require-mcp` against a real OpenShift Lightspeed environment.
-2. Implement durable RAG approval queue persistence after the approval-state contract is reviewed.
-3. Replace the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs when runtime images are available.
-4. Build and test the scaffolded Go/controller-runtime Operator manager once Go and Operator SDK are available, then run live OLSConfig patch, install, upgrade, uninstall, and rollback smoke tests.
-5. Run a live OLM install/upgrade/uninstall smoke test once images and a lab OpenShift cluster are available.
-6. Replace catalog/certification placeholders, run `opm`, `operator-sdk bundle validate`, `operator-sdk scorecard`, image scanning, and Partner Connect submission once external tooling and images are available.
+1. Run `npm run verify:install-plan` after the latest dry-run, Lightspeed patch preview, image readiness, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install or OLSConfig patch.
+2. Run `npm run verify:operator:dry-run` and `npm run verify:lightspeed -- --mcp-url <cluster-or-local-mcp-url> --require-mcp` against a real OpenShift Lightspeed environment.
+3. Implement durable RAG approval queue persistence after the approval-state contract is reviewed.
+4. Replace the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs when runtime images are available.
+5. Build and test the scaffolded Go/controller-runtime Operator manager once Go and Operator SDK are available, then run live OLSConfig patch, install, upgrade, uninstall, and rollback smoke tests.
+6. Run a live OLM install/upgrade/uninstall smoke test once images and a lab OpenShift cluster are available.
+7. Replace catalog/certification placeholders, run `opm`, `operator-sdk bundle validate`, `operator-sdk scorecard`, image scanning, and Partner Connect submission once external tooling and images are available.
 
 ## Stage 4 Package Lock
 
@@ -81,6 +82,7 @@ Primary references:
 - Go/controller-runtime manager source under `deploy/operator/controller-runtime/**` with scheme registration, health checks, `OpsLensInstallation` types, reconcile entrypoint, install resources, RAG policy rendering, and explicit `ValidateOnly`/`PatchOLSConfig` OLSConfig patch split.
 - `npm run verify:operator` as the local package contract verifier.
 - `npm run verify:operator:dry-run` as the non-mutating live API/schema/admission preflight verifier.
+- `npm run verify:install-plan` as the non-mutating human approval, risk, command, evidence, and rollback contract before mutating install.
 - `packages/operator-controller` reconcile core with `ValidateOnly`, explicit `PatchOLSConfig`, evidence, missing evidence, risk, rollback path, assistant plan-only policy, and RAG approval queue mutation blocked.
 - `npm run verify:operator:reconcile` as the fixture-based reconcile verifier.
 
@@ -89,6 +91,7 @@ Primary references:
 - Local Go/Operator SDK build and unit test execution.
 - Local Go/Operator SDK compile plus live OLSConfig patch/install/upgrade/uninstall smoke beyond the scaffolded source contract.
 - Live OLM install, upgrade, and uninstall smoke tests.
+- Running mutating install commands without an explicit install approval plan and human approval.
 - Image build/push and catalog publishing.
 - Red Hat certification scorecard and product listing metadata.
 

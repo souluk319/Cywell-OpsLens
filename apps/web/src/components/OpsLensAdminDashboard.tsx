@@ -52,7 +52,8 @@ function statusClass(status: string) {
     status === "needs-live-check" ||
     status === "needs-configuration" ||
     status === "needs-evidence" ||
-    status === "partial"
+    status === "partial" ||
+    status === "approval-required"
   ) {
     return "stale";
   }
@@ -497,6 +498,7 @@ export function OpsLensAdminDashboard() {
                   "Console Dashboard": overview.installReadiness.consoleDashboard,
                   Operator: overview.installReadiness.operatorPackaging,
                   "Operator Dry-run": overview.installReadiness.operatorDryRun,
+                  "Install Plan": overview.installReadiness.installPlan,
                   "Image Builds": overview.installReadiness.imageBuilds,
                   Certification: overview.installReadiness.certification
                 }).map(([label, value]) => (

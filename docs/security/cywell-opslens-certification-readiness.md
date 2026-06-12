@@ -25,6 +25,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 | Operator manager source | Go/controller-runtime source wires `OpsLensInstallation`, health checks, status update, install resources, RAG policy rendering, and the explicit OLSConfig patch path for `PatchOLSConfig`. | `deploy/operator/controller-runtime/**`, `npm run verify:operator`, `npm run verify:operator:runtime` |
 | Network boundaries | API/dashboard pods ship ingress NetworkPolicies that allow the Console plugin backend/proxy and Lightspeed MCP namespaces on the HTTPS runtime port without broad inbound exposure. | `deploy/operator/config/apps/opslens-stack.yaml`, `npm run verify:operator`, `npm run verify:operator:runtime` |
 | Live preflight | Operator manifests can be submitted to the live OpenShift API through server-side dry-run only, with sanitized evidence and `clusterMutationAttempted=false`. | `npm run verify:operator:dry-run`, `test-results/cywell-opslens-operator-dry-run.json` |
+| Install approval | Live OLM install and OLSConfig mutation are blocked behind an explicit approval plan that separates preflight, mutating commands, post-install verification, risk, rollback, missing evidence, and required approvers. | `npm run verify:install-plan`, `test-results/cywell-opslens-install-approval-plan.json` |
 | Customer data | RAG inventory returns metadata only, snippets are redacted, raw documents are not returned. | `GET /api/opslens/admin/overview` |
 | RAG isolation | Local vector index is tenant-scoped and blocks unknown tenant retrieval. | `npm run verify:rag` |
 | RAG evidence export | Validation evidence artifacts return redacted previews and design-only approval intent without raw Markdown, queue mutation, or vector writes. | `POST /api/opslens/admin/rag/evidence-export`, `npm run verify:rag` |
@@ -42,6 +43,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 - Run vulnerability scans for all referenced images and attach remediation evidence.
 - Build and push signed Operator, API, dashboard, bundle, catalog, and model runtime images to the release registry.
 - Run server-side dry-run preflight against the target lab cluster before any mutating install attempt.
+- Generate the install approval plan and collect cluster-admin, SRE, security, and product-owner approval before running any mutating command.
 - Run live install, upgrade, uninstall, and rollback smoke tests through OLM.
 - Confirm service TLS, UserToken proxy behavior, disconnected mirroring, and SCC/Pod Security behavior in a lab cluster.
 

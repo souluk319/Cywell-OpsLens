@@ -24,6 +24,7 @@ import type {
   OpsLensAdminOverviewResponse,
   OpsLensCitation,
   OpsLensImageBuildReadiness,
+  OpsLensInstallPlanReadiness,
   OpsLensLightspeedMcpReadiness,
   OpsLensOperatorDryRunReadiness,
   OpsLensRemediationProposal,
@@ -351,6 +352,28 @@ type OperatorDryRunEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type InstallApprovalPlanEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  requiredApprovals?: string[];
+  commands?: Array<{
+    id?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+  }>;
+  missingEvidence?: string[];
+};
+
 function lightspeedReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_READINESS_EVIDENCE ??
@@ -369,6 +392,13 @@ function operatorDryRunEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_OPERATOR_DRY_RUN_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-operator-dry-run.json")
+  );
+}
+
+function installApprovalPlanEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_INSTALL_APPROVAL_PLAN_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-install-approval-plan.json")
   );
 }
 
@@ -419,6 +449,21 @@ function mapOperatorDryRunReadinessStatus(
   }
   if (artifact.status === "WARN") {
     return "partial";
+  }
+  return "needs-evidence";
+}
+
+function mapInstallApprovalPlanReadinessStatus(
+  artifact: InstallApprovalPlanEvidenceArtifact
+): OpsLensInstallPlanReadiness {
+  if (artifact.status === "BLOCKED" || artifact.status === "FAIL") {
+    return "failed";
+  }
+  if (artifact.ref?.worktreeDirty || artifact.status === "NEEDS_EVIDENCE") {
+    return "needs-evidence";
+  }
+  if (artifact.status === "APPROVAL_REQUIRED") {
+    return "approval-required";
   }
   return "needs-evidence";
 }
@@ -606,6 +651,60 @@ function getOperatorDryRunReadiness(): {
   }
 }
 
+function getInstallApprovalPlanReadiness(): {
+  status: OpsLensInstallPlanReadiness;
+  evidence: string[];
+} {
+  const evidencePath = installApprovalPlanEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      evidence: [
+        "run npm run verify:install-plan to create install approval plan evidence",
+        "dashboard keeps install plan as needs-evidence until approval plan evidence is available",
+        "install approval plan evidence must keep clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as InstallApprovalPlanEvidenceArtifact;
+    const status = mapInstallApprovalPlanReadinessStatus(artifact);
+    const mutatingCommands = (artifact.commands ?? [])
+      .filter((command) => command.mutation)
+      .map((command) => command.id)
+      .filter(Boolean)
+      .join(", ");
+
+    return {
+      status,
+      evidence: [
+        `Install approval plan evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `install approval plan generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `actionMode=${artifact.actionMode ?? "unknown"} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")} mutationAllowedByThisVerifier=${String(artifact.mutationAllowedByThisVerifier ?? "unknown")}`,
+        `required approvals=${(artifact.requiredApprovals ?? []).join(", ") || "unknown"}`,
+        mutatingCommands
+          ? `mutating commands require explicit approval: ${mutatingCommands}`
+          : "mutating commands are not listed in latest approval plan",
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads install approval plan evidence only; it does not run install commands"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      evidence: [
+        `Install approval plan evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid install approval plan evidence blocks overclaiming install readiness"
+      ]
+    };
+  }
+}
+
 export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
   const documents = getOpsLensRagDocuments();
   const usedTokens = 784_200;
@@ -613,12 +712,15 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
   const lightspeedReadiness = getLightspeedMcpReadiness();
   const imageBuildReadiness = getImageBuildReadiness();
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
+  const installPlanReadiness = getInstallApprovalPlanReadiness();
   const installReadinessEvidence = [
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
+    installPlanReadiness.evidence[0],
     imageBuildReadiness.evidence[0],
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
+    ...installPlanReadiness.evidence.slice(1),
     ...imageBuildReadiness.evidence.slice(1)
   ].filter((item): item is string => Boolean(item));
 
@@ -757,6 +859,7 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
       consoleDashboard: "prototype",
       operatorPackaging: "draft",
       operatorDryRun: operatorDryRunReadiness.status,
+      installPlan: installPlanReadiness.status,
       imageBuilds: imageBuildReadiness.status,
       certification: "draft",
       evidence: [
@@ -766,6 +869,7 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
         "Stage 3 dashboard is now served by /api/opslens/admin/overview",
         "Stage 4 Operator package skeleton is validated by npm run verify:operator",
         "Stage 4 live API preflight is validated by npm run verify:operator:dry-run",
+        "Stage 4 mutating install approval plan is generated by npm run verify:install-plan",
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
         "Stage 5 image build readiness is validated by npm run verify:images"

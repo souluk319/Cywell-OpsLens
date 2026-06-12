@@ -783,6 +783,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         lightspeedMcp?: string;
         operatorPackaging?: string;
         operatorDryRun?: string;
+        installPlan?: string;
         imageBuilds?: string;
         certification?: string;
         evidence?: string[];
@@ -868,6 +869,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     expect(body.installReadiness?.evidence?.join(" ")).toContain(
       "Operator dry-run"
+    );
+    expect([
+      "approval-required",
+      "needs-evidence",
+      "failed"
+    ]).toContain(body.installReadiness?.installPlan);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /install approval plan/i
     );
     expect(["ready", "needs-evidence", "failed"]).toContain(
       body.installReadiness?.imageBuilds
@@ -1039,7 +1048,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Operator Dry-run"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
-      /needs-live-check|needs-configuration|needs-evidence|partial|ready|failed/
+      "Install Plan"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      /needs-live-check|needs-configuration|needs-evidence|partial|ready|approval-required|failed/
     );
     await expect(
       page.getByTestId("opslens-install-readiness-evidence")

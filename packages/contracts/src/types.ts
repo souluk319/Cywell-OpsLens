@@ -603,6 +603,11 @@ export type OpsLensOperatorDryRunReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensInstallPlanReadiness =
+  | "approval-required"
+  | "needs-evidence"
+  | "failed";
+
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
@@ -624,6 +629,7 @@ export interface OpsLensAdminOverviewResponse {
     consoleDashboard: "prototype" | "ready";
     operatorPackaging: "not-started" | "draft" | "ready";
     operatorDryRun: OpsLensOperatorDryRunReadiness;
+    installPlan: OpsLensInstallPlanReadiness;
     imageBuilds: OpsLensImageBuildReadiness;
     certification: "not-started" | "draft" | "ready";
     evidence: string[];
