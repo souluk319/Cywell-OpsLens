@@ -63,7 +63,7 @@ Primary references:
 
 ## Next Implementation Lane
 
-1. Run `npm run verify:install-plan` after the latest dry-run, Lightspeed patch preview, image readiness, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install or OLSConfig patch.
+1. Run `npm run verify:install-plan` after the latest dry-run, Lightspeed patch preview, `verify:images:build` actual image build evidence, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install or OLSConfig patch.
 2. Run `npm run verify:operator:dry-run` and `npm run verify:lightspeed -- --mcp-url <cluster-or-local-mcp-url> --require-mcp` against a real OpenShift Lightspeed environment.
 3. Implement durable RAG approval queue persistence after the approval-state contract is reviewed.
 4. Replace the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs when runtime images are available.

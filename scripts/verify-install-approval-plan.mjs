@@ -267,6 +267,17 @@ function buildCommands(subscription, installation) {
 }
 
 function buildApprovalChecklist({ dryRun, lightspeedReadiness, patchPreview, image, mvp }) {
+  const actualImageBuilds = image?.actualBuilds ?? [];
+  const actualImageBuildFailures = actualImageBuilds.filter(
+    (build) => build?.status && build.status !== "PASS" && build.status !== "WARN"
+  );
+  const actualImageBuildEvidenceReady =
+    image?.status === "PASS" &&
+    image?.worktreeDirty === false &&
+    image?.actualBuildRequested === true &&
+    actualImageBuilds.length > 0 &&
+    actualImageBuildFailures.length === 0;
+
   return [
     {
       id: "mvp-gate-clean",
@@ -303,8 +314,11 @@ function buildApprovalChecklist({ dryRun, lightspeedReadiness, patchPreview, ima
     {
       id: "image-build-evidence",
       required: true,
-      status: image?.status === "PASS" && image?.worktreeDirty === false ? "pass" : "needs-evidence",
-      evidence: `Image readiness status=${evidenceStatus(image)} dirty=${String(image?.worktreeDirty ?? "unknown")} actualBuildRequested=${String(image?.actualBuildRequested ?? "unknown")}`
+      status: actualImageBuildEvidenceReady ? "pass" : "needs-evidence",
+      evidence:
+        `Image readiness status=${evidenceStatus(image)} dirty=${String(image?.worktreeDirty ?? "unknown")} ` +
+        `actualBuildRequested=${String(image?.actualBuildRequested ?? "unknown")} actualBuilds=${actualImageBuilds.length} ` +
+        `actualBuildFailures=${actualImageBuildFailures.length}`
     },
     {
       id: "human-approval",
