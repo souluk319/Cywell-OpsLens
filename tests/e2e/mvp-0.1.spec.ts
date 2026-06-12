@@ -1223,7 +1223,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     page,
     request
   }) => {
-    test.setTimeout(75_000);
+    test.setTimeout(120_000);
 
     const status = await request.get("/api/ocp/status");
     expect(status.ok()).toBe(true);
@@ -1390,7 +1390,8 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(secretDiagnosticBody.rollbackPath?.join(" ")).not.toContain("apply");
 
     const fullCoverage = await request.get(
-      "/api/ocp/coverage-matrix?includeDetails=false"
+      "/api/ocp/coverage-matrix?includeDetails=false",
+      { timeout: 30_000 }
     );
     expect(fullCoverage.ok()).toBe(true);
     const fullCoverageBody = (await fullCoverage.json()) as {
@@ -1411,7 +1412,8 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       const diagnostic = await request.get(
         `/api/ocp/coverage-diagnostic?apiVersion=${encodeURIComponent(
           conversionWebhookGap.resource.apiVersion
-        )}&resource=${encodeURIComponent(conversionWebhookGap.resource.name)}`
+        )}&resource=${encodeURIComponent(conversionWebhookGap.resource.name)}`,
+        { timeout: 60_000 }
       );
       expect(diagnostic.ok()).toBe(true);
       const diagnosticBody = (await diagnostic.json()) as {
@@ -1444,7 +1446,8 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             conversionWebhookGap.resource.apiVersion
           )}&resource=${encodeURIComponent(
             conversionWebhookGap.resource.name
-          )}&limit=1`
+          )}&limit=1`,
+          { timeout: 30_000 }
         );
         expect(fallbackList.ok()).toBe(true);
         const fallbackListBody = (await fallbackList.json()) as {
@@ -1488,7 +1491,8 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                     fallbackItem.metadata.namespace
                   )}`
                 : ""
-            }&full=true`
+            }&full=true`,
+            { timeout: 30_000 }
           );
           expect(fallbackDetail.ok()).toBe(true);
           const fallbackDetailBody = (await fallbackDetail.json()) as {

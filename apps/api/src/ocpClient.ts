@@ -2075,6 +2075,47 @@ async function diagnoseAlternateVersions(
   );
 }
 
+async function runDiagnosticStep(
+  findings: OcpDiagnosticFinding[],
+  params: {
+    id: string;
+    label: string;
+    timeoutMs: number;
+    evidence: string[];
+  },
+  step: () => Promise<void>
+) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      step(),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(
+            new Error(
+              `${params.label} diagnostic step timed out after ${params.timeoutMs}ms`
+            )
+          );
+        }, params.timeoutMs);
+      })
+    ]);
+  } catch (error) {
+    findings.push(
+      finding(
+        params.id,
+        params.label,
+        "error",
+        compactError(error),
+        params.evidence
+      )
+    );
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
 export async function getOcpCoverageDiagnostic(params: {
   apiVersion?: string;
   resource?: string;
@@ -2131,17 +2172,63 @@ export async function getOcpCoverageDiagnostic(params: {
     )
   ];
 
-  const conversion = await diagnoseCrd(config, match, findings);
-  await diagnoseApiService(config, match, findings);
-  await diagnoseAlternateVersions(
-    config,
-    discovery,
-    match,
-    params.namespace,
-    findings
+  let conversion: Awaited<ReturnType<typeof diagnoseCrd>> | undefined;
+  await runDiagnosticStep(
+    findings,
+    {
+      id: "crd-diagnostic-timeout",
+      label: "CustomResourceDefinition",
+      timeoutMs: 10_000,
+      evidence: ["bounded read-only CRD diagnostic"]
+    },
+    async () => {
+      conversion = await diagnoseCrd(config, match, findings);
+    }
+  );
+  await runDiagnosticStep(
+    findings,
+    {
+      id: "apiservice-diagnostic-timeout",
+      label: "APIService",
+      timeoutMs: 8_000,
+      evidence: ["bounded read-only APIService diagnostic"]
+    },
+    async () => {
+      await diagnoseApiService(config, match, findings);
+    }
+  );
+  await runDiagnosticStep(
+    findings,
+    {
+      id: "alternate-versions-diagnostic-timeout",
+      label: "Alternate API Versions",
+      timeoutMs: 10_000,
+      evidence: ["bounded read-only alternate API version diagnostic"]
+    },
+    async () => {
+      await diagnoseAlternateVersions(
+        config,
+        discovery,
+        match,
+        params.namespace,
+        findings
+      );
+    }
   );
   if (conversion?.service) {
-    await diagnoseWebhookService(config, conversion.service, findings);
+    const conversionService = conversion.service;
+    await runDiagnosticStep(
+      findings,
+      {
+        id: "webhook-service-diagnostic-timeout",
+        label: "Conversion Webhook Service",
+        timeoutMs: 8_000,
+        evidence: ["bounded read-only conversion webhook service diagnostic"]
+      },
+      async () => {
+        await diagnoseWebhookService(config, conversionService, findings);
+      }
+    );
   } else if (conversion?.strategy === "Webhook") {
     findings.push(
       finding(
