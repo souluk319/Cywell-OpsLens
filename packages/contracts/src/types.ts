@@ -597,6 +597,12 @@ export type OpsLensImageBuildReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensOperatorDryRunReadiness =
+  | "ready"
+  | "partial"
+  | "needs-evidence"
+  | "failed";
+
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
@@ -617,6 +623,7 @@ export interface OpsLensAdminOverviewResponse {
     lightspeedMcp: OpsLensLightspeedMcpReadiness;
     consoleDashboard: "prototype" | "ready";
     operatorPackaging: "not-started" | "draft" | "ready";
+    operatorDryRun: OpsLensOperatorDryRunReadiness;
     imageBuilds: OpsLensImageBuildReadiness;
     certification: "not-started" | "draft" | "ready";
     evidence: string[];

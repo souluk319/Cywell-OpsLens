@@ -25,6 +25,7 @@ import type {
   OpsLensCitation,
   OpsLensImageBuildReadiness,
   OpsLensLightspeedMcpReadiness,
+  OpsLensOperatorDryRunReadiness,
   OpsLensRemediationProposal,
   OpsLensRagEvidenceExportRequest,
   OpsLensRagEvidenceExportResponse,
@@ -327,6 +328,29 @@ type ImageBuildReadinessEvidenceArtifact = {
   }>;
 };
 
+type OperatorDryRunEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  policy?: {
+    clusterMutationAttempted?: boolean;
+    command?: string;
+  };
+  results?: Array<{
+    status?: string;
+    label?: string;
+    namespace?: string;
+    reason?: string;
+  }>;
+  missingEvidence?: string[];
+};
+
 function lightspeedReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_READINESS_EVIDENCE ??
@@ -338,6 +362,13 @@ function imageBuildReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_IMAGE_BUILD_READINESS_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-image-build-readiness.json")
+  );
+}
+
+function operatorDryRunEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_OPERATOR_DRY_RUN_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-operator-dry-run.json")
   );
 }
 
@@ -370,6 +401,24 @@ function mapImageBuildReadinessStatus(
   }
   if (artifact.status === "PASS") {
     return "ready";
+  }
+  return "needs-evidence";
+}
+
+function mapOperatorDryRunReadinessStatus(
+  artifact: OperatorDryRunEvidenceArtifact
+): OpsLensOperatorDryRunReadiness {
+  if (artifact.status === "FAIL") {
+    return "failed";
+  }
+  if (artifact.ref?.worktreeDirty) {
+    return "needs-evidence";
+  }
+  if (artifact.status === "PASS") {
+    return "ready";
+  }
+  if (artifact.status === "WARN") {
+    return "partial";
   }
   return "needs-evidence";
 }
@@ -497,12 +546,81 @@ function getImageBuildReadiness(): {
   }
 }
 
+function getOperatorDryRunReadiness(): {
+  status: OpsLensOperatorDryRunReadiness;
+  evidence: string[];
+} {
+  const evidencePath = operatorDryRunEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      evidence: [
+        "run npm run verify:operator:dry-run to create live server-side dry-run evidence",
+        "dashboard keeps Operator dry-run as needs-evidence until live API preflight evidence is available",
+        "Operator dry-run evidence must keep clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as OperatorDryRunEvidenceArtifact;
+    const status = mapOperatorDryRunReadinessStatus(artifact);
+    const accepted = (artifact.results ?? [])
+      .filter((result) => result.status === "PASS")
+      .map((result) => result.label)
+      .filter(Boolean)
+      .join(", ");
+    const skipped = (artifact.results ?? [])
+      .filter((result) => result.status === "SKIPPED")
+      .map((result) => `${result.label ?? "unknown"}:${result.reason ?? "skipped"}`)
+      .filter(Boolean);
+
+    return {
+      status,
+      evidence: [
+        `Operator dry-run evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `operator dry-run generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `server dry-run command=${artifact.policy?.command ?? "unknown"} clusterMutationAttempted=${String(artifact.policy?.clusterMutationAttempted ?? "unknown")}`,
+        accepted
+          ? `live API accepted server dry-run for ${accepted}`
+          : "live API accepted server dry-run resources not listed",
+        skipped.length > 0
+          ? `server dry-run skipped ${skipped.length} namespaced resources until target namespace exists`
+          : "server dry-run skipped no namespaced resources",
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads Operator dry-run evidence only; it does not apply manifests"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      evidence: [
+        `Operator dry-run evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid Operator dry-run evidence blocks overclaiming install readiness"
+      ]
+    };
+  }
+}
+
 export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
   const documents = getOpsLensRagDocuments();
   const usedTokens = 784_200;
   const budgetTokens = 1_500_000;
   const lightspeedReadiness = getLightspeedMcpReadiness();
   const imageBuildReadiness = getImageBuildReadiness();
+  const operatorDryRunReadiness = getOperatorDryRunReadiness();
+  const installReadinessEvidence = [
+    lightspeedReadiness.evidence[0],
+    operatorDryRunReadiness.evidence[0],
+    imageBuildReadiness.evidence[0],
+    ...lightspeedReadiness.evidence.slice(1),
+    ...operatorDryRunReadiness.evidence.slice(1),
+    ...imageBuildReadiness.evidence.slice(1)
+  ].filter((item): item is string => Boolean(item));
 
   return {
     generatedAt: new Date().toISOString(),
@@ -638,15 +756,16 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
       lightspeedMcp: lightspeedReadiness.status,
       consoleDashboard: "prototype",
       operatorPackaging: "draft",
+      operatorDryRun: operatorDryRunReadiness.status,
       imageBuilds: imageBuildReadiness.status,
       certification: "draft",
       evidence: [
-        ...lightspeedReadiness.evidence,
-        ...imageBuildReadiness.evidence,
+        ...installReadinessEvidence,
         "Stage 1 MCP contract has verifier coverage",
         "Stage 2 incident packet has logs/events/metrics coverage",
         "Stage 3 dashboard is now served by /api/opslens/admin/overview",
         "Stage 4 Operator package skeleton is validated by npm run verify:operator",
+        "Stage 4 live API preflight is validated by npm run verify:operator:dry-run",
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
         "Stage 5 image build readiness is validated by npm run verify:images"

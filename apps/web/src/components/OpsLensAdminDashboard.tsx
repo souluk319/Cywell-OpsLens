@@ -51,7 +51,8 @@ function statusClass(status: string) {
     status === "missing" ||
     status === "needs-live-check" ||
     status === "needs-configuration" ||
-    status === "needs-evidence"
+    status === "needs-evidence" ||
+    status === "partial"
   ) {
     return "stale";
   }
@@ -495,6 +496,7 @@ export function OpsLensAdminDashboard() {
                   "Lightspeed MCP": overview.installReadiness.lightspeedMcp,
                   "Console Dashboard": overview.installReadiness.consoleDashboard,
                   Operator: overview.installReadiness.operatorPackaging,
+                  "Operator Dry-run": overview.installReadiness.operatorDryRun,
                   "Image Builds": overview.installReadiness.imageBuilds,
                   Certification: overview.installReadiness.certification
                 }).map(([label, value]) => (
