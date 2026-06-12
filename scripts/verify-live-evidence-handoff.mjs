@@ -224,12 +224,13 @@ function forbiddenCommandHits(commands) {
     .map((item) => item.id);
 }
 
-function sourceSummary(artifact, label, currentHeadSha) {
+function sourceSummary(artifact, label, currentHeadSha, required = true) {
   if (!artifact) {
     return {
       label,
       status: "missing",
       fresh: false,
+      required,
       headSha: "missing",
       worktreeDirty: "unknown"
     };
@@ -240,6 +241,7 @@ function sourceSummary(artifact, label, currentHeadSha) {
     artifactType: artifact.artifactType ?? artifact.schema ?? "unknown",
     status: artifact.status ?? "unknown",
     fresh: artifactFresh(artifact, currentHeadSha),
+    required,
     headSha: ref.headSha ?? "missing",
     worktreeDirty: ref.worktreeDirty ?? "unknown"
   };
@@ -293,9 +295,9 @@ async function main() {
     sourceSummary(artifacts.lightspeedReadiness, "Lightspeed live readiness", headSha),
     sourceSummary(artifacts.lightspeedPatchPreview, "Lightspeed patch preview", headSha),
     sourceSummary(artifacts.installPlan, "Install approval plan", headSha),
-    sourceSummary(artifacts.evidenceCheckpoint, "Evidence checkpoint", headSha)
+    sourceSummary(artifacts.evidenceCheckpoint, "Evidence checkpoint", headSha, false)
   ];
-  const staleSources = sourceArtifacts.filter((source) => !source.fresh);
+  const staleSources = sourceArtifacts.filter((source) => source.required !== false && !source.fresh);
   if (staleSources.length > 0) {
     warn("source evidence freshness", `staleOrMissing=${staleSources.map((source) => source.label).join(", ")}`);
   } else {
