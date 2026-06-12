@@ -839,6 +839,16 @@ export function OpsLensAdminDashboard() {
                   </strong>
                 </div>
                 <div>
+                  <span>Evidence Templates</span>
+                  <strong>
+                    {externalRuntimePlan.evidenceTemplates.length
+                      ? externalRuntimePlan.evidenceTemplates
+                          .map((template) => `${template.name}:${template.status}`)
+                          .join(", ")
+                      : "templates missing"}
+                  </strong>
+                </div>
+                <div>
                   <span>Mirror Commands</span>
                   <strong>
                     {externalRuntimePlan.mutatingCommands.length

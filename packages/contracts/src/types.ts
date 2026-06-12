@@ -917,6 +917,11 @@ export interface OpsLensExternalRuntimeImagesPlanSummary {
     desiredMirror: string;
     status: string;
   }>;
+  evidenceTemplates: Array<{
+    name: string;
+    templatePath: string;
+    status: string;
+  }>;
   mutatingCommands: Array<{
     id: string;
     phase: string;

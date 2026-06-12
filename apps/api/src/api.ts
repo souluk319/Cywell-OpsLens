@@ -985,6 +985,11 @@ type ExternalRuntimeImagesPlanEvidenceArtifact = {
     desiredMirror?: string;
     status?: string;
   }>;
+  evidenceTemplates?: Array<{
+    name?: string;
+    templatePath?: string;
+    status?: string;
+  }>;
   commands?: Array<{
     id?: string;
     phase?: string;
@@ -1417,6 +1422,7 @@ function getExternalRuntimeImagesPlanReadiness(): {
           "product-owner"
         ],
         externalImages: [],
+        evidenceTemplates: [],
         mutatingCommands: [],
         risk: [
           "No external runtime image evidence plan is available yet; vLLM/Qdrant mirror and certification work remain blocked."
@@ -1455,8 +1461,18 @@ function getExternalRuntimeImagesPlanReadiness(): {
         phase: command.phase ?? "unknown",
         requiresExplicitApproval: command.requiresExplicitApproval === true
       }));
+    const evidenceTemplates = (artifact.evidenceTemplates ?? []).map(
+      (template) => ({
+        name: template.name ?? "unknown",
+        templatePath: template.templatePath ?? "unknown",
+        status: template.status ?? "unknown"
+      })
+    );
     const imageNames = externalImages
       .map((image) => `${image.name}:${image.status}`)
+      .join(", ");
+    const templateNames = evidenceTemplates
+      .map((template) => `${template.name}:${template.status}`)
       .join(", ");
     const mutatingCommandNames = mutatingCommands
       .map((command) => command.id)
@@ -1473,6 +1489,7 @@ function getExternalRuntimeImagesPlanReadiness(): {
           artifact.mutationAllowedByThisVerifier === true,
         requiredApprovals: artifact.requiredApprovals ?? [],
         externalImages,
+        evidenceTemplates,
         mutatingCommands,
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? [],
@@ -1486,6 +1503,9 @@ function getExternalRuntimeImagesPlanReadiness(): {
         imageNames
           ? `external runtime image evidence status=${imageNames}`
           : "external runtime image inventory not listed",
+        templateNames
+          ? `external runtime evidence templates=${templateNames}`
+          : "external runtime evidence templates are not listed",
         mutatingCommandNames
           ? `runtime mirror/sign commands require explicit approval: ${mutatingCommandNames}`
           : "runtime mirror/sign commands are not listed in latest external runtime plan",
@@ -1504,6 +1524,7 @@ function getExternalRuntimeImagesPlanReadiness(): {
         mutationAllowedByThisVerifier: false,
         requiredApprovals: [],
         externalImages: [],
+        evidenceTemplates: [],
         mutatingCommands: [],
         risk: [
           "External runtime images plan evidence is invalid; runtime mirror and certification commands remain blocked."
