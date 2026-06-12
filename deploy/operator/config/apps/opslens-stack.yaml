@@ -125,6 +125,36 @@ spec:
       port: 443
       targetPort: https
 ---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cywell-opslens-api-ingress
+  namespace: cywell-opslens
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: cywell-opslens
+      app.kubernetes.io/component: api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-console
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-lightspeed
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: cywell-opslens
+      ports:
+        - protocol: TCP
+          port: 9443
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -195,6 +225,33 @@ spec:
     - name: https
       port: 443
       targetPort: https
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cywell-opslens-dashboard-ingress
+  namespace: cywell-opslens
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: dashboard
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: cywell-opslens
+      app.kubernetes.io/component: dashboard
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-console
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: cywell-opslens
+      ports:
+        - protocol: TCP
+          port: 9443
 ---
 apiVersion: apps/v1
 kind: StatefulSet

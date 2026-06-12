@@ -285,6 +285,12 @@ function validateRbac(clusterRole, csv) {
     fail("config RBAC ServiceAccount", "serviceaccounts get/create/patch permissions are missing");
   }
 
+  if (hasRuleFor(rbacRules, "networking.k8s.io", "networkpolicies", ["get", "create", "patch"])) {
+    pass("config RBAC NetworkPolicy", "operator can reconcile ingress NetworkPolicies");
+  } else {
+    fail("config RBAC NetworkPolicy", "networkpolicies get/create/patch permissions are missing");
+  }
+
   if (!hasRuleFor(rbacRules, "", "secrets", ["get"])) {
     pass("config RBAC no Secret read", "operator does not receive raw Secret read permissions in MVP 0.1");
   } else {
@@ -316,6 +322,12 @@ function validateRbac(clusterRole, csv) {
     pass("CSV RBAC ServiceAccount", "can reconcile the API service account");
   } else {
     fail("CSV RBAC ServiceAccount", "serviceaccounts permissions are missing");
+  }
+
+  if (hasRuleFor(csvRules, "networking.k8s.io", "networkpolicies", ["get", "create", "patch"])) {
+    pass("CSV RBAC NetworkPolicy", "can reconcile API/dashboard ingress NetworkPolicies");
+  } else {
+    fail("CSV RBAC NetworkPolicy", "networkpolicies permissions are missing");
   }
 
   if (!hasRuleFor(csvRules, "", "secrets", ["get"])) {
@@ -370,8 +382,10 @@ function validateApps(apps) {
     ["ConfigMap", "cywell-opslens-rag-policy"],
     ["Deployment", "cywell-opslens-api"],
     ["Service", "cywell-opslens-api"],
+    ["NetworkPolicy", "cywell-opslens-api-ingress"],
     ["Deployment", "cywell-opslens-dashboard"],
     ["Service", "cywell-opslens-dashboard"],
+    ["NetworkPolicy", "cywell-opslens-dashboard-ingress"],
     ["StatefulSet", "cywell-opslens-vector"],
     ["Service", "cywell-opslens-vector"],
     ["Deployment", "cywell-opslens-vllm"],
@@ -412,8 +426,10 @@ function validateApps(apps) {
 
   const serviceCertAnnotation = "service.beta.openshift.io/serving-cert-secret-name";
   const apiService = findDoc(apps, "Service", "cywell-opslens-api");
+  const apiNetworkPolicy = findDoc(apps, "NetworkPolicy", "cywell-opslens-api-ingress");
   const dashboard = findDoc(apps, "Deployment", "cywell-opslens-dashboard");
   const dashboardService = findDoc(apps, "Service", "cywell-opslens-dashboard");
+  const dashboardNetworkPolicy = findDoc(apps, "NetworkPolicy", "cywell-opslens-dashboard-ingress");
   const apiContainer = api?.spec?.template?.spec?.containers?.[0] ?? {};
   const dashboardContainer = dashboard?.spec?.template?.spec?.containers?.[0] ?? {};
   const dashboardEnv = dashboardContainer.env ?? [];
@@ -436,6 +452,22 @@ function validateApps(apps) {
   const hasHttpsPort = (service) =>
     (service?.spec?.ports ?? []).some(
       (port) => port.name === "https" && port.port === 443 && port.targetPort === "https"
+    );
+  const allowsNamespace = (policy, namespace) =>
+    (policy?.spec?.ingress ?? []).some((rule) =>
+      (rule.from ?? []).some(
+        (peer) => peer.namespaceSelector?.matchLabels?.["kubernetes.io/metadata.name"] === namespace
+      )
+    );
+  const allowsOpsLensPods = (policy) =>
+    (policy?.spec?.ingress ?? []).some((rule) =>
+      (rule.from ?? []).some(
+        (peer) => peer.podSelector?.matchLabels?.["app.kubernetes.io/name"] === "cywell-opslens"
+      )
+    );
+  const allowsHttpsRuntimePort = (policy) =>
+    (policy?.spec?.ingress ?? []).some((rule) =>
+      (rule.ports ?? []).some((port) => port.protocol === "TCP" && port.port === 9443)
     );
 
   if (
@@ -475,6 +507,31 @@ function validateApps(apps) {
     pass("Dashboard HTTPS runtime", "service-ca cert is mounted and readiness probes HTTPS /healthz on 9443");
   } else {
     fail("Dashboard HTTPS runtime", "Dashboard deployment must mount service-ca TLS and probe HTTPS /healthz");
+  }
+
+  if (
+    apiNetworkPolicy?.spec?.podSelector?.matchLabels?.["app.kubernetes.io/component"] === "api" &&
+    (apiNetworkPolicy?.spec?.policyTypes ?? []).includes("Ingress") &&
+    allowsNamespace(apiNetworkPolicy, "openshift-console") &&
+    allowsNamespace(apiNetworkPolicy, "openshift-lightspeed") &&
+    allowsOpsLensPods(apiNetworkPolicy) &&
+    allowsHttpsRuntimePort(apiNetworkPolicy)
+  ) {
+    pass("API ingress NetworkPolicy", "allows Console proxy, Lightspeed MCP, and same-app pods to API 9443");
+  } else {
+    fail("API ingress NetworkPolicy", "API NetworkPolicy must allow openshift-console, openshift-lightspeed, same-app pods, and TCP 9443");
+  }
+
+  if (
+    dashboardNetworkPolicy?.spec?.podSelector?.matchLabels?.["app.kubernetes.io/component"] === "dashboard" &&
+    (dashboardNetworkPolicy?.spec?.policyTypes ?? []).includes("Ingress") &&
+    allowsNamespace(dashboardNetworkPolicy, "openshift-console") &&
+    allowsOpsLensPods(dashboardNetworkPolicy) &&
+    allowsHttpsRuntimePort(dashboardNetworkPolicy)
+  ) {
+    pass("Dashboard ingress NetworkPolicy", "allows Console plugin asset loading and same-app pods to dashboard 9443");
+  } else {
+    fail("Dashboard ingress NetworkPolicy", "Dashboard NetworkPolicy must allow openshift-console, same-app pods, and TCP 9443");
   }
 
   const consolePlugin = findDoc(apps, "ConsolePlugin", "cywell-opslens");
@@ -669,6 +726,10 @@ async function validateControllerRuntimeSkeleton() {
     controller?.includes("func (r *OpsLensInstallationReconciler) Reconcile") &&
     controller.includes("SetupWithManager") &&
     controller.includes("controllerutil.CreateOrUpdate") &&
+    controller.includes("networkingv1.NetworkPolicy") &&
+    controller.includes("openshift-console") &&
+    controller.includes("openshift-lightspeed") &&
+    controller.includes("kubernetes.io/metadata.name") &&
     controller.includes("ValidateOnly") &&
     controller.includes("PatchOLSConfig") &&
     controller.includes("cywell-opslens-rag-policy") &&
@@ -677,7 +738,7 @@ async function validateControllerRuntimeSkeleton() {
     controller.includes("RagApprovalQueue") &&
     controller.includes("Status().Update")
   ) {
-    pass("Go reconcile skeleton", "controller-runtime reconcile path preserves Lightspeed and RAG safety contracts");
+    pass("Go reconcile skeleton", "controller-runtime reconcile path preserves Lightspeed, NetworkPolicy, and RAG safety contracts");
   } else {
     fail("Go reconcile skeleton", "controller-runtime reconcile skeleton is missing safety-critical contract text");
   }

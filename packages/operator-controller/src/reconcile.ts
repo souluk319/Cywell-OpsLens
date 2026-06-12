@@ -14,6 +14,8 @@ const serviceServingCertAnnotation = "service.beta.openshift.io/serving-cert-sec
 const tlsMountPath = "/var/run/secrets/cywell-opslens/tls";
 const apiTlsSecretName = "cywell-opslens-api-tls";
 const dashboardTlsSecretName = "cywell-opslens-dashboard-tls";
+const consoleNamespace = "openshift-console";
+const lightspeedNamespace = "openshift-lightspeed";
 const httpsContainerPort = 9443;
 const httpsServicePort = 443;
 
@@ -107,6 +109,60 @@ function service(
     spec: {
       selector: labels(component),
       ports
+    }
+  };
+}
+
+function namespacePeer(namespace: string) {
+  return {
+    namespaceSelector: {
+      matchLabels: {
+        "kubernetes.io/metadata.name": namespace
+      }
+    }
+  };
+}
+
+function appPeer() {
+  return {
+    podSelector: {
+      matchLabels: {
+        "app.kubernetes.io/name": appName
+      }
+    }
+  };
+}
+
+function ingressNetworkPolicy(
+  name: string,
+  namespace: string,
+  component: string,
+  sourceNamespaces: string[]
+): KubernetesObject {
+  return {
+    apiVersion: "networking.k8s.io/v1",
+    kind: "NetworkPolicy",
+    metadata: {
+      name,
+      namespace,
+      labels: labels(component)
+    },
+    spec: {
+      podSelector: {
+        matchLabels: labels(component)
+      },
+      policyTypes: ["Ingress"],
+      ingress: [
+        {
+          from: [...sourceNamespaces.map(namespacePeer), appPeer()],
+          ports: [
+            {
+              protocol: "TCP",
+              port: httpsContainerPort
+            }
+          ]
+        }
+      ]
     }
   };
 }
@@ -307,6 +363,12 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
     ], {
       [serviceServingCertAnnotation]: apiTlsSecretName
     }),
+    ingressNetworkPolicy(
+      "cywell-opslens-api-ingress",
+      namespace,
+      "api",
+      [consoleNamespace, lightspeedNamespace]
+    ),
     deployment(
       dashboardServiceName,
       namespace,
@@ -375,6 +437,12 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
     ], {
       [serviceServingCertAnnotation]: dashboardTlsSecretName
     }),
+    ingressNetworkPolicy(
+      "cywell-opslens-dashboard-ingress",
+      namespace,
+      "dashboard",
+      [consoleNamespace]
+    ),
     {
       apiVersion: "apps/v1",
       kind: "StatefulSet",

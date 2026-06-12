@@ -9,6 +9,7 @@ import (
 	opslensv1alpha1 "github.com/cywell/opslens-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -29,6 +30,8 @@ const (
 	tlsMountPath                 = "/var/run/secrets/cywell-opslens/tls"
 	apiTLSSecretName             = "cywell-opslens-api-tls"
 	dashboardTLSSecretName       = "cywell-opslens-dashboard-tls"
+	consoleNamespace             = "openshift-console"
+	lightspeedNamespace          = "openshift-lightspeed"
 	httpsContainerPort           = int32(9443)
 	httpsServicePort             = int32(443)
 )
@@ -63,11 +66,19 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if err := r.reconcileAPINetworkPolicy(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := r.reconcileDashboardDeployment(ctx, &installation, namespace); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	if err := r.reconcileDashboardService(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileDashboardNetworkPolicy(ctx, &installation, namespace); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -112,6 +123,7 @@ func (r *OpsLensInstallationReconciler) SetupWithManager(mgr ctrl.Manager) error
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
+		Owns(&networkingv1.NetworkPolicy{}).
 		Complete(r)
 }
 
@@ -181,6 +193,68 @@ func (r *OpsLensInstallationReconciler) reconcileServiceWithAnnotations(ctx cont
 		service.Spec.Selector = labels(component)
 		service.Spec.Ports = ports
 		return r.setControllerReferenceIfSameNamespace(installation, namespace, service)
+	})
+	return err
+}
+
+func (r *OpsLensInstallationReconciler) reconcileAPINetworkPolicy(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	return r.reconcileIngressNetworkPolicy(ctx, installation, namespace, "cywell-opslens-api-ingress", "api", []string{consoleNamespace, lightspeedNamespace})
+}
+
+func (r *OpsLensInstallationReconciler) reconcileDashboardNetworkPolicy(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	return r.reconcileIngressNetworkPolicy(ctx, installation, namespace, "cywell-opslens-dashboard-ingress", "dashboard", []string{consoleNamespace})
+}
+
+func (r *OpsLensInstallationReconciler) reconcileIngressNetworkPolicy(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string, name string, component string, sourceNamespaces []string) error {
+	policy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+	protocol := corev1.ProtocolTCP
+	port := intstr.FromInt(int(httpsContainerPort))
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, policy, func() error {
+		from := []networkingv1.NetworkPolicyPeer{}
+		for _, sourceNamespace := range sourceNamespaces {
+			from = append(from, networkingv1.NetworkPolicyPeer{
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"kubernetes.io/metadata.name": sourceNamespace,
+					},
+				},
+			})
+		}
+		from = append(from, networkingv1.NetworkPolicyPeer{
+			PodSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app.kubernetes.io/name": appName,
+				},
+			},
+		})
+
+		policy.Labels = labels(component)
+		policy.Spec = networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: labels(component),
+			},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+			},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					From: from,
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Protocol: &protocol,
+							Port:     &port,
+						},
+					},
+				},
+			},
+		}
+		return r.setControllerReferenceIfSameNamespace(installation, namespace, policy)
 	})
 	return err
 }

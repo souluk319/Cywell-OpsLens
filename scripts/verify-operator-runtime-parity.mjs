@@ -118,8 +118,10 @@ try {
     ["ConfigMap", "cywell-opslens-rag-policy"],
     ["Deployment", "cywell-opslens-api"],
     ["Service", "cywell-opslens-api"],
+    ["NetworkPolicy", "cywell-opslens-api-ingress"],
     ["Deployment", "cywell-opslens-dashboard"],
     ["Service", "cywell-opslens-dashboard"],
+    ["NetworkPolicy", "cywell-opslens-dashboard-ingress"],
     ["StatefulSet", "cywell-opslens-vector"],
     ["Service", "cywell-opslens-vector"],
     ["Deployment", "cywell-opslens-vllm"],
@@ -140,8 +142,10 @@ try {
     "reconcileRAGPolicy",
     "reconcileAPIDeployment",
     "reconcileAPIService",
+    "reconcileAPINetworkPolicy",
     "reconcileDashboardDeployment",
     "reconcileDashboardService",
+    "reconcileDashboardNetworkPolicy",
     "reconcileVectorStore",
     "reconcileVectorService",
     "reconcileModelRuntime",
@@ -158,7 +162,8 @@ try {
       controller.includes("Owns(&corev1.ServiceAccount{})") &&
       controller.includes("Owns(&corev1.Service{})") &&
       controller.includes("Owns(&appsv1.Deployment{})") &&
-      controller.includes("Owns(&appsv1.StatefulSet{})"),
+      controller.includes("Owns(&appsv1.StatefulSet{})") &&
+      controller.includes("Owns(&networkingv1.NetworkPolicy{})"),
     "manager watches owned namespaced resources covered by the TS desired plan"
   );
 
@@ -200,6 +205,36 @@ try {
       controller.includes('TargetPort: intstr.FromString("https")') &&
       controller.includes('TargetPort: intstr.FromString("http")'),
     "API/dashboard HTTPS Services and vector/model HTTP Services mirror the TS plan ports"
+  );
+
+  const apiNetworkPolicy = findResource(plan, "NetworkPolicy", "cywell-opslens-api-ingress");
+  const dashboardNetworkPolicy = findResource(plan, "NetworkPolicy", "cywell-opslens-dashboard-ingress");
+  const networkPolicySources = (policy) =>
+    (policy?.spec?.ingress ?? []).flatMap((rule) =>
+      (rule.from ?? []).map((peer) => peer.namespaceSelector?.matchLabels?.["kubernetes.io/metadata.name"]).filter(Boolean)
+    );
+  const networkPolicyAllowsPort = (policy) =>
+    (policy?.spec?.ingress ?? []).some((rule) =>
+      (rule.ports ?? []).some((port) => port.protocol === "TCP" && port.port === 9443)
+    );
+
+  expectCheck(
+    "Go NetworkPolicy parity",
+    apiNetworkPolicy?.spec?.podSelector?.matchLabels?.["app.kubernetes.io/component"] === "api" &&
+      networkPolicySources(apiNetworkPolicy).includes("openshift-console") &&
+      networkPolicySources(apiNetworkPolicy).includes("openshift-lightspeed") &&
+      networkPolicyAllowsPort(apiNetworkPolicy) &&
+      dashboardNetworkPolicy?.spec?.podSelector?.matchLabels?.["app.kubernetes.io/component"] === "dashboard" &&
+      networkPolicySources(dashboardNetworkPolicy).includes("openshift-console") &&
+      networkPolicyAllowsPort(dashboardNetworkPolicy) &&
+      controller.includes("reconcileIngressNetworkPolicy") &&
+      controller.includes("networkingv1.NetworkPolicy") &&
+      controller.includes("openshift-console") &&
+      controller.includes("openshift-lightspeed") &&
+      controller.includes("kubernetes.io/metadata.name") &&
+      controller.includes("networkingv1.PolicyTypeIngress") &&
+      controller.includes("httpsContainerPort"),
+    "API/dashboard ingress NetworkPolicies mirror ConsolePlugin and Lightspeed source namespaces on TCP 9443"
   );
 
   expectCheck(
@@ -273,6 +308,13 @@ try {
     hasRuleFor(clusterRole?.rules ?? [], "", "serviceaccounts", ["get", "create", "patch"]) &&
       hasRuleFor(csvRules, "", "serviceaccounts", ["get", "create", "patch"]),
     "config RBAC and CSV RBAC cover the service account reconciled by Go"
+  );
+
+  expectCheck(
+    "RBAC NetworkPolicy parity",
+    hasRuleFor(clusterRole?.rules ?? [], "networking.k8s.io", "networkpolicies", ["get", "create", "patch"]) &&
+      hasRuleFor(csvRules, "networking.k8s.io", "networkpolicies", ["get", "create", "patch"]),
+    "config RBAC and CSV RBAC cover the NetworkPolicies reconciled by Go"
   );
 
   expectCheck(
