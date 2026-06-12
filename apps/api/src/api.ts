@@ -23,6 +23,7 @@ import type {
   McpJsonRpcResponse,
   OpsLensAdminOverviewResponse,
   OpsLensCitation,
+  OpsLensImageBuildReadiness,
   OpsLensLightspeedMcpReadiness,
   OpsLensRemediationProposal,
   OpsLensRagEvidenceExportRequest,
@@ -294,10 +295,41 @@ type LightspeedReadinessEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type ImageBuildReadinessEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  branch?: string;
+  headSha?: string;
+  baseRef?: string;
+  worktreeDirty?: boolean;
+  dockerAvailable?: boolean;
+  internalBuilds?: Array<{
+    name?: string;
+    image?: string;
+  }>;
+  packagingBuilds?: Array<{
+    name?: string;
+    image?: string;
+  }>;
+  externalImages?: Array<{
+    name?: string;
+    image?: string;
+    certificationEvidenceRequired?: boolean;
+  }>;
+};
+
 function lightspeedReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_READINESS_EVIDENCE ??
     join(process.cwd(), "test-results", "cywell-opslens-lightspeed-readiness.json")
+  );
+}
+
+function imageBuildReadinessEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_IMAGE_BUILD_READINESS_EVIDENCE ??
+    join(process.cwd(), "test-results", "cywell-opslens-image-build-readiness.json")
   );
 }
 
@@ -317,6 +349,21 @@ function mapLightspeedReadinessStatus(
     return "failed";
   }
   return "needs-live-check";
+}
+
+function mapImageBuildReadinessStatus(
+  artifact: ImageBuildReadinessEvidenceArtifact
+): OpsLensImageBuildReadiness {
+  if (artifact.status === "FAIL") {
+    return "failed";
+  }
+  if (artifact.worktreeDirty) {
+    return "needs-evidence";
+  }
+  if (artifact.status === "PASS") {
+    return "ready";
+  }
+  return "needs-evidence";
 }
 
 function getLightspeedMcpReadiness(): {
@@ -367,11 +414,72 @@ function getLightspeedMcpReadiness(): {
   }
 }
 
+function getImageBuildReadiness(): {
+  status: OpsLensImageBuildReadiness;
+  evidence: string[];
+} {
+  const evidencePath = imageBuildReadinessEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      evidence: [
+        "run npm run verify:images to create image build readiness evidence",
+        "dashboard keeps image builds as needs-evidence until local image readiness evidence is available",
+        "image readiness view does not push images or mutate a cluster"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as ImageBuildReadinessEvidenceArtifact;
+    const status = mapImageBuildReadinessStatus(artifact);
+    const internalNames = (artifact.internalBuilds ?? [])
+      .map((build) => build.name)
+      .filter(Boolean)
+      .join(", ");
+    const packagingNames = (artifact.packagingBuilds ?? [])
+      .map((build) => build.name)
+      .filter(Boolean)
+      .join(", ");
+    const externalNames = (artifact.externalImages ?? [])
+      .filter((image) => image.certificationEvidenceRequired)
+      .map((image) => image.name)
+      .filter(Boolean)
+      .join(", ");
+
+    return {
+      status,
+      evidence: [
+        `Image readiness evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `image readiness generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.branch ?? "unknown"}@${artifact.headSha ?? "unknown"} base=${artifact.baseRef ?? "unknown"} dirty=${String(artifact.worktreeDirty ?? "unknown")}`,
+        `internal image contracts=${internalNames || "unknown"} packaging=${packagingNames || "unknown"} dockerAvailable=${String(artifact.dockerAvailable ?? "unknown")}`,
+        externalNames
+          ? `external runtime image certification evidence required for ${externalNames}`
+          : "external runtime image certification evidence not listed",
+        "admin overview reads image readiness evidence only; it does not build, push, or patch cluster resources"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      evidence: [
+        `Image readiness evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid image readiness evidence blocks overclaiming image build readiness"
+      ]
+    };
+  }
+}
+
 export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
   const documents = getOpsLensRagDocuments();
   const usedTokens = 784_200;
   const budgetTokens = 1_500_000;
   const lightspeedReadiness = getLightspeedMcpReadiness();
+  const imageBuildReadiness = getImageBuildReadiness();
 
   return {
     generatedAt: new Date().toISOString(),
@@ -507,15 +615,18 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
       lightspeedMcp: lightspeedReadiness.status,
       consoleDashboard: "prototype",
       operatorPackaging: "draft",
+      imageBuilds: imageBuildReadiness.status,
       certification: "draft",
       evidence: [
         ...lightspeedReadiness.evidence,
+        ...imageBuildReadiness.evidence,
         "Stage 1 MCP contract has verifier coverage",
         "Stage 2 incident packet has logs/events/metrics coverage",
         "Stage 3 dashboard is now served by /api/opslens/admin/overview",
         "Stage 4 Operator package skeleton is validated by npm run verify:operator",
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",
-        "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification"
+        "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
+        "Stage 5 image build readiness is validated by npm run verify:images"
       ]
     },
     policy: {

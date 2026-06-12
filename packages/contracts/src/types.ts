@@ -592,6 +592,11 @@ export type OpsLensLightspeedMcpReadiness =
   | "needs-configuration"
   | "failed";
 
+export type OpsLensImageBuildReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "failed";
+
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
@@ -612,6 +617,7 @@ export interface OpsLensAdminOverviewResponse {
     lightspeedMcp: OpsLensLightspeedMcpReadiness;
     consoleDashboard: "prototype" | "ready";
     operatorPackaging: "not-started" | "draft" | "ready";
+    imageBuilds: OpsLensImageBuildReadiness;
     certification: "not-started" | "draft" | "ready";
     evidence: string[];
   };

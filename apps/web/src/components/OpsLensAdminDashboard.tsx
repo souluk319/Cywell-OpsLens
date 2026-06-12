@@ -50,7 +50,8 @@ function statusClass(status: string) {
     status === "stale" ||
     status === "missing" ||
     status === "needs-live-check" ||
-    status === "needs-configuration"
+    status === "needs-configuration" ||
+    status === "needs-evidence"
   ) {
     return "stale";
   }
@@ -494,6 +495,7 @@ export function OpsLensAdminDashboard() {
                   "Lightspeed MCP": overview.installReadiness.lightspeedMcp,
                   "Console Dashboard": overview.installReadiness.consoleDashboard,
                   Operator: overview.installReadiness.operatorPackaging,
+                  "Image Builds": overview.installReadiness.imageBuilds,
                   Certification: overview.installReadiness.certification
                 }).map(([label, value]) => (
                   <div key={label}>
