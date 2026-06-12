@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { request as httpsRequest } from "node:https";
+import { dirname, join, parse, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -60,6 +62,7 @@ const options = {
 };
 
 const checks = [];
+let loadedEnv = false;
 
 function record(status, name, detail) {
   checks.push({ status, name, detail });
@@ -94,6 +97,184 @@ async function runOc(args) {
       .filter(Boolean)
       .join("\n");
     throw new Error(message);
+  }
+}
+
+function findEnvFile(start = process.cwd()) {
+  let current = resolve(start);
+  const root = parse(current).root;
+
+  while (true) {
+    const candidate = join(current, ".env");
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+    if (current === root) {
+      return undefined;
+    }
+    current = dirname(current);
+  }
+}
+
+function loadEnvFile(path = findEnvFile()) {
+  if (loadedEnv || !path || !existsSync(path)) {
+    loadedEnv = true;
+    return;
+  }
+
+  const content = readFileSync(path, "utf8");
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+
+    const index = line.indexOf("=");
+    if (index < 0) {
+      continue;
+    }
+
+    const key = line.slice(0, index).trim();
+    let value = line.slice(index + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+
+  loadedEnv = true;
+}
+
+function firstEnv(...keys) {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value !== undefined) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function boolFromEnv(value, defaultValue) {
+  if (value === undefined) {
+    return defaultValue;
+  }
+  return !["0", "false", "no", "off"].includes(value.toLowerCase());
+}
+
+function ocpTlsVerifyFromEnv() {
+  const explicitVerify = firstEnv(
+    "OCP_TLS_VERIFY",
+    "OPENSHIFT_API_TLS_VERIFY",
+    "KUBE_TLS_VERIFY"
+  );
+  if (explicitVerify !== undefined) {
+    return boolFromEnv(explicitVerify, true);
+  }
+
+  const insecureSkip = firstEnv(
+    "OCP_INSECURE_SKIP_TLS_VERIFY",
+    "OPENSHIFT_API_INSECURE_SKIP_TLS_VERIFY",
+    "KUBE_INSECURE_SKIP_TLS_VERIFY"
+  );
+  if (insecureSkip !== undefined) {
+    return !boolFromEnv(insecureSkip, false);
+  }
+
+  return true;
+}
+
+function ocpApiConfig() {
+  loadEnvFile();
+  return {
+    baseUrl: firstEnv("OCP_API_BASE_URL", "OPENSHIFT_API_BASE_URL", "KUBE_API_BASE_URL"),
+    token: firstEnv("OCP_API_TOKEN", "OPENSHIFT_API_TOKEN", "KUBE_API_TOKEN"),
+    tlsVerify: ocpTlsVerifyFromEnv()
+  };
+}
+
+function runOcpApi(path) {
+  const config = ocpApiConfig();
+  if (!config.baseUrl || !config.token) {
+    throw new Error("OCP_API_BASE_URL/OCP_API_TOKEN are not configured");
+  }
+
+  const url = new URL(path, config.baseUrl);
+
+  return new Promise((resolveRequest, rejectRequest) => {
+    const request = httpsRequest(
+      url,
+      {
+        method: "GET",
+        rejectUnauthorized: config.tlsVerify,
+        timeout: options.timeoutMs,
+        headers: {
+          accept: "application/json",
+          authorization: `Bearer ${config.token}`
+        }
+      },
+      (response) => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk) => {
+          body += chunk;
+        });
+        response.on("end", () => {
+          if ((response.statusCode ?? 500) >= 400) {
+            rejectRequest(
+              new Error(`${response.statusCode} ${response.statusMessage}: ${body}`)
+            );
+            return;
+          }
+          try {
+            resolveRequest(asJson(body, `OCP API GET ${path}`));
+          } catch (error) {
+            rejectRequest(error);
+          }
+        });
+      }
+    );
+
+    request.on("timeout", () => {
+      request.destroy(new Error(`OCP API GET ${path} timed out`));
+    });
+    request.on("error", rejectRequest);
+    request.end();
+  });
+}
+
+async function readLiveJson({ ocArgs, apiPath, ocSource, apiSource }) {
+  try {
+    const output = await runOc(ocArgs);
+    return {
+      source: "oc",
+      json: asJson(output, ocSource)
+    };
+  } catch (ocError) {
+    try {
+      const json = await runOcpApi(apiPath);
+      warn(
+        "oc fallback",
+        `oc read failed, loaded ${apiSource} through OCP API env without printing secrets`
+      );
+      return {
+        source: "ocp-api",
+        json
+      };
+    } catch (apiError) {
+      throw new Error(
+        [
+          `oc failed: ${ocError.message}`,
+          `OCP API fallback failed: ${apiError.message}`
+        ].join("\n")
+      );
+    }
   }
 }
 
@@ -140,9 +321,20 @@ async function loadCrd() {
     return asJson(fixtureText, fixturePath);
   }
 
-  const output = await runOc(["get", "crd", "olsconfigs.ols.openshift.io", "-o", "json"]);
-  pass("CRD source", "loaded live olsconfigs.ols.openshift.io through oc");
-  return asJson(output, "oc get crd olsconfigs.ols.openshift.io");
+  const result = await readLiveJson({
+    ocArgs: ["get", "crd", "olsconfigs.ols.openshift.io", "-o", "json"],
+    apiPath:
+      "/apis/apiextensions.k8s.io/v1/customresourcedefinitions/olsconfigs.ols.openshift.io",
+    ocSource: "oc get crd olsconfigs.ols.openshift.io",
+    apiSource: "olsconfigs.ols.openshift.io CRD"
+  });
+  pass(
+    "CRD source",
+    result.source === "oc"
+      ? "loaded live olsconfigs.ols.openshift.io through oc"
+      : "loaded live olsconfigs.ols.openshift.io through OCP API env"
+  );
+  return result.json;
 }
 
 async function validateTemplate() {
@@ -249,24 +441,34 @@ function validateCrdSchema(crd) {
   }
 }
 
-async function validateCurrentOlsConfig() {
+async function validateCurrentOlsConfig(crd) {
   if (options.crdFixture) {
     warn("live OLSConfig", "skipped current OLSConfig read because --crd-fixture is in use");
     return;
   }
 
+  const namespaced = crd.spec?.scope !== "Cluster";
+  const ocArgs = namespaced
+    ? ["get", "olsconfig", options.name, "-n", options.namespace, "-o", "json"]
+    : ["get", "olsconfig", options.name, "-o", "json"];
+  const apiPath = namespaced
+    ? `/apis/ols.openshift.io/v1alpha1/namespaces/${encodeURIComponent(
+        options.namespace
+      )}/olsconfigs/${encodeURIComponent(options.name)}`
+    : `/apis/ols.openshift.io/v1alpha1/olsconfigs/${encodeURIComponent(options.name)}`;
+  const configLabel = namespaced
+    ? `${options.namespace}/${options.name}`
+    : options.name;
+
   try {
-    const output = await runOc([
-      "get",
-      "olsconfig",
-      options.name,
-      "-n",
-      options.namespace,
-      "-o",
-      "json"
-    ]);
-    const config = asJson(output, `oc get olsconfig ${options.name}`);
-    pass("live OLSConfig", `${options.namespace}/${options.name} is readable`);
+    const result = await readLiveJson({
+      ocArgs,
+      apiPath,
+      ocSource: `oc get olsconfig ${options.name}`,
+      apiSource: `${configLabel} OLSConfig`
+    });
+    const config = result.json;
+    pass("live OLSConfig", `${configLabel} is readable`);
 
     const featureGates = config.spec?.featureGates ?? [];
     if (featureGates.includes("MCPServer")) {
@@ -283,7 +485,7 @@ async function validateCurrentOlsConfig() {
       warn("live Cywell MCP registration", "cywell-opslens is not registered yet");
     }
   } catch (error) {
-    const message = `${options.namespace}/${options.name} is not readable: ${error.message}`;
+    const message = `${configLabel} is not readable: ${error.message}`;
     if (options.strictInstance) {
       fail("live OLSConfig", message);
     } else {
@@ -427,7 +629,7 @@ try {
   await validateTemplate();
   const crd = await loadCrd();
   validateCrdSchema(crd);
-  await validateCurrentOlsConfig();
+  await validateCurrentOlsConfig(crd);
   await validateMcpEndpoint();
 } catch (error) {
   fail("smoke verifier", error.message);
