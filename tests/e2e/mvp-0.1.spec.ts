@@ -63,7 +63,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     }
 
     await page.screenshot({
-      path: "test-results/ac-ui-001-alerts-non-occluding.png",
+      path: "test-results/playwright/ac-ui-001-alerts-non-occluding.png",
       fullPage: false
     });
   });
