@@ -29,7 +29,7 @@ Primary references:
 | 2. AI Ops pipeline | Combine alerts with logs, metrics, events, and plan-only remediation proposals | `/api/opslens/incidents/analyze`, OCP read-only APIs, private RAG citations, `propose_remediation` plan-only tool | Alert-driven prompt includes last 10 minutes of logs/events/Prometheus metrics without mutation |
 | 3. Dedicated dashboard | Provide monitoring, token usage, validate-only RAG document management, evidence export, and plugin links | `/api/opslens/admin/overview`, `/api/opslens/admin/rag/validate`, `/api/opslens/admin/rag/evidence-export`, OpsLens Admin Dashboard, future ConsolePlugin route | Dashboard surfaces RAG health, validate-only draft checks, audit-safe evidence export, token usage, GPU/runtime samples, incident metric status, and install readiness |
 | 4. Operator packaging | Install API, vector DB, dashboard, RAG safety policy, Console/Lightspeed ingress policy, and MCP registration as one product | `deploy/operator/config/**`, `deploy/operator/bundle/**`, `deploy/operator/controller-runtime/**`, `packages/operator-controller`, `OpsLensInstallation.spec.rag`, `cywell-opslens-rag-policy`, ingress NetworkPolicies, CSV, static package verifier, live server-side dry-run preflight, install approval plan, OLSConfig reconciliation core | Static package, Go source parity, reconcile verifiers, non-mutating live dry-run, and install approval plan pass first; human-approved live install/upgrade/uninstall smoke follows |
-| 5. Certification/GTM | Prepare Red Hat catalog and B2B packaging | `deploy/catalog/**`, scorecard config, certification annotations, security/support/release docs, readiness verifier, release publish approval plan | Static catalog/certification readiness and no-push release publish plan pass first; Red Hat hosted/local certification pipeline and Partner Connect submission follow |
+| 5. Certification/GTM | Prepare Red Hat catalog and B2B packaging | `deploy/catalog/**`, scorecard config, certification annotations, security/support/release docs, readiness verifier, external runtime certification/mirroring plan, release publish approval plan | Static catalog/certification readiness, no-mirror external runtime plan, and no-push release publish plan pass first; Red Hat hosted/local certification pipeline and Partner Connect submission follow |
 
 ## Stage 1 MVP Lock
 
@@ -69,7 +69,7 @@ Primary references:
 4. Replace the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs when runtime images are available.
 5. Build and test the scaffolded Go/controller-runtime Operator manager once Go and Operator SDK are available, then run live OLSConfig patch, install, upgrade, uninstall, and rollback smoke tests.
 6. Run a live OLM install/upgrade/uninstall smoke test once images and a lab OpenShift cluster are available.
-7. Run `npm run verify:release-plan` after same-HEAD actual image build evidence is fresh; then replace catalog/certification placeholders, run `opm`, `operator-sdk bundle validate`, `operator-sdk scorecard`, image scanning, and Partner Connect submission once external tooling and images are available.
+7. Run `npm run verify:external-runtime-plan` and `npm run verify:release-plan` after same-HEAD actual image build evidence is fresh; then collect vLLM/Qdrant digest, scan, SBOM, provenance, mirror, and approval evidence, replace catalog/certification placeholders, run `opm`, `operator-sdk bundle validate`, `operator-sdk scorecard`, image scanning, and Partner Connect submission once external tooling and images are available.
 
 ## Stage 4 Package Lock
 
@@ -105,6 +105,7 @@ Primary references:
 - CSV and bundle annotations for package, supported OpenShift version range, support, subscription, disconnected, proxy, TLS, and FIPS readiness intent.
 - Security, support matrix, and release gate documents.
 - `npm run verify:certification` as the catalog/certification readiness verifier.
+- `npm run verify:external-runtime-plan` as the no-mirror vLLM/Qdrant certification, scan, SBOM, provenance, mirror digest, approval, risk, and rollback contract.
 - `npm run verify:release-plan` as the no-push image publish, signing, mirroring, and catalog publication approval contract.
 
 ### Out Of Scope

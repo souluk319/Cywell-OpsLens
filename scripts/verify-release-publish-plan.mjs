@@ -11,6 +11,7 @@ const execFileAsync = promisify(execFile);
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-release-publish-plan.json",
   imageEvidence: "test-results/cywell-opslens-image-build-readiness.json",
+  externalRuntimeEvidence: "test-results/cywell-opslens-external-runtime-images-plan.json",
   catalogSource: "deploy/catalog/openshift/catalogsource.yaml",
   subscription: "deploy/catalog/openshift/subscription.yaml",
   csv: "deploy/operator/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml",
@@ -38,6 +39,7 @@ const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   imageEvidence: parsed.get("image-evidence") ?? defaults.imageEvidence,
+  externalRuntimeEvidence: parsed.get("external-runtime-evidence") ?? defaults.externalRuntimeEvidence,
   catalogSource: parsed.get("catalog-source") ?? defaults.catalogSource,
   subscription: parsed.get("subscription") ?? defaults.subscription,
   csv: parsed.get("csv") ?? defaults.csv,
@@ -133,6 +135,14 @@ function loadJsonArtifact(path, label) {
   }
 }
 
+function artifactHeadSha(artifact) {
+  return artifact?.headSha ?? artifact?.ref?.headSha;
+}
+
+function artifactDirty(artifact) {
+  return artifact?.worktreeDirty ?? artifact?.ref?.worktreeDirty;
+}
+
 function relatedImages(csv) {
   return new Map((csv?.spec?.relatedImages ?? []).map((entry) => [entry.name, entry.image]));
 }
@@ -159,10 +169,13 @@ function requiredPublishImages(imageEvidence, catalogSource) {
   return images;
 }
 
-function buildEvidenceGaps(imageEvidence, publishImages, currentHeadSha, currentWorktreeDirty) {
+function buildEvidenceGaps(imageEvidence, externalRuntimeEvidence, publishImages, currentHeadSha, currentWorktreeDirty) {
   const actualBuilds = imageEvidence?.actualBuilds ?? [];
   const actualBuildStatus = new Map(actualBuilds.map((build) => [build.name, build.status]));
   const buildRequiredNames = ["operator", "api", "dashboard", "bundle", "catalog"];
+  const externalRuntimeStatus = new Map(
+    (externalRuntimeEvidence?.externalImages ?? []).map((image) => [image.name, image.status])
+  );
   const gaps = [];
 
   if (currentWorktreeDirty) {
@@ -181,6 +194,26 @@ function buildEvidenceGaps(imageEvidence, publishImages, currentHeadSha, current
     gaps.push("run npm run verify:images:build before publishing release images");
   }
 
+  if (!externalRuntimeEvidence) {
+    gaps.push("run npm run verify:external-runtime-plan before publishing or mirroring external runtime images");
+  } else {
+    if (externalRuntimeEvidence.status !== "APPROVAL_REQUIRED") {
+      gaps.push(`external runtime images plan status=${externalRuntimeEvidence.status ?? "missing"}`);
+    }
+    if (artifactDirty(externalRuntimeEvidence) !== false) {
+      gaps.push(`external runtime images plan worktreeDirty=${String(artifactDirty(externalRuntimeEvidence) ?? "unknown")}`);
+    }
+    if (artifactHeadSha(externalRuntimeEvidence) !== currentHeadSha) {
+      gaps.push(`external runtime images plan headSha=${artifactHeadSha(externalRuntimeEvidence) ?? "missing"} currentHead=${currentHeadSha}`);
+    }
+    if (
+      externalRuntimeEvidence.registryMutationAttempted !== false ||
+      externalRuntimeEvidence.clusterMutationAttempted !== false
+    ) {
+      gaps.push("external runtime images plan must show registryMutationAttempted=false and clusterMutationAttempted=false");
+    }
+  }
+
   for (const name of buildRequiredNames) {
     const status = actualBuildStatus.get(name);
     if (status !== "PASS") {
@@ -190,7 +223,12 @@ function buildEvidenceGaps(imageEvidence, publishImages, currentHeadSha, current
 
   for (const image of publishImages) {
     if (image.certificationEvidenceRequired) {
-      gaps.push(`${image.name} external image requires certification and mirroring evidence before Certified Operator submission`);
+      const runtimeStatus = externalRuntimeStatus.get(image.name);
+      if (runtimeStatus !== "ready") {
+        gaps.push(
+          `${image.name} external image requires certification and mirroring evidence before Certified Operator submission; external runtime status=${runtimeStatus ?? "missing"}`
+        );
+      }
     }
   }
 
@@ -250,8 +288,8 @@ function buildCommands(publishImages, catalogSource, subscription) {
     command(
       "run-release-preflight",
       "preflight",
-      "npm run verify:images:build && npm run verify:certification && npm run verify:release-plan",
-      "Regenerate local image build, certification, and release publish evidence before external mutations.",
+      "npm run verify:images:build && npm run verify:certification && npm run verify:external-runtime-plan && npm run verify:release-plan",
+      "Regenerate local image build, certification, external runtime, and release publish evidence before external mutations.",
       "No rollback is required for local preflight.",
       false
     ),
@@ -311,6 +349,7 @@ async function buildPlan() {
     loadSingleYaml(options.csv)
   ]);
   const imageEvidence = loadJsonArtifact(options.imageEvidence, "Image readiness evidence");
+  const externalRuntimeEvidence = loadJsonArtifact(options.externalRuntimeEvidence, "External runtime images plan evidence");
   const csvImages = relatedImages(csv);
   const publishImages = requiredPublishImages(imageEvidence, catalogSource);
   const currentHeadSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -350,6 +389,7 @@ async function buildPlan() {
 
   const missingEvidence = buildEvidenceGaps(
     imageEvidence,
+    externalRuntimeEvidence,
     publishImages,
     currentHeadSha,
     worktreeStatus.length > 0
@@ -407,6 +447,7 @@ async function buildPlan() {
     ],
     evidenceSources: {
       imageReadiness: resolve(options.imageEvidence),
+      externalRuntimeImagesPlan: resolve(options.externalRuntimeEvidence),
       catalogSource: resolve(options.catalogSource),
       subscription: resolve(options.subscription),
       csv: resolve(options.csv)

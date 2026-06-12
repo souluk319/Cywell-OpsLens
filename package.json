@@ -27,6 +27,7 @@
     "verify:certification": "node ./scripts/verify-certification-readiness.mjs",
     "verify:images": "node ./scripts/verify-image-build-readiness.mjs",
     "verify:images:build": "node ./scripts/verify-image-build-readiness.mjs --build",
+    "verify:external-runtime-plan": "node ./scripts/verify-external-runtime-images-plan.mjs",
     "verify:release-plan": "node ./scripts/verify-release-publish-plan.mjs",
     "verify:lightspeed": "node ./scripts/verify-lightspeed-mcp.mjs",
     "verify:lightspeed:patch-preview": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-lightspeed-mcp.mjs --patch-preview --skip-mcp",
