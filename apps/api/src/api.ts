@@ -389,6 +389,22 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
             missingEvidence: []
           }
         ],
+        remediationProposal: createPlanOnlyRemediationProposal({
+          namespace: "payments-prod",
+          workload: "payments-api",
+          targetName: "payments-api",
+          targetConfidence: "medium",
+          currentValue: "2Gi",
+          currentValueSource: "runbook-baseline",
+          currentValueObservedInCluster: false,
+          evidence: [
+            "admin overview uses the same remediation proposal contract as incident analysis",
+            "memory query_range is available for dashboard charting"
+          ],
+          missingEvidence: [
+            "live Deployment spec still needs approval-path review"
+          ]
+        }),
         lastAnalyzedAt: new Date().toISOString()
       }
     ],

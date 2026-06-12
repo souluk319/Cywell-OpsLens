@@ -10,6 +10,7 @@ import {
   Cpu,
   DatabaseZap,
   Download,
+  FileDiff,
   Gauge,
   ShieldCheck,
   UploadCloud
@@ -107,6 +108,17 @@ export function OpsLensAdminDashboard() {
   const metricQueries = overview?.incidents.flatMap(
     (incident) => incident.metricQueries
   );
+  const remediationProposals =
+    overview?.incidents.flatMap((incident) =>
+      incident.remediationProposal
+        ? [
+            {
+              incident,
+              proposal: incident.remediationProposal
+            }
+          ]
+        : []
+    ) ?? [];
   const validationFailed = validation?.issues.some(
     (issue) => issue.severity === "fail"
   );
@@ -405,6 +417,57 @@ export function OpsLensAdminDashboard() {
                 </span>
                 <strong>{query.name}</strong>
                 <small>{query.sampleCount} samples</small>
+              </div>
+            ))}
+          </div>
+          <div
+            className="remediation-review-list"
+            data-testid="opslens-remediation-proposals"
+          >
+            {remediationProposals.map(({ incident, proposal }) => (
+              <div
+                className="remediation-review"
+                data-testid="opslens-remediation-proposal"
+                key={`${incident.incidentId}-${proposal.target.name}`}
+              >
+                <div className="card-title-row compact">
+                  <div>
+                    <h4>{incident.alertName}</h4>
+                    <small>
+                      {proposal.target.kind}/{proposal.target.name}
+                    </small>
+                  </div>
+                  <FileDiff size={18} aria-hidden="true" />
+                </div>
+                <div className="remediation-target-grid">
+                  <div>
+                    <span>Mode</span>
+                    <strong>{proposal.actionMode}</strong>
+                  </div>
+                  <div>
+                    <span>Patch</span>
+                    <strong>{proposal.patchType}</strong>
+                  </div>
+                  <div>
+                    <span>Current</span>
+                    <strong>{proposal.currentValue.value}</strong>
+                  </div>
+                  <div>
+                    <span>Proposed</span>
+                    <strong>{proposal.proposedValue.value}</strong>
+                  </div>
+                </div>
+                <pre className="remediation-yaml">{proposal.yamlPatch}</pre>
+                <div className="admin-evidence-line">
+                  <span>mutationAllowed=false</span>
+                  <span>reviewGate={String(proposal.reviewGate.required)}</span>
+                  <span>targetConfidence={proposal.target.confidence}</span>
+                  <span>{proposal.target.fieldPath}</span>
+                </div>
+                <div className="remediation-notes">
+                  <p>{proposal.risks[0]}</p>
+                  <p>{proposal.rollbackPath[0]}</p>
+                </div>
               </div>
             ))}
           </div>

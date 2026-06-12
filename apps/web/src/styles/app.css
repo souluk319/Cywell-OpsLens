@@ -811,6 +811,96 @@ button {
   font-weight: 750;
 }
 
+.remediation-review-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #ededed;
+}
+
+.remediation-review {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.card-title-row.compact h4 {
+  margin: 0;
+  color: #151515;
+  font-size: 0.9rem;
+}
+
+.card-title-row.compact small {
+  display: block;
+  margin-top: 2px;
+  color: #6a6e73;
+  font-size: 0.75rem;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.remediation-target-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.remediation-target-grid div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.remediation-target-grid span {
+  color: #6a6e73;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.remediation-target-grid strong {
+  color: #151515;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.remediation-yaml {
+  min-height: 168px;
+  max-height: 220px;
+  margin: 0;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #151515;
+  color: #f4f4f4;
+  font-family: "Red Hat Mono", Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+.remediation-notes {
+  display: grid;
+  gap: 6px;
+}
+
+.remediation-notes p {
+  margin: 0;
+  color: #4f5255;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .readiness-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1825,6 +1915,7 @@ button {
   .resource-query-controls,
   .route-usage-row,
   .metric-query-row,
+  .remediation-target-grid,
   .rag-validation-fields,
   .rag-validation-result li,
   .readiness-grid {

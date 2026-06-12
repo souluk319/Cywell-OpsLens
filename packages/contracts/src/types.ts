@@ -582,6 +582,7 @@ export interface OpsLensAdminIncidentMetricSummary {
   workload: string;
   actionMode: "planOnly";
   metricQueries: OpsLensAdminMetricQueryStatus[];
+  remediationProposal?: OpsLensRemediationProposal;
   lastAnalyzedAt: string;
 }
 

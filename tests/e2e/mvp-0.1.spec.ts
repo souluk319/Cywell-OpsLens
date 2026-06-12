@@ -761,6 +761,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       };
       incidents?: Array<{
         metricQueries?: Array<{ name?: string; status?: string }>;
+        remediationProposal?: {
+          artifactType?: string;
+          actionMode?: string;
+          mutationAllowed?: boolean;
+          patchType?: string;
+          target?: {
+            kind?: string;
+            name?: string;
+            fieldPath?: string;
+            confidence?: string;
+          };
+          currentValue?: { value?: string; source?: string };
+          proposedValue?: { value?: string; source?: string };
+          yamlPatch?: string;
+          forbiddenActions?: string[];
+          reviewGate?: { required?: boolean };
+        };
       }>;
       installReadiness?: {
         lightspeedMcp?: string;
@@ -805,6 +822,34 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "pod-memory"
       ])
     );
+    expect(body.incidents?.[0]?.remediationProposal).toMatchObject({
+      artifactType: "opslens.remediation.proposal.v0.1",
+      actionMode: "planOnly",
+      mutationAllowed: false,
+      patchType: "strategicMerge"
+    });
+    expect(
+      body.incidents?.[0]?.remediationProposal?.target?.fieldPath
+    ).toContain("resources.limits.memory");
+    expect(body.incidents?.[0]?.remediationProposal?.currentValue).toMatchObject({
+      value: "2Gi",
+      source: "runbook-baseline"
+    });
+    expect(body.incidents?.[0]?.remediationProposal?.proposedValue).toMatchObject({
+      value: "4Gi",
+      source: "candidate-remediation"
+    });
+    expect(body.incidents?.[0]?.remediationProposal?.yamlPatch).toContain(
+      "memory: 4Gi"
+    );
+    expect(body.incidents?.[0]?.remediationProposal?.forbiddenActions).toEqual([
+      "apply",
+      "delete",
+      "scale"
+    ]);
+    expect(body.incidents?.[0]?.remediationProposal?.reviewGate).toMatchObject({
+      required: true
+    });
     expect(body.installReadiness?.lightspeedMcp).toBe("ready");
     expect(body.installReadiness?.operatorPackaging).toBe("draft");
     expect(body.installReadiness?.certification).toBe("draft");
@@ -948,6 +993,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-incident-metrics")).toContainText(
       "pod-memory"
+    );
+    await expect(page.getByTestId("opslens-remediation-proposal")).toContainText(
+      "PodCrashLooping"
+    );
+    await expect(page.getByTestId("opslens-remediation-proposal")).toContainText(
+      "memory: 4Gi"
+    );
+    await expect(page.getByTestId("opslens-remediation-proposal")).toContainText(
+      "mutationAllowed=false"
+    );
+    await expect(page.getByTestId("opslens-remediation-proposal")).toContainText(
+      "reviewGate=true"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Certification"
