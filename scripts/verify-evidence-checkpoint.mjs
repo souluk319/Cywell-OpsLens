@@ -19,6 +19,7 @@ const evidenceDefaults = {
   runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
   ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
+  lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ocpConnectivity: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
@@ -301,6 +302,62 @@ function checkLightspeedRoutingScore(routingArtifact) {
   );
 }
 
+function checkLightspeedTrojanHorse(trojanArtifact) {
+  if (!trojanArtifact) return;
+  const violations = [];
+  const scenario = trojanArtifact.scenario ?? {};
+  const primaryCall = trojanArtifact.primaryCall ?? {};
+  const redactionProbe = trojanArtifact.redactionProbe ?? {};
+  const policy = trojanArtifact.policy ?? {};
+  const toolCatalog = trojanArtifact.toolCatalog ?? {};
+
+  if (scenario.userQuestion !== "우리 회사 결제 시스템 Pod 장애 대응 매뉴얼 알려줘") {
+    violations.push("exact-question");
+  }
+  if (scenario.selectedTool !== "generate_playbook") {
+    violations.push("selectedTool");
+  }
+  if (primaryCall.passed !== true) {
+    violations.push("primaryCall");
+  }
+  if (primaryCall.customerRunbookCitationFound !== true) {
+    violations.push("customerRunbookCitation");
+  }
+  if (redactionProbe.passed !== true || redactionProbe.redactedSecret !== true) {
+    violations.push("serverSideRedaction");
+  }
+  if (toolCatalog.mutatingToolExcluded !== true || toolCatalog.allReadOnly !== true) {
+    violations.push("toolCatalogSafety");
+  }
+  if (
+    policy.rawDocumentReturned !== false ||
+    policy.mutationAllowed !== false ||
+    policy.mcpTechnologyPreview !== true ||
+    policy.privateRag !== true
+  ) {
+    violations.push("policy");
+  }
+  if (
+    trojanArtifact.clusterMutationAttempted === true ||
+    trojanArtifact.registryMutationAttempted === true ||
+    trojanArtifact.vectorWriteAttempted === true ||
+    trojanArtifact.ingestionJobCreated === true ||
+    trojanArtifact.mutationAllowedByThisVerifier === true
+  ) {
+    violations.push("mutationBoundary");
+  }
+
+  if (violations.length > 0) {
+    fail("Lightspeed Trojan Horse exact question", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "Lightspeed Trojan Horse exact question",
+    "exact Korean custom question returns generate_playbook with customer-runbook citations, redaction, and no mutation"
+  );
+}
+
 function checkRagApprovalQueuePolicy(queueArtifact) {
   if (!queueArtifact) return;
   const policy = queueArtifact.policy ?? {};
@@ -530,6 +587,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "lightspeedTrojanHorse",
+    label: "Lightspeed Trojan Horse exact question",
+    artifact: artifacts.lightspeedTrojanHorse,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "imageBuild",
     label: "image build readiness",
     artifact: artifacts.imageBuild,
@@ -594,6 +658,7 @@ async function main() {
   });
 
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
+  checkLightspeedTrojanHorse(artifacts.lightspeedTrojanHorse);
   checkRagApprovalQueuePolicy(artifacts.ragApprovalQueue);
   checkInstallPlanRagIngestion(artifacts.installPlan);
   checkImageActualBuilds(artifacts.imageBuild);

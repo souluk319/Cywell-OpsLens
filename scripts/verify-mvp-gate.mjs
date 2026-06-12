@@ -98,6 +98,13 @@ const steps = [
     purpose: "Verify 10 representative Lightspeed questions select expected read-only OpsLens MCP tools and return safe structured responses."
   },
   {
+    id: "LIGHTSPEED-TROJAN-HORSE",
+    command: "npm",
+    args: ["run", "verify:lightspeed:trojan-horse"],
+    acceptance: ["AC-LS-001"],
+    purpose: "Verify the exact Stage 1 Korean Lightspeed custom question returns a private-RAG grounded read-only playbook through /mcp."
+  },
+  {
     id: "OPERATOR-PACKAGE",
     command: "npm",
     args: ["run", "verify:operator"],

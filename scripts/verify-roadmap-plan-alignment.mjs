@@ -253,10 +253,12 @@ async function main() {
         /커스텀 MCP|custom MCP/i
       ]),
       laneRequirement(checkpoint, "lightspeedRouting", "10-question Lightspeed tool routing score"),
+      laneRequirement(checkpoint, "lightspeedTrojanHorse", "Exact Korean Trojan Horse custom question"),
       laneRequirement(checkpoint, "ocpConnectivity", "Live OCP connectivity diagnostic", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "lightspeedReadiness", "Live Lightspeed/OCP readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "liveHandoff", "Read-only live evidence handoff"),
-      mvpRequirement(mvpGate, "LIGHTSPEED-ROUTING", "MVP Lightspeed routing verifier")
+      mvpRequirement(mvpGate, "LIGHTSPEED-ROUTING", "MVP Lightspeed routing verifier"),
+      mvpRequirement(mvpGate, "LIGHTSPEED-TROJAN-HORSE", "MVP exact Trojan Horse verifier")
     ]),
     stage("stage-2-aiops-pipeline", "Cywell AI Ops incident pipeline", [
       planTextRequirement(planText, "plan-aiops", "Plan names logs, metrics, and YAML remediation recommendation", [

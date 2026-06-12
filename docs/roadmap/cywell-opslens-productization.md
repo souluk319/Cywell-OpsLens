@@ -25,7 +25,7 @@ Primary references:
 
 | Stage | Goal | Repo Contract | Completion Gate |
 |---|---|---|---|
-| 1. Lightspeed MCP validation | Route internal/custom questions from Lightspeed to Cywell OpsLens | `/mcp`, `/api/opslens/tools`, `/api/opslens/ask`, `/api/opslens/runtime/readiness`, `apps/api/src/runtimeRag.ts`, `packages/rag`, `deploy/lightspeed/olsconfig-cywell-opslens-mcp.yaml` | AC-LS-001 and AC-RAG-001 pass; `npm run verify:lightspeed:routing` proves at least 8 of 10 representative Lightspeed questions select the expected read-only tool and return safe structured responses; runtime readiness contract proves Qdrant/vLLM endpoint wiring; runtime RAG contract proves default local fallback and opt-in Qdrant/vLLM retrieval; a live OLSConfig smoke test proves `tools/list` + `tools/call` |
+| 1. Lightspeed MCP validation | Route internal/custom questions from Lightspeed to Cywell OpsLens | `/mcp`, `/api/opslens/tools`, `/api/opslens/ask`, `/api/opslens/runtime/readiness`, `apps/api/src/runtimeRag.ts`, `packages/rag`, `deploy/lightspeed/olsconfig-cywell-opslens-mcp.yaml` | AC-LS-001 and AC-RAG-001 pass; `npm run verify:lightspeed:trojan-horse` proves the exact Korean Stage 1 prompt returns a private-RAG grounded `generate_playbook` response through `/mcp`; `npm run verify:lightspeed:routing` proves at least 8 of 10 representative Lightspeed questions select the expected read-only tool and return safe structured responses; runtime readiness contract proves Qdrant/vLLM endpoint wiring; runtime RAG contract proves default local fallback and opt-in Qdrant/vLLM retrieval; a live OLSConfig smoke test proves `tools/list` + `tools/call` |
 | 2. AI Ops pipeline | Combine alerts with logs, metrics, events, and plan-only remediation proposals | `/api/opslens/incidents/analyze`, OCP read-only APIs, private RAG citations, `propose_remediation` plan-only tool | Alert-driven prompt includes last 10 minutes of logs/events/Prometheus metrics without mutation |
 | 3. Dedicated dashboard | Provide monitoring, token usage, validate-only RAG document management, evidence export, and plugin links | `/api/opslens/admin/overview`, `/api/opslens/admin/rag/validate`, `/api/opslens/admin/rag/evidence-export`, OpsLens Admin Dashboard, future ConsolePlugin route | Dashboard surfaces RAG health, validate-only draft checks, audit-safe evidence export, token usage, GPU/runtime samples, incident metric status, install readiness, and plan-only RAG ingestion readiness |
 | 4. Operator packaging | Install API, vector DB, dashboard, RAG safety policy, Console/Lightspeed ingress policy, and MCP registration as one product | `deploy/operator/config/**`, `deploy/operator/bundle/**`, `deploy/operator/controller-runtime/**`, `packages/operator-controller`, `OpsLensInstallation.spec.rag`, `cywell-opslens-rag-policy`, ingress NetworkPolicies, CSV, static package verifier, live server-side dry-run preflight, install approval plan, OLSConfig reconciliation core | Static package, Go source parity, reconcile verifiers, non-mutating live dry-run, and install approval plan with RAG ingestion evidence pass first; human-approved live install/upgrade/uninstall smoke follows |
@@ -55,7 +55,7 @@ Primary references:
 | Requirement | Pass Evidence |
 |---|---|
 | Lightspeed can discover Cywell tools | `/mcp` JSON-RPC `tools/list` returns `generate_playbook` with read-only annotations |
-| Custom question can route to Cywell | `/mcp` JSON-RPC `tools/call` returns structured content with customer-runbook citations; `npm run verify:lightspeed:routing` passes the 10-question / 8-pass routing fixture |
+| Custom question can route to Cywell | `/mcp` JSON-RPC `tools/call` returns structured content with customer-runbook citations; `npm run verify:lightspeed:trojan-horse` passes the exact prompt `우리 회사 결제 시스템 Pod 장애 대응 매뉴얼 알려줘`; `npm run verify:lightspeed:routing` passes the 10-question / 8-pass routing fixture |
 | Sensitive content is controlled | Response has `rawDocumentReturned=false`, `serverSideRedaction=true`, and redacted prompt text |
 | Mutation is blocked | Tool catalog excludes `apply_remediation`, response has `mutationAllowed=false` |
 | Install path is visible | OLSConfig template exists under `deploy/lightspeed/` |
@@ -66,7 +66,7 @@ Primary references:
 
 ## Next Implementation Lane
 
-1. Run `npm run verify:evidence-checkpoint` after the latest dry-run, Lightspeed routing score, Lightspeed patch preview, `verify:images:build` actual image build evidence, release/runtime plans, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install, OLSConfig patch, image push, signing, or mirroring.
+1. Run `npm run verify:evidence-checkpoint` after the latest dry-run, exact Lightspeed Trojan Horse proof, Lightspeed routing score, Lightspeed patch preview, `verify:images:build` actual image build evidence, release/runtime plans, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install, OLSConfig patch, image push, signing, or mirroring.
 2. Run `npm run verify:live-handoff`, then execute the listed read-only commands from a machine that can reach the company OpenShift API: `npm run verify:operator:dry-run`, `npm run verify:lightspeed -- --mcp-url <cluster-or-local-mcp-url> --require-mcp`, and follow-up checkpoint refreshes.
 3. Harden the env-gated RAG approval queue bridge into a production database-backed workflow: `npm run verify:rag:approval-queue` now proves default design-only behavior, read-only inventory, opt-in local metadata-only persistence, metadata-only approve/reject reviews, and plan-only ingestion job artifacts, while `npm run verify:install-plan` pulls that evidence into the install approval board as `ingestionPlanOnly`; production database storage, production ingestion workers, and vector writes remain later lanes.
 4. Run `npm run verify:runtime-rag:fixture` before each runtime adapter change, then run `npm run verify:runtime -- --live` after Qdrant/vLLM services are reachable and enable `CYWELL_OPSLENS_RAG_RUNTIME_MODE=hybrid` for controlled live retrieval checks before replacing the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs.
@@ -89,7 +89,7 @@ Primary references:
 - `npm run verify:ocp:connectivity` as the read-only DNS/TCP/TLS/API/oc classifier for company OCP reachability gaps before live Lightspeed or Operator checks are trusted.
 - `npm run verify:install-plan` as the non-mutating human approval, risk, command, evidence, RAG ingestion plan-only, and rollback contract before mutating install or ingestion work.
 - `npm run verify:live-handoff` as the SRE-safe read-only command chain for collecting live OCP/Lightspeed/runtime evidence without approving install, OLSConfig patch, image push, mirroring, or ingestion.
-- `npm run verify:evidence-checkpoint` as the current-head evidence board for MVP, RAG approval queue, image, Operator dry-run, Lightspeed routing/readiness, external runtime, release, and install readiness.
+- `npm run verify:evidence-checkpoint` as the current-head evidence board for MVP, RAG approval queue, image, Operator dry-run, Lightspeed Trojan Horse/routing/readiness, external runtime, release, and install readiness.
 - `npm run verify:roadmap-plan` as the product-plan alignment board for `kugnus-idea/CywellOpsLens_plan.md` stages 1-5.
 - `packages/operator-controller` reconcile core with `ValidateOnly`, explicit `PatchOLSConfig`, evidence, missing evidence, risk, rollback path, assistant plan-only policy, and RAG approval queue mutation blocked.
 - `npm run verify:operator:reconcile` as the fixture-based reconcile verifier.
@@ -115,7 +115,7 @@ Primary references:
 - `npm run verify:certification` as the catalog/certification readiness verifier.
 - `npm run verify:external-runtime-plan` as the no-mirror vLLM/Qdrant certification, scan, SBOM, provenance, mirror digest, approval, risk, and rollback contract.
 - `npm run verify:release-plan` as the no-push image publish, signing, mirroring, and catalog publication approval contract.
-- `npm run verify:evidence-checkpoint` as the same-head Lightspeed routing, release, and install evidence checkpoint before any external publication or live install approval.
+- `npm run verify:evidence-checkpoint` as the same-head Lightspeed Trojan Horse/routing, release, and install evidence checkpoint before any external publication or live install approval.
 
 ### Out Of Scope
 

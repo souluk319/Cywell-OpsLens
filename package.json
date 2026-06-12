@@ -33,6 +33,7 @@
     "verify:runtime-rag": "node ./scripts/verify-runtime-rag-contract.mjs",
     "verify:runtime-rag:fixture": "node ./scripts/verify-runtime-rag-fixture.mjs",
     "verify:lightspeed:routing": "node ./scripts/verify-lightspeed-tool-routing.mjs",
+    "verify:lightspeed:trojan-horse": "node ./scripts/verify-lightspeed-trojan-horse.mjs",
     "verify:evidence-checkpoint": "node ./scripts/verify-evidence-checkpoint.mjs",
     "verify:roadmap-plan": "node ./scripts/verify-roadmap-plan-alignment.mjs",
     "verify:live-handoff": "node ./scripts/verify-live-evidence-handoff.mjs",

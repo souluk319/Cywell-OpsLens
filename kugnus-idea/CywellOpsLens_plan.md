@@ -56,7 +56,7 @@ Community Operator와 Certified Operator는 순차 진입이 효율적입니다.
 | 단계 | 목표 | 산출물 | 책임자 | 예상 기간 | 필요 인력/역량 | 주요 위험요인 및 완화책 | 테스트/검증 기준 |
 |---|---|---|---|---|---|---|---|
 | 아키텍처 확정 | MVP 범위, 데이터 정책, 권한모델, 배포 채널 결정 | 제품 요구사항서, 위협모델, RACI, API 목록, 릴리스 기준서 | Product Owner, Solution Architect | 2주 | 아키텍트, 플랫폼, 보안, PM | Lightspeed Preview 기능을 과신할 위험 → PoC 범위를 “내부/설계 파트너 한정”으로 명시 citeturn5view5turn9view0 | 승인된 아키텍처 문서, MVP 스코프 freeze |
-| Lightspeed MCP MVP | Cywell OpsLens MCP 서버를 Lightspeed에 연결하여 질의/응답 UX 검증 | MCP 서버, OLSConfig, 툴 스펙, read-only 도구 3~5개 | Backend Lead, Platform Engineer | 3주 | Go/Python 백엔드, OpenShift, LLM tool-calling | MCP 출력은 queryFilters 보호 밖일 수 있음 → 서버사이드 마스킹·정책엔진 필수 citeturn9view1 | 10개 핵심 질문 중 8개 이상에서 기대 도구 선택/응답 |
+| Lightspeed MCP MVP | Cywell OpsLens MCP 서버를 Lightspeed에 연결하여 질의/응답 UX 검증 | MCP 서버, OLSConfig, 툴 스펙, read-only 도구 3~5개 | Backend Lead, Platform Engineer | 3주 | Go/Python 백엔드, OpenShift, LLM tool-calling | MCP 출력은 queryFilters 보호 밖일 수 있음 → 서버사이드 마스킹·정책엔진 필수 citeturn9view1 | 대표 질문 `우리 회사 결제 시스템 Pod 장애 대응 매뉴얼 알려줘`가 `generate_playbook`으로 응답하고, 10개 핵심 질문 중 8개 이상에서 기대 도구 선택/응답 |
 | 고객 데이터 RAG 하드닝 | 민감정보를 보호하는 Cywell 전용 RAG 계층 구축 | 인덱싱 파이프라인, 벡터DB 스키마, 테넌트 정책, 감사로그 | Data/ML Engineer, Security Engineer | 2주 | 데이터 파이프라인, 검색, 보안, 프라이버시 | BYOK는 문서를 LLM provider에 직접 제공 → 민감정보는 별도 RAG 서비스로 격리 citeturn9view0 | 테넌트 간 데이터 누출 0건, PII 마스킹 검증 통과 |
 | Operator 제품화 | 설치/업데이트/삭제를 Operator로 표준화하고 번들 생성 | CRD/Controller, bundle, annotations, scorecard config | Operator Lead | 4주 | Operator SDK, OLM, RBAC, CI/CD | 범위 과도 확대 → 단일 핵심 CRD와 한 개 제어 루프로 시작 권고 citeturn37view1 | `bundle validate`, `scorecard`, 설치/업그레이드 통과 |
 | 사내 Catalog 배포 | 내부 레지스트리와 CatalogSource로 반복 배포 경로 확보 | catalog image/FBC, CatalogSource YAML, Subscription YAML, 설치 문서 | Platform Engineer, SRE | 2주 | opm, registry, OLM 운영 | SQLite 경로에 과도 의존 → FBC 기준으로 생성하고 필요 시 CatalogSource 소비 레이어 유지 citeturn24view1turn26view1 | 새 버전 게시 후 30분 내 클러스터 인지, 설치 성공 |
@@ -659,4 +659,3 @@ Operator 기반 운영에서는 **자동 업데이트보다 통제된 승인 흐
 | certified-operators repo 및 certification workflow | Certified 제출, Partner Connect, FBC 권장, hosted pipeline | citeturn5view1turn5view2turn16view0turn16view1 |
 | Red Hat OpenShift Software Certification Policy Guide | 이름 고유성, annotations, supported versions, SCC, in-product catalogs | citeturn16view2turn20view0turn21view0turn21view1turn21view2turn21view3turn21view4turn20view4 |
 | OpenShift certificate docs | service serving cert, injected CA bundle | citeturn34search0turn34search2 |
-
