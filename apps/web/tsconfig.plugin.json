@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "noEmit": false,
+    "types": ["react", "react-dom"]
+  },
+  "include": ["src/plugin/**/*"]
+}

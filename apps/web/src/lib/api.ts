@@ -23,8 +23,26 @@ import type {
   OcpRelatedResourcesResponse
 } from "@kugnus/contracts";
 
+function getApiBase() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const apiBase = new URL(window.location.href).searchParams.get("apiBase") ?? "";
+  return apiBase.replace(/\/+$/, "");
+}
+
+function resolveApiPath(path: string) {
+  const apiBase = getApiBase();
+  if (!apiBase) {
+    return path;
+  }
+  return `${apiBase}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const requestPath = resolveApiPath(path);
+  const response = await fetch(requestPath, {
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {})
@@ -33,7 +51,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`${path} failed with ${response.status}`);
+    throw new Error(`${requestPath} failed with ${response.status}`);
   }
 
   return (await response.json()) as T;

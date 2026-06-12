@@ -5,9 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --project tsconfig.json && vite build",
+    "build": "tsc --project tsconfig.json && vite build && npm run build:plugin",
+    "build:plugin": "webpack --config webpack.plugin.config.cjs",
     "preview": "vite preview",
     "serve": "node ./scripts/serve.mjs"
+  },
+  "consolePlugin": {
+    "name": "cywell-opslens",
+    "version": "0.1.0",
+    "displayName": "Cywell OpsLens",
+    "description": "Dashboard-first OpenShift operations lens with read-only evidence, plan-only assistant output, and Cywell private RAG.",
+    "exposedModules": {
+      "OpsLensRoute": "./src/plugin/OpsLensRoute"
+    },
+    "dependencies": {
+      "@console/pluginAPI": ">=4.16.0 <4.20.0"
+    }
   },
   "dependencies": {
     "@kugnus/contracts": "0.1.0",
@@ -20,8 +33,12 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@openshift-console/dynamic-plugin-sdk": "^4.19.1",
+    "@openshift-console/dynamic-plugin-sdk-webpack": "^4.19.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "typescript": "^5.9.3"
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "webpack-cli": "^5.1.4"
   }
 }

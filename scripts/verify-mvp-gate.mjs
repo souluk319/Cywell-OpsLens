@@ -23,6 +23,13 @@ const steps = [
     purpose: "Verify OCP API environment variables are isolated from Lightspeed/MCP settings."
   },
   {
+    id: "CONSOLE-PLUGIN",
+    command: "npm",
+    args: ["run", "verify:console-plugin"],
+    acceptance: ["AC-OP-003", "AC-DASH-001"],
+    purpose: "Verify generated Console dynamic plugin manifest, entry script, route, and proxy base contract."
+  },
+  {
     id: "E2E",
     command: "npm",
     args: ["run", "test:e2e"],

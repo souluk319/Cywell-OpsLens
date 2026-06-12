@@ -1,0 +1,34 @@
+[
+  {
+    "type": "console.navigation/section",
+    "properties": {
+      "id": "cywell-opslens",
+      "name": "%plugin__cywell-opslens~Cywell",
+      "perspective": "admin",
+      "insertAfter": "observe"
+    }
+  },
+  {
+    "type": "console.navigation/href",
+    "properties": {
+      "id": "cywell-opslens-admin",
+      "name": "%plugin__cywell-opslens~OpsLens Admin",
+      "href": "/opslens",
+      "section": "cywell-opslens",
+      "perspective": "admin",
+      "startsWith": ["/opslens"],
+      "dataAttributes": {
+        "testid": "cywell-opslens-admin-nav"
+      }
+    }
+  },
+  {
+    "type": "console.page/route",
+    "properties": {
+      "path": "/opslens",
+      "exact": true,
+      "perspective": "admin",
+      "component": { "$codeRef": "OpsLensRoute.default" }
+    }
+  }
+]
