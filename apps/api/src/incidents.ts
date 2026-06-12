@@ -9,7 +9,10 @@ import type {
   OpsLensIncidentResourceEvidence
 } from "@kugnus/contracts";
 import { randomUUID } from "node:crypto";
-import { createOpsLensToolResponse } from "./api";
+import {
+  createOpsLensToolResponse,
+  createPlanOnlyRemediationProposal
+} from "./api";
 import {
   getOcpPodLogs,
   getOcpResource,
@@ -68,6 +71,10 @@ function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function normalizeWorkload(workload?: string) {
   return workload?.replace(/^(deployment|statefulset|daemonset|pod)\//i, "");
 }
@@ -89,6 +96,90 @@ function inferLabelSelector(request: OpsLensIncidentAnalysisRequest) {
   }
 
   return `app=${workload}`;
+}
+
+function stripReplicaSetHash(name: string) {
+  return name.replace(/-[a-z0-9]{9,10}$/i, "");
+}
+
+function inferRemediationTarget(params: {
+  resource?: OpsLensIncidentResourceEvidence;
+  pods: OcpResourceSummary[];
+  fallbackName?: string;
+}) {
+  const owner =
+    params.resource?.item.metadata.ownerReferences?.find((ref) => ref.controller) ??
+    params.pods[0]?.metadata.ownerReferences?.find((ref) => ref.controller) ??
+    params.resource?.item.metadata.ownerReferences?.[0] ??
+    params.pods[0]?.metadata.ownerReferences?.[0];
+
+  if (owner?.kind === "ReplicaSet" && owner.name) {
+    return {
+      apiVersion: "apps/v1",
+      kind: "Deployment",
+      name: stripReplicaSetHash(owner.name),
+      confidence: "medium" as const,
+      evidence: [`Pod ownerReference points to ReplicaSet/${owner.name}`],
+      missingEvidence: [
+        "Deployment detail was not read; workload name is inferred from ReplicaSet owner"
+      ]
+    };
+  }
+
+  if (
+    owner?.name &&
+    ["Deployment", "StatefulSet", "DaemonSet"].includes(owner.kind)
+  ) {
+    return {
+      apiVersion: owner.apiVersion || "apps/v1",
+      kind: owner.kind,
+      name: owner.name,
+      confidence: "high" as const,
+      evidence: [`Pod ownerReference points to ${owner.kind}/${owner.name}`],
+      missingEvidence: []
+    };
+  }
+
+  return {
+    apiVersion: "apps/v1",
+    kind: "Deployment",
+    name: params.fallbackName ?? "unknown-workload",
+    confidence: "low" as const,
+    evidence: ["No controller ownerReference was available for remediation target"],
+    missingEvidence: [
+      "owning workload was not confirmed from Pod ownerReferences"
+    ]
+  };
+}
+
+function getContainerSpecs(spec: unknown): Array<Record<string, unknown>> {
+  if (!isRecord(spec) || !Array.isArray(spec.containers)) {
+    return [];
+  }
+  return spec.containers.filter(isRecord);
+}
+
+function inferContainerName(spec: unknown, requested?: string) {
+  if (requested?.trim()) {
+    return requested.trim();
+  }
+
+  const firstContainer = getContainerSpecs(spec)[0];
+  return typeof firstContainer?.name === "string" ? firstContainer.name : "api";
+}
+
+function inferMemoryLimit(spec: unknown, containerName: string) {
+  const container =
+    getContainerSpecs(spec).find((item) => item.name === containerName) ??
+    getContainerSpecs(spec)[0];
+  if (!container || !isRecord(container.resources)) {
+    return undefined;
+  }
+  const limits = container.resources.limits;
+  if (!isRecord(limits) || typeof limits.memory !== "string") {
+    return undefined;
+  }
+  return limits.memory;
 }
 
 async function capture<T>(
@@ -436,6 +527,20 @@ export async function analyzeOpsLensIncident(
     (logEvidence?.redactionCount ?? 0) +
     (previousLogEvidence?.redactionCount ?? 0) +
     (eventEvidence?.redactionCount ?? 0);
+  const resourceEvidence = toResourceEvidence(resourceDetail);
+  const containerName = inferContainerName(
+    resourceEvidence?.item.spec,
+    request.evidenceHints?.container
+  );
+  const observedMemoryLimit = inferMemoryLimit(
+    resourceEvidence?.item.spec,
+    containerName
+  );
+  const remediationTarget = inferRemediationTarget({
+    resource: resourceEvidence,
+    pods: podCandidates,
+    fallbackName: workload ?? podName ?? resourceInput?.name
+  });
 
   const analysisPrompt = [
     request.question ?? "alert-triggered OpenShift incident analysis",
@@ -470,6 +575,32 @@ export async function analyzeOpsLensIncident(
       source: "api"
     }
   });
+  const remediationProposal = createPlanOnlyRemediationProposal({
+    namespace: podNamespace ?? namespace ?? "unknown",
+    workload: remediationTarget.name,
+    targetApiVersion: remediationTarget.apiVersion,
+    targetKind: remediationTarget.kind,
+    targetName: remediationTarget.name,
+    targetConfidence: remediationTarget.confidence,
+    container: containerName,
+    currentValue: observedMemoryLimit ?? "unknown",
+    currentValueSource: observedMemoryLimit ? "cluster-observed" : "unknown",
+    currentValueObservedInCluster: Boolean(observedMemoryLimit),
+    evidence: unique([
+      ...evidence,
+      ...ocpReads,
+      ...remediationTarget.evidence
+    ]),
+    missingEvidence: unique([
+      ...missingEvidence,
+      ...remediationTarget.missingEvidence,
+      ...(observedMemoryLimit
+        ? []
+        : [`${containerName} container memory limit was not observed in resource detail`])
+    ]),
+    risks: baseAnalysis.risks,
+    rollbackPath: baseAnalysis.rollbackPath
+  });
 
   const analysis = {
     ...baseAnalysis,
@@ -479,8 +610,11 @@ export async function analyzeOpsLensIncident(
       `최근 ${windowMinutes}분 Pod 로그, 이벤트, 리소스 상태를 같은 화면에서 비교한다.`,
       "Prometheus metric correlation이 없거나 실패한 경우 metric missingEvidence를 별도 표시한다.",
       "읽지 못한 evidence는 missingEvidence에 남기고 추정 답변으로 대체하지 않는다.",
+      "YAML 변경안은 plan-only review artifact로만 다루고 자동 apply/delete/scale은 수행하지 않는다.",
       ...baseAnalysis.recommendedSteps
     ]),
+    proposedYamlPatch: remediationProposal.yamlPatch,
+    remediationProposal,
     missingEvidence: unique([...baseAnalysis.missingEvidence, ...missingEvidence]),
     evidence: unique([...baseAnalysis.evidence, ...evidence, ...ocpReads]),
     audit: {
@@ -502,7 +636,7 @@ export async function analyzeOpsLensIncident(
       since: since.toISOString(),
       until: now.toISOString()
     },
-    resource: toResourceEvidence(resourceDetail),
+    resource: resourceEvidence,
     podCandidates,
     podLogs: logEvidence,
     previousPodLogs: previousLogEvidence,

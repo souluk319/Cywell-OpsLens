@@ -500,6 +500,44 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         actionMode?: string;
         recommendedSteps?: string[];
         citations?: Array<{ sourceType?: string }>;
+        proposedYamlPatch?: string;
+        remediationProposal?: {
+          artifactType?: string;
+          actionMode?: string;
+          mutationAllowed?: boolean;
+          patchType?: string;
+          target?: {
+            apiVersion?: string;
+            kind?: string;
+            namespace?: string;
+            name?: string;
+            container?: string;
+            fieldPath?: string;
+            confidence?: string;
+          };
+          currentValue?: {
+            value?: string;
+            source?: string;
+            observedInCluster?: boolean;
+            evidence?: string[];
+          };
+          proposedValue?: {
+            value?: string;
+            source?: string;
+            evidence?: string[];
+          };
+          yamlPatch?: string;
+          evidence?: string[];
+          missingEvidence?: string[];
+          risks?: string[];
+          rollbackPath?: string[];
+          forbiddenActions?: string[];
+          reviewGate?: {
+            required?: boolean;
+            approvers?: string[];
+            evidence?: string[];
+          };
+        };
         policy?: {
           rawDocumentReturned?: boolean;
           mutationAllowed?: boolean;
@@ -538,6 +576,45 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.events?.redacted).toBe(true);
     expect(body.analysis?.actionMode).toBe("planOnly");
     expect(body.analysis?.recommendedSteps?.join(" ")).toContain("최근 10분");
+    expect(body.analysis?.recommendedSteps?.join(" ")).toContain("plan-only");
+    expect(body.analysis?.proposedYamlPatch).toContain("memory: 4Gi");
+    expect(body.analysis?.remediationProposal).toMatchObject({
+      artifactType: "opslens.remediation.proposal.v0.1",
+      actionMode: "planOnly",
+      mutationAllowed: false,
+      patchType: "strategicMerge"
+    });
+    expect(body.analysis?.remediationProposal?.target?.apiVersion).toBe("apps/v1");
+    expect(body.analysis?.remediationProposal?.target?.namespace).toBe(
+      firstPod?.metadata.namespace
+    );
+    expect(
+      body.analysis?.remediationProposal?.target?.fieldPath
+    ).toContain("resources.limits.memory");
+    expect(body.analysis?.remediationProposal?.target?.confidence).toMatch(
+      /^(high|medium|low)$/
+    );
+    expect(body.analysis?.remediationProposal?.currentValue?.source).toMatch(
+      /^(cluster-observed|runbook-baseline|unknown)$/
+    );
+    expect(body.analysis?.remediationProposal?.proposedValue).toMatchObject({
+      value: "4Gi",
+      source: "candidate-remediation"
+    });
+    expect(body.analysis?.remediationProposal?.yamlPatch).toContain(
+      "memory: 4Gi"
+    );
+    expect(body.analysis?.remediationProposal?.forbiddenActions).toEqual([
+      "apply",
+      "delete",
+      "scale"
+    ]);
+    expect(body.analysis?.remediationProposal?.reviewGate).toMatchObject({
+      required: true
+    });
+    expect(
+      JSON.stringify(body.analysis?.remediationProposal)
+    ).not.toMatch(/\b(oc|kubectl)\s+(apply|delete|scale)\b/i);
     expect(body.analysis?.policy).toMatchObject({
       rawDocumentReturned: false,
       mutationAllowed: false

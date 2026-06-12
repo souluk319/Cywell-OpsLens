@@ -23,6 +23,7 @@ import type {
   McpJsonRpcResponse,
   OpsLensAdminOverviewResponse,
   OpsLensCitation,
+  OpsLensRemediationProposal,
   OpsLensRagEvidenceExportRequest,
   OpsLensRagEvidenceExportResponse,
   OpsLensRagValidationRequest,
@@ -106,6 +107,10 @@ function assertContext(value: unknown): asserts value is ConsoleContextPayload {
 
 function makeRequestId(prefix: string) {
   return `${prefix}-${randomUUID()}`;
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
 }
 
 export function getDashboardRisks(): DashboardRisksResponse {
@@ -452,6 +457,123 @@ export function exportOpsLensRagEvidence(
   return createRagValidationEvidenceExport(localRagIndex, request);
 }
 
+export function createPlanOnlyRemediationProposal(params: {
+  namespace: string;
+  workload: string;
+  targetApiVersion?: string;
+  targetKind?: string;
+  targetName?: string;
+  targetConfidence?: "high" | "medium" | "low";
+  container?: string;
+  currentValue?: string;
+  currentValueSource?: OpsLensRemediationProposal["currentValue"]["source"];
+  currentValueObservedInCluster?: boolean;
+  proposedValue?: string;
+  evidence?: string[];
+  missingEvidence?: string[];
+  risks?: string[];
+  rollbackPath?: string[];
+}): OpsLensRemediationProposal {
+  const targetApiVersion = params.targetApiVersion ?? "apps/v1";
+  const targetKind = params.targetKind ?? "Deployment";
+  const targetName = params.targetName ?? params.workload;
+  const container = params.container ?? "api";
+  const currentValue = params.currentValue ?? "2Gi";
+  const currentValueSource = params.currentValueSource ?? "runbook-baseline";
+  const currentValueObservedInCluster =
+    params.currentValueObservedInCluster ?? false;
+  const proposedValue = params.proposedValue ?? "4Gi";
+  const fieldPath =
+    `spec.template.spec.containers[name=${container}].resources.limits.memory`;
+  const evidence = uniqueStrings([
+    "propose_remediation returns a plan-only artifact and never mutates cluster state",
+    "customer runbook recommends increasing memory only after log, event, and metric evidence are reviewed",
+    ...(params.evidence ?? [])
+  ]);
+  const missingEvidence = uniqueStrings([
+    ...(currentValueObservedInCluster
+      ? []
+      : ["cluster-observed current workload memory limit was not confirmed"]),
+    ...(params.missingEvidence ?? [])
+  ]);
+  const risks = uniqueStrings([
+    "Memory limit changes can increase node pressure or mask an application leak.",
+    "A resource patch must be reviewed through the approved GitOps or change-management path before execution.",
+    ...(params.risks ?? [])
+  ]);
+  const rollbackPath = uniqueStrings([
+    "Capture the current workload manifest before opening a change request.",
+    "If error rate, readiness, or node memory pressure worsens, revert the GitOps PR to the previous resource limit.",
+    "Re-run alert, restart, CPU, and memory checks after the approved change is deployed.",
+    ...(params.rollbackPath ?? [])
+  ]);
+
+  return {
+    artifactType: "opslens.remediation.proposal.v0.1",
+    actionMode: "planOnly",
+    mutationAllowed: false,
+    patchType: "strategicMerge",
+    target: {
+      apiVersion: targetApiVersion,
+      kind: targetKind,
+      namespace: params.namespace,
+      name: targetName,
+      container,
+      fieldPath,
+      confidence: params.targetConfidence ?? "medium"
+    },
+    currentValue: {
+      value: currentValue,
+      source: currentValueSource,
+      observedInCluster: currentValueObservedInCluster,
+      evidence: currentValueObservedInCluster
+        ? [`cluster resource evidence observed ${fieldPath}=${currentValue}`]
+        : [`${fieldPath}=${currentValue} is a runbook baseline or unconfirmed input`]
+    },
+    proposedValue: {
+      value: proposedValue,
+      source: "candidate-remediation",
+      evidence: [
+        `candidate patch proposes ${fieldPath}=${proposedValue}`,
+        "proposal requires human review and does not include an apply command"
+      ]
+    },
+    yamlPatch: [
+      `apiVersion: ${targetApiVersion}`,
+      `kind: ${targetKind}`,
+      "metadata:",
+      `  name: ${targetName}`,
+      `  namespace: ${params.namespace}`,
+      "spec:",
+      "  template:",
+      "    spec:",
+      "      containers:",
+      `        - name: ${container}`,
+      "          resources:",
+      "            limits:",
+      `              memory: ${proposedValue}`
+    ].join("\n"),
+    rationale: [
+      "Use the YAML as a review artifact, not as an execution command.",
+      "Tie the proposed resource change to alert, log, event, metric, and approved runbook evidence.",
+      "Keep missing evidence visible instead of filling gaps with unsupported certainty."
+    ],
+    evidence,
+    missingEvidence,
+    risks,
+    rollbackPath,
+    forbiddenActions: ["apply", "delete", "scale"],
+    reviewGate: {
+      required: true,
+      approvers: ["service-owner", "sre-oncall"],
+      evidence: [
+        "human approval is required before any GitOps PR or cluster mutation",
+        "automatic apply/delete/scale is outside MVP 0.1"
+      ]
+    }
+  };
+}
+
 export function createOpsLensToolResponse(
   request: OpsLensToolRequest
 ): OpsLensToolResponse {
@@ -477,6 +599,13 @@ export function createOpsLensToolResponse(
   const includeYaml =
     request.tool === "propose_remediation" ||
     request.input.intent.toLowerCase().includes("memory");
+  const remediationProposal = includeYaml
+    ? createPlanOnlyRemediationProposal({
+        namespace,
+        workload,
+        evidence: citations.map((citation) => citation.id)
+      })
+    : undefined;
 
   return {
     tool: request.tool,
@@ -497,23 +626,8 @@ export function createOpsLensToolResponse(
       "최근 GitOps/rollout 변경과 정상 revision을 비교하되 자동 rollback은 수행하지 않는다.",
       "원인과 blast radius가 확인되면 승인된 변경 경로로 YAML patch 또는 rollback PR을 생성한다."
     ],
-    proposedYamlPatch: includeYaml
-      ? [
-          "apiVersion: apps/v1",
-          "kind: Deployment",
-          "metadata:",
-          `  name: ${workload}`,
-          `  namespace: ${namespace}`,
-          "spec:",
-          "  template:",
-          "    spec:",
-          "      containers:",
-          "        - name: api",
-          "          resources:",
-          "            limits:",
-          "              memory: 4Gi"
-        ].join("\n")
-      : undefined,
+    proposedYamlPatch: remediationProposal?.yamlPatch,
+    remediationProposal,
     citations,
     missingEvidence: [
       "실제 Pod 로그 10분 tail",

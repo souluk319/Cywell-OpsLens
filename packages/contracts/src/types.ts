@@ -223,6 +223,45 @@ export interface OpsLensCitation {
   redacted: boolean;
 }
 
+export interface OpsLensRemediationProposal {
+  artifactType: "opslens.remediation.proposal.v0.1";
+  actionMode: "planOnly";
+  mutationAllowed: false;
+  patchType: "strategicMerge";
+  target: {
+    apiVersion: string;
+    kind: string;
+    namespace: string;
+    name: string;
+    container: string;
+    fieldPath: string;
+    confidence: "high" | "medium" | "low";
+  };
+  currentValue: {
+    value: string;
+    source: "cluster-observed" | "runbook-baseline" | "unknown";
+    observedInCluster: boolean;
+    evidence: string[];
+  };
+  proposedValue: {
+    value: string;
+    source: "runbook-recommendation" | "candidate-remediation";
+    evidence: string[];
+  };
+  yamlPatch: string;
+  rationale: string[];
+  evidence: string[];
+  missingEvidence: string[];
+  risks: string[];
+  rollbackPath: string[];
+  forbiddenActions: Array<"apply" | "delete" | "scale">;
+  reviewGate: {
+    required: true;
+    approvers: string[];
+    evidence: string[];
+  };
+}
+
 export interface OpsLensToolResponse {
   tool: OpsLensToolName;
   requestId: string;
@@ -232,6 +271,7 @@ export interface OpsLensToolResponse {
   suspectedCauses: string[];
   recommendedSteps: string[];
   proposedYamlPatch?: string;
+  remediationProposal?: OpsLensRemediationProposal;
   citations: OpsLensCitation[];
   missingEvidence: string[];
   risks: string[];
