@@ -293,6 +293,10 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
           value: "http://cywell-opslens-vllm:8000"
         },
         {
+          name: "CYWELL_OPSLENS_RAG_RUNTIME_MODE",
+          value: "local"
+        },
+        {
           name: "CYWELL_OPSLENS_ACTION_MODE",
           value: "plan-only"
         },

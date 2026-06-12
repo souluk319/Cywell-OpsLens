@@ -11,6 +11,7 @@ const defaults = {
   evidenceOut: "test-results/cywell-opslens-runtime-rag-contract.json",
   apiSource: "apps/api/src/api.ts",
   runtimeRagSource: "apps/api/src/runtimeRag.ts",
+  appManifest: "deploy/operator/config/apps/opslens-stack.yaml",
   serverSource: "apps/api/src/server.ts",
   incidentsSource: "apps/api/src/incidents.ts",
   contractSource: "packages/contracts/src/types.ts",
@@ -41,6 +42,7 @@ const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   apiSource: parsed.get("api-source") ?? defaults.apiSource,
   runtimeRagSource: parsed.get("runtime-rag-source") ?? defaults.runtimeRagSource,
+  appManifest: parsed.get("app-manifest") ?? defaults.appManifest,
   serverSource: parsed.get("server-source") ?? defaults.serverSource,
   incidentsSource: parsed.get("incidents-source") ?? defaults.incidentsSource,
   contractSource: parsed.get("contract-source") ?? defaults.contractSource,
@@ -128,6 +130,7 @@ async function main() {
   const worktreeDirty = worktreeStatus.length > 0;
 
   const runtimeRagSource = readText(options.runtimeRagSource);
+  const appManifest = readText(options.appManifest);
   const apiSource = readText(options.apiSource);
   const serverSource = readText(options.serverSource);
   const incidentsSource = readText(options.incidentsSource);
@@ -157,6 +160,12 @@ async function main() {
       runtimeRagSource.includes('return "local"') &&
       runtimeRagSource.includes('mode === "local"'),
     "runtime RAG defaults to local mode and short-circuits live retrieval"
+  );
+  expectCheck(
+    "operator runtime mode default",
+    appManifest.includes("CYWELL_OPSLENS_RAG_RUNTIME_MODE") &&
+      appManifest.includes("value: local"),
+    "Operator API deployment pins runtime RAG mode to local by default"
   );
   expectCheck(
     "vLLM embedding route",
@@ -263,6 +272,7 @@ async function main() {
     evidence: [
       "OpsLens answer path now carries runtimeRag audit data",
       "Default local mode avoids accidental live runtime network calls",
+      "Operator API deployment explicitly pins CYWELL_OPSLENS_RAG_RUNTIME_MODE=local",
       "Hybrid/runtime modes attempt vLLM embeddings and Qdrant snippet retrieval before local fallback"
     ],
     missingEvidence: [

@@ -414,12 +414,13 @@ function validateApps(apps) {
   const envValue = (name) => env.find((entry) => entry.name === name)?.value;
   if (
     envValue("CYWELL_OPSLENS_RAG_DOCUMENT_INTAKE_MODE") === "validate-only" &&
+    envValue("CYWELL_OPSLENS_RAG_RUNTIME_MODE") === "local" &&
     envValue("CYWELL_OPSLENS_RAG_EVIDENCE_EXPORT") === "enabled" &&
     envValue("CYWELL_OPSLENS_RAG_RAW_DOCUMENT_RETURN_ALLOWED") === "false" &&
     envValue("CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_MODE") === "design-only" &&
     envValue("CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_ENQUEUE_ALLOWED") === "false"
   ) {
-    pass("API RAG safety env", "validate-only export-enabled design-only no-raw no-enqueue");
+    pass("API RAG safety env", "validate-only runtime-local export-enabled design-only no-raw no-enqueue");
   } else {
     fail("API RAG safety env", "RAG safety environment variables are missing or unsafe");
   }

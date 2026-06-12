@@ -540,6 +540,7 @@ func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Conte
 					{Name: "CYWELL_OPSLENS_TLS_KEY_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.key"},
 					{Name: "CYWELL_OPSLENS_VECTOR_URL", Value: "http://cywell-opslens-vector:6333"},
 					{Name: "CYWELL_OPSLENS_MODEL_URL", Value: "http://cywell-opslens-vllm:8000"},
+					{Name: "CYWELL_OPSLENS_RAG_RUNTIME_MODE", Value: "local"},
 					{Name: "CYWELL_OPSLENS_ACTION_MODE", Value: "plan-only"},
 					{Name: "CYWELL_OPSLENS_RAG_DOCUMENT_INTAKE_MODE", Value: settings.DocumentIntakeMode},
 					{Name: "CYWELL_OPSLENS_RAG_EVIDENCE_EXPORT", Value: settings.EvidenceExport},
