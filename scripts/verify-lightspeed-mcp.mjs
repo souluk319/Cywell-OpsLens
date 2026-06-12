@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { request as httpsRequest } from "node:https";
 import { dirname, join, parse, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -12,6 +12,7 @@ const defaults = {
   namespace: "openshift-lightspeed",
   name: "cluster",
   template: "deploy/lightspeed/olsconfig-cywell-opslens-mcp.yaml",
+  evidenceOut: "test-results/cywell-opslens-lightspeed-readiness.json",
   timeoutMs: 10000
 };
 
@@ -55,6 +56,7 @@ const options = {
   mcpUrl: parsed.values.get("mcp-url") ?? process.env.CYWELL_OPSLENS_MCP_URL,
   apiKey: parsed.values.get("api-key") ?? process.env.CYWELL_OPSLENS_API_KEY,
   bearerToken: parsed.values.get("bearer-token") ?? process.env.CYWELL_OPSLENS_BEARER_TOKEN,
+  evidenceOut: parsed.values.get("evidence-out") ?? defaults.evidenceOut,
   skipMcp: parsed.flags.has("skip-mcp"),
   requireMcp: parsed.flags.has("require-mcp"),
   strictInstance: parsed.flags.has("strict-instance"),
@@ -62,7 +64,37 @@ const options = {
 };
 
 const checks = [];
+const startedAt = new Date().toISOString();
 let loadedEnv = false;
+const readiness = {
+  mode: options.crdFixture ? "fixture" : "live",
+  sources: {
+    crd: options.crdFixture ? "fixture" : "unread",
+    olsConfig: options.crdFixture ? "skipped" : "unread",
+    mcpEndpoint: options.skipMcp ? "skipped" : options.mcpUrl ? "configured" : "missing"
+  },
+  crd: {
+    scope: "unknown",
+    servedVersions: [],
+    hasMcpServers: false,
+    hasFeatureGates: false,
+    hasHeaderValueFromType: false
+  },
+  olsConfig: {
+    label: options.crdFixture ? "fixture-skipped" : `${options.namespace}/${options.name}`,
+    readable: false,
+    featureGate: "unknown",
+    cywellRegistration: "unknown",
+    cywellServerUrl: undefined
+  },
+  mcp: {
+    configured: Boolean(options.mcpUrl),
+    requireMcp: options.requireMcp,
+    skipped: options.skipMcp,
+    toolsList: "not-run",
+    toolsCall: "not-run"
+  }
+};
 
 function record(status, name, detail) {
   checks.push({ status, name, detail });
@@ -97,6 +129,30 @@ async function runOc(args) {
       .filter(Boolean)
       .join("\n");
     throw new Error(message);
+  }
+}
+
+async function gitValue(args, fallback) {
+  try {
+    const { stdout } = await execFileAsync("git", args, {
+      encoding: "utf8",
+      timeout: options.timeoutMs
+    });
+    return stdout.trim().split(/\r?\n/).at(-1)?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function gitStatusShort() {
+  try {
+    const { stdout } = await execFileAsync("git", ["status", "--short"], {
+      encoding: "utf8",
+      timeout: options.timeoutMs
+    });
+    return stdout.trimEnd() ? stdout.trimEnd().split(/\r?\n/) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -196,6 +252,24 @@ function ocpApiConfig() {
     baseUrl: firstEnv("OCP_API_BASE_URL", "OPENSHIFT_API_BASE_URL", "KUBE_API_BASE_URL"),
     token: firstEnv("OCP_API_TOKEN", "OPENSHIFT_API_TOKEN", "KUBE_API_TOKEN"),
     tlsVerify: ocpTlsVerifyFromEnv()
+  };
+}
+
+function safeOcpApiEvidence() {
+  const config = ocpApiConfig();
+  let host;
+  if (config.baseUrl) {
+    try {
+      host = new URL(config.baseUrl).host;
+    } catch {
+      host = "invalid-url";
+    }
+  }
+
+  return {
+    configured: Boolean(config.baseUrl && config.token),
+    host,
+    tlsVerify: config.tlsVerify
   };
 }
 
@@ -318,6 +392,7 @@ async function loadCrd() {
     const fixturePath = resolve(options.crdFixture);
     const fixtureText = await readFile(fixturePath, "utf8");
     pass("CRD source", `loaded fixture ${fixturePath}`);
+    readiness.sources.crd = "fixture";
     return asJson(fixtureText, fixturePath);
   }
 
@@ -334,6 +409,7 @@ async function loadCrd() {
       ? "loaded live olsconfigs.ols.openshift.io through oc"
       : "loaded live olsconfigs.ols.openshift.io through OCP API env"
   );
+  readiness.sources.crd = result.source;
   return result.json;
 }
 
@@ -367,6 +443,8 @@ async function validateTemplate() {
 }
 
 function validateCrdSchema(crd) {
+  readiness.crd.scope = crd.spec?.scope ?? "unknown";
+
   if (crd.kind === "CustomResourceDefinition") {
     pass("CRD kind", "OLSConfig CRD object is present");
   } else {
@@ -381,6 +459,7 @@ function validateCrdSchema(crd) {
 
   const versions = crd.spec?.versions ?? [];
   const servedVersions = versions.filter((version) => version.served).map((version) => version.name);
+  readiness.crd.servedVersions = servedVersions;
   if (servedVersions.length > 0) {
     pass("CRD versions", `served versions: ${servedVersions.join(", ")}`);
   } else {
@@ -393,6 +472,7 @@ function validateCrdSchema(crd) {
   });
 
   if (schemasWithMcp.length > 0) {
+    readiness.crd.hasMcpServers = true;
     pass(
       "schema spec.mcpServers",
       `available in ${schemasWithMcp.map((version) => version.name).join(", ")}`
@@ -407,6 +487,7 @@ function validateCrdSchema(crd) {
   });
 
   if (schemasWithFeatureGates.length > 0) {
+    readiness.crd.hasFeatureGates = true;
     pass(
       "schema spec.featureGates",
       `available in ${schemasWithFeatureGates.map((version) => version.name).join(", ")}`
@@ -429,6 +510,7 @@ function validateCrdSchema(crd) {
   });
 
   if (headerTypeSchemas.length > 0) {
+    readiness.crd.hasHeaderValueFromType = true;
     pass(
       "schema MCP headers",
       `header valueFrom.type is available in ${headerTypeSchemas.map((version) => version.name).join(", ")}`
@@ -444,6 +526,9 @@ function validateCrdSchema(crd) {
 async function validateCurrentOlsConfig(crd) {
   if (options.crdFixture) {
     warn("live OLSConfig", "skipped current OLSConfig read because --crd-fixture is in use");
+    readiness.sources.olsConfig = "skipped";
+    readiness.olsConfig.featureGate = "not-checked";
+    readiness.olsConfig.cywellRegistration = "not-checked";
     return;
   }
 
@@ -459,6 +544,7 @@ async function validateCurrentOlsConfig(crd) {
   const configLabel = namespaced
     ? `${options.namespace}/${options.name}`
     : options.name;
+  readiness.olsConfig.label = configLabel;
 
   try {
     const result = await readLiveJson({
@@ -469,23 +555,34 @@ async function validateCurrentOlsConfig(crd) {
     });
     const config = result.json;
     pass("live OLSConfig", `${configLabel} is readable`);
+    readiness.sources.olsConfig = result.source;
+    readiness.olsConfig.readable = true;
 
     const featureGates = config.spec?.featureGates ?? [];
     if (featureGates.includes("MCPServer")) {
       pass("live MCP feature gate", "MCPServer feature gate is already enabled");
+      readiness.olsConfig.featureGate = "ready";
     } else {
       warn("live MCP feature gate", "MCPServer feature gate is not enabled yet");
+      readiness.olsConfig.featureGate = "missing";
     }
 
     const mcpServers = config.spec?.mcpServers ?? [];
     const cywellServer = mcpServers.find((server) => server.name === "cywell-opslens");
     if (cywellServer) {
       pass("live Cywell MCP registration", `cywell-opslens points to ${cywellServer.url}`);
+      readiness.olsConfig.cywellRegistration = "ready";
+      readiness.olsConfig.cywellServerUrl = cywellServer.url;
     } else {
       warn("live Cywell MCP registration", "cywell-opslens is not registered yet");
+      readiness.olsConfig.cywellRegistration = "missing";
     }
   } catch (error) {
     const message = `${configLabel} is not readable: ${error.message}`;
+    readiness.sources.olsConfig = "unreadable";
+    readiness.olsConfig.readable = false;
+    readiness.olsConfig.featureGate = "unknown";
+    readiness.olsConfig.cywellRegistration = "unknown";
     if (options.strictInstance) {
       fail("live OLSConfig", message);
     } else {
@@ -540,11 +637,17 @@ async function postMcp(method, params) {
 async function validateMcpEndpoint() {
   if (options.skipMcp) {
     warn("MCP endpoint", "skipped because --skip-mcp was provided");
+    readiness.sources.mcpEndpoint = "skipped";
+    readiness.mcp.toolsList = "skipped";
+    readiness.mcp.toolsCall = "skipped";
     return;
   }
 
   if (!options.mcpUrl) {
     const detail = "set CYWELL_OPSLENS_MCP_URL or pass --mcp-url to run tools/list and tools/call";
+    readiness.sources.mcpEndpoint = "missing";
+    readiness.mcp.toolsList = "missing-url";
+    readiness.mcp.toolsCall = "missing-url";
     if (options.requireMcp) {
       fail("MCP endpoint", detail);
     } else {
@@ -559,8 +662,11 @@ async function validateMcpEndpoint() {
     const generatePlaybook = tools.find((tool) => tool.name === "generate_playbook");
     if (generatePlaybook) {
       pass("MCP tools/list", "generate_playbook is discoverable");
+      readiness.sources.mcpEndpoint = "verified";
+      readiness.mcp.toolsList = "ready";
     } else {
       fail("MCP tools/list", "generate_playbook is missing");
+      readiness.mcp.toolsList = "missing-tool";
     }
 
     const annotations = generatePlaybook?.annotations ?? {};
@@ -584,8 +690,10 @@ async function validateMcpEndpoint() {
     const structured = callResult.structuredContent;
     if (structured?.policy?.mutationAllowed === false) {
       pass("MCP tools/call mutation policy", "mutationAllowed=false");
+      readiness.mcp.toolsCall = "ready";
     } else {
       fail("MCP tools/call mutation policy", "mutationAllowed is not false");
+      readiness.mcp.toolsCall = "unsafe";
     }
 
     if (structured?.policy?.rawDocumentReturned === false) {
@@ -601,7 +709,110 @@ async function validateMcpEndpoint() {
     }
   } catch (error) {
     fail("MCP endpoint", error.message);
+    readiness.sources.mcpEndpoint = "failed";
+    readiness.mcp.toolsList = readiness.mcp.toolsList === "not-run" ? "failed" : readiness.mcp.toolsList;
+    readiness.mcp.toolsCall = readiness.mcp.toolsCall === "not-run" ? "failed" : readiness.mcp.toolsCall;
   }
+}
+
+function secretValuesForLeakCheck() {
+  loadEnvFile();
+  return [
+    "OCP_API_TOKEN",
+    "OPENSHIFT_API_TOKEN",
+    "KUBE_API_TOKEN",
+    "CYWELL_OPSLENS_API_KEY",
+    "CYWELL_OPSLENS_BEARER_TOKEN",
+    "OPENSHIFT_LIGHTSPEED_TOKEN"
+  ]
+    .map((key) => process.env[key])
+    .filter((value) => value && value.length >= 8);
+}
+
+function readinessStatus(failures, warnings) {
+  if (failures.length > 0) {
+    return "FAIL";
+  }
+  if (
+    readiness.olsConfig.featureGate === "missing" ||
+    readiness.olsConfig.cywellRegistration === "missing" ||
+    readiness.sources.mcpEndpoint === "missing"
+  ) {
+    return "NEEDS_CONFIGURATION";
+  }
+  if (warnings.length > 0) {
+    return "WARN";
+  }
+  return "PASS";
+}
+
+async function buildEvidenceArtifact() {
+  const failures = checks.filter((check) => check.status === "FAIL");
+  const warnings = checks.filter((check) => check.status === "WARN");
+  const worktreeStatus = await gitStatusShort();
+
+  return {
+    schema: "cywell.opslens.lightspeed-readiness.v0.1",
+    artifactType: "opslens.lightspeed.readiness-evidence.v0.1",
+    generatedAt: new Date().toISOString(),
+    startedAt,
+    status: readinessStatus(failures, warnings),
+    acceptance: ["AC-LS-001", "AC-LS-002", "AC-ENV-001"],
+    ref: {
+      branch: await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown"),
+      headSha: await gitValue(["rev-parse", "--short", "HEAD"], "unknown"),
+      baseRef: await gitValue(
+        ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        "origin/main"
+      ),
+      worktreeDirty: worktreeStatus.length > 0,
+      worktreeStatus
+    },
+    target: {
+      namespace: options.namespace,
+      name: options.name,
+      template: resolve(options.template),
+      fixture: options.crdFixture ? resolve(options.crdFixture) : undefined,
+      mcpEndpointConfigured: Boolean(options.mcpUrl),
+      requireMcp: options.requireMcp,
+      strictInstance: options.strictInstance
+    },
+    policy: {
+      mutationAllowed: false,
+      clusterMutationAttempted: false,
+      rawSecretPrinted: false,
+      readOnlyMethods: ["oc get", "GET OpenShift API", "MCP tools/list", "MCP tools/call"]
+    },
+    ocpApi: safeOcpApiEvidence(),
+    readiness,
+    checks,
+    missingEvidence: checks
+      .filter((check) => check.status !== "PASS")
+      .map((check) => `${check.name}: ${check.detail}`),
+    risks: [
+      "Lightspeed cannot route questions to Cywell OpsLens until MCPServer feature gate and cywell-opslens registration are present.",
+      "End-to-end MCP routing is not proven until tools/list and tools/call pass against a reachable /mcp endpoint.",
+      "This verifier is read-only; it reports the gap but does not patch OLSConfig."
+    ],
+    rollbackPath: [
+      "No rollback is required for this verifier because it performs no cluster mutation.",
+      "If a future PatchOLSConfig run is used, restore the previous OLSConfig spec and remove only the cywell-opslens MCP server entry."
+    ]
+  };
+}
+
+async function writeEvidenceArtifact() {
+  const reportPath = resolve(options.evidenceOut);
+  const report = await buildEvidenceArtifact();
+  const serialized = `${JSON.stringify(report, null, 2)}\n`;
+  const leakedSecret = secretValuesForLeakCheck().some((secret) => serialized.includes(secret));
+  if (leakedSecret) {
+    throw new Error("readiness evidence would include a configured secret value");
+  }
+
+  await mkdir(dirname(reportPath), { recursive: true });
+  await writeFile(reportPath, serialized);
+  pass("readiness evidence export", `${reportPath} written without secret material`);
 }
 
 function printSummary() {
@@ -634,5 +845,10 @@ try {
 } catch (error) {
   fail("smoke verifier", error.message);
 } finally {
+  try {
+    await writeEvidenceArtifact();
+  } catch (error) {
+    fail("readiness evidence export", error.message);
+  }
   printSummary();
 }
