@@ -31,6 +31,7 @@
     "verify:release-plan": "node ./scripts/verify-release-publish-plan.mjs",
     "verify:lightspeed": "node ./scripts/verify-lightspeed-mcp.mjs",
     "verify:lightspeed:patch-preview": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-lightspeed-mcp.mjs --patch-preview --skip-mcp",
+    "verify:lightspeed:patch-preview:fixture": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-lightspeed-mcp.mjs --patch-preview --skip-mcp --crd-fixture ./deploy/lightspeed/fixtures/olsconfig-crd-mcp.json --olsconfig-fixture ./deploy/operator/fixtures/olsconfig-base.yaml --evidence-out ./test-results/cywell-opslens-lightspeed-readiness-fixture.json",
     "verify:lightspeed:fixture": "node ./scripts/verify-lightspeed-mcp.mjs --crd-fixture ./deploy/lightspeed/fixtures/olsconfig-crd-mcp.json --skip-mcp --evidence-out ./test-results/cywell-opslens-lightspeed-readiness-fixture.json"
   },
   "devDependencies": {

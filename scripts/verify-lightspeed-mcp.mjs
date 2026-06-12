@@ -57,6 +57,7 @@ const options = {
   installation: parsed.values.get("installation") ?? defaults.installation,
   template: parsed.values.get("template") ?? defaults.template,
   crdFixture: parsed.values.get("crd-fixture"),
+  olsConfigFixture: parsed.values.get("olsconfig-fixture"),
   mcpUrl: parsed.values.get("mcp-url") ?? process.env.CYWELL_OPSLENS_MCP_URL,
   apiKey: parsed.values.get("api-key") ?? process.env.CYWELL_OPSLENS_API_KEY,
   bearerToken: parsed.values.get("bearer-token") ?? process.env.CYWELL_OPSLENS_BEARER_TOKEN,
@@ -77,7 +78,11 @@ const readiness = {
   mode: options.crdFixture ? "fixture" : "live",
   sources: {
     crd: options.crdFixture ? "fixture" : "unread",
-    olsConfig: options.crdFixture ? "skipped" : "unread",
+    olsConfig: options.olsConfigFixture
+      ? "fixture"
+      : options.crdFixture
+        ? "skipped"
+        : "unread",
     mcpEndpoint: options.skipMcp ? "skipped" : options.mcpUrl ? "configured" : "missing"
   },
   crd: {
@@ -560,6 +565,43 @@ function validateCrdSchema(crd) {
 }
 
 async function validateCurrentOlsConfig(crd) {
+  if (options.olsConfigFixture) {
+    const fixture = await loadSingleYaml(options.olsConfigFixture);
+    const config = fixture.object;
+    if (config?.kind !== "OLSConfig") {
+      fail("OLSConfig fixture", `${fixture.path} is not an OLSConfig`);
+      return;
+    }
+
+    currentOlsConfigForPatchPreview = config;
+    readiness.sources.olsConfig = "fixture";
+    readiness.olsConfig.label =
+      `${config.metadata?.namespace ?? "cluster"}/${config.metadata?.name ?? "unknown"}`;
+    readiness.olsConfig.readable = true;
+    pass("OLSConfig fixture", `${fixture.path} loaded for patch preview`);
+
+    const featureGates = config.spec?.featureGates ?? [];
+    if (featureGates.includes("MCPServer")) {
+      pass("fixture MCP feature gate", "MCPServer feature gate is already enabled");
+      readiness.olsConfig.featureGate = "ready";
+    } else {
+      warn("fixture MCP feature gate", "MCPServer feature gate is not enabled yet");
+      readiness.olsConfig.featureGate = "missing";
+    }
+
+    const mcpServers = config.spec?.mcpServers ?? [];
+    const cywellServer = mcpServers.find((server) => server.name === "cywell-opslens");
+    if (cywellServer) {
+      pass("fixture Cywell MCP registration", `cywell-opslens points to ${cywellServer.url}`);
+      readiness.olsConfig.cywellRegistration = "ready";
+      readiness.olsConfig.cywellServerUrl = cywellServer.url;
+    } else {
+      warn("fixture Cywell MCP registration", "cywell-opslens is not registered yet");
+      readiness.olsConfig.cywellRegistration = "missing";
+    }
+    return;
+  }
+
   if (options.crdFixture) {
     warn("live OLSConfig", "skipped current OLSConfig read because --crd-fixture is in use");
     readiness.sources.olsConfig = "skipped";
@@ -789,7 +831,7 @@ async function validatePatchPreview() {
     return;
   }
 
-  if (options.crdFixture) {
+  if (options.crdFixture && !options.olsConfigFixture) {
     warn("patch preview", "skipped because --crd-fixture does not read a live OLSConfig");
     return;
   }
@@ -874,6 +916,11 @@ async function validatePatchPreview() {
         path: installation.path,
         name: installation.object?.metadata?.name,
         namespace: installation.object?.metadata?.namespace
+      },
+      source: {
+        crd: options.crdFixture ? "fixture" : "live",
+        olsConfig: options.olsConfigFixture ? "fixture" : "live",
+        olsConfigFixture: options.olsConfigFixture ? resolve(options.olsConfigFixture) : undefined
       },
       target: lightspeed.target,
       mode: lightspeed.mode,
@@ -960,6 +1007,7 @@ async function buildEvidenceArtifact() {
       name: options.name,
       template: resolve(options.template),
       fixture: options.crdFixture ? resolve(options.crdFixture) : undefined,
+      olsConfigFixture: options.olsConfigFixture ? resolve(options.olsConfigFixture) : undefined,
       mcpEndpointConfigured: Boolean(options.mcpUrl),
       requireMcp: options.requireMcp,
       strictInstance: options.strictInstance
