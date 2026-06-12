@@ -22,6 +22,7 @@ npm run verify:mvp
 npm run verify:evidence-checkpoint
 npm run verify:runtime-rag
 npm run verify:runtime-rag:fixture
+npm run verify:lightspeed:routing
 npm run test:e2e
 npm run verify:lightspeed:fixture
 ```
@@ -53,6 +54,8 @@ MVP 0.1 has a mock read-only assistant/backend contract:
 The web app uses these endpoints through the Vite proxy, so the fixture-backed UI is already shaped like the Phase 1 Console Plugin + Backend API flow.
 
 Cywell OpsLens Stage 1 uses the OpenShift Lightspeed custom MCP server path, not an undocumented webhook path. The MVP MCP surface provides six read-only tools: `get_cluster_signal`, `retrieve_customer_knowledge`, `generate_playbook`, `open_console_deep_link`, `run_preflight`, and `propose_remediation`; mutating tools such as `apply_remediation` are deliberately excluded from MVP. Tool responses share the same safety envelope: citations, missing evidence, risks, rollback path, runtime RAG audit, redaction, and `mutationAllowed=false`.
+
+`npm run verify:lightspeed:routing` adds the Stage 1 tool-selection fixture: 10 representative Lightspeed questions must select the expected read-only OpsLens MCP tool and at least 8 routed responses must keep the safety/evidence contract.
 
 Stage 2 begins with `POST /api/opslens/incidents/analyze`: an alert-triggered, plan-only incident endpoint that combines read-only resource detail, pod candidates, events, `sinceSeconds`-bounded pod logs, and opt-in Prometheus metric correlation with private runbook citations. Failed reads are returned as `missingEvidence`, not hidden.
 

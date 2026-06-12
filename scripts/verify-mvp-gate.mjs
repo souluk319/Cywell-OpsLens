@@ -84,6 +84,13 @@ const steps = [
     purpose: "Verify Lightspeed MCP template and fixture schema without mutating a cluster."
   },
   {
+    id: "LIGHTSPEED-ROUTING",
+    command: "npm",
+    args: ["run", "verify:lightspeed:routing"],
+    acceptance: ["AC-LS-001"],
+    purpose: "Verify 10 representative Lightspeed questions select expected read-only OpsLens MCP tools and return safe structured responses."
+  },
+  {
     id: "OPERATOR-PACKAGE",
     command: "npm",
     args: ["run", "verify:operator"],
