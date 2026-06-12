@@ -1,0 +1,1479 @@
+import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { mockContext } from "@kugnus/contracts";
+
+test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+  });
+
+  async function openAssistant(page: Page) {
+    await page.getByTestId("assistant-launcher").click();
+    await expect(page.getByTestId("assistant-popover")).toBeVisible();
+  }
+
+  test("AC-UI-001 keeps alert evidence visible while assistant popover is open", async ({
+    page
+  }) => {
+    await expect(page.getByTestId("assistant-launcher")).toBeVisible();
+    await expect(page.getByTestId("assistant-popover")).toHaveCount(0);
+    await openAssistant(page);
+    await expect(page.getByTestId("alert-evidence-table")).toBeVisible();
+    await expect(page.getByTestId("severity-header")).toBeVisible();
+    await expect(page.getByTestId("count-header")).toBeVisible();
+    await expect(page.getByTestId("status-header")).toBeVisible();
+
+    const layout = await page.evaluate(() => {
+      const rect = (testId: string) => {
+        const node = document.querySelector(`[data-testid="${testId}"]`);
+        if (!node) return null;
+        const box = node.getBoundingClientRect();
+        return {
+          left: box.left,
+          top: box.top,
+          right: box.right,
+          bottom: box.bottom,
+          width: box.width,
+          height: box.height
+        };
+      };
+
+      return {
+        popover: rect("assistant-popover"),
+        wrap: rect("alert-table-wrap"),
+        headers: [
+          rect("severity-header"),
+          rect("count-header"),
+          rect("status-header")
+        ]
+      };
+    });
+
+    expect(layout.popover).not.toBeNull();
+    expect(layout.wrap).not.toBeNull();
+    for (const box of layout.headers) {
+      expect(box).not.toBeNull();
+      expect(box?.right ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(layout.wrap?.right ?? 0);
+      const overlapsPopover =
+        (box?.right ?? 0) > (layout.popover?.left ?? 0) &&
+        (box?.left ?? 0) < (layout.popover?.right ?? 0) &&
+        (box?.bottom ?? 0) > (layout.popover?.top ?? 0) &&
+        (box?.top ?? 0) < (layout.popover?.bottom ?? 0);
+      expect(overlapsPopover).toBe(false);
+    }
+
+    await page.screenshot({
+      path: "test-results/ac-ui-001-alerts-non-occluding.png",
+      fullPage: false
+    });
+  });
+
+  test("AC-UI-002 opens assistant from the lower-right launcher without resizing console workspace", async ({
+    page
+  }) => {
+    const before = await page.getByTestId("workspace").boundingBox();
+    await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+
+    await openAssistant(page);
+    await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    );
+    const after = await page.getByTestId("workspace").boundingBox();
+    const launcher = await page.getByTestId("assistant-launcher").boundingBox();
+    const popover = await page.getByTestId("assistant-popover").boundingBox();
+
+    expect(before).not.toBeNull();
+    expect(after).not.toBeNull();
+    expect(launcher).not.toBeNull();
+    expect(popover).not.toBeNull();
+    expect(Math.round(after?.width ?? 0)).toBe(Math.round(before?.width ?? 0));
+    expect((launcher?.right ?? 0) > (after?.right ?? 0) - 96).toBe(true);
+    expect((launcher?.bottom ?? 0) > (after?.bottom ?? 0) - 96).toBe(true);
+    expect((popover?.right ?? 0) <= (launcher?.right ?? 0) + 4).toBe(true);
+
+    await page.getByRole("button", { name: "Close assistant" }).click();
+    await expect(page.getByTestId("assistant-popover")).toHaveCount(0);
+    await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
+      "aria-expanded",
+      "false"
+    );
+  });
+
+  test("AC-CTX-001 renders context chips and publisher payload", async ({
+    page
+  }) => {
+    await openAssistant(page);
+    await expect(page.getByTestId("api-status")).toContainText("API ready");
+    await expect(page.getByTestId("context-chips")).toContainText("Cluster");
+    await expect(page.getByTestId("context-chips")).toContainText(
+      "prod-ocp"
+    );
+    await expect(page.getByTestId("context-chips")).toContainText(
+      "openshift-cluster-version"
+    );
+
+    const payload = await page.getByTestId("context-payload").textContent();
+    const parsed = JSON.parse(payload ?? "{}") as {
+      route?: string;
+      namespace?: string;
+      selectedTab?: string;
+      filters?: Record<string, string>;
+      visibleRows?: unknown[];
+      resource?: { kind?: string; name?: string };
+    };
+
+    expect(parsed.route).toContain("/monitoring/alerts");
+    expect(parsed.namespace).toBe("openshift-cluster-version");
+    expect(parsed.selectedTab).toBe("Alerts");
+    expect(parsed.filters?.state).toBe("firing");
+    expect(parsed.resource?.kind).toBe("ClusterVersion");
+    expect(parsed.resource?.name).toBe("version");
+    expect(parsed.visibleRows?.length).toBeGreaterThanOrEqual(3);
+    await expect(page.getByTestId("api-trace")).toContainText("plan-");
+  });
+
+  test("AC-ANS-001 answer contract includes evidence, citations, risk, and rollback", async ({
+    page
+  }) => {
+    await openAssistant(page);
+    const requiredBlocks = [
+      "answer-judgment",
+      "answer-evidence",
+      "answer-candidates",
+      "answer-next-checks",
+      "answer-risks",
+      "answer-rollback",
+      "answer-citations"
+    ];
+
+    for (const block of requiredBlocks) {
+      await expect(page.getByTestId(block)).toBeVisible();
+      await expect(page.getByTestId(block)).not.toBeEmpty();
+    }
+
+    await expect(page.getByTestId("answer-risks")).toContainText(
+      "Missing Evidence"
+    );
+    await expect(page.getByTestId("answer-rollback")).toContainText(
+      "Rollback"
+    );
+    await expect(page.getByTestId("answer-citations")).toContainText(
+      "OpenShift update troubleshooting docs"
+    );
+  });
+
+  test("AC-SAFE-001 remains read-only and preserves log/YAML evidence surfaces", async ({
+    page
+  }) => {
+    await openAssistant(page);
+    await expect(page.getByTestId("assistant-popover")).toContainText(
+      "actionMode=readOnly"
+    );
+    await expect(page.getByTestId("assistant-popover")).not.toContainText(
+      "oc apply"
+    );
+    await expect(page.getByTestId("assistant-popover")).not.toContainText(
+      "oc delete"
+    );
+    await expect(page.getByTestId("assistant-popover")).not.toContainText(
+      "oc scale"
+    );
+
+    await page.getByRole("button", { name: "Logs" }).click();
+    await expect(page.getByTestId("log-viewport")).toBeVisible();
+
+    const workspaceBox = await page.getByTestId("workspace").boundingBox();
+    const logBox = await page.getByTestId("log-viewport").boundingBox();
+    expect(workspaceBox).not.toBeNull();
+    expect(logBox).not.toBeNull();
+    expect((logBox?.width ?? 0) / (workspaceBox?.width ?? 1)).toBeGreaterThan(
+      0.5
+    );
+
+    await page
+      .getByLabel("Evidence view")
+      .getByRole("button", { name: "YAML" })
+      .click();
+    const yaml = page.getByTestId("yaml-textarea");
+    await expect(yaml).toBeVisible();
+    const selectionWorks = await yaml.evaluate((node) => {
+      const textarea = node as HTMLTextAreaElement;
+      textarea.setSelectionRange(0, 10);
+      return textarea.selectionStart === 0 && textarea.selectionEnd === 10;
+    });
+    expect(selectionWorks).toBe(true);
+  });
+
+  test("AC-API-001 exposes dashboard, context sync, and action plan contracts", async ({
+    request
+  }) => {
+    const dashboard = await request.get("/api/dashboard/risks");
+    expect(dashboard.ok()).toBe(true);
+    const dashboardBody = (await dashboard.json()) as {
+      source?: string;
+      activeRisks?: unknown[];
+      knowledgeSources?: unknown[];
+    };
+    expect(dashboardBody.source).toBe("mock-backend");
+    expect(dashboardBody.activeRisks?.length).toBeGreaterThanOrEqual(3);
+    expect(dashboardBody.knowledgeSources?.length).toBeGreaterThanOrEqual(2);
+
+    const context = await request.post("/api/context/sync", {
+      data: {
+        context: mockContext
+      }
+    });
+    expect(context.ok()).toBe(true);
+    const contextBody = (await context.json()) as {
+      accepted?: boolean;
+      requestId?: string;
+      contextHash?: string;
+      rbac?: { namespaceScope?: string };
+    };
+    expect(contextBody.accepted).toBe(true);
+    expect(contextBody.requestId).toContain("ctx-");
+    expect(contextBody.contextHash).toHaveLength(16);
+    expect(contextBody.rbac?.namespaceScope).toBe(
+      "openshift-cluster-version"
+    );
+
+    const plan = await request.post("/api/actions/plan", {
+      data: {
+        prompt: "ClusterNotUpgradeable alert를 triage 해줘.",
+        context: mockContext,
+        scenario: "ClusterNotUpgradeable"
+      }
+    });
+    expect(plan.ok()).toBe(true);
+    const planBody = (await plan.json()) as {
+      requestId?: string;
+      answer?: { actionMode?: string; citations?: unknown[] };
+      audit?: {
+        contextHash?: string;
+        sources?: string[];
+        actionMode?: string;
+      };
+    };
+    expect(planBody.requestId).toContain("plan-");
+    expect(planBody.answer?.actionMode).toBe("readOnly");
+    expect(planBody.answer?.citations?.length).toBeGreaterThanOrEqual(2);
+    expect(planBody.audit?.contextHash).toHaveLength(16);
+    expect(planBody.audit?.sources?.length).toBeGreaterThanOrEqual(3);
+    expect(planBody.audit?.actionMode).toBe("readOnly");
+  });
+
+  test("AC-LS-001 exposes Cywell OpsLens as a read-only Lightspeed MCP tool surface", async ({
+    request
+  }) => {
+    const tools = await request.get("/api/opslens/tools");
+    expect(tools.ok()).toBe(true);
+    const toolsBody = (await tools.json()) as {
+      mcpTechnologyPreview?: boolean;
+      tools?: Array<{
+        name?: string;
+        readOnly?: boolean;
+        approvalRequired?: boolean;
+      }>;
+      evidence?: string[];
+    };
+    expect(toolsBody.mcpTechnologyPreview).toBe(true);
+    expect(toolsBody.tools?.some((tool) => tool.name === "generate_playbook")).toBe(
+      true
+    );
+    expect(toolsBody.tools?.every((tool) => tool.readOnly === true)).toBe(true);
+    expect(
+      toolsBody.tools?.some((tool) => tool.name === "apply_remediation")
+    ).toBe(false);
+    expect(toolsBody.evidence?.join(" ")).toContain("OpenShift Lightspeed");
+
+    const ask = await request.post("/api/opslens/ask", {
+      data: {
+        tool: "generate_playbook",
+        input: {
+          clusterId: "prod-ocp",
+          tenantId: "cywell-payments",
+          namespace: "payments",
+          workload: "payments-api",
+          intent: "pod-crashloop-root-cause-and-recovery",
+          question:
+            "우리 회사 결제 시스템 Pod 장애 대응 매뉴얼 알려줘. token=secret-demo",
+          constraints: {
+            readOnly: true,
+            includeCustomerRunbooks: true,
+            maxDocuments: 3
+          }
+        },
+        caller: {
+          source: "lightspeed",
+          user: "sre.kim@example.com"
+        }
+      }
+    });
+    expect(ask.ok()).toBe(true);
+    const askBody = (await ask.json()) as {
+      actionMode?: string;
+      summary?: string;
+      recommendedSteps?: string[];
+      citations?: Array<{
+        id?: string;
+        label?: string;
+        sourceType?: string;
+        redacted?: boolean;
+      }>;
+      policy?: {
+        privateRag?: boolean;
+        rawDocumentReturned?: boolean;
+        mutationAllowed?: boolean;
+        mcpTechnologyPreview?: boolean;
+      };
+      audit?: { model?: string; redactionCount?: number; sources?: string[] };
+      risks?: string[];
+      rollbackPath?: string[];
+    };
+    expect(askBody.actionMode).toBe("readOnly");
+    expect(askBody.summary).toContain("<REDACTED>");
+    expect(askBody.recommendedSteps?.join(" ")).toContain("자동 rollback은 수행하지 않는다");
+    expect(
+      askBody.citations?.some(
+        (citation) =>
+          citation.sourceType === "customer-runbook" &&
+          citation.redacted === true &&
+          citation.label?.includes("Payments API Pod 장애 대응 매뉴얼")
+      )
+    ).toBe(true);
+    expect(askBody.policy).toMatchObject({
+      privateRag: true,
+      rawDocumentReturned: false,
+      mutationAllowed: false,
+      mcpTechnologyPreview: true
+    });
+    expect(askBody.audit?.redactionCount).toBeGreaterThan(0);
+    expect(askBody.audit?.model).toBe("cywell-private-rag-local-vector/v0.1");
+    expect(askBody.audit?.sources?.length).toBeGreaterThanOrEqual(2);
+    expect(askBody.risks?.join(" ")).toContain("Technology Preview");
+    expect(askBody.rollbackPath?.join(" ")).toContain("GitOps");
+
+    const mcpTools = await request.post("/api/opslens/mcp", {
+      data: {
+        jsonrpc: "2.0",
+        id: "tools-1",
+        method: "tools/list"
+      }
+    });
+    expect(mcpTools.ok()).toBe(true);
+    const mcpToolsBody = (await mcpTools.json()) as {
+      result?: {
+        tools?: Array<{
+          name?: string;
+          annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
+        }>;
+      };
+    };
+    expect(
+      mcpToolsBody.result?.tools?.some(
+        (tool) =>
+          tool.name === "generate_playbook" &&
+          tool.annotations?.readOnlyHint === true &&
+          tool.annotations?.destructiveHint === false
+      )
+    ).toBe(true);
+
+    const mcpCall = await request.post("/api/opslens/mcp", {
+      data: {
+        jsonrpc: "2.0",
+        id: "call-1",
+        method: "tools/call",
+        params: {
+          name: "generate_playbook",
+          arguments: {
+            clusterId: "prod-ocp",
+            tenantId: "cywell-payments",
+            namespace: "payments",
+            workload: "payments-api",
+            intent: "pod-crashloop-root-cause-and-recovery",
+            question: "우리 회사 결제 시스템 Pod 장애 대응 매뉴얼 알려줘"
+          }
+        }
+      }
+    });
+    expect(mcpCall.ok()).toBe(true);
+    const mcpCallBody = (await mcpCall.json()) as {
+      result?: {
+        isError?: boolean;
+        structuredContent?: {
+          tool?: string;
+          actionMode?: string;
+          policy?: { rawDocumentReturned?: boolean; mutationAllowed?: boolean };
+          citations?: Array<{ sourceType?: string }>;
+        };
+      };
+    };
+    expect(mcpCallBody.result?.isError).toBe(false);
+    expect(mcpCallBody.result?.structuredContent?.tool).toBe("generate_playbook");
+    expect(mcpCallBody.result?.structuredContent?.actionMode).toBe("readOnly");
+    expect(mcpCallBody.result?.structuredContent?.policy).toMatchObject({
+      rawDocumentReturned: false,
+      mutationAllowed: false
+    });
+    expect(
+      mcpCallBody.result?.structuredContent?.citations?.some(
+        (citation) => citation.sourceType === "customer-runbook"
+      )
+    ).toBe(true);
+  });
+
+  test("AC-AIOPS-001 builds a plan-only incident packet from live OCP evidence", async ({
+    request
+  }) => {
+    test.setTimeout(45_000);
+
+    const pods = await request.get(
+      "/api/ocp/resources?apiVersion=v1&resource=pods&limit=10"
+    );
+    expect(pods.ok()).toBe(true);
+    const podsBody = (await pods.json()) as {
+      items?: Array<{
+        metadata: {
+          name: string;
+          namespace?: string;
+        };
+      }>;
+    };
+    const firstPod = podsBody.items?.find(
+      (item) => item.metadata.name && item.metadata.namespace
+    );
+    expect(firstPod?.metadata.name).toBeTruthy();
+    expect(firstPod?.metadata.namespace).toBeTruthy();
+
+    const incident = await request.post("/api/opslens/incidents/analyze", {
+      data: {
+        clusterId: "prod-ocp",
+        tenantId: "cywell-payments",
+        windowMinutes: 10,
+        question:
+          "최근 10분 로그와 이벤트로 원인 후보와 plan만 제안해줘. password=demo-secret",
+        alert: {
+          name: "PodCrashLooping",
+          severity: "warning",
+          namespace: firstPod?.metadata.namespace,
+          workload: firstPod?.metadata.name,
+          resource: {
+            apiVersion: "v1",
+            kind: "Pod",
+            resource: "pods",
+            namespace: firstPod?.metadata.namespace,
+            name: firstPod?.metadata.name
+          }
+        },
+        evidenceHints: {
+          podName: firstPod?.metadata.name,
+          fieldSelector: `metadata.name=${firstPod?.metadata.name}`,
+          tailLines: 20
+        },
+        caller: {
+          source: "api",
+          user: "sre.kim@example.com"
+        }
+      }
+    });
+    expect(incident.ok()).toBe(true);
+    const body = (await incident.json()) as {
+      actionMode?: string;
+      timeWindow?: { minutes?: number };
+      podLogs?: {
+        pod?: string;
+        namespace?: string;
+        sinceSeconds?: number;
+        logs?: string;
+        redacted?: boolean;
+        accessEvidence?: string[];
+      };
+      events?: {
+        accessEvidence?: string[];
+        redacted?: boolean;
+      };
+      analysis?: {
+        actionMode?: string;
+        recommendedSteps?: string[];
+        citations?: Array<{ sourceType?: string }>;
+        policy?: {
+          rawDocumentReturned?: boolean;
+          mutationAllowed?: boolean;
+        };
+        audit?: { sources?: string[] };
+      };
+      policy?: {
+        planOnly?: boolean;
+        mutationAllowed?: boolean;
+        serverSideRedaction?: boolean;
+        rawDocumentReturned?: boolean;
+        logWindowMinutes?: number;
+      };
+      missingEvidence?: string[];
+      evidence?: string[];
+      audit?: { ocpReads?: string[]; redactionCount?: number };
+    };
+
+    expect(body.actionMode).toBe("planOnly");
+    expect(body.timeWindow?.minutes).toBe(10);
+    expect(body.policy).toMatchObject({
+      planOnly: true,
+      mutationAllowed: false,
+      serverSideRedaction: true,
+      rawDocumentReturned: false,
+      logWindowMinutes: 10
+    });
+    expect(body.podLogs?.pod).toBe(firstPod?.metadata.name);
+    expect(body.podLogs?.namespace).toBe(firstPod?.metadata.namespace);
+    expect(body.podLogs?.sinceSeconds).toBe(600);
+    expect(body.podLogs?.redacted).toBe(true);
+    expect(typeof body.podLogs?.logs).toBe("string");
+    expect(body.podLogs?.accessEvidence?.join(" ")).toContain(
+      "SelfSubjectAccessReview"
+    );
+    expect(body.events?.redacted).toBe(true);
+    expect(body.analysis?.actionMode).toBe("planOnly");
+    expect(body.analysis?.recommendedSteps?.join(" ")).toContain("최근 10분");
+    expect(body.analysis?.policy).toMatchObject({
+      rawDocumentReturned: false,
+      mutationAllowed: false
+    });
+    expect(
+      body.analysis?.citations?.some(
+        (citation) => citation.sourceType === "customer-runbook"
+      )
+    ).toBe(true);
+    expect(body.audit?.ocpReads?.join(" ")).toContain("v1/pods");
+    expect(body.audit?.redactionCount).toBeGreaterThan(0);
+    expect(body.missingEvidence).toBeDefined();
+    expect(body.evidence?.join(" ")).toContain("read-only");
+    expect(JSON.stringify(body)).not.toContain("password=demo-secret");
+  });
+
+  test("AC-AIOPS-002 correlates incident analysis with Prometheus metric evidence or explicit metric gaps", async ({
+    request
+  }) => {
+    test.setTimeout(45_000);
+
+    const pods = await request.get(
+      "/api/ocp/resources?apiVersion=v1&resource=pods&limit=10"
+    );
+    expect(pods.ok()).toBe(true);
+    const podsBody = (await pods.json()) as {
+      items?: Array<{
+        metadata: {
+          name: string;
+          namespace?: string;
+        };
+      }>;
+    };
+    const firstPod = podsBody.items?.find(
+      (item) => item.metadata.name && item.metadata.namespace
+    );
+    expect(firstPod?.metadata.name).toBeTruthy();
+    expect(firstPod?.metadata.namespace).toBeTruthy();
+
+    const incident = await request.post("/api/opslens/incidents/analyze", {
+      data: {
+        clusterId: "prod-ocp",
+        tenantId: "cywell-payments",
+        windowMinutes: 10,
+        alert: {
+          name: "PodCrashLooping",
+          severity: "warning",
+          namespace: firstPod?.metadata.namespace,
+          workload: firstPod?.metadata.name,
+          resource: {
+            apiVersion: "v1",
+            kind: "Pod",
+            resource: "pods",
+            namespace: firstPod?.metadata.namespace,
+            name: firstPod?.metadata.name
+          }
+        },
+        evidenceHints: {
+          podName: firstPod?.metadata.name,
+          fieldSelector: `metadata.name=${firstPod?.metadata.name}`,
+          tailLines: 10
+        }
+      }
+    });
+    expect(incident.ok()).toBe(true);
+    const body = (await incident.json()) as {
+      metrics?: {
+        enabled?: boolean;
+        reachable?: boolean;
+        windowMinutes?: number;
+        redacted?: boolean;
+        queries?: Array<{
+          name?: string;
+          query?: string;
+          enabled?: boolean;
+          reachable?: boolean;
+          sample?: unknown[];
+          evidence?: string[];
+          error?: string;
+        }>;
+        evidence?: string[];
+      };
+      policy?: {
+        monitoringProxyEnabled?: boolean;
+        mutationAllowed?: boolean;
+      };
+      missingEvidence?: string[];
+      audit?: { ocpReads?: string[] };
+    };
+
+    expect(body.policy?.mutationAllowed).toBe(false);
+    expect(body.metrics?.windowMinutes).toBe(10);
+    expect(body.metrics?.redacted).toBe(true);
+    expect(body.policy?.monitoringProxyEnabled).toBe(body.metrics?.enabled);
+    const queryNames = body.metrics?.queries?.map((query) => query.name) ?? [];
+    expect(queryNames).toEqual(
+      expect.arrayContaining([
+        "firing-alert",
+        "pod-restarts",
+        "pod-cpu",
+        "pod-memory"
+      ])
+    );
+    expect(
+      body.metrics?.queries?.every((query) => query.query && query.sample)
+    ).toBe(true);
+
+    if (body.metrics?.enabled && body.metrics.reachable) {
+      expect(
+        body.metrics.queries?.some((query) => query.reachable === true)
+      ).toBe(true);
+      expect(body.audit?.ocpReads?.join(" ")).toContain("prometheus");
+      expect(body.metrics.evidence?.join(" ")).toContain("Prometheus");
+    } else {
+      expect(body.missingEvidence?.join(" ")).toContain("metrics/");
+      expect(
+        body.metrics?.queries?.some((query) => Boolean(query.error))
+      ).toBe(true);
+    }
+  });
+
+  test("AC-DASH-001 renders the dedicated OpsLens admin dashboard", async ({
+    page,
+    request
+  }) => {
+    const response = await request.get("/api/opslens/admin/overview");
+    expect(response.ok()).toBe(true);
+    const body = (await response.json()) as {
+      rag?: {
+        documents?: Array<{
+          label?: string;
+          redacted?: boolean;
+          evidence?: string[];
+        }>;
+        uploadIntake?: { mode?: string; evidence?: string[] };
+      };
+      tokenUsage?: {
+        budgetTokens?: number;
+        usedTokens?: number;
+        routes?: Array<{ route?: string; inputTokens?: number; outputTokens?: number }>;
+      };
+      runtime?: {
+        gpu?: { samples?: unknown[] };
+      };
+      incidents?: Array<{
+        metricQueries?: Array<{ name?: string; status?: string }>;
+      }>;
+      installReadiness?: {
+        lightspeedMcp?: string;
+        operatorPackaging?: string;
+        certification?: string;
+      };
+      policy?: {
+        mutationAllowed?: boolean;
+        rawDocumentReturned?: boolean;
+        uploadApplyAllowed?: boolean;
+      };
+    };
+
+    expect(body.rag?.documents?.length).toBeGreaterThanOrEqual(3);
+    expect(
+      body.rag?.documents?.some(
+        (document) =>
+          document.label?.includes("Payments API") &&
+          document.redacted === true &&
+          document.evidence?.join(" ").includes("metadata only")
+      )
+    ).toBe(true);
+    expect(JSON.stringify(body)).not.toContain("PAYMENT_DB_HOST");
+    expect(body.rag?.uploadIntake?.mode).toBe("validate-only");
+    expect(body.rag?.uploadIntake?.evidence?.join(" ")).toContain(
+      "local vector index"
+    );
+    expect(body.tokenUsage?.budgetTokens).toBeGreaterThan(
+      body.tokenUsage?.usedTokens ?? 0
+    );
+    expect(
+      body.tokenUsage?.routes?.some((route) => route.route === "lightspeed-mcp")
+    ).toBe(true);
+    expect(body.runtime?.gpu?.samples?.length).toBe(12);
+    expect(
+      body.incidents?.[0]?.metricQueries?.map((query) => query.name)
+    ).toEqual(
+      expect.arrayContaining([
+        "firing-alert",
+        "pod-restarts",
+        "pod-cpu",
+        "pod-memory"
+      ])
+    );
+    expect(body.installReadiness?.lightspeedMcp).toBe("ready");
+    expect(body.installReadiness?.operatorPackaging).toBe("draft");
+    expect(body.installReadiness?.certification).toBe("draft");
+    expect(body.policy).toMatchObject({
+      mutationAllowed: false,
+      rawDocumentReturned: false,
+      uploadApplyAllowed: false
+    });
+
+    const validation = await request.post("/api/opslens/admin/rag/validate", {
+      data: {
+        tenantId: "cywell-payments",
+        fileName: "payments-timeout-triage.md",
+        markdown: [
+          "---",
+          "id: customer-runbook:payments-timeout-triage",
+          "label: Payments Timeout Triage",
+          "sourceType: customer-runbook",
+          "trustLevel: draft",
+          "---",
+          "",
+          "# Payments Timeout Triage",
+          "",
+          "결제 승인 지연이 감지되면 최근 10분의 API latency, gateway error rate, egress policy change, readiness probe 상태를 함께 확인한다.",
+          "",
+          "1. Secret 원문은 조회하지 않고 key reference와 mount 상태만 확인한다.",
+          "2. 자동 rollback은 하지 않고 GitOps pull request로만 변경한다. token=demo-secret"
+        ].join("\n")
+      }
+    });
+    expect(validation.ok()).toBe(true);
+    const validationBody = (await validation.json()) as {
+      actionMode?: string;
+      accepted?: boolean;
+      redactionCount?: number;
+      chunks?: Array<{ snippet?: string; redacted?: boolean }>;
+      issues?: Array<{ severity?: string; code?: string }>;
+      policy?: {
+        validateOnly?: boolean;
+        rawDocumentReturned?: boolean;
+        uploadApplyAllowed?: boolean;
+      };
+      evidence?: string[];
+    };
+    expect(validationBody.actionMode).toBe("validateOnly");
+    expect(validationBody.accepted).toBe(true);
+    expect(validationBody.redactionCount).toBeGreaterThan(0);
+    expect(validationBody.chunks?.length).toBeGreaterThan(0);
+    expect(validationBody.chunks?.every((chunk) => chunk.redacted === true)).toBe(
+      true
+    );
+    expect(JSON.stringify(validationBody)).not.toContain("token=demo-secret");
+    expect(validationBody.policy).toMatchObject({
+      validateOnly: true,
+      rawDocumentReturned: false,
+      uploadApplyAllowed: false
+    });
+    expect(validationBody.evidence?.join(" ")).toContain("local vector index");
+
+    const evidenceExport = await request.post(
+      "/api/opslens/admin/rag/evidence-export",
+      {
+        data: {
+          tenantId: "cywell-payments",
+          fileName: "payments-timeout-triage.md",
+          markdown: [
+            "---",
+            "id: customer-runbook:payments-timeout-triage",
+            "label: Payments Timeout Triage",
+            "sourceType: customer-runbook",
+            "trustLevel: draft",
+            "---",
+            "",
+            "# Payments Timeout Triage",
+            "",
+            "결제 승인 지연이 감지되면 최근 10분의 API latency, gateway error rate, egress policy change, readiness probe 상태를 함께 확인한다.",
+            "",
+            "1. Secret 원문은 조회하지 않고 key reference와 mount 상태만 확인한다.",
+            "2. 자동 rollback은 하지 않고 GitOps pull request로만 변경한다. token=demo-secret"
+          ].join("\n"),
+          requestedBy: "playwright",
+          reason: "export token=demo-secret before approval"
+        }
+      }
+    );
+    expect(evidenceExport.ok()).toBe(true);
+    const evidenceExportBody = (await evidenceExport.json()) as {
+      artifactType?: string;
+      exportId?: string;
+      actionMode?: string;
+      validation?: { accepted?: boolean };
+      content?: {
+        markdownReturned?: boolean;
+        documentBodyReturned?: boolean;
+        chunksRedacted?: boolean;
+      };
+      approvalQueue?: { mode?: string; enqueueAllowed?: boolean };
+      audit?: { validationHash?: string; reason?: string };
+      policy?: {
+        rawDocumentReturned?: boolean;
+        uploadApplyAllowed?: boolean;
+        evidenceExportAllowed?: boolean;
+        approvalQueueMutationAllowed?: boolean;
+      };
+    };
+    expect(evidenceExportBody.artifactType).toBe(
+      "opslens.rag.validation-evidence.v0.1"
+    );
+    expect(evidenceExportBody.exportId).toContain("rag-validation-");
+    expect(evidenceExportBody.actionMode).toBe("validateOnly");
+    expect(evidenceExportBody.validation?.accepted).toBe(true);
+    expect(evidenceExportBody.content).toMatchObject({
+      markdownReturned: false,
+      documentBodyReturned: false,
+      chunksRedacted: true
+    });
+    expect(evidenceExportBody.approvalQueue).toMatchObject({
+      mode: "designOnly",
+      enqueueAllowed: false
+    });
+    expect(evidenceExportBody.policy).toMatchObject({
+      rawDocumentReturned: false,
+      uploadApplyAllowed: false,
+      evidenceExportAllowed: true,
+      approvalQueueMutationAllowed: false
+    });
+    expect(evidenceExportBody.audit?.validationHash).toHaveLength(64);
+    expect(JSON.stringify(evidenceExportBody)).not.toContain("token=demo-secret");
+
+    const dashboard = page.getByTestId("opslens-admin-dashboard");
+    await dashboard.scrollIntoViewIfNeeded();
+    await expect(dashboard).toBeVisible();
+    await expect(page.getByTestId("opslens-rag-health")).toContainText(
+      "Payments API"
+    );
+    await expect(page.getByTestId("opslens-token-usage")).toContainText(
+      "lightspeed-mcp"
+    );
+    await expect(page.getByTestId("opslens-gpu-runtime")).toContainText(
+      "Gemma 4"
+    );
+    await expect(page.getByTestId("opslens-incident-metrics")).toContainText(
+      "pod-memory"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Certification"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "mutationAllowed=false"
+    );
+    await page
+      .getByTestId("opslens-rag-validation")
+      .getByRole("button", { name: "Validate" })
+      .click();
+    await expect(page.getByTestId("opslens-rag-validation")).toContainText(
+      "accepted"
+    );
+    await expect(page.getByTestId("opslens-rag-validation")).toContainText(
+      "rawDocumentReturned=false"
+    );
+    await page
+      .getByTestId("opslens-rag-validation")
+      .getByRole("button", { name: "Export Evidence" })
+      .click();
+    await expect(page.getByTestId("opslens-rag-evidence-export")).toContainText(
+      "rag-validation-"
+    );
+    await expect(page.getByTestId("opslens-rag-evidence-export")).toContainText(
+      "designOnly"
+    );
+    await expect(page.getByTestId("opslens-rag-evidence-export")).toContainText(
+      "enqueueAllowed=false"
+    );
+  });
+
+  test("AC-OCP-001 discovers and reads live OpenShift resources", async ({
+    page,
+    request
+  }) => {
+    test.setTimeout(75_000);
+
+    const status = await request.get("/api/ocp/status");
+    expect(status.ok()).toBe(true);
+    const statusBody = (await status.json()) as {
+      configured?: boolean;
+      reachable?: boolean;
+      gitVersion?: string;
+      userName?: string;
+    };
+    expect(statusBody.configured).toBe(true);
+    expect(statusBody.reachable).toBe(true);
+    expect(statusBody.gitVersion).toBeTruthy();
+
+    const discovery = await request.get("/api/ocp/api-resources");
+    expect(discovery.ok()).toBe(true);
+    const discoveryBody = (await discovery.json()) as {
+      status?: { discoveredResourceCount?: number };
+      resources?: Array<{
+        apiVersion: string;
+        name: string;
+        kind: string;
+        safeToList: boolean;
+      }>;
+    };
+    expect(discoveryBody.status?.discoveredResourceCount).toBeGreaterThan(100);
+    expect(
+      JSON.stringify(discoveryBody).toLowerCase().includes("ocp_api_token")
+    ).toBe(false);
+
+    const podsResource = discoveryBody.resources?.find(
+      (resource) => resource.apiVersion === "v1" && resource.name === "pods"
+    );
+    expect(podsResource?.safeToList).toBe(true);
+
+    const accessReview = await request.get(
+      "/api/ocp/access-review?apiVersion=v1&resource=pods&verb=list"
+    );
+    expect(accessReview.ok()).toBe(true);
+    const accessReviewBody = (await accessReview.json()) as {
+      access?: {
+        allowed?: boolean;
+        verb?: string;
+        evidence?: string[];
+      };
+    };
+    expect(accessReviewBody.access?.allowed).toBe(true);
+    expect(accessReviewBody.access?.verb).toBe("list");
+    expect(accessReviewBody.access?.evidence?.join(" ")).toContain(
+      "SelfSubjectAccessReview"
+    );
+
+    const accessMatrix = await request.get(
+      "/api/ocp/access-matrix?apiVersion=v1&resource=pods"
+    );
+    expect(accessMatrix.ok()).toBe(true);
+    const accessMatrixBody = (await accessMatrix.json()) as {
+      access?: {
+        get?: { allowed?: boolean };
+        list?: { allowed?: boolean };
+        watch?: { allowed?: boolean };
+      };
+    };
+    expect(accessMatrixBody.access?.get?.allowed).toBe(true);
+    expect(accessMatrixBody.access?.list?.allowed).toBe(true);
+    expect(accessMatrixBody.access?.watch?.allowed).toBe(true);
+
+    const overview = await request.get("/api/ocp/console-overview");
+    expect(overview.ok()).toBe(true);
+    const overviewBody = (await overview.json()) as {
+      cluster?: { version?: string; desiredVersion?: string };
+      operators?: { total?: number; degraded?: number };
+      nodes?: { total?: number; ready?: number };
+      workloads?: {
+        pods?: { total?: number; crashLooping?: number };
+        deployments?: { total?: number };
+      };
+      networking?: { routes?: number; services?: number };
+      supplyChain?: { imageStreams?: number };
+      evidence?: string[];
+    };
+    expect(overviewBody.cluster?.version).toBeTruthy();
+    expect(overviewBody.operators?.total).toBeGreaterThan(0);
+    expect(overviewBody.nodes?.total).toBeGreaterThan(0);
+    expect(overviewBody.workloads?.pods?.total).toBeGreaterThan(0);
+    expect(overviewBody.networking?.services).toBeGreaterThan(0);
+    expect(overviewBody.evidence?.length).toBeGreaterThan(5);
+
+    const coverage = await request.get(
+      "/api/ocp/coverage-matrix?maxResources=20&includeDetails=true"
+    );
+    expect(coverage.ok()).toBe(true);
+    const coverageBody = (await coverage.json()) as {
+      status?: { reachable?: boolean };
+      totals?: {
+        discovered?: number;
+        safeToList?: number;
+        probed?: number;
+        listed?: number;
+        empty?: number;
+        blocked?: number;
+        skipped?: number;
+        detailRead?: number;
+        gapTypes?: Record<string, number>;
+      };
+      resources?: Array<{
+        resource: { apiVersion: string; name: string };
+        list: {
+          status: string;
+          access?: { evidence?: string[] };
+        };
+        detail: { status: string };
+        gap?: { type?: string; message?: string };
+      }>;
+      evidence?: string[];
+    };
+    expect(coverageBody.status?.reachable).toBe(true);
+    expect(coverageBody.totals?.discovered).toBe(
+      discoveryBody.status?.discoveredResourceCount
+    );
+    expect(coverageBody.totals?.safeToList).toBeGreaterThan(20);
+    expect(coverageBody.totals?.probed).toBe(20);
+    expect(coverageBody.resources?.length).toBe(coverageBody.totals?.discovered);
+    expect(
+      coverageBody.resources?.some((entry) =>
+        entry.list.access?.evidence?.join(" ").includes(
+          "SelfSubjectAccessReview"
+        )
+      )
+    ).toBe(true);
+    expect(
+      coverageBody.resources?.find(
+        (entry) =>
+          entry.resource.apiVersion === "v1" &&
+          entry.resource.name === "secrets"
+      )
+    ).toMatchObject({
+      list: { status: "blocked" },
+      gap: { type: "policy-blocked" }
+    });
+    expect(coverageBody.totals?.gapTypes?.["policy-blocked"]).toBe(1);
+    expect(coverageBody.totals?.gapTypes?.["not-probed"]).toBeGreaterThan(0);
+    expect(
+      coverageBody.resources?.some((entry) => entry.gap?.type === "not-probed")
+    ).toBe(true);
+    expect(coverageBody.evidence?.join(" ")).toContain("Secrets remain blocked");
+
+    const secretDiagnostic = await request.get(
+      "/api/ocp/coverage-diagnostic?apiVersion=v1&resource=secrets"
+    );
+    expect(secretDiagnostic.ok()).toBe(true);
+    const secretDiagnosticBody = (await secretDiagnostic.json()) as {
+      coverage?: { gap?: { type?: string } };
+      findings?: Array<{ label?: string; status?: string }>;
+      evidence?: string[];
+      rollbackPath?: string[];
+    };
+    expect(secretDiagnosticBody.coverage?.gap?.type).toBe("policy-blocked");
+    expect(
+      secretDiagnosticBody.findings?.some(
+        (finding) => finding.label === "Coverage Gap"
+      )
+    ).toBe(true);
+    expect(secretDiagnosticBody.evidence?.join(" ")).toContain("read-only");
+    expect(secretDiagnosticBody.rollbackPath?.join(" ")).not.toContain("apply");
+
+    const fullCoverage = await request.get(
+      "/api/ocp/coverage-matrix?includeDetails=false"
+    );
+    expect(fullCoverage.ok()).toBe(true);
+    const fullCoverageBody = (await fullCoverage.json()) as {
+      totals?: { safeToList?: number; probed?: number; skipped?: number };
+      resources?: Array<{
+        resource: { apiVersion: string; name: string };
+        gap?: { type?: string };
+      }>;
+    };
+    expect(fullCoverageBody.totals?.probed).toBe(
+      fullCoverageBody.totals?.safeToList
+    );
+    expect(fullCoverageBody.totals?.skipped).toBe(0);
+    const conversionWebhookGap = fullCoverageBody.resources?.find(
+      (entry) => entry.gap?.type === "conversion-webhook-error"
+    );
+    if (conversionWebhookGap) {
+      const diagnostic = await request.get(
+        `/api/ocp/coverage-diagnostic?apiVersion=${encodeURIComponent(
+          conversionWebhookGap.resource.apiVersion
+        )}&resource=${encodeURIComponent(conversionWebhookGap.resource.name)}`
+      );
+      expect(diagnostic.ok()).toBe(true);
+      const diagnosticBody = (await diagnostic.json()) as {
+        coverage?: { gap?: { type?: string } };
+        findings?: Array<{ label?: string; message?: string; status?: string }>;
+        nextChecks?: string[];
+      };
+      expect(diagnosticBody.coverage?.gap?.type).toBe(
+        "conversion-webhook-error"
+      );
+      expect(
+        diagnosticBody.findings?.some(
+          (finding) => finding.label === "CustomResourceDefinition"
+        )
+      ).toBe(true);
+      expect(
+        diagnosticBody.findings?.some((finding) =>
+          finding.message?.toLowerCase().includes("webhook")
+        )
+      ).toBe(true);
+      expect(diagnosticBody.nextChecks?.join(" ")).toContain("webhook");
+      const alternateFinding = diagnosticBody.findings?.find(
+        (finding) => finding.label === "Alternate API Versions"
+      );
+      expect(alternateFinding).toBeDefined();
+
+      if (alternateFinding?.status === "ok") {
+        const fallbackList = await request.get(
+          `/api/ocp/resources?apiVersion=${encodeURIComponent(
+            conversionWebhookGap.resource.apiVersion
+          )}&resource=${encodeURIComponent(
+            conversionWebhookGap.resource.name
+          )}&limit=1`
+        );
+        expect(fallbackList.ok()).toBe(true);
+        const fallbackListBody = (await fallbackList.json()) as {
+          resource?: { apiVersion?: string; name?: string };
+          namespace?: string;
+          fallback?: {
+            requestedApiVersion?: string;
+            servedApiVersion?: string;
+            evidence?: string[];
+          };
+          items?: Array<{
+            metadata: { name?: string; namespace?: string };
+          }>;
+          access?: { list?: { allowed?: boolean; evidence?: string[] } };
+        };
+        expect(fallbackListBody.fallback?.requestedApiVersion).toBe(
+          conversionWebhookGap.resource.apiVersion
+        );
+        expect(fallbackListBody.fallback?.servedApiVersion).toBeTruthy();
+        expect(fallbackListBody.resource?.apiVersion).toBe(
+          fallbackListBody.fallback?.servedApiVersion
+        );
+        expect(fallbackListBody.fallback?.evidence?.join(" ")).toContain(
+          "alternate version list succeeded"
+        );
+        expect(fallbackListBody.access?.list?.allowed).toBe(true);
+        expect(fallbackListBody.access?.list?.evidence?.join(" ")).toContain(
+          "SelfSubjectAccessReview"
+        );
+
+        const fallbackItem = fallbackListBody.items?.[0];
+        if (fallbackItem?.metadata.name) {
+          const fallbackDetail = await request.get(
+            `/api/ocp/resource?apiVersion=${encodeURIComponent(
+              conversionWebhookGap.resource.apiVersion
+            )}&resource=${encodeURIComponent(
+              conversionWebhookGap.resource.name
+            )}&name=${encodeURIComponent(fallbackItem.metadata.name)}${
+              fallbackItem.metadata.namespace
+                ? `&namespace=${encodeURIComponent(
+                    fallbackItem.metadata.namespace
+                  )}`
+                : ""
+            }&full=true`
+          );
+          expect(fallbackDetail.ok()).toBe(true);
+          const fallbackDetailBody = (await fallbackDetail.json()) as {
+            resource?: { apiVersion?: string };
+            fallback?: {
+              requestedApiVersion?: string;
+              servedApiVersion?: string;
+              evidence?: string[];
+            };
+            access?: { get?: { allowed?: boolean; evidence?: string[] } };
+          };
+          expect(fallbackDetailBody.fallback?.requestedApiVersion).toBe(
+            conversionWebhookGap.resource.apiVersion
+          );
+          expect(fallbackDetailBody.resource?.apiVersion).toBe(
+            fallbackDetailBody.fallback?.servedApiVersion
+          );
+          expect(fallbackDetailBody.fallback?.evidence?.join(" ")).toContain(
+            "alternate version get succeeded"
+          );
+          expect(fallbackDetailBody.access?.get?.allowed).toBe(true);
+        }
+      }
+    }
+
+    const pods = await request.get(
+      "/api/ocp/resources?apiVersion=v1&resource=pods&limit=50"
+    );
+    expect(pods.ok()).toBe(true);
+    const podsBody = (await pods.json()) as {
+      items?: Array<{
+        metadata: {
+          name: string;
+          namespace?: string;
+          labels?: Record<string, string>;
+          ownerReferences?: Array<{ kind?: string; name?: string }>;
+        };
+      }>;
+      continueToken?: string;
+      access?: { list?: { allowed?: boolean; evidence?: string[] } };
+    };
+    expect(podsBody.items?.length).toBeGreaterThan(0);
+    expect(podsBody.continueToken).toBeTruthy();
+    expect(podsBody.access?.list?.allowed).toBe(true);
+    expect(podsBody.access?.list?.evidence?.join(" ")).toContain(
+      "SelfSubjectAccessReview"
+    );
+
+    const labeledPod = podsBody.items?.find((item) =>
+      Object.values(item.metadata.labels ?? {}).some((value) => Boolean(value))
+    );
+    const labelEntry = Object.entries(labeledPod?.metadata.labels ?? {}).find(
+      ([, value]) => Boolean(value)
+    );
+    expect(labelEntry).toBeDefined();
+    const labelSelector = `${labelEntry?.[0]}=${labelEntry?.[1]}`;
+    const labelFilteredPods = await request.get(
+      `/api/ocp/resources?apiVersion=v1&resource=pods&limit=10&labelSelector=${encodeURIComponent(
+        labelSelector
+      )}`
+    );
+    expect(labelFilteredPods.ok()).toBe(true);
+    const labelFilteredBody = (await labelFilteredPods.json()) as {
+      selectors?: { labelSelector?: string };
+      items?: Array<{ metadata: { labels?: Record<string, string> } }>;
+    };
+    expect(labelFilteredBody.selectors?.labelSelector).toBe(labelSelector);
+    expect(labelFilteredBody.items?.length).toBeGreaterThan(0);
+    expect(
+      labelFilteredBody.items?.every(
+        (item) => item.metadata.labels?.[labelEntry?.[0] ?? ""] === labelEntry?.[1]
+      )
+    ).toBe(true);
+
+    const firstPod =
+      podsBody.items?.find(
+        (item) => (item.metadata.ownerReferences?.length ?? 0) > 0
+      ) ?? podsBody.items?.[0];
+    expect(firstPod?.metadata.name).toBeTruthy();
+
+    const nextPods = await request.get(
+      `/api/ocp/resources?apiVersion=v1&resource=pods&limit=5&continue=${encodeURIComponent(
+        podsBody.continueToken ?? ""
+      )}`
+    );
+    expect(nextPods.ok()).toBe(true);
+    const nextPodsBody = (await nextPods.json()) as {
+      items?: Array<{ metadata: { name: string } }>;
+    };
+    expect(nextPodsBody.items?.length).toBeGreaterThan(0);
+
+    const fieldFilteredPods = await request.get(
+      `/api/ocp/resources?apiVersion=v1&resource=pods&limit=5&fieldSelector=${encodeURIComponent(
+        `metadata.name=${firstPod?.metadata.name ?? ""}`
+      )}`
+    );
+    expect(fieldFilteredPods.ok()).toBe(true);
+    const fieldFilteredBody = (await fieldFilteredPods.json()) as {
+      selectors?: { fieldSelector?: string };
+      items?: Array<{ metadata: { name: string } }>;
+    };
+    expect(fieldFilteredBody.selectors?.fieldSelector).toBe(
+      `metadata.name=${firstPod?.metadata.name}`
+    );
+    expect(fieldFilteredBody.items?.[0]?.metadata.name).toBe(
+      firstPod?.metadata.name
+    );
+
+    const podDetail = await request.get(
+      `/api/ocp/resource?apiVersion=v1&resource=pods&full=true&namespace=${encodeURIComponent(
+        firstPod?.metadata.namespace ?? ""
+      )}&name=${encodeURIComponent(firstPod?.metadata.name ?? "")}`
+    );
+    expect(podDetail.ok()).toBe(true);
+    const podDetailBody = (await podDetail.json()) as {
+      raw?: { kind?: string; metadata?: { name?: string } };
+      access?: { get?: { allowed?: boolean; evidence?: string[] } };
+      redaction?: { sensitiveFieldRedactionCount?: number };
+    };
+    expect(podDetailBody.raw?.kind).toBe("Pod");
+    expect(podDetailBody.raw?.metadata?.name).toBe(firstPod?.metadata.name);
+    expect(podDetailBody.access?.get?.allowed).toBe(true);
+    expect(podDetailBody.access?.get?.evidence?.join(" ")).toContain(
+      "SelfSubjectAccessReview"
+    );
+    expect(JSON.stringify(podDetailBody).toLowerCase()).not.toContain(
+      "ocp_api_token"
+    );
+
+    const related = await request.get(
+      `/api/ocp/related?apiVersion=v1&resource=pods&namespace=${encodeURIComponent(
+        firstPod?.metadata.namespace ?? ""
+      )}&name=${encodeURIComponent(firstPod?.metadata.name ?? "")}`
+    );
+    expect(related.ok()).toBe(true);
+    const relatedBody = (await related.json()) as {
+      owners?: Array<{ kind?: string; name?: string }>;
+      children?: unknown[];
+      evidence?: string[];
+    };
+    expect(relatedBody.owners).toBeDefined();
+    if ((firstPod?.metadata.ownerReferences?.length ?? 0) > 0) {
+      expect(relatedBody.owners?.length).toBeGreaterThan(0);
+      expect(relatedBody.owners?.[0]?.name).toBe(
+        firstPod?.metadata.ownerReferences?.[0]?.name
+      );
+    }
+    expect(relatedBody.children).toBeDefined();
+    expect(relatedBody.evidence?.join(" ")).toContain("ownerReferences");
+
+    const events = await request.get(
+      `/api/ocp/events?apiVersion=v1&kind=Pod&namespace=${encodeURIComponent(
+        firstPod?.metadata.namespace ?? ""
+      )}&name=${encodeURIComponent(firstPod?.metadata.name ?? "")}`
+    );
+    expect(events.ok()).toBe(true);
+    const eventsBody = (await events.json()) as {
+      items?: unknown[];
+      access?: { allowed?: boolean };
+    };
+    expect(eventsBody.items).toBeDefined();
+    expect(eventsBody.access?.allowed).toBe(true);
+
+    const logs = await request.get(
+      `/api/ocp/pod-logs?namespace=${encodeURIComponent(
+        firstPod?.metadata.namespace ?? ""
+      )}&pod=${encodeURIComponent(firstPod?.metadata.name ?? "")}&tailLines=20`
+    );
+    expect(logs.ok()).toBe(true);
+    const logsBody = (await logs.json()) as {
+      pod?: string;
+      namespace?: string;
+      tailLines?: number;
+      logs?: string;
+      access?: { allowed?: boolean; resourceAttributes?: { subresource?: string } };
+    };
+    expect(logsBody.pod).toBe(firstPod?.metadata.name);
+    expect(logsBody.namespace).toBe(firstPod?.metadata.namespace);
+    expect(logsBody.tailLines).toBe(20);
+    expect(typeof logsBody.logs).toBe("string");
+    expect(logsBody.access?.allowed).toBe(true);
+    expect(logsBody.access?.resourceAttributes?.subresource).toBe("log");
+
+    const secret = await request.get(
+      "/api/ocp/resources?apiVersion=v1&resource=secrets&limit=1"
+    );
+    expect(secret.status()).toBe(400);
+
+    await page.goto("/");
+    await expect(page.getByTestId("ocp-overview-status")).toContainText(
+      "live OCP",
+      { timeout: 15_000 }
+    );
+    await expect(page.getByTestId("ocp-console-overview")).toContainText(
+      "Cluster Operators"
+    );
+    await expect(page.getByTestId("ocp-console-overview")).toContainText(
+      "Workloads"
+    );
+    await expect(page.getByTestId("ocp-overview-evidence")).toContainText(
+      "ClusterVersion"
+    );
+    await expect(page.getByTestId("ocp-coverage-status")).toContainText(
+      "coverage ready",
+      { timeout: 20_000 }
+    );
+    await expect(page.getByTestId("ocp-coverage-status")).toContainText(
+      "discovered"
+    );
+    await expect(page.getByTestId("ocp-coverage-totals")).toContainText(
+      "listed"
+    );
+    await expect(page.getByTestId("ocp-coverage-totals")).toContainText(
+      "skipped"
+    );
+    await expect(page.getByTestId("ocp-coverage-totals")).toContainText(
+      "policy-blocked"
+    );
+    await expect(page.getByTestId("ocp-coverage-totals")).toContainText(
+      "not-probed"
+    );
+    await expect(page.getByTestId("ocp-coverage-matrix")).toContainText(
+      "policy-blocked"
+    );
+    await expect(page.getByTestId("ocp-coverage-full-scan")).toBeVisible();
+    await expect(page.getByTestId("ocp-coverage-export")).toBeVisible();
+    await expect(page.getByTestId("ocp-coverage-matrix")).toContainText(
+      "SelfSubjectAccessReview"
+    );
+    await expect(page.getByTestId("ocp-coverage-diagnostic")).toContainText(
+      "Coverage Diagnostic",
+      { timeout: 20_000 }
+    );
+    await expect(page.getByTestId("ocp-coverage-diagnostic")).toContainText(
+      "Coverage Gap"
+    );
+    await expect(page.getByTestId("ocp-status")).toContainText("OCP reachable", {
+      timeout: 15_000
+    });
+    await page.getByLabel("Search API resources").fill("pods");
+    await expect(page.getByTestId("ocp-resource-table")).toContainText("Pod");
+    if (firstPod?.metadata.namespace) {
+      await expect(page.getByTestId("ocp-namespace-select")).toContainText(
+        firstPod.metadata.namespace
+      );
+    }
+    await expect(page.getByTestId("ocp-resource-items")).toContainText(
+      firstPod?.metadata.name ?? ""
+    );
+    await expect(page.getByTestId("ocp-resource-access")).toContainText(
+      "RBAC list allowed"
+    );
+    await page.getByTestId("ocp-label-selector").fill(labelSelector);
+    await page.getByTestId("ocp-resource-load").click();
+    await expect(page.getByTestId("ocp-resource-access")).toContainText(
+      "RBAC list allowed"
+    );
+    await page.getByTestId("ocp-label-selector").fill("");
+    await page
+      .getByTestId("ocp-field-selector")
+      .fill(`metadata.name=${firstPod?.metadata.name ?? ""}`);
+    await page.getByTestId("ocp-resource-load").click();
+    await expect(page.getByTestId("ocp-resource-items")).toContainText(
+      firstPod?.metadata.name ?? ""
+    );
+    await page.getByTestId("ocp-field-selector").fill("");
+    await page.getByTestId("ocp-resource-load").click();
+    await expect(page.getByTestId("ocp-access-matrix")).toContainText(
+      "get allowed"
+    );
+    await expect(page.getByTestId("ocp-access-matrix")).toContainText(
+      "list allowed"
+    );
+    await expect(page.getByTestId("ocp-access-matrix")).toContainText(
+      "watch allowed"
+    );
+    await expect(page.getByTestId("ocp-page-controls")).toContainText("Page 1");
+    await expect(page.getByTestId("ocp-resource-detail")).toContainText(
+      `"kind": "Pod"`
+    );
+    await expect(page.getByTestId("ocp-related-resources")).toContainText(
+      "Owner References"
+    );
+    await page.getByTestId("ocp-detail-yaml-tab").click();
+    await expect(page.getByTestId("ocp-resource-detail")).toContainText(
+      "kind: Pod"
+    );
+    await expect(page.getByTestId("ocp-resource-detail")).toContainText(
+      "apiVersion: v1"
+    );
+    await expect(page.getByTestId("ocp-resource-detail")).not.toContainText(
+      "ocp_api_token"
+    );
+    await page.getByTestId("ocp-detail-json-tab").click();
+    await expect(page.getByTestId("ocp-resource-events")).toContainText(
+      /events|Event|No events/
+    );
+    await expect(page.getByTestId("ocp-pod-logs")).not.toBeEmpty();
+    await expect(page.getByTestId("ocp-next-page")).toBeEnabled();
+    await page.getByTestId("ocp-next-page").click();
+    await expect(page.getByTestId("ocp-page-controls")).toContainText("Page 2");
+    await expect(page.getByTestId("ocp-prev-page")).toBeEnabled();
+  });
+});

@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OpenShift Software Catalog 운영 AI Assistant 앱 개발 기획서</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --paper: #ffffff;
+      --ink: #172033;
+      --muted: #64748b;
+      --line: #d9e2ec;
+      --blue: #0759c7;
+      --cyan: #036b83;
+      --green: #0d7a45;
+      --amber: #986300;
+      --red: #b42318;
+      --slate: #243447;
+      --soft-blue: #eef6ff;
+      --soft-green: #edf8f2;
+      --soft-amber: #fff7e6;
+      --soft-red: #fff1f0;
+      --code: #111827;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+      line-height: 1.68;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 32px auto 56px;
+      padding: 0 24px;
+    }
+
+    article {
+      overflow: hidden;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+    }
+
+    header {
+      padding: 36px 42px 30px;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(135deg, rgba(7, 89, 199, 0.12), rgba(3, 107, 131, 0.08)),
+        #ffffff;
+    }
+
+    section {
+      padding: 28px 42px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    section:last-child { border-bottom: 0; }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    h1 { font-size: 31px; }
+    h2 { font-size: 23px; margin-bottom: 14px; }
+    h3 { font-size: 17px; margin: 20px 0 8px; }
+
+    p { margin: 8px 0 0; }
+
+    a { color: var(--blue); }
+
+    ul, ol {
+      margin: 8px 0 0 22px;
+      padding: 0;
+    }
+
+    li { margin: 6px 0; }
+
+    table {
+      width: 100%;
+      margin-top: 12px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eef3f9;
+      color: #1f2a44;
+      font-weight: 700;
+    }
+
+    code {
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: #eef3f8;
+      color: #14314f;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 0.94em;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      padding: 16px 18px;
+      overflow-x: auto;
+      border-radius: 8px;
+      background: var(--code);
+      color: #dce7ff;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .subtitle {
+      max-width: 920px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border: 1px solid #c8e6ff;
+      border-radius: 999px;
+      background: #ecf7ff;
+      color: #064d7a;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .card {
+      padding: 15px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfdff;
+    }
+
+    .card strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--slate);
+    }
+
+    .note {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-left: 4px solid var(--blue);
+      background: var(--soft-blue);
+      border-radius: 6px;
+    }
+
+    .warning {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-left: 4px solid var(--amber);
+      background: var(--soft-amber);
+      border-radius: 6px;
+    }
+
+    .danger {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-left: 4px solid var(--red);
+      background: var(--soft-red);
+      border-radius: 6px;
+    }
+
+    .ok {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-left: 4px solid var(--green);
+      background: var(--soft-green);
+      border-radius: 6px;
+    }
+
+    .tag {
+      display: inline-block;
+      margin: 2px 4px 2px 0;
+      padding: 2px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .kpi {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .kpi div {
+      padding: 14px 15px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+
+    .kpi strong {
+      display: block;
+      color: var(--blue);
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    .muted { color: var(--muted); }
+    .nowrap { white-space: nowrap; }
+
+    @media print {
+      body { background: #fff; }
+      main { max-width: none; margin: 0; padding: 0; }
+      article { border: 0; box-shadow: none; }
+      section, header { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <article>
+      <header>
+        <h1>OpenShift Software Catalog 운영 AI Assistant 앱 개발 기획서</h1>
+        <p class="subtitle">
+          Red Hat OpenShift web console의 Software Catalog에 등록 가능한 운영형 AI 앱을 설계한다.
+          목표는 단순 챗봇이 아니라, dashboard, context-aware assistant, 운영 지식 RAG, audit/evaluation을 하나의 제품 경험으로 묶는 것이다.
+        </p>
+        <div class="meta">
+          <span class="pill">작성일 2026-06-12 KST</span>
+          <span class="pill">대상 OpenShift Web Console</span>
+          <span class="pill">형태 Console Plugin + Operator + Backend</span>
+          <span class="pill">상태 Product Planning Draft</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>1. 목표, 완료 조건, 검증 방법, 하지 않을 것</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>구분</th>
+              <th>내용</th>
+              <th>측정 방법</th>
+              <th>현재 gap</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>목표</td>
+              <td>OpenShift 운영자가 alert, workload, 로그, 이벤트, GitOps 상태, 사내 runbook을 한 화면에서 해석하고, AI와 함께 안전하게 조치안을 만들 수 있게 한다.</td>
+              <td>대표 장애 시나리오에서 원인 후보, 근거, 다음 조치까지 도달하는 시간 측정</td>
+              <td>기존 assistant류 경험은 대화창 중심이며 운영 dashboard와 evidence workflow가 약하다.</td>
+            </tr>
+            <tr>
+              <td>완료 조건</td>
+              <td>Dashboard, context-aware chat, 지식/RAG 관리, 모델/비용 관리, audit/evaluation 화면을 MVP에서 최소 동작시킨다.</td>
+              <td>acceptance criteria pass/fail, e2e demo, RBAC별 화면 확인</td>
+              <td>대화 UI만 만들면 제품 완성도가 부족하다.</td>
+            </tr>
+            <tr>
+              <td>검증 방법</td>
+              <td>실제 OpenShift alert, pod failure, rollout failure, quota/limit, image pull, monitoring data missing 시나리오를 replay한다.</td>
+              <td>golden scenario, answer citation audit, UI occlusion test, action safety test</td>
+              <td>모델 답변만 보는 검증으로는 운영 UX를 증명할 수 없다.</td>
+            </tr>
+            <tr>
+              <td>하지 않을 것</td>
+              <td>초기 버전에서 자동 apply/delete/scale 같은 파괴적 조치는 하지 않는다. AI 답변을 무근거로 확정 판정하지 않는다.</td>
+              <td>action policy와 audit log 점검</td>
+              <td>AI가 운영 권한을 바로 행사하면 보안/책임 경계가 흐려진다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>2. 제품 가설</h2>
+        <div class="note">
+          이 문서는 사용자의 제품 가설을 출발점으로 한다. 현행 Red Hat OpenShift Lightspeed에 대한 세부 평가는 환경과 버전에 따라 달라질 수 있으므로,
+          아래 항목은 "우리가 만들 앱이 반드시 해결해야 할 문제"로 고정한다.
+        </div>
+        <div class="grid">
+          <div class="card">
+            <strong>가설 A. Dashboard 부재</strong>
+            <p>운영자는 질문하기 전 이미 cluster 상태, alert 우선순위, 영향을 받는 workload, 최근 변경점을 보고 싶다. 챗봇만 있으면 문제를 발견하는 surface가 빈약하다.</p>
+          </div>
+          <div class="card">
+            <strong>가설 B. BYOK/외부 지식 주입 의존</strong>
+            <p>사용자가 지식이나 key를 직접 가져오는 방식에만 기대면 RAG 범위가 좁아진다. 공식 문서, 사내 runbook, GitOps repo, ticket/postmortem, live cluster state가 함께 들어와야 한다.</p>
+          </div>
+          <div class="card">
+            <strong>가설 C. 화면을 가리는 UX</strong>
+            <p>운영 assistant가 alert table, log, event, YAML을 가리면 도구가 증거를 해석하는 게 아니라 증거를 숨기는 꼴이 된다.</p>
+          </div>
+          <div class="card">
+            <strong>가설 D. 운영 검증 루프 부족</strong>
+            <p>답변이 맞는지, 어떤 문서를 근거로 했는지, 비용과 latency가 어떤지, 누가 어떤 질문을 했는지 추적되지 않으면 enterprise 운영 제품이 되기 어렵다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>3. 제품 포지셔닝</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>구분</th>
+              <th>일반 챗봇</th>
+              <th>본 제품</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>첫 화면</td>
+              <td>질문 입력창</td>
+              <td>운영 dashboard와 active incident queue</td>
+            </tr>
+            <tr>
+              <td>주요 입력</td>
+              <td>사용자 자연어</td>
+              <td>자연어 + 현재 console route + selected resource + alert/event/log/YAML + GitOps 변경 이력</td>
+            </tr>
+            <tr>
+              <td>RAG</td>
+              <td>사용자가 넣은 문서 또는 제한된 문서</td>
+              <td>공식 문서, 사내 runbook, customer docs, cluster state snapshot, incident history, GitOps manifest를 policy 기반으로 통합</td>
+            </tr>
+            <tr>
+              <td>UI</td>
+              <td>floating overlay</td>
+              <td>inline dock, resizable drawer, bottom mode, detached window, context chips</td>
+            </tr>
+            <tr>
+              <td>답변</td>
+              <td>문장형 추천</td>
+              <td>근거, confidence, inspected evidence, next command, rollback path, related docs, risk 표시</td>
+            </tr>
+            <tr>
+              <td>운영 통제</td>
+              <td>제한적</td>
+              <td>RBAC, data redaction, usage quota, audit log, evaluation dashboard, model fallback</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>4. 핵심 문제점 정리</h2>
+        <h3>4.1 Dashboard 없음</h3>
+        <p>
+          운영자는 챗봇에게 묻기 전에 이미 무엇이 위험한지 알아야 한다. dashboard가 없으면 assistant는 reactive tool에 머물고,
+          사용자는 alert page, monitoring page, events, logs, workloads를 오가며 증거를 직접 모아야 한다.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>문제</th>
+              <th>사용자 영향</th>
+              <th>해결 방향</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Active alert 우선순위가 assistant 화면과 분리됨</td>
+              <td>사용자가 먼저 어떤 alert를 물어봐야 할지 판단해야 함</td>
+              <td>AI Triage Dashboard에서 severity, blast radius, recent change, runbook match를 함께 보여준다.</td>
+            </tr>
+            <tr>
+              <td>Cluster health와 지식 health가 분리됨</td>
+              <td>답변 품질 저하 원인이 cluster data인지 RAG data인지 알기 어려움</td>
+              <td>Cluster signal freshness와 RAG index freshness를 같은 dashboard에 표시한다.</td>
+            </tr>
+            <tr>
+              <td>질문/답변이 운영 backlog로 남지 않음</td>
+              <td>반복 장애를 학습하거나 개선하기 어렵다</td>
+              <td>Conversation을 incident note, runbook candidate, evaluation sample로 승격한다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>4.2 BYOK/좁은 RAG 의존</h3>
+        <p>
+          여기서 BYOK는 사용자가 직접 key나 knowledge를 가져와야 확장되는 방식 전체를 넓게 부르는 표현이다.
+          운영 AI는 단순 문서 검색기가 아니라 "환경별 운영 지식 시스템"이어야 한다.
+        </p>
+        <div class="warning">
+          RAG가 좁으면 답변은 그럴듯해도 실제 cluster, 사내 표준, 고객사 예외, 과거 장애 이력을 놓친다.
+          운영자가 원하는 것은 일반 OpenShift 설명이 아니라 "우리 cluster에서 지금 무엇을 봐야 하는가"다.
+        </div>
+
+        <h3>4.3 화면을 가리는 UI</h3>
+        <p>
+          assistant가 alert table의 `심각도`, `합계`, `상태` 컬럼이나 log/YAML을 가리면, 사용자는 챗봇을 열고 닫으며 기억에 의존하게 된다.
+          운영 도구에서 이것은 polish 문제가 아니라 workflow blocker다.
+        </p>
+        <pre>원칙:
+assistant must not obscure the evidence it is supposed to help interpret.</pre>
+
+        <h3>4.4 Governance와 evaluation 부족</h3>
+        <p>
+          enterprise catalog 앱은 "답변 잘함"만으로 부족하다. 누가 어떤 데이터를 보냈는지, 어떤 모델을 썼는지,
+          비용과 latency가 얼마인지, 답변이 어떤 근거에 기반했는지 기록되어야 한다.
+        </p>
+      </section>
+
+      <section>
+        <h2>5. 해결 제품 컨셉</h2>
+        <div class="ok">
+          제품명 working title: <strong>OpenShift Ops Intelligence Assistant</strong>.
+          한 줄 정의: OpenShift 운영 화면을 가리지 않고, live cluster context와 사내 운영 지식을 결합해 증거 기반 조치안을 제시하는 Software Catalog 앱.
+        </div>
+        <div class="grid">
+          <div class="card">
+            <strong>Dashboard-first</strong>
+            <p>질문창보다 운영 현황, 위험 우선순위, 지식 상태, 모델 상태를 먼저 보여준다.</p>
+          </div>
+          <div class="card">
+            <strong>Context-aware</strong>
+            <p>현재 console route, namespace, resource, selected tab, alert filter를 context chip으로 표시하고 답변에 반영한다.</p>
+          </div>
+          <div class="card">
+            <strong>Evidence-first RAG</strong>
+            <p>공식 문서와 사내 문서, live cluster state, GitOps manifest, incident history를 출처별로 분리하고 citation을 강제한다.</p>
+          </div>
+          <div class="card">
+            <strong>Operator-grade governance</strong>
+            <p>RBAC, Secret redaction, audit, quota, model fallback, evaluation set을 기본 기능으로 둔다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>6. 주요 화면 설계</h2>
+        <h3>6.1 Operations Dashboard</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>영역</th>
+              <th>표시 내용</th>
+              <th>사용자 행동</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Active Incident Queue</td>
+              <td>firing alerts, severity, affected namespaces, last change, related runbook match</td>
+              <td>Ask with context, open runbook, create incident note</td>
+            </tr>
+            <tr>
+              <td>Cluster Health Map</td>
+              <td>nodes, operators, workloads, routes, storage, monitoring freshness</td>
+              <td>drill down, compare recent state, attach snapshot</td>
+            </tr>
+            <tr>
+              <td>Risk Radar</td>
+              <td>crashloop, pending pods, quota pressure, image pull, certificate, update risk</td>
+              <td>generate triage checklist</td>
+            </tr>
+            <tr>
+              <td>Knowledge Health</td>
+              <td>indexed docs, stale docs, failed connectors, low citation coverage</td>
+              <td>re-index, assign owner, add source</td>
+            </tr>
+            <tr>
+              <td>Model and Cost</td>
+              <td>provider status, token use, latency, failure rate, fallback count</td>
+              <td>set quota, change routing policy</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>6.2 Assistant Panel</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>기능</th>
+              <th>설계</th>
+              <th>Pass 기준</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Inline dock</td>
+              <td>오른쪽 overlay 대신 page layout을 나누는 dock mode 제공</td>
+              <td>Alerts table의 핵심 컬럼이 계속 보인다.</td>
+            </tr>
+            <tr>
+              <td>Resizable</td>
+              <td>좌측 splitter handle로 width 조절, 마지막 크기 저장</td>
+              <td>최소/최대 폭과 keyboard 조작이 동작한다.</td>
+            </tr>
+            <tr>
+              <td>Bottom mode</td>
+              <td>wide table, log, event 화면에서는 하단 dock 선택</td>
+              <td>오른쪽 table 컬럼이 가려지지 않는다.</td>
+            </tr>
+            <tr>
+              <td>Detached window</td>
+              <td>새 창으로 분리하되 session_id로 console context 동기화</td>
+              <td>namespace/resource/filter context가 분리창에서도 유지된다.</td>
+            </tr>
+            <tr>
+              <td>Peek mode</td>
+              <td>누르고 있는 동안 투명도 조절 또는 click-through</td>
+              <td>접근성 경고와 함께 임시 확인 용도로만 제공한다.</td>
+            </tr>
+            <tr>
+              <td>Context chips</td>
+              <td>현재 `cluster`, `namespace`, `kind/name`, `tab`, `filter`를 칩으로 표시</td>
+              <td>사용자가 AI가 무엇을 보고 답하는지 확인할 수 있다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>7. RAG와 지식 운영 설계</h2>
+        <h3>7.1 Knowledge Source 계층</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>계층</th>
+              <th>예시</th>
+              <th>처리 원칙</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Official</td>
+              <td>OpenShift docs, Red Hat KB, product release notes</td>
+              <td>버전 metadata와 함께 citation 우선순위 높게 유지</td>
+            </tr>
+            <tr>
+              <td>Customer</td>
+              <td>사내 runbook, 장애 대응 절차, 고객사 표준 운영 문서</td>
+              <td>tenant/project/owner/expiry metadata 필수</td>
+            </tr>
+            <tr>
+              <td>Live Cluster</td>
+              <td>alerts, events, pods, operators, routes, nodes, metrics snapshot</td>
+              <td>read-only, TTL, RBAC filter, Secret redaction</td>
+            </tr>
+            <tr>
+              <td>Change Source</td>
+              <td>GitOps repo, Argo CD app, deployment rollout, image tag change</td>
+              <td>장애 전후 변경점 correlation에 사용</td>
+            </tr>
+            <tr>
+              <td>Incident Memory</td>
+              <td>past Q&A, resolved incidents, postmortems, ticket comments</td>
+              <td>검증된 항목만 reusable knowledge로 승격</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>7.2 Retrieval Pipeline</h3>
+        <pre>question + console_context
+  -> intent classification
+  -> RBAC scoped cluster context fetch
+  -> hybrid retrieval: BM25 + vector + metadata filter
+  -> rerank by product version, namespace, recency, source trust
+  -> evidence pack
+  -> answer generation with citations
+  -> safety/risk check
+  -> audit + evaluation sample candidate</pre>
+
+        <h3>7.3 RAG Health Dashboard</h3>
+        <div class="kpi">
+          <div><strong>Coverage</strong><span>질문군별 citation 가능 비율</span></div>
+          <div><strong>Freshness</strong><span>문서와 cluster snapshot 갱신 시간</span></div>
+          <div><strong>Conflict</strong><span>공식 문서와 사내 문서 충돌 건수</span></div>
+          <div><strong>Groundedness</strong><span>답변 문장별 근거 매칭률</span></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>8. 시스템 아키텍처</h2>
+        <pre>OpenShift Web Console
+  ├─ Console Plugin UI
+  │   ├─ Dashboard pages
+  │   ├─ Assistant dock / drawer / detached launcher
+  │   └─ Context publisher
+  │
+  ├─ Plugin Proxy / API Gateway
+  │   ├─ AuthN/AuthZ bridge
+  │   ├─ RBAC scoped API calls
+  │   └─ request audit envelope
+  │
+  └─ Ops AI Backend
+      ├─ Conversation service
+      ├─ Context collector
+      ├─ RAG orchestrator
+      ├─ Model gateway
+      ├─ Evaluation engine
+      ├─ Audit and usage service
+      └─ Connector workers
+
+Data Plane
+  ├─ PostgreSQL: conversations, audit, configs, evaluation results
+  ├─ pgvector or vector DB: embeddings
+  ├─ Object storage: source snapshots, generated reports
+  └─ Kubernetes API / Prometheus / GitOps / Docs connectors</pre>
+
+        <h3>8.1 배포 단위</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>컴포넌트</th>
+              <th>역할</th>
+              <th>OpenShift 리소스</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Operator</td>
+              <td>설치, 업그레이드, CRD reconciliation, Secret/Config 검증</td>
+              <td>Operator, CRD, Deployment, ServiceAccount, RoleBinding</td>
+            </tr>
+            <tr>
+              <td>Console Plugin</td>
+              <td>Software Catalog entry, dashboard, assistant UI, context publisher</td>
+              <td>ConsolePlugin, Service, Route 또는 plugin proxy</td>
+            </tr>
+            <tr>
+              <td>Backend API</td>
+              <td>chat, retrieval, model routing, audit, dashboard API</td>
+              <td>Deployment, Service, HPA, NetworkPolicy</td>
+            </tr>
+            <tr>
+              <td>Indexer Workers</td>
+              <td>문서 수집, chunking, embedding, sync status 계산</td>
+              <td>CronJob, Job, Deployment</td>
+            </tr>
+            <tr>
+              <td>Storage</td>
+              <td>metadata, conversation, audit, vector index</td>
+              <td>PostgreSQL, PVC, optional external DB</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>9. CRD / 설정 모델 초안</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>리소스</th>
+              <th>목적</th>
+              <th>주요 필드</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>OpsAssistantConfig</code></td>
+              <td>앱 전체 설정</td>
+              <td>modelGateway, storage, telemetry, defaultDockMode, retentionPolicy</td>
+            </tr>
+            <tr>
+              <td><code>KnowledgeSource</code></td>
+              <td>문서/Repo/Runbook source 정의</td>
+              <td>type, url, authRef, owner, versionScope, refreshSchedule, visibility</td>
+            </tr>
+            <tr>
+              <td><code>AssistantPolicy</code></td>
+              <td>RBAC, action, redaction, data egress 정책</td>
+              <td>allowedNamespaces, deniedKinds, secretRedaction, actionMode, approvalRequired</td>
+            </tr>
+            <tr>
+              <td><code>ModelRoute</code></td>
+              <td>질문 유형별 모델/provider routing</td>
+              <td>providerRef, model, maxTokens, fallback, quota, costCenterHeader</td>
+            </tr>
+            <tr>
+              <td><code>EvaluationSet</code></td>
+              <td>golden question과 expected evidence 관리</td>
+              <td>scenario, inputContext, expectedSources, forbiddenClaims, passCriteria</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>10. Safety, RBAC, Audit</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>원칙</th>
+              <th>구현</th>
+              <th>검증</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>사용자가 볼 수 없는 리소스는 AI도 볼 수 없다</td>
+              <td>console user token 또는 impersonation 기반 RBAC scoped fetch</td>
+              <td>권한 없는 namespace 질의 시 context 미첨부</td>
+            </tr>
+            <tr>
+              <td>Secret은 기본적으로 답변에 포함하지 않는다</td>
+              <td>Secret kind 차단, env/token/password pattern redaction</td>
+              <td>redaction unit test, prompt snapshot audit</td>
+            </tr>
+            <tr>
+              <td>초기 조치는 read-only</td>
+              <td>명령어/patch 생성만 제공, apply는 approval workflow 이후</td>
+              <td>destructive verb 차단 테스트</td>
+            </tr>
+            <tr>
+              <td>모든 답변은 추적 가능해야 한다</td>
+              <td>request_id, user, sources, model, token, latency, context hash 저장</td>
+              <td>audit dashboard와 export 확인</td>
+            </tr>
+            <tr>
+              <td>근거 없는 확정 판정 금지</td>
+              <td>confidence와 missing evidence를 답변 template에 포함</td>
+              <td>golden scenario에서 unsupported claim 탐지</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>11. Acceptance Criteria</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>영역</th>
+              <th>Pass 기준</th>
+              <th>측정 방법</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Dashboard</td>
+              <td>firing alert 5개 이상 환경에서 priority queue와 affected resources가 표시된다.</td>
+              <td>fixture cluster 또는 mock API replay</td>
+              <td>screenshot, API response, test log</td>
+            </tr>
+            <tr>
+              <td>UI 가림 방지</td>
+              <td>Alerts page에서 assistant open 상태여도 severity/count/status 확인 가능</td>
+              <td>desktop/mobile screenshot diff</td>
+              <td>Playwright screenshot, occlusion checklist</td>
+            </tr>
+            <tr>
+              <td>Context sync</td>
+              <td>현재 route, namespace, resource, selected tab이 assistant context chips에 표시된다.</td>
+              <td>console navigation e2e</td>
+              <td>payload snapshot, UI screenshot</td>
+            </tr>
+            <tr>
+              <td>RAG citation</td>
+              <td>운영 답변의 핵심 주장 80% 이상이 source citation과 연결된다.</td>
+              <td>answer audit script</td>
+              <td>citation report</td>
+            </tr>
+            <tr>
+              <td>RBAC</td>
+              <td>권한 없는 namespace 리소스가 retrieval/context에 포함되지 않는다.</td>
+              <td>two-user permission test</td>
+              <td>audit log, denied context report</td>
+            </tr>
+            <tr>
+              <td>Action safety</td>
+              <td>delete/apply/scale 같은 조치는 기본 상태에서 실행되지 않고 plan으로만 생성된다.</td>
+              <td>policy test</td>
+              <td>blocked action audit</td>
+            </tr>
+            <tr>
+              <td>Evaluation</td>
+              <td>golden scenario 20개 이상을 nightly로 돌리고 regression을 표시한다.</td>
+              <td>CI job</td>
+              <td>evaluation dashboard</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>12. 개발 로드맵</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>단계</th>
+              <th>범위</th>
+              <th>완료 신호</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>MVP 0.1</td>
+              <td>Console Plugin shell, dashboard skeleton, dock/resizable assistant, mock RAG, audit schema</td>
+              <td>Software Catalog에서 설치 후 mock scenario demo 가능</td>
+            </tr>
+            <tr>
+              <td>MVP 0.2</td>
+              <td>OpenShift API context collector, Alerts/Pods/Events read-only fetch, context chips</td>
+              <td>현재 console context로 질문 가능</td>
+            </tr>
+            <tr>
+              <td>Beta 0.5</td>
+              <td>KnowledgeSource connectors, hybrid retrieval, citations, RAG health dashboard</td>
+              <td>공식 문서 + 사내 runbook + live state 답변 가능</td>
+            </tr>
+            <tr>
+              <td>Beta 0.7</td>
+              <td>ModelRoute, quota, usage/cost dashboard, evaluation set</td>
+              <td>관리자가 모델/비용/품질을 제어 가능</td>
+            </tr>
+            <tr>
+              <td>GA 1.0</td>
+              <td>Operator lifecycle, upgrade path, multi-tenant RBAC, audit export, support bundle</td>
+              <td>enterprise cluster에서 설치/업그레이드/운영 가능</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>13. 주요 리스크와 대응</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>리스크</th>
+              <th>영향</th>
+              <th>대응</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>RAG data contamination</td>
+              <td>틀린 사내 문서가 공식 기준보다 우선될 수 있음</td>
+              <td>source trust score, expiry, owner approval, conflict dashboard</td>
+            </tr>
+            <tr>
+              <td>Secret leakage</td>
+              <td>운영 보안 사고</td>
+              <td>denylist kinds, redaction, egress policy, prompt audit</td>
+            </tr>
+            <tr>
+              <td>UI occlusion 재발</td>
+              <td>assistant가 다시 업무 화면을 가림</td>
+              <td>occlusion test를 e2e acceptance에 포함</td>
+            </tr>
+            <tr>
+              <td>Model provider 장애</td>
+              <td>assistant 불가용</td>
+              <td>fallback provider, degraded mode, cached runbook search</td>
+            </tr>
+            <tr>
+              <td>과도한 cluster watch</td>
+              <td>console/backend 성능 저하</td>
+              <td>on-demand fetch, TTL cache, field 최소화, Prometheus summary 우선</td>
+            </tr>
+            <tr>
+              <td>AI action 책임 경계</td>
+              <td>잘못된 조치 실행</td>
+              <td>read-only default, approval workflow, generated patch diff, rollback plan</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>14. 참고 근거</h2>
+        <p>내부 정리 문서:</p>
+        <ul>
+          <li><code>.kugnus-plan/openshift-lightspeed-panel-ux-rfe.md</code></li>
+          <li><code>.kugnus-plan/openshift-console-lightspeed-community-pain-scan.md</code></li>
+        </ul>
+        <p>공개 근거:</p>
+        <ul>
+          <li><a href="https://github.com/openshift/lightspeed-console/blob/main/AGENTS.md">openshift/lightspeed-console AGENTS.md</a></li>
+          <li><a href="https://github.com/openshift/lightspeed-console/blob/main/src/components/popover.css">lightspeed-console popover.css</a></li>
+          <li><a href="https://github.com/openshift/console/pull/13708">OpenShift console PR #13708, Lightspeed resizable drawer prototype 언급</a></li>
+          <li><a href="https://www.patternfly.org/components/drawer/design-guidelines/">PatternFly Drawer design guidelines</a></li>
+          <li><a href="https://github.com/openshift/console/pull/8089">OpenShift console PR #8089, Quick Start drawer resizable</a></li>
+          <li><a href="https://github.com/openshift/console/pull/8417">OpenShift console PR #8417, Topology side panel resizable</a></li>
+          <li><a href="https://docs.redhat.com/en/documentation/red_hat_openshift_lightspeed/1.0/html/operate/ols-using-openshift-lightspeed">Red Hat OpenShift Lightspeed operating documentation</a></li>
+          <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2070540">Bugzilla #2070540, console memory usage on large scale cluster</a></li>
+          <li><a href="https://www.reddit.com/r/openshift/comments/1cvrx8j/genai_feature_requests_for_openshift_console/">Reddit, GenAI feature requests for OpenShift Console</a></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>15. 결론</h2>
+        <p>
+          이 앱은 Lightspeed 같은 assistant를 따라 만드는 제품이 아니라, Lightspeed류 assistant가 놓치기 쉬운 운영 제품의 빈틈을 정면으로 보완하는 제품이어야 한다.
+        </p>
+        <div class="ok">
+          핵심 차별점은 세 가지다. 첫째, 질문창보다 dashboard가 먼저다. 둘째, RAG는 문서 검색이 아니라 운영 지식 공급망이다.
+          셋째, assistant UI는 사용자가 해석해야 할 증거를 절대 가리면 안 된다.
+        </div>
+      </section>
+    </article>
+  </main>
+</body>
+</html>

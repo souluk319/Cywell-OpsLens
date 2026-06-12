@@ -1,0 +1,15 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cywell-opslens
+  namespace: cywell-opslens
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: subscription
+spec:
+  channel: alpha
+  name: cywell-opslens
+  source: cywell-opslens-catalog
+  sourceNamespace: openshift-marketplace
+  startingCSV: cywell-opslens-operator.v0.1.0
+  installPlanApproval: Manual

@@ -1,0 +1,1022 @@
+export type Severity = "critical" | "warning" | "info" | "success";
+
+export type SourceType =
+  | "cluster"
+  | "official-doc"
+  | "internal-runbook"
+  | "gitops"
+  | "evaluation";
+
+export interface ContextChip {
+  label: string;
+  value: string;
+  removable?: boolean;
+}
+
+export interface ConsoleContextPayload {
+  clusterId: string;
+  user: string;
+  route: string;
+  perspective: "Administrator" | "Developer";
+  namespace: string;
+  resource?: {
+    apiVersion: string;
+    kind: string;
+    name: string;
+    uid: string;
+  };
+  selectedTab: string;
+  filters: Record<string, string>;
+  visibleRows: Array<Record<string, string | number>>;
+  attachedEvidence: string[];
+  rbac: {
+    role: string;
+    deniedNamespaces: string[];
+  };
+}
+
+export interface RiskItem {
+  id: string;
+  title: string;
+  severity: Severity;
+  status: "firing" | "investigating" | "watching";
+  count: number;
+  affected: string;
+  duration: string;
+  blastRadius: number;
+  evidenceRefs: string[];
+}
+
+export interface RecentChange {
+  id: string;
+  kind: "rollout" | "gitops-sync" | "image" | "config";
+  summary: string;
+  namespace: string;
+  age: string;
+  riskLink?: string;
+}
+
+export interface KnowledgeSourceHealth {
+  id: string;
+  name: string;
+  type: SourceType;
+  freshness: "fresh" | "stale" | "missing";
+  owner: string;
+  lastIndexedAt: string;
+  citationRate: number;
+}
+
+export interface ModelHealth {
+  provider: string;
+  route: string;
+  latencyMs: number;
+  tokenBudgetRemaining: number;
+  fallback: "ready" | "active" | "unconfigured";
+}
+
+export interface EvidenceSource {
+  id: string;
+  label: string;
+  type: SourceType;
+  trustLevel: "official" | "approved" | "cluster-snapshot" | "draft";
+  stale?: boolean;
+}
+
+export interface CauseCandidate {
+  label: string;
+  confidence: "high" | "medium" | "low";
+  reason: string;
+  evidenceIds: string[];
+}
+
+export interface AssistantAnswer {
+  scenario: string;
+  judgment: string;
+  inspectedEvidence: EvidenceSource[];
+  candidates: CauseCandidate[];
+  nextChecks: string[];
+  plan: string[];
+  risks: string[];
+  rollbackPath: string[];
+  citations: EvidenceSource[];
+  missingEvidence: string[];
+  actionMode: "readOnly" | "planOnly";
+}
+
+export interface AcceptanceCriterion {
+  id: string;
+  area: "UI" | "Context" | "Safety" | "RAG" | "Audit" | "Evaluation";
+  pass: string;
+  method: string;
+  evidence: string;
+  currentGap: string;
+}
+
+export interface DashboardRisksResponse {
+  generatedAt: string;
+  source: "mock-backend" | "cluster-readonly";
+  activeRisks: RiskItem[];
+  recentChanges: RecentChange[];
+  knowledgeSources: KnowledgeSourceHealth[];
+  modelHealth: ModelHealth;
+}
+
+export interface ContextSyncRequest {
+  context: ConsoleContextPayload;
+}
+
+export interface ContextSyncResponse {
+  accepted: boolean;
+  requestId: string;
+  receivedAt: string;
+  contextHash: string;
+  context: ConsoleContextPayload;
+  contextChips: ContextChip[];
+  redactionCount: number;
+  rbac: {
+    role: string;
+    namespaceScope: string;
+    deniedNamespaces: string[];
+  };
+}
+
+export interface ActionPlanRequest {
+  prompt: string;
+  context: ConsoleContextPayload;
+  scenario?: string;
+}
+
+export interface AuditEnvelope {
+  requestId: string;
+  user: string;
+  groups: string[];
+  clusterId: string;
+  namespaceScope: string;
+  contextHash: string;
+  sources: string[];
+  model: string;
+  tokenUsage: {
+    input: number;
+    output: number;
+  };
+  latencyMs: number;
+  redactionCount: number;
+  actionMode: "readOnly" | "planOnly";
+}
+
+export interface ActionPlanResponse {
+  requestId: string;
+  answer: AssistantAnswer;
+  audit: AuditEnvelope;
+}
+
+export type OpsLensToolName =
+  | "get_cluster_signal"
+  | "retrieve_customer_knowledge"
+  | "generate_playbook"
+  | "open_console_deep_link"
+  | "run_preflight"
+  | "propose_remediation";
+
+export interface OpsLensToolDefinition {
+  name: OpsLensToolName;
+  title: string;
+  description: string;
+  readOnly: true;
+  approvalRequired: false;
+  inputSchema: {
+    type: "object";
+    required: string[];
+    properties: Record<string, unknown>;
+  };
+}
+
+export interface OpsLensToolRequest {
+  tool: OpsLensToolName;
+  input: {
+    clusterId: string;
+    tenantId: string;
+    namespace?: string;
+    workload?: string;
+    question?: string;
+    intent: string;
+    alertName?: string;
+    constraints?: {
+      readOnly?: boolean;
+      includeCustomerRunbooks?: boolean;
+      maxDocuments?: number;
+    };
+  };
+  caller?: {
+    user?: string;
+    groups?: string[];
+    source?: "lightspeed" | "console-plugin" | "api";
+  };
+}
+
+export interface OpsLensCitation {
+  id: string;
+  label: string;
+  sourceType: "customer-runbook" | "cluster-snapshot" | "official-doc";
+  trustLevel: "approved" | "cluster-snapshot" | "official";
+  snippet: string;
+  redacted: boolean;
+}
+
+export interface OpsLensToolResponse {
+  tool: OpsLensToolName;
+  requestId: string;
+  generatedAt: string;
+  actionMode: "readOnly" | "planOnly";
+  summary: string;
+  suspectedCauses: string[];
+  recommendedSteps: string[];
+  proposedYamlPatch?: string;
+  citations: OpsLensCitation[];
+  missingEvidence: string[];
+  risks: string[];
+  rollbackPath: string[];
+  consoleLinks: string[];
+  evidence: string[];
+  policy: {
+    privateRag: true;
+    serverSideRedaction: true;
+    rawDocumentReturned: false;
+    mcpTechnologyPreview: true;
+    mutationAllowed: false;
+  };
+  audit: {
+    tenantId: string;
+    clusterId: string;
+    namespace?: string;
+    user?: string;
+    sources: string[];
+    model: string;
+    redactionCount: number;
+    latencyMs: number;
+  };
+}
+
+export interface OpsLensIncidentAlertInput {
+  name: string;
+  severity?: Severity;
+  namespace?: string;
+  workload?: string;
+  startsAt?: string;
+  labels?: Record<string, string>;
+  annotations?: Record<string, string>;
+  resource?: {
+    apiVersion?: string;
+    kind?: string;
+    resource?: string;
+    name: string;
+    namespace?: string;
+  };
+}
+
+export interface OpsLensIncidentAnalysisRequest {
+  clusterId: string;
+  tenantId: string;
+  alert: OpsLensIncidentAlertInput;
+  question?: string;
+  windowMinutes?: number;
+  evidenceHints?: {
+    podName?: string;
+    container?: string;
+    labelSelector?: string;
+    fieldSelector?: string;
+    tailLines?: number;
+  };
+  caller?: OpsLensToolRequest["caller"];
+}
+
+export interface OpsLensIncidentResourceEvidence {
+  resource: OcpApiResource;
+  item: OcpResourceSummary;
+  fallback?: OcpResourceVersionFallback;
+  accessEvidence: string[];
+  sensitiveFieldRedactionCount: number;
+}
+
+export interface OpsLensIncidentLogEvidence {
+  namespace: string;
+  pod: string;
+  container?: string;
+  previous: boolean;
+  tailLines: number;
+  sinceSeconds: number;
+  logs: string;
+  truncated: boolean;
+  redacted: true;
+  redactionCount: number;
+  accessEvidence: string[];
+}
+
+export interface OpsLensIncidentEventEvidence {
+  target: OcpEventsResponse["target"];
+  items: OcpEventSummary[];
+  redacted: true;
+  redactionCount: number;
+  accessEvidence: string[];
+}
+
+export interface OpsLensIncidentMetricQueryEvidence {
+  name: string;
+  query: string;
+  enabled: boolean;
+  reachable: boolean;
+  resultType?: string;
+  sample: OcpPrometheusSample[];
+  error?: string;
+  evidence: string[];
+}
+
+export interface OpsLensIncidentMetricEvidence {
+  enabled: boolean;
+  reachable: boolean;
+  windowMinutes: number;
+  redacted: true;
+  queries: OpsLensIncidentMetricQueryEvidence[];
+  evidence: string[];
+}
+
+export interface OpsLensIncidentAnalysisResponse {
+  requestId: string;
+  generatedAt: string;
+  actionMode: "planOnly";
+  clusterId: string;
+  tenantId: string;
+  alert: OpsLensIncidentAlertInput;
+  timeWindow: {
+    minutes: number;
+    since: string;
+    until: string;
+  };
+  resource?: OpsLensIncidentResourceEvidence;
+  podCandidates: OcpResourceSummary[];
+  podLogs?: OpsLensIncidentLogEvidence;
+  previousPodLogs?: OpsLensIncidentLogEvidence;
+  events?: OpsLensIncidentEventEvidence;
+  metrics?: OpsLensIncidentMetricEvidence;
+  analysis: OpsLensToolResponse;
+  missingEvidence: string[];
+  evidence: string[];
+  errors: Array<{
+    source: string;
+    message: string;
+  }>;
+  policy: {
+    readOnly: true;
+    planOnly: true;
+    mutationAllowed: false;
+    secretFetchBlocked: true;
+    rawDocumentReturned: false;
+    serverSideRedaction: true;
+    logWindowMinutes: number;
+    maxLogTailLines: number;
+    monitoringProxyEnabled: boolean;
+  };
+  audit: {
+    tenantId: string;
+    clusterId: string;
+    namespace?: string;
+    user?: string;
+    ocpReads: string[];
+    redactionCount: number;
+    latencyMs: number;
+  };
+}
+
+export interface OpsLensRagDocumentStatus {
+  id: string;
+  tenantId: string;
+  label: string;
+  sourceType: "customer-runbook" | "official-doc" | "cluster-snapshot";
+  trustLevel: "approved" | "official" | "cluster-snapshot" | "draft";
+  status: "indexed" | "stale" | "validation-required";
+  lastIndexedAt: string;
+  chunkCount: number;
+  citationRate: number;
+  redacted: boolean;
+  evidence: string[];
+}
+
+export interface OpsLensRagValidationRequest {
+  tenantId: string;
+  fileName: string;
+  markdown: string;
+}
+
+export interface OpsLensRagEvidenceExportRequest extends OpsLensRagValidationRequest {
+  requestedBy?: string;
+  reason?: string;
+}
+
+export interface OpsLensRagValidationIssue {
+  severity: "pass" | "warn" | "fail";
+  code: string;
+  message: string;
+  evidence: string[];
+}
+
+export interface OpsLensRagValidationResponse {
+  actionMode: "validateOnly";
+  accepted: boolean;
+  redactionCount: number;
+  document?: {
+    id: string;
+    tenantId: string;
+    label: string;
+    sourceType: "customer-runbook" | "official-doc" | "cluster-snapshot";
+    trustLevel: "approved" | "official" | "cluster-snapshot" | "draft";
+    relativePath: string;
+    chunkCount: number;
+    redacted: true;
+  };
+  chunks: Array<{
+    id: string;
+    ordinal: number;
+    snippet: string;
+    tokenCount: number;
+    redacted: true;
+  }>;
+  issues: OpsLensRagValidationIssue[];
+  missingEvidence: string[];
+  evidence: string[];
+  policy: {
+    validateOnly: true;
+    tenantScoped: true;
+    rawDocumentReturned: false;
+    serverSideRedaction: true;
+    uploadApplyAllowed: false;
+  };
+}
+
+export interface OpsLensRagEvidenceExportResponse {
+  artifactType: "opslens.rag.validation-evidence.v0.1";
+  artifactVersion: "0.1";
+  exportId: string;
+  generatedAt: string;
+  tenantId: string;
+  fileName: string;
+  actionMode: "validateOnly";
+  validation: OpsLensRagValidationResponse;
+  content: {
+    markdownReturned: false;
+    documentBodyReturned: false;
+    chunksRedacted: true;
+    redactionCount: number;
+  };
+  approvalQueue: {
+    mode: "designOnly";
+    enqueueAllowed: false;
+    nextStateIfEnabled: "pending-human-approval" | "rejected-before-approval";
+    requiredApprovals: string[];
+    blockers: string[];
+    evidence: string[];
+  };
+  audit: {
+    requestedBy?: string;
+    reason?: string;
+    validationHash: string;
+    sourceIndexVersion: "local-vector-v0.1";
+    sourceDocumentCount: number;
+    sourceChunkCount: number;
+  };
+  policy: OpsLensRagValidationResponse["policy"] & {
+    evidenceExportAllowed: true;
+    approvalQueueMutationAllowed: false;
+  };
+}
+
+export interface OpsLensTokenRouteUsage {
+  route: "lightspeed-mcp" | "incident-analysis" | "admin-dashboard" | "rag-indexing";
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  p95LatencyMs: number;
+}
+
+export interface OpsLensTokenUsageSummary {
+  window: "24h";
+  budgetTokens: number;
+  usedTokens: number;
+  remainingTokens: number;
+  warningThresholdTokens: number;
+  routes: OpsLensTokenRouteUsage[];
+}
+
+export interface OpsLensGpuRuntimeSample {
+  timestamp: string;
+  utilizationPercent: number;
+  memoryUsedGiB: number;
+  memoryTotalGiB: number;
+}
+
+export interface OpsLensRuntimeHealth {
+  provider: "vllm" | "mock-local";
+  model: string;
+  route: string;
+  replicas: number;
+  readyReplicas: number;
+  gpu: {
+    available: boolean;
+    deviceClass: string;
+    samples: OpsLensGpuRuntimeSample[];
+  };
+}
+
+export interface OpsLensAdminMetricQueryStatus {
+  name: string;
+  query: string;
+  status: "ready" | "missing" | "disabled";
+  sampleCount: number;
+  evidence: string[];
+  missingEvidence: string[];
+}
+
+export interface OpsLensAdminIncidentMetricSummary {
+  incidentId: string;
+  alertName: string;
+  namespace: string;
+  workload: string;
+  actionMode: "planOnly";
+  metricQueries: OpsLensAdminMetricQueryStatus[];
+  lastAnalyzedAt: string;
+}
+
+export interface OpsLensAdminOverviewResponse {
+  generatedAt: string;
+  source: "local-contract";
+  rag: {
+    tenants: number;
+    documents: OpsLensRagDocumentStatus[];
+    uploadIntake: {
+      mode: "validate-only";
+      pending: number;
+      rejected: number;
+      evidence: string[];
+    };
+  };
+  tokenUsage: OpsLensTokenUsageSummary;
+  runtime: OpsLensRuntimeHealth;
+  incidents: OpsLensAdminIncidentMetricSummary[];
+  installReadiness: {
+    lightspeedMcp: "ready" | "needs-live-check";
+    consoleDashboard: "prototype" | "ready";
+    operatorPackaging: "not-started" | "draft" | "ready";
+    certification: "not-started" | "draft" | "ready";
+    evidence: string[];
+  };
+  policy: {
+    dashboardOnly: true;
+    mutationAllowed: false;
+    rawDocumentReturned: false;
+    uploadApplyAllowed: false;
+  };
+}
+
+export interface McpJsonRpcRequest {
+  jsonrpc: "2.0";
+  id?: string | number | null;
+  method: string;
+  params?: unknown;
+}
+
+export interface McpJsonRpcResponse {
+  jsonrpc: "2.0";
+  id?: string | number | null;
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+    data?: unknown;
+  };
+}
+
+export interface OcpConnectionStatus {
+  configured: boolean;
+  reachable: boolean;
+  baseUrl?: string;
+  tlsVerify: boolean;
+  gitVersion?: string;
+  platform?: string;
+  userName?: string;
+  discoveredResourceCount?: number;
+  error?: string;
+}
+
+export interface OcpApiResource {
+  group: string;
+  version: string;
+  apiVersion: string;
+  name: string;
+  kind: string;
+  namespaced: boolean;
+  verbs: string[];
+  shortNames: string[];
+  categories: string[];
+  preferred: boolean;
+  safeToList: boolean;
+}
+
+export interface OcpApiResourcesResponse {
+  status: OcpConnectionStatus;
+  resources: OcpApiResource[];
+  errors: Array<{
+    apiVersion: string;
+    message: string;
+  }>;
+}
+
+export interface OcpResourceAccessReview {
+  verb: string;
+  allowed: boolean;
+  denied?: boolean;
+  reason?: string;
+  evaluationError?: string;
+  namespace?: string;
+  name?: string;
+  resourceAttributes: {
+    group: string;
+    version: string;
+    resource: string;
+    subresource?: string;
+  };
+  evidence: string[];
+}
+
+export interface OcpResourceAccessReviewResponse {
+  status: OcpConnectionStatus;
+  resource: OcpApiResource;
+  access: OcpResourceAccessReview;
+}
+
+export interface OcpResourceReadAccess {
+  list?: OcpResourceAccessReview;
+  get?: OcpResourceAccessReview;
+  watch?: OcpResourceAccessReview;
+}
+
+export interface OcpResourceAccessMatrixResponse {
+  status: OcpConnectionStatus;
+  resource: OcpApiResource;
+  namespace?: string;
+  name?: string;
+  access: OcpResourceReadAccess;
+}
+
+export interface OcpOwnerReferenceSummary {
+  apiVersion: string;
+  kind: string;
+  name: string;
+  uid?: string;
+  controller?: boolean;
+  blockOwnerDeletion?: boolean;
+}
+
+export interface OcpResourceSummary {
+  apiVersion: string;
+  kind: string;
+  metadata: {
+    name: string;
+    namespace?: string;
+    uid?: string;
+    creationTimestamp?: string;
+    labels?: Record<string, string>;
+    annotations?: Record<string, string>;
+    ownerReferences?: OcpOwnerReferenceSummary[];
+  };
+  type?: string;
+  status?: unknown;
+  spec?: unknown;
+  dataRedacted?: boolean;
+}
+
+export interface OcpRelatedResourceSummary {
+  resource: OcpApiResource;
+  item: OcpResourceSummary;
+}
+
+export interface OcpRelatedResourcesResponse {
+  status: OcpConnectionStatus;
+  target: {
+    apiVersion?: string;
+    kind?: string;
+    resource?: string;
+    namespace?: string;
+    name: string;
+    uid?: string;
+  };
+  owners: OcpOwnerReferenceSummary[];
+  children: OcpRelatedResourceSummary[];
+  evidence: string[];
+  errors: Array<{
+    resource: string;
+    message: string;
+  }>;
+}
+
+export interface OcpResourceVersionFallback {
+  requestedApiVersion: string;
+  servedApiVersion: string;
+  reason: string;
+  evidence: string[];
+}
+
+export interface OcpResourceListResponse {
+  status: OcpConnectionStatus;
+  resource: OcpApiResource;
+  namespace?: string;
+  fallback?: OcpResourceVersionFallback;
+  selectors?: {
+    labelSelector?: string;
+    fieldSelector?: string;
+  };
+  items: OcpResourceSummary[];
+  continueToken?: string;
+  access: OcpResourceReadAccess;
+  redaction: {
+    secretDataRedacted: boolean;
+    fullSecretFetchBlocked: boolean;
+  };
+}
+
+export type OcpCoverageListStatus =
+  | "listed"
+  | "empty"
+  | "denied"
+  | "blocked"
+  | "unsupported"
+  | "skipped"
+  | "error";
+
+export type OcpCoverageDetailStatus =
+  | "read"
+  | "empty"
+  | "denied"
+  | "unsupported"
+  | "skipped"
+  | "error";
+
+export type OcpCoverageGapType =
+  | "none"
+  | "not-probed"
+  | "policy-blocked"
+  | "list-unsupported"
+  | "rbac-denied"
+  | "empty"
+  | "cluster-api-error"
+  | "conversion-webhook-error"
+  | "timeout"
+  | "unknown-error";
+
+export interface OcpCoverageGap {
+  type: OcpCoverageGapType;
+  severity: "info" | "warning" | "critical";
+  retryable: boolean;
+  message: string;
+  evidence: string[];
+}
+
+export interface OcpResourceCoverageEntry {
+  resource: OcpApiResource;
+  scope: "cluster" | "all-namespaces" | "namespace";
+  namespace?: string;
+  list: {
+    status: OcpCoverageListStatus;
+    access?: OcpResourceAccessReview;
+    sampleItemCount: number;
+    continuesAfterSample: boolean;
+    error?: string;
+  };
+  detail: {
+    status: OcpCoverageDetailStatus;
+    access?: OcpResourceAccessReview;
+    sampleName?: string;
+    sampleNamespace?: string;
+    redactionCount?: number;
+    error?: string;
+  };
+  gap: OcpCoverageGap;
+  evidence: string[];
+}
+
+export interface OcpCoverageMatrixResponse {
+  status: OcpConnectionStatus;
+  generatedAt: string;
+  probe: {
+    requestedMaxResources?: number;
+    includeDetails: boolean;
+    namespace?: string;
+  };
+  totals: {
+    discovered: number;
+    safeToList: number;
+    probed: number;
+    listed: number;
+    empty: number;
+    denied: number;
+    blocked: number;
+    unsupported: number;
+    skipped: number;
+    error: number;
+    detailRead: number;
+    gapTypes: Record<OcpCoverageGapType, number>;
+  };
+  resources: OcpResourceCoverageEntry[];
+  evidence: string[];
+}
+
+export type OcpDiagnosticFindingStatus =
+  | "ok"
+  | "warning"
+  | "critical"
+  | "missing"
+  | "skipped"
+  | "error";
+
+export interface OcpDiagnosticFinding {
+  id: string;
+  label: string;
+  status: OcpDiagnosticFindingStatus;
+  message: string;
+  evidence: string[];
+  data?: unknown;
+}
+
+export interface OcpCoverageDiagnosticResponse {
+  status: OcpConnectionStatus;
+  generatedAt: string;
+  resource: OcpApiResource;
+  namespace?: string;
+  coverage: OcpResourceCoverageEntry;
+  findings: OcpDiagnosticFinding[];
+  nextChecks: string[];
+  risks: string[];
+  rollbackPath: string[];
+  evidence: string[];
+}
+
+export interface OcpResourceDetailResponse {
+  status: OcpConnectionStatus;
+  resource: OcpApiResource;
+  namespace?: string;
+  name: string;
+  fallback?: OcpResourceVersionFallback;
+  item: OcpResourceSummary;
+  raw: unknown;
+  access: OcpResourceReadAccess;
+  redaction: {
+    secretDataRedacted: boolean;
+    fullSecretFetchBlocked: boolean;
+    sensitiveFieldRedactionCount: number;
+  };
+}
+
+export interface OcpPodLogsResponse {
+  status: OcpConnectionStatus;
+  namespace: string;
+  pod: string;
+  container?: string;
+  previous: boolean;
+  tailLines: number;
+  sinceSeconds?: number;
+  logs: string;
+  truncated: boolean;
+  access: OcpResourceAccessReview;
+}
+
+export interface OcpEventSummary {
+  apiVersion: string;
+  kind: string;
+  name: string;
+  namespace?: string;
+  reason?: string;
+  type?: string;
+  message?: string;
+  source?: string;
+  firstTimestamp?: string;
+  lastTimestamp?: string;
+  count?: number;
+  regarding?: {
+    apiVersion?: string;
+    kind?: string;
+    name?: string;
+    namespace?: string;
+    uid?: string;
+  };
+}
+
+export interface OcpEventsResponse {
+  status: OcpConnectionStatus;
+  target: {
+    apiVersion?: string;
+    kind?: string;
+    name: string;
+    namespace?: string;
+    uid?: string;
+  };
+  items: OcpEventSummary[];
+  access: OcpResourceAccessReview;
+}
+
+export interface OcpPrometheusSample {
+  metric: Record<string, string>;
+  value?: [number, string];
+  values?: Array<[number, string]>;
+}
+
+export interface OcpPrometheusQueryResponse {
+  status: OcpConnectionStatus;
+  enabled: boolean;
+  reachable: boolean;
+  query: string;
+  range?: {
+    start: string;
+    end: string;
+    stepSeconds: number;
+  };
+  resultType?: string;
+  results: OcpPrometheusSample[];
+  warnings: string[];
+  evidence: string[];
+  error?: string;
+}
+
+export interface OcpConditionSummary {
+  type: string;
+  status: string;
+  reason?: string;
+  message?: string;
+}
+
+export interface OcpConsoleOverviewResponse {
+  status: OcpConnectionStatus;
+  generatedAt: string;
+  cluster: {
+    version?: string;
+    desiredVersion?: string;
+    channel?: string;
+    conditions: OcpConditionSummary[];
+  };
+  operators: {
+    total: number;
+    degraded: number;
+    progressing: number;
+    unavailable: number;
+    degradedItems: Array<{
+      name: string;
+      conditions: OcpConditionSummary[];
+    }>;
+  };
+  nodes: {
+    total: number;
+    ready: number;
+    notReady: number;
+    items: Array<{
+      name: string;
+      ready: boolean;
+      roles: string[];
+      kubeletVersion?: string;
+    }>;
+  };
+  workloads: {
+    namespaces: number;
+    pods: {
+      total: number;
+      running: number;
+      pending: number;
+      failed: number;
+      crashLooping: number;
+    };
+    deployments: {
+      total: number;
+      unavailable: number;
+    };
+  };
+  networking: {
+    routes: number;
+    ingresses: number;
+    services: number;
+  };
+  supplyChain: {
+    builds: number;
+    failedBuilds: number;
+    imageStreams: number;
+  };
+  monitoring: {
+    reachable: boolean;
+    firingAlerts: number;
+    warningAlerts: number;
+    criticalAlerts: number;
+    sample: Array<{
+      alertname: string;
+      severity?: string;
+      namespace?: string;
+      state?: string;
+    }>;
+    error?: string;
+  };
+  evidence: string[];
+}

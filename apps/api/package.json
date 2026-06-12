@@ -1,0 +1,20 @@
+{
+  "name": "@kugnus/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "@kugnus/contracts": "0.1.0",
+    "@kugnus/rag": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

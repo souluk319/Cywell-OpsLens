@@ -1,0 +1,361 @@
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createActionPlan,
+  exportOpsLensRagEvidence,
+  getOpsLensAdminOverview,
+  createOpsLensToolResponse,
+  getDashboardRisks,
+  getOpsLensTools,
+  handleOpsLensMcpRequest,
+  syncContext,
+  validateOpsLensRagDocument
+} from "./api";
+import { loadEnvFile } from "./env";
+import { analyzeOpsLensIncident } from "./incidents";
+import {
+  discoverOcpResources,
+  getOcpCoverageMatrix,
+  getOcpCoverageDiagnostic,
+  getOcpConsoleOverview,
+  getOcpRelatedResources,
+  getOcpResource,
+  getOcpPodLogs,
+  getOcpStatus,
+  listOcpEvents,
+  listOcpResource,
+  reviewOcpResourceAccess,
+  reviewOcpResourceAccessMatrix
+} from "./ocpClient";
+
+loadEnvFile();
+
+const port = Number(process.env.KUGNUS_API_PORT ?? 4174);
+const host = process.env.KUGNUS_API_HOST ?? "127.0.0.1";
+
+async function readJson(request: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  const text = Buffer.concat(chunks).toString("utf8");
+  if (!text) {
+    return {};
+  }
+  return JSON.parse(text);
+}
+
+function sendJson(
+  response: ServerResponse,
+  statusCode: number,
+  payload: unknown
+) {
+  response.writeHead(statusCode, {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "authorization,content-type,x-cywell-api-key",
+    "Content-Type": "application/json; charset=utf-8"
+  });
+  response.end(JSON.stringify(payload));
+}
+
+function sendNotFound(response: ServerResponse) {
+  sendJson(response, 404, {
+    error: "route missing"
+  });
+}
+
+const server = createServer(async (request, response) => {
+  try {
+    const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
+
+    if (request.method === "OPTIONS") {
+      sendJson(response, 204, {});
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/healthz") {
+      sendJson(response, 200, {
+        status: "ok",
+        service: "cywell-opslens-api",
+        mode: "mock-readonly"
+      });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/dashboard/risks") {
+      sendJson(response, 200, getDashboardRisks());
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/context/sync") {
+      sendJson(response, 200, syncContext((await readJson(request)) as never));
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/actions/plan") {
+      sendJson(
+        response,
+        200,
+        createActionPlan((await readJson(request)) as never)
+      );
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/opslens/tools") {
+      sendJson(response, 200, getOpsLensTools());
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/opslens/admin/overview") {
+      sendJson(response, 200, getOpsLensAdminOverview());
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      url.pathname === "/api/opslens/admin/rag/validate"
+    ) {
+      sendJson(
+        response,
+        200,
+        validateOpsLensRagDocument((await readJson(request)) as never)
+      );
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      url.pathname === "/api/opslens/admin/rag/evidence-export"
+    ) {
+      sendJson(
+        response,
+        200,
+        exportOpsLensRagEvidence((await readJson(request)) as never)
+      );
+      return;
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/opslens/ask") {
+      sendJson(
+        response,
+        200,
+        createOpsLensToolResponse((await readJson(request)) as never)
+      );
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      url.pathname === "/api/opslens/incidents/analyze"
+    ) {
+      sendJson(
+        response,
+        200,
+        await analyzeOpsLensIncident((await readJson(request)) as never)
+      );
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      (url.pathname === "/mcp" || url.pathname === "/api/opslens/mcp")
+    ) {
+      const mcpResponse = handleOpsLensMcpRequest((await readJson(request)) as never);
+      if (!mcpResponse) {
+        sendJson(response, 202, {});
+        return;
+      }
+      sendJson(response, mcpResponse.error ? 400 : 200, mcpResponse);
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/status") {
+      sendJson(response, 200, await getOcpStatus());
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/console-overview") {
+      sendJson(response, 200, await getOcpConsoleOverview());
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/api-resources") {
+      sendJson(response, 200, await discoverOcpResources());
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/access-review") {
+      sendJson(
+        response,
+        200,
+        await reviewOcpResourceAccess({
+          apiVersion: url.searchParams.get("apiVersion") ?? undefined,
+          kind: url.searchParams.get("kind") ?? undefined,
+          resource: url.searchParams.get("resource") ?? undefined,
+          namespace: url.searchParams.get("namespace") ?? undefined,
+          name: url.searchParams.get("name") ?? undefined,
+          verb: url.searchParams.get("verb") ?? undefined
+        })
+      );
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/access-matrix") {
+      sendJson(
+        response,
+        200,
+        await reviewOcpResourceAccessMatrix({
+          apiVersion: url.searchParams.get("apiVersion") ?? undefined,
+          kind: url.searchParams.get("kind") ?? undefined,
+          resource: url.searchParams.get("resource") ?? undefined,
+          namespace: url.searchParams.get("namespace") ?? undefined,
+          name: url.searchParams.get("name") ?? undefined
+        })
+      );
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/coverage-matrix") {
+      const maxResources = url.searchParams.get("maxResources");
+      sendJson(
+        response,
+        200,
+        await getOcpCoverageMatrix({
+          namespace: url.searchParams.get("namespace") ?? undefined,
+          maxResources: maxResources ? Number(maxResources) : undefined,
+          includeDetails: url.searchParams.get("includeDetails") !== "false"
+        })
+      );
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/coverage-diagnostic") {
+      sendJson(
+        response,
+        200,
+        await getOcpCoverageDiagnostic({
+          apiVersion: url.searchParams.get("apiVersion") ?? undefined,
+          kind: url.searchParams.get("kind") ?? undefined,
+          resource: url.searchParams.get("resource") ?? undefined,
+          namespace: url.searchParams.get("namespace") ?? undefined
+        })
+      );
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/resources") {
+      sendJson(
+        response,
+        200,
+        await listOcpResource({
+          apiVersion: url.searchParams.get("apiVersion") ?? undefined,
+          kind: url.searchParams.get("kind") ?? undefined,
+          resource: url.searchParams.get("resource") ?? undefined,
+          namespace: url.searchParams.get("namespace") ?? undefined,
+          labelSelector: url.searchParams.get("labelSelector") ?? undefined,
+          fieldSelector: url.searchParams.get("fieldSelector") ?? undefined,
+          limit: Number(url.searchParams.get("limit") ?? 50),
+          continueToken: url.searchParams.get("continue") ?? undefined,
+          full: url.searchParams.get("full") === "true"
+        })
+      );
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/resource") {
+      const name = url.searchParams.get("name");
+      if (!name) {
+        throw new Error("name query parameter is required");
+      }
+
+      sendJson(
+        response,
+        200,
+        await getOcpResource({
+          apiVersion: url.searchParams.get("apiVersion") ?? undefined,
+          kind: url.searchParams.get("kind") ?? undefined,
+          resource: url.searchParams.get("resource") ?? undefined,
+          namespace: url.searchParams.get("namespace") ?? undefined,
+          name,
+          full: url.searchParams.get("full") === "true"
+        })
+      );
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/related") {
+      const name = url.searchParams.get("name");
+      if (!name) {
+        throw new Error("name query parameter is required");
+      }
+
+      sendJson(
+        response,
+        200,
+        await getOcpRelatedResources({
+          apiVersion: url.searchParams.get("apiVersion") ?? undefined,
+          kind: url.searchParams.get("kind") ?? undefined,
+          resource: url.searchParams.get("resource") ?? undefined,
+          namespace: url.searchParams.get("namespace") ?? undefined,
+          name
+        })
+      );
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/pod-logs") {
+      const namespace = url.searchParams.get("namespace");
+      const pod = url.searchParams.get("pod");
+      if (!namespace || !pod) {
+        throw new Error("namespace and pod query parameters are required");
+      }
+
+      sendJson(
+        response,
+        200,
+        await getOcpPodLogs({
+          namespace,
+          pod,
+          container: url.searchParams.get("container") ?? undefined,
+          previous: url.searchParams.get("previous") === "true",
+          tailLines: Number(url.searchParams.get("tailLines") ?? 200),
+          sinceSeconds: url.searchParams.get("sinceSeconds")
+            ? Number(url.searchParams.get("sinceSeconds"))
+            : undefined
+        })
+      );
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/ocp/events") {
+      const name = url.searchParams.get("name");
+      if (!name) {
+        throw new Error("name query parameter is required");
+      }
+
+      sendJson(
+        response,
+        200,
+        await listOcpEvents({
+          apiVersion: url.searchParams.get("apiVersion") ?? undefined,
+          kind: url.searchParams.get("kind") ?? undefined,
+          namespace: url.searchParams.get("namespace") ?? undefined,
+          name,
+          uid: url.searchParams.get("uid") ?? undefined,
+          limit: Number(url.searchParams.get("limit") ?? 100)
+        })
+      );
+      return;
+    }
+
+    sendNotFound(response);
+  } catch (error) {
+    sendJson(response, 400, {
+      error: error instanceof Error ? error.message : "unknown request error"
+    });
+  }
+});
+
+server.listen(port, host, () => {
+  console.log(`Cywell OpsLens API listening on http://${host}:${port}`);
+});

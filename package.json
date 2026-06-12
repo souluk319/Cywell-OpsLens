@@ -1,0 +1,30 @@
+{
+  "name": "kugnus-ops-lens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cywell OpsLens MVP 0.1 console-shaped OpenShift operations AI prototype.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run -w @kugnus/contracts build && npm run -w @kugnus/rag build && npm run -w @kugnus/operator-controller build && npm run -w @kugnus/api build && npm run -w @kugnus/web build",
+    "dev": "node ./scripts/dev.mjs",
+    "dev:api": "npm run -w @kugnus/api dev",
+    "dev:web": "npm run -w @kugnus/web dev",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "verify:rag": "npm run -w @kugnus/rag build && node ./scripts/verify-rag-index.mjs",
+    "verify:operator": "node ./scripts/verify-operator-package.mjs",
+    "verify:operator:reconcile": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-operator-reconcile.mjs",
+    "verify:certification": "node ./scripts/verify-certification-readiness.mjs",
+    "verify:lightspeed": "node ./scripts/verify-lightspeed-mcp.mjs",
+    "verify:lightspeed:fixture": "node ./scripts/verify-lightspeed-mcp.mjs --crd-fixture ./deploy/lightspeed/fixtures/olsconfig-crd-mcp.json --skip-mcp"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "typescript": "^5.9.3",
+    "yaml": "^2.9.0"
+  }
+}

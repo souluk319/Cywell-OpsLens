@@ -1,0 +1,52 @@
+apiVersion: opslens.cywell.io/v1alpha1
+kind: OpsLensInstallation
+metadata:
+  name: cywell-opslens
+  namespace: cywell-opslens
+spec:
+  version: "0.1.0"
+  targetNamespace: cywell-opslens
+  components:
+    api:
+      image: quay.io/cywell/opslens-api:0.1.0
+      replicas: 2
+      serviceName: cywell-opslens-api
+    dashboard:
+      image: quay.io/cywell/opslens-dashboard:0.1.0
+      replicas: 1
+      serviceName: cywell-opslens-dashboard
+    vectorStore:
+      provider: qdrant
+      image: docker.io/qdrant/qdrant:v1.12.1
+      storageSize: 20Gi
+    modelRuntime:
+      provider: vllm
+      image: quay.io/cywell/opslens-vllm:0.1.0
+      model: gemma-4-opslens
+      replicas: 1
+      gpu:
+        enabled: true
+        deviceClass: nvidia.com/gpu
+        count: 1
+  rag:
+    documentIntake:
+      mode: ValidateOnly
+      evidenceExport: true
+      rawDocumentReturnAllowed: false
+    approvalQueue:
+      mode: DesignOnly
+      enqueueAllowed: false
+      requiredApprovals:
+        - rag-owner
+        - cluster-sre
+  lightspeedRegistration:
+    mode: PatchOLSConfig
+    olsConfigName: cluster
+    olsConfigNamespace: openshift-lightspeed
+    mcpServerName: cywell-opslens
+    apiKeySecretName: cywell-opslens-mcp-header
+    userTokenForwarding: true
+    endpoint: https://cywell-opslens-api.cywell-opslens.svc.cluster.local/mcp
+  consolePlugin:
+    enabled: true
+    name: cywell-opslens

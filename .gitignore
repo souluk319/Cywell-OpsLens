@@ -1,0 +1,10 @@
+.env
+.env.*
+node_modules/
+apps/*/dist/
+packages/*/dist/
+playwright-report/
+test-results/
+coverage/
+*.tsbuildinfo
+*.log

@@ -1,0 +1,32 @@
+apiVersion: ols.openshift.io/v1alpha1
+kind: OLSConfig
+metadata:
+  name: cluster
+  namespace: openshift-lightspeed
+spec:
+  featureGates:
+    - MCPServer
+  mcpServers:
+    - name: cywell-opslens
+      url: https://cywell-opslens-api.cywell-opslens.svc.cluster.local/mcp
+      timeout: 30
+      headers:
+        - name: Authorization
+          valueFrom:
+            type: kubernetes
+        - name: X-Cywell-Api-Key
+          valueFrom:
+            type: secret
+            secretRef:
+              name: cywell-opslens-mcp-header
+  ols:
+    queryFilters:
+      - name: redact-bearer-token
+        pattern: 'Bearer\s+[A-Za-z0-9._-]+'
+        replaceWith: '<REDACTED_BEARER_TOKEN>'
+      - name: redact-common-secret-keys
+        pattern: '(token|password|passwd|secret|api[_-]?key)\s*[:=]\s*[^,\s]+'
+        replaceWith: '<REDACTED_SECRET>'
+    userDataCollection:
+      feedbackDisabled: true
+      transcriptsDisabled: true

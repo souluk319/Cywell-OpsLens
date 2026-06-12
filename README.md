@@ -1,0 +1,80 @@
+# Cywell OpsLens
+
+MVP 0.1 starts as a console-shaped, read-only prototype for an OpenShift operations AI product. It keeps the dashboard primary, keeps the assistant out of the evidence area, includes a live OpenShift API lane for local CRC/OCP validation, and now exposes the first Cywell OpsLens Lightspeed MCP integration contract.
+
+The first slice proves:
+
+- dashboard-first operations flow
+- OpenShift-console-like shell with a Lightspeed-style lower-right assistant launcher and popover
+- explicit console context chips
+- evidence-first answer contract
+- Lightspeed custom MCP tool surface for private customer runbook/RAG answers
+- acceptance criteria that can become automated checks
+
+## Scripts
+
+```bash
+npm install
+npm run dev
+npm run build
+npm run test:e2e
+npm run verify:lightspeed:fixture
+```
+
+`npm run dev` starts both:
+
+- API: `http://127.0.0.1:4174`
+- Web: `http://127.0.0.1:5173`
+
+## API Contracts
+
+MVP 0.1 has a mock read-only assistant/backend contract:
+
+- `GET /api/dashboard/risks`
+- `POST /api/context/sync`
+- `POST /api/actions/plan`
+- `GET /api/opslens/tools`
+- `GET /api/opslens/admin/overview`
+- `POST /api/opslens/ask`
+- `POST /api/opslens/incidents/analyze`
+- `POST /mcp`
+- `POST /api/opslens/mcp`
+
+The web app uses these endpoints through the Vite proxy, so the fixture-backed UI is already shaped like the Phase 1 Console Plugin + Backend API flow.
+
+Cywell OpsLens Stage 1 uses the OpenShift Lightspeed custom MCP server path, not an undocumented webhook path. The MCP surface provides read-only tools such as `generate_playbook`, `retrieve_customer_knowledge`, and `get_cluster_signal`; mutating tools such as `apply_remediation` are deliberately excluded from MVP.
+
+Stage 2 begins with `POST /api/opslens/incidents/analyze`: an alert-triggered, plan-only incident endpoint that combines read-only resource detail, pod candidates, events, `sinceSeconds`-bounded pod logs, and opt-in Prometheus metric correlation with private runbook citations. Failed reads are returned as `missingEvidence`, not hidden.
+
+Stage 3 starts with `GET /api/opslens/admin/overview` and the OpsLens Admin Dashboard surface for RAG document health, token usage, GPU/runtime samples, incident metric query status, and install readiness.
+
+Live OpenShift read-only API support:
+
+- `GET /api/ocp/status`
+- `GET /api/ocp/console-overview`
+- `GET /api/ocp/api-resources`
+- `GET /api/ocp/access-review?apiVersion=v1&resource=pods&verb=list`
+- `GET /api/ocp/access-matrix?apiVersion=v1&resource=pods`
+- `GET /api/ocp/coverage-matrix?maxResources=20&includeDetails=true`
+- `GET /api/ocp/coverage-matrix?includeDetails=false`
+- `GET /api/ocp/coverage-diagnostic?apiVersion=org.eclipse.che%2Fv1&resource=checlusters`
+- `GET /api/ocp/resources?apiVersion=v1&resource=pods&limit=50&continue=<token>&labelSelector=app%3Dmy-app&fieldSelector=metadata.name%3D<pod>`
+- `GET /api/ocp/resource?apiVersion=v1&resource=pods&namespace=default&name=<pod>`
+- `GET /api/ocp/related?apiVersion=v1&resource=pods&namespace=default&name=<pod>`
+- `GET /api/ocp/pod-logs?namespace=default&pod=<pod>&tailLines=200&sinceSeconds=600`
+- `GET /api/ocp/events?apiVersion=v1&kind=Pod&namespace=default&name=<pod>`
+
+The API loads `OCP_API_BASE_URL` and `OCP_API_TOKEN` from `.env`, and also falls back to kubeconfig server/token candidates when the env URL points at a console endpoint instead of the Kubernetes API root. CRC/self-signed TLS can be handled with `OCP_TLS_VERIFY=false` or the existing `OPENSHIFT_LIGHTSPEED_TLS_VERIFY=false`.
+
+Safety defaults:
+
+- raw Secret fetch is blocked unless `OCP_ALLOW_SECRET_FETCH=true`
+- monitoring service proxy queries are disabled unless `OCP_ENABLE_MONITORING_PROXY=true`
+- Cywell private RAG responses return redacted snippets/citations and audit metadata, not raw customer documents
+- incident analysis redacts log/event evidence, uses `planOnly`, keeps `mutationAllowed=false`, and records metric `missingEvidence` when monitoring proxy queries are disabled or unreachable
+- list/detail/related/log/event routes are read-only and expose `SelfSubjectAccessReview` evidence, `get/list/watch` read access matrix, bounded/full resource coverage matrix probes, gap classification, CRD/APIService/conversion-webhook diagnostics, alternate served API version probes, exportable evidence snapshots, pagination tokens, label/field selector-scoped queries, owner/child relationships, sanitized JSON/YAML views, redaction, and missing-evidence states instead of mutation commands
+- when a discovered served version fails because of a cluster-side API/conversion issue, `/api/ocp/resources` and `/api/ocp/resource` may return a `fallback` block showing the requested API version, the served version actually read, the original failure reason, and read-only evidence
+
+## Current Scope
+
+MVP 0.1 is read-only. It does not apply, delete, scale, fetch raw Secrets by default, or call an external model provider.

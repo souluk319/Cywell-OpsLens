@@ -1,0 +1,21 @@
+apiVersion: ols.openshift.io/v1alpha1
+kind: OLSConfig
+metadata:
+  name: cluster
+  namespace: openshift-lightspeed
+spec:
+  featureGates:
+    - ExistingGate
+  mcpServers:
+    - name: existing-observability
+      url: https://observability.openshift-lightspeed.svc.cluster.local/mcp
+      timeout: 20
+      headers:
+        - name: Authorization
+          valueFrom:
+            type: kubernetes
+  ols:
+    queryFilters:
+      - name: redact-bearer-token
+        pattern: 'Bearer\s+[A-Za-z0-9._-]+'
+        replaceWith: '<REDACTED_BEARER_TOKEN>'

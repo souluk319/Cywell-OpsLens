@@ -1,0 +1,41 @@
+schema: olm.package
+name: cywell-opslens
+defaultChannel: alpha
+---
+schema: olm.channel
+package: cywell-opslens
+name: alpha
+entries:
+  - name: cywell-opslens-operator.v0.1.0
+---
+schema: olm.bundle
+package: cywell-opslens
+name: cywell-opslens-operator.v0.1.0
+image: quay.io/cywell/opslens-operator-bundle:0.1.0
+properties:
+  - type: olm.package
+    value:
+      packageName: cywell-opslens
+      version: 0.1.0
+  - type: olm.gvk
+    value:
+      group: opslens.cywell.io
+      kind: OpsLensInstallation
+      version: v1alpha1
+  - type: olm.csv.metadata
+    value:
+      displayName: Cywell OpsLens
+      provider:
+        name: Cywell
+      maturity: alpha
+relatedImages:
+  - name: operator
+    image: quay.io/cywell/opslens-operator:0.1.0
+  - name: api
+    image: quay.io/cywell/opslens-api:0.1.0
+  - name: dashboard
+    image: quay.io/cywell/opslens-dashboard:0.1.0
+  - name: vllm
+    image: quay.io/cywell/opslens-vllm:0.1.0
+  - name: qdrant
+    image: docker.io/qdrant/qdrant:v1.12.1

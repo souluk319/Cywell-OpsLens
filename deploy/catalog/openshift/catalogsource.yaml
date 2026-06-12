@@ -1,0 +1,16 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: cywell-opslens-catalog
+  namespace: openshift-marketplace
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: catalog
+spec:
+  sourceType: grpc
+  image: quay.io/cywell/opslens-catalog:0.1.0
+  displayName: Cywell OpsLens Catalog
+  publisher: Cywell
+  updateStrategy:
+    registryPoll:
+      interval: 30m
