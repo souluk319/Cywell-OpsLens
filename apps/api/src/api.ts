@@ -317,6 +317,13 @@ type ImageBuildReadinessEvidenceArtifact = {
     image?: string;
     certificationEvidenceRequired?: boolean;
   }>;
+  actualBuildRequested?: boolean;
+  actualBuilds?: Array<{
+    name?: string;
+    status?: string;
+    durationSeconds?: number;
+    blockedBy?: string;
+  }>;
 };
 
 function lightspeedReadinessEvidencePath() {
@@ -449,6 +456,15 @@ function getImageBuildReadiness(): {
       .map((image) => image.name)
       .filter(Boolean)
       .join(", ");
+    const actualBuildNames = (artifact.actualBuilds ?? [])
+      .filter((build) => build.status === "PASS")
+      .map((build) => build.name)
+      .filter(Boolean)
+      .join(", ");
+    const actualBuildGaps = (artifact.actualBuilds ?? [])
+      .filter((build) => build.status && build.status !== "PASS")
+      .map((build) => `${build.name ?? "unknown"}=${build.blockedBy ?? build.status}`)
+      .join(", ");
 
     return {
       status,
@@ -459,6 +475,12 @@ function getImageBuildReadiness(): {
         externalNames
           ? `external runtime image certification evidence required for ${externalNames}`
           : "external runtime image certification evidence not listed",
+        artifact.actualBuildRequested
+          ? `actual local image builds passed for ${actualBuildNames || "none"}`
+          : "actual local image builds not requested in latest evidence",
+        actualBuildGaps
+          ? `actual local image build gaps ${actualBuildGaps}`
+          : "actual local image build gaps none",
         "admin overview reads image readiness evidence only; it does not build, push, or patch cluster resources"
       ]
     };

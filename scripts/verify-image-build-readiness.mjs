@@ -7,6 +7,8 @@ import { promisify } from "node:util";
 import { parseAllDocuments } from "yaml";
 
 const execFileAsync = promisify(execFile);
+const args = new Set(process.argv.slice(2));
+const buildImages = args.has("--build");
 
 const paths = {
   csv: "deploy/operator/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml",
@@ -103,6 +105,17 @@ function relatedImages(csv) {
   return new Map((csv?.spec?.relatedImages ?? []).map((entry) => [entry.name, entry.image]));
 }
 
+function localBuildTag(image) {
+  return image
+    .replace(/^quay\.io\/cywell\//, "cywell/")
+    .replace(/^docker\.io\/cywell\//, "cywell/")
+    .replace(/:[^:]+$/, ":verify");
+}
+
+function outputTail(output) {
+  return output.trim().slice(-4000);
+}
+
 async function validateDockerfile(build, csvImages) {
   const text = await readText(build.dockerfile);
   expectCheck(
@@ -135,6 +148,7 @@ async function validateDockerfile(build, csvImages) {
   return {
     name: build.name,
     image: build.image,
+    localTag: localBuildTag(build.image),
     context: build.context,
     dockerfile: build.dockerfile,
     reproducibleLocally: true
@@ -164,6 +178,7 @@ async function validateBundleAndCatalog() {
     {
       name: "bundle",
       image: "quay.io/cywell/opslens-operator-bundle:0.1.0",
+      localTag: "cywell/opslens-operator-bundle:verify",
       context: "deploy/operator",
       dockerfile: paths.bundleDockerfile,
       reproducibleLocally: true
@@ -171,6 +186,7 @@ async function validateBundleAndCatalog() {
     {
       name: "catalog",
       image: "quay.io/cywell/opslens-catalog:0.1.0",
+      localTag: "cywell/opslens-catalog:verify",
       context: "deploy/catalog",
       dockerfile: paths.catalogDockerfile,
       reproducibleLocally: true
@@ -195,6 +211,15 @@ async function validateDockerignore() {
   );
 }
 
+function validateOperatorGoModuleLock() {
+  expectCheck(
+    "operator Go module lock",
+    existsSync(resolve("deploy/operator/controller-runtime/go.sum")),
+    "deploy/operator/controller-runtime/go.sum exists for reproducible manager image builds",
+    "deploy/operator/controller-runtime/go.sum is missing; run go mod tidy before building the manager image"
+  );
+}
+
 async function validateCliAvailability() {
   try {
     const { stdout } = await execFileAsync("docker", ["--version"], {
@@ -206,6 +231,75 @@ async function validateCliAvailability() {
   } catch {
     warn("CLI docker", "docker unavailable locally; static image readiness still runs");
     return false;
+  }
+}
+
+async function runDockerBuild(build) {
+  const startedAt = Date.now();
+  const commandArgs = [
+    "build",
+    "-f",
+    resolve(build.dockerfile),
+    "-t",
+    build.localTag,
+    resolve(build.context)
+  ];
+
+  try {
+    const { stdout, stderr } = await execFileAsync("docker", commandArgs, {
+      encoding: "utf8",
+      timeout: 600000,
+      maxBuffer: 20 * 1024 * 1024
+    });
+    const durationSeconds = Math.round((Date.now() - startedAt) / 1000);
+    pass(`${build.name} docker build`, `${build.localTag} built in ${durationSeconds}s`);
+    return {
+      name: build.name,
+      image: build.image,
+      localTag: build.localTag,
+      dockerfile: build.dockerfile,
+      context: build.context,
+      status: "PASS",
+      durationSeconds,
+      outputTail: outputTail(`${stdout}\n${stderr}`)
+    };
+  } catch (error) {
+    const durationSeconds = Math.round((Date.now() - startedAt) / 1000);
+    const stdout = typeof error?.stdout === "string" ? error.stdout : "";
+    const stderr = typeof error?.stderr === "string" ? error.stderr : "";
+    const detail = outputTail(`${stdout}\n${stderr}`) || (error instanceof Error ? error.message : String(error));
+    const registryAuthGap =
+      build.name === "catalog" &&
+      detail.includes("registry.redhat.io") &&
+      (detail.includes("401 Unauthorized") || detail.includes("failed to authorize"));
+    if (registryAuthGap) {
+      warn(
+        `${build.name} docker build`,
+        "registry.redhat.io authentication is required to build the catalog image locally"
+      );
+      return {
+        name: build.name,
+        image: build.image,
+        localTag: build.localTag,
+        dockerfile: build.dockerfile,
+        context: build.context,
+        status: "WARN",
+        durationSeconds,
+        blockedBy: "registry.redhat.io authentication",
+        outputTail: detail
+      };
+    }
+    fail(`${build.name} docker build`, detail);
+    return {
+      name: build.name,
+      image: build.image,
+      localTag: build.localTag,
+      dockerfile: build.dockerfile,
+      context: build.context,
+      status: "FAIL",
+      durationSeconds,
+      outputTail: detail
+    };
   }
 }
 
@@ -266,8 +360,10 @@ try {
   const csvImages = relatedImages(csv);
   const dockerAvailable = await validateCliAvailability();
   const internalBuilds = [];
+  const actualBuilds = [];
   const worktreeStatus = await gitStatusShort();
   await validateDockerignore();
+  validateOperatorGoModuleLock();
 
   for (const build of imageBuilds) {
     internalBuilds.push(await validateDockerfile(build, csvImages));
@@ -287,6 +383,16 @@ try {
   }
 
   const packagingBuilds = await validateBundleAndCatalog();
+  if (buildImages) {
+    if (!dockerAvailable) {
+      fail("docker build execution", "--build was requested but docker is unavailable");
+    } else {
+      for (const build of [...internalBuilds, ...packagingBuilds]) {
+        actualBuilds.push(await runDockerBuild(build));
+      }
+    }
+  }
+
   await writeEvidence({
     schema: "cywell.opslens.image-build-readiness.v0.1",
     artifactType: "opslens.image-build-readiness.v0.1",
@@ -298,10 +404,12 @@ try {
     worktreeStatus: worktreeStatus ? worktreeStatus.split(/\r?\n/) : [],
     status: checks.some((check) => check.status === "FAIL") ? "FAIL" : "PASS",
     dockerAvailable,
+    actualBuildRequested: buildImages,
     mutationAllowed: false,
     clusterMutationAttempted: false,
     internalBuilds,
     packagingBuilds,
+    actualBuilds,
     externalImages: Array.from(externalImages.entries()).map(([name, image]) => ({
       name,
       image,

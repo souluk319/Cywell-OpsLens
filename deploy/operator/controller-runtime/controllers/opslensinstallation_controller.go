@@ -255,7 +255,7 @@ func (r *OpsLensInstallationReconciler) reconcileVectorStore(ctx context.Context
 	}
 	replicas := int32(1)
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, statefulSet, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, statefulSet, func() error {
 		statefulSet.Labels = labels("vector-store")
 		statefulSet.Spec.Replicas = &replicas
 		statefulSet.Spec.ServiceName = "cywell-opslens-vector"

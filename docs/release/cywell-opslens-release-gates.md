@@ -13,6 +13,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 - `npm run verify:rag` passes with no failures.
 - `npm run verify:certification` passes with no failures.
 - `npm run verify:images` passes and writes `test-results/cywell-opslens-image-build-readiness.json`.
+- `npm run verify:images:build` passes before publishing release images; it builds Operator, API, dashboard, and bundle images locally without pushing, and records catalog build as an explicit warning until `registry.redhat.io` credentials are available.
 - `npm run verify:lightspeed:fixture` passes with no failures.
 - Go/controller-runtime manager source, install resource parity, and explicit OLSConfig patch path are statically checked by `npm run verify:operator` and `npm run verify:operator:runtime`.
 - CatalogSource and Subscription manifests use Manual install approval.
@@ -22,7 +23,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 - Bundle metadata, CSV annotations, CRD, examples, and scorecard config are present.
 - Go/controller-runtime manager source builds locally with `go test ./...` and `go build` once the Go toolchain is available.
 - FBC package/channel/bundle entries point to the intended bundle image.
-- Operator, API, dashboard, bundle, and catalog Dockerfiles match CSV `relatedImages` and declared build contexts.
+- Operator, API, dashboard, bundle, and catalog Dockerfiles match CSV `relatedImages`, declared build contexts, local Docker build evidence, and any credential-gated catalog gap is recorded before release.
 - DCO, package ownership, release notes, and public documentation are ready.
 - Repository/product URLs point to the release repo, and placeholder support contacts are replaced.
 
