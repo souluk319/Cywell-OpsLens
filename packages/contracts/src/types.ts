@@ -597,6 +597,11 @@ export type OpsLensImageBuildReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensExternalRuntimeReadiness =
+  | "approval-required"
+  | "needs-evidence"
+  | "failed";
+
 export type OpsLensOperatorDryRunReadiness =
   | "ready"
   | "partial"
@@ -651,6 +656,30 @@ export interface OpsLensReleasePublishPlanSummary {
   missingEvidence: string[];
 }
 
+export interface OpsLensExternalRuntimeImagesPlanSummary {
+  status: OpsLensExternalRuntimeReadiness;
+  actionMode: "approvalPlanOnly";
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  requiredApprovals: string[];
+  externalImages: Array<{
+    name: string;
+    image: string;
+    sourceType: string;
+    desiredMirror: string;
+    status: string;
+  }>;
+  mutatingCommands: Array<{
+    id: string;
+    phase: string;
+    requiresExplicitApproval: boolean;
+  }>;
+  risk: string[];
+  rollbackPath: string[];
+  missingEvidence: string[];
+}
+
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
@@ -675,6 +704,8 @@ export interface OpsLensAdminOverviewResponse {
     installPlan: OpsLensInstallPlanReadiness;
     approvalPlan: OpsLensInstallApprovalPlanSummary;
     imageBuilds: OpsLensImageBuildReadiness;
+    externalRuntimeImages: OpsLensExternalRuntimeReadiness;
+    externalRuntimePlan: OpsLensExternalRuntimeImagesPlanSummary;
     releasePublish: OpsLensReleasePublishReadiness;
     releasePlan: OpsLensReleasePublishPlanSummary;
     certification: "not-started" | "draft" | "ready";

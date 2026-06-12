@@ -794,6 +794,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
         };
         imageBuilds?: string;
+        externalRuntimeImages?: string;
+        externalRuntimePlan?: {
+          actionMode?: string;
+          registryMutationAttempted?: boolean;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          requiredApprovals?: string[];
+          externalImages?: Array<{ name?: string; status?: string }>;
+          mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
+          risk?: string[];
+          rollbackPath?: string[];
+          missingEvidence?: string[];
+        };
         releasePublish?: string;
         releasePlan?: {
           actionMode?: string;
@@ -919,6 +932,35 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     expect(body.installReadiness?.evidence?.join(" ")).toContain(
       "image readiness"
+    );
+    expect([
+      "approval-required",
+      "needs-evidence",
+      "failed"
+    ]).toContain(body.installReadiness?.externalRuntimeImages);
+    expect(body.installReadiness?.externalRuntimePlan).toMatchObject({
+      actionMode: "approvalPlanOnly",
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.externalRuntimePlan?.requiredApprovals
+    ).toEqual(
+      expect.arrayContaining([
+        "registry-admin",
+        "security-reviewer",
+        "release-manager",
+        "product-owner"
+      ])
+    );
+    expect(
+      body.installReadiness?.externalRuntimePlan?.externalImages?.map(
+        (image) => image.name
+      )
+    ).toEqual(expect.arrayContaining(["vllm", "qdrant"]));
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /external runtime images plan/i
     );
     expect([
       "approval-required",
@@ -1105,6 +1147,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Image Builds"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "External Runtime"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Release Publish"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
@@ -1121,6 +1166,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
       "cluster-admin"
+    );
+    await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
+      "approvalPlanOnly"
+    );
+    await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
+      "registryMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
+      "vllm"
     );
     await expect(page.getByTestId("opslens-release-publish-plan")).toContainText(
       "approvalPlanOnly"

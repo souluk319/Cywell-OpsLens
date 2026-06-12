@@ -130,6 +130,7 @@ export function OpsLensAdminDashboard() {
         : []
     ) ?? [];
   const approvalPlan = overview?.installReadiness.approvalPlan;
+  const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
   const releasePlan = overview?.installReadiness.releasePlan;
   const validationFailed = validation?.issues.some(
     (issue) => issue.severity === "fail"
@@ -502,6 +503,8 @@ export function OpsLensAdminDashboard() {
                   "Operator Dry-run": overview.installReadiness.operatorDryRun,
                   "Install Plan": overview.installReadiness.installPlan,
                   "Image Builds": overview.installReadiness.imageBuilds,
+                  "External Runtime":
+                    overview.installReadiness.externalRuntimeImages,
                   "Release Publish": overview.installReadiness.releasePublish,
                   Certification: overview.installReadiness.certification
                 }).map(([label, value]) => (
@@ -567,6 +570,60 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {approvalPlan.rollbackPath[0] ??
                     "Rollback path must be reviewed before install."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {externalRuntimePlan ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-external-runtime-plan"
+            >
+              <div className="admin-evidence-line">
+                <span>{externalRuntimePlan.actionMode}</span>
+                <span>
+                  registryMutationAttempted=
+                  {String(externalRuntimePlan.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(externalRuntimePlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(externalRuntimePlan.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Runtime Images</span>
+                  <strong>
+                    {externalRuntimePlan.externalImages.length
+                      ? externalRuntimePlan.externalImages
+                          .map((image) => `${image.name}:${image.status}`)
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Mirror Commands</span>
+                  <strong>
+                    {externalRuntimePlan.mutatingCommands.length
+                      ? externalRuntimePlan.mutatingCommands
+                          .map((command) => command.id)
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {externalRuntimePlan.risk[0] ??
+                    "External runtime mirror commands remain blocked until approval."}
+                </p>
+                <p>
+                  {externalRuntimePlan.rollbackPath[0] ??
+                    "Rollback path must be reviewed before mirroring runtime images."}
                 </p>
               </div>
             </div>

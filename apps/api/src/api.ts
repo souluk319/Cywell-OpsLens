@@ -23,6 +23,8 @@ import type {
   McpJsonRpcResponse,
   OpsLensAdminOverviewResponse,
   OpsLensCitation,
+  OpsLensExternalRuntimeImagesPlanSummary,
+  OpsLensExternalRuntimeReadiness,
   OpsLensImageBuildReadiness,
   OpsLensInstallApprovalPlanSummary,
   OpsLensInstallPlanReadiness,
@@ -332,6 +334,39 @@ type ImageBuildReadinessEvidenceArtifact = {
   }>;
 };
 
+type ExternalRuntimeImagesPlanEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  requiredApprovals?: string[];
+  externalImages?: Array<{
+    name?: string;
+    image?: string;
+    sourceType?: string;
+    desiredMirror?: string;
+    status?: string;
+  }>;
+  commands?: Array<{
+    id?: string;
+    phase?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+  }>;
+  risk?: string[];
+  rollbackPath?: string[];
+  missingEvidence?: string[];
+};
+
 type OperatorDryRunEvidenceArtifact = {
   artifactType?: string;
   status?: string;
@@ -425,6 +460,13 @@ function imageBuildReadinessEvidencePath() {
   );
 }
 
+function externalRuntimeImagesPlanEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_EXTERNAL_RUNTIME_IMAGES_PLAN_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-external-runtime-images-plan.json")
+  );
+}
+
 function operatorDryRunEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_OPERATOR_DRY_RUN_EVIDENCE ??
@@ -475,6 +517,27 @@ function mapImageBuildReadinessStatus(
   }
   if (artifact.status === "PASS") {
     return "ready";
+  }
+  return "needs-evidence";
+}
+
+function mapExternalRuntimeImagesPlanReadinessStatus(
+  artifact: ExternalRuntimeImagesPlanEvidenceArtifact
+): OpsLensExternalRuntimeReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.status === "FAIL" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "failed";
+  }
+  if (artifact.ref?.worktreeDirty || artifact.status === "NEEDS_EVIDENCE") {
+    return "needs-evidence";
+  }
+  if (artifact.status === "APPROVAL_REQUIRED") {
+    return "approval-required";
   }
   return "needs-evidence";
 }
@@ -656,6 +719,136 @@ function getImageBuildReadiness(): {
         `Image readiness evidence could not be parsed from ${evidencePath}`,
         error instanceof Error ? error.message : "unknown evidence parse error",
         "invalid image readiness evidence blocks overclaiming image build readiness"
+      ]
+    };
+  }
+}
+
+function getExternalRuntimeImagesPlanReadiness(): {
+  status: OpsLensExternalRuntimeReadiness;
+  evidence: string[];
+  plan: OpsLensExternalRuntimeImagesPlanSummary;
+} {
+  const evidencePath = externalRuntimeImagesPlanEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      plan: {
+        status: "needs-evidence",
+        actionMode: "approvalPlanOnly",
+        registryMutationAttempted: false,
+        clusterMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        requiredApprovals: [
+          "registry-admin",
+          "security-reviewer",
+          "release-manager",
+          "product-owner"
+        ],
+        externalImages: [],
+        mutatingCommands: [],
+        risk: [
+          "No external runtime image evidence plan is available yet; vLLM/Qdrant mirror and certification work remain blocked."
+        ],
+        rollbackPath: [
+          "Generate external runtime image evidence before attempting runtime image mirror or sign commands."
+        ],
+        missingEvidence: [
+          `external runtime images plan evidence is missing at ${evidencePath}`
+        ]
+      },
+      evidence: [
+        "run npm run verify:external-runtime-plan to create vLLM/Qdrant evidence plan",
+        "dashboard keeps external runtime images as needs-evidence until no-mirror approval evidence is available",
+        "external runtime plan evidence must keep registryMutationAttempted=false and clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as ExternalRuntimeImagesPlanEvidenceArtifact;
+    const status = mapExternalRuntimeImagesPlanReadinessStatus(artifact);
+    const externalImages = (artifact.externalImages ?? []).map((image) => ({
+      name: image.name ?? "unknown",
+      image: image.image ?? "unknown",
+      sourceType: image.sourceType ?? "unknown",
+      desiredMirror: image.desiredMirror ?? "unknown",
+      status: image.status ?? "unknown"
+    }));
+    const mutatingCommands = (artifact.commands ?? [])
+      .filter((command) => command.mutation)
+      .map((command) => ({
+        id: command.id ?? "unknown",
+        phase: command.phase ?? "unknown",
+        requiresExplicitApproval: command.requiresExplicitApproval === true
+      }));
+    const imageNames = externalImages
+      .map((image) => `${image.name}:${image.status}`)
+      .join(", ");
+    const mutatingCommandNames = mutatingCommands
+      .map((command) => command.id)
+      .join(", ");
+
+    return {
+      status,
+      plan: {
+        status,
+        actionMode: "approvalPlanOnly",
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        requiredApprovals: artifact.requiredApprovals ?? [],
+        externalImages,
+        mutatingCommands,
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? [],
+        missingEvidence: artifact.missingEvidence ?? []
+      },
+      evidence: [
+        `External runtime images plan evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `external runtime plan generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `actionMode=${artifact.actionMode ?? "unknown"} registryMutationAttempted=${String(artifact.registryMutationAttempted ?? "unknown")} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")}`,
+        `required approvals=${(artifact.requiredApprovals ?? []).join(", ") || "unknown"}`,
+        imageNames
+          ? `external runtime image evidence status=${imageNames}`
+          : "external runtime image inventory not listed",
+        mutatingCommandNames
+          ? `runtime mirror/sign commands require explicit approval: ${mutatingCommandNames}`
+          : "runtime mirror/sign commands are not listed in latest external runtime plan",
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads external runtime evidence only; it does not mirror, sign, push, or patch cluster resources"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      plan: {
+        status: "failed",
+        actionMode: "approvalPlanOnly",
+        registryMutationAttempted: false,
+        clusterMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        requiredApprovals: [],
+        externalImages: [],
+        mutatingCommands: [],
+        risk: [
+          "External runtime images plan evidence is invalid; runtime mirror and certification commands remain blocked."
+        ],
+        rollbackPath: [
+          "Regenerate external runtime image evidence before attempting runtime image mirror or sign commands."
+        ],
+        missingEvidence: [
+          error instanceof Error ? error.message : "unknown evidence parse error"
+        ]
+      },
+      evidence: [
+        `External runtime images plan evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid external runtime evidence blocks overclaiming runtime image readiness"
       ]
     };
   }
@@ -962,6 +1155,7 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
   const budgetTokens = 1_500_000;
   const lightspeedReadiness = getLightspeedMcpReadiness();
   const imageBuildReadiness = getImageBuildReadiness();
+  const externalRuntimeImagesReadiness = getExternalRuntimeImagesPlanReadiness();
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
   const installPlanReadiness = getInstallApprovalPlanReadiness();
   const releasePublishReadiness = getReleasePublishPlanReadiness();
@@ -970,11 +1164,13 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
     operatorDryRunReadiness.evidence[0],
     installPlanReadiness.evidence[0],
     imageBuildReadiness.evidence[0],
+    externalRuntimeImagesReadiness.evidence[0],
     releasePublishReadiness.evidence[0],
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
     ...installPlanReadiness.evidence.slice(1),
     ...imageBuildReadiness.evidence.slice(1),
+    ...externalRuntimeImagesReadiness.evidence.slice(1),
     ...releasePublishReadiness.evidence.slice(1)
   ].filter((item): item is string => Boolean(item));
 
@@ -1116,6 +1312,8 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
       installPlan: installPlanReadiness.status,
       approvalPlan: installPlanReadiness.plan,
       imageBuilds: imageBuildReadiness.status,
+      externalRuntimeImages: externalRuntimeImagesReadiness.status,
+      externalRuntimePlan: externalRuntimeImagesReadiness.plan,
       releasePublish: releasePublishReadiness.status,
       releasePlan: releasePublishReadiness.plan,
       certification: "draft",
@@ -1130,6 +1328,7 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
         "Stage 5 image build readiness is validated by npm run verify:images",
+        "Stage 5 external runtime evidence plan is generated by npm run verify:external-runtime-plan",
         "Stage 5 release publish approval plan is generated by npm run verify:release-plan"
       ]
     },
