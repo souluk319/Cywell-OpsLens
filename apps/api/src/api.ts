@@ -35,6 +35,8 @@ import type {
   OpsLensLightspeedMcpReadiness,
   OpsLensMcpToolCategory,
   OpsLensMcpToolSurfaceItem,
+  OpsLensOcpConnectivityDiagnosticSummary,
+  OpsLensOcpConnectivityReadiness,
   OpsLensOperatorDryRunReadiness,
   OpsLensReleasePublishPlanSummary,
   OpsLensReleasePublishReadiness,
@@ -1102,6 +1104,36 @@ type EvidenceCheckpointArtifact = {
   rollbackPath?: string[];
 };
 
+type OcpConnectivityDiagnosticArtifact = {
+  artifactType?: string;
+  status?: string;
+  actionMode?: string;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  target?: {
+    host?: string;
+    port?: number;
+    redactedBaseUrl?: string;
+    tokenConfigured?: boolean;
+    tlsVerify?: boolean;
+  };
+  diagnostics?: {
+    classification?: string;
+    dns?: { status?: string };
+    tcp?: { status?: string };
+    tls?: { status?: string };
+    kubernetesVersion?: { status?: string };
+    oc?: {
+      clientAvailable?: boolean;
+      versionGet?: string;
+    };
+  };
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 function lightspeedReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_READINESS_EVIDENCE ??
@@ -1127,6 +1159,13 @@ function operatorDryRunEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_OPERATOR_DRY_RUN_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-operator-dry-run.json")
+  );
+}
+
+function ocpConnectivityDiagnosticEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_OCP_CONNECTIVITY_DIAGNOSTIC_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-ocp-connectivity-diagnostic.json")
   );
 }
 
@@ -1219,6 +1258,23 @@ function mapOperatorDryRunReadinessStatus(
   }
   if (artifact.status === "WARN") {
     return "partial";
+  }
+  return "needs-evidence";
+}
+
+function mapOcpConnectivityReadinessStatus(
+  artifact: OcpConnectivityDiagnosticArtifact
+): OpsLensOcpConnectivityReadiness {
+  if (
+    artifact.status === "FAIL" ||
+    artifact.clusterMutationAttempted ||
+    artifact.registryMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "failed";
+  }
+  if (artifact.status === "PASS" && artifact.diagnostics?.classification === "api-ready") {
+    return "ready";
   }
   return "needs-evidence";
 }
@@ -1605,6 +1661,145 @@ function getOperatorDryRunReadiness(): {
   }
 }
 
+function getOcpConnectivityDiagnosticReadiness(): {
+  status: OpsLensOcpConnectivityReadiness;
+  evidence: string[];
+  connectivity: OpsLensOcpConnectivityDiagnosticSummary;
+} {
+  const evidencePath = ocpConnectivityDiagnosticEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      connectivity: {
+        status: "needs-evidence",
+        artifactStatus: "missing",
+        actionMode: "readOnly",
+        classification: "missing",
+        clusterMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        target: {
+          host: "missing",
+          port: "missing",
+          redactedBaseUrl: "missing",
+          tokenConfigured: false,
+          tlsVerify: true
+        },
+        diagnostics: {
+          dns: "missing",
+          tcp: "missing",
+          tls: "missing",
+          kubernetesVersion: "missing",
+          oc: "missing"
+        },
+        missingEvidence: [
+          `OCP connectivity diagnostic evidence is missing at ${evidencePath}`
+        ],
+        risk: [
+          "Live OCP, Operator dry-run, and Lightspeed readiness checks cannot be trusted until endpoint connectivity is classified."
+        ],
+        rollbackPath: [
+          "Run npm run verify:ocp:connectivity after checking VPN, routing, firewall, and token configuration."
+        ]
+      },
+      evidence: [
+        "run npm run verify:ocp:connectivity to classify OCP API reachability",
+        "dashboard keeps OCP connectivity as needs-evidence until DNS/TCP/TLS/API checks are recorded",
+        "connectivity diagnostic reads only and performs no cluster mutation"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as OcpConnectivityDiagnosticArtifact;
+    const status = mapOcpConnectivityReadinessStatus(artifact);
+    const classification = artifact.diagnostics?.classification ?? "unknown";
+    const target = artifact.target ?? {};
+    const diagnostics = {
+      dns: artifact.diagnostics?.dns?.status ?? "unknown",
+      tcp: artifact.diagnostics?.tcp?.status ?? "unknown",
+      tls: artifact.diagnostics?.tls?.status ?? "unknown",
+      kubernetesVersion:
+        artifact.diagnostics?.kubernetesVersion?.status ?? "unknown",
+      oc: artifact.diagnostics?.oc?.versionGet ?? "unknown"
+    };
+
+    return {
+      status,
+      connectivity: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "readOnly",
+        classification,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        target: {
+          host: target.host ?? "unknown",
+          port: target.port ?? "unknown",
+          redactedBaseUrl: target.redactedBaseUrl ?? "unknown",
+          tokenConfigured: target.tokenConfigured === true,
+          tlsVerify: target.tlsVerify !== false
+        },
+        diagnostics,
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `OCP connectivity diagnostic ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `OCP connectivity classification=${classification} target=${target.host ?? "unknown"}:${target.port ?? "unknown"}`,
+        `diagnostics dns=${diagnostics.dns} tcp=${diagnostics.tcp} tls=${diagnostics.tls} /version=${diagnostics.kubernetesVersion} oc=${diagnostics.oc}`,
+        `actionMode=${artifact.actionMode ?? "unknown"} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")}`,
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads OCP connectivity evidence only; it does not apply, patch, delete, scale, or mutate cluster resources"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      connectivity: {
+        status: "failed",
+        artifactStatus: "invalid",
+        actionMode: "readOnly",
+        classification: "invalid-evidence",
+        clusterMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        target: {
+          host: "unknown",
+          port: "unknown",
+          redactedBaseUrl: "unknown",
+          tokenConfigured: false,
+          tlsVerify: true
+        },
+        diagnostics: {
+          dns: "unknown",
+          tcp: "unknown",
+          tls: "unknown",
+          kubernetesVersion: "unknown",
+          oc: "unknown"
+        },
+        missingEvidence: [
+          error instanceof Error ? error.message : "unknown evidence parse error"
+        ],
+        risk: [
+          "Invalid OCP connectivity evidence blocks overclaiming live cluster readiness."
+        ],
+        rollbackPath: [
+          "Regenerate OCP connectivity evidence before rerunning live Lightspeed or Operator checks."
+        ]
+      },
+      evidence: [
+        `OCP connectivity diagnostic could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid OCP connectivity evidence blocks overclaiming live readiness"
+      ]
+    };
+  }
+}
+
 function getInstallApprovalPlanReadiness(): {
   status: OpsLensInstallPlanReadiness;
   evidence: string[];
@@ -1967,18 +2162,21 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const lightspeedReadiness = getLightspeedMcpReadiness();
   const imageBuildReadiness = getImageBuildReadiness();
   const externalRuntimeImagesReadiness = getExternalRuntimeImagesPlanReadiness();
+  const ocpConnectivityReadiness = getOcpConnectivityDiagnosticReadiness();
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
   const installPlanReadiness = getInstallApprovalPlanReadiness();
   const releasePublishReadiness = getReleasePublishPlanReadiness();
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
   const installReadinessEvidence = [
     evidenceCheckpointReadiness.evidence[0],
+    ocpConnectivityReadiness.evidence[0],
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
     installPlanReadiness.evidence[0],
     imageBuildReadiness.evidence[0],
     externalRuntimeImagesReadiness.evidence[0],
     releasePublishReadiness.evidence[0],
+    ...ocpConnectivityReadiness.evidence.slice(1),
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
     ...installPlanReadiness.evidence.slice(1),
@@ -2124,6 +2322,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       lightspeedMcp: lightspeedReadiness.status,
       consoleDashboard: "prototype",
       operatorPackaging: "draft",
+      ocpConnectivity: ocpConnectivityReadiness.status,
+      connectivity: ocpConnectivityReadiness.connectivity,
       operatorDryRun: operatorDryRunReadiness.status,
       installPlan: installPlanReadiness.status,
       approvalPlan: installPlanReadiness.plan,
@@ -2142,6 +2342,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 3 dashboard is now served by /api/opslens/admin/overview",
         "Stage 4 Operator package skeleton is validated by npm run verify:operator",
         "Stage 4 live API preflight is validated by npm run verify:operator:dry-run",
+        "Live OCP connectivity is classified by npm run verify:ocp:connectivity",
         "Stage 4 mutating install approval plan is generated by npm run verify:install-plan",
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",

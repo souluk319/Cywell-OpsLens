@@ -938,6 +938,31 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       installReadiness?: {
         lightspeedMcp?: string;
         operatorPackaging?: string;
+        ocpConnectivity?: string;
+        connectivity?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          classification?: string;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          target?: {
+            host?: string;
+            port?: number | string;
+            tokenConfigured?: boolean;
+            tlsVerify?: boolean;
+          };
+          diagnostics?: {
+            dns?: string;
+            tcp?: string;
+            tls?: string;
+            kubernetesVersion?: string;
+            oc?: string;
+          };
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         operatorDryRun?: string;
         installPlan?: string;
         approvalPlan?: {
@@ -1215,6 +1240,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Lightspeed"
     );
     expect(body.installReadiness?.operatorPackaging).toBe("draft");
+    expect(["ready", "needs-evidence", "failed"]).toContain(
+      body.installReadiness?.ocpConnectivity
+    );
+    expect(body.installReadiness?.connectivity).toMatchObject({
+      actionMode: "readOnly",
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.connectivity?.classification
+    ).toMatch(
+      /api-ready|tcp-timeout|tcp-unreachable|dns-unresolved|api-unreachable|auth-or-rbac|tls-handshake-failed|not-configured|invalid-api-url|token-missing/
+    );
+    expect(body.installReadiness?.connectivity?.target).toMatchObject({
+      tokenConfigured: expect.any(Boolean),
+      tlsVerify: expect.any(Boolean)
+    });
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /OCP connectivity classification/i
+    );
     expect(["ready", "partial", "needs-evidence", "failed"]).toContain(
       body.installReadiness?.operatorDryRun
     );
@@ -1626,6 +1671,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Operator Dry-run"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "OCP Connectivity"
+    );
+    await expect(page.getByTestId("opslens-ocp-connectivity")).toContainText(
+      /classification=/
+    );
+    await expect(page.getByTestId("opslens-ocp-connectivity")).toContainText(
+      "clusterMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-ocp-connectivity")).toContainText(
+      /dns=|tcp=/
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Install Plan"

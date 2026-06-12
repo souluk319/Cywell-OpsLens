@@ -156,6 +156,7 @@ export function OpsLensAdminDashboard() {
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
   const releasePlan = overview?.installReadiness.releasePlan;
   const checkpoint = overview?.installReadiness.checkpoint;
+  const ocpConnectivity = overview?.installReadiness.connectivity;
   const lightspeedMcp = overview?.lightspeed.mcp;
   const validationFailed = validation?.issues.some(
     (issue) => issue.severity === "fail"
@@ -689,6 +690,7 @@ export function OpsLensAdminDashboard() {
                   "Lightspeed MCP": overview.installReadiness.lightspeedMcp,
                   "Console Dashboard": overview.installReadiness.consoleDashboard,
                   Operator: overview.installReadiness.operatorPackaging,
+                  "OCP Connectivity": overview.installReadiness.ocpConnectivity,
                   "Operator Dry-run": overview.installReadiness.operatorDryRun,
                   "Install Plan": overview.installReadiness.installPlan,
                   "Image Builds": overview.installReadiness.imageBuilds,
@@ -721,6 +723,61 @@ export function OpsLensAdminDashboard() {
               {item}
             </p>
           ))}
+          {ocpConnectivity ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-ocp-connectivity"
+            >
+              <div className="admin-evidence-line">
+                <span>{ocpConnectivity.artifactStatus}</span>
+                <span>classification={ocpConnectivity.classification}</span>
+                <span>{ocpConnectivity.actionMode}</span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(ocpConnectivity.clusterMutationAttempted)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Target</span>
+                  <strong>
+                    {ocpConnectivity.target.host}:{ocpConnectivity.target.port}
+                  </strong>
+                </div>
+                <div>
+                  <span>Network</span>
+                  <strong>
+                    dns={ocpConnectivity.diagnostics.dns}, tcp=
+                    {ocpConnectivity.diagnostics.tcp}
+                  </strong>
+                </div>
+                <div>
+                  <span>API</span>
+                  <strong>
+                    tls={ocpConnectivity.diagnostics.tls}, version=
+                    {ocpConnectivity.diagnostics.kubernetesVersion}
+                  </strong>
+                </div>
+                <div>
+                  <span>Auth Boundary</span>
+                  <strong>
+                    token={String(ocpConnectivity.target.tokenConfigured)},
+                    tlsVerify={String(ocpConnectivity.target.tlsVerify)}
+                  </strong>
+                </div>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {ocpConnectivity.risk[0] ??
+                    "Connectivity diagnostic reads only and does not approve mutation."}
+                </p>
+                <p>
+                  {ocpConnectivity.rollbackPath[0] ??
+                    "Refresh OCP connectivity evidence before live install checks."}
+                </p>
+              </div>
+            </div>
+          ) : null}
           {checkpoint ? (
             <div
               className="install-approval-summary"

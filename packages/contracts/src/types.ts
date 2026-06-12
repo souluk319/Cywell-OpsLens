@@ -833,6 +833,11 @@ export type OpsLensOperatorDryRunReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensOcpConnectivityReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "failed";
+
 export type OpsLensInstallPlanReadiness =
   | "approval-required"
   | "needs-evidence"
@@ -861,6 +866,32 @@ export interface OpsLensEvidenceCheckpointSummary {
   }>;
   missingEvidence: string[];
   blockers: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensOcpConnectivityDiagnosticSummary {
+  status: OpsLensOcpConnectivityReadiness;
+  artifactStatus: string;
+  actionMode: "readOnly";
+  classification: string;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  target: {
+    host: string;
+    port: number | string;
+    redactedBaseUrl: string;
+    tokenConfigured: boolean;
+    tlsVerify: boolean;
+  };
+  diagnostics: {
+    dns: string;
+    tcp: string;
+    tls: string;
+    kubernetesVersion: string;
+    oc: string;
+  };
+  missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
 }
@@ -955,6 +986,8 @@ export interface OpsLensAdminOverviewResponse {
     lightspeedMcp: OpsLensLightspeedMcpReadiness;
     consoleDashboard: "prototype" | "ready";
     operatorPackaging: "not-started" | "draft" | "ready";
+    ocpConnectivity: OpsLensOcpConnectivityReadiness;
+    connectivity: OpsLensOcpConnectivityDiagnosticSummary;
     operatorDryRun: OpsLensOperatorDryRunReadiness;
     installPlan: OpsLensInstallPlanReadiness;
     approvalPlan: OpsLensInstallApprovalPlanSummary;
