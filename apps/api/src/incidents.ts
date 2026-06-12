@@ -555,7 +555,7 @@ export async function analyzeOpsLensIncident(
     `missingEvidence=${missingEvidence.join("; ")}`
   ].join("\n");
 
-  const baseAnalysis = createOpsLensToolResponse({
+  const baseAnalysis = await createOpsLensToolResponse({
     tool: "propose_remediation",
     input: {
       clusterId: request.clusterId,

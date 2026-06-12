@@ -164,7 +164,7 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
       sendJson(
         response,
         200,
-        createOpsLensToolResponse((await readJson(request)) as never)
+        await createOpsLensToolResponse((await readJson(request)) as never)
       );
       return;
     }
@@ -185,7 +185,7 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
       request.method === "POST" &&
       (url.pathname === "/mcp" || url.pathname === "/api/opslens/mcp")
     ) {
-      const mcpResponse = handleOpsLensMcpRequest((await readJson(request)) as never);
+      const mcpResponse = await handleOpsLensMcpRequest((await readJson(request)) as never);
       if (!mcpResponse) {
         sendJson(response, 202, {});
         return;

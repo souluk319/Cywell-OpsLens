@@ -223,6 +223,33 @@ export interface OpsLensCitation {
   redacted: boolean;
 }
 
+export type OpsLensRuntimeRagMode = "local" | "hybrid" | "runtime";
+
+export type OpsLensRuntimeRagStatus =
+  | "disabled"
+  | "ready"
+  | "needs-live-check"
+  | "failed";
+
+export interface OpsLensRuntimeRagAudit {
+  mode: OpsLensRuntimeRagMode;
+  status: OpsLensRuntimeRagStatus;
+  provider: {
+    vectorStore: "qdrant";
+    modelRuntime: "vllm";
+  };
+  collection: string;
+  embeddingModel: string;
+  retrievalAttempted: boolean;
+  embeddingAttempted: boolean;
+  vectorSearchAttempted: boolean;
+  localFallbackUsed: boolean;
+  citationsUsed: "runtime" | "local-fallback";
+  latencyMs: number;
+  evidence: string[];
+  missingEvidence: string[];
+}
+
 export interface OpsLensRemediationProposal {
   artifactType: "opslens.remediation.proposal.v0.1";
   actionMode: "planOnly";
@@ -292,6 +319,7 @@ export interface OpsLensToolResponse {
     user?: string;
     sources: string[];
     model: string;
+    runtimeRag: OpsLensRuntimeRagAudit;
     redactionCount: number;
     latencyMs: number;
   };

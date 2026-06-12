@@ -38,6 +38,7 @@ import type {
   OpsLensRuntimeDependencyReadiness,
   OpsLensRuntimeReadiness,
   OpsLensRuntimeReadinessStatus,
+  OpsLensRuntimeRagAudit,
   OpsLensRagEvidenceExportRequest,
   OpsLensRagEvidenceExportResponse,
   OpsLensRagValidationRequest,
@@ -50,6 +51,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { retrieveRuntimeRagCitations } from "./runtimeRag";
 
 const sensitivePattern =
   /(token|password|passwd|secret|api[_-]?key|bearer\s+[a-z0-9._-]+)/gi;
@@ -1859,9 +1861,9 @@ export function createPlanOnlyRemediationProposal(params: {
   };
 }
 
-export function createOpsLensToolResponse(
+export async function createOpsLensToolResponse(
   request: OpsLensToolRequest
-): OpsLensToolResponse {
+): Promise<OpsLensToolResponse> {
   assertOpsLensToolRequest(request);
 
   const startedAt = Date.now();
@@ -1876,11 +1878,24 @@ export function createOpsLensToolResponse(
     Math.max(request.input.constraints?.maxDocuments ?? 3, 1),
     5
   );
-  const citations = retrieveRunbookCitations(
+  const runtimeRag = await retrieveRuntimeRagCitations({
+    tenantId: request.input.tenantId,
+    question,
+    maxDocuments
+  });
+  const localCitations = retrieveRunbookCitations(
     request.input.tenantId,
     question,
     maxDocuments
   );
+  const citations =
+    runtimeRag.citations.length > 0 ? runtimeRag.citations : localCitations;
+  const runtimeRagAudit: OpsLensRuntimeRagAudit = {
+    ...runtimeRag.audit,
+    localFallbackUsed: runtimeRag.citations.length === 0,
+    citationsUsed:
+      runtimeRag.citations.length > 0 ? "runtime" : "local-fallback"
+  };
   const includeYaml =
     request.tool === "propose_remediation" ||
     request.input.intent.toLowerCase().includes("memory");
@@ -1914,12 +1929,13 @@ export function createOpsLensToolResponse(
     proposedYamlPatch: remediationProposal?.yamlPatch,
     remediationProposal,
     citations,
-    missingEvidence: [
+    missingEvidence: uniqueStrings([
       "실제 Pod 로그 10분 tail",
       "최근 Deployment/ConfigMap/Secret diff",
       "프로메테우스 알람 fingerprint와 Alertmanager route",
-      "DB dependency 상태"
-    ],
+      "DB dependency 상태",
+      ...runtimeRagAudit.missingEvidence
+    ]),
     risks: [
       "MCP 기능은 OpenShift Lightspeed에서 Technology Preview이므로 운영 SLA 경로가 아니다.",
       "MCP 응답은 고객 데이터 정책 집행을 Cywell 서버에서 끝낸 뒤 최소 스니펫만 반환해야 한다.",
@@ -1932,12 +1948,14 @@ export function createOpsLensToolResponse(
       "변경 후 alert, pod readiness, error rate를 재확인한다."
     ],
     consoleLinks: consoleLinks(namespace, workload),
-    evidence: [
+    evidence: uniqueStrings([
       "tool catalog excludes mutating tools",
       "private RAG citations are loaded from tenant-scoped Markdown corpus as snippet-only redacted evidence",
+      `runtime RAG status=${runtimeRagAudit.status} mode=${runtimeRagAudit.mode} citations=${runtimeRagAudit.citationsUsed}`,
+      ...runtimeRagAudit.evidence,
       "response includes missingEvidence, risks, rollbackPath, and audit envelope",
       "caller source is expected to be OpenShift Lightspeed custom MCP server"
-    ],
+    ]),
     policy: {
       privateRag: true,
       serverSideRedaction: true,
@@ -1951,7 +1969,11 @@ export function createOpsLensToolResponse(
       namespace,
       user: request.caller?.user,
       sources: citations.map((citation) => citation.id),
-      model: "cywell-private-rag-local-vector/v0.1",
+      model:
+        runtimeRagAudit.citationsUsed === "runtime"
+          ? "cywell-private-rag-qdrant-vllm-hybrid/v0.1"
+          : "cywell-private-rag-local-vector/v0.1",
+      runtimeRag: runtimeRagAudit,
       redactionCount,
       latencyMs: Math.max(1, Date.now() - startedAt)
     }
@@ -1975,9 +1997,9 @@ function mcpError(
   };
 }
 
-export function handleOpsLensMcpRequest(
+export async function handleOpsLensMcpRequest(
   request: McpJsonRpcRequest
-): McpJsonRpcResponse | undefined {
+): Promise<McpJsonRpcResponse | undefined> {
   if (!request || request.jsonrpc !== "2.0" || typeof request.method !== "string") {
     return mcpError(null, -32600, "invalid JSON-RPC request");
   }
@@ -2048,7 +2070,7 @@ export function handleOpsLensMcpRequest(
     }
 
     try {
-      const result = createOpsLensToolResponse({
+      const result = await createOpsLensToolResponse({
         tool,
         input: {
           clusterId: params?.arguments?.clusterId ?? "prod-ocp",

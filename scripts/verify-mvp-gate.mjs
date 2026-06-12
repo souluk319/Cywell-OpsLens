@@ -63,6 +63,13 @@ const steps = [
     purpose: "Verify the read-only vLLM/Qdrant runtime readiness contract without mutating cluster or registry state."
   },
   {
+    id: "RUNTIME-RAG",
+    command: "npm",
+    args: ["run", "verify:runtime-rag"],
+    acceptance: ["AC-LS-001", "AC-RAG-001", "AC-AIOPS-001"],
+    purpose: "Verify /ask, /mcp, and incident analysis carry the Qdrant/vLLM runtime RAG adapter contract with safe local fallback."
+  },
+  {
     id: "LIGHTSPEED",
     command: "npm",
     args: ["run", "verify:lightspeed:fixture"],

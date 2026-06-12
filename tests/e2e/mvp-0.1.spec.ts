@@ -330,7 +330,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         mutationAllowed?: boolean;
         mcpTechnologyPreview?: boolean;
       };
-      audit?: { model?: string; redactionCount?: number; sources?: string[] };
+      audit?: {
+        model?: string;
+        redactionCount?: number;
+        sources?: string[];
+        runtimeRag?: {
+          mode?: string;
+          status?: string;
+          provider?: { vectorStore?: string; modelRuntime?: string };
+          retrievalAttempted?: boolean;
+          localFallbackUsed?: boolean;
+          citationsUsed?: string;
+          missingEvidence?: string[];
+        };
+      };
       risks?: string[];
       rollbackPath?: string[];
     };
@@ -353,7 +366,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     });
     expect(askBody.audit?.redactionCount).toBeGreaterThan(0);
     expect(askBody.audit?.model).toBe("cywell-private-rag-local-vector/v0.1");
+    expect(askBody.audit?.runtimeRag).toMatchObject({
+      mode: "local",
+      status: "disabled",
+      provider: {
+        vectorStore: "qdrant",
+        modelRuntime: "vllm"
+      },
+      retrievalAttempted: false,
+      localFallbackUsed: true,
+      citationsUsed: "local-fallback"
+    });
+    expect(askBody.audit?.runtimeRag?.missingEvidence?.join(" ")).toContain(
+      "live Qdrant/vLLM retrieval was not requested"
+    );
     expect(askBody.audit?.sources?.length).toBeGreaterThanOrEqual(2);
+    expect(JSON.stringify(askBody)).not.toContain("secret-demo");
     expect(askBody.risks?.join(" ")).toContain("Technology Preview");
     expect(askBody.rollbackPath?.join(" ")).toContain("GitOps");
 
@@ -409,6 +437,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           actionMode?: string;
           policy?: { rawDocumentReturned?: boolean; mutationAllowed?: boolean };
           citations?: Array<{ sourceType?: string }>;
+          audit?: {
+            runtimeRag?: {
+              status?: string;
+              localFallbackUsed?: boolean;
+              citationsUsed?: string;
+            };
+          };
         };
       };
     };
@@ -424,6 +459,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (citation) => citation.sourceType === "customer-runbook"
       )
     ).toBe(true);
+    expect(mcpCallBody.result?.structuredContent?.audit?.runtimeRag).toMatchObject({
+      status: "disabled",
+      localFallbackUsed: true,
+      citationsUsed: "local-fallback"
+    });
   });
 
   test("AC-AIOPS-001 builds a plan-only incident packet from live OCP evidence", async ({
