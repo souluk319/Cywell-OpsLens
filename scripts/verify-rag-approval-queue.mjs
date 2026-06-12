@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   buildLocalRagIndex,
   listRagApprovalQueueItems,
+  reviewRagApprovalQueueItem,
   submitRagApprovalQueueItem
 } from "../packages/rag/dist/index.js";
 import { execFile } from "node:child_process";
@@ -91,6 +92,17 @@ trustLevel: draft
 # Duplicate
 
 This draft intentionally duplicates an existing document id and must not be queued.`;
+
+const rejectableDraft = `---
+id: customer-runbook:payments-review-reject-fixture
+label: Payments Review Reject Fixture
+sourceType: customer-runbook
+trustLevel: draft
+---
+
+# Payments Review Reject Fixture
+
+This draft is valid enough to enter the queue, then rejected by a human reviewer because the change request needs a clearer source commit reference. token=demo-secret must stay redacted.`;
 
 try {
   const index = buildLocalRagIndex(resolve("data/runbooks"));
@@ -196,6 +208,126 @@ try {
     `mode=${enabledInventory.mode} items=${enabledInventory.itemCount} queueItem=${enabledInventory.items[0]?.queueItemId ?? "missing"}`
   );
 
+  const ragOwnerReview = await reviewRagApprovalQueueItem(
+    {
+      tenantId: baseRequest.tenantId,
+      queueItemId: enabledSubmission.queueItemId,
+      reviewer: "rag-owner-reviewer token=demo-secret",
+      role: "rag-owner",
+      decision: "approve",
+      reason: "rag-owner approves redacted chunk evidence with token=demo-secret",
+      ticketRef: "OPS-QUEUE-APPROVE token=demo-secret"
+    },
+    {
+      persistenceMode: "enabled",
+      queueDir: tmpQueue
+    }
+  );
+
+  expectCheck(
+    "first approval keeps item pending",
+    ragOwnerReview.actionMode === "approvalReviewOnly" &&
+      ragOwnerReview.state === "pending-human-approval" &&
+      ragOwnerReview.approvalQueue.remainingApprovals.includes("cluster-sre") &&
+      ragOwnerReview.policy.queueMetadataWriteAllowed === true &&
+      ragOwnerReview.policy.vectorWriteAllowed === false &&
+      ragOwnerReview.policy.ingestionAllowed === false &&
+      ragOwnerReview.content.ingestionJobCreated === false &&
+      !containsRawSecret(ragOwnerReview),
+    `state=${ragOwnerReview.state} remaining=${ragOwnerReview.approvalQueue.remainingApprovals.join(",")}`
+  );
+
+  const sreReview = await reviewRagApprovalQueueItem(
+    {
+      tenantId: baseRequest.tenantId,
+      queueItemId: enabledSubmission.queueItemId,
+      reviewer: "cluster-sre-reviewer token=demo-secret",
+      role: "cluster-sre",
+      decision: "approve",
+      reason: "cluster-sre approves metadata-only evidence with token=demo-secret",
+      ticketRef: "OPS-QUEUE-APPROVE token=demo-secret"
+    },
+    {
+      persistenceMode: "enabled",
+      queueDir: tmpQueue
+    }
+  );
+
+  expectCheck(
+    "second approval reaches approved-for-ingestion without ingesting",
+    sreReview.state === "approved-for-ingestion" &&
+      sreReview.approvalQueue.approvals.length === 2 &&
+      sreReview.approvalQueue.remainingApprovals.length === 0 &&
+      sreReview.content.rawMarkdownPersisted === false &&
+      sreReview.content.vectorWriteAttempted === false &&
+      sreReview.content.ingestionJobCreated === false &&
+      sreReview.policy.vectorWriteAllowed === false &&
+      sreReview.policy.clusterMutationAllowed === false &&
+      sreReview.policy.ingestionAllowed === false &&
+      !containsRawSecret(sreReview),
+    `state=${sreReview.state} approvals=${sreReview.approvalQueue.approvals.length}`
+  );
+
+  const reviewedInventory = await listRagApprovalQueueItems({
+    persistenceMode: "enabled",
+    queueDir: tmpQueue
+  });
+
+  expectCheck(
+    "reviewed inventory remains read-only metadata",
+    reviewedInventory.mode === "persistentLocal" &&
+      reviewedInventory.itemCount === 1 &&
+      reviewedInventory.items[0]?.state === "approved-for-ingestion" &&
+      reviewedInventory.items[0]?.approvals.length === 2 &&
+      reviewedInventory.items[0]?.content.chunksReturned === false &&
+      reviewedInventory.policy.approvalMutationAllowed === false &&
+      reviewedInventory.policy.vectorWriteAllowed === false &&
+      !containsRawSecret(reviewedInventory),
+    `state=${reviewedInventory.items[0]?.state ?? "missing"} approvals=${reviewedInventory.items[0]?.approvals.length ?? 0}`
+  );
+
+  const rejectableSubmission = await submitRagApprovalQueueItem(
+    index,
+    {
+      ...baseRequest,
+      fileName: "payments-review-reject-fixture.md",
+      markdown: rejectableDraft,
+      ticketRef: "OPS-QUEUE-REJECT token=demo-secret"
+    },
+    {
+      persistenceMode: "enabled",
+      queueDir: tmpQueue
+    }
+  );
+  const rejectionReview = await reviewRagApprovalQueueItem(
+    {
+      tenantId: baseRequest.tenantId,
+      queueItemId: rejectableSubmission.queueItemId,
+      reviewer: "rag-owner-reviewer token=demo-secret",
+      role: "rag-owner",
+      decision: "reject",
+      reason: "reject until source commit is linked; token=demo-secret",
+      ticketRef: "OPS-QUEUE-REJECT token=demo-secret"
+    },
+    {
+      persistenceMode: "enabled",
+      queueDir: tmpQueue
+    }
+  );
+
+  expectCheck(
+    "review rejection records metadata-only state",
+    rejectionReview.state === "rejected-by-reviewer" &&
+      rejectionReview.approvalQueue.blockers.some((blocker) =>
+        blocker.includes("rejected by rag-owner")
+      ) &&
+      rejectionReview.content.rawMarkdownPersisted === false &&
+      rejectionReview.policy.vectorWriteAllowed === false &&
+      rejectionReview.policy.ingestionAllowed === false &&
+      !containsRawSecret(rejectionReview),
+    `state=${rejectionReview.state} blockers=${rejectionReview.approvalQueue.blockers.join("|")}`
+  );
+
   const rejectedSubmission = await submitRagApprovalQueueItem(
     index,
     {
@@ -271,16 +403,33 @@ try {
       rawDocumentReturned: false,
       rawMarkdownPersisted: false,
       vectorWriteAllowed: false,
-      clusterMutationAllowed: false
+      clusterMutationAllowed: false,
+      queueMetadataWriteAllowed: true,
+      ingestionAllowed: false
+    },
+    reviews: {
+      firstApproval: {
+        state: ragOwnerReview.state,
+        remainingApprovals: ragOwnerReview.approvalQueue.remainingApprovals
+      },
+      secondApproval: {
+        state: sreReview.state,
+        approvals: sreReview.approvalQueue.approvals.length,
+        ingestionJobCreated: sreReview.content.ingestionJobCreated
+      },
+      rejection: {
+        state: rejectionReview.state,
+        ingestionAllowed: rejectionReview.policy.ingestionAllowed
+      }
     },
     evidence: [
       "default API mode remains design-only unless CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_PERSISTENCE=enabled",
       "enabled fixture persists only metadata, redacted chunks, validation hash, and approval requirements",
+      "human approval/rejection reviews update queue metadata only and do not create ingestion jobs",
       "invalid drafts are rejected before durable queue persistence"
     ],
     missingEvidence: [
       "production database-backed queue",
-      "human approval UI",
       "approved ingestion job"
     ],
     risk: [

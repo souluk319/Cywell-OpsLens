@@ -11,6 +11,7 @@ import {
   getOpsLensTools,
   handleOpsLensMcpRequest,
   listOpsLensRagApprovalQueue,
+  reviewOpsLensRagApprovalQueue,
   submitOpsLensRagApprovalQueue,
   syncContext,
   validateOpsLensRagDocument
@@ -178,6 +179,18 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
         response,
         200,
         await submitOpsLensRagApprovalQueue((await readJson(request)) as never)
+      );
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      url.pathname === "/api/opslens/admin/rag/approval-queue/review"
+    ) {
+      sendJson(
+        response,
+        200,
+        await reviewOpsLensRagApprovalQueue((await readJson(request)) as never)
       );
       return;
     }

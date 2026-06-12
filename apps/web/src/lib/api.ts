@@ -13,6 +13,8 @@ import type {
   OcpPodLogsResponse,
   OpsLensAdminOverviewResponse,
   OpsLensRagApprovalQueueInventoryResponse,
+  OpsLensRagApprovalQueueReviewRequest,
+  OpsLensRagApprovalQueueReviewResponse,
   OpsLensRagApprovalQueueSubmitRequest,
   OpsLensRagApprovalQueueSubmissionResponse,
   OpsLensRagEvidenceExportRequest,
@@ -100,6 +102,18 @@ export function submitOpsLensRagApprovalQueue(
 export function fetchOpsLensRagApprovalQueue() {
   return requestJson<OpsLensRagApprovalQueueInventoryResponse>(
     "/api/opslens/admin/rag/approval-queue"
+  );
+}
+
+export function reviewOpsLensRagApprovalQueue(
+  request: OpsLensRagApprovalQueueReviewRequest
+) {
+  return requestJson<OpsLensRagApprovalQueueReviewResponse>(
+    "/api/opslens/admin/rag/approval-queue/review",
+    {
+      method: "POST",
+      body: JSON.stringify(request)
+    }
   );
 }
 

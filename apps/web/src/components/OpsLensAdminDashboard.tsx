@@ -3,24 +3,28 @@ import type { CSSProperties } from "react";
 import type {
   OpsLensAdminOverviewResponse,
   OpsLensRagApprovalQueueInventoryResponse,
+  OpsLensRagApprovalQueueReviewResponse,
   OpsLensRagApprovalQueueSubmissionResponse,
   OpsLensRagEvidenceExportResponse,
   OpsLensRagValidationResponse
 } from "@kugnus/contracts";
 import {
   Activity,
+  CheckCircle2,
   Cpu,
   DatabaseZap,
   Download,
   FileDiff,
   Gauge,
   ShieldCheck,
-  UploadCloud
+  UploadCloud,
+  XCircle
 } from "lucide-react";
 import {
   exportOpsLensRagEvidence,
   fetchOpsLensAdminOverview,
   fetchOpsLensRagApprovalQueue,
+  reviewOpsLensRagApprovalQueue,
   submitOpsLensRagApprovalQueue,
   validateOpsLensRagDocument
 } from "../lib/api";
@@ -85,11 +89,14 @@ export function OpsLensAdminDashboard() {
     useState<OpsLensRagEvidenceExportResponse | null>(null);
   const [queueSubmission, setQueueSubmission] =
     useState<OpsLensRagApprovalQueueSubmissionResponse | null>(null);
+  const [queueReview, setQueueReview] =
+    useState<OpsLensRagApprovalQueueReviewResponse | null>(null);
   const [queueInventory, setQueueInventory] =
     useState<OpsLensRagApprovalQueueInventoryResponse | null>(null);
   const [validating, setValidating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [queueing, setQueueing] = useState(false);
+  const [reviewingItemId, setReviewingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -173,6 +180,7 @@ export function OpsLensAdminDashboard() {
       setValidation(response);
       setEvidenceExport(null);
       setQueueSubmission(null);
+      setQueueReview(null);
       setError(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "RAG validation failed");
@@ -194,6 +202,7 @@ export function OpsLensAdminDashboard() {
       setEvidenceExport(response);
       setValidation(response.validation);
       setQueueSubmission(null);
+      setQueueReview(null);
       setError(null);
     } catch (caught) {
       setError(
@@ -217,6 +226,7 @@ export function OpsLensAdminDashboard() {
       });
       setQueueSubmission(response);
       setValidation(response.validation);
+      setQueueReview(null);
       setQueueInventory(await fetchOpsLensRagApprovalQueue());
       setError(null);
     } catch (caught) {
@@ -225,6 +235,39 @@ export function OpsLensAdminDashboard() {
       );
     } finally {
       setQueueing(false);
+    }
+  }
+
+  async function reviewQueueItem(
+    item: OpsLensRagApprovalQueueInventoryResponse["items"][number],
+    decision: "approve" | "reject"
+  ) {
+    const approvedRoles = new Set(item.approvals.map((approval) => approval.role));
+    const nextRole =
+      item.requiredApprovals.find((role) => !approvedRoles.has(role)) ??
+      item.requiredApprovals[0] ??
+      "rag-owner";
+    const reviewKey = `${item.queueItemId}-${decision}`;
+    setReviewingItemId(reviewKey);
+    try {
+      const response = await reviewOpsLensRagApprovalQueue({
+        tenantId: item.tenantId,
+        queueItemId: item.queueItemId,
+        reviewer: "admin-dashboard",
+        role: nextRole,
+        decision,
+        reason: `${decision} redacted RAG queue evidence from dashboard review`,
+        ticketRef: item.audit.ticketRef ?? "dashboard-review"
+      });
+      setQueueReview(response);
+      setQueueInventory(await fetchOpsLensRagApprovalQueue());
+      setError(null);
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "RAG approval queue review failed"
+      );
+    } finally {
+      setReviewingItemId(null);
     }
   }
 
@@ -335,8 +378,53 @@ export function OpsLensAdminDashboard() {
                 <span>{item.state}</span>
                 <span>{item.tenantId}</span>
                 <span>approvals {item.approvals.length}</span>
+                {item.state === "pending-human-approval" ? (
+                  <>
+                    <button
+                      className="icon-button"
+                      type="button"
+                      title="Approve queued RAG evidence"
+                      aria-label={`Approve ${item.queueItemId}`}
+                      onClick={() => void reviewQueueItem(item, "approve")}
+                      disabled={reviewingItemId === `${item.queueItemId}-approve`}
+                    >
+                      <CheckCircle2 size={15} aria-hidden="true" />
+                    </button>
+                    <button
+                      className="icon-button"
+                      type="button"
+                      title="Reject queued RAG evidence"
+                      aria-label={`Reject ${item.queueItemId}`}
+                      onClick={() => void reviewQueueItem(item, "reject")}
+                      disabled={reviewingItemId === `${item.queueItemId}-reject`}
+                    >
+                      <XCircle size={15} aria-hidden="true" />
+                    </button>
+                  </>
+                ) : null}
               </div>
             ))}
+            {queueReview ? (
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-rag-approval-review"
+              >
+                <span>{queueReview.actionMode}</span>
+                <span>{queueReview.decision}</span>
+                <span>{queueReview.state}</span>
+                <span>
+                  queueMetadataWrite=
+                  {String(queueReview.policy.queueMetadataWriteAllowed)}
+                </span>
+                <span>
+                  vectorWrite={String(queueReview.policy.vectorWriteAllowed)}
+                </span>
+                <span>
+                  ingestionJobCreated=
+                  {String(queueReview.content.ingestionJobCreated)}
+                </span>
+              </div>
+            ) : null}
           </div>
           <div className="rag-validation-form" data-testid="opslens-rag-validation">
             <div className="rag-validation-fields">

@@ -163,7 +163,9 @@ export interface RagApprovalQueueSubmission {
   state:
     | "design-only"
     | "pending-human-approval"
-    | "rejected-before-approval";
+    | "rejected-before-approval"
+    | "approved-for-ingestion"
+    | "rejected-by-reviewer";
   validation: RagValidationResponse;
   evidenceExport: {
     artifactType: RagValidationEvidenceExport["artifactType"];
@@ -205,6 +207,67 @@ export interface RagApprovalQueueSubmission {
     queuePersistenceAllowed: boolean;
     vectorWriteAllowed: false;
     clusterMutationAllowed: false;
+  };
+  risk: string[];
+  rollbackPath: string[];
+  missingEvidence: string[];
+}
+
+export type RagApprovalQueueReviewDecision = "approve" | "reject";
+
+export interface RagApprovalQueueReviewRequest {
+  tenantId: string;
+  queueItemId: string;
+  reviewer: string;
+  role: string;
+  decision: RagApprovalQueueReviewDecision;
+  reason: string;
+  ticketRef?: string;
+}
+
+export interface RagApprovalQueueReview {
+  artifactType: "opslens.rag.approval-queue-review.v0.1";
+  artifactVersion: "0.1";
+  generatedAt: string;
+  queueItemId: string;
+  tenantId: string;
+  fileName: string;
+  actionMode: "approvalReviewOnly";
+  decision: RagApprovalQueueReviewDecision;
+  previousState: RagApprovalQueueSubmission["state"];
+  state: RagApprovalQueueSubmission["state"];
+  reviewer: {
+    reviewer: string;
+    role: string;
+    reviewedAt: string;
+    reason: string;
+    ticketRef?: string;
+  };
+  approvalQueue: {
+    mode: "persistentLocal";
+    persisted: true;
+    requiredApprovals: string[];
+    approvals: RagApprovalQueueSubmission["approvalQueue"]["approvals"];
+    remainingApprovals: string[];
+    blockers: string[];
+    evidence: string[];
+  };
+  content: {
+    markdownReturned: false;
+    documentBodyReturned: false;
+    chunksReturned: false;
+    rawMarkdownPersisted: false;
+    vectorWriteAttempted: false;
+    ingestionJobCreated: false;
+  };
+  policy: {
+    reviewAllowed: true;
+    queueMetadataWriteAllowed: true;
+    rawDocumentReturned: false;
+    rawMarkdownPersisted: false;
+    vectorWriteAllowed: false;
+    clusterMutationAllowed: false;
+    ingestionAllowed: false;
   };
   risk: string[];
   rollbackPath: string[];

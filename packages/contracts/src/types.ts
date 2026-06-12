@@ -622,7 +622,9 @@ export interface OpsLensRagApprovalQueueSubmissionResponse {
   state:
     | "design-only"
     | "pending-human-approval"
-    | "rejected-before-approval";
+    | "rejected-before-approval"
+    | "approved-for-ingestion"
+    | "rejected-by-reviewer";
   validation: OpsLensRagValidationResponse;
   evidenceExport: {
     artifactType: OpsLensRagEvidenceExportResponse["artifactType"];
@@ -664,6 +666,67 @@ export interface OpsLensRagApprovalQueueSubmissionResponse {
     queuePersistenceAllowed: boolean;
     vectorWriteAllowed: false;
     clusterMutationAllowed: false;
+  };
+  risk: string[];
+  rollbackPath: string[];
+  missingEvidence: string[];
+}
+
+export type OpsLensRagApprovalQueueReviewDecision = "approve" | "reject";
+
+export interface OpsLensRagApprovalQueueReviewRequest {
+  tenantId: string;
+  queueItemId: string;
+  reviewer: string;
+  role: string;
+  decision: OpsLensRagApprovalQueueReviewDecision;
+  reason: string;
+  ticketRef?: string;
+}
+
+export interface OpsLensRagApprovalQueueReviewResponse {
+  artifactType: "opslens.rag.approval-queue-review.v0.1";
+  artifactVersion: "0.1";
+  generatedAt: string;
+  queueItemId: string;
+  tenantId: string;
+  fileName: string;
+  actionMode: "approvalReviewOnly";
+  decision: OpsLensRagApprovalQueueReviewDecision;
+  previousState: OpsLensRagApprovalQueueSubmissionResponse["state"];
+  state: OpsLensRagApprovalQueueSubmissionResponse["state"];
+  reviewer: {
+    reviewer: string;
+    role: string;
+    reviewedAt: string;
+    reason: string;
+    ticketRef?: string;
+  };
+  approvalQueue: {
+    mode: "persistentLocal";
+    persisted: true;
+    requiredApprovals: string[];
+    approvals: OpsLensRagApprovalQueueSubmissionResponse["approvalQueue"]["approvals"];
+    remainingApprovals: string[];
+    blockers: string[];
+    evidence: string[];
+  };
+  content: {
+    markdownReturned: false;
+    documentBodyReturned: false;
+    chunksReturned: false;
+    rawMarkdownPersisted: false;
+    vectorWriteAttempted: false;
+    ingestionJobCreated: false;
+  };
+  policy: {
+    reviewAllowed: true;
+    queueMetadataWriteAllowed: true;
+    rawDocumentReturned: false;
+    rawMarkdownPersisted: false;
+    vectorWriteAllowed: false;
+    clusterMutationAllowed: false;
+    ingestionAllowed: false;
   };
   risk: string[];
   rollbackPath: string[];

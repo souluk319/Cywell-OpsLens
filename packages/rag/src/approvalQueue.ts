@@ -4,6 +4,8 @@ import { createRagValidationEvidenceExport, redactSensitiveText } from "./localI
 import type {
   RagApprovalQueueInventory,
   RagApprovalQueueInventoryItem,
+  RagApprovalQueueReview,
+  RagApprovalQueueReviewRequest,
   RagApprovalQueueSubmission,
   RagApprovalQueueSubmitRequest,
   RagIndex
@@ -25,6 +27,12 @@ export interface RagApprovalQueueListOptions {
   maxItems?: number;
 }
 
+export interface RagApprovalQueueReviewOptions {
+  persistenceMode?: RagApprovalQueuePersistenceMode;
+  queueDir?: string;
+  generatedAt?: string;
+}
+
 function safeSegment(value: string) {
   return value
     .toLowerCase()
@@ -39,6 +47,21 @@ function assertWithin(parent: string, child: string) {
   if (childPath !== parentPath && !childPath.startsWith(`${parentPath}${sep}`)) {
     throw new Error("approval queue storage path escaped configured queue directory");
   }
+}
+
+function queueItemPath(params: {
+  queueDir?: string;
+  tenantId: string;
+  queueItemId: string;
+}) {
+  const storageRoot = resolve(params.queueDir ?? "test-results/rag-approval-queue");
+  const storagePath = resolve(
+    storageRoot,
+    safeSegment(params.tenantId),
+    `${safeSegment(params.queueItemId)}.json`
+  );
+  assertWithin(storageRoot, storagePath);
+  return { storageRoot, storagePath };
 }
 
 export async function submitRagApprovalQueueItem(
@@ -58,11 +81,11 @@ export async function submitRagApprovalQueueItem(
       ? "pending-human-approval"
       : "design-only";
   const storageRoot = resolve(options.queueDir ?? "test-results/rag-approval-queue");
-  const storagePath = resolve(
-    storageRoot,
-    safeSegment(request.tenantId),
-    `${queueItemId}.json`
-  );
+  const { storagePath } = queueItemPath({
+    queueDir: storageRoot,
+    tenantId: request.tenantId,
+    queueItemId
+  });
   const blockers = !accepted
     ? evidenceExport.approvalQueue.blockers
     : persistenceEnabled
@@ -70,8 +93,6 @@ export async function submitRagApprovalQueueItem(
       : [
           "approval queue persistence is disabled; set CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_PERSISTENCE=enabled"
         ];
-
-  assertWithin(storageRoot, storagePath);
 
   const artifact: RagApprovalQueueSubmission = {
     artifactType: "opslens.rag.approval-queue-submission.v0.2",
@@ -159,6 +180,188 @@ export async function submitRagApprovalQueueItem(
   }
 
   return artifact;
+}
+
+function remainingApprovals(submission: RagApprovalQueueSubmission) {
+  const approvedRoles = new Set(
+    submission.approvalQueue.approvals.map((approval) => approval.role)
+  );
+  return submission.approvalQueue.requiredApprovals.filter(
+    (role) => !approvedRoles.has(role)
+  );
+}
+
+export async function reviewRagApprovalQueueItem(
+  request: RagApprovalQueueReviewRequest,
+  options: RagApprovalQueueReviewOptions = {}
+): Promise<RagApprovalQueueReview> {
+  if (options.persistenceMode !== "enabled") {
+    throw new Error("approval queue review requires local persistence to be enabled");
+  }
+  if (!request.tenantId || !request.queueItemId) {
+    throw new Error("tenantId and queueItemId are required for approval queue review");
+  }
+  if (!request.reviewer || !request.role || !request.reason) {
+    throw new Error("reviewer, role, and reason are required for approval queue review");
+  }
+  if (request.decision !== "approve" && request.decision !== "reject") {
+    throw new Error("decision must be approve or reject");
+  }
+
+  const generatedAt = options.generatedAt ?? new Date().toISOString();
+  const { storagePath } = queueItemPath({
+    queueDir: options.queueDir,
+    tenantId: request.tenantId,
+    queueItemId: request.queueItemId
+  });
+  const submission = JSON.parse(
+    await readFile(storagePath, "utf8")
+  ) as RagApprovalQueueSubmission;
+
+  if (
+    submission.artifactType !== "opslens.rag.approval-queue-submission.v0.2" ||
+    submission.tenantId !== request.tenantId ||
+    submission.queueItemId !== request.queueItemId
+  ) {
+    throw new Error("approval queue review target does not match a persisted queue item");
+  }
+  if (submission.state !== "pending-human-approval") {
+    throw new Error(`approval queue item is not pending review: ${submission.state}`);
+  }
+
+  const previousState = submission.state;
+  const sanitizedReason = redactSensitiveText(request.reason);
+  const sanitizedTicketRef = request.ticketRef
+    ? redactSensitiveText(request.ticketRef)
+    : undefined;
+
+  if (request.decision === "approve") {
+    if (!submission.approvalQueue.requiredApprovals.includes(request.role)) {
+      throw new Error(`review role ${request.role} is not required for this queue item`);
+    }
+    submission.approvalQueue.approvals = [
+      ...submission.approvalQueue.approvals.filter(
+        (approval) => approval.role !== request.role
+      ),
+      {
+        approver: redactSensitiveText(request.reviewer),
+        role: request.role,
+        approvedAt: generatedAt
+      }
+    ];
+    const remaining = remainingApprovals(submission);
+    submission.state = remaining.length === 0
+      ? "approved-for-ingestion"
+      : "pending-human-approval";
+    submission.approvalQueue.blockers = remaining.map(
+      (role) => `${role} approval`
+    );
+    submission.missingEvidence = remaining.length
+      ? remaining.map((role) => `${role} approval`)
+      : [
+          "approved ingestion job has not run",
+          "vector store write remains blocked until a separate ingestion job is approved"
+        ];
+    submission.approvalQueue.evidence = [
+      ...submission.approvalQueue.evidence,
+      `approved by role=${request.role}`,
+      `reviewedAt=${generatedAt}`,
+      "approval review updated queue metadata only"
+    ];
+  } else {
+    submission.state = "rejected-by-reviewer";
+    submission.approvalQueue.blockers = [
+      `rejected by ${request.role}`,
+      sanitizedReason
+    ];
+    submission.missingEvidence = [
+      "author must submit a corrected draft and regenerate validation evidence"
+    ];
+    submission.approvalQueue.evidence = [
+      ...submission.approvalQueue.evidence,
+      `rejected by role=${request.role}`,
+      `reviewedAt=${generatedAt}`,
+      "rejection review updated queue metadata only"
+    ];
+  }
+
+  const remaining = remainingApprovals(submission);
+  const persistedSubmission: RagApprovalQueueSubmission = {
+    ...submission,
+    content: {
+      ...submission.content,
+      rawMarkdownPersisted: false,
+      vectorWriteAttempted: false
+    },
+    policy: {
+      ...submission.policy,
+      vectorWriteAllowed: false,
+      clusterMutationAllowed: false
+    }
+  };
+
+  await writeFile(storagePath, `${JSON.stringify(persistedSubmission, null, 2)}\n`, "utf8");
+
+  return {
+    artifactType: "opslens.rag.approval-queue-review.v0.1",
+    artifactVersion: "0.1",
+    generatedAt,
+    queueItemId: submission.queueItemId,
+    tenantId: submission.tenantId,
+    fileName: submission.fileName,
+    actionMode: "approvalReviewOnly",
+    decision: request.decision,
+    previousState,
+    state: submission.state,
+    reviewer: {
+      reviewer: redactSensitiveText(request.reviewer),
+      role: request.role,
+      reviewedAt: generatedAt,
+      reason: sanitizedReason,
+      ticketRef: sanitizedTicketRef
+    },
+    approvalQueue: {
+      mode: "persistentLocal",
+      persisted: true,
+      requiredApprovals: submission.approvalQueue.requiredApprovals,
+      approvals: submission.approvalQueue.approvals,
+      remainingApprovals: remaining,
+      blockers: submission.approvalQueue.blockers,
+      evidence: [
+        `decision=${request.decision}`,
+        `state=${submission.state}`,
+        "review artifact contains reviewer metadata and redacted reason only",
+        "raw markdown, vector writes, ingestion jobs, and cluster mutations remain blocked"
+      ]
+    },
+    content: {
+      markdownReturned: false,
+      documentBodyReturned: false,
+      chunksReturned: false,
+      rawMarkdownPersisted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false
+    },
+    policy: {
+      reviewAllowed: true,
+      queueMetadataWriteAllowed: true,
+      rawDocumentReturned: false,
+      rawMarkdownPersisted: false,
+      vectorWriteAllowed: false,
+      clusterMutationAllowed: false,
+      ingestionAllowed: false
+    },
+    risk: [
+      "Approval review changes local queue metadata only and is not a vector ingestion event.",
+      "An approved queue item still requires a separate ingestion job and source-control evidence before indexing."
+    ],
+    rollbackPath: [
+      "Reject the queue item with reviewer evidence if approval was recorded by mistake.",
+      "Delete the local queue item JSON before any future ingestion job if the draft must be withdrawn.",
+      "Regenerate validation evidence after source Markdown changes."
+    ],
+    missingEvidence: persistedSubmission.missingEvidence
+  };
 }
 
 function inventoryPolicy(): RagApprovalQueueInventory["policy"] {

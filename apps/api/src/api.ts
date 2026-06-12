@@ -10,6 +10,7 @@ import {
   createRagValidationEvidenceExport,
   listRagApprovalQueueItems,
   redactSensitiveText,
+  reviewRagApprovalQueueItem,
   searchLocalRagIndex,
   submitRagApprovalQueueItem,
   validateRagDocumentIntake
@@ -46,6 +47,8 @@ import type {
   OpsLensRuntimeReadinessStatus,
   OpsLensRuntimeRagAudit,
   OpsLensRagApprovalQueueInventoryResponse,
+  OpsLensRagApprovalQueueReviewRequest,
+  OpsLensRagApprovalQueueReviewResponse,
   OpsLensRagApprovalQueueSubmitRequest,
   OpsLensRagApprovalQueueSubmissionResponse,
   OpsLensRagEvidenceExportRequest,
@@ -2446,6 +2449,42 @@ export async function listOpsLensRagApprovalQueue(): Promise<OpsLensRagApprovalQ
     persistenceMode: ragApprovalQueuePersistenceMode(),
     queueDir: ragApprovalQueueDir(),
     maxItems: 20
+  });
+}
+
+function assertRagApprovalQueueReviewRequest(
+  request: OpsLensRagApprovalQueueReviewRequest
+): asserts request is OpsLensRagApprovalQueueReviewRequest {
+  if (typeof request.tenantId !== "string" || request.tenantId.trim() === "") {
+    throw new Error("tenantId is required for RAG approval queue review");
+  }
+  if (typeof request.queueItemId !== "string" || request.queueItemId.trim() === "") {
+    throw new Error("queueItemId is required for RAG approval queue review");
+  }
+  if (typeof request.reviewer !== "string" || request.reviewer.trim() === "") {
+    throw new Error("reviewer is required for RAG approval queue review");
+  }
+  if (typeof request.role !== "string" || request.role.trim() === "") {
+    throw new Error("role is required for RAG approval queue review");
+  }
+  if (request.decision !== "approve" && request.decision !== "reject") {
+    throw new Error("decision must be approve or reject");
+  }
+  if (typeof request.reason !== "string" || request.reason.trim() === "") {
+    throw new Error("reason is required for RAG approval queue review");
+  }
+  if (request.ticketRef !== undefined && typeof request.ticketRef !== "string") {
+    throw new Error("ticketRef must be a string");
+  }
+}
+
+export async function reviewOpsLensRagApprovalQueue(
+  request: OpsLensRagApprovalQueueReviewRequest
+): Promise<OpsLensRagApprovalQueueReviewResponse> {
+  assertRagApprovalQueueReviewRequest(request);
+  return reviewRagApprovalQueueItem(request, {
+    persistenceMode: ragApprovalQueuePersistenceMode(),
+    queueDir: ragApprovalQueueDir()
   });
 }
 
