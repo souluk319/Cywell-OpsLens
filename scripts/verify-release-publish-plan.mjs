@@ -159,12 +159,15 @@ function requiredPublishImages(imageEvidence, catalogSource) {
   return images;
 }
 
-function buildEvidenceGaps(imageEvidence, publishImages, currentHeadSha) {
+function buildEvidenceGaps(imageEvidence, publishImages, currentHeadSha, currentWorktreeDirty) {
   const actualBuilds = imageEvidence?.actualBuilds ?? [];
   const actualBuildStatus = new Map(actualBuilds.map((build) => [build.name, build.status]));
   const buildRequiredNames = ["operator", "api", "dashboard", "bundle", "catalog"];
   const gaps = [];
 
+  if (currentWorktreeDirty) {
+    gaps.push(`current git worktree dirty=true currentHead=${currentHeadSha}`);
+  }
   if (imageEvidence?.status !== "PASS") {
     gaps.push(`image readiness status is ${imageEvidence?.status ?? "missing"}`);
   }
@@ -311,6 +314,7 @@ async function buildPlan() {
   const csvImages = relatedImages(csv);
   const publishImages = requiredPublishImages(imageEvidence, catalogSource);
   const currentHeadSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
+  const worktreeStatus = await gitStatusShort();
 
   expectCheck(
     "CatalogSource release image",
@@ -344,12 +348,16 @@ async function buildPlan() {
     "release publish plan must include operator, api, dashboard, bundle, and catalog images"
   );
 
-  const missingEvidence = buildEvidenceGaps(imageEvidence, publishImages, currentHeadSha);
+  const missingEvidence = buildEvidenceGaps(
+    imageEvidence,
+    publishImages,
+    currentHeadSha,
+    worktreeStatus.length > 0
+  );
   for (const gap of missingEvidence) {
     warn("release publish evidence gap", gap);
   }
 
-  const worktreeStatus = await gitStatusShort();
   const commands = buildCommands(publishImages, catalogSource, subscription);
 
   return {

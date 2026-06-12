@@ -831,6 +831,7 @@ async function validatePatchPreview() {
     }
 
     const reportPath = resolve(options.patchPreviewOut);
+    const worktreeStatus = await gitStatusShort();
     const report = {
       schema: "cywell.opslens.lightspeed-patch-preview.v0.1",
       artifactType: "opslens.lightspeed.patch-preview.v0.1",
@@ -838,6 +839,16 @@ async function validatePatchPreview() {
       status: lightspeed.phase === "PatchPlanned" ? "PATCH_PLANNED" : lightspeed.phase,
       actionMode: "previewOnly",
       clusterMutationAttempted: false,
+      ref: {
+        branch: await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown"),
+        headSha: await gitValue(["rev-parse", "--short", "HEAD"], "unknown"),
+        baseRef: await gitValue(
+          ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+          "origin/main"
+        ),
+        worktreeDirty: worktreeStatus.length > 0,
+        worktreeStatus
+      },
       installation: {
         path: installation.path,
         name: installation.object?.metadata?.name,

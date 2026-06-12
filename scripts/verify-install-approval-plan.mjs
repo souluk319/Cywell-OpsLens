@@ -166,6 +166,18 @@ function evidenceStatus(artifact) {
   return artifact?.status ?? "missing";
 }
 
+function evidenceHeadSha(artifact) {
+  return artifact?.headSha ?? artifact?.ref?.headSha;
+}
+
+function evidenceDirty(artifact) {
+  return artifact?.worktreeDirty ?? artifact?.ref?.worktreeDirty;
+}
+
+function evidenceHeadMatches(artifact, currentHeadSha) {
+  return evidenceHeadSha(artifact) === currentHeadSha;
+}
+
 function command(id, phase, text, rationale, rollback, mutation = true) {
   return {
     id,
@@ -266,60 +278,100 @@ function buildCommands(subscription, installation) {
   ];
 }
 
-function buildApprovalChecklist({ dryRun, lightspeedReadiness, patchPreview, image, mvp, currentHeadSha }) {
+function buildApprovalChecklist({
+  dryRun,
+  lightspeedReadiness,
+  patchPreview,
+  image,
+  mvp,
+  currentHeadSha,
+  currentWorktreeDirty
+}) {
   const actualImageBuilds = image?.actualBuilds ?? [];
   const actualImageBuildFailures = actualImageBuilds.filter(
     (build) => build?.status && build.status !== "PASS" && build.status !== "WARN"
   );
-  const imageEvidenceHeadMatches = image?.headSha === currentHeadSha;
+  const mvpEvidenceReady =
+    mvp?.status === "PASS" &&
+    evidenceDirty(mvp) === false &&
+    evidenceHeadMatches(mvp, currentHeadSha);
+  const dryRunEvidenceReady =
+    (dryRun?.status === "PASS" || dryRun?.status === "WARN") &&
+    evidenceDirty(dryRun) === false &&
+    evidenceHeadMatches(dryRun, currentHeadSha) &&
+    dryRun?.policy?.clusterMutationAttempted === false;
+  const patchPreviewEvidenceReady =
+    (patchPreview?.status === "PATCH_PLANNED" || patchPreview?.status === "Ready") &&
+    evidenceDirty(patchPreview) === false &&
+    evidenceHeadMatches(patchPreview, currentHeadSha) &&
+    patchPreview?.actionMode === "previewOnly" &&
+    patchPreview?.clusterMutationAttempted === false;
+  const lightspeedReadinessEvidenceReady =
+    (lightspeedReadiness?.status === "PASS" ||
+      lightspeedReadiness?.status === "NEEDS_CONFIGURATION" ||
+      lightspeedReadiness?.status === "WARN") &&
+    evidenceDirty(lightspeedReadiness) === false &&
+    evidenceHeadMatches(lightspeedReadiness, currentHeadSha) &&
+    lightspeedReadiness?.policy?.clusterMutationAttempted === false;
   const actualImageBuildEvidenceReady =
     image?.status === "PASS" &&
-    image?.worktreeDirty === false &&
-    imageEvidenceHeadMatches &&
+    evidenceDirty(image) === false &&
+    evidenceHeadMatches(image, currentHeadSha) &&
     image?.actualBuildRequested === true &&
     actualImageBuilds.length > 0 &&
     actualImageBuildFailures.length === 0;
 
   return [
     {
+      id: "current-worktree-clean",
+      required: true,
+      status: currentWorktreeDirty ? "needs-evidence" : "pass",
+      evidence: `current git worktree dirty=${String(currentWorktreeDirty)} head=${currentHeadSha}`
+    },
+    {
       id: "mvp-gate-clean",
       required: true,
-      status: mvp?.status === "PASS" && mvp?.worktreeDirty === false ? "pass" : "needs-evidence",
-      evidence: `MVP gate status=${evidenceStatus(mvp)} dirty=${String(mvp?.worktreeDirty ?? "unknown")}`
+      status: mvpEvidenceReady ? "pass" : "needs-evidence",
+      evidence:
+        `MVP gate status=${evidenceStatus(mvp)} dirty=${String(evidenceDirty(mvp) ?? "unknown")} ` +
+        `head=${evidenceHeadSha(mvp) ?? "unknown"} currentHead=${currentHeadSha}`
     },
     {
       id: "operator-server-dry-run",
       required: true,
-      status: dryRun?.status === "PASS" || dryRun?.status === "WARN" ? "pass" : "needs-evidence",
-      evidence: `Operator dry-run status=${evidenceStatus(dryRun)} clusterMutationAttempted=${String(dryRun?.policy?.clusterMutationAttempted ?? "unknown")}`
+      status: dryRunEvidenceReady ? "pass" : "needs-evidence",
+      evidence:
+        `Operator dry-run status=${evidenceStatus(dryRun)} dirty=${String(evidenceDirty(dryRun) ?? "unknown")} ` +
+        `head=${evidenceHeadSha(dryRun) ?? "unknown"} currentHead=${currentHeadSha} ` +
+        `clusterMutationAttempted=${String(dryRun?.policy?.clusterMutationAttempted ?? "unknown")}`
     },
     {
       id: "lightspeed-patch-preview",
       required: true,
-      status:
-        patchPreview?.status === "PATCH_PLANNED" || patchPreview?.status === "Ready"
-          ? "pass"
-          : "needs-evidence",
-      evidence: `Patch preview status=${evidenceStatus(patchPreview)} willPatch=${String(patchPreview?.willPatch ?? "unknown")}`
+      status: patchPreviewEvidenceReady ? "pass" : "needs-evidence",
+      evidence:
+        `Patch preview status=${evidenceStatus(patchPreview)} dirty=${String(evidenceDirty(patchPreview) ?? "unknown")} ` +
+        `head=${evidenceHeadSha(patchPreview) ?? "unknown"} currentHead=${currentHeadSha} ` +
+        `willPatch=${String(patchPreview?.willPatch ?? "unknown")} ` +
+        `clusterMutationAttempted=${String(patchPreview?.clusterMutationAttempted ?? "unknown")}`
     },
     {
       id: "lightspeed-readiness-gap-known",
       required: true,
-      status:
-        lightspeedReadiness?.status === "PASS" ||
-        lightspeedReadiness?.status === "NEEDS_CONFIGURATION" ||
-        lightspeedReadiness?.status === "WARN"
-          ? "pass"
-          : "needs-evidence",
-      evidence: `Lightspeed readiness status=${evidenceStatus(lightspeedReadiness)}`
+      status: lightspeedReadinessEvidenceReady ? "pass" : "needs-evidence",
+      evidence:
+        `Lightspeed readiness status=${evidenceStatus(lightspeedReadiness)} ` +
+        `dirty=${String(evidenceDirty(lightspeedReadiness) ?? "unknown")} ` +
+        `head=${evidenceHeadSha(lightspeedReadiness) ?? "unknown"} currentHead=${currentHeadSha} ` +
+        `clusterMutationAttempted=${String(lightspeedReadiness?.policy?.clusterMutationAttempted ?? "unknown")}`
     },
     {
       id: "image-build-evidence",
       required: true,
       status: actualImageBuildEvidenceReady ? "pass" : "needs-evidence",
       evidence:
-        `Image readiness status=${evidenceStatus(image)} dirty=${String(image?.worktreeDirty ?? "unknown")} ` +
-        `head=${image?.headSha ?? "unknown"} currentHead=${currentHeadSha} ` +
+        `Image readiness status=${evidenceStatus(image)} dirty=${String(evidenceDirty(image) ?? "unknown")} ` +
+        `head=${evidenceHeadSha(image) ?? "unknown"} currentHead=${currentHeadSha} ` +
         `actualBuildRequested=${String(image?.actualBuildRequested ?? "unknown")} actualBuilds=${actualImageBuilds.length} ` +
         `actualBuildFailures=${actualImageBuildFailures.length}`
     },
@@ -403,13 +455,15 @@ async function buildPlan() {
   const image = loadJsonArtifact(options.imageEvidence, "Image readiness evidence");
   const mvp = loadJsonArtifact(options.mvpEvidence, "MVP gate evidence");
   const currentHeadSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
+  const worktreeStatus = await gitStatusShort();
   const checklist = buildApprovalChecklist({
     dryRun,
     lightspeedReadiness,
     patchPreview,
     image,
     mvp,
-    currentHeadSha
+    currentHeadSha,
+    currentWorktreeDirty: worktreeStatus.length > 0
   });
   for (const item of checklist) {
     if (item.status === "needs-evidence") {
@@ -418,7 +472,6 @@ async function buildPlan() {
   }
   const commands = buildCommands(subscription, installation);
   const status = planStatus(checklist);
-  const worktreeStatus = await gitStatusShort();
 
   return {
     schema: "cywell.opslens.install-approval-plan.v0.1",
