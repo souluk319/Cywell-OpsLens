@@ -20,9 +20,9 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 |---|---|---|
 | RBAC | Operator RBAC is scoped to OpsLens resources, install resources, ConsolePlugin, and OLSConfig patching, and does not grant raw Secret read access in MVP 0.1. | `deploy/operator/config/rbac/cluster_role.yaml`, `npm run verify:operator` |
 | Mutation boundary | Assistant responses stay read-only or plan-only; only the Operator can patch installation resources when the CR explicitly requests it. | `packages/operator-controller/src/reconcile.ts` |
-| Lightspeed registration | `ValidateOnly` never mutates; `PatchOLSConfig` preserves existing MCP servers and emits rollback evidence. | `npm run verify:operator:reconcile` |
+| Lightspeed registration | `ValidateOnly` never mutates; `PatchOLSConfig` preserves existing MCP servers, emits rollback evidence, and the Go source patches OLSConfig only through explicit mode. | `npm run verify:operator:reconcile`, `npm run verify:operator:runtime` |
 | RAG install policy | `OpsLensInstallation.spec.rag` exposes validate-only document intake and design-only approval queue; rendered API env and ConfigMap keep raw return and enqueue disabled. | `npm run verify:operator`, `npm run verify:operator:reconcile` |
-| Operator manager source | Go/controller-runtime source skeleton wires `OpsLensInstallation`, health checks, status update, RAG policy rendering, and the `ValidateOnly`/`PatchOLSConfig` split for future runtime execution. | `deploy/operator/controller-runtime/**`, `npm run verify:operator` |
+| Operator manager source | Go/controller-runtime source wires `OpsLensInstallation`, health checks, status update, install resources, RAG policy rendering, and the explicit OLSConfig patch path for `PatchOLSConfig`. | `deploy/operator/controller-runtime/**`, `npm run verify:operator`, `npm run verify:operator:runtime` |
 | Customer data | RAG inventory returns metadata only, snippets are redacted, raw documents are not returned. | `GET /api/opslens/admin/overview` |
 | RAG isolation | Local vector index is tenant-scoped and blocks unknown tenant retrieval. | `npm run verify:rag` |
 | RAG evidence export | Validation evidence artifacts return redacted previews and design-only approval intent without raw Markdown, queue mutation, or vector writes. | `POST /api/opslens/admin/rag/evidence-export`, `npm run verify:rag` |
@@ -42,6 +42,6 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 
 ## Known Gaps
 
-- Go/controller-runtime manager source is scaffolded and statically verified, but local `go test`, `go build`, Operator SDK generation, and live manager execution are not run here because Go and Operator SDK are unavailable locally.
+- Go/controller-runtime manager source is scaffolded with an explicit OLSConfig patch path and statically verified, but local `go test`, `go build`, Operator SDK generation, and live manager execution are not run here because Go and Operator SDK are unavailable locally.
 - `opm` is unavailable locally, so FBC rendering is statically verified but not built as an image here.
 - Red Hat Partner Connect submission is external to this workspace.

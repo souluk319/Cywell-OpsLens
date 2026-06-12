@@ -586,6 +586,20 @@ async function validateControllerRuntimeSkeleton() {
   }
 
   if (
+    controller?.includes("desiredLightspeedMCPServer") &&
+    controller.includes("r.Get(ctx, types.NamespacedName") &&
+    controller.includes("appendUniqueString(featureGates, \"MCPServer\")") &&
+    controller.includes("upsertMCPServer") &&
+    controller.includes("client.MergeFrom(original)") &&
+    controller.includes("r.Patch(ctx, olsConfig") &&
+    controller.includes("opslens.cywell.io/rollback-path")
+  ) {
+    pass("Go OLSConfig patch source", "PatchOLSConfig source reads, preserves, upserts, annotates, and patches OLSConfig");
+  } else {
+    fail("Go OLSConfig patch source", "controller-runtime OLSConfig patch source path is incomplete");
+  }
+
+  if (
     dockerfile?.includes("FROM golang:1.22 AS builder") &&
     dockerfile.includes("go build -o manager ./main.go") &&
     dockerfile.includes("ubi-minimal") &&
@@ -654,7 +668,7 @@ try {
 
   warn(
     "live Operator SDK runtime",
-    "Go/controller-runtime source skeleton is present, but local Go/Operator SDK execution and live OLM install smoke remain next Stage 4 lanes"
+    "Go/controller-runtime source and OLSConfig patch path are present, but local Go/Operator SDK execution and live OLM install smoke remain next Stage 4 lanes"
   );
 } catch (error) {
   fail("operator package verifier", error.message);

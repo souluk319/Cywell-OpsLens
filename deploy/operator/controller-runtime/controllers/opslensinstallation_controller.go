@@ -3,6 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
 
 	opslensv1alpha1 "github.com/cywell/opslens-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -440,12 +442,131 @@ func (r *OpsLensInstallationReconciler) reconcileLightspeedRegistration(ctx cont
 	olsConfigName := valueOrDefault(registration.OLSConfigName, "cluster")
 	olsConfigNamespace := valueOrDefault(registration.OLSConfigNamespace, "openshift-lightspeed")
 	desiredEndpoint := valueOrDefault(registration.Endpoint, fmt.Sprintf("https://cywell-opslens-api.%s.svc.cluster.local/mcp", targetNamespace(installation)))
+	if !strings.HasSuffix(desiredEndpoint, "/mcp") {
+		return fmt.Errorf("lightspeedRegistration endpoint must end with /mcp: %s", desiredEndpoint)
+	}
 
-	// The production implementation patches OLSConfig.spec.featureGates and spec.mcpServers here.
-	// This skeleton keeps the mode split explicit: ValidateOnly never mutates, PatchOLSConfig is the only patch path.
-	_ = types.NamespacedName{Name: olsConfigName, Namespace: olsConfigNamespace}
-	_ = desiredEndpoint
-	return nil
+	olsConfig := &unstructured.Unstructured{}
+	olsConfig.SetAPIVersion("ols.openshift.io/v1alpha1")
+	olsConfig.SetKind("OLSConfig")
+	if err := r.Get(ctx, types.NamespacedName{Name: olsConfigName, Namespace: olsConfigNamespace}, olsConfig); err != nil {
+		return fmt.Errorf("read target OLSConfig before PatchOLSConfig reconciliation: %w", err)
+	}
+
+	original := olsConfig.DeepCopy()
+	changed := false
+
+	featureGates, found, err := unstructured.NestedStringSlice(olsConfig.Object, "spec", "featureGates")
+	if err != nil {
+		return fmt.Errorf("read OLSConfig spec.featureGates: %w", err)
+	}
+	if !found {
+		featureGates = []string{}
+	}
+	featureGates, featureGateChanged := appendUniqueString(featureGates, "MCPServer")
+	changed = changed || featureGateChanged
+
+	mcpServers, found, err := unstructured.NestedSlice(olsConfig.Object, "spec", "mcpServers")
+	if err != nil {
+		return fmt.Errorf("read OLSConfig spec.mcpServers: %w", err)
+	}
+	if !found {
+		mcpServers = []interface{}{}
+	}
+	serverName := valueOrDefault(registration.MCPServerName, "cywell-opslens")
+	desiredServer := desiredLightspeedMCPServer(installation, serverName, desiredEndpoint)
+	mcpServers, serverChanged := upsertMCPServer(mcpServers, desiredServer, serverName)
+	changed = changed || serverChanged
+
+	if err := unstructured.SetNestedStringSlice(olsConfig.Object, featureGates, "spec", "featureGates"); err != nil {
+		return fmt.Errorf("set OLSConfig spec.featureGates: %w", err)
+	}
+	if err := unstructured.SetNestedSlice(olsConfig.Object, mcpServers, "spec", "mcpServers"); err != nil {
+		return fmt.Errorf("set OLSConfig spec.mcpServers: %w", err)
+	}
+
+	annotations := olsConfig.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+	if annotations["opslens.cywell.io/reconcile-mode"] != string(opslensv1alpha1.LightspeedPatchOLSConfig) {
+		annotations["opslens.cywell.io/reconcile-mode"] = string(opslensv1alpha1.LightspeedPatchOLSConfig)
+		changed = true
+	}
+	rollbackPath := fmt.Sprintf("restore previous OLSConfig %s/%s spec.featureGates and spec.mcpServers from GitOps or cluster backup", olsConfigNamespace, olsConfigName)
+	if annotations["opslens.cywell.io/rollback-path"] != rollbackPath {
+		annotations["opslens.cywell.io/rollback-path"] = rollbackPath
+		changed = true
+	}
+	olsConfig.SetAnnotations(annotations)
+
+	if !changed {
+		return nil
+	}
+	return r.Patch(ctx, olsConfig, client.MergeFrom(original))
+}
+
+func desiredLightspeedMCPServer(installation *opslensv1alpha1.OpsLensInstallation, serverName string, endpoint string) map[string]interface{} {
+	registration := installation.Spec.LightspeedRegistration
+	headers := []interface{}{}
+	if registration.UserTokenForwarding == nil || *registration.UserTokenForwarding {
+		headers = append(headers, map[string]interface{}{
+			"name": "Authorization",
+			"valueFrom": map[string]interface{}{
+				"type": "kubernetes",
+			},
+		})
+	}
+	if registration.APIKeySecretName != "" {
+		headers = append(headers, map[string]interface{}{
+			"name": "X-Cywell-Api-Key",
+			"valueFrom": map[string]interface{}{
+				"type": "secret",
+				"secretRef": map[string]interface{}{
+					"name": registration.APIKeySecretName,
+				},
+			},
+		})
+	}
+
+	return map[string]interface{}{
+		"name":    serverName,
+		"url":     endpoint,
+		"timeout": int64(30),
+		"headers": headers,
+	}
+}
+
+func appendUniqueString(values []string, value string) ([]string, bool) {
+	for _, candidate := range values {
+		if candidate == value {
+			return values, false
+		}
+	}
+	return append(values, value), true
+}
+
+func upsertMCPServer(existing []interface{}, desired map[string]interface{}, name string) ([]interface{}, bool) {
+	changed := false
+	found := false
+	updated := make([]interface{}, 0, len(existing)+1)
+	for _, item := range existing {
+		server, ok := item.(map[string]interface{})
+		if ok && server["name"] == name {
+			found = true
+			if !reflect.DeepEqual(server, desired) {
+				changed = true
+			}
+			updated = append(updated, desired)
+			continue
+		}
+		updated = append(updated, item)
+	}
+	if !found {
+		updated = append(updated, desired)
+		changed = true
+	}
+	return updated, changed
 }
 
 type ragSettings struct {

@@ -13,7 +13,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 - `npm run verify:rag` passes with no failures.
 - `npm run verify:certification` passes with no failures.
 - `npm run verify:lightspeed:fixture` passes with no failures.
-- Go/controller-runtime manager skeleton is present and statically checked by `npm run verify:operator`.
+- Go/controller-runtime manager source, install resource parity, and explicit OLSConfig patch path are statically checked by `npm run verify:operator` and `npm run verify:operator:runtime`.
 - CatalogSource and Subscription manifests use Manual install approval.
 
 ## Community Operator Gate

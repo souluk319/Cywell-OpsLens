@@ -234,6 +234,27 @@ try {
     "status keeps assistant safety, RAG safety, and Lightspeed mutation boundaries explicit"
   );
 
+  expectCheck(
+    "Go OLSConfig patch parity",
+    plan.lightspeedRegistration.mode === "PatchOLSConfig" &&
+      plan.lightspeedRegistration.strategicMergePatch?.spec?.featureGates?.includes("MCPServer") &&
+      plan.lightspeedRegistration.strategicMergePatch?.spec?.mcpServers?.some(
+        (server) => server.name === "cywell-opslens" && server.url.endsWith("/mcp")
+      ) &&
+      controller.includes('olsConfig.SetAPIVersion("ols.openshift.io/v1alpha1")') &&
+      controller.includes('olsConfig.SetKind("OLSConfig")') &&
+      controller.includes("r.Get(ctx, types.NamespacedName") &&
+      controller.includes("unstructured.NestedStringSlice") &&
+      controller.includes("appendUniqueString(featureGates, \"MCPServer\")") &&
+      controller.includes("unstructured.NestedSlice") &&
+      controller.includes("upsertMCPServer") &&
+      controller.includes("desiredLightspeedMCPServer") &&
+      controller.includes("client.MergeFrom(original)") &&
+      controller.includes("r.Patch(ctx, olsConfig") &&
+      controller.includes("opslens.cywell.io/rollback-path"),
+    "PatchOLSConfig reads the existing OLSConfig, preserves state, upserts Cywell MCP, and patches with rollback annotation"
+  );
+
   const csvRules = (csv?.spec?.install?.spec?.clusterPermissions ?? []).flatMap(
     (permission) => permission.rules ?? []
   );
