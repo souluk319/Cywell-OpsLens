@@ -281,9 +281,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       evidence?: string[];
     };
     expect(toolsBody.mcpTechnologyPreview).toBe(true);
-    expect(toolsBody.tools?.some((tool) => tool.name === "generate_playbook")).toBe(
-      true
-    );
+    const expectedToolNames = [
+      "get_cluster_signal",
+      "retrieve_customer_knowledge",
+      "generate_playbook",
+      "open_console_deep_link",
+      "run_preflight",
+      "propose_remediation"
+    ];
+    const toolNames = toolsBody.tools?.map((tool) => tool.name) ?? [];
+    for (const toolName of expectedToolNames) {
+      expect(toolNames).toContain(toolName);
+    }
     expect(toolsBody.tools?.every((tool) => tool.readOnly === true)).toBe(true);
     expect(
       toolsBody.tools?.some((tool) => tool.name === "apply_remediation")
@@ -409,6 +418,17 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           tool.annotations?.destructiveHint === false
       )
     ).toBe(true);
+    const mcpToolNames =
+      mcpToolsBody.result?.tools?.map((tool) => tool.name).filter(Boolean) ?? [];
+    for (const toolName of expectedToolNames) {
+      expect(mcpToolNames).toContain(toolName);
+      const listedTool = mcpToolsBody.result?.tools?.find(
+        (tool) => tool.name === toolName
+      );
+      expect(listedTool?.annotations?.readOnlyHint).toBe(true);
+      expect(listedTool?.annotations?.destructiveHint).toBe(false);
+    }
+    expect(mcpToolNames).not.toContain("apply_remediation");
 
     const mcpCall = await request.post("/api/opslens/mcp", {
       data: {
@@ -464,6 +484,85 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       localFallbackUsed: true,
       citationsUsed: "local-fallback"
     });
+
+    const callMcpTool = async (id: string, name: string) => {
+      const response = await request.post("/api/opslens/mcp", {
+        data: {
+          jsonrpc: "2.0",
+          id,
+          method: "tools/call",
+          params: {
+            name,
+            arguments: {
+              clusterId: "prod-ocp",
+              tenantId: "cywell-payments",
+              namespace: "payments",
+              workload: "payments-api",
+              intent: "lightspeed-tool-contract-check",
+              question:
+                "우리 회사 결제 시스템 Pod 장애 대응 동선을 만들어줘. token=tool-secret"
+            }
+          }
+        }
+      });
+      expect(response.ok()).toBe(true);
+      const body = (await response.json()) as {
+        result?: {
+          isError?: boolean;
+          structuredContent?: {
+            tool?: string;
+            actionMode?: string;
+            summary?: string;
+            recommendedSteps?: string[];
+            missingEvidence?: string[];
+            consoleLinks?: string[];
+            evidence?: string[];
+            policy?: {
+              rawDocumentReturned?: boolean;
+              mutationAllowed?: boolean;
+            };
+          };
+        };
+      };
+      expect(body.result?.isError).toBe(false);
+      expect(body.result?.structuredContent?.policy).toMatchObject({
+        rawDocumentReturned: false,
+        mutationAllowed: false
+      });
+      expect(JSON.stringify(body)).not.toContain("tool-secret");
+      expect(JSON.stringify(body)).not.toContain("apply_remediation");
+      return body.result?.structuredContent;
+    };
+
+    const deepLink = await callMcpTool(
+      "call-open-console-deep-link",
+      "open_console_deep_link"
+    );
+    expect(deepLink?.tool).toBe("open_console_deep_link");
+    expect(deepLink?.actionMode).toBe("readOnly");
+    expect(deepLink?.summary).toContain("OpenShift Console");
+    expect(deepLink?.summary).toContain("deep link");
+    expect(deepLink?.consoleLinks).toContain(
+      "/k8s/ns/payments/deployments/payments-api"
+    );
+    expect(deepLink?.consoleLinks).toContain("/opslens/admin");
+    expect(deepLink?.missingEvidence?.join(" ")).toContain("Console route");
+    expect(deepLink?.evidence?.join(" ")).toContain(
+      "tool profile=open_console_deep_link"
+    );
+
+    const preflight = await callMcpTool("call-run-preflight", "run_preflight");
+    expect(preflight?.tool).toBe("run_preflight");
+    expect(preflight?.actionMode).toBe("readOnly");
+    expect(preflight?.summary).toContain("preflight");
+    expect(preflight?.recommendedSteps?.join(" ")).toContain(
+      "verify:evidence-checkpoint"
+    );
+    expect(preflight?.missingEvidence?.join(" ")).toContain("live OCP API");
+    expect(preflight?.missingEvidence?.join(" ")).toContain("OLSConfig");
+    expect(preflight?.missingEvidence?.join(" ")).toContain("MCP");
+    expect(preflight?.consoleLinks).toContain("/opslens/admin");
+    expect(preflight?.evidence?.join(" ")).toContain("tool profile=run_preflight");
   });
 
   test("AC-AIOPS-001 builds a plan-only incident packet from live OCP evidence", async ({

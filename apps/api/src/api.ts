@@ -237,6 +237,16 @@ function consoleLinks(namespace?: string, workload?: string) {
   return links;
 }
 
+function opsLensDashboardLinks(namespace?: string, workload?: string) {
+  return uniqueStrings([
+    ...consoleLinks(namespace, workload),
+    "/opslens",
+    "/opslens/cluster-health",
+    "/opslens/playbooks",
+    "/opslens/admin"
+  ]);
+}
+
 export function getOpsLensTools() {
   return {
     service: "cywell-opslens",
@@ -249,6 +259,231 @@ export function getOpsLensTools() {
       "apply_remediation is deliberately excluded from the MVP tool catalog"
     ]
   };
+}
+
+function toolResponseProfile(params: {
+  tool: OpsLensToolName;
+  namespace: string;
+  workload: string;
+  question: string;
+  citations: OpsLensCitation[];
+  runtimeRagAudit: OpsLensRuntimeRagAudit;
+}) {
+  const baseMissingEvidence = [
+    "실제 Pod 로그 10분 tail",
+    "최근 Deployment/ConfigMap/Secret diff",
+    "프로메테우스 알람 fingerprint와 Alertmanager route",
+    "DB dependency 상태",
+    ...params.runtimeRagAudit.missingEvidence
+  ];
+  const baseRisks = [
+    "MCP 기능은 OpenShift Lightspeed에서 Technology Preview이므로 운영 SLA 경로가 아니다.",
+    "MCP 응답은 고객 데이터 정책 집행을 Cywell 서버에서 끝낸 뒤 최소 스니펫만 반환해야 한다.",
+    "자동 apply/delete/scale 없이 planOnly 또는 readOnly로만 응답한다."
+  ];
+  const baseRollbackPath = [
+    "현재 상태 스냅샷과 정상 revision을 기록한다.",
+    "원인이 확인되지 않으면 자동 rollback하지 않는다.",
+    "승인된 GitOps PR로만 rollback 또는 YAML 변경을 진행한다.",
+    "변경 후 alert, pod readiness, error rate를 재확인한다."
+  ];
+  const baseEvidence = [
+    "tool catalog excludes mutating tools",
+    "private RAG citations are loaded from tenant-scoped Markdown corpus as snippet-only redacted evidence",
+    `runtime RAG status=${params.runtimeRagAudit.status} mode=${params.runtimeRagAudit.mode} citations=${params.runtimeRagAudit.citationsUsed}`,
+    ...params.runtimeRagAudit.evidence,
+    "response includes missingEvidence, risks, rollbackPath, and audit envelope",
+    "caller source is expected to be OpenShift Lightspeed custom MCP server"
+  ];
+
+  switch (params.tool) {
+    case "get_cluster_signal":
+      return {
+        summary:
+          `${params.namespace}/${params.workload}에 대해 read-only cluster signal 수집 계획을 생성했습니다. ` +
+          `질문: ${params.question}`,
+        suspectedCauses: [
+          "워크로드 rollout, readiness probe, 이벤트, 최근 로그 중 하나 이상에서 장애 신호가 있을 수 있음",
+          "사용자 RBAC로 읽을 수 없는 리소스가 있으면 missingEvidence로 남아야 함",
+          "Prometheus/Alertmanager 연결이 없으면 metric signal은 추정하지 않음"
+        ],
+        recommendedSteps: [
+          `${params.namespace} namespace의 Pod 상태, restart count, 이벤트를 같은 시간창에서 확인한다.`,
+          `${params.workload} Deployment의 현재 revision과 최근 rollout history를 비교한다.`,
+          "SelfSubjectAccessReview 결과로 사용자가 읽을 수 있는 리소스만 진단한다.",
+          "metric/log/event가 부족하면 원인 단정 대신 missingEvidence를 남긴다."
+        ],
+        missingEvidence: uniqueStrings([
+          ...baseMissingEvidence,
+          "SelfSubjectAccessReview 결과",
+          "ClusterOperator/Node 상태 요약"
+        ]),
+        risks: baseRisks,
+        rollbackPath: baseRollbackPath,
+        consoleLinks: consoleLinks(params.namespace, params.workload),
+        evidence: uniqueStrings([
+          ...baseEvidence,
+          "tool profile=get_cluster_signal",
+          "cluster signal output is read-only and RBAC-aware"
+        ])
+      };
+    case "retrieve_customer_knowledge":
+      return {
+        summary:
+          `${params.namespace}/${params.workload} 질문에 대해 Cywell private RAG에서 승인된 고객 지식 스니펫만 검색했습니다. ` +
+          `질문: ${params.question}`,
+        suspectedCauses: [
+          "고객 runbook에 정의된 Secret/ConfigMap 누락 점검 절차가 필요할 수 있음",
+          "승인된 rollback 기준과 현재 rollout 상태가 맞지 않을 수 있음",
+          "RAG citation이 부족하면 고객 문서 근거가 아직 검증되지 않은 상태임"
+        ],
+        recommendedSteps: [
+          "반환된 citation id와 snippet만 근거로 사용하고 원문 문서는 반환하지 않는다.",
+          "tenantId와 사용자/그룹 정책이 맞는지 감사 로그로 남긴다.",
+          "citation이 없거나 runtime RAG가 실패하면 local fallback 및 missingEvidence를 사용자에게 보여준다.",
+          "운영 조치는 고객 승인 runbook과 별도 human review를 거친다."
+        ],
+        missingEvidence: uniqueStrings([
+          ...params.runtimeRagAudit.missingEvidence,
+          ...(params.citations.length > 0
+            ? []
+            : ["approved customer runbook citation was not found"])
+        ]),
+        risks: baseRisks,
+        rollbackPath: [
+          "RAG 답변이 부정확하면 CYWELL_OPSLENS_RAG_RUNTIME_MODE=local로 되돌린다.",
+          "승인되지 않은 문서가 citation에 섞이면 해당 문서를 색인에서 제거하고 evidence를 재생성한다.",
+          ...baseRollbackPath
+        ],
+        consoleLinks: opsLensDashboardLinks(params.namespace, params.workload),
+        evidence: uniqueStrings([
+          ...baseEvidence,
+          "tool profile=retrieve_customer_knowledge",
+          "rawDocumentReturned=false for customer knowledge retrieval"
+        ])
+      };
+    case "open_console_deep_link":
+      return {
+        summary:
+          `${params.namespace}/${params.workload} 조사를 위해 OpenShift Console과 OpsLens 대시보드 deep link를 생성했습니다.`,
+        suspectedCauses: [
+          "장애 원인은 링크 대상 화면의 Pod, 이벤트, Deployment, 로그 evidence를 확인해야 확정 가능",
+          "deep link는 조사 동선을 제공할 뿐 원인 판정을 대신하지 않음"
+        ],
+        recommendedSteps: [
+          "Deployment 링크에서 rollout revision과 replica 상태를 확인한다.",
+          "Pod 링크에서 restart count, container status, readiness probe 실패를 확인한다.",
+          "Events 링크에서 alert 발생 시각 주변의 Warning 이벤트를 비교한다.",
+          "OpsLens Admin 링크에서 RAG/runtime/checkpoint evidence 상태를 확인한다."
+        ],
+        missingEvidence: [
+          "실제 Console route hostname",
+          "사용자별 ConsolePlugin 활성화 상태",
+          "대상 리소스에 대한 사용자 RBAC 확인"
+        ],
+        risks: baseRisks,
+        rollbackPath: [
+          "잘못된 deep link는 리소스 변경 없이 링크 생성 규칙만 되돌린다.",
+          "ConsolePlugin이 비활성화되면 Lightspeed MCP 응답의 텍스트 링크와 REST API를 유지한다."
+        ],
+        consoleLinks: opsLensDashboardLinks(params.namespace, params.workload),
+        evidence: uniqueStrings([
+          ...baseEvidence,
+          "tool profile=open_console_deep_link",
+          "deep links are generated as navigation aids only and never mutate cluster state"
+        ])
+      };
+    case "run_preflight":
+      return {
+        summary:
+          "Cywell OpsLens 설치/연동 전 read-only preflight checklist를 생성했습니다.",
+        suspectedCauses: [
+          "Lightspeed MCP CRD/OLSConfig live reachability가 아직 증명되지 않았을 수 있음",
+          "external vLLM/Qdrant image certification evidence가 아직 부족할 수 있음",
+          "release/install approval evidence가 없으면 실제 배포는 진행하면 안 됨"
+        ],
+        recommendedSteps: [
+          "npm run verify:runtime-rag:fixture로 hybrid runtime RAG 성공 경로를 먼저 검증한다.",
+          "npm run verify:operator와 npm run verify:operator:runtime으로 Operator/Go skeleton parity를 확인한다.",
+          "npm run verify:lightspeed -- --mcp-url <installed-mcp-url> --require-mcp는 live endpoint가 열릴 때만 실행한다.",
+          "npm run verify:evidence-checkpoint에서 PASS 또는 명시적 NEEDS_EVIDENCE만 남는지 확인한다."
+        ],
+        missingEvidence: [
+          "live OCP API /version response",
+          "live OLSConfig CRD and cluster OLSConfig read",
+          "live MCP /mcp tools/list and tools/call proof",
+          "external vLLM/Qdrant certification, SBOM, provenance, mirror digest evidence",
+          "human approval for install, OLSConfig patch, image push/sign/mirror"
+        ],
+        risks: [
+          ...baseRisks,
+          "preflight가 WARN/NEEDS_EVIDENCE인 상태에서 install/apply/push/sign/mirror를 진행하면 제품 release gate를 우회하게 된다."
+        ],
+        rollbackPath: [
+          "preflight가 실패하면 설치를 멈추고 evidence artifact를 같은 Git HEAD에서 재생성한다.",
+          "OLSConfig patch는 PatchOLSConfig preview와 rollback path가 확인된 뒤에만 human approval로 진행한다.",
+          "release artifact가 stale이면 해당 lane verifier를 다시 실행한다."
+        ],
+        consoleLinks: ["/opslens/admin", "/opslens/cluster-health"],
+        evidence: uniqueStrings([
+          ...baseEvidence,
+          "tool profile=run_preflight",
+          "preflight tool returns commands and evidence gaps only; it does not execute install or patch commands"
+        ])
+      };
+    case "propose_remediation":
+      return {
+        summary:
+          `${params.namespace}/${params.workload}에 대해 plan-only remediation proposal을 생성했습니다. ` +
+          `질문: ${params.question}`,
+        suspectedCauses: [
+          "최근 rollout 이후 필수 환경변수 또는 Secret key가 누락됐을 가능성",
+          "readiness probe 실패가 재시작 루프를 증폭했을 가능성",
+          "DB 연결 설정 변경 또는 외부 dependency 장애 가능성"
+        ],
+        recommendedSteps: [
+          `OpenShift 콘솔에서 ${params.namespace} namespace의 ${params.workload} Pod 이벤트와 최근 로그 10분을 확인한다.`,
+          "고객 승인 runbook에 따라 필수 환경변수와 Secret key 존재 여부를 비교한다.",
+          "YAML patch는 review artifact로만 사용하고 자동 apply/delete/scale은 수행하지 않는다.",
+          "원인과 blast radius가 확인되면 승인된 GitOps PR을 생성한다."
+        ],
+        missingEvidence: uniqueStrings(baseMissingEvidence),
+        risks: baseRisks,
+        rollbackPath: baseRollbackPath,
+        consoleLinks: consoleLinks(params.namespace, params.workload),
+        evidence: uniqueStrings([
+          ...baseEvidence,
+          "tool profile=propose_remediation",
+          "remediation output is planOnly and requires human review"
+        ])
+      };
+    case "generate_playbook":
+    default:
+      return {
+        summary:
+          `${params.namespace}/${params.workload} 장애 질문에 대해 Cywell private RAG와 read-only cluster signal을 결합했습니다. ` +
+          `질문: ${params.question}`,
+        suspectedCauses: [
+          "최근 rollout 이후 필수 환경변수 또는 Secret key가 누락됐을 가능성",
+          "readiness probe 실패가 재시작 루프를 증폭했을 가능성",
+          "DB 연결 설정 변경 또는 외부 dependency 장애 가능성"
+        ],
+        recommendedSteps: [
+          `OpenShift 콘솔에서 ${params.namespace} namespace의 ${params.workload} Pod 이벤트와 최근 로그 10분을 확인한다.`,
+          "고객 승인 runbook에 따라 필수 환경변수와 Secret key 존재 여부를 비교한다.",
+          "최근 GitOps/rollout 변경과 정상 revision을 비교하되 자동 rollback은 수행하지 않는다.",
+          "원인과 blast radius가 확인되면 승인된 변경 경로로 YAML patch 또는 rollback PR을 생성한다."
+        ],
+        missingEvidence: uniqueStrings(baseMissingEvidence),
+        risks: baseRisks,
+        rollbackPath: baseRollbackPath,
+        consoleLinks: consoleLinks(params.namespace, params.workload),
+        evidence: uniqueStrings([
+          ...baseEvidence,
+          "tool profile=generate_playbook"
+        ])
+      };
+  }
 }
 
 function tenantRunbookDirs() {
@@ -1906,56 +2141,31 @@ export async function createOpsLensToolResponse(
         evidence: citations.map((citation) => citation.id)
       })
     : undefined;
+  const profile = toolResponseProfile({
+    tool: request.tool,
+    namespace,
+    workload,
+    question,
+    citations,
+    runtimeRagAudit
+  });
 
   return {
     tool: request.tool,
     requestId,
     generatedAt: new Date().toISOString(),
     actionMode: request.tool === "propose_remediation" ? "planOnly" : "readOnly",
-    summary:
-      `${namespace}/${workload} 장애 질문에 대해 Cywell private RAG와 read-only cluster signal을 결합했습니다. ` +
-      `질문: ${question}`,
-    suspectedCauses: [
-      "최근 rollout 이후 필수 환경변수 또는 Secret key가 누락됐을 가능성",
-      "readiness probe 실패가 재시작 루프를 증폭했을 가능성",
-      "DB 연결 설정 변경 또는 외부 dependency 장애 가능성"
-    ],
-    recommendedSteps: [
-      `OpenShift 콘솔에서 ${namespace} namespace의 ${workload} Pod 이벤트와 최근 로그 10분을 확인한다.`,
-      "고객 승인 runbook에 따라 필수 환경변수와 Secret key 존재 여부를 비교한다.",
-      "최근 GitOps/rollout 변경과 정상 revision을 비교하되 자동 rollback은 수행하지 않는다.",
-      "원인과 blast radius가 확인되면 승인된 변경 경로로 YAML patch 또는 rollback PR을 생성한다."
-    ],
+    summary: profile.summary,
+    suspectedCauses: profile.suspectedCauses,
+    recommendedSteps: profile.recommendedSteps,
     proposedYamlPatch: remediationProposal?.yamlPatch,
     remediationProposal,
     citations,
-    missingEvidence: uniqueStrings([
-      "실제 Pod 로그 10분 tail",
-      "최근 Deployment/ConfigMap/Secret diff",
-      "프로메테우스 알람 fingerprint와 Alertmanager route",
-      "DB dependency 상태",
-      ...runtimeRagAudit.missingEvidence
-    ]),
-    risks: [
-      "MCP 기능은 OpenShift Lightspeed에서 Technology Preview이므로 운영 SLA 경로가 아니다.",
-      "MCP 응답은 고객 데이터 정책 집행을 Cywell 서버에서 끝낸 뒤 최소 스니펫만 반환해야 한다.",
-      "자동 apply/delete/scale 없이 planOnly 또는 readOnly로만 응답한다."
-    ],
-    rollbackPath: [
-      "현재 상태 스냅샷과 정상 revision을 기록한다.",
-      "원인이 확인되지 않으면 자동 rollback하지 않는다.",
-      "승인된 GitOps PR로만 rollback 또는 YAML 변경을 진행한다.",
-      "변경 후 alert, pod readiness, error rate를 재확인한다."
-    ],
-    consoleLinks: consoleLinks(namespace, workload),
-    evidence: uniqueStrings([
-      "tool catalog excludes mutating tools",
-      "private RAG citations are loaded from tenant-scoped Markdown corpus as snippet-only redacted evidence",
-      `runtime RAG status=${runtimeRagAudit.status} mode=${runtimeRagAudit.mode} citations=${runtimeRagAudit.citationsUsed}`,
-      ...runtimeRagAudit.evidence,
-      "response includes missingEvidence, risks, rollbackPath, and audit envelope",
-      "caller source is expected to be OpenShift Lightspeed custom MCP server"
-    ]),
+    missingEvidence: profile.missingEvidence,
+    risks: profile.risks,
+    rollbackPath: profile.rollbackPath,
+    consoleLinks: profile.consoleLinks,
+    evidence: profile.evidence,
     policy: {
       privateRag: true,
       serverSideRedaction: true,

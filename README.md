@@ -8,7 +8,7 @@ The first slice proves:
 - OpenShift-console-like shell with a Lightspeed-style lower-right assistant launcher and popover
 - explicit console context chips
 - evidence-first answer contract
-- Lightspeed custom MCP tool surface for private customer runbook/RAG answers
+- Lightspeed custom MCP tool surface for private customer runbook/RAG answers, Console deep links, and install preflight planning
 - acceptance criteria that can become automated checks
 - an MVP gate that maps acceptance criteria to build, UI/API, RAG, Lightspeed, Operator, and certification verifiers
 
@@ -52,7 +52,7 @@ MVP 0.1 has a mock read-only assistant/backend contract:
 
 The web app uses these endpoints through the Vite proxy, so the fixture-backed UI is already shaped like the Phase 1 Console Plugin + Backend API flow.
 
-Cywell OpsLens Stage 1 uses the OpenShift Lightspeed custom MCP server path, not an undocumented webhook path. The MCP surface provides read-only tools such as `generate_playbook`, `retrieve_customer_knowledge`, and `get_cluster_signal`; mutating tools such as `apply_remediation` are deliberately excluded from MVP.
+Cywell OpsLens Stage 1 uses the OpenShift Lightspeed custom MCP server path, not an undocumented webhook path. The MVP MCP surface provides six read-only tools: `get_cluster_signal`, `retrieve_customer_knowledge`, `generate_playbook`, `open_console_deep_link`, `run_preflight`, and `propose_remediation`; mutating tools such as `apply_remediation` are deliberately excluded from MVP. Tool responses share the same safety envelope: citations, missing evidence, risks, rollback path, runtime RAG audit, redaction, and `mutationAllowed=false`.
 
 Stage 2 begins with `POST /api/opslens/incidents/analyze`: an alert-triggered, plan-only incident endpoint that combines read-only resource detail, pod candidates, events, `sinceSeconds`-bounded pod logs, and opt-in Prometheus metric correlation with private runbook citations. Failed reads are returned as `missingEvidence`, not hidden.
 
