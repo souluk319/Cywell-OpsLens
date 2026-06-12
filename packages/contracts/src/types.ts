@@ -191,6 +191,42 @@ export interface OpsLensToolDefinition {
   };
 }
 
+export type OpsLensMcpToolCategory =
+  | "cluster-signal"
+  | "private-rag"
+  | "playbook"
+  | "console-navigation"
+  | "preflight"
+  | "plan-only-remediation";
+
+export interface OpsLensMcpToolSurfaceItem {
+  name: OpsLensToolName;
+  title: string;
+  category: OpsLensMcpToolCategory;
+  actionMode: "readOnly" | "planOnly";
+  readOnly: true;
+  approvalRequired: false;
+  destructive: false;
+  dashboardSurface:
+    | "lightspeed-assistant"
+    | "ops-lens-dashboard"
+    | "openshift-console"
+    | "install-readiness";
+  evidence: string[];
+}
+
+export interface OpsLensLightspeedToolSurface {
+  mcpTechnologyPreview: true;
+  endpoint: "/mcp";
+  localEndpoint: "/api/opslens/mcp";
+  toolCount: number;
+  readOnlyCount: number;
+  mutatingToolExcluded: true;
+  excludedTools: string[];
+  tools: OpsLensMcpToolSurfaceItem[];
+  evidence: string[];
+}
+
 export interface OpsLensToolRequest {
   tool: OpsLensToolName;
   input: {
@@ -765,6 +801,9 @@ export interface OpsLensExternalRuntimeImagesPlanSummary {
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
+  lightspeed: {
+    mcp: OpsLensLightspeedToolSurface;
+  };
   rag: {
     tenants: number;
     documents: OpsLensRagDocumentStatus[];

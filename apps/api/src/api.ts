@@ -31,6 +31,8 @@ import type {
   OpsLensInstallApprovalPlanSummary,
   OpsLensInstallPlanReadiness,
   OpsLensLightspeedMcpReadiness,
+  OpsLensMcpToolCategory,
+  OpsLensMcpToolSurfaceItem,
   OpsLensOperatorDryRunReadiness,
   OpsLensReleasePublishPlanSummary,
   OpsLensReleasePublishReadiness,
@@ -258,6 +260,83 @@ export function getOpsLensTools() {
       "All MVP tools are read-only and approvalRequired=false",
       "apply_remediation is deliberately excluded from the MVP tool catalog"
     ]
+  };
+}
+
+function mcpToolCategory(tool: OpsLensToolName): OpsLensMcpToolCategory {
+  switch (tool) {
+    case "get_cluster_signal":
+      return "cluster-signal";
+    case "retrieve_customer_knowledge":
+      return "private-rag";
+    case "generate_playbook":
+      return "playbook";
+    case "open_console_deep_link":
+      return "console-navigation";
+    case "run_preflight":
+      return "preflight";
+    case "propose_remediation":
+      return "plan-only-remediation";
+  }
+}
+
+function mcpToolDashboardSurface(
+  tool: OpsLensToolName
+): OpsLensMcpToolSurfaceItem["dashboardSurface"] {
+  switch (tool) {
+    case "open_console_deep_link":
+      return "openshift-console";
+    case "run_preflight":
+      return "install-readiness";
+    case "retrieve_customer_knowledge":
+      return "ops-lens-dashboard";
+    default:
+      return "lightspeed-assistant";
+  }
+}
+
+function mcpToolActionMode(
+  tool: OpsLensToolName
+): OpsLensMcpToolSurfaceItem["actionMode"] {
+  return tool === "propose_remediation" ? "planOnly" : "readOnly";
+}
+
+function getLightspeedToolSurface(): OpsLensAdminOverviewResponse["lightspeed"] {
+  const tools: OpsLensMcpToolSurfaceItem[] = opsLensMcpTools.map((tool) => ({
+    name: tool.name,
+    title: tool.title,
+    category: mcpToolCategory(tool.name),
+    actionMode: mcpToolActionMode(tool.name),
+    readOnly: true,
+    approvalRequired: false,
+    destructive: false,
+    dashboardSurface: mcpToolDashboardSurface(tool.name),
+    evidence: [
+      `tool profile=${tool.name}`,
+      "readOnlyHint=true",
+      "destructiveHint=false",
+      "mutationAllowed=false"
+    ]
+  }));
+
+  return {
+    mcp: {
+      mcpTechnologyPreview: true,
+      endpoint: "/mcp",
+      localEndpoint: "/api/opslens/mcp",
+      toolCount: tools.length,
+      readOnlyCount: tools.filter((tool) => tool.readOnly).length,
+      mutatingToolExcluded: true,
+      excludedTools: ["apply_remediation"],
+      tools,
+      evidence: [
+        "OpenShift Lightspeed custom MCP server is the supported extension point for tool calls",
+        "AC-LS-001 verifies tools/list and tools/call for the MVP read-only tool surface",
+        "all MVP tools keep approvalRequired=false and destructive=false",
+        "apply_remediation is deliberately excluded from the MVP tool catalog",
+        "tool responses include citations, missingEvidence, risks, rollbackPath, and audit.runtimeRag"
+      ]
+    }
   };
 }
 
@@ -1769,6 +1848,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   return {
     generatedAt: new Date().toISOString(),
     source: "local-contract",
+    lightspeed: getLightspeedToolSurface(),
     rag: {
       tenants: tenantRunbookDirs().length,
       documents,

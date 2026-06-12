@@ -995,6 +995,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         certification?: string;
         evidence?: string[];
       };
+      lightspeed?: {
+        mcp?: {
+          endpoint?: string;
+          localEndpoint?: string;
+          toolCount?: number;
+          readOnlyCount?: number;
+          mutatingToolExcluded?: boolean;
+          excludedTools?: string[];
+          tools?: Array<{
+            name?: string;
+            category?: string;
+            actionMode?: string;
+            readOnly?: boolean;
+            approvalRequired?: boolean;
+            destructive?: boolean;
+            dashboardSurface?: string;
+          }>;
+          evidence?: string[];
+        };
+      };
       policy?: {
         mutationAllowed?: boolean;
         rawDocumentReturned?: boolean;
@@ -1022,6 +1042,59 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.tokenUsage?.routes?.some((route) => route.route === "lightspeed-mcp")
     ).toBe(true);
+    const adminMcpToolNames =
+      body.lightspeed?.mcp?.tools?.map((tool) => tool.name) ?? [];
+    expect(body.lightspeed?.mcp).toMatchObject({
+      endpoint: "/mcp",
+      localEndpoint: "/api/opslens/mcp",
+      toolCount: 6,
+      readOnlyCount: 6,
+      mutatingToolExcluded: true
+    });
+    expect(body.lightspeed?.mcp?.excludedTools).toContain("apply_remediation");
+    expect(adminMcpToolNames).toEqual(
+      expect.arrayContaining([
+        "get_cluster_signal",
+        "retrieve_customer_knowledge",
+        "generate_playbook",
+        "open_console_deep_link",
+        "run_preflight",
+        "propose_remediation"
+      ])
+    );
+    expect(
+      body.lightspeed?.mcp?.tools?.every(
+        (tool) =>
+          tool.readOnly === true &&
+          tool.approvalRequired === false &&
+          tool.destructive === false
+      )
+    ).toBe(true);
+    expect(
+      body.lightspeed?.mcp?.tools?.find(
+        (tool) => tool.name === "open_console_deep_link"
+      )
+    ).toMatchObject({
+      category: "console-navigation",
+      actionMode: "readOnly",
+      dashboardSurface: "openshift-console"
+    });
+    expect(
+      body.lightspeed?.mcp?.tools?.find((tool) => tool.name === "run_preflight")
+    ).toMatchObject({
+      category: "preflight",
+      actionMode: "readOnly",
+      dashboardSurface: "install-readiness"
+    });
+    expect(
+      body.lightspeed?.mcp?.tools?.find(
+        (tool) => tool.name === "propose_remediation"
+      )
+    ).toMatchObject({
+      category: "plan-only-remediation",
+      actionMode: "planOnly"
+    });
+    expect(body.lightspeed?.mcp?.evidence?.join(" ")).toContain("AC-LS-001");
     expect(body.runtime?.gpu?.samples?.length).toBe(12);
     expect([
       "ready",
@@ -1350,6 +1423,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-token-usage")).toContainText(
       "lightspeed-mcp"
     );
+    await expect(page.getByTestId("opslens-mcp-tool-surface")).toContainText(
+      "Lightspeed MCP Tools"
+    );
+    await expect(page.getByTestId("opslens-mcp-tool-surface")).toContainText(
+      "apply_remediation excluded"
+    );
+    await expect(
+      page.getByTestId("opslens-mcp-tool-generate_playbook")
+    ).toContainText("readOnly");
+    await expect(
+      page.getByTestId("opslens-mcp-tool-open_console_deep_link")
+    ).toContainText("console-navigation");
+    await expect(page.getByTestId("opslens-mcp-tool-run_preflight")).toContainText(
+      "install-readiness"
+    );
+    await expect(
+      page.getByTestId("opslens-mcp-tool-propose_remediation")
+    ).toContainText("planOnly");
     await expect(page.getByTestId("opslens-gpu-runtime")).toContainText(
       "Gemma 4"
     );

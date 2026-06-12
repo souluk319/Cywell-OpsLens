@@ -133,6 +133,7 @@ export function OpsLensAdminDashboard() {
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
   const releasePlan = overview?.installReadiness.releasePlan;
   const checkpoint = overview?.installReadiness.checkpoint;
+  const lightspeedMcp = overview?.lightspeed.mcp;
   const validationFailed = validation?.issues.some(
     (issue) => issue.severity === "fail"
   );
@@ -375,6 +376,47 @@ export function OpsLensAdminDashboard() {
               );
             })}
           </div>
+        </article>
+
+        <article
+          className="ops-card mcp-admin-card"
+          data-testid="opslens-mcp-tool-surface"
+        >
+          <div className="card-title-row">
+            <h3>Lightspeed MCP Tools</h3>
+            <ShieldCheck size={18} aria-hidden="true" />
+          </div>
+          <div className="admin-evidence-line">
+            <span>{numberText(lightspeedMcp?.toolCount)} tools</span>
+            <span>{lightspeedMcp?.endpoint ?? "/mcp"}</span>
+            <span>readOnly={numberText(lightspeedMcp?.readOnlyCount)}</span>
+            <span>apply_remediation excluded</span>
+          </div>
+          <div className="mcp-tool-list">
+            {lightspeedMcp?.tools.map((tool) => (
+              <div
+                className="mcp-tool-row"
+                data-testid={`opslens-mcp-tool-${tool.name}`}
+                key={tool.name}
+              >
+                <span
+                  className={`freshness ${
+                    tool.actionMode === "planOnly" ? "stale" : "fresh"
+                  }`}
+                >
+                  {tool.actionMode}
+                </span>
+                <strong>{tool.name}</strong>
+                <small>{tool.category}</small>
+                <small>{tool.dashboardSurface}</small>
+              </div>
+            ))}
+          </div>
+          {lightspeedMcp?.evidence.slice(0, 2).map((item) => (
+            <p className="readiness-note" key={item}>
+              {item}
+            </p>
+          ))}
         </article>
 
         <article className="ops-card gpu-admin-card" data-testid="opslens-gpu-runtime">

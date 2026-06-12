@@ -574,6 +574,7 @@ button {
 }
 
 .metric-admin-card,
+.mcp-admin-card,
 .readiness-admin-card {
   grid-column: span 2;
 }
@@ -732,6 +733,44 @@ button {
 .metric-query-list {
   display: grid;
   gap: 8px;
+}
+
+.mcp-tool-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mcp-tool-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.mcp-tool-row strong {
+  min-width: 0;
+  color: #151515;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.mcp-tool-row small {
+  min-width: 0;
+  color: #6a6e73;
+  font-size: 0.72rem;
+  font-weight: 760;
+  overflow-wrap: anywhere;
+}
+
+.mcp-tool-row small:last-child {
+  grid-column: 2;
 }
 
 .route-usage-row {
@@ -1965,12 +2004,18 @@ button {
   .resource-query-controls,
   .route-usage-row,
   .metric-query-row,
+  .mcp-tool-list,
+  .mcp-tool-row,
   .remediation-target-grid,
   .approval-summary-grid,
   .rag-validation-fields,
   .rag-validation-result li,
   .readiness-grid {
     grid-template-columns: 1fr;
+  }
+
+  .mcp-tool-row small:last-child {
+    grid-column: auto;
   }
 
   .gpu-sparkline {
