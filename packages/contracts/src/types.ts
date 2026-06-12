@@ -1012,6 +1012,17 @@ export type OpsLensReleasePublishReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensCatalogToolchainReadiness =
+  | "ready-for-dry-run"
+  | "needs-tooling"
+  | "needs-evidence"
+  | "failed";
+
+export type OpsLensReleaseEvidenceRefreshReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "blocked";
+
 export type OpsLensEvidenceCheckpointReadiness =
   | "ready"
   | "needs-evidence"
@@ -1104,6 +1115,75 @@ export interface OpsLensOcpConnectivityDiagnosticSummary {
     requiresNetwork: boolean;
     mutation: boolean;
     writesEvidence: boolean;
+  }>;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensCatalogToolchainSummary {
+  status: OpsLensCatalogToolchainReadiness;
+  artifactStatus: string;
+  actionMode: "toolchainPlanOnly";
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  registryAuthConfigured: boolean;
+  cli: Array<{
+    name: string;
+    available: boolean;
+    version: string;
+  }>;
+  readOnlyCommands: Array<{
+    id: string;
+    command: string;
+    phase: string;
+    requiresNetwork: boolean;
+    mutation: boolean;
+  }>;
+  setupCommands: Array<{
+    id: string;
+    command: string;
+    phase: string;
+    requiresNetwork: boolean;
+    requiresHumanSecretInput: boolean;
+    mutation: boolean;
+  }>;
+  localArtifactCommands: Array<{
+    id: string;
+    command: string;
+    phase: string;
+    requiresNetwork: boolean;
+    mutation: boolean;
+  }>;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensReleaseEvidenceRefreshSummary {
+  status: OpsLensReleaseEvidenceRefreshReadiness;
+  artifactStatus: string;
+  actionMode: "localEvidenceRefresh";
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  localDockerBuildAllowed: boolean;
+  headSha: string;
+  worktreeDirty: boolean;
+  commands: Array<{
+    id: string;
+    phase: string;
+    status: string;
+    exitCode: number | null;
+    expectedNonZero: boolean;
+  }>;
+  artifacts: Array<{
+    id: string;
+    status: string;
+    fresh: boolean;
+    headSha: string;
+    worktreeDirty: boolean | string;
   }>;
   missingEvidence: string[];
   risk: string[];
@@ -1258,6 +1338,8 @@ export interface OpsLensAdminOverviewResponse {
     operatorDryRun: OpsLensOperatorDryRunReadiness;
     installPlan: OpsLensInstallPlanReadiness;
     approvalPlan: OpsLensInstallApprovalPlanSummary;
+    catalogToolchain: OpsLensCatalogToolchainReadiness;
+    catalogToolchainPlan: OpsLensCatalogToolchainSummary;
     imageBuilds: OpsLensImageBuildReadiness;
     ownedImageProvenance: OpsLensOwnedImageProvenanceReadiness;
     ownedImageProvenancePlan: OpsLensOwnedImageProvenanceSummary;
@@ -1265,6 +1347,8 @@ export interface OpsLensAdminOverviewResponse {
     externalRuntimePlan: OpsLensExternalRuntimeImagesPlanSummary;
     releasePublish: OpsLensReleasePublishReadiness;
     releasePlan: OpsLensReleasePublishPlanSummary;
+    releaseRefresh: OpsLensReleaseEvidenceRefreshReadiness;
+    refresh: OpsLensReleaseEvidenceRefreshSummary;
     evidenceCheckpoint: OpsLensEvidenceCheckpointReadiness;
     checkpoint: OpsLensEvidenceCheckpointSummary;
     liveHandoff: OpsLensLiveEvidenceHandoffReadiness;

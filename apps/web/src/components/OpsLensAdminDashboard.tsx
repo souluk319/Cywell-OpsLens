@@ -55,7 +55,12 @@ function percentText(value: number | undefined) {
 }
 
 function statusClass(status: string) {
-  if (status === "indexed" || status === "ready" || status === "ready-for-ingestion-job") {
+  if (
+    status === "indexed" ||
+    status === "ready" ||
+    status === "ready-for-ingestion-job" ||
+    status === "ready-for-dry-run"
+  ) {
     return "fresh";
   }
   if (
@@ -65,7 +70,8 @@ function statusClass(status: string) {
     status === "needs-configuration" ||
     status === "needs-evidence" ||
     status === "partial" ||
-    status === "approval-required"
+    status === "approval-required" ||
+    status === "needs-tooling"
   ) {
     return "stale";
   }
@@ -167,10 +173,13 @@ export function OpsLensAdminDashboard() {
         : []
     ) ?? [];
   const approvalPlan = overview?.installReadiness.approvalPlan;
+  const catalogToolchainPlan =
+    overview?.installReadiness.catalogToolchainPlan;
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
   const ownedImageProvenancePlan =
     overview?.installReadiness.ownedImageProvenancePlan;
   const releasePlan = overview?.installReadiness.releasePlan;
+  const releaseRefresh = overview?.installReadiness.refresh;
   const checkpoint = overview?.installReadiness.checkpoint;
   const liveHandoff = overview?.installReadiness.handoff;
   const ocpConnectivity = overview?.installReadiness.connectivity;
@@ -868,12 +877,15 @@ export function OpsLensAdminDashboard() {
                   "Install Plan": overview.installReadiness.installPlan,
                   "RAG Ingestion":
                     overview.installReadiness.approvalPlan.ragIngestion.status,
+                  "Catalog Toolchain":
+                    overview.installReadiness.catalogToolchain,
                   "Image Builds": overview.installReadiness.imageBuilds,
                   "Owned Provenance":
                     overview.installReadiness.ownedImageProvenance,
                   "External Runtime":
                     overview.installReadiness.externalRuntimeImages,
                   "Release Publish": overview.installReadiness.releasePublish,
+                  "Release Refresh": overview.installReadiness.releaseRefresh,
                   "Evidence Checkpoint":
                     overview.installReadiness.evidenceCheckpoint,
                   "Live Handoff": overview.installReadiness.liveHandoff,
@@ -1038,6 +1050,78 @@ export function OpsLensAdminDashboard() {
               </div>
             </div>
           ) : null}
+          {releaseRefresh ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-release-refresh"
+            >
+              <div className="admin-evidence-line">
+                <span>{releaseRefresh.artifactStatus}</span>
+                <span>{releaseRefresh.actionMode}</span>
+                <span>head={releaseRefresh.headSha}</span>
+                <span>dirty={String(releaseRefresh.worktreeDirty)}</span>
+                <span>
+                  localDockerBuildAllowed=
+                  {String(releaseRefresh.localDockerBuildAllowed)}
+                </span>
+              </div>
+              <div className="admin-evidence-line">
+                <span>
+                  registryMutationAttempted=
+                  {String(releaseRefresh.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(releaseRefresh.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(releaseRefresh.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Commands</span>
+                  <strong>
+                    {releaseRefresh.commands.length
+                      ? releaseRefresh.commands
+                          .slice(0, 5)
+                          .map((command) => `${command.id}:${command.status}`)
+                          .join(", ")
+                      : "blocked until refresh exists"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Fresh Artifacts</span>
+                  <strong>
+                    {
+                      releaseRefresh.artifacts.filter((artifact) => artifact.fresh)
+                        .length
+                    }
+                    /{releaseRefresh.artifacts.length}
+                  </strong>
+                </div>
+                <div>
+                  <span>Open Items</span>
+                  <strong>
+                    {releaseRefresh.missingEvidence.length
+                      ? `${releaseRefresh.missingEvidence.length} missing evidence`
+                      : "none"}
+                  </strong>
+                </div>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {releaseRefresh.risk[0] ??
+                    "Release refresh runs local evidence commands only."}
+                </p>
+                <p>
+                  {releaseRefresh.rollbackPath[0] ??
+                    "Rerun the release refresh after code or evidence changes."}
+                </p>
+              </div>
+            </div>
+          ) : null}
           {checkpoint ? (
             <div
               className="install-approval-summary"
@@ -1144,6 +1228,85 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {approvalPlan.rollbackPath[0] ??
                     "Rollback path must be reviewed before install."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {catalogToolchainPlan ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-catalog-toolchain"
+            >
+              <div className="admin-evidence-line">
+                <span>{catalogToolchainPlan.artifactStatus}</span>
+                <span>{catalogToolchainPlan.actionMode}</span>
+                <span>
+                  registryAuthConfigured=
+                  {String(catalogToolchainPlan.registryAuthConfigured)}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(catalogToolchainPlan.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(catalogToolchainPlan.clusterMutationAttempted)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>CLI</span>
+                  <strong>
+                    {catalogToolchainPlan.cli.length
+                      ? catalogToolchainPlan.cli
+                          .map(
+                            (tool) =>
+                              `${tool.name}:${tool.available ? "ready" : "missing"}`
+                          )
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Read-only Checks</span>
+                  <strong>
+                    {catalogToolchainPlan.readOnlyCommands.length
+                      ? catalogToolchainPlan.readOnlyCommands
+                          .slice(0, 4)
+                          .map((command) => command.id)
+                          .join(", ")
+                      : "none"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Setup Needed</span>
+                  <strong>
+                    {catalogToolchainPlan.setupCommands.length
+                      ? catalogToolchainPlan.setupCommands
+                          .map((command) => command.id)
+                          .join(", ")
+                      : "none"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Local Artifact</span>
+                  <strong>
+                    {catalogToolchainPlan.localArtifactCommands.length
+                      ? catalogToolchainPlan.localArtifactCommands
+                          .map((command) => command.id)
+                          .join(", ")
+                      : "none"}
+                  </strong>
+                </div>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {catalogToolchainPlan.risk[0] ??
+                    "Catalog toolchain evidence reads local readiness only."}
+                </p>
+                <p>
+                  {catalogToolchainPlan.rollbackPath[0] ??
+                    "Regenerate catalog toolchain evidence from a clean worktree."}
                 </p>
               </div>
             </div>

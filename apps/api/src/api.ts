@@ -26,6 +26,8 @@ import type {
   McpJsonRpcRequest,
   McpJsonRpcResponse,
   OpsLensAdminOverviewResponse,
+  OpsLensCatalogToolchainReadiness,
+  OpsLensCatalogToolchainSummary,
   OpsLensCitation,
   OpsLensEvidenceCheckpointReadiness,
   OpsLensEvidenceCheckpointSummary,
@@ -46,6 +48,8 @@ import type {
   OpsLensOwnedImageProvenanceSummary,
   OpsLensReleasePublishPlanSummary,
   OpsLensReleasePublishReadiness,
+  OpsLensReleaseEvidenceRefreshReadiness,
+  OpsLensReleaseEvidenceRefreshSummary,
   OpsLensRemediationProposal,
   OpsLensRagIngestionApprovalPlanSummary,
   OpsLensRuntimeDependencyReadiness,
@@ -1319,6 +1323,91 @@ type ReleasePublishPlanEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type CatalogToolchainEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  cli?: Array<{
+    name?: string;
+    available?: boolean;
+    version?: string;
+  }>;
+  registryAuth?: {
+    configured?: boolean;
+  };
+  commands?: {
+    readOnly?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      requiresNetwork?: boolean;
+      mutation?: boolean;
+    }>;
+    setup?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      requiresNetwork?: boolean;
+      requiresHumanSecretInput?: boolean;
+      mutation?: boolean;
+    }>;
+    localArtifact?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      requiresNetwork?: boolean;
+      mutation?: boolean;
+    }>;
+  };
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
+type ReleaseEvidenceRefreshArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  localDockerBuildAllowed?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  commands?: Array<{
+    id?: string;
+    phase?: string;
+    status?: string;
+    exitCode?: number | null;
+    expectedNonZero?: boolean;
+  }>;
+  artifacts?: Array<{
+    id?: string;
+    status?: string;
+    fresh?: boolean;
+    headSha?: string;
+    worktreeDirty?: boolean | string;
+  }>;
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type EvidenceCheckpointArtifact = {
   artifactType?: string;
   status?: string;
@@ -1471,6 +1560,20 @@ function releasePublishPlanEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_RELEASE_PUBLISH_PLAN_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-release-publish-plan.json")
+  );
+}
+
+function catalogToolchainEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_CATALOG_TOOLCHAIN_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-catalog-toolchain-plan.json")
+  );
+}
+
+function releaseEvidenceRefreshPath() {
+  return (
+    process.env.CYWELL_OPSLENS_RELEASE_EVIDENCE_REFRESH ??
+    join(repoRoot, "test-results", "cywell-opslens-release-evidence-refresh.json")
   );
 }
 
@@ -1632,6 +1735,50 @@ function mapReleasePublishPlanReadinessStatus(
   }
   if (artifact.status === "PUBLISH_APPROVAL_REQUIRED") {
     return "approval-required";
+  }
+  return "needs-evidence";
+}
+
+function mapCatalogToolchainReadinessStatus(
+  artifact: CatalogToolchainEvidenceArtifact
+): OpsLensCatalogToolchainReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.status === "FAIL" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "failed";
+  }
+  if (artifact.ref?.worktreeDirty) {
+    return "needs-evidence";
+  }
+  if (artifact.status === "READY_FOR_DRY_RUN") {
+    return "ready-for-dry-run";
+  }
+  if (artifact.status === "NEEDS_TOOLING") {
+    return "needs-tooling";
+  }
+  return "needs-evidence";
+}
+
+function mapReleaseEvidenceRefreshStatus(
+  artifact: ReleaseEvidenceRefreshArtifact
+): OpsLensReleaseEvidenceRefreshReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "blocked";
+  }
+  if (artifact.ref?.worktreeDirty || artifact.status === "NEEDS_EVIDENCE") {
+    return "needs-evidence";
+  }
+  if (artifact.status === "PASS") {
+    return "ready";
   }
   return "needs-evidence";
 }
@@ -2690,6 +2837,265 @@ function getReleasePublishPlanReadiness(): {
   }
 }
 
+function missingCatalogToolchainSummary(
+  reason: string,
+  status: OpsLensCatalogToolchainReadiness = "needs-evidence"
+): OpsLensCatalogToolchainSummary {
+  return {
+    status,
+    artifactStatus: status === "failed" ? "invalid" : "missing",
+    actionMode: "toolchainPlanOnly",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    registryAuthConfigured: false,
+    cli: [],
+    readOnlyCommands: [
+      {
+        id: "generate-catalog-toolchain",
+        command: "npm run verify:catalog-toolchain",
+        phase: "local-contract",
+        requiresNetwork: false,
+        mutation: false
+      }
+    ],
+    setupCommands: [],
+    localArtifactCommands: [],
+    missingEvidence: [reason],
+    risk: [
+      "Without catalog toolchain evidence, catalog validation and certification review can drift from the release packet."
+    ],
+    rollbackPath: [
+      "Run npm run verify:catalog-toolchain from a clean Git HEAD before release review."
+    ]
+  };
+}
+
+function getCatalogToolchainReadiness(): {
+  status: OpsLensCatalogToolchainReadiness;
+  evidence: string[];
+  plan: OpsLensCatalogToolchainSummary;
+} {
+  const evidencePath = catalogToolchainEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      plan: missingCatalogToolchainSummary(
+        `catalog toolchain evidence is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run verify:catalog-toolchain to create catalog toolchain evidence",
+        "dashboard keeps catalog toolchain as needs-evidence until CLI/auth readiness is recorded",
+        "catalog toolchain evidence must keep registryMutationAttempted=false and clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as CatalogToolchainEvidenceArtifact;
+    const status = mapCatalogToolchainReadinessStatus(artifact);
+    const readOnlyCommands = (artifact.commands?.readOnly ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      phase: command.phase ?? "unknown",
+      requiresNetwork: command.requiresNetwork === true,
+      mutation: command.mutation === true
+    }));
+    const setupCommands = (artifact.commands?.setup ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      phase: command.phase ?? "unknown",
+      requiresNetwork: command.requiresNetwork === true,
+      requiresHumanSecretInput: command.requiresHumanSecretInput === true,
+      mutation: command.mutation === true
+    }));
+    const localArtifactCommands = (artifact.commands?.localArtifact ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      phase: command.phase ?? "unknown",
+      requiresNetwork: command.requiresNetwork === true,
+      mutation: command.mutation === true
+    }));
+    const cli = (artifact.cli ?? []).map((tool) => ({
+      name: tool.name ?? "unknown",
+      available: tool.available === true,
+      version: tool.version ?? "missing"
+    }));
+    const missingTools = cli
+      .filter((tool) => !tool.available)
+      .map((tool) => tool.name)
+      .join(", ");
+
+    return {
+      status,
+      plan: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "toolchainPlanOnly",
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        registryAuthConfigured: artifact.registryAuth?.configured === true,
+        cli,
+        readOnlyCommands,
+        setupCommands,
+        localArtifactCommands,
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `Catalog toolchain evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `catalog toolchain generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `registryAuthConfigured=${String(artifact.registryAuth?.configured ?? false)} readOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length}`,
+        missingTools ? `missing local catalog CLIs=${missingTools}` : "all reported catalog CLIs are available",
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads catalog toolchain evidence only; it does not publish catalog images or apply cluster resources"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      plan: missingCatalogToolchainSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "failed"
+      ),
+      evidence: [
+        `Catalog toolchain evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid catalog toolchain evidence blocks overclaiming catalog readiness"
+      ]
+    };
+  }
+}
+
+function missingReleaseEvidenceRefreshSummary(
+  reason: string,
+  status: OpsLensReleaseEvidenceRefreshReadiness = "needs-evidence"
+): OpsLensReleaseEvidenceRefreshSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "localEvidenceRefresh",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    localDockerBuildAllowed: false,
+    headSha: "missing",
+    worktreeDirty: false,
+    commands: [
+      {
+        id: "generate-release-refresh",
+        phase: "local-contract",
+        status: "missing",
+        exitCode: null,
+        expectedNonZero: false
+      }
+    ],
+    artifacts: [],
+    missingEvidence: [reason],
+    risk: [
+      "Without release refresh evidence, reviewers cannot tell whether local gate artifacts were regenerated in dependency order."
+    ],
+    rollbackPath: [
+      "Run npm run verify:release-refresh after code or evidence contract changes."
+    ]
+  };
+}
+
+function getReleaseEvidenceRefreshReadiness(): {
+  status: OpsLensReleaseEvidenceRefreshReadiness;
+  evidence: string[];
+  refresh: OpsLensReleaseEvidenceRefreshSummary;
+} {
+  const evidencePath = releaseEvidenceRefreshPath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      refresh: missingReleaseEvidenceRefreshSummary(
+        `release evidence refresh is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run verify:release-refresh to regenerate release evidence in dependency order",
+        "dashboard keeps release refresh as needs-evidence until the refresh artifact exists",
+        "release refresh evidence must keep registryMutationAttempted=false and clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as ReleaseEvidenceRefreshArtifact;
+    const status = mapReleaseEvidenceRefreshStatus(artifact);
+    const commands = (artifact.commands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      phase: command.phase ?? "unknown",
+      status: command.status ?? "unknown",
+      exitCode: command.exitCode ?? null,
+      expectedNonZero: command.expectedNonZero === true
+    }));
+    const artifacts = (artifact.artifacts ?? []).map((source) => ({
+      id: source.id ?? "unknown",
+      status: source.status ?? "unknown",
+      fresh: source.fresh === true,
+      headSha: source.headSha ?? "missing",
+      worktreeDirty: source.worktreeDirty ?? "unknown"
+    }));
+    const commandSummary = commands
+      .slice(0, 6)
+      .map((command) => `${command.id}:${command.status}`)
+      .join(", ");
+
+    return {
+      status,
+      refresh: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "localEvidenceRefresh",
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        localDockerBuildAllowed: artifact.localDockerBuildAllowed === true,
+        headSha: artifact.ref?.headSha ?? "unknown",
+        worktreeDirty: artifact.ref?.worktreeDirty === true,
+        commands,
+        artifacts,
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `Release evidence refresh ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `release refresh generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `localDockerBuildAllowed=${String(artifact.localDockerBuildAllowed ?? false)} commandCount=${commands.length} artifactCount=${artifacts.length}`,
+        commandSummary ? `refresh commands=${commandSummary}` : "refresh command summary is not listed",
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads release refresh evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "blocked",
+      refresh: missingReleaseEvidenceRefreshSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "blocked"
+      ),
+      evidence: [
+        `Release evidence refresh could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid release refresh evidence blocks overclaiming release readiness"
+      ]
+    };
+  }
+}
+
 function normalizeCheckpointLaneStatus(
   status?: string
 ): "pass" | "needs-evidence" | "blocked" {
@@ -2971,16 +3377,20 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const ocpConnectivityReadiness = getOcpConnectivityDiagnosticReadiness();
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
   const installPlanReadiness = getInstallApprovalPlanReadiness();
+  const catalogToolchainReadiness = getCatalogToolchainReadiness();
   const releasePublishReadiness = getReleasePublishPlanReadiness();
+  const releaseEvidenceRefreshReadiness = getReleaseEvidenceRefreshReadiness();
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
   const liveHandoffReadiness = getLiveEvidenceHandoffReadiness();
   const installReadinessEvidence = [
+    releaseEvidenceRefreshReadiness.evidence[0],
     evidenceCheckpointReadiness.evidence[0],
     liveHandoffReadiness.evidence[0],
     ocpConnectivityReadiness.evidence[0],
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
     installPlanReadiness.evidence[0],
+    catalogToolchainReadiness.evidence[0],
     imageBuildReadiness.evidence[0],
     ownedImageProvenanceReadiness.evidence[0],
     externalRuntimeImagesReadiness.evidence[0],
@@ -2989,10 +3399,12 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
     ...installPlanReadiness.evidence.slice(1),
+    ...catalogToolchainReadiness.evidence.slice(1),
     ...imageBuildReadiness.evidence.slice(1),
     ...ownedImageProvenanceReadiness.evidence.slice(1),
     ...externalRuntimeImagesReadiness.evidence.slice(1),
     ...releasePublishReadiness.evidence.slice(1),
+    ...releaseEvidenceRefreshReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
     ...evidenceCheckpointReadiness.evidence.slice(1)
   ].filter((item): item is string => Boolean(item));
@@ -3138,6 +3550,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       operatorDryRun: operatorDryRunReadiness.status,
       installPlan: installPlanReadiness.status,
       approvalPlan: installPlanReadiness.plan,
+      catalogToolchain: catalogToolchainReadiness.status,
+      catalogToolchainPlan: catalogToolchainReadiness.plan,
       imageBuilds: imageBuildReadiness.status,
       ownedImageProvenance: ownedImageProvenanceReadiness.status,
       ownedImageProvenancePlan: ownedImageProvenanceReadiness.plan,
@@ -3145,6 +3559,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       externalRuntimePlan: externalRuntimeImagesReadiness.plan,
       releasePublish: releasePublishReadiness.status,
       releasePlan: releasePublishReadiness.plan,
+      releaseRefresh: releaseEvidenceRefreshReadiness.status,
+      refresh: releaseEvidenceRefreshReadiness.refresh,
       evidenceCheckpoint: evidenceCheckpointReadiness.status,
       checkpoint: evidenceCheckpointReadiness.checkpoint,
       liveHandoff: liveHandoffReadiness.status,
@@ -3162,10 +3578,12 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 4 live evidence handoff is generated by npm run verify:live-handoff",
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
+        "Stage 5 catalog toolchain readiness is validated by npm run verify:catalog-toolchain",
         "Stage 5 image build readiness is validated by npm run verify:images",
         "Stage 5 owned image provenance is validated by npm run verify:owned-image-provenance",
         "Stage 5 external runtime evidence plan is generated by npm run verify:external-runtime-plan",
         "Stage 5 release publish approval plan is generated by npm run verify:release-plan",
+        "Stage 5 release evidence refresh chain is generated by npm run verify:release-refresh",
         "Current-head release/install evidence is summarized by npm run verify:evidence-checkpoint"
       ]
     },

@@ -998,6 +998,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           risk?: string[];
           rollbackPath?: string[];
         };
+        catalogToolchain?: string;
+        catalogToolchainPlan?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          registryAuthConfigured?: boolean;
+          registryMutationAttempted?: boolean;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          cli?: Array<{ name?: string; available?: boolean }>;
+          readOnlyCommands?: Array<{ id?: string; mutation?: boolean }>;
+          setupCommands?: Array<{
+            id?: string;
+            requiresHumanSecretInput?: boolean;
+            mutation?: boolean;
+          }>;
+          localArtifactCommands?: Array<{ id?: string; mutation?: boolean }>;
+          risk?: string[];
+          rollbackPath?: string[];
+          missingEvidence?: string[];
+        };
         imageBuilds?: string;
         ownedImageProvenance?: string;
         ownedImageProvenancePlan?: {
@@ -1037,6 +1058,31 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           mutationAllowedByThisVerifier?: boolean;
           requiredApprovals?: string[];
           mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
+          risk?: string[];
+          rollbackPath?: string[];
+          missingEvidence?: string[];
+        };
+        releaseRefresh?: string;
+        refresh?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          registryMutationAttempted?: boolean;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          localDockerBuildAllowed?: boolean;
+          headSha?: string;
+          worktreeDirty?: boolean;
+          commands?: Array<{
+            id?: string;
+            status?: string;
+            expectedNonZero?: boolean;
+          }>;
+          artifacts?: Array<{
+            id?: string;
+            status?: string;
+            fresh?: boolean;
+          }>;
           risk?: string[];
           rollbackPath?: string[];
           missingEvidence?: string[];
@@ -1419,6 +1465,34 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.approvalPlan?.ragIngestion?.requiredApprovals
     ).toEqual(expect.arrayContaining(["rag-owner", "cluster-sre"]));
+    expect([
+      "ready-for-dry-run",
+      "needs-tooling",
+      "needs-evidence",
+      "failed"
+    ]).toContain(body.installReadiness?.catalogToolchain);
+    expect(body.installReadiness?.catalogToolchainPlan).toMatchObject({
+      actionMode: "toolchainPlanOnly",
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.catalogToolchainPlan?.cli?.map((tool) => tool.name)
+    ).toEqual(expect.arrayContaining(["docker", "opm", "operator-sdk", "oc"]));
+    expect(
+      body.installReadiness?.catalogToolchainPlan?.readOnlyCommands?.every(
+        (command) => command.mutation === false
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.catalogToolchainPlan?.localArtifactCommands?.every(
+        (command) => command.mutation === false
+      )
+    ).toBe(true);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /catalog toolchain/i
+    );
     expect(["ready", "needs-evidence", "failed"]).toContain(
       body.installReadiness?.imageBuilds
     );
@@ -1510,6 +1584,31 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /release publish plan/i
+    );
+    expect(["ready", "needs-evidence", "blocked"]).toContain(
+      body.installReadiness?.releaseRefresh
+    );
+    expect(body.installReadiness?.refresh).toMatchObject({
+      actionMode: "localEvidenceRefresh",
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      worktreeDirty: false
+    });
+    expect(
+      body.installReadiness?.refresh?.commands?.map((command) => command.id)
+    ).toEqual(
+      expect.arrayContaining([
+        "mvp-gate",
+        "catalog-toolchain",
+        "release-evidence-bundle"
+      ])
+    );
+    expect(
+      body.installReadiness?.refresh?.artifacts?.length ?? 0
+    ).toBeGreaterThan(0);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /release evidence refresh/i
     );
     expect(["ready", "needs-evidence", "blocked"]).toContain(
       body.installReadiness?.liveHandoff
@@ -1895,6 +1994,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "RAG Ingestion"
     );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Catalog Toolchain"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Release Refresh"
+    );
     await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
       "approvalPlanOnly"
     );
@@ -1913,6 +2018,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-rag-ingestion-approval-plan")
     ).toContainText("mutationAllowedByThisVerifier=false");
+    await expect(page.getByTestId("opslens-catalog-toolchain")).toContainText(
+      "toolchainPlanOnly"
+    );
+    await expect(page.getByTestId("opslens-catalog-toolchain")).toContainText(
+      "registryMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-catalog-toolchain")).toContainText(
+      "opm:"
+    );
     await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
       "approvalPlanOnly"
     );
@@ -1939,6 +2053,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-release-publish-plan")).toContainText(
       "release-manager"
+    );
+    await expect(page.getByTestId("opslens-release-refresh")).toContainText(
+      "localEvidenceRefresh"
+    );
+    await expect(page.getByTestId("opslens-release-refresh")).toContainText(
+      "clusterMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-release-refresh")).toContainText(
+      "dirty=false"
     );
     await expect(page.getByTestId("opslens-evidence-checkpoint")).toContainText(
       /PASS|NEEDS_EVIDENCE|BLOCKED|missing/
