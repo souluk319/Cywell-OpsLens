@@ -16,6 +16,13 @@ const steps = [
     purpose: "Compile API, web, contracts, RAG, and operator-controller packages."
   },
   {
+    id: "ENV-CONTRACT",
+    command: "npm",
+    args: ["run", "verify:env"],
+    acceptance: ["AC-ENV-001", "AC-OCP-001", "AC-LS-002"],
+    purpose: "Verify OCP API environment variables are isolated from Lightspeed/MCP settings."
+  },
+  {
     id: "E2E",
     command: "npm",
     args: ["run", "test:e2e"],

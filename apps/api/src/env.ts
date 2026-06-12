@@ -73,6 +73,46 @@ function boolFromEnv(value: string | undefined, defaultValue: boolean) {
   return !["0", "false", "no", "off"].includes(value.toLowerCase());
 }
 
+function firstEnv(...keys: string[]) {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value !== undefined) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function ocpTlsVerifyFromEnv() {
+  const explicitVerify = firstEnv(
+    "OCP_TLS_VERIFY",
+    "OPENSHIFT_API_TLS_VERIFY",
+    "KUBE_TLS_VERIFY"
+  );
+  if (explicitVerify !== undefined) {
+    return boolFromEnv(explicitVerify, true);
+  }
+
+  const insecureSkip = firstEnv(
+    "OCP_INSECURE_SKIP_TLS_VERIFY",
+    "OPENSHIFT_API_INSECURE_SKIP_TLS_VERIFY",
+    "KUBE_INSECURE_SKIP_TLS_VERIFY"
+  );
+  if (insecureSkip !== undefined) {
+    return !boolFromEnv(insecureSkip, false);
+  }
+
+  return true;
+}
+
+function secondsFromEnv(value: string | undefined, defaultValue: number) {
+  if (value === undefined) {
+    return defaultValue;
+  }
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : defaultValue;
+}
+
 export function getOcpConfig(): OcpConfig {
   loadEnvFile();
 
@@ -104,20 +144,20 @@ export function getOcpConfig(): OcpConfig {
     baseUrlCandidates,
     token: explicitToken ?? tokenCandidates[0],
     tokenCandidates,
-    tlsVerify: boolFromEnv(
-      process.env.OCP_TLS_VERIFY ?? process.env.OPENSHIFT_LIGHTSPEED_TLS_VERIFY,
-      true
-    ),
+    tlsVerify: ocpTlsVerifyFromEnv(),
     allowSecretFetch: boolFromEnv(process.env.OCP_ALLOW_SECRET_FETCH, false),
     enableMonitoringProxy: boolFromEnv(
       process.env.OCP_ENABLE_MONITORING_PROXY,
       false
     ),
     timeoutMs:
-      Number(
-        process.env.OCP_API_TIMEOUT_SECONDS ??
-          process.env.OPENSHIFT_LIGHTSPEED_TIMEOUT_SECONDS ??
-          8
+      secondsFromEnv(
+        firstEnv(
+          "OCP_API_TIMEOUT_SECONDS",
+          "OPENSHIFT_API_TIMEOUT_SECONDS",
+          "KUBE_API_TIMEOUT_SECONDS"
+        ),
+        8
       ) * 1000
   };
 }
