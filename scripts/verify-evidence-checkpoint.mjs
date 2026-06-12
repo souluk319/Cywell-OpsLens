@@ -20,6 +20,7 @@ const evidenceDefaults = {
   ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
+  catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   ocpConnectivity: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
@@ -624,6 +625,13 @@ async function main() {
     label: "Lightspeed Trojan Horse exact question",
     artifact: artifacts.lightspeedTrojanHorse,
     desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "catalogToolchain",
+    label: "catalog toolchain readiness",
+    artifact: artifacts.catalogToolchain,
+    desiredStatuses: ["READY_FOR_DRY_RUN", "NEEDS_TOOLING"],
     currentHeadSha: headSha
   });
   laneResult({

@@ -35,7 +35,7 @@ Prove that a dashboard-first, context-aware OpenShift operations assistant can s
 
 ## Evidence Chain Extension
 
-- AC-DASH-001 includes dashboard panels for catalog toolchain readiness and release evidence refresh. The API/UI must expose `toolchainPlanOnly`, `localEvidenceRefresh`, CLI/tooling gaps, same-HEAD freshness, command status, mutation flags, risk, rollback path, and missing evidence without publishing catalog images or applying cluster resources.
+- AC-DASH-001 includes dashboard panels for catalog toolchain readiness and release evidence refresh. The API/UI must expose `toolchainPlanOnly`, `localEvidenceRefresh`, CLI/tooling gaps, same-HEAD freshness, command status, mutation flags, risk, rollback path, and missing evidence without publishing catalog images or applying cluster resources. The consolidated checkpoint and roadmap Stage 5 must also carry `catalogToolchain` so release review sees local tooling gaps instead of relying on dashboard-only evidence.
 - AC-CERT-001 treats `npm run verify:catalog-toolchain` and `npm run verify:release-refresh` as review inputs for release-manager evidence packets; they do not replace final Red Hat certification, external runtime SBOM/scan/provenance, registry digest/signature, or human approval evidence.
 
 ## Explicit Non-Goals
