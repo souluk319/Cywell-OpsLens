@@ -82,7 +82,7 @@ metadata:
     createdAt: "2026-06-12T00:00:00Z"
     description: Dashboard-first OpenShift operations AI with Lightspeed MCP integration, private RAG, and evidence-first incident analysis.
     support: Cywell
-    repository: https://example.invalid/cywell-opslens
+    repository: https://github.com/souluk319/Cywell-OpsLens
     com.redhat.openshift.versions: v4.16-v4.19
     operators.openshift.io/valid-subscription: Contact Cywell
     features.operators.openshift.io/disconnected: "true"
@@ -110,7 +110,7 @@ spec:
     - observability
   links:
     - name: Cywell OpsLens
-      url: https://example.invalid/cywell-opslens
+      url: https://github.com/souluk319/Cywell-OpsLens
   installModes:
     - type: OwnNamespace
       supported: true

@@ -34,7 +34,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 ## Required Before Certified Submission
 
 - Certify the operator image and each runtime image referenced by `relatedImages`.
-- Replace example URLs and placeholder support contacts with production values.
+- Replace placeholder support contacts and maintainer email with production values.
 - Run `operator-sdk bundle validate` and `operator-sdk scorecard` with the target OpenShift versions.
 - Run vulnerability scans for all referenced images and attach remediation evidence.
 - Run live install, upgrade, uninstall, and rollback smoke tests through OLM.

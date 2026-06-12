@@ -22,7 +22,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 - Go/controller-runtime manager source builds locally with `go test ./...` and `go build` once the Go toolchain is available.
 - FBC package/channel/bundle entries point to the intended bundle image.
 - DCO, package ownership, release notes, and public documentation are ready.
-- All placeholder product URLs and support contacts are replaced.
+- Repository/product URLs point to the release repo, and placeholder support contacts are replaced.
 
 ## Certified Operator Gate
 
