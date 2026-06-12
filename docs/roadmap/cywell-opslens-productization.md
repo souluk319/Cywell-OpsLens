@@ -86,6 +86,7 @@ Primary references:
 - `npm run verify:operator` as the local package contract verifier.
 - `npm run verify:rag:approval-queue` as the local metadata-only approval queue bridge verifier before any future ingestion job.
 - `npm run verify:operator:dry-run` as the non-mutating live API/schema/admission preflight verifier.
+- `npm run verify:ocp:connectivity` as the read-only DNS/TCP/TLS/API/oc classifier for company OCP reachability gaps before live Lightspeed or Operator checks are trusted.
 - `npm run verify:install-plan` as the non-mutating human approval, risk, command, evidence, and rollback contract before mutating install.
 - `npm run verify:evidence-checkpoint` as the current-head evidence board for MVP, RAG approval queue, image, Operator dry-run, Lightspeed routing/readiness, external runtime, release, and install readiness.
 - `npm run verify:roadmap-plan` as the product-plan alignment board for `kugnus-idea/CywellOpsLens_plan.md` stages 1-5.

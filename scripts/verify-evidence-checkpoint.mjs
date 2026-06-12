@@ -20,6 +20,7 @@ const evidenceDefaults = {
   ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
+  ocpConnectivity: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
   lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
@@ -349,6 +350,27 @@ function checkPatchPreview(patchArtifact) {
   pass("Lightspeed patch preview safety", "preview is PatchPlanned and non-mutating");
 }
 
+function checkOcpConnectivityDiagnostic(connectivityArtifact) {
+  if (!connectivityArtifact) return;
+  const classification = connectivityArtifact.diagnostics?.classification ?? "unknown";
+  const target = connectivityArtifact.target ?? {};
+  if (artifactClusterMutationAttempted(connectivityArtifact)) {
+    fail("OCP connectivity diagnostic safety", "diagnostic attempted a cluster mutation");
+    return;
+  }
+  if (classification === "api-ready") {
+    pass(
+      "OCP connectivity diagnostic",
+      `classification=api-ready target=${target.host ?? "unknown"}:${target.port ?? "unknown"}`
+    );
+    return;
+  }
+  warn(
+    "OCP connectivity diagnostic",
+    `classification=${classification} target=${target.host ?? "unknown"}:${target.port ?? "unknown"}`
+  );
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -419,6 +441,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "ocpConnectivity",
+    label: "OCP connectivity diagnostic",
+    artifact: artifacts.ocpConnectivity,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "operatorDryRun",
     label: "operator server dry-run",
     artifact: artifacts.operatorDryRun,
@@ -464,6 +493,7 @@ async function main() {
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
   checkRagApprovalQueuePolicy(artifacts.ragApprovalQueue);
   checkImageActualBuilds(artifacts.imageBuild);
+  checkOcpConnectivityDiagnostic(artifacts.ocpConnectivity);
   checkPatchPreview(artifacts.lightspeedPatchPreview);
 
   const blockers = lanes.flatMap((lane) => lane.blockers.map((item) => `${lane.id}: ${item}`));
@@ -497,6 +527,7 @@ async function main() {
       "AC-LS-002",
       "AC-OP-004",
       "AC-OP-005",
+      "AC-OCP-001",
       "AC-CERT-001"
     ],
     lanes,

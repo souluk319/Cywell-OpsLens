@@ -253,6 +253,7 @@ async function main() {
         /커스텀 MCP|custom MCP/i
       ]),
       laneRequirement(checkpoint, "lightspeedRouting", "10-question Lightspeed tool routing score"),
+      laneRequirement(checkpoint, "ocpConnectivity", "Live OCP connectivity diagnostic", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "lightspeedReadiness", "Live Lightspeed/OCP readiness", ["pass", "needs-evidence"]),
       mvpRequirement(mvpGate, "LIGHTSPEED-ROUTING", "MVP Lightspeed routing verifier")
     ]),
