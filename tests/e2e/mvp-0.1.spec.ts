@@ -1019,6 +1019,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
           missingEvidence?: string[];
         };
+        liveHandoff?: string;
+        handoff?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          currentGapClassification?: string;
+          clusterMutationAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          readOnlyCommands?: Array<{
+            id?: string;
+            command?: string;
+            mutation?: boolean;
+            writesEvidence?: boolean;
+          }>;
+          actionHints?: Array<{ id?: string; severity?: string }>;
+          forbiddenCommands?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         evidenceCheckpoint?: string;
         checkpoint?: {
           status?: string;
@@ -1396,6 +1416,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       /release publish plan/i
     );
     expect(["ready", "needs-evidence", "blocked"]).toContain(
+      body.installReadiness?.liveHandoff
+    );
+    expect(body.installReadiness?.handoff).toMatchObject({
+      actionMode: "handoffOnly",
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.handoff?.readOnlyCommands?.length ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.handoff?.readOnlyCommands?.every(
+        (command) => command.mutation === false
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.handoff?.forbiddenCommands?.join(" ")
+    ).toContain("oc apply");
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /live evidence handoff/i
+    );
+    expect(["ready", "needs-evidence", "blocked"]).toContain(
       body.installReadiness?.evidenceCheckpoint
     );
     expect(body.installReadiness?.checkpoint).toMatchObject({
@@ -1712,6 +1755,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Release Publish"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Live Handoff"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Operator Dry-run"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
@@ -1729,6 +1775,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-ocp-connectivity-actions")
     ).toContainText(/next=/);
+    await expect(page.getByTestId("opslens-live-handoff")).toContainText(
+      "handoffOnly"
+    );
+    await expect(page.getByTestId("opslens-live-handoff")).toContainText(
+      "clusterMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-live-handoff")).toContainText(
+      "registryMutationAttempted=false"
+    );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Install Plan"
     );

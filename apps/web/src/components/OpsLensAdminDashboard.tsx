@@ -170,6 +170,7 @@ export function OpsLensAdminDashboard() {
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
   const releasePlan = overview?.installReadiness.releasePlan;
   const checkpoint = overview?.installReadiness.checkpoint;
+  const liveHandoff = overview?.installReadiness.handoff;
   const ocpConnectivity = overview?.installReadiness.connectivity;
   const lightspeedMcp = overview?.lightspeed.mcp;
   const validationFailed = validation?.issues.some(
@@ -854,6 +855,7 @@ export function OpsLensAdminDashboard() {
                   "Release Publish": overview.installReadiness.releasePublish,
                   "Evidence Checkpoint":
                     overview.installReadiness.evidenceCheckpoint,
+                  "Live Handoff": overview.installReadiness.liveHandoff,
                   Certification: overview.installReadiness.certification
                 }).map(([label, value]) => (
                   <div key={label}>
@@ -939,6 +941,66 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {ocpConnectivity.rollbackPath[0] ??
                     "Refresh OCP connectivity evidence before live install checks."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {liveHandoff ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-live-handoff"
+            >
+              <div className="admin-evidence-line">
+                <span>{liveHandoff.artifactStatus}</span>
+                <span>{liveHandoff.actionMode}</span>
+                <span>gap={liveHandoff.currentGapClassification}</span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(liveHandoff.clusterMutationAttempted)}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(liveHandoff.registryMutationAttempted)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Read-only Commands</span>
+                  <strong>
+                    {liveHandoff.readOnlyCommands.length
+                      ? liveHandoff.readOnlyCommands
+                          .slice(0, 4)
+                          .map((command) => command.id)
+                          .join(", ")
+                      : "blocked until handoff exists"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Action Hints</span>
+                  <strong>
+                    {liveHandoff.actionHints.length
+                      ? liveHandoff.actionHints
+                          .slice(0, 2)
+                          .map((hint) => hint.id)
+                          .join(", ")
+                      : "none"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Forbidden</span>
+                  <strong>
+                    {liveHandoff.forbiddenCommands.slice(0, 3).join(", ")}
+                  </strong>
+                </div>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {liveHandoff.risk[0] ??
+                    "Live handoff collects evidence only and does not approve mutation."}
+                </p>
+                <p>
+                  {liveHandoff.rollbackPath[0] ??
+                    "Regenerate the handoff after live evidence changes."}
                 </p>
               </div>
             </div>

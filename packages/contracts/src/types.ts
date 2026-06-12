@@ -996,6 +996,11 @@ export type OpsLensEvidenceCheckpointReadiness =
   | "needs-evidence"
   | "blocked";
 
+export type OpsLensLiveEvidenceHandoffReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "blocked";
+
 export interface OpsLensEvidenceCheckpointSummary {
   status: OpsLensEvidenceCheckpointReadiness;
   artifactStatus: string;
@@ -1009,6 +1014,35 @@ export interface OpsLensEvidenceCheckpointSummary {
   }>;
   missingEvidence: string[];
   blockers: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensLiveEvidenceHandoffSummary {
+  status: OpsLensLiveEvidenceHandoffReadiness;
+  artifactStatus: string;
+  actionMode: "handoffOnly";
+  currentGapClassification: string;
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  readOnlyCommands: Array<{
+    id: string;
+    command: string;
+    purpose: string;
+    phase: string;
+    requiresNetwork: boolean;
+    mutation: boolean;
+    writesEvidence: boolean;
+  }>;
+  actionHints: Array<{
+    id: string;
+    severity: "info" | "warning" | "blocked";
+    summary: string;
+    nextCheck: string;
+  }>;
+  forbiddenCommands: string[];
+  missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
 }
@@ -1169,6 +1203,8 @@ export interface OpsLensAdminOverviewResponse {
     releasePlan: OpsLensReleasePublishPlanSummary;
     evidenceCheckpoint: OpsLensEvidenceCheckpointReadiness;
     checkpoint: OpsLensEvidenceCheckpointSummary;
+    liveHandoff: OpsLensLiveEvidenceHandoffReadiness;
+    handoff: OpsLensLiveEvidenceHandoffSummary;
     certification: "not-started" | "draft" | "ready";
     evidence: string[];
   };

@@ -26,7 +26,8 @@ const evidenceDefaults = {
   lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
   releasePublish: "test-results/cywell-opslens-release-publish-plan.json",
-  installPlan: "test-results/cywell-opslens-install-approval-plan.json"
+  installPlan: "test-results/cywell-opslens-install-approval-plan.json",
+  liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json"
 };
 
 function parseArgs(argv) {
@@ -584,6 +585,13 @@ async function main() {
     desiredStatuses: ["APPROVAL_REQUIRED"],
     currentHeadSha: headSha
   });
+  laneResult({
+    id: "liveHandoff",
+    label: "live evidence handoff",
+    artifact: artifacts.liveHandoff,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
 
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
   checkRagApprovalQueuePolicy(artifacts.ragApprovalQueue);
@@ -624,7 +632,8 @@ async function main() {
       "AC-OP-004",
       "AC-OP-005",
       "AC-OCP-001",
-      "AC-CERT-001"
+      "AC-CERT-001",
+      "AC-LIVE-HANDOFF-001"
     ],
     lanes,
     missingEvidence,

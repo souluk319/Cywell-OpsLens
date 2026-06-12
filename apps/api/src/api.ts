@@ -34,6 +34,8 @@ import type {
   OpsLensImageBuildReadiness,
   OpsLensInstallApprovalPlanSummary,
   OpsLensInstallPlanReadiness,
+  OpsLensLiveEvidenceHandoffReadiness,
+  OpsLensLiveEvidenceHandoffSummary,
   OpsLensLightspeedMcpReadiness,
   OpsLensMcpToolCategory,
   OpsLensMcpToolSurfaceItem,
@@ -1130,6 +1132,37 @@ type EvidenceCheckpointArtifact = {
   rollbackPath?: string[];
 };
 
+type LiveEvidenceHandoffArtifact = {
+  artifactType?: string;
+  status?: string;
+  actionMode?: string;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  currentGap?: {
+    classification?: string;
+    actionHints?: Array<{
+      id?: string;
+      severity?: string;
+      summary?: string;
+      nextCheck?: string;
+    }>;
+  };
+  readOnlyCommands?: Array<{
+    id?: string;
+    command?: string;
+    purpose?: string;
+    phase?: string;
+    requiresNetwork?: boolean;
+    mutation?: boolean;
+    writesEvidence?: boolean;
+  }>;
+  forbiddenCommands?: string[];
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type OcpConnectivityDiagnosticArtifact = {
   artifactType?: string;
   status?: string;
@@ -1220,6 +1253,13 @@ function evidenceCheckpointPath() {
   return (
     process.env.CYWELL_OPSLENS_EVIDENCE_CHECKPOINT ??
     join(repoRoot, "test-results", "cywell-opslens-evidence-checkpoint.json")
+  );
+}
+
+function liveEvidenceHandoffPath() {
+  return (
+    process.env.CYWELL_OPSLENS_LIVE_EVIDENCE_HANDOFF ??
+    join(repoRoot, "test-results", "cywell-opslens-live-evidence-handoff.json")
   );
 }
 
@@ -2247,6 +2287,156 @@ function normalizeCheckpointLaneStatus(
   return "needs-evidence";
 }
 
+function mapLiveEvidenceHandoffStatus(
+  artifact: LiveEvidenceHandoffArtifact
+): OpsLensLiveEvidenceHandoffReadiness {
+  if (artifact.status === "PASS") return "ready";
+  if (artifact.status === "BLOCKED") return "blocked";
+  return "needs-evidence";
+}
+
+function missingLiveEvidenceHandoffSummary(
+  reason: string,
+  status: OpsLensLiveEvidenceHandoffReadiness = "needs-evidence"
+): OpsLensLiveEvidenceHandoffSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "handoffOnly",
+    currentGapClassification: "missing",
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    readOnlyCommands: [
+      {
+        id: "generate-live-handoff",
+        command: "npm run verify:live-handoff",
+        purpose: "Generate the read-only live evidence handoff artifact.",
+        phase: "local-contract",
+        requiresNetwork: false,
+        mutation: false,
+        writesEvidence: true
+      }
+    ],
+    actionHints: [
+      {
+        id: "generate-live-handoff",
+        severity: "blocked",
+        summary: "Generate the live evidence handoff before asking an SRE to run live checks.",
+        nextCheck: "npm run verify:live-handoff"
+      }
+    ],
+    forbiddenCommands: ["oc apply", "oc delete", "oc patch", "oc scale"],
+    missingEvidence: [reason],
+    risk: [
+      "Without a handoff artifact, live OCP/Lightspeed evidence collection remains manual and easy to drift."
+    ],
+    rollbackPath: [
+      "Run npm run verify:live-handoff after refreshing OCP and install evidence."
+    ]
+  };
+}
+
+function mapLiveEvidenceHandoffActionHints(
+  artifact: LiveEvidenceHandoffArtifact
+): OpsLensLiveEvidenceHandoffSummary["actionHints"] {
+  return (artifact.currentGap?.actionHints ?? [])
+    .filter((hint) => hint.id && hint.summary)
+    .map((hint) => ({
+      id: hint.id ?? "unknown",
+      severity:
+        hint.severity === "info"
+          ? "info"
+          : hint.severity === "warning"
+            ? "warning"
+            : "blocked",
+      summary: hint.summary ?? "Review live evidence handoff.",
+      nextCheck: hint.nextCheck ?? "npm run verify:live-handoff"
+    }));
+}
+
+function getLiveEvidenceHandoffReadiness(): {
+  status: OpsLensLiveEvidenceHandoffReadiness;
+  evidence: string[];
+  handoff: OpsLensLiveEvidenceHandoffSummary;
+} {
+  const evidencePath = liveEvidenceHandoffPath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      handoff: missingLiveEvidenceHandoffSummary(
+        `live evidence handoff is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run verify:live-handoff to create the read-only live evidence handoff",
+        "dashboard keeps live handoff as needs-evidence until the artifact exists",
+        "handoff evidence lists read-only commands only and performs no cluster or registry mutation"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as LiveEvidenceHandoffArtifact;
+    const status = mapLiveEvidenceHandoffStatus(artifact);
+    const readOnlyCommands = (artifact.readOnlyCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      purpose: command.purpose ?? "unknown",
+      phase: command.phase ?? "unknown",
+      requiresNetwork: command.requiresNetwork === true,
+      mutation: command.mutation === true,
+      writesEvidence: command.writesEvidence === true
+    }));
+    const actionHints = mapLiveEvidenceHandoffActionHints(artifact);
+
+    return {
+      status,
+      handoff: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "handoffOnly",
+        currentGapClassification:
+          artifact.currentGap?.classification ?? "unknown",
+        clusterMutationAttempted:
+          artifact.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          artifact.registryMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        readOnlyCommands,
+        actionHints,
+        forbiddenCommands: artifact.forbiddenCommands ?? [],
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `Live evidence handoff ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `handoff currentGap=${artifact.currentGap?.classification ?? "unknown"} commands=${readOnlyCommands.length}`,
+        `actionMode=${artifact.actionMode ?? "unknown"} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")} registryMutationAttempted=${String(artifact.registryMutationAttempted ?? "unknown")}`,
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads live handoff evidence only; it does not run live checks or mutating commands"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "blocked",
+      handoff: missingLiveEvidenceHandoffSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "blocked"
+      ),
+      evidence: [
+        `Live evidence handoff could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid live handoff evidence blocks overclaiming live readiness"
+      ]
+    };
+  }
+}
+
 function getEvidenceCheckpointReadiness(): {
   status: OpsLensEvidenceCheckpointReadiness;
   evidence: string[];
@@ -2370,8 +2560,10 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const installPlanReadiness = getInstallApprovalPlanReadiness();
   const releasePublishReadiness = getReleasePublishPlanReadiness();
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
+  const liveHandoffReadiness = getLiveEvidenceHandoffReadiness();
   const installReadinessEvidence = [
     evidenceCheckpointReadiness.evidence[0],
+    liveHandoffReadiness.evidence[0],
     ocpConnectivityReadiness.evidence[0],
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
@@ -2386,6 +2578,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...imageBuildReadiness.evidence.slice(1),
     ...externalRuntimeImagesReadiness.evidence.slice(1),
     ...releasePublishReadiness.evidence.slice(1),
+    ...liveHandoffReadiness.evidence.slice(1),
     ...evidenceCheckpointReadiness.evidence.slice(1)
   ].filter((item): item is string => Boolean(item));
 
@@ -2537,6 +2730,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       releasePlan: releasePublishReadiness.plan,
       evidenceCheckpoint: evidenceCheckpointReadiness.status,
       checkpoint: evidenceCheckpointReadiness.checkpoint,
+      liveHandoff: liveHandoffReadiness.status,
+      handoff: liveHandoffReadiness.handoff,
       certification: "draft",
       evidence: [
         ...installReadinessEvidence,
@@ -2547,6 +2742,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 4 live API preflight is validated by npm run verify:operator:dry-run",
         "Live OCP connectivity is classified by npm run verify:ocp:connectivity",
         "Stage 4 mutating install approval plan is generated by npm run verify:install-plan",
+        "Stage 4 live evidence handoff is generated by npm run verify:live-handoff",
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
         "Stage 5 image build readiness is validated by npm run verify:images",

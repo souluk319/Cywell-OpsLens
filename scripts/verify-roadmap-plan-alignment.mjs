@@ -255,6 +255,7 @@ async function main() {
       laneRequirement(checkpoint, "lightspeedRouting", "10-question Lightspeed tool routing score"),
       laneRequirement(checkpoint, "ocpConnectivity", "Live OCP connectivity diagnostic", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "lightspeedReadiness", "Live Lightspeed/OCP readiness", ["pass", "needs-evidence"]),
+      laneRequirement(checkpoint, "liveHandoff", "Read-only live evidence handoff"),
       mvpRequirement(mvpGate, "LIGHTSPEED-ROUTING", "MVP Lightspeed routing verifier")
     ]),
     stage("stage-2-aiops-pipeline", "Cywell AI Ops incident pipeline", [
@@ -288,6 +289,7 @@ async function main() {
       mvpRequirement(mvpGate, "OPERATOR-RUNTIME", "Operator runtime parity verifier"),
       laneRequirement(checkpoint, "operatorDryRun", "Live Operator server dry-run", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "installPlan", "Human install approval plan", ["pass", "needs-evidence"]),
+      laneRequirement(checkpoint, "liveHandoff", "SRE-safe live evidence handoff"),
       imageActualBuildRequirement(imageBuild)
     ]),
     stage("stage-5-redhat-gtm", "Red Hat certification and catalog GTM", [

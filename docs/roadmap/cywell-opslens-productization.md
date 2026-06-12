@@ -67,7 +67,7 @@ Primary references:
 ## Next Implementation Lane
 
 1. Run `npm run verify:evidence-checkpoint` after the latest dry-run, Lightspeed routing score, Lightspeed patch preview, `verify:images:build` actual image build evidence, release/runtime plans, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install, OLSConfig patch, image push, signing, or mirroring.
-2. Run `npm run verify:operator:dry-run` and `npm run verify:lightspeed -- --mcp-url <cluster-or-local-mcp-url> --require-mcp` against a real OpenShift Lightspeed environment.
+2. Run `npm run verify:live-handoff`, then execute the listed read-only commands from a machine that can reach the company OpenShift API: `npm run verify:operator:dry-run`, `npm run verify:lightspeed -- --mcp-url <cluster-or-local-mcp-url> --require-mcp`, and follow-up checkpoint refreshes.
 3. Harden the env-gated RAG approval queue bridge into a production database-backed workflow: `npm run verify:rag:approval-queue` now proves default design-only behavior, read-only inventory, opt-in local metadata-only persistence, metadata-only approve/reject reviews, and plan-only ingestion job artifacts, while `npm run verify:install-plan` pulls that evidence into the install approval board as `ingestionPlanOnly`; production database storage, production ingestion workers, and vector writes remain later lanes.
 4. Run `npm run verify:runtime-rag:fixture` before each runtime adapter change, then run `npm run verify:runtime -- --live` after Qdrant/vLLM services are reachable and enable `CYWELL_OPSLENS_RAG_RUNTIME_MODE=hybrid` for controlled live retrieval checks before replacing the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs.
 5. Build and test the scaffolded Go/controller-runtime Operator manager once Go and Operator SDK are available, then run live OLSConfig patch, install, upgrade, uninstall, and rollback smoke tests.
@@ -88,6 +88,7 @@ Primary references:
 - `npm run verify:operator:dry-run` as the non-mutating live API/schema/admission preflight verifier.
 - `npm run verify:ocp:connectivity` as the read-only DNS/TCP/TLS/API/oc classifier for company OCP reachability gaps before live Lightspeed or Operator checks are trusted.
 - `npm run verify:install-plan` as the non-mutating human approval, risk, command, evidence, RAG ingestion plan-only, and rollback contract before mutating install or ingestion work.
+- `npm run verify:live-handoff` as the SRE-safe read-only command chain for collecting live OCP/Lightspeed/runtime evidence without approving install, OLSConfig patch, image push, mirroring, or ingestion.
 - `npm run verify:evidence-checkpoint` as the current-head evidence board for MVP, RAG approval queue, image, Operator dry-run, Lightspeed routing/readiness, external runtime, release, and install readiness.
 - `npm run verify:roadmap-plan` as the product-plan alignment board for `kugnus-idea/CywellOpsLens_plan.md` stages 1-5.
 - `packages/operator-controller` reconcile core with `ValidateOnly`, explicit `PatchOLSConfig`, evidence, missing evidence, risk, rollback path, assistant plan-only policy, and RAG approval queue mutation blocked.
