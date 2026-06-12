@@ -12,6 +12,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 - `npm run verify:operator:runtime` passes with no failures.
 - `npm run verify:rag` passes with no failures.
 - `npm run verify:certification` passes with no failures.
+- `npm run verify:catalog-toolchain` writes `test-results/cywell-opslens-catalog-toolchain-plan.json`, validates CSV/FBC/CatalogSource/Subscription/scorecard parity, records required CLI and registry.redhat.io auth gaps, and keeps catalog validation/publish commands non-mutating or approval-gated.
 - `npm run verify:images` passes and writes `test-results/cywell-opslens-image-build-readiness.json`.
 - `npm run verify:images:build` passes on the same Git HEAD before publishing release images; it builds Operator, API, dashboard, and bundle images locally without pushing, and records catalog build as an explicit warning until `registry.redhat.io` credentials are available.
 - `npm run verify:owned-image-provenance` passes on the same Git HEAD after `verify:images:build`; it records local Docker image IDs, user, ports, labels, rootfs layer count, and any missing repo digest evidence for Operator, API, dashboard, bundle, and optional catalog without pushing or signing images.
@@ -20,7 +21,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 - `npm run evidence:external-runtime:draft -- --name vllm|qdrant` may create ignored reviewer intake drafts, but draft status never satisfies release publication; final reviewed `vllm.json` and `qdrant.json` remain required.
 - `npm run verify:release-plan` passes against a clean current worktree, same-HEAD image evidence, same-HEAD owned-image provenance evidence, and same-HEAD external runtime evidence, then writes `test-results/cywell-opslens-release-publish-plan.json` before any image push, sign, mirror, or catalog publication attempt.
 - `npm run verify:install-plan` passes against a clean current worktree after same-HEAD MVP, Operator dry-run, Lightspeed readiness, Lightspeed patch preview, and `npm run verify:images:build` evidence, then writes `test-results/cywell-opslens-install-approval-plan.json` with all mutating commands marked `requiresExplicitApproval=true`.
-- `npm run verify:release-evidence-bundle` runs after the release, install, live handoff, checkpoint, and roadmap artifacts are refreshed; it writes `test-results/cywell-opslens-release-evidence-bundle.json` as a read-only release-manager packet with source artifacts, missing evidence, approvers, commands, risk, rollback, and mutation boundaries.
+- `npm run verify:release-evidence-bundle` runs after the release, install, live handoff, checkpoint, roadmap, and catalog toolchain artifacts are refreshed; it writes `test-results/cywell-opslens-release-evidence-bundle.json` as a read-only release-manager packet with source artifacts, missing evidence, approvers, commands, risk, rollback, and mutation boundaries.
 - `npm run verify:lightspeed:fixture` passes with no failures.
 - Go/controller-runtime manager source, install resource parity, and explicit OLSConfig patch path are statically checked by `npm run verify:operator` and `npm run verify:operator:runtime`.
 - CatalogSource and Subscription manifests use Manual install approval.

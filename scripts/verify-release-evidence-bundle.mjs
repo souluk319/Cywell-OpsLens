@@ -12,6 +12,7 @@ const defaults = {
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
+  catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
   releasePlan: "test-results/cywell-opslens-release-publish-plan.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
@@ -45,6 +46,8 @@ const options = {
   imageBuild: parsed.get("image-build-evidence") ?? defaults.imageBuild,
   ownedImageProvenance:
     parsed.get("owned-image-provenance-evidence") ?? defaults.ownedImageProvenance,
+  catalogToolchain:
+    parsed.get("catalog-toolchain-evidence") ?? defaults.catalogToolchain,
   externalRuntime: parsed.get("external-runtime-evidence") ?? defaults.externalRuntime,
   releasePlan: parsed.get("release-plan-evidence") ?? defaults.releasePlan,
   installPlan: parsed.get("install-plan-evidence") ?? defaults.installPlan,
@@ -204,8 +207,18 @@ function commandSummary(artifacts) {
     mutation: command.mutation === true,
     requiresExplicitApproval: false
   }));
+  const catalogCommands = [
+    ...(artifacts.catalogToolchain?.commands?.readOnly ?? []),
+    ...(artifacts.catalogToolchain?.commands?.localArtifact ?? [])
+  ].map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "unknown",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: false
+  }));
   return {
-    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands]
+    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...catalogCommands]
       .filter((command) => command.mutation === false),
     mutatingApprovalRequired: [...releaseCommands, ...installCommands]
       .filter((command) => command.mutation === true),
@@ -271,6 +284,9 @@ function mutationBoundary(artifacts) {
     ["externalRuntime.mutationAllowedByThisVerifier", artifacts.externalRuntime?.mutationAllowedByThisVerifier],
     ["ownedImageProvenance.registryMutationAttempted", artifacts.ownedImageProvenance?.registryMutationAttempted],
     ["ownedImageProvenance.clusterMutationAttempted", artifacts.ownedImageProvenance?.clusterMutationAttempted],
+    ["catalogToolchain.registryMutationAttempted", artifacts.catalogToolchain?.registryMutationAttempted],
+    ["catalogToolchain.clusterMutationAttempted", artifacts.catalogToolchain?.clusterMutationAttempted],
+    ["catalogToolchain.mutationAllowedByThisVerifier", artifacts.catalogToolchain?.mutationAllowedByThisVerifier],
     ["liveHandoff.clusterMutationAttempted", artifacts.liveHandoff?.clusterMutationAttempted],
     ["liveHandoff.registryMutationAttempted", artifacts.liveHandoff?.registryMutationAttempted]
   ];
@@ -307,6 +323,7 @@ function evidenceGaps(artifacts, sources) {
     ...(artifacts.evidenceCheckpoint?.missingEvidence ?? []),
     ...(artifacts.releasePlan?.missingEvidence ?? []),
     ...(artifacts.installPlan?.missingEvidence ?? []),
+    ...(artifacts.catalogToolchain?.missingEvidence ?? []),
     ...(artifacts.externalRuntime?.missingEvidence ?? []),
     ...(artifacts.liveHandoff?.missingEvidence ?? [])
   ]);
@@ -328,6 +345,7 @@ async function main() {
     mvpGate: loadJson(options.mvpGate, "MVP gate"),
     imageBuild: loadJson(options.imageBuild, "image build readiness"),
     ownedImageProvenance: loadJson(options.ownedImageProvenance, "owned image provenance"),
+    catalogToolchain: loadJson(options.catalogToolchain, "catalog toolchain plan"),
     externalRuntime: loadJson(options.externalRuntime, "external runtime plan"),
     releasePlan: loadJson(options.releasePlan, "release publish plan"),
     installPlan: loadJson(options.installPlan, "install approval plan"),
@@ -340,6 +358,7 @@ async function main() {
     sourceSummary("mvpGate", "MVP gate", options.mvpGate, artifacts.mvpGate, headSha, ["PASS"]),
     sourceSummary("imageBuild", "image build readiness", options.imageBuild, artifacts.imageBuild, headSha, ["PASS"]),
     sourceSummary("ownedImageProvenance", "owned image provenance", options.ownedImageProvenance, artifacts.ownedImageProvenance, headSha, ["PASS"]),
+    sourceSummary("catalogToolchain", "catalog toolchain plan", options.catalogToolchain, artifacts.catalogToolchain, headSha, ["READY_FOR_DRY_RUN", "NEEDS_TOOLING"]),
     sourceSummary("externalRuntime", "external runtime plan", options.externalRuntime, artifacts.externalRuntime, headSha, ["APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("releasePlan", "release publish plan", options.releasePlan, artifacts.releasePlan, headSha, ["PUBLISH_APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("installPlan", "install approval plan", options.installPlan, artifacts.installPlan, headSha, ["APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
@@ -410,6 +429,21 @@ async function main() {
         repoDigests: image.repoDigests ?? [],
         user: image.user ?? "unknown"
       }))
+    },
+    catalogToolchain: {
+      status: artifacts.catalogToolchain?.status ?? "missing",
+      actionMode: artifacts.catalogToolchain?.actionMode ?? "missing",
+      registryAuthConfigured:
+        artifacts.catalogToolchain?.registryAuth?.configured === true,
+      cli: (artifacts.catalogToolchain?.cli ?? []).map((tool) => ({
+        name: tool.name ?? "unknown",
+        available: tool.available === true,
+        version: tool.version ?? "missing"
+      })),
+      readOnlyCommands: artifacts.catalogToolchain?.commands?.readOnly ?? [],
+      setupCommands: artifacts.catalogToolchain?.commands?.setup ?? [],
+      localArtifactCommands:
+        artifacts.catalogToolchain?.commands?.localArtifact ?? []
     },
     externalRuntime: {
       status: artifacts.externalRuntime?.status ?? "missing",

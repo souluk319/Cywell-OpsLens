@@ -31,6 +31,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 | RAG evidence export | Validation evidence artifacts return redacted previews and design-only approval intent without raw Markdown, queue mutation, or vector writes. | `POST /api/opslens/admin/rag/evidence-export`, `npm run verify:rag` |
 | Secrets | Raw Kubernetes Secret fetch remains blocked in API discovery, and Operator RBAC does not grant `secrets get/list/watch`. | `AC-OCP-001`, `npm run verify:operator` |
 | Disconnected | CSV and FBC include `relatedImages` for all runtime images. | `deploy/operator/bundle/manifests/*.yaml`, `deploy/catalog/fbc/catalog.yaml` |
+| Catalog toolchain | Catalog readiness records local CLI availability, registry.redhat.io auth presence, CSV/FBC/CatalogSource/Subscription/scorecard parity, and separates read-only validation from setup and approval-gated publish commands. | `npm run verify:catalog-toolchain`, `test-results/cywell-opslens-catalog-toolchain-plan.json` |
 | Image build contracts | Operator, API, dashboard, bundle, and catalog images have explicit Dockerfile/build-context readiness checks and optional local Docker build evidence; catalog build records a registry-auth warning until Red Hat registry credentials are available; external runtime images remain marked for certification evidence. | `apps/api/Dockerfile`, `apps/web/Dockerfile`, `deploy/operator/controller-runtime/Dockerfile`, `deploy/operator/controller-runtime/go.sum`, `npm run verify:images`, `npm run verify:images:build` |
 | Owned image provenance | Cywell-owned Operator, API, dashboard, and bundle images have local Docker inspect evidence chained to same-HEAD actual build evidence before any push/sign/mirror approval. Catalog provenance is warning-only until authenticated Red Hat registry access is available. | `npm run verify:owned-image-provenance`, `test-results/cywell-opslens-owned-image-provenance.json` |
 | External runtime evidence | vLLM and Qdrant runtime images have a no-mutation approval plan that separates certification, vulnerability scan, SBOM, provenance, license/support review, mirror digest, required approvals, risk, rollback, and approved registry mutations. | `npm run verify:external-runtime-plan`, `test-results/cywell-opslens-external-runtime-images-plan.json` |
@@ -43,6 +44,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 
 - Certify the operator image and each runtime image referenced by `relatedImages`.
 - Replace placeholder support contacts and maintainer email with production values.
+- Run `npm run verify:catalog-toolchain` on a clean Git HEAD and clear required `opm`, `operator-sdk`, and registry.redhat.io auth gaps before catalog image build/release review.
 - Run `operator-sdk bundle validate` and `operator-sdk scorecard` with the target OpenShift versions.
 - Run vulnerability scans for all referenced images and attach remediation evidence.
 - Generate same-HEAD owned image provenance, then collect external runtime source digest, mirror digest, SBOM, provenance, license/support review, security approval, and release approval evidence before any image mirror/sign step. Use `npm run evidence:external-runtime:draft -- --name vllm|qdrant` only for ignored reviewer draft intake; final readiness still requires reviewed `docs/release/evidence/external-runtime/vllm.json` and `qdrant.json`.
@@ -56,5 +58,5 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 ## Known Gaps
 
 - Go/controller-runtime manager source is scaffolded with an explicit OLSConfig patch path and statically verified; local `go test`, Operator SDK generation, and live manager execution are not run here because Go and Operator SDK are unavailable locally. Container image build evidence verifies the manager compiles.
-- `opm` is unavailable locally, so FBC rendering is statically verified but not built as an image here.
+- `opm` and `operator-sdk` are unavailable locally, so FBC rendering, bundle validation, and scorecard execution are statically planned but not executed here.
 - Red Hat Partner Connect submission is external to this workspace.
