@@ -85,6 +85,15 @@ async function readText(path) {
   }
 }
 
+async function readExistingImageEvidence() {
+  try {
+    const text = await readFile(resolve(paths.evidenceOut), "utf8");
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
 async function loadSingleYaml(path) {
   const text = await readText(path);
   const documents = parseAllDocuments(text);
@@ -362,6 +371,9 @@ try {
   const internalBuilds = [];
   const actualBuilds = [];
   const worktreeStatus = await gitStatusShort();
+  const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
+  const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
+  const baseRef = await gitValue(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], "origin/main");
   await validateDockerignore();
   validateOperatorGoModuleLock();
 
@@ -391,20 +403,38 @@ try {
         actualBuilds.push(await runDockerBuild(build));
       }
     }
+  } else {
+    const previousEvidence = await readExistingImageEvidence();
+    const canPreserveActualBuilds =
+      previousEvidence?.artifactType === "opslens.image-build-readiness.v0.1" &&
+      previousEvidence?.headSha === headSha &&
+      previousEvidence?.worktreeDirty === false &&
+      previousEvidence?.actualBuildRequested === true &&
+      Array.isArray(previousEvidence?.actualBuilds) &&
+      previousEvidence.actualBuilds.length > 0 &&
+      worktreeStatus.length === 0;
+    if (canPreserveActualBuilds) {
+      actualBuilds.push(...previousEvidence.actualBuilds);
+      pass(
+        "image actual build evidence preserved",
+        `preserved ${actualBuilds.length} actual build result(s) from current clean head ${headSha}`
+      );
+    }
   }
 
   await writeEvidence({
     schema: "cywell.opslens.image-build-readiness.v0.1",
     artifactType: "opslens.image-build-readiness.v0.1",
     generatedAt: new Date().toISOString(),
-    branch: await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown"),
-    headSha: await gitValue(["rev-parse", "--short", "HEAD"], "unknown"),
-    baseRef: await gitValue(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], "origin/main"),
+    branch,
+    headSha,
+    baseRef,
     worktreeDirty: worktreeStatus.length > 0,
     worktreeStatus: worktreeStatus ? worktreeStatus.split(/\r?\n/) : [],
     status: checks.some((check) => check.status === "FAIL") ? "FAIL" : "PASS",
     dockerAvailable,
-    actualBuildRequested: buildImages,
+    actualBuildRequested: buildImages || actualBuilds.length > 0,
+    actualBuildEvidencePreserved: !buildImages && actualBuilds.length > 0,
     mutationAllowed: false,
     clusterMutationAttempted: false,
     internalBuilds,
