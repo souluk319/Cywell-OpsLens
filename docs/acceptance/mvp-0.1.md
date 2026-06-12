@@ -39,6 +39,7 @@ Prove that a dashboard-first, context-aware OpenShift operations assistant can s
 ## Verification Command
 
 ```bash
+npm run verify:mvp
 npm run build
 npm run test:e2e
 npm run verify:rag

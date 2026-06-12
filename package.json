@@ -15,6 +15,7 @@
     "dev:web": "npm run -w @kugnus/web dev",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
+    "verify:mvp": "node ./scripts/verify-mvp-gate.mjs",
     "verify:rag": "npm run -w @kugnus/rag build && node ./scripts/verify-rag-index.mjs",
     "verify:operator": "node ./scripts/verify-operator-package.mjs",
     "verify:operator:reconcile": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-operator-reconcile.mjs",

@@ -10,6 +10,7 @@ The first slice proves:
 - evidence-first answer contract
 - Lightspeed custom MCP tool surface for private customer runbook/RAG answers
 - acceptance criteria that can become automated checks
+- an MVP gate that maps acceptance criteria to build, UI/API, RAG, Lightspeed, Operator, and certification verifiers
 
 ## Scripts
 
@@ -17,9 +18,12 @@ The first slice proves:
 npm install
 npm run dev
 npm run build
+npm run verify:mvp
 npm run test:e2e
 npm run verify:lightspeed:fixture
 ```
+
+`npm run verify:mvp` runs the MVP 0.1 release gate and writes local evidence to `test-results/cywell-opslens-mvp-0.1-gate.json`. Use `npm run verify:mvp -- --skip-e2e` for a faster static/API gate when UI evidence is not required.
 
 `npm run dev` starts both:
 

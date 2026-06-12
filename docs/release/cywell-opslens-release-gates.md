@@ -4,10 +4,12 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 
 ## Internal Catalog Gate
 
+- `npm run verify:mvp` passes and writes `test-results/cywell-opslens-mvp-0.1-gate.json`.
 - `npm run build` passes.
 - `npm run test:e2e` passes.
 - `npm run verify:operator` passes with no failures.
 - `npm run verify:operator:reconcile` passes with no failures.
+- `npm run verify:operator:runtime` passes with no failures.
 - `npm run verify:rag` passes with no failures.
 - `npm run verify:certification` passes with no failures.
 - `npm run verify:lightspeed:fixture` passes with no failures.
