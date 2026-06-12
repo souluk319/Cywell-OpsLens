@@ -32,6 +32,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 | Secrets | Raw Kubernetes Secret fetch remains blocked in API discovery, and Operator RBAC does not grant `secrets get/list/watch`. | `AC-OCP-001`, `npm run verify:operator` |
 | Disconnected | CSV and FBC include `relatedImages` for all runtime images. | `deploy/operator/bundle/manifests/*.yaml`, `deploy/catalog/fbc/catalog.yaml` |
 | Image build contracts | Operator, API, dashboard, bundle, and catalog images have explicit Dockerfile/build-context readiness checks and optional local Docker build evidence; catalog build records a registry-auth warning until Red Hat registry credentials are available; external runtime images remain marked for certification evidence. | `apps/api/Dockerfile`, `apps/web/Dockerfile`, `deploy/operator/controller-runtime/Dockerfile`, `deploy/operator/controller-runtime/go.sum`, `npm run verify:images`, `npm run verify:images:build` |
+| Release publish approval | Image push, signing, external runtime mirroring, and catalog publication are represented as an approval plan only; the verifier does not mutate registries or clusters. | `npm run verify:release-plan`, `test-results/cywell-opslens-release-publish-plan.json` |
 | Proxy/TLS | ConsolePlugin backend/proxy uses the live OpenShift schema, service-ca serving certificates, HTTPS service ports, TLS secret mounts, dynamic plugin assets, ingress NetworkPolicies, and UserToken proxy authorization. | `deploy/operator/config/apps/opslens-stack.yaml`, `apps/web/dist/plugin-manifest.json`, `npm run verify:operator`, `npm run verify:operator:runtime`, `npm run verify:console-plugin` |
 | FIPS | FIPS is currently declared unsupported until image/runtime validation proves compliance. | `features.operators.openshift.io/fips-compliant: "false"` |
 
@@ -42,6 +43,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 - Run `operator-sdk bundle validate` and `operator-sdk scorecard` with the target OpenShift versions.
 - Run vulnerability scans for all referenced images and attach remediation evidence.
 - Build and push signed Operator, API, dashboard, bundle, catalog, and model runtime images to the release registry.
+- Generate the release publish plan and collect release-manager, registry-admin, security, and product-owner approval before pushing, signing, or mirroring images.
 - Run server-side dry-run preflight against the target lab cluster before any mutating install attempt.
 - Generate the install approval plan and collect cluster-admin, SRE, security, and product-owner approval before running any mutating command.
 - Run live install, upgrade, uninstall, and rollback smoke tests through OLM.
