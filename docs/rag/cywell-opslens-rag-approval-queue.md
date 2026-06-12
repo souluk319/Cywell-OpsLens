@@ -16,10 +16,12 @@ Create a safe path from operator-authored runbook drafts to future private RAG i
 - `POST /api/opslens/admin/rag/approval-queue/submit` returns `opslens.rag.approval-queue-submission.v0.2`.
 - `GET /api/opslens/admin/rag/approval-queue` returns `opslens.rag.approval-queue-inventory.v0.2`.
 - `POST /api/opslens/admin/rag/approval-queue/review` returns `opslens.rag.approval-queue-review.v0.1` when local persistence is explicitly enabled.
+- `POST /api/opslens/admin/rag/approval-queue/ingestion-plan` returns `opslens.rag.ingestion-plan.v0.1` when local persistence is explicitly enabled.
 - By default, queue submission returns `state=design-only`, `persisted=false`, `queuePersistenceAllowed=false`, `vectorWriteAllowed=false`, and `clusterMutationAllowed=false`.
 - By default, queue inventory returns `mode=designOnly`, `itemCount=0`, `readOnly=true`, `chunksReturned=false`, `vectorWriteAllowed=false`, and `approvalMutationAllowed=false`.
 - If `CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_PERSISTENCE=enabled`, accepted drafts can persist a local JSON queue item containing validation metadata, redacted chunks, validation hash, and required approvers only; inventory lists only metadata summaries.
 - Review decisions can approve required roles or reject a pending item, but they update local queue metadata only: `queueMetadataWriteAllowed=true`, `vectorWriteAllowed=false`, `clusterMutationAllowed=false`, and `ingestionAllowed=false`.
+- Ingestion planning reads approved queue metadata and produces `ingestionPlanOnly` evidence with `ready-for-ingestion-job` or `blocked`, but keeps `ingestionJobCreated=false`, `vectorWriteAllowed=false`, and `ingestionAllowed=false`.
 - `OpsLensInstallation.spec.rag` exposes the same policy to Operator installs: `documentIntake.mode=ValidateOnly`, `rawDocumentReturnAllowed=false`, `approvalQueue.mode=DesignOnly`, and `enqueueAllowed=false`.
 - The Operator renders `cywell-opslens-rag-policy` and API environment variables from that policy, while still forcing raw return and queue enqueue off in MVP 0.1.
 
@@ -30,7 +32,7 @@ Create a safe path from operator-authored runbook drafts to future private RAG i
 | `draft-validated` | Validation passed and evidence export exists. | Human reviewer may request approval. |
 | `rejected-before-approval` | Validation failed before any queue entry is allowed. | Author must fix draft and revalidate. |
 | `pending-human-approval` | Opt-in durable metadata queue item awaiting review. | Two approvals or rejection. |
-| `approved-for-ingestion` | Queue item has required human approvals recorded as metadata. | Future ingestion job may be proposed, but no vector write occurs in this workflow. |
+| `approved-for-ingestion` | Queue item has required human approvals recorded as metadata. | `ingestionPlanOnly` artifact may be generated, but no vector write occurs in this workflow. |
 | `rejected-by-reviewer` | Reviewer rejected the metadata queue item with redacted reason evidence. | Author must fix draft and resubmit. |
 | `indexed` | Future ingestion job wrote chunks and citation metadata. | Revalidation required for changes. |
 
@@ -50,6 +52,7 @@ Create a safe path from operator-authored runbook drafts to future private RAG i
 - No assistant-triggered ingestion, apply, delete, or scale.
 - No production database queue in the local MVP bridge; the current persistence path is local JSON evidence for controlled validation.
 - No ingestion job creation from approval review.
+- No ingestion job creation from ingestion planning.
 
 ## Verification Mapping
 
@@ -60,6 +63,7 @@ Create a safe path from operator-authored runbook drafts to future private RAG i
 | Queue inventory is read-only | `npm run verify:rag:approval-queue` and Playwright check `opslens.rag.approval-queue-inventory.v0.2`, `actionMode=approvalQueueReadOnly`, `readOnly=true`, `chunksReturned=false`, `vectorWriteAllowed=false`, and `approvalMutationAllowed=false`. |
 | Opt-in queue persistence is metadata-only | `npm run verify:rag:approval-queue` enables the local queue in a temporary directory and checks `state=pending-human-approval`, `persisted=true`, read-only inventory item summary, redacted chunks, no raw Markdown, no secret-like values, `vectorWriteAllowed=false`, and `clusterMutationAllowed=false`. |
 | Human review is metadata-only | `npm run verify:rag:approval-queue` records `rag-owner` and `cluster-sre` approvals, reaches `approved-for-ingestion`, records a `rejected-by-reviewer` path, and checks `ingestionJobCreated=false`, `ingestionAllowed=false`, `vectorWriteAllowed=false`, and secret-like review reasons redacted. |
+| Ingestion planning is plan-only | `npm run verify:rag:approval-queue` generates blocked and approved `opslens.rag.ingestion-plan.v0.1` artifacts, checks `ingestionPlanOnly`, `ready-for-ingestion-job`, `blocked`, `ingestionJobCreated=false`, `ingestionAllowed=false`, `vectorWriteAllowed=false`, preflight commands marked non-mutating, and future mutating steps marked `requiresExplicitApproval=true`. |
 | Operator install keeps the same policy | `npm run verify:operator` and `npm run verify:operator:reconcile` check `OpsLensInstallation.spec.rag`, `cywell-opslens-rag-policy`, API env, and reconcile status. |
-| Dashboard exposes artifact evidence | Playwright checks `opslens-rag-evidence-export` after `Export Evidence`, `opslens-rag-approval-queue` after `Queue Evidence`, `opslens-rag-approval-queue-inventory` for the read-only queue inventory, and `opslens-rag-approval-review` when a persisted item is reviewed. |
-| Real ingestion remains out of scope | Acceptance matrix marks production DB-backed queue, durable ingestion jobs, and vector DB writes as later lanes. |
+| Dashboard exposes artifact evidence | Playwright checks `opslens-rag-evidence-export` after `Export Evidence`, `opslens-rag-approval-queue` after `Queue Evidence`, `opslens-rag-approval-queue-inventory` for the read-only queue inventory, `opslens-rag-approval-review` when a persisted item is reviewed, and `opslens-rag-ingestion-plan` when an approved item is planned. |
+| Real ingestion remains out of scope | Acceptance matrix marks production DB-backed queue, production ingestion worker, and vector DB writes as later lanes. |

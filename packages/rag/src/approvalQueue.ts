@@ -2,6 +2,8 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { createRagValidationEvidenceExport, redactSensitiveText } from "./localIndex.js";
 import type {
+  RagApprovalQueueIngestionPlan,
+  RagApprovalQueueIngestionPlanRequest,
   RagApprovalQueueInventory,
   RagApprovalQueueInventoryItem,
   RagApprovalQueueReview,
@@ -28,6 +30,12 @@ export interface RagApprovalQueueListOptions {
 }
 
 export interface RagApprovalQueueReviewOptions {
+  persistenceMode?: RagApprovalQueuePersistenceMode;
+  queueDir?: string;
+  generatedAt?: string;
+}
+
+export interface RagApprovalQueueIngestionPlanOptions {
   persistenceMode?: RagApprovalQueuePersistenceMode;
   queueDir?: string;
   generatedAt?: string;
@@ -259,7 +267,7 @@ export async function reviewRagApprovalQueueItem(
     submission.missingEvidence = remaining.length
       ? remaining.map((role) => `${role} approval`)
       : [
-          "approved ingestion job has not run",
+          "production ingestion worker has not run",
           "vector store write remains blocked until a separate ingestion job is approved"
         ];
     submission.approvalQueue.evidence = [
@@ -361,6 +369,140 @@ export async function reviewRagApprovalQueueItem(
       "Regenerate validation evidence after source Markdown changes."
     ],
     missingEvidence: persistedSubmission.missingEvidence
+  };
+}
+
+export async function planRagApprovalQueueIngestionJob(
+  request: RagApprovalQueueIngestionPlanRequest,
+  options: RagApprovalQueueIngestionPlanOptions = {}
+): Promise<RagApprovalQueueIngestionPlan> {
+  if (options.persistenceMode !== "enabled") {
+    throw new Error("RAG ingestion planning requires local approval queue persistence");
+  }
+  if (!request.tenantId || !request.queueItemId) {
+    throw new Error("tenantId and queueItemId are required for RAG ingestion planning");
+  }
+  if (!request.requestedBy || !request.reason) {
+    throw new Error("requestedBy and reason are required for RAG ingestion planning");
+  }
+
+  const generatedAt = options.generatedAt ?? new Date().toISOString();
+  const { storagePath } = queueItemPath({
+    queueDir: options.queueDir,
+    tenantId: request.tenantId,
+    queueItemId: request.queueItemId
+  });
+  const submission = JSON.parse(
+    await readFile(storagePath, "utf8")
+  ) as RagApprovalQueueSubmission;
+
+  if (
+    submission.artifactType !== "opslens.rag.approval-queue-submission.v0.2" ||
+    submission.tenantId !== request.tenantId ||
+    submission.queueItemId !== request.queueItemId
+  ) {
+    throw new Error("RAG ingestion plan target does not match a persisted queue item");
+  }
+
+  const approvedForIngestion = submission.state === "approved-for-ingestion";
+  const missingEvidence = approvedForIngestion
+    ? [
+        "production ingestion worker approval",
+        "source commit or change request containing raw Markdown outside OpsLens",
+        "vector store write audit sink and rollback export path"
+      ]
+    : [
+        `queue item state must be approved-for-ingestion before planning ingestion; current state=${submission.state}`,
+        ...submission.missingEvidence
+      ];
+
+  return {
+    artifactType: "opslens.rag.ingestion-plan.v0.1",
+    artifactVersion: "0.1",
+    generatedAt,
+    queueItemId: submission.queueItemId,
+    tenantId: submission.tenantId,
+    fileName: submission.fileName,
+    actionMode: "ingestionPlanOnly",
+    sourceState: submission.state,
+    approvedForIngestion,
+    document: submission.validation.document,
+    plannedJob: {
+      status: approvedForIngestion ? "ready-for-ingestion-job" : "blocked",
+      jobName: `rag-ingest-${safeSegment(submission.tenantId)}-${submission.queueItemId.replace(/^rag-queue-/, "")}`,
+      targetIndexVersion: submission.audit.sourceIndexVersion,
+      chunkCount: submission.validation.chunks.length,
+      requiredApprovals: submission.approvalQueue.requiredApprovals,
+      approvals: submission.approvalQueue.approvals,
+      preflightChecks: [
+        {
+          id: "refresh-rag-validation",
+          command: "npm run verify:rag",
+          mutation: false,
+          required: true
+        },
+        {
+          id: "refresh-approval-queue-evidence",
+          command: "npm run verify:rag:approval-queue",
+          mutation: false,
+          required: true
+        }
+      ],
+      mutatingSteps: [
+        {
+          id: "future-vector-ingestion-job",
+          description:
+            "Create a separate approved ingestion job that writes redacted chunks to the production vector store.",
+          requiresExplicitApproval: true,
+          mutationAllowedByThisPlanner: false
+        }
+      ]
+    },
+    content: {
+      markdownReturned: false,
+      documentBodyReturned: false,
+      chunksReturned: false,
+      rawMarkdownPersisted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false
+    },
+    audit: {
+      requestedBy: redactSensitiveText(request.requestedBy),
+      reason: redactSensitiveText(request.reason),
+      ticketRef: request.ticketRef ? redactSensitiveText(request.ticketRef) : undefined,
+      validationHash: submission.audit.validationHash,
+      approvalCount: submission.approvalQueue.approvals.length
+    },
+    policy: {
+      planOnly: true,
+      queueReadAllowed: true,
+      queueMetadataWriteAllowed: false,
+      rawDocumentReturned: false,
+      rawMarkdownPersisted: false,
+      vectorWriteAllowed: false,
+      clusterMutationAllowed: false,
+      ingestionAllowed: false,
+      requiresExplicitApproval: true
+    },
+    evidence: [
+      `queueItemId=${submission.queueItemId}`,
+      `sourceState=${submission.state}`,
+      `validationHash=${submission.audit.validationHash}`,
+      `approvals=${submission.approvalQueue.approvals.map((approval) => approval.role).join(",") || "none"}`,
+      "ingestion plan reads queue metadata only and does not persist raw Markdown",
+      "planner creates no Kubernetes Job, vector write, or ingestion side effect"
+    ],
+    missingEvidence,
+    risk: [
+      "Approved queue metadata is not the raw source of truth; the ingestion job must fetch source Markdown from the approved Git or ticket reference.",
+      "Vector ingestion can introduce bad operational guidance if stale drafts are indexed without fresh validation.",
+      "This planner does not prove production Qdrant/vLLM reachability."
+    ],
+    rollbackPath: [
+      "Do not run ingestion if any preflight check is stale or failing.",
+      "Reject or delete the queue item before ingestion if the approved draft is withdrawn.",
+      "A future ingestion job must export previous vector chunk IDs so they can be removed if the document is rolled back."
+    ]
   };
 }
 

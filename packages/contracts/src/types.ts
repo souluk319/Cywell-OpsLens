@@ -733,6 +733,86 @@ export interface OpsLensRagApprovalQueueReviewResponse {
   missingEvidence: string[];
 }
 
+export interface OpsLensRagApprovalQueueIngestionPlanRequest {
+  tenantId: string;
+  queueItemId: string;
+  requestedBy: string;
+  reason: string;
+  ticketRef?: string;
+}
+
+export interface OpsLensRagApprovalQueueIngestionPlanResponse {
+  artifactType: "opslens.rag.ingestion-plan.v0.1";
+  artifactVersion: "0.1";
+  generatedAt: string;
+  queueItemId: string;
+  tenantId: string;
+  fileName: string;
+  actionMode: "ingestionPlanOnly";
+  sourceState: OpsLensRagApprovalQueueSubmissionResponse["state"];
+  approvedForIngestion: boolean;
+  document?: {
+    id: string;
+    tenantId: string;
+    label: string;
+    sourceType: "customer-runbook" | "official-doc" | "cluster-snapshot";
+    trustLevel: "approved" | "official" | "cluster-snapshot" | "draft";
+    relativePath: string;
+    chunkCount: number;
+    redacted: true;
+  };
+  plannedJob: {
+    status: "blocked" | "ready-for-ingestion-job";
+    jobName: string;
+    targetIndexVersion: "local-vector-v0.1";
+    chunkCount: number;
+    requiredApprovals: string[];
+    approvals: OpsLensRagApprovalQueueSubmissionResponse["approvalQueue"]["approvals"];
+    preflightChecks: Array<{
+      id: string;
+      command: string;
+      mutation: false;
+      required: true;
+    }>;
+    mutatingSteps: Array<{
+      id: string;
+      description: string;
+      requiresExplicitApproval: true;
+      mutationAllowedByThisPlanner: false;
+    }>;
+  };
+  content: {
+    markdownReturned: false;
+    documentBodyReturned: false;
+    chunksReturned: false;
+    rawMarkdownPersisted: false;
+    vectorWriteAttempted: false;
+    ingestionJobCreated: false;
+  };
+  audit: {
+    requestedBy: string;
+    reason: string;
+    ticketRef?: string;
+    validationHash: string;
+    approvalCount: number;
+  };
+  policy: {
+    planOnly: true;
+    queueReadAllowed: true;
+    queueMetadataWriteAllowed: false;
+    rawDocumentReturned: false;
+    rawMarkdownPersisted: false;
+    vectorWriteAllowed: false;
+    clusterMutationAllowed: false;
+    ingestionAllowed: false;
+    requiresExplicitApproval: true;
+  };
+  evidence: string[];
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface OpsLensRagApprovalQueueInventoryItem {
   queueItemId: string;
   generatedAt: string;

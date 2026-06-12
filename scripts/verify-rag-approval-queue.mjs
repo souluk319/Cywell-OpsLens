@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   buildLocalRagIndex,
   listRagApprovalQueueItems,
+  planRagApprovalQueueIngestionJob,
   reviewRagApprovalQueueItem,
   submitRagApprovalQueueItem
 } from "../packages/rag/dist/index.js";
@@ -237,6 +238,35 @@ try {
     `state=${ragOwnerReview.state} remaining=${ragOwnerReview.approvalQueue.remainingApprovals.join(",")}`
   );
 
+  const pendingIngestionPlan = await planRagApprovalQueueIngestionJob(
+    {
+      tenantId: baseRequest.tenantId,
+      queueItemId: enabledSubmission.queueItemId,
+      requestedBy: "queue-verifier token=demo-secret",
+      reason: "prove pending queue item cannot create ingestion job token=demo-secret",
+      ticketRef: "OPS-QUEUE-PLAN token=demo-secret"
+    },
+    {
+      persistenceMode: "enabled",
+      queueDir: tmpQueue
+    }
+  );
+
+  expectCheck(
+    "pending ingestion plan is blocked and non-mutating",
+    pendingIngestionPlan.actionMode === "ingestionPlanOnly" &&
+      pendingIngestionPlan.approvedForIngestion === false &&
+      pendingIngestionPlan.plannedJob.status === "blocked" &&
+      pendingIngestionPlan.content.rawMarkdownPersisted === false &&
+      pendingIngestionPlan.content.chunksReturned === false &&
+      pendingIngestionPlan.content.vectorWriteAttempted === false &&
+      pendingIngestionPlan.content.ingestionJobCreated === false &&
+      pendingIngestionPlan.policy.vectorWriteAllowed === false &&
+      pendingIngestionPlan.policy.ingestionAllowed === false &&
+      !containsRawSecret(pendingIngestionPlan),
+    `status=${pendingIngestionPlan.plannedJob.status} state=${pendingIngestionPlan.sourceState}`
+  );
+
   const sreReview = await reviewRagApprovalQueueItem(
     {
       tenantId: baseRequest.tenantId,
@@ -266,6 +296,42 @@ try {
       sreReview.policy.ingestionAllowed === false &&
       !containsRawSecret(sreReview),
     `state=${sreReview.state} approvals=${sreReview.approvalQueue.approvals.length}`
+  );
+
+  const approvedIngestionPlan = await planRagApprovalQueueIngestionJob(
+    {
+      tenantId: baseRequest.tenantId,
+      queueItemId: enabledSubmission.queueItemId,
+      requestedBy: "queue-verifier token=demo-secret",
+      reason: "plan approved RAG ingestion without creating a job token=demo-secret",
+      ticketRef: "OPS-QUEUE-PLAN token=demo-secret"
+    },
+    {
+      persistenceMode: "enabled",
+      queueDir: tmpQueue
+    }
+  );
+
+  expectCheck(
+    "approved ingestion plan is ready but still non-mutating",
+    approvedIngestionPlan.actionMode === "ingestionPlanOnly" &&
+      approvedIngestionPlan.approvedForIngestion === true &&
+      approvedIngestionPlan.plannedJob.status === "ready-for-ingestion-job" &&
+      approvedIngestionPlan.plannedJob.approvals.length === 2 &&
+      approvedIngestionPlan.plannedJob.preflightChecks.every((check) => check.mutation === false) &&
+      approvedIngestionPlan.plannedJob.mutatingSteps.every(
+        (step) => step.requiresExplicitApproval === true &&
+          step.mutationAllowedByThisPlanner === false
+      ) &&
+      approvedIngestionPlan.content.rawMarkdownPersisted === false &&
+      approvedIngestionPlan.content.chunksReturned === false &&
+      approvedIngestionPlan.content.vectorWriteAttempted === false &&
+      approvedIngestionPlan.content.ingestionJobCreated === false &&
+      approvedIngestionPlan.policy.vectorWriteAllowed === false &&
+      approvedIngestionPlan.policy.clusterMutationAllowed === false &&
+      approvedIngestionPlan.policy.ingestionAllowed === false &&
+      !containsRawSecret(approvedIngestionPlan),
+    `status=${approvedIngestionPlan.plannedJob.status} approvals=${approvedIngestionPlan.plannedJob.approvals.length}`
   );
 
   const reviewedInventory = await listRagApprovalQueueItems({
@@ -326,6 +392,30 @@ try {
       rejectionReview.policy.ingestionAllowed === false &&
       !containsRawSecret(rejectionReview),
     `state=${rejectionReview.state} blockers=${rejectionReview.approvalQueue.blockers.join("|")}`
+  );
+
+  const rejectedIngestionPlan = await planRagApprovalQueueIngestionJob(
+    {
+      tenantId: baseRequest.tenantId,
+      queueItemId: rejectableSubmission.queueItemId,
+      requestedBy: "queue-verifier token=demo-secret",
+      reason: "rejected queue item must stay blocked token=demo-secret",
+      ticketRef: "OPS-QUEUE-REJECT token=demo-secret"
+    },
+    {
+      persistenceMode: "enabled",
+      queueDir: tmpQueue
+    }
+  );
+
+  expectCheck(
+    "rejected ingestion plan is blocked",
+    rejectedIngestionPlan.approvedForIngestion === false &&
+      rejectedIngestionPlan.plannedJob.status === "blocked" &&
+      rejectedIngestionPlan.content.ingestionJobCreated === false &&
+      rejectedIngestionPlan.policy.ingestionAllowed === false &&
+      !containsRawSecret(rejectedIngestionPlan),
+    `status=${rejectedIngestionPlan.plannedJob.status} state=${rejectedIngestionPlan.sourceState}`
   );
 
   const rejectedSubmission = await submitRagApprovalQueueItem(
@@ -422,15 +512,37 @@ try {
         ingestionAllowed: rejectionReview.policy.ingestionAllowed
       }
     },
+    ingestionPlan: {
+      pending: {
+        actionMode: pendingIngestionPlan.actionMode,
+        status: pendingIngestionPlan.plannedJob.status,
+        ingestionJobCreated: pendingIngestionPlan.content.ingestionJobCreated,
+        vectorWriteAllowed: pendingIngestionPlan.policy.vectorWriteAllowed
+      },
+      approved: {
+        actionMode: approvedIngestionPlan.actionMode,
+        status: approvedIngestionPlan.plannedJob.status,
+        approvals: approvedIngestionPlan.plannedJob.approvals.length,
+        ingestionJobCreated: approvedIngestionPlan.content.ingestionJobCreated,
+        vectorWriteAllowed: approvedIngestionPlan.policy.vectorWriteAllowed,
+        ingestionAllowed: approvedIngestionPlan.policy.ingestionAllowed
+      },
+      rejected: {
+        status: rejectedIngestionPlan.plannedJob.status,
+        ingestionAllowed: rejectedIngestionPlan.policy.ingestionAllowed
+      }
+    },
     evidence: [
       "default API mode remains design-only unless CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_PERSISTENCE=enabled",
       "enabled fixture persists only metadata, redacted chunks, validation hash, and approval requirements",
       "human approval/rejection reviews update queue metadata only and do not create ingestion jobs",
+      "approved queue items produce ingestion plans only; no ingestion job or vector write is created",
       "invalid drafts are rejected before durable queue persistence"
     ],
     missingEvidence: [
       "production database-backed queue",
-      "approved ingestion job"
+      "production ingestion worker",
+      "approved vector write audit sink"
     ],
     risk: [
       "Local JSON queue persistence is a Stage 3/4 bridge, not a production database.",

@@ -12,6 +12,8 @@ import type {
   OcpEventsResponse,
   OcpPodLogsResponse,
   OpsLensAdminOverviewResponse,
+  OpsLensRagApprovalQueueIngestionPlanRequest,
+  OpsLensRagApprovalQueueIngestionPlanResponse,
   OpsLensRagApprovalQueueInventoryResponse,
   OpsLensRagApprovalQueueReviewRequest,
   OpsLensRagApprovalQueueReviewResponse,
@@ -110,6 +112,18 @@ export function reviewOpsLensRagApprovalQueue(
 ) {
   return requestJson<OpsLensRagApprovalQueueReviewResponse>(
     "/api/opslens/admin/rag/approval-queue/review",
+    {
+      method: "POST",
+      body: JSON.stringify(request)
+    }
+  );
+}
+
+export function planOpsLensRagIngestion(
+  request: OpsLensRagApprovalQueueIngestionPlanRequest
+) {
+  return requestJson<OpsLensRagApprovalQueueIngestionPlanResponse>(
+    "/api/opslens/admin/rag/approval-queue/ingestion-plan",
     {
       method: "POST",
       body: JSON.stringify(request)

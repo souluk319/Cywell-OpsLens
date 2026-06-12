@@ -10,10 +10,12 @@ export {
 } from "./localIndex.js";
 export {
   listRagApprovalQueueItems,
+  planRagApprovalQueueIngestionJob,
   reviewRagApprovalQueueItem,
   submitRagApprovalQueueItem
 } from "./approvalQueue.js";
 export type {
+  RagApprovalQueueIngestionPlanOptions,
   RagApprovalQueueListOptions,
   RagApprovalQueuePersistenceMode,
   RagApprovalQueueReviewOptions,

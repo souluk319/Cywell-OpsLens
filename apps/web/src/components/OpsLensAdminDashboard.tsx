@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type {
   OpsLensAdminOverviewResponse,
+  OpsLensRagApprovalQueueIngestionPlanResponse,
   OpsLensRagApprovalQueueInventoryResponse,
   OpsLensRagApprovalQueueReviewResponse,
   OpsLensRagApprovalQueueSubmissionResponse,
@@ -24,6 +25,7 @@ import {
   exportOpsLensRagEvidence,
   fetchOpsLensAdminOverview,
   fetchOpsLensRagApprovalQueue,
+  planOpsLensRagIngestion,
   reviewOpsLensRagApprovalQueue,
   submitOpsLensRagApprovalQueue,
   validateOpsLensRagDocument
@@ -91,12 +93,15 @@ export function OpsLensAdminDashboard() {
     useState<OpsLensRagApprovalQueueSubmissionResponse | null>(null);
   const [queueReview, setQueueReview] =
     useState<OpsLensRagApprovalQueueReviewResponse | null>(null);
+  const [queueIngestionPlan, setQueueIngestionPlan] =
+    useState<OpsLensRagApprovalQueueIngestionPlanResponse | null>(null);
   const [queueInventory, setQueueInventory] =
     useState<OpsLensRagApprovalQueueInventoryResponse | null>(null);
   const [validating, setValidating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [queueing, setQueueing] = useState(false);
   const [reviewingItemId, setReviewingItemId] = useState<string | null>(null);
+  const [planningItemId, setPlanningItemId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -181,6 +186,7 @@ export function OpsLensAdminDashboard() {
       setEvidenceExport(null);
       setQueueSubmission(null);
       setQueueReview(null);
+      setQueueIngestionPlan(null);
       setError(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "RAG validation failed");
@@ -203,6 +209,7 @@ export function OpsLensAdminDashboard() {
       setValidation(response.validation);
       setQueueSubmission(null);
       setQueueReview(null);
+      setQueueIngestionPlan(null);
       setError(null);
     } catch (caught) {
       setError(
@@ -227,6 +234,7 @@ export function OpsLensAdminDashboard() {
       setQueueSubmission(response);
       setValidation(response.validation);
       setQueueReview(null);
+      setQueueIngestionPlan(null);
       setQueueInventory(await fetchOpsLensRagApprovalQueue());
       setError(null);
     } catch (caught) {
@@ -260,6 +268,7 @@ export function OpsLensAdminDashboard() {
         ticketRef: item.audit.ticketRef ?? "dashboard-review"
       });
       setQueueReview(response);
+      setQueueIngestionPlan(null);
       setQueueInventory(await fetchOpsLensRagApprovalQueue());
       setError(null);
     } catch (caught) {
@@ -268,6 +277,29 @@ export function OpsLensAdminDashboard() {
       );
     } finally {
       setReviewingItemId(null);
+    }
+  }
+
+  async function planQueueIngestion(
+    item: OpsLensRagApprovalQueueInventoryResponse["items"][number]
+  ) {
+    setPlanningItemId(item.queueItemId);
+    try {
+      const response = await planOpsLensRagIngestion({
+        tenantId: item.tenantId,
+        queueItemId: item.queueItemId,
+        requestedBy: "admin-dashboard",
+        reason: "plan approved RAG queue ingestion without vector writes",
+        ticketRef: item.audit.ticketRef ?? "dashboard-ingestion-plan"
+      });
+      setQueueIngestionPlan(response);
+      setError(null);
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "RAG ingestion plan failed"
+      );
+    } finally {
+      setPlanningItemId(null);
     }
   }
 
@@ -402,6 +434,18 @@ export function OpsLensAdminDashboard() {
                     </button>
                   </>
                 ) : null}
+                {item.state === "approved-for-ingestion" ? (
+                  <button
+                    className="icon-button"
+                    type="button"
+                    title="Plan RAG ingestion job"
+                    aria-label={`Plan ingestion ${item.queueItemId}`}
+                    onClick={() => void planQueueIngestion(item)}
+                    disabled={planningItemId === item.queueItemId}
+                  >
+                    <DatabaseZap size={15} aria-hidden="true" />
+                  </button>
+                ) : null}
               </div>
             ))}
             {queueReview ? (
@@ -422,6 +466,25 @@ export function OpsLensAdminDashboard() {
                 <span>
                   ingestionJobCreated=
                   {String(queueReview.content.ingestionJobCreated)}
+                </span>
+              </div>
+            ) : null}
+            {queueIngestionPlan ? (
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-rag-ingestion-plan"
+              >
+                <span>{queueIngestionPlan.actionMode}</span>
+                <span>{queueIngestionPlan.plannedJob.status}</span>
+                <span>
+                  approved={String(queueIngestionPlan.approvedForIngestion)}
+                </span>
+                <span>
+                  vectorWrite={String(queueIngestionPlan.policy.vectorWriteAllowed)}
+                </span>
+                <span>
+                  ingestionJobCreated=
+                  {String(queueIngestionPlan.content.ingestionJobCreated)}
                 </span>
               </div>
             ) : null}

@@ -9,6 +9,7 @@ import {
   buildLocalRagIndex,
   createRagValidationEvidenceExport,
   listRagApprovalQueueItems,
+  planRagApprovalQueueIngestionJob,
   redactSensitiveText,
   reviewRagApprovalQueueItem,
   searchLocalRagIndex,
@@ -46,6 +47,8 @@ import type {
   OpsLensRuntimeReadiness,
   OpsLensRuntimeReadinessStatus,
   OpsLensRuntimeRagAudit,
+  OpsLensRagApprovalQueueIngestionPlanRequest,
+  OpsLensRagApprovalQueueIngestionPlanResponse,
   OpsLensRagApprovalQueueInventoryResponse,
   OpsLensRagApprovalQueueReviewRequest,
   OpsLensRagApprovalQueueReviewResponse,
@@ -2483,6 +2486,36 @@ export async function reviewOpsLensRagApprovalQueue(
 ): Promise<OpsLensRagApprovalQueueReviewResponse> {
   assertRagApprovalQueueReviewRequest(request);
   return reviewRagApprovalQueueItem(request, {
+    persistenceMode: ragApprovalQueuePersistenceMode(),
+    queueDir: ragApprovalQueueDir()
+  });
+}
+
+function assertRagApprovalQueueIngestionPlanRequest(
+  request: OpsLensRagApprovalQueueIngestionPlanRequest
+): asserts request is OpsLensRagApprovalQueueIngestionPlanRequest {
+  if (typeof request.tenantId !== "string" || request.tenantId.trim() === "") {
+    throw new Error("tenantId is required for RAG ingestion planning");
+  }
+  if (typeof request.queueItemId !== "string" || request.queueItemId.trim() === "") {
+    throw new Error("queueItemId is required for RAG ingestion planning");
+  }
+  if (typeof request.requestedBy !== "string" || request.requestedBy.trim() === "") {
+    throw new Error("requestedBy is required for RAG ingestion planning");
+  }
+  if (typeof request.reason !== "string" || request.reason.trim() === "") {
+    throw new Error("reason is required for RAG ingestion planning");
+  }
+  if (request.ticketRef !== undefined && typeof request.ticketRef !== "string") {
+    throw new Error("ticketRef must be a string");
+  }
+}
+
+export async function planOpsLensRagIngestion(
+  request: OpsLensRagApprovalQueueIngestionPlanRequest
+): Promise<OpsLensRagApprovalQueueIngestionPlanResponse> {
+  assertRagApprovalQueueIngestionPlanRequest(request);
+  return planRagApprovalQueueIngestionJob(request, {
     persistenceMode: ragApprovalQueuePersistenceMode(),
     queueDir: ragApprovalQueueDir()
   });

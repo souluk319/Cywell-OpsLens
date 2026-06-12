@@ -11,6 +11,7 @@ import {
   getOpsLensTools,
   handleOpsLensMcpRequest,
   listOpsLensRagApprovalQueue,
+  planOpsLensRagIngestion,
   reviewOpsLensRagApprovalQueue,
   submitOpsLensRagApprovalQueue,
   syncContext,
@@ -191,6 +192,18 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
         response,
         200,
         await reviewOpsLensRagApprovalQueue((await readJson(request)) as never)
+      );
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      url.pathname === "/api/opslens/admin/rag/approval-queue/ingestion-plan"
+    ) {
+      sendJson(
+        response,
+        200,
+        await planOpsLensRagIngestion((await readJson(request)) as never)
       );
       return;
     }

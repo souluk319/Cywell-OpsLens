@@ -274,6 +274,77 @@ export interface RagApprovalQueueReview {
   missingEvidence: string[];
 }
 
+export interface RagApprovalQueueIngestionPlanRequest {
+  tenantId: string;
+  queueItemId: string;
+  requestedBy: string;
+  reason: string;
+  ticketRef?: string;
+}
+
+export interface RagApprovalQueueIngestionPlan {
+  artifactType: "opslens.rag.ingestion-plan.v0.1";
+  artifactVersion: "0.1";
+  generatedAt: string;
+  queueItemId: string;
+  tenantId: string;
+  fileName: string;
+  actionMode: "ingestionPlanOnly";
+  sourceState: RagApprovalQueueSubmission["state"];
+  approvedForIngestion: boolean;
+  document?: Omit<RagDocumentMetadata, "lastIndexedAt">;
+  plannedJob: {
+    status: "blocked" | "ready-for-ingestion-job";
+    jobName: string;
+    targetIndexVersion: RagIndex["version"];
+    chunkCount: number;
+    requiredApprovals: string[];
+    approvals: RagApprovalQueueSubmission["approvalQueue"]["approvals"];
+    preflightChecks: Array<{
+      id: string;
+      command: string;
+      mutation: false;
+      required: true;
+    }>;
+    mutatingSteps: Array<{
+      id: string;
+      description: string;
+      requiresExplicitApproval: true;
+      mutationAllowedByThisPlanner: false;
+    }>;
+  };
+  content: {
+    markdownReturned: false;
+    documentBodyReturned: false;
+    chunksReturned: false;
+    rawMarkdownPersisted: false;
+    vectorWriteAttempted: false;
+    ingestionJobCreated: false;
+  };
+  audit: {
+    requestedBy: string;
+    reason: string;
+    ticketRef?: string;
+    validationHash: string;
+    approvalCount: number;
+  };
+  policy: {
+    planOnly: true;
+    queueReadAllowed: true;
+    queueMetadataWriteAllowed: false;
+    rawDocumentReturned: false;
+    rawMarkdownPersisted: false;
+    vectorWriteAllowed: false;
+    clusterMutationAllowed: false;
+    ingestionAllowed: false;
+    requiresExplicitApproval: true;
+  };
+  evidence: string[];
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface RagApprovalQueueInventoryItem {
   queueItemId: string;
   generatedAt: string;

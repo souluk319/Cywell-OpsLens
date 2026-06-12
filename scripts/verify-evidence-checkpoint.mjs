@@ -306,6 +306,7 @@ function checkRagApprovalQueuePolicy(queueArtifact) {
   const submissions = queueArtifact.submissions ?? {};
   const inventory = queueArtifact.inventory ?? {};
   const reviews = queueArtifact.reviews ?? {};
+  const ingestionPlan = queueArtifact.ingestionPlan ?? {};
   const violations = [];
 
   if (policy.rawDocumentReturned !== false) violations.push("rawDocumentReturned");
@@ -345,6 +346,39 @@ function checkRagApprovalQueuePolicy(queueArtifact) {
   if (reviews.rejection?.ingestionAllowed !== false) {
     violations.push("reviews.rejection.ingestionAllowed");
   }
+  if (ingestionPlan.pending?.actionMode !== "ingestionPlanOnly") {
+    violations.push("ingestionPlan.pending.actionMode");
+  }
+  if (ingestionPlan.pending?.status !== "blocked") {
+    violations.push("ingestionPlan.pending.status");
+  }
+  if (ingestionPlan.pending?.ingestionJobCreated !== false) {
+    violations.push("ingestionPlan.pending.ingestionJobCreated");
+  }
+  if (ingestionPlan.approved?.actionMode !== "ingestionPlanOnly") {
+    violations.push("ingestionPlan.approved.actionMode");
+  }
+  if (ingestionPlan.approved?.status !== "ready-for-ingestion-job") {
+    violations.push("ingestionPlan.approved.status");
+  }
+  if (ingestionPlan.approved?.approvals !== 2) {
+    violations.push("ingestionPlan.approved.approvals");
+  }
+  if (ingestionPlan.approved?.ingestionJobCreated !== false) {
+    violations.push("ingestionPlan.approved.ingestionJobCreated");
+  }
+  if (ingestionPlan.approved?.vectorWriteAllowed !== false) {
+    violations.push("ingestionPlan.approved.vectorWriteAllowed");
+  }
+  if (ingestionPlan.approved?.ingestionAllowed !== false) {
+    violations.push("ingestionPlan.approved.ingestionAllowed");
+  }
+  if (ingestionPlan.rejected?.status !== "blocked") {
+    violations.push("ingestionPlan.rejected.status");
+  }
+  if (ingestionPlan.rejected?.ingestionAllowed !== false) {
+    violations.push("ingestionPlan.rejected.ingestionAllowed");
+  }
 
   if (violations.length > 0) {
     fail("RAG approval queue safety", `queue policy violations=${violations.join(", ")}`);
@@ -353,7 +387,7 @@ function checkRagApprovalQueuePolicy(queueArtifact) {
 
   pass(
     "RAG approval queue safety",
-    "default queue is design-only, opt-in local persistence and human review are metadata-only, inventory is read-only, and rejected drafts do not persist"
+    "default queue is design-only, opt-in local persistence and human review are metadata-only, ingestion plans create no jobs, inventory is read-only, and rejected drafts do not persist"
   );
 }
 

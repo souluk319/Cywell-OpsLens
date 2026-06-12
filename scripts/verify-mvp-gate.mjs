@@ -60,7 +60,7 @@ const steps = [
     command: "npm",
     args: ["run", "verify:rag:approval-queue"],
     acceptance: ["AC-RAG-002", "AC-DASH-001"],
-    purpose: "Verify env-gated RAG approval queue persistence keeps raw Markdown, vector writes, and cluster mutation blocked."
+    purpose: "Verify env-gated RAG approval queue persistence, review, and ingestion planning keep raw Markdown, vector writes, ingestion jobs, and cluster mutation blocked."
   },
   {
     id: "RUNTIME",
