@@ -42,6 +42,7 @@ MVP 0.1 has a mock read-only assistant/backend contract:
 - `POST /api/actions/plan`
 - `GET /api/opslens/tools`
 - `GET /api/opslens/admin/overview`
+- `GET /api/opslens/runtime/readiness`
 - `POST /api/opslens/ask`
 - `POST /api/opslens/incidents/analyze`
 - `POST /mcp`

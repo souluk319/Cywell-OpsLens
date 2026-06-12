@@ -27,6 +27,7 @@
     "verify:certification": "node ./scripts/verify-certification-readiness.mjs",
     "verify:images": "node ./scripts/verify-image-build-readiness.mjs",
     "verify:images:build": "node ./scripts/verify-image-build-readiness.mjs --build",
+    "verify:runtime": "node ./scripts/verify-runtime-readiness.mjs",
     "verify:evidence-checkpoint": "node ./scripts/verify-evidence-checkpoint.mjs",
     "verify:external-runtime-plan": "node ./scripts/verify-external-runtime-images-plan.mjs",
     "verify:release-plan": "node ./scripts/verify-release-publish-plan.mjs",

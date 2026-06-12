@@ -403,7 +403,34 @@ export function OpsLensAdminDashboard() {
                   : "--"}
               </dd>
             </div>
+            <div>
+              <dt>Status</dt>
+              <dd>{overview?.runtime.readiness.status ?? "--"}</dd>
+            </div>
           </dl>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-runtime-readiness"
+          >
+            <span>{overview?.runtime.readiness.actionMode ?? "readOnly"}</span>
+            <span>
+              qdrant={overview?.runtime.readiness.vectorStore.status ?? "--"}
+            </span>
+            <span>
+              vllm={overview?.runtime.readiness.modelRuntime.status ?? "--"}
+            </span>
+            <span>
+              liveProbe=
+              {String(
+                overview?.runtime.readiness.vectorStore.liveProbeEnabled ?? false
+              )}
+            </span>
+          </div>
+          {overview?.runtime.readiness.missingEvidence.slice(0, 2).map((item) => (
+            <p className="readiness-note" key={item}>
+              {item}
+            </p>
+          ))}
           <div className="gpu-sparkline" aria-label="GPU utilization samples">
             {overview?.runtime.gpu.samples.map((sample) => (
               <span

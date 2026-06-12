@@ -25,7 +25,7 @@ Primary references:
 
 | Stage | Goal | Repo Contract | Completion Gate |
 |---|---|---|---|
-| 1. Lightspeed MCP validation | Route internal/custom questions from Lightspeed to Cywell OpsLens | `/mcp`, `/api/opslens/tools`, `/api/opslens/ask`, `packages/rag`, `deploy/lightspeed/olsconfig-cywell-opslens-mcp.yaml` | AC-LS-001 and AC-RAG-001 pass; a live OLSConfig smoke test proves `tools/list` + `tools/call` |
+| 1. Lightspeed MCP validation | Route internal/custom questions from Lightspeed to Cywell OpsLens | `/mcp`, `/api/opslens/tools`, `/api/opslens/ask`, `/api/opslens/runtime/readiness`, `packages/rag`, `deploy/lightspeed/olsconfig-cywell-opslens-mcp.yaml` | AC-LS-001 and AC-RAG-001 pass; runtime readiness contract proves Qdrant/vLLM endpoint wiring; a live OLSConfig smoke test proves `tools/list` + `tools/call` |
 | 2. AI Ops pipeline | Combine alerts with logs, metrics, events, and plan-only remediation proposals | `/api/opslens/incidents/analyze`, OCP read-only APIs, private RAG citations, `propose_remediation` plan-only tool | Alert-driven prompt includes last 10 minutes of logs/events/Prometheus metrics without mutation |
 | 3. Dedicated dashboard | Provide monitoring, token usage, validate-only RAG document management, evidence export, and plugin links | `/api/opslens/admin/overview`, `/api/opslens/admin/rag/validate`, `/api/opslens/admin/rag/evidence-export`, OpsLens Admin Dashboard, future ConsolePlugin route | Dashboard surfaces RAG health, validate-only draft checks, audit-safe evidence export, token usage, GPU/runtime samples, incident metric status, and install readiness |
 | 4. Operator packaging | Install API, vector DB, dashboard, RAG safety policy, Console/Lightspeed ingress policy, and MCP registration as one product | `deploy/operator/config/**`, `deploy/operator/bundle/**`, `deploy/operator/controller-runtime/**`, `packages/operator-controller`, `OpsLensInstallation.spec.rag`, `cywell-opslens-rag-policy`, ingress NetworkPolicies, CSV, static package verifier, live server-side dry-run preflight, install approval plan, OLSConfig reconciliation core | Static package, Go source parity, reconcile verifiers, non-mutating live dry-run, and install approval plan pass first; human-approved live install/upgrade/uninstall smoke follows |
@@ -43,7 +43,7 @@ Primary references:
 
 ### Out Of Scope
 
-- Production vLLM/vector DB deployment.
+- Production vLLM/vector DB live readiness; the read-only endpoint contract is present, but live probes require reachable runtime services.
 - Automatic apply/delete/scale.
 - Raw customer document return through MCP.
 - Red Hat certified Operator packaging.
@@ -59,6 +59,7 @@ Primary references:
 | Mutation is blocked | Tool catalog excludes `apply_remediation`, response has `mutationAllowed=false` |
 | Install path is visible | OLSConfig template exists under `deploy/lightspeed/` |
 | Local private RAG path works | `cywell-payments` query retrieves indexed Markdown runbooks from `data/runbooks/cywell-payments` through `packages/rag`; draft runbook intake validates and exports evidence without applying changes |
+| Runtime endpoint wiring can be checked safely | `npm run verify:runtime` verifies the Qdrant/vLLM service DNS, API route, and read-only readiness contract; `--live` additionally probes configured endpoints without mutation |
 | Live cluster readiness can be checked safely | `npm run verify:lightspeed` reads the OLSConfig CRD and, when `CYWELL_OPSLENS_MCP_URL` is set, proves `tools/list` + `tools/call` without applying changes |
 
 ## Next Implementation Lane
@@ -66,7 +67,7 @@ Primary references:
 1. Run `npm run verify:evidence-checkpoint` after the latest dry-run, Lightspeed patch preview, `verify:images:build` actual image build evidence, release/runtime plans, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install, OLSConfig patch, image push, signing, or mirroring.
 2. Run `npm run verify:operator:dry-run` and `npm run verify:lightspeed -- --mcp-url <cluster-or-local-mcp-url> --require-mcp` against a real OpenShift Lightspeed environment.
 3. Implement durable RAG approval queue persistence after the approval-state contract is reviewed.
-4. Replace the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs when runtime images are available.
+4. Run `npm run verify:runtime -- --live` after Qdrant/vLLM services are reachable, then replace the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs when runtime images are available.
 5. Build and test the scaffolded Go/controller-runtime Operator manager once Go and Operator SDK are available, then run live OLSConfig patch, install, upgrade, uninstall, and rollback smoke tests.
 6. Run a live OLM install/upgrade/uninstall smoke test once images and a lab OpenShift cluster are available.
 7. Run `npm run verify:external-runtime-plan` and `npm run verify:release-plan` after same-HEAD actual image build evidence is fresh; then collect vLLM/Qdrant digest, scan, SBOM, provenance, mirror, and approval evidence, replace catalog/certification placeholders, run `opm`, `operator-sdk bundle validate`, `operator-sdk scorecard`, image scanning, and Partner Connect submission once external tooling and images are available.

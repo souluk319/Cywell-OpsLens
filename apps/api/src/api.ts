@@ -35,6 +35,9 @@ import type {
   OpsLensReleasePublishPlanSummary,
   OpsLensReleasePublishReadiness,
   OpsLensRemediationProposal,
+  OpsLensRuntimeDependencyReadiness,
+  OpsLensRuntimeReadiness,
+  OpsLensRuntimeReadinessStatus,
   OpsLensRagEvidenceExportRequest,
   OpsLensRagEvidenceExportResponse,
   OpsLensRagValidationRequest,
@@ -283,6 +286,192 @@ function gpuSamples(now = Date.now()): OpsLensAdminOverviewResponse["runtime"]["
       memoryTotalGiB: 48
     };
   });
+}
+
+function envBoolean(name: string, defaultValue = false) {
+  const value = process.env[name];
+  if (value === undefined) return defaultValue;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+function normalizeProbePath(value: string) {
+  return value.startsWith("/") ? value : `/${value}`;
+}
+
+function joinEndpoint(baseUrl: string, probePath: string) {
+  return `${trimTrailingSlash(baseUrl)}${normalizeProbePath(probePath)}`;
+}
+
+function runtimeProbeTimeoutMs() {
+  const timeout = Number(process.env.CYWELL_OPSLENS_RUNTIME_PROBE_TIMEOUT_MS ?? 3000);
+  return Number.isFinite(timeout) && timeout > 0 ? timeout : 3000;
+}
+
+function runtimeModelName() {
+  return process.env.CYWELL_OPSLENS_MODEL_NAME ?? "Gemma 4 OpsLens route";
+}
+
+function runtimeVectorUrl() {
+  return process.env.CYWELL_OPSLENS_VECTOR_URL ?? "http://cywell-opslens-vector:6333";
+}
+
+function runtimeModelUrl() {
+  return process.env.CYWELL_OPSLENS_MODEL_URL ?? "http://cywell-opslens-vllm:8000";
+}
+
+function runtimeVectorProbePath() {
+  return normalizeProbePath(process.env.CYWELL_OPSLENS_VECTOR_HEALTH_PATH ?? "/healthz");
+}
+
+function runtimeModelProbePath() {
+  return normalizeProbePath(process.env.CYWELL_OPSLENS_MODEL_HEALTH_PATH ?? "/v1/models");
+}
+
+async function probeRuntimeDependency(params: {
+  component: OpsLensRuntimeDependencyReadiness["component"];
+  provider: OpsLensRuntimeDependencyReadiness["provider"];
+  endpoint: string;
+  probePath: string;
+  liveProbeEnabled: boolean;
+}): Promise<OpsLensRuntimeDependencyReadiness> {
+  const baseEvidence = [
+    `${params.component} provider=${params.provider}`,
+    `${params.component} endpoint=${params.endpoint}`,
+    `${params.component} probe path=${params.probePath}`
+  ];
+
+  if (!params.liveProbeEnabled) {
+    return {
+      component: params.component,
+      provider: params.provider,
+      endpoint: params.endpoint,
+      probePath: params.probePath,
+      status: "needs-live-check",
+      liveProbeEnabled: false,
+      evidence: [
+        ...baseEvidence,
+        "live runtime probe is disabled by default; set CYWELL_OPSLENS_RUNTIME_PROBE_LIVE=true to verify this dependency"
+      ],
+      missingEvidence: [
+        `${params.component} live readiness was not probed`
+      ]
+    };
+  }
+
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), runtimeProbeTimeoutMs());
+
+  try {
+    const response = await fetch(joinEndpoint(params.endpoint, params.probePath), {
+      method: "GET",
+      signal: controller.signal,
+      headers: {
+        accept: "application/json,text/plain,*/*"
+      }
+    });
+    const latencyMs = Math.max(1, Date.now() - startedAt);
+    const status: OpsLensRuntimeReadinessStatus = response.ok ? "ready" : "degraded";
+
+    return {
+      component: params.component,
+      provider: params.provider,
+      endpoint: params.endpoint,
+      probePath: params.probePath,
+      status,
+      liveProbeEnabled: true,
+      latencyMs,
+      evidence: [
+        ...baseEvidence,
+        `${params.component} live probe httpStatus=${response.status}`,
+        `${params.component} live probe latencyMs=${latencyMs}`
+      ],
+      missingEvidence: response.ok
+        ? []
+        : [`${params.component} live probe returned HTTP ${response.status}`]
+    };
+  } catch (error) {
+    return {
+      component: params.component,
+      provider: params.provider,
+      endpoint: params.endpoint,
+      probePath: params.probePath,
+      status: "failed",
+      liveProbeEnabled: true,
+      latencyMs: Math.max(1, Date.now() - startedAt),
+      evidence: baseEvidence,
+      missingEvidence: [
+        `${params.component} live probe failed: ${error instanceof Error ? error.message : String(error)}`
+      ]
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function combineRuntimeStatus(
+  vectorStore: OpsLensRuntimeDependencyReadiness,
+  modelRuntime: OpsLensRuntimeDependencyReadiness
+): OpsLensRuntimeReadinessStatus {
+  const statuses = [vectorStore.status, modelRuntime.status];
+  if (statuses.includes("failed")) return "failed";
+  if (statuses.includes("degraded")) return "degraded";
+  if (statuses.includes("needs-live-check")) return "needs-live-check";
+  return "ready";
+}
+
+export async function getOpsLensRuntimeReadiness(): Promise<OpsLensRuntimeReadiness> {
+  const liveProbeEnabled = envBoolean("CYWELL_OPSLENS_RUNTIME_PROBE_LIVE", false);
+  const vectorStore = await probeRuntimeDependency({
+    component: "vector-store",
+    provider: "qdrant",
+    endpoint: runtimeVectorUrl(),
+    probePath: runtimeVectorProbePath(),
+    liveProbeEnabled
+  });
+  const modelRuntime = await probeRuntimeDependency({
+    component: "model-runtime",
+    provider: "vllm",
+    endpoint: runtimeModelUrl(),
+    probePath: runtimeModelProbePath(),
+    liveProbeEnabled
+  });
+  const status = combineRuntimeStatus(vectorStore, modelRuntime);
+  const missingEvidence = uniqueStrings([
+    ...vectorStore.missingEvidence,
+    ...modelRuntime.missingEvidence
+  ]);
+
+  return {
+    status,
+    actionMode: "readOnly",
+    mutationAllowed: false,
+    rawDocumentReturned: false,
+    vectorStore,
+    modelRuntime,
+    evidence: [
+      `runtime readiness status=${status}`,
+      `liveProbeEnabled=${String(liveProbeEnabled)}`,
+      `model=${runtimeModelName()}`,
+      ...vectorStore.evidence,
+      ...modelRuntime.evidence
+    ],
+    missingEvidence,
+    risk: [
+      "A ready runtime probe proves endpoint reachability only; model quality, tenant isolation, and citation accuracy still require separate evaluation.",
+      "Qdrant and vLLM runtime images require certification, vulnerability scan, SBOM, provenance, mirror digest, and approval evidence before Certified Operator submission.",
+      "Runtime readiness never permits apply/delete/scale or registry mutation."
+    ],
+    rollbackPath: [
+      "Disable live probes by setting CYWELL_OPSLENS_RUNTIME_PROBE_LIVE=false if runtime checks are noisy during installation.",
+      "Restore the previous OpsLensInstallation runtime image references if a new runtime image fails readiness.",
+      "Regenerate runtime, image, release, and install evidence after changing vLLM or Qdrant endpoints."
+    ]
+  };
 }
 
 type LightspeedReadinessEvidenceArtifact = {
@@ -1311,10 +1500,11 @@ function getEvidenceCheckpointReadiness(): {
   }
 }
 
-export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
+export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewResponse> {
   const documents = getOpsLensRagDocuments();
   const usedTokens = 784_200;
   const budgetTokens = 1_500_000;
+  const runtimeReadiness = await getOpsLensRuntimeReadiness();
   const lightspeedReadiness = getLightspeedMcpReadiness();
   const imageBuildReadiness = getImageBuildReadiness();
   const externalRuntimeImagesReadiness = getExternalRuntimeImagesPlanReadiness();
@@ -1396,12 +1586,13 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
     },
     runtime: {
       provider: "vllm",
-      model: "Gemma 4 OpsLens route",
+      model: runtimeModelName(),
       route: "cywell-private-rag-local-vector/v0.1",
       replicas: 2,
-      readyReplicas: 2,
+      readyReplicas: runtimeReadiness.status === "ready" ? 2 : 0,
+      readiness: runtimeReadiness,
       gpu: {
-        available: true,
+        available: runtimeReadiness.modelRuntime.status === "ready",
         deviceClass: "nvidia.com/gpu",
         samples: gpuSamples()
       }

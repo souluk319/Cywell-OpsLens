@@ -56,6 +56,13 @@ const steps = [
     purpose: "Verify tenant-scoped local RAG, redaction, validate-only intake, and evidence export."
   },
   {
+    id: "RUNTIME",
+    command: "npm",
+    args: ["run", "verify:runtime"],
+    acceptance: ["AC-LS-001", "AC-RAG-001", "AC-DASH-001", "AC-OP-001"],
+    purpose: "Verify the read-only vLLM/Qdrant runtime readiness contract without mutating cluster or registry state."
+  },
+  {
     id: "LIGHTSPEED",
     command: "npm",
     args: ["run", "verify:lightspeed:fixture"],

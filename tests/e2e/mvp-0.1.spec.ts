@@ -758,6 +758,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       };
       runtime?: {
         gpu?: { samples?: unknown[] };
+        readiness?: {
+          status?: string;
+          actionMode?: string;
+          mutationAllowed?: boolean;
+          rawDocumentReturned?: boolean;
+          vectorStore?: {
+            provider?: string;
+            status?: string;
+            liveProbeEnabled?: boolean;
+          };
+          modelRuntime?: {
+            provider?: string;
+            status?: string;
+            liveProbeEnabled?: boolean;
+          };
+          missingEvidence?: string[];
+        };
       };
       incidents?: Array<{
         metricQueries?: Array<{ name?: string; status?: string }>;
@@ -867,6 +884,49 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.tokenUsage?.routes?.some((route) => route.route === "lightspeed-mcp")
     ).toBe(true);
     expect(body.runtime?.gpu?.samples?.length).toBe(12);
+    expect([
+      "ready",
+      "needs-live-check",
+      "degraded",
+      "failed"
+    ]).toContain(body.runtime?.readiness?.status);
+    expect(body.runtime?.readiness).toMatchObject({
+      actionMode: "readOnly",
+      mutationAllowed: false,
+      rawDocumentReturned: false
+    });
+    expect(body.runtime?.readiness?.vectorStore).toMatchObject({
+      provider: "qdrant",
+      liveProbeEnabled: false
+    });
+    expect(body.runtime?.readiness?.modelRuntime).toMatchObject({
+      provider: "vllm",
+      liveProbeEnabled: false
+    });
+    expect(body.runtime?.readiness?.missingEvidence?.join(" ")).toContain(
+      "live readiness was not probed"
+    );
+
+    const runtimeReadiness = await request.get("/api/opslens/runtime/readiness");
+    expect(runtimeReadiness.ok()).toBe(true);
+    const runtimeReadinessBody = (await runtimeReadiness.json()) as {
+      actionMode?: string;
+      mutationAllowed?: boolean;
+      vectorStore?: { provider?: string; liveProbeEnabled?: boolean };
+      modelRuntime?: { provider?: string; liveProbeEnabled?: boolean };
+    };
+    expect(runtimeReadinessBody).toMatchObject({
+      actionMode: "readOnly",
+      mutationAllowed: false
+    });
+    expect(runtimeReadinessBody.vectorStore).toMatchObject({
+      provider: "qdrant",
+      liveProbeEnabled: false
+    });
+    expect(runtimeReadinessBody.modelRuntime).toMatchObject({
+      provider: "vllm",
+      liveProbeEnabled: false
+    });
     expect(
       body.incidents?.[0]?.metricQueries?.map((query) => query.name)
     ).toEqual(
@@ -1153,6 +1213,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-gpu-runtime")).toContainText(
       "Gemma 4"
+    );
+    await expect(page.getByTestId("opslens-runtime-readiness")).toContainText(
+      "readOnly"
+    );
+    await expect(page.getByTestId("opslens-runtime-readiness")).toContainText(
+      "qdrant="
+    );
+    await expect(page.getByTestId("opslens-runtime-readiness")).toContainText(
+      "vllm="
+    );
+    await expect(page.getByTestId("opslens-runtime-readiness")).toContainText(
+      "liveProbe=false"
     );
     await expect(page.getByTestId("opslens-incident-metrics")).toContainText(
       "pod-memory"

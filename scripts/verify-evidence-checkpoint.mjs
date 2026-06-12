@@ -14,6 +14,7 @@ const defaults = {
 
 const evidenceDefaults = {
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
+  runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
@@ -295,6 +296,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "runtimeReadiness",
+    label: "runtime readiness",
+    artifact: artifacts.runtimeReadiness,
+    desiredStatuses: ["PASS", "NEEDS_LIVE_EVIDENCE"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "imageBuild",
     label: "image build readiness",
     artifact: artifacts.imageBuild,
@@ -372,6 +380,7 @@ async function main() {
     },
     acceptance: [
       "AC-DASH-001",
+      "AC-RAG-001",
       "AC-LS-002",
       "AC-OP-004",
       "AC-OP-005",

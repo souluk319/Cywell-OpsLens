@@ -5,6 +5,7 @@ import {
   createActionPlan,
   exportOpsLensRagEvidence,
   getOpsLensAdminOverview,
+  getOpsLensRuntimeReadiness,
   createOpsLensToolResponse,
   getDashboardRisks,
   getOpsLensTools,
@@ -126,7 +127,12 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
     }
 
     if (request.method === "GET" && url.pathname === "/api/opslens/admin/overview") {
-      sendJson(response, 200, getOpsLensAdminOverview());
+      sendJson(response, 200, await getOpsLensAdminOverview());
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/opslens/runtime/readiness") {
+      sendJson(response, 200, await getOpsLensRuntimeReadiness());
       return;
     }
 

@@ -553,12 +553,44 @@ export interface OpsLensGpuRuntimeSample {
   memoryTotalGiB: number;
 }
 
+export type OpsLensRuntimeReadinessStatus =
+  | "ready"
+  | "needs-live-check"
+  | "degraded"
+  | "failed";
+
+export interface OpsLensRuntimeDependencyReadiness {
+  component: "vector-store" | "model-runtime";
+  provider: "qdrant" | "vllm";
+  endpoint: string;
+  probePath: string;
+  status: OpsLensRuntimeReadinessStatus;
+  liveProbeEnabled: boolean;
+  latencyMs?: number;
+  evidence: string[];
+  missingEvidence: string[];
+}
+
+export interface OpsLensRuntimeReadiness {
+  status: OpsLensRuntimeReadinessStatus;
+  actionMode: "readOnly";
+  mutationAllowed: false;
+  rawDocumentReturned: false;
+  vectorStore: OpsLensRuntimeDependencyReadiness;
+  modelRuntime: OpsLensRuntimeDependencyReadiness;
+  evidence: string[];
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface OpsLensRuntimeHealth {
   provider: "vllm" | "mock-local";
   model: string;
   route: string;
   replicas: number;
   readyReplicas: number;
+  readiness: OpsLensRuntimeReadiness;
   gpu: {
     available: boolean;
     deviceClass: string;
