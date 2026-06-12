@@ -5,14 +5,17 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { request as httpsRequest } from "node:https";
 import { dirname, join, parse, resolve } from "node:path";
 import { promisify } from "node:util";
+import { parseAllDocuments } from "yaml";
 
 const execFileAsync = promisify(execFile);
 
 const defaults = {
   namespace: "openshift-lightspeed",
   name: "cluster",
+  installation: "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation.yaml",
   template: "deploy/lightspeed/olsconfig-cywell-opslens-mcp.yaml",
   evidenceOut: "test-results/cywell-opslens-lightspeed-readiness.json",
+  patchPreviewOut: "test-results/cywell-opslens-lightspeed-patch-preview.json",
   timeoutMs: 10000
 };
 
@@ -51,13 +54,16 @@ const parsed = parseArgs(process.argv.slice(2));
 const options = {
   namespace: parsed.values.get("namespace") ?? defaults.namespace,
   name: parsed.values.get("name") ?? defaults.name,
+  installation: parsed.values.get("installation") ?? defaults.installation,
   template: parsed.values.get("template") ?? defaults.template,
   crdFixture: parsed.values.get("crd-fixture"),
   mcpUrl: parsed.values.get("mcp-url") ?? process.env.CYWELL_OPSLENS_MCP_URL,
   apiKey: parsed.values.get("api-key") ?? process.env.CYWELL_OPSLENS_API_KEY,
   bearerToken: parsed.values.get("bearer-token") ?? process.env.CYWELL_OPSLENS_BEARER_TOKEN,
   evidenceOut: parsed.values.get("evidence-out") ?? defaults.evidenceOut,
+  patchPreviewOut: parsed.values.get("patch-preview-out") ?? defaults.patchPreviewOut,
   skipMcp: parsed.flags.has("skip-mcp"),
+  patchPreview: parsed.flags.has("patch-preview"),
   requireMcp: parsed.flags.has("require-mcp"),
   strictInstance: parsed.flags.has("strict-instance"),
   timeoutMs: Number(parsed.values.get("timeout-ms") ?? defaults.timeoutMs)
@@ -66,6 +72,7 @@ const options = {
 const checks = [];
 const startedAt = new Date().toISOString();
 let loadedEnv = false;
+let currentOlsConfigForPatchPreview;
 const readiness = {
   mode: options.crdFixture ? "fixture" : "live",
   sources: {
@@ -110,6 +117,14 @@ function warn(name, detail) {
 
 function fail(name, detail) {
   record("FAIL", name, detail);
+}
+
+function expectCheck(name, condition, detail, failureDetail = detail) {
+  if (condition) {
+    pass(name, detail);
+  } else {
+    fail(name, failureDetail);
+  }
 }
 
 async function runOc(args) {
@@ -554,6 +569,7 @@ async function validateCurrentOlsConfig(crd) {
       apiSource: `${configLabel} OLSConfig`
     });
     const config = result.json;
+    currentOlsConfigForPatchPreview = config;
     pass("live OLSConfig", `${configLabel} is readable`);
     readiness.sources.olsConfig = result.source;
     readiness.olsConfig.readable = true;
@@ -715,6 +731,145 @@ async function validateMcpEndpoint() {
   }
 }
 
+async function loadSingleYaml(path) {
+  const resolvedPath = resolve(path);
+  const text = await readFile(resolvedPath, "utf8");
+  const documents = parseAllDocuments(text);
+  const errors = documents.flatMap((document) => document.errors);
+  if (errors.length > 0) {
+    throw new Error(`${resolvedPath} is invalid YAML: ${errors.map((error) => error.message).join("; ")}`);
+  }
+
+  const parsed = documents
+    .map((document) => document.toJSON())
+    .filter((document) => document && typeof document === "object");
+  if (parsed.length !== 1) {
+    throw new Error(`${resolvedPath} expected 1 YAML document, got ${parsed.length}`);
+  }
+
+  return {
+    path: resolvedPath,
+    object: parsed[0]
+  };
+}
+
+async function loadReconcilePlanner() {
+  try {
+    return await import(new URL("../packages/operator-controller/dist/index.js", import.meta.url));
+  } catch (error) {
+    throw new Error(
+      `operator-controller dist is not available; run npm run -w @kugnus/operator-controller build first (${error.message})`
+    );
+  }
+}
+
+async function validatePatchPreview() {
+  if (!options.patchPreview) {
+    return;
+  }
+
+  if (options.crdFixture) {
+    warn("patch preview", "skipped because --crd-fixture does not read a live OLSConfig");
+    return;
+  }
+
+  if (!currentOlsConfigForPatchPreview) {
+    fail("patch preview", "live OLSConfig was not readable, so no patch preview was produced");
+    return;
+  }
+
+  try {
+    const [{ buildOpsLensReconcilePlan }, installation] = await Promise.all([
+      loadReconcilePlanner(),
+      loadSingleYaml(options.installation)
+    ]);
+    const plan = buildOpsLensReconcilePlan(installation.object, currentOlsConfigForPatchPreview);
+    const lightspeed = plan.lightspeedRegistration;
+    const patch = lightspeed.strategicMergePatch;
+    const cywellServer = patch?.spec?.mcpServers?.find(
+      (server) => server.name === lightspeed.desiredServer.name
+    );
+
+    expectCheck(
+      "patch preview source",
+      installation.object?.kind === "OpsLensInstallation",
+      `loaded ${installation.path}`,
+      `${installation.path} is not an OpsLensInstallation`
+    );
+    expectCheck(
+      "patch preview phase",
+      ["PatchPlanned", "Ready"].includes(lightspeed.phase),
+      `${lightspeed.phase} for ${lightspeed.target.namespace}/${lightspeed.target.name}`,
+      `unexpected patch preview phase ${lightspeed.phase}`
+    );
+    expectCheck(
+      "patch preview mutation boundary",
+      plan.policy.assistantMutationAllowed === false &&
+        plan.policy.operatorMutationRequiresPatchMode === true,
+      "assistant remains non-mutating; Operator mutation requires explicit PatchOLSConfig"
+    );
+
+    if (lightspeed.phase === "PatchPlanned") {
+      expectCheck(
+        "patch preview feature gate",
+        patch?.spec?.featureGates?.includes("MCPServer") === true,
+        "strategic merge patch enables MCPServer while preserving existing feature gates"
+      );
+      expectCheck(
+        "patch preview MCP server",
+        cywellServer?.url?.endsWith("/mcp") === true,
+        `${lightspeed.desiredServer.name} points to ${cywellServer?.url ?? "missing"}`
+      );
+      expectCheck(
+        "patch preview rollback",
+        lightspeed.rollbackPath.join(" ").includes("restore previous OLSConfig") &&
+          lightspeed.rollbackPath.join(" ").includes(`remove the ${lightspeed.desiredServer.name}`),
+        "rollback path restores previous OLSConfig and removes only the Cywell MCP server"
+      );
+    } else {
+      pass("patch preview already ready", "live OLSConfig already matches the desired Cywell MCP registration");
+    }
+
+    const reportPath = resolve(options.patchPreviewOut);
+    const report = {
+      schema: "cywell.opslens.lightspeed-patch-preview.v0.1",
+      artifactType: "opslens.lightspeed.patch-preview.v0.1",
+      generatedAt: new Date().toISOString(),
+      status: lightspeed.phase === "PatchPlanned" ? "PATCH_PLANNED" : lightspeed.phase,
+      actionMode: "previewOnly",
+      clusterMutationAttempted: false,
+      installation: {
+        path: installation.path,
+        name: installation.object?.metadata?.name,
+        namespace: installation.object?.metadata?.namespace
+      },
+      target: lightspeed.target,
+      mode: lightspeed.mode,
+      phase: lightspeed.phase,
+      willPatch: lightspeed.willPatch,
+      operatorMutationAllowedByMode: lightspeed.mutationAllowed,
+      desiredServer: lightspeed.desiredServer,
+      strategicMergePatch: patch,
+      evidence: lightspeed.evidence,
+      missingEvidence: lightspeed.missingEvidence,
+      risks: lightspeed.risk,
+      rollbackPath: lightspeed.rollbackPath,
+      policy: plan.policy
+    };
+    const serialized = `${JSON.stringify(report, null, 2)}\n`;
+    const leakedSecret = secretValuesForLeakCheck().some((secret) => serialized.includes(secret));
+    if (leakedSecret) {
+      throw new Error("patch preview evidence would include a configured secret value");
+    }
+
+    await mkdir(dirname(reportPath), { recursive: true });
+    await writeFile(reportPath, serialized);
+    pass("patch preview evidence export", `${reportPath} written without secret material`);
+  } catch (error) {
+    fail("patch preview", error instanceof Error ? error.message : String(error));
+  }
+}
+
 function secretValuesForLeakCheck() {
   loadEnvFile();
   return [
@@ -841,6 +996,7 @@ try {
   const crd = await loadCrd();
   validateCrdSchema(crd);
   await validateCurrentOlsConfig(crd);
+  await validatePatchPreview();
   await validateMcpEndpoint();
 } catch (error) {
   fail("smoke verifier", error.message);
