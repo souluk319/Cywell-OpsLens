@@ -63,7 +63,7 @@ Primary references:
 
 ## Next Implementation Lane
 
-1. Run `npm run verify:install-plan` after the latest dry-run, Lightspeed patch preview, `verify:images:build` actual image build evidence, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install or OLSConfig patch.
+1. Run `npm run verify:evidence-checkpoint` after the latest dry-run, Lightspeed patch preview, `verify:images:build` actual image build evidence, release/runtime plans, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install, OLSConfig patch, image push, signing, or mirroring.
 2. Run `npm run verify:operator:dry-run` and `npm run verify:lightspeed -- --mcp-url <cluster-or-local-mcp-url> --require-mcp` against a real OpenShift Lightspeed environment.
 3. Implement durable RAG approval queue persistence after the approval-state contract is reviewed.
 4. Replace the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs when runtime images are available.
@@ -83,6 +83,7 @@ Primary references:
 - `npm run verify:operator` as the local package contract verifier.
 - `npm run verify:operator:dry-run` as the non-mutating live API/schema/admission preflight verifier.
 - `npm run verify:install-plan` as the non-mutating human approval, risk, command, evidence, and rollback contract before mutating install.
+- `npm run verify:evidence-checkpoint` as the current-head evidence board for MVP, image, Operator dry-run, Lightspeed, external runtime, release, and install readiness.
 - `packages/operator-controller` reconcile core with `ValidateOnly`, explicit `PatchOLSConfig`, evidence, missing evidence, risk, rollback path, assistant plan-only policy, and RAG approval queue mutation blocked.
 - `npm run verify:operator:reconcile` as the fixture-based reconcile verifier.
 
@@ -107,6 +108,7 @@ Primary references:
 - `npm run verify:certification` as the catalog/certification readiness verifier.
 - `npm run verify:external-runtime-plan` as the no-mirror vLLM/Qdrant certification, scan, SBOM, provenance, mirror digest, approval, risk, and rollback contract.
 - `npm run verify:release-plan` as the no-push image publish, signing, mirroring, and catalog publication approval contract.
+- `npm run verify:evidence-checkpoint` as the same-head release/install evidence checkpoint before any external publication or live install approval.
 
 ### Out Of Scope
 

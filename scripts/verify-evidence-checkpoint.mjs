@@ -1,0 +1,422 @@
+#!/usr/bin/env node
+import { execFile } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
+const defaults = {
+  evidenceOut: "test-results/cywell-opslens-evidence-checkpoint.json",
+  timeoutMs: 10000
+};
+
+const evidenceDefaults = {
+  mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
+  imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
+  operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
+  lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
+  lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
+  externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
+  releasePublish: "test-results/cywell-opslens-release-publish-plan.json",
+  installPlan: "test-results/cywell-opslens-install-approval-plan.json"
+};
+
+function parseArgs(argv) {
+  const values = new Map();
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) continue;
+    const [key, inlineValue] = arg.slice(2).split("=", 2);
+    const next = argv[index + 1];
+    if (inlineValue !== undefined) {
+      values.set(key, inlineValue);
+    } else if (next && !next.startsWith("--")) {
+      values.set(key, next);
+      index += 1;
+    }
+  }
+  return values;
+}
+
+const parsed = parseArgs(process.argv.slice(2));
+const options = {
+  evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs),
+  evidence: Object.fromEntries(
+    Object.entries(evidenceDefaults).map(([key, value]) => [
+      key,
+      parsed.get(`${key}-evidence`) ?? value
+    ])
+  )
+};
+
+const checks = [];
+const lanes = [];
+const startedAt = new Date().toISOString();
+
+function sanitize(value) {
+  return String(value)
+    .replace(/--token\s+\S+/gi, "--token <redacted>")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
+    .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>");
+}
+
+function record(status, name, detail) {
+  checks.push({ status, name, detail: sanitize(detail) });
+}
+
+function pass(name, detail) {
+  record("PASS", name, detail);
+}
+
+function warn(name, detail) {
+  record("WARN", name, detail);
+}
+
+function fail(name, detail) {
+  record("FAIL", name, detail);
+}
+
+async function runCapture(command, args) {
+  try {
+    const { stdout, stderr } = await execFileAsync(command, args, {
+      encoding: "utf8",
+      timeout: options.timeoutMs
+    });
+    return {
+      ok: true,
+      stdout: stdout.trim(),
+      stderr: stderr.trim()
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      stdout: error.stdout?.trim?.() ?? "",
+      stderr: error.stderr?.trim?.() ?? error.message
+    };
+  }
+}
+
+async function gitValue(args, fallback) {
+  const result = await runCapture("git", args);
+  if (!result.ok || !result.stdout) return fallback;
+  return result.stdout.split(/\r?\n/).at(-1)?.trim() || fallback;
+}
+
+async function gitStatusShort() {
+  const result = await runCapture("git", ["status", "--short"]);
+  if (!result.ok || !result.stdout) return [];
+  return result.stdout.split(/\r?\n/);
+}
+
+function loadArtifact(path, label) {
+  const absolutePath = resolve(path);
+  if (!existsSync(absolutePath)) {
+    warn(label, `${label} evidence is missing at ${absolutePath}`);
+    return undefined;
+  }
+
+  try {
+    const artifact = JSON.parse(readFileSync(absolutePath, "utf8"));
+    pass(label, `${artifact.artifactType ?? artifact.schema ?? "unknown"} status=${artifact.status ?? "unknown"}`);
+    return artifact;
+  } catch (error) {
+    fail(label, `${absolutePath} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
+function artifactHeadSha(artifact) {
+  return artifact?.headSha ?? artifact?.ref?.headSha;
+}
+
+function artifactDirty(artifact) {
+  return artifact?.worktreeDirty ?? artifact?.ref?.worktreeDirty;
+}
+
+function artifactClusterMutationAttempted(artifact) {
+  return (
+    artifact?.clusterMutationAttempted === true ||
+    artifact?.policy?.clusterMutationAttempted === true
+  );
+}
+
+function artifactRegistryMutationAttempted(artifact) {
+  return artifact?.registryMutationAttempted === true;
+}
+
+function artifactMutationAllowedByVerifier(artifact) {
+  return artifact?.mutationAllowedByThisVerifier === true;
+}
+
+function missingEvidenceFrom(artifact) {
+  return (artifact?.missingEvidence ?? []).map((item) => sanitize(item));
+}
+
+function liveConnectionBlocked(artifact) {
+  const evidence = missingEvidenceFrom(artifact).join(" ");
+  return (
+    artifact?.readiness?.mode === "live" &&
+    artifact?.status === "FAIL" &&
+    /Unable to connect|ETIMEDOUT|ECONNREFUSED|EHOSTUNREACH|ENOTFOUND|server\/auth unavailable|oc failed/i.test(
+      evidence
+    )
+  );
+}
+
+function laneResult({ id, label, artifact, desiredStatuses, currentHeadSha, required = true }) {
+  const missingEvidence = [];
+  const blockers = [];
+  const status = artifact?.status ?? "missing";
+  const headSha = artifactHeadSha(artifact);
+  const worktreeDirty = artifactDirty(artifact);
+
+  if (!artifact) {
+    const message = `${label} evidence is missing; run the owning verifier`;
+    if (required) missingEvidence.push(message);
+    else blockers.push(message);
+  } else {
+    if (headSha !== currentHeadSha) {
+      missingEvidence.push(`${label} evidence head=${headSha ?? "missing"} currentHead=${currentHeadSha}`);
+    }
+    if (worktreeDirty !== false) {
+      missingEvidence.push(`${label} evidence dirty=${String(worktreeDirty)}`);
+    }
+    if (artifactClusterMutationAttempted(artifact)) {
+      blockers.push(`${label} reports clusterMutationAttempted=true`);
+    }
+    if (artifactRegistryMutationAttempted(artifact)) {
+      blockers.push(`${label} reports registryMutationAttempted=true`);
+    }
+    if (artifactMutationAllowedByVerifier(artifact)) {
+      blockers.push(`${label} reports mutationAllowedByThisVerifier=true`);
+    }
+    if (!desiredStatuses.includes(status)) {
+      if (status === "NEEDS_EVIDENCE") {
+        missingEvidence.push(`${label} status=NEEDS_EVIDENCE`);
+      } else if (id === "lightspeedReadiness" && liveConnectionBlocked(artifact)) {
+        missingEvidence.push(`${label} live OCP/Lightspeed endpoint is unreachable`);
+      } else {
+        blockers.push(`${label} status=${status}`);
+      }
+    }
+  }
+
+  let laneStatus = "pass";
+  if (blockers.length > 0) laneStatus = "blocked";
+  else if (missingEvidence.length > 0) laneStatus = "needs-evidence";
+
+  lanes.push({
+    id,
+    label,
+    status: laneStatus,
+    artifactType: artifact?.artifactType ?? artifact?.schema ?? "missing",
+    artifactStatus: status,
+    path: resolve(options.evidence[id]),
+    headSha: headSha ?? "missing",
+    worktreeDirty: worktreeDirty ?? "unknown",
+    missingEvidence,
+    blockers
+  });
+
+  if (laneStatus === "pass") {
+    pass(`${label} checkpoint`, `${label} evidence is current and acceptable`);
+  } else if (laneStatus === "needs-evidence") {
+    warn(`${label} checkpoint`, missingEvidence.join("; "));
+  } else {
+    fail(`${label} checkpoint`, blockers.join("; "));
+  }
+}
+
+function checkImageActualBuilds(imageArtifact) {
+  if (!imageArtifact) return;
+  const required = new Set(["operator", "api", "dashboard", "bundle"]);
+  const actualBuilds = imageArtifact.actualBuilds ?? [];
+  const statusByName = new Map(actualBuilds.map((build) => [build.name, build.status]));
+  const missing = [...required].filter((name) => statusByName.get(name) !== "PASS");
+  const failed = actualBuilds
+    .filter((build) => build.status && build.status !== "PASS" && build.name !== "catalog")
+    .map((build) => `${build.name}=${build.status}`);
+
+  if (imageArtifact.actualBuildRequested !== true) {
+    warn("image actual build evidence", "verify:images:build has not been run for the latest image evidence");
+    return;
+  }
+  if (missing.length > 0 || failed.length > 0) {
+    fail(
+      "image actual build evidence",
+      `required actual builds missing=${missing.join(", ") || "none"} failed=${failed.join(", ") || "none"}`
+    );
+    return;
+  }
+  pass("image actual build evidence", "operator/api/dashboard/bundle actual local builds passed");
+}
+
+function checkPatchPreview(patchArtifact) {
+  if (!patchArtifact) return;
+  if (patchArtifact.clusterMutationAttempted === true) {
+    fail("Lightspeed patch preview safety", "patch preview attempted a cluster mutation");
+    return;
+  }
+  if (patchArtifact.willPatch !== true || patchArtifact.phase !== "PatchPlanned") {
+    warn("Lightspeed patch preview safety", `phase=${patchArtifact.phase ?? "unknown"} willPatch=${String(patchArtifact.willPatch)}`);
+    return;
+  }
+  pass("Lightspeed patch preview safety", "preview is PatchPlanned and non-mutating");
+}
+
+async function main() {
+  const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
+  const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
+  const baseRef = await gitValue(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], "unknown");
+  const worktreeStatus = await gitStatusShort();
+  const worktreeDirty = worktreeStatus.length > 0;
+
+  if (worktreeDirty) {
+    warn("current worktree", `dirty=true entries=${worktreeStatus.length}`);
+  } else {
+    pass("current worktree", `dirty=false head=${headSha}`);
+  }
+
+  const artifacts = Object.fromEntries(
+    Object.entries(options.evidence).map(([key, path]) => [
+      key,
+      loadArtifact(path, key)
+    ])
+  );
+
+  laneResult({
+    id: "mvpGate",
+    label: "MVP 0.1 gate",
+    artifact: artifacts.mvpGate,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "imageBuild",
+    label: "image build readiness",
+    artifact: artifacts.imageBuild,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "operatorDryRun",
+    label: "operator server dry-run",
+    artifact: artifacts.operatorDryRun,
+    desiredStatuses: ["PASS", "WARN"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "lightspeedReadiness",
+    label: "Lightspeed live readiness",
+    artifact: artifacts.lightspeedReadiness,
+    desiredStatuses: ["PASS", "NEEDS_CONFIGURATION"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "lightspeedPatchPreview",
+    label: "Lightspeed patch preview",
+    artifact: artifacts.lightspeedPatchPreview,
+    desiredStatuses: ["PATCH_PLANNED", "PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "externalRuntime",
+    label: "external runtime evidence plan",
+    artifact: artifacts.externalRuntime,
+    desiredStatuses: ["APPROVAL_REQUIRED"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "releasePublish",
+    label: "release publish plan",
+    artifact: artifacts.releasePublish,
+    desiredStatuses: ["PUBLISH_APPROVAL_REQUIRED"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "installPlan",
+    label: "install approval plan",
+    artifact: artifacts.installPlan,
+    desiredStatuses: ["APPROVAL_REQUIRED"],
+    currentHeadSha: headSha
+  });
+
+  checkImageActualBuilds(artifacts.imageBuild);
+  checkPatchPreview(artifacts.lightspeedPatchPreview);
+
+  const blockers = lanes.flatMap((lane) => lane.blockers.map((item) => `${lane.id}: ${item}`));
+  const missingEvidence = lanes.flatMap((lane) =>
+    lane.missingEvidence.map((item) => `${lane.id}: ${item}`)
+  );
+  const status = blockers.length > 0
+    ? "BLOCKED"
+    : missingEvidence.length > 0 || worktreeDirty
+      ? "NEEDS_EVIDENCE"
+      : "PASS";
+
+  const artifact = {
+    schema: "cywell.opslens.evidence-checkpoint.v0.1",
+    artifactType: "opslens.evidence-checkpoint.v0.1",
+    generatedAt: new Date().toISOString(),
+    startedAt,
+    status,
+    ref: {
+      branch,
+      headSha,
+      baseRef,
+      worktreeDirty,
+      worktreeStatus: worktreeStatus.map(sanitize)
+    },
+    acceptance: [
+      "AC-DASH-001",
+      "AC-LS-002",
+      "AC-OP-004",
+      "AC-OP-005",
+      "AC-CERT-001"
+    ],
+    lanes,
+    missingEvidence,
+    blockers,
+    risk: [
+      "A PASS checkpoint only means local evidence is fresh; it does not approve cluster mutation or registry publishing.",
+      "NEEDS_EVIDENCE keeps external blockers visible, especially live OCP/Lightspeed reachability and vLLM/Qdrant certification inputs.",
+      "BLOCKED means an artifact is stale, unsafe, invalid, or reported a forbidden mutation attempt."
+    ],
+    rollbackPath: [
+      "No rollback is required for this checkpoint because it reads local evidence only.",
+      "Regenerate stale evidence with the verifier named by the affected lane.",
+      "Do not run mutating install, patch, push, sign, or mirror commands until the corresponding approval plan is approval-required and human-approved."
+    ],
+    checks
+  };
+
+  await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
+  await writeFile(resolve(options.evidenceOut), `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
+  pass("evidence checkpoint export", `${resolve(options.evidenceOut)} written without secret material`);
+
+  const totals = {
+    fail: checks.filter((check) => check.status === "FAIL").length,
+    warn: checks.filter((check) => check.status === "WARN").length,
+    pass: checks.filter((check) => check.status === "PASS").length
+  };
+
+  console.log("");
+  for (const check of checks) {
+    console.log(`[${check.status}] ${check.name}: ${check.detail}`);
+  }
+  console.log("");
+  console.log(`Cywell OpsLens evidence checkpoint: status=${status}, ${totals.fail} fail, ${totals.warn} warn, ${checks.length} checks`);
+
+  if (status === "BLOCKED") {
+    process.exitCode = 1;
+  }
+}
+
+main().catch((error) => {
+  fail("evidence checkpoint runtime", error instanceof Error ? error.message : String(error));
+  console.error(`[FAIL] evidence checkpoint runtime: ${error instanceof Error ? error.message : String(error)}`);
+  process.exitCode = 1;
+});
