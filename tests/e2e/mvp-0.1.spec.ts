@@ -819,6 +819,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
           missingEvidence?: string[];
         };
+        evidenceCheckpoint?: string;
+        checkpoint?: {
+          status?: string;
+          artifactStatus?: string;
+          headSha?: string;
+          worktreeDirty?: boolean;
+          lanes?: Array<{
+            id?: string;
+            label?: string;
+            status?: string;
+            artifactStatus?: string;
+          }>;
+          missingEvidence?: string[];
+          blockers?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         certification?: string;
         evidence?: string[];
       };
@@ -985,6 +1002,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /release publish plan/i
+    );
+    expect(["ready", "needs-evidence", "blocked"]).toContain(
+      body.installReadiness?.evidenceCheckpoint
+    );
+    expect(body.installReadiness?.checkpoint).toMatchObject({
+      worktreeDirty: false
+    });
+    expect(
+      body.installReadiness?.checkpoint?.lanes?.length
+    ).toBeGreaterThan(0);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /evidence checkpoint/i
     );
     expect(body.installReadiness?.certification).toBe("draft");
     expect(body.policy).toMatchObject({
@@ -1185,8 +1214,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-release-publish-plan")).toContainText(
       "release-manager"
     );
+    await expect(page.getByTestId("opslens-evidence-checkpoint")).toContainText(
+      /PASS|NEEDS_EVIDENCE|BLOCKED|missing/
+    );
+    await expect(page.getByTestId("opslens-evidence-checkpoint")).toContainText(
+      "dirty=false"
+    );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
-      /needs-live-check|needs-configuration|needs-evidence|partial|ready|approval-required|failed/
+      /needs-live-check|needs-configuration|needs-evidence|partial|ready|approval-required|failed|blocked/
     );
     await expect(
       page.getByTestId("opslens-install-readiness-evidence")

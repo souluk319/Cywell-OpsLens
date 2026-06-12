@@ -132,6 +132,7 @@ export function OpsLensAdminDashboard() {
   const approvalPlan = overview?.installReadiness.approvalPlan;
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
   const releasePlan = overview?.installReadiness.releasePlan;
+  const checkpoint = overview?.installReadiness.checkpoint;
   const validationFailed = validation?.issues.some(
     (issue) => issue.severity === "fail"
   );
@@ -506,6 +507,8 @@ export function OpsLensAdminDashboard() {
                   "External Runtime":
                     overview.installReadiness.externalRuntimeImages,
                   "Release Publish": overview.installReadiness.releasePublish,
+                  "Evidence Checkpoint":
+                    overview.installReadiness.evidenceCheckpoint,
                   Certification: overview.installReadiness.certification
                 }).map(([label, value]) => (
                   <div key={label}>
@@ -530,6 +533,48 @@ export function OpsLensAdminDashboard() {
               {item}
             </p>
           ))}
+          {checkpoint ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-evidence-checkpoint"
+            >
+              <div className="admin-evidence-line">
+                <span>{checkpoint.artifactStatus}</span>
+                <span>head={checkpoint.headSha}</span>
+                <span>dirty={String(checkpoint.worktreeDirty)}</span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Checkpoint Lanes</span>
+                  <strong>
+                    {checkpoint.lanes.length
+                      ? checkpoint.lanes
+                          .map((lane) => `${lane.label}:${lane.status}`)
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Open Items</span>
+                  <strong>
+                    {checkpoint.blockers.length
+                      ? `${checkpoint.blockers.length} blockers`
+                      : `${checkpoint.missingEvidence.length} missing evidence`}
+                  </strong>
+                </div>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {checkpoint.risk[0] ??
+                    "Checkpoint reads local evidence only and does not approve mutation."}
+                </p>
+                <p>
+                  {checkpoint.rollbackPath[0] ??
+                    "Refresh stale evidence before install or publish approval."}
+                </p>
+              </div>
+            </div>
+          ) : null}
           {approvalPlan ? (
             <div
               className="install-approval-summary"

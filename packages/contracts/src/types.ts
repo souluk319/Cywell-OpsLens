@@ -618,6 +618,28 @@ export type OpsLensReleasePublishReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensEvidenceCheckpointReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "blocked";
+
+export interface OpsLensEvidenceCheckpointSummary {
+  status: OpsLensEvidenceCheckpointReadiness;
+  artifactStatus: string;
+  headSha: string;
+  worktreeDirty: boolean;
+  lanes: Array<{
+    id: string;
+    label: string;
+    status: "pass" | "needs-evidence" | "blocked";
+    artifactStatus: string;
+  }>;
+  missingEvidence: string[];
+  blockers: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface OpsLensInstallApprovalPlanSummary {
   status: OpsLensInstallPlanReadiness;
   actionMode: "approvalPlanOnly";
@@ -708,6 +730,8 @@ export interface OpsLensAdminOverviewResponse {
     externalRuntimePlan: OpsLensExternalRuntimeImagesPlanSummary;
     releasePublish: OpsLensReleasePublishReadiness;
     releasePlan: OpsLensReleasePublishPlanSummary;
+    evidenceCheckpoint: OpsLensEvidenceCheckpointReadiness;
+    checkpoint: OpsLensEvidenceCheckpointSummary;
     certification: "not-started" | "draft" | "ready";
     evidence: string[];
   };

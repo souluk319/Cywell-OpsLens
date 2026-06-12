@@ -23,6 +23,8 @@ import type {
   McpJsonRpcResponse,
   OpsLensAdminOverviewResponse,
   OpsLensCitation,
+  OpsLensEvidenceCheckpointReadiness,
+  OpsLensEvidenceCheckpointSummary,
   OpsLensExternalRuntimeImagesPlanSummary,
   OpsLensExternalRuntimeReadiness,
   OpsLensImageBuildReadiness,
@@ -446,6 +448,28 @@ type ReleasePublishPlanEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type EvidenceCheckpointArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  lanes?: Array<{
+    id?: string;
+    label?: string;
+    status?: string;
+    artifactStatus?: string;
+  }>;
+  missingEvidence?: string[];
+  blockers?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 function lightspeedReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_READINESS_EVIDENCE ??
@@ -485,6 +509,13 @@ function releasePublishPlanEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_RELEASE_PUBLISH_PLAN_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-release-publish-plan.json")
+  );
+}
+
+function evidenceCheckpointPath() {
+  return (
+    process.env.CYWELL_OPSLENS_EVIDENCE_CHECKPOINT ??
+    join(repoRoot, "test-results", "cywell-opslens-evidence-checkpoint.json")
   );
 }
 
@@ -597,6 +628,18 @@ function mapReleasePublishPlanReadinessStatus(
   }
   if (artifact.status === "PUBLISH_APPROVAL_REQUIRED") {
     return "approval-required";
+  }
+  return "needs-evidence";
+}
+
+function mapEvidenceCheckpointStatus(
+  artifact: EvidenceCheckpointArtifact
+): OpsLensEvidenceCheckpointReadiness {
+  if (artifact.status === "BLOCKED") {
+    return "blocked";
+  }
+  if (artifact.status === "PASS") {
+    return "ready";
   }
   return "needs-evidence";
 }
@@ -1149,6 +1192,125 @@ function getReleasePublishPlanReadiness(): {
   }
 }
 
+function normalizeCheckpointLaneStatus(
+  status?: string
+): "pass" | "needs-evidence" | "blocked" {
+  if (status === "pass" || status === "blocked") {
+    return status;
+  }
+  return "needs-evidence";
+}
+
+function getEvidenceCheckpointReadiness(): {
+  status: OpsLensEvidenceCheckpointReadiness;
+  evidence: string[];
+  checkpoint: OpsLensEvidenceCheckpointSummary;
+} {
+  const evidencePath = evidenceCheckpointPath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      checkpoint: {
+        status: "needs-evidence",
+        artifactStatus: "missing",
+        headSha: "missing",
+        worktreeDirty: false,
+        lanes: [
+          {
+            id: "evidenceCheckpoint",
+            label: "Evidence checkpoint",
+            status: "needs-evidence",
+            artifactStatus: "missing"
+          }
+        ],
+        missingEvidence: [
+          `evidence checkpoint is missing at ${evidencePath}`
+        ],
+        blockers: [],
+        risk: [
+          "No consolidated evidence checkpoint is available; operators must inspect individual gate artifacts manually."
+        ],
+        rollbackPath: [
+          "Run npm run verify:evidence-checkpoint after refreshing gate evidence."
+        ]
+      },
+      evidence: [
+        "run npm run verify:evidence-checkpoint to create the consolidated evidence board",
+        "dashboard keeps the checkpoint as needs-evidence until the artifact exists",
+        "checkpoint evidence reads local artifacts only and performs no cluster or registry mutation"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as EvidenceCheckpointArtifact;
+    const status = mapEvidenceCheckpointStatus(artifact);
+    const lanes = (artifact.lanes ?? []).map((lane) => ({
+      id: lane.id ?? "unknown",
+      label: lane.label ?? "unknown",
+      status: normalizeCheckpointLaneStatus(lane.status),
+      artifactStatus: lane.artifactStatus ?? "unknown"
+    }));
+    const laneSummary = lanes
+      .map((lane) => `${lane.label}:${lane.status}`)
+      .join(", ");
+
+    return {
+      status,
+      checkpoint: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        headSha: artifact.ref?.headSha ?? "unknown",
+        worktreeDirty: artifact.ref?.worktreeDirty === true,
+        lanes,
+        missingEvidence: artifact.missingEvidence ?? [],
+        blockers: artifact.blockers ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `Evidence checkpoint ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `checkpoint generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        laneSummary
+          ? `checkpoint lanes=${laneSummary}`
+          : "checkpoint lane summary is not listed",
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        ...(artifact.blockers ?? []).slice(0, 3),
+        "admin overview reads checkpoint evidence only; it does not build, push, mirror, patch, or apply resources"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "blocked",
+      checkpoint: {
+        status: "blocked",
+        artifactStatus: "invalid",
+        headSha: "unknown",
+        worktreeDirty: false,
+        lanes: [],
+        missingEvidence: [],
+        blockers: [
+          error instanceof Error ? error.message : "unknown evidence parse error"
+        ],
+        risk: [
+          "Invalid checkpoint evidence blocks overclaiming release or install readiness."
+        ],
+        rollbackPath: [
+          "Regenerate checkpoint evidence before attempting install or publish approval."
+        ]
+      },
+      evidence: [
+        `Evidence checkpoint could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid checkpoint evidence blocks overclaiming readiness"
+      ]
+    };
+  }
+}
+
 export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
   const documents = getOpsLensRagDocuments();
   const usedTokens = 784_200;
@@ -1159,7 +1321,9 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
   const installPlanReadiness = getInstallApprovalPlanReadiness();
   const releasePublishReadiness = getReleasePublishPlanReadiness();
+  const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
   const installReadinessEvidence = [
+    evidenceCheckpointReadiness.evidence[0],
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
     installPlanReadiness.evidence[0],
@@ -1171,7 +1335,8 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
     ...installPlanReadiness.evidence.slice(1),
     ...imageBuildReadiness.evidence.slice(1),
     ...externalRuntimeImagesReadiness.evidence.slice(1),
-    ...releasePublishReadiness.evidence.slice(1)
+    ...releasePublishReadiness.evidence.slice(1),
+    ...evidenceCheckpointReadiness.evidence.slice(1)
   ].filter((item): item is string => Boolean(item));
 
   return {
@@ -1316,6 +1481,8 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
       externalRuntimePlan: externalRuntimeImagesReadiness.plan,
       releasePublish: releasePublishReadiness.status,
       releasePlan: releasePublishReadiness.plan,
+      evidenceCheckpoint: evidenceCheckpointReadiness.status,
+      checkpoint: evidenceCheckpointReadiness.checkpoint,
       certification: "draft",
       evidence: [
         ...installReadinessEvidence,
@@ -1329,7 +1496,8 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
         "Stage 5 image build readiness is validated by npm run verify:images",
         "Stage 5 external runtime evidence plan is generated by npm run verify:external-runtime-plan",
-        "Stage 5 release publish approval plan is generated by npm run verify:release-plan"
+        "Stage 5 release publish approval plan is generated by npm run verify:release-plan",
+        "Current-head release/install evidence is summarized by npm run verify:evidence-checkpoint"
       ]
     },
     policy: {
