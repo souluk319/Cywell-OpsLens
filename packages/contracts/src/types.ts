@@ -1034,6 +1034,13 @@ export interface OpsLensOcpConnectivityDiagnosticSummary {
     kubernetesVersion: string;
     oc: string;
   };
+  actionHints: Array<{
+    id: string;
+    severity: "info" | "warning" | "blocked";
+    summary: string;
+    evidence: string;
+    nextCheck: string;
+  }>;
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];

@@ -500,6 +500,120 @@ function classify({ config, endpoint, dnsResult, tcpResult, tlsResult, httpResul
   return "api-unreachable";
 }
 
+function actionHintsForClassification(classification) {
+  const common = [
+    {
+      id: "rerun-read-only-diagnostic",
+      severity: "info",
+      summary: "Rerun npm run verify:ocp:connectivity after the environment or network change.",
+      evidence: "The verifier performs DNS, TCP, TLS, /version, and oc raw reads only.",
+      nextCheck: "npm run verify:ocp:connectivity"
+    }
+  ];
+
+  const classified = {
+    "not-configured": [
+      {
+        id: "set-ocp-api-target",
+        severity: "blocked",
+        summary: "Set OCP_API_BASE_URL and OCP_API_TOKEN, or point KUBECONFIG at a usable cluster context.",
+        evidence: "No OpenShift API endpoint was available to classify.",
+        nextCheck: "npm run verify:env && npm run verify:ocp:connectivity"
+      }
+    ],
+    "invalid-api-url": [
+      {
+        id: "fix-ocp-api-url",
+        severity: "blocked",
+        summary: "Use a full OpenShift API URL such as https://api.example:6443.",
+        evidence: "The configured OCP API base URL could not be parsed.",
+        nextCheck: "npm run verify:ocp:connectivity"
+      }
+    ],
+    "token-missing": [
+      {
+        id: "set-ocp-token",
+        severity: "blocked",
+        summary: "Set OCP_API_TOKEN or refresh kubeconfig credentials before live checks.",
+        evidence: "Network checks are not trusted until authentication evidence is present.",
+        nextCheck: "oc whoami --show-token"
+      }
+    ],
+    "dns-unresolved": [
+      {
+        id: "check-dns-resolution",
+        severity: "blocked",
+        summary: "Check DNS, hosts file, VPN DNS suffixes, and split-horizon resolver settings.",
+        evidence: "The API hostname did not resolve.",
+        nextCheck: "Resolve the API host, then rerun npm run verify:ocp:connectivity."
+      }
+    ],
+    "tcp-timeout": [
+      {
+        id: "check-vpn-firewall-route",
+        severity: "blocked",
+        summary: "Check VPN, firewall, route table, bastion, and security group access to the API port.",
+        evidence: "DNS resolved, but TCP connect to the OpenShift API port timed out.",
+        nextCheck: "Test TCP reachability to the API host and port, then rerun npm run verify:ocp:connectivity."
+      },
+      {
+        id: "confirm-company-network-path",
+        severity: "warning",
+        summary: "Confirm the MacBook/local network is allowed to reach the company OCP API endpoint.",
+        evidence: "A timeout usually means packets are dropped before TLS or Kubernetes auth starts.",
+        nextCheck: "After TCP passes, rerun verify:lightspeed and verify:operator:dry-run."
+      }
+    ],
+    "tcp-unreachable": [
+      {
+        id: "check-api-port-reachability",
+        severity: "blocked",
+        summary: "Check that the OpenShift API host and port are reachable from this machine.",
+        evidence: "TCP connect failed before TLS or Kubernetes auth could be tested.",
+        nextCheck: "Rerun npm run verify:ocp:connectivity after network reachability is restored."
+      }
+    ],
+    "tls-handshake-failed": [
+      {
+        id: "check-ocp-ca-and-tls",
+        severity: "blocked",
+        summary: "Check enterprise CA trust or set explicit OCP_TLS_VERIFY/OCP_INSECURE_SKIP_TLS_VERIFY values.",
+        evidence: "TCP passed, but TLS handshake did not.",
+        nextCheck: "Rerun npm run verify:ocp:connectivity; do not reuse Lightspeed TLS variables for OCP."
+      }
+    ],
+    "auth-failed": [
+      {
+        id: "refresh-ocp-token",
+        severity: "blocked",
+        summary: "Refresh OCP_API_TOKEN or kubeconfig credentials and confirm user access.",
+        evidence: "The API was reachable but authentication or authorization failed.",
+        nextCheck: "oc whoami && npm run verify:ocp:connectivity"
+      }
+    ],
+    "api-unreachable": [
+      {
+        id: "check-api-health",
+        severity: "blocked",
+        summary: "Check API server health, proxy settings, and network path after TCP/TLS diagnostics.",
+        evidence: "The API did not return usable /version evidence.",
+        nextCheck: "npm run verify:ocp:connectivity"
+      }
+    ],
+    "api-ready": [
+      {
+        id: "continue-live-readiness",
+        severity: "info",
+        summary: "OCP API connectivity is ready for read-only live checks.",
+        evidence: "DNS, network, TLS, and Kubernetes API evidence are available.",
+        nextCheck: "npm run verify:lightspeed && npm run verify:operator:dry-run"
+      }
+    ]
+  };
+
+  return [...(classified[classification] ?? classified["api-unreachable"]), ...common];
+}
+
 async function main() {
   const config = ocpConfig();
   const endpoint = endpointFromBaseUrl(config.baseUrl);
@@ -554,6 +668,7 @@ async function main() {
   if (worktreeDirty) {
     missingEvidence.push(`current git worktree dirty=true currentHead=${headSha}`);
   }
+  const actionHints = actionHintsForClassification(classification);
 
   const artifact = {
     schema: "cywell.opslens.ocp-connectivity-diagnostic.v0.1",
@@ -605,6 +720,7 @@ async function main() {
       kubernetesVersion: httpResult,
       oc: ocResult
     },
+    actionHints,
     missingEvidence,
     evidence: [
       "diagnostic performs DNS lookup, TCP connect, TLS handshake, Kubernetes /version GET, and oc get --raw=/version only",

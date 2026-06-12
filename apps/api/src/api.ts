@@ -1155,6 +1155,13 @@ type OcpConnectivityDiagnosticArtifact = {
       versionGet?: string;
     };
   };
+  actionHints?: Array<{
+    id?: string;
+    severity?: string;
+    summary?: string;
+    evidence?: string;
+    nextCheck?: string;
+  }>;
   missingEvidence?: string[];
   risk?: string[];
   rollbackPath?: string[];
@@ -1356,6 +1363,83 @@ function mapEvidenceCheckpointStatus(
     return "ready";
   }
   return "needs-evidence";
+}
+
+function defaultOcpConnectivityActionHints(classification: string) {
+  const common = {
+    id: "rerun-read-only-diagnostic",
+    severity: "info" as const,
+    summary: "Rerun npm run verify:ocp:connectivity after changing network or OCP settings.",
+    evidence: "The diagnostic is read-only and records DNS, TCP, TLS, /version, and oc evidence.",
+    nextCheck: "npm run verify:ocp:connectivity"
+  };
+  const primary =
+    classification === "tcp-timeout"
+      ? {
+          id: "check-vpn-firewall-route",
+          severity: "blocked" as const,
+          summary: "Check VPN, firewall, route, bastion, and API port reachability.",
+          evidence: "DNS resolved, but TCP connect timed out before TLS or Kubernetes auth.",
+          nextCheck: "Confirm TCP reachability, then rerun verify:lightspeed and verify:operator:dry-run."
+        }
+      : classification === "token-missing" || classification === "auth-failed"
+        ? {
+            id: "refresh-ocp-token",
+            severity: "blocked" as const,
+            summary: "Refresh OCP token or kubeconfig credentials before live checks.",
+            evidence: "The live OCP checks require authentication evidence.",
+            nextCheck: "oc whoami && npm run verify:ocp:connectivity"
+          }
+        : classification === "dns-unresolved"
+          ? {
+              id: "check-dns-resolution",
+              severity: "blocked" as const,
+              summary: "Check DNS, hosts file, VPN DNS suffixes, and resolver settings.",
+              evidence: "The API hostname did not resolve.",
+              nextCheck: "Resolve the API host, then rerun npm run verify:ocp:connectivity."
+            }
+          : classification === "api-ready"
+            ? {
+                id: "continue-live-readiness",
+                severity: "info" as const,
+                summary: "OCP API connectivity is ready for read-only live checks.",
+                evidence: "DNS, network, TLS, and Kubernetes API evidence are available.",
+                nextCheck: "npm run verify:lightspeed && npm run verify:operator:dry-run"
+              }
+            : {
+                id: "classify-ocp-connectivity",
+                severity: "blocked" as const,
+                summary: "Classify and resolve the OCP API reachability gap before live checks.",
+                evidence: `Current classification=${classification || "unknown"}.`,
+                nextCheck: "npm run verify:ocp:connectivity"
+              };
+  return [primary, common];
+}
+
+function mapOcpConnectivityActionHints(
+  artifact: OcpConnectivityDiagnosticArtifact,
+  classification: string
+): OpsLensOcpConnectivityDiagnosticSummary["actionHints"] {
+  const mapped = (artifact.actionHints ?? [])
+    .filter((hint) => hint.id && hint.summary)
+    .map((hint) => {
+      const severity: OpsLensOcpConnectivityDiagnosticSummary["actionHints"][number]["severity"] =
+        hint.severity === "info"
+          ? "info"
+          : hint.severity === "warning"
+            ? "warning"
+            : "blocked";
+      return {
+        id: hint.id ?? "unknown",
+        severity,
+        summary: hint.summary ?? "Review OCP connectivity evidence.",
+        evidence: hint.evidence ?? `classification=${classification}`,
+        nextCheck: hint.nextCheck ?? "npm run verify:ocp:connectivity"
+      };
+    });
+  return mapped.length > 0
+    ? mapped
+    : defaultOcpConnectivityActionHints(classification);
 }
 
 function getLightspeedMcpReadiness(): {
@@ -1718,6 +1802,7 @@ function getOcpConnectivityDiagnosticReadiness(): {
           kubernetesVersion: "missing",
           oc: "missing"
         },
+        actionHints: defaultOcpConnectivityActionHints("missing"),
         missingEvidence: [
           `OCP connectivity diagnostic evidence is missing at ${evidencePath}`
         ],
@@ -1751,6 +1836,10 @@ function getOcpConnectivityDiagnosticReadiness(): {
         artifact.diagnostics?.kubernetesVersion?.status ?? "unknown",
       oc: artifact.diagnostics?.oc?.versionGet ?? "unknown"
     };
+    const actionHints = mapOcpConnectivityActionHints(
+      artifact,
+      classification
+    );
 
     return {
       status,
@@ -1770,6 +1859,7 @@ function getOcpConnectivityDiagnosticReadiness(): {
           tlsVerify: target.tlsVerify !== false
         },
         diagnostics,
+        actionHints,
         missingEvidence: artifact.missingEvidence ?? [],
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? []
@@ -1807,6 +1897,7 @@ function getOcpConnectivityDiagnosticReadiness(): {
           kubernetesVersion: "unknown",
           oc: "unknown"
         },
+        actionHints: defaultOcpConnectivityActionHints("invalid-evidence"),
         missingEvidence: [
           error instanceof Error ? error.message : "unknown evidence parse error"
         ],

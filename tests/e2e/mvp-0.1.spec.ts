@@ -959,6 +959,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             kubernetesVersion?: string;
             oc?: string;
           };
+          actionHints?: Array<{
+            id?: string;
+            severity?: string;
+            summary?: string;
+            evidence?: string;
+            nextCheck?: string;
+          }>;
           missingEvidence?: string[];
           risk?: string[];
           rollbackPath?: string[];
@@ -1263,8 +1270,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.connectivity?.classification
     ).toMatch(
-      /api-ready|tcp-timeout|tcp-unreachable|dns-unresolved|api-unreachable|auth-or-rbac|tls-handshake-failed|not-configured|invalid-api-url|token-missing/
+      /api-ready|tcp-timeout|tcp-unreachable|dns-unresolved|api-unreachable|auth-or-rbac|auth-failed|tls-handshake-failed|not-configured|invalid-api-url|token-missing/
     );
+    expect(
+      body.installReadiness?.connectivity?.actionHints?.length ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.connectivity?.actionHints
+        ?.map((hint) => `${hint.id} ${hint.summary} ${hint.nextCheck}`)
+        .join(" ")
+    ).toMatch(/ocp:connectivity|vpn|firewall|dns|token|tls|api/i);
     expect(body.installReadiness?.connectivity?.target).toMatchObject({
       tokenConfigured: expect.any(Boolean),
       tlsVerify: expect.any(Boolean)
@@ -1711,6 +1726,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-ocp-connectivity")).toContainText(
       /dns=|tcp=/
     );
+    await expect(
+      page.getByTestId("opslens-ocp-connectivity-actions")
+    ).toContainText(/next=/);
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Install Plan"
     );

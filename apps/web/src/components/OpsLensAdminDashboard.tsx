@@ -921,6 +921,16 @@ export function OpsLensAdminDashboard() {
                   </strong>
                 </div>
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-ocp-connectivity-actions"
+              >
+                {ocpConnectivity.actionHints.slice(0, 2).map((hint) => (
+                  <span key={hint.id}>
+                    {hint.severity}:{hint.id} next={hint.nextCheck}
+                  </span>
+                ))}
+              </div>
               <div className="remediation-notes">
                 <p>
                   {ocpConnectivity.risk[0] ??
