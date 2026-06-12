@@ -64,6 +64,7 @@ npm run verify:owned-image-provenance
 npm run verify:external-runtime-plan
 npm run verify:lightspeed:patch-preview:fixture
 npm run verify:release-plan
+npm run verify:release-refresh
 npm run verify:release-evidence-bundle
 npm run verify:evidence-checkpoint
 npm run verify:lightspeed:fixture
