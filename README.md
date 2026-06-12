@@ -36,6 +36,8 @@ npm run verify:lightspeed:fixture
 
 `npm run verify:roadmap-plan` maps `kugnus-idea/CywellOpsLens_plan.md` to current evidence for the five launch stages: Lightspeed MCP PoC, AI Ops pipeline, dedicated dashboard, Operator/internal catalog packaging, and Red Hat certification/GTM. It writes `test-results/cywell-opslens-roadmap-plan-alignment.json` and treats live OCP/Lightspeed reachability, external runtime certification inputs, release approval, and install approval as explicit `NEEDS_EVIDENCE` gaps rather than hidden completion.
 
+`npm run evidence:external-runtime:draft -- --name vllm|qdrant` creates ignored `*.draft.json` reviewer packets for external runtime digest, scan, SBOM, provenance, license, and approval inputs. Drafts are surfaced by `npm run verify:external-runtime-plan`, but they never replace the final reviewed `docs/release/evidence/external-runtime/vllm.json` and `qdrant.json` release evidence files.
+
 `npm run verify:ocp:connectivity` performs a read-only live connectivity diagnostic for the configured OCP API endpoint. It loads `.env`/kubeconfig candidates, redacts token values, checks DNS, TCP, TLS, Kubernetes `/version`, and `oc get --raw=/version`, then writes `test-results/cywell-opslens-ocp-connectivity-diagnostic.json`. A `tcp-timeout` classification means the API host resolves but port 6443 is not reachable from this machine yet.
 
 `npm run dev` starts both:

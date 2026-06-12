@@ -72,7 +72,7 @@ Primary references:
 4. Run `npm run verify:runtime-rag:fixture` before each runtime adapter change, then run `npm run verify:runtime -- --live` after Qdrant/vLLM services are reachable and enable `CYWELL_OPSLENS_RAG_RUNTIME_MODE=hybrid` for controlled live retrieval checks before replacing the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs.
 5. Build and test the scaffolded Go/controller-runtime Operator manager once Go and Operator SDK are available, then run live OLSConfig patch, install, upgrade, uninstall, and rollback smoke tests.
 6. Run a live OLM install/upgrade/uninstall smoke test once images and a lab OpenShift cluster are available.
-7. Run `npm run verify:external-runtime-plan` and `npm run verify:release-plan` after same-HEAD actual image build evidence is fresh; then collect vLLM/Qdrant digest, scan, SBOM, provenance, mirror, and approval evidence, replace catalog/certification placeholders, run `opm`, `operator-sdk bundle validate`, `operator-sdk scorecard`, image scanning, and Partner Connect submission once external tooling and images are available.
+7. Run `npm run evidence:external-runtime:draft -- --name vllm|qdrant` to collect ignored reviewer intake packets, then run `npm run verify:external-runtime-plan` and `npm run verify:release-plan` after same-HEAD actual image build evidence is fresh; final readiness still requires reviewed vLLM/Qdrant digest, scan, SBOM, provenance, mirror, and approval evidence, catalog/certification placeholder replacement, `opm`, `operator-sdk bundle validate`, `operator-sdk scorecard`, image scanning, and Partner Connect submission once external tooling and images are available.
 
 ## Stage 4 Package Lock
 

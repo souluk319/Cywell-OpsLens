@@ -39,6 +39,7 @@
     "verify:roadmap-plan": "node ./scripts/verify-roadmap-plan-alignment.mjs",
     "verify:live-handoff": "node ./scripts/verify-live-evidence-handoff.mjs",
     "verify:external-runtime-plan": "node ./scripts/verify-external-runtime-images-plan.mjs",
+    "evidence:external-runtime:draft": "node ./scripts/create-external-runtime-evidence-draft.mjs",
     "verify:release-plan": "node ./scripts/verify-release-publish-plan.mjs",
     "verify:release-evidence-bundle": "node ./scripts/verify-release-evidence-bundle.mjs",
     "verify:lightspeed": "node ./scripts/verify-lightspeed-mcp.mjs",

@@ -162,6 +162,19 @@ function loadJsonArtifact(path, label, { required = false } = {}) {
   }
 }
 
+function loadOptionalJsonArtifact(path, label) {
+  const absolutePath = resolve(path);
+  if (!existsSync(absolutePath)) return undefined;
+  try {
+    const artifact = JSON.parse(readFileSync(absolutePath, "utf8"));
+    pass(label, `${artifact.artifactType ?? artifact.schema ?? "unknown"} state=${artifact.evidenceState ?? artifact.status ?? "unknown"}`);
+    return artifact;
+  } catch (error) {
+    fail(label, `${absolutePath} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
 function relatedImagesFromCsv(csv) {
   return new Map((csv?.spec?.relatedImages ?? []).map((entry) => [entry.name, entry.image]));
 }
@@ -179,7 +192,8 @@ function externalRuntimeImages(csvImages) {
     desiredMirror: name === "qdrant"
       ? "<internal-registry>/cywell/qdrant:v1.12.1"
       : "<internal-registry>/cywell/opslens-vllm:0.1.0",
-    evidenceFile: resolve(options.externalEvidenceDir, `${name}.json`)
+    evidenceFile: resolve(options.externalEvidenceDir, `${name}.json`),
+    draftFile: resolve(options.externalEvidenceDir, `${name}.draft.json`)
   }));
 }
 
@@ -369,7 +383,7 @@ function loadEvidenceTemplates(images) {
 }
 
 function hasDigest(value) {
-  return typeof value === "string" && value.includes("@sha256:");
+  return typeof value === "string" && value.includes("@sha256:") && !value.includes("<");
 }
 
 function statusApproved(value) {
@@ -428,6 +442,43 @@ function evidenceRequirements(image, evidence) {
   ];
 
   return requirements;
+}
+
+function draftEvidenceRequirements(image, draft) {
+  if (!draft) return [];
+
+  return [
+    {
+      id: `${image.name}-draft-marker`,
+      pass:
+        draft.draft === true &&
+        draft.actionMode === "draftOnly" &&
+        draft.artifactType === "opslens.external-runtime-image-evidence-draft.v0.1",
+      evidence: "draft artifact must be explicitly marked draftOnly"
+    },
+    {
+      id: `${image.name}-draft-final-target`,
+      pass:
+        typeof draft.finalEvidenceFile === "string" &&
+        draft.finalEvidenceFile.endsWith(`${image.name}.json`) &&
+        !draft.finalEvidenceFile.endsWith(".draft.json"),
+      evidence: "draft must point to the final reviewed evidence file, not another draft"
+    },
+    {
+      id: `${image.name}-draft-no-mutation`,
+      pass:
+        draft.registryMutationAttempted === false &&
+        draft.clusterMutationAttempted === false &&
+        draft.mutationAllowedByThisVerifier === false,
+      evidence: "draft intake must not claim registry, cluster, or approval mutation"
+    },
+    {
+      id: `${image.name}-draft-image`,
+      pass: draft.image === image.image && draft.sourceImage === image.image,
+      evidence: `draft must reference ${image.image}`
+    },
+    ...evidenceRequirements(image, draft)
+  ];
 }
 
 function imageEvidenceHeadSha(artifact) {
@@ -535,6 +586,17 @@ async function buildPlan() {
 
   const externalEvidence = images.map((image) => {
     const artifact = loadJsonArtifact(image.evidenceFile, `${image.name} external runtime certification evidence`);
+    const draftArtifact = loadOptionalJsonArtifact(image.draftFile, `${image.name} external runtime evidence draft`);
+    const draftRequirements = draftEvidenceRequirements(image, draftArtifact);
+    const draftUnmet = draftRequirements.filter((requirement) => !requirement.pass);
+    if (draftArtifact && draftUnmet.length > 0) {
+      for (const requirement of draftUnmet) {
+        warn(`${image.name} external runtime draft gap`, `${requirement.id}: ${requirement.evidence}`);
+      }
+    } else if (draftArtifact) {
+      pass(`${image.name} external runtime draft`, "draft intake has all required fields but still requires human review before final evidence");
+    }
+
     const requirements = evidenceRequirements(image, artifact);
     const unmet = requirements.filter((requirement) => !requirement.pass);
     if (unmet.length > 0) {
@@ -554,7 +616,18 @@ async function buildPlan() {
       sourceType: image.sourceType,
       desiredMirror: image.desiredMirror,
       evidenceFile: image.evidenceFile,
+      draftFile: image.draftFile,
       status: unmet.length > 0 ? "needs-evidence" : "ready",
+      draft: {
+        status: draftArtifact
+          ? draftUnmet.length > 0
+            ? "draft-needs-evidence"
+            : "draft-review-ready"
+          : "missing",
+        evidenceState: draftArtifact?.evidenceState ?? "missing",
+        missingEvidence: draftUnmet.map((requirement) => `${requirement.id}: ${requirement.evidence}`),
+        requirements: draftRequirements
+      },
       requirements
     };
   });
@@ -594,6 +667,13 @@ async function buildPlan() {
       "product-owner"
     ],
     evidenceTemplates,
+    evidenceDrafts: externalEvidence.map((image) => ({
+      name: image.name,
+      draftFile: image.draftFile,
+      status: image.draft.status,
+      evidenceState: image.draft.evidenceState,
+      missingEvidence: image.draft.missingEvidence
+    })),
     externalImages: externalEvidence,
     commands: buildCommands(images),
     missingEvidence,

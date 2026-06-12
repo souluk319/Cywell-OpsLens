@@ -1162,7 +1162,10 @@ export function OpsLensAdminDashboard() {
                   <strong>
                     {externalRuntimePlan.externalImages.length
                       ? externalRuntimePlan.externalImages
-                          .map((image) => `${image.name}:${image.status}`)
+                          .map(
+                            (image) =>
+                              `${image.name}:${image.status} draft=${image.draftStatus}`
+                          )
                           .join(", ")
                       : "blocked until evidence exists"}
                   </strong>
@@ -1175,6 +1178,16 @@ export function OpsLensAdminDashboard() {
                           .map((template) => `${template.name}:${template.status}`)
                           .join(", ")
                       : "templates missing"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Draft Intake</span>
+                  <strong>
+                    {externalRuntimePlan.evidenceDrafts.length
+                      ? externalRuntimePlan.evidenceDrafts
+                          .map((draft) => `${draft.name}:${draft.status}`)
+                          .join(", ")
+                      : "drafts missing"}
                   </strong>
                 </div>
                 <div>

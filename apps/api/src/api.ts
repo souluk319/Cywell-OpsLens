@@ -1192,11 +1192,23 @@ type ExternalRuntimeImagesPlanEvidenceArtifact = {
     sourceType?: string;
     desiredMirror?: string;
     status?: string;
+    draft?: {
+      status?: string;
+      evidenceState?: string;
+      missingEvidence?: string[];
+    };
   }>;
   evidenceTemplates?: Array<{
     name?: string;
     templatePath?: string;
     status?: string;
+  }>;
+  evidenceDrafts?: Array<{
+    name?: string;
+    draftFile?: string;
+    status?: string;
+    evidenceState?: string;
+    missingEvidence?: string[];
   }>;
   commands?: Array<{
     id?: string;
@@ -1961,6 +1973,7 @@ function getExternalRuntimeImagesPlanReadiness(): {
         ],
         externalImages: [],
         evidenceTemplates: [],
+        evidenceDrafts: [],
         mutatingCommands: [],
         risk: [
           "No external runtime image evidence plan is available yet; vLLM/Qdrant mirror and certification work remain blocked."
@@ -1985,12 +1998,23 @@ function getExternalRuntimeImagesPlanReadiness(): {
       readFileSync(evidencePath, "utf8")
     ) as ExternalRuntimeImagesPlanEvidenceArtifact;
     const status = mapExternalRuntimeImagesPlanReadinessStatus(artifact);
+    const draftByName = new Map(
+      (artifact.evidenceDrafts ?? []).map((draft) => [draft.name, draft])
+    );
     const externalImages = (artifact.externalImages ?? []).map((image) => ({
       name: image.name ?? "unknown",
       image: image.image ?? "unknown",
       sourceType: image.sourceType ?? "unknown",
       desiredMirror: image.desiredMirror ?? "unknown",
-      status: image.status ?? "unknown"
+      status: image.status ?? "unknown",
+      draftStatus:
+        image.draft?.status ??
+        draftByName.get(image.name)?.status ??
+        "missing",
+      draftMissingEvidenceCount:
+        image.draft?.missingEvidence?.length ??
+        draftByName.get(image.name)?.missingEvidence?.length ??
+        0
     }));
     const mutatingCommands = (artifact.commands ?? [])
       .filter((command) => command.mutation)
@@ -2012,6 +2036,9 @@ function getExternalRuntimeImagesPlanReadiness(): {
     const templateNames = evidenceTemplates
       .map((template) => `${template.name}:${template.status}`)
       .join(", ");
+    const draftNames = (artifact.evidenceDrafts ?? [])
+      .map((draft) => `${draft.name}:${draft.status}`)
+      .join(", ");
     const mutatingCommandNames = mutatingCommands
       .map((command) => command.id)
       .join(", ");
@@ -2028,6 +2055,13 @@ function getExternalRuntimeImagesPlanReadiness(): {
         requiredApprovals: artifact.requiredApprovals ?? [],
         externalImages,
         evidenceTemplates,
+        evidenceDrafts: (artifact.evidenceDrafts ?? []).map((draft) => ({
+          name: draft.name ?? "unknown",
+          draftFile: draft.draftFile ?? "unknown",
+          status: draft.status ?? "missing",
+          evidenceState: draft.evidenceState ?? "missing",
+          missingEvidence: draft.missingEvidence ?? []
+        })),
         mutatingCommands,
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? [],
@@ -2044,6 +2078,9 @@ function getExternalRuntimeImagesPlanReadiness(): {
         templateNames
           ? `external runtime evidence templates=${templateNames}`
           : "external runtime evidence templates are not listed",
+        draftNames
+          ? `external runtime evidence drafts=${draftNames}`
+          : "external runtime evidence drafts are not listed",
         mutatingCommandNames
           ? `runtime mirror/sign commands require explicit approval: ${mutatingCommandNames}`
           : "runtime mirror/sign commands are not listed in latest external runtime plan",
@@ -2063,6 +2100,7 @@ function getExternalRuntimeImagesPlanReadiness(): {
         requiredApprovals: [],
         externalImages: [],
         evidenceTemplates: [],
+        evidenceDrafts: [],
         mutatingCommands: [],
         risk: [
           "External runtime images plan evidence is invalid; runtime mirror and certification commands remain blocked."

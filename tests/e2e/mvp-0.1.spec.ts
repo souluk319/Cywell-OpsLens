@@ -1448,10 +1448,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       )
     ).toEqual(expect.arrayContaining(["vllm", "qdrant"]));
     expect(
+      body.installReadiness?.externalRuntimePlan?.externalImages?.map(
+        (image) => `${image.name}:${image.draftStatus}`
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^vllm:(missing|draft-needs-evidence|draft-review-ready)$/),
+        expect.stringMatching(/^qdrant:(missing|draft-needs-evidence|draft-review-ready)$/)
+      ])
+    );
+    expect(
       body.installReadiness?.externalRuntimePlan?.evidenceTemplates?.map(
         (template) => `${template.name}:${template.status}`
       )
     ).toEqual(expect.arrayContaining(["vllm:ready", "qdrant:ready"]));
+    expect(body.installReadiness?.externalRuntimePlan?.evidenceDrafts).toEqual(
+      expect.any(Array)
+    );
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /external runtime evidence templates/i
     );

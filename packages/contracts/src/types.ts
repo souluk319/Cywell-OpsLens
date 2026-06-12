@@ -1196,11 +1196,20 @@ export interface OpsLensExternalRuntimeImagesPlanSummary {
     sourceType: string;
     desiredMirror: string;
     status: string;
+    draftStatus: string;
+    draftMissingEvidenceCount: number;
   }>;
   evidenceTemplates: Array<{
     name: string;
     templatePath: string;
     status: string;
+  }>;
+  evidenceDrafts: Array<{
+    name: string;
+    draftFile: string;
+    status: string;
+    evidenceState: string;
+    missingEvidence: string[];
   }>;
   mutatingCommands: Array<{
     id: string;

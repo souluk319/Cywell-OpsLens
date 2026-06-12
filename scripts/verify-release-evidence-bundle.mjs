@@ -411,6 +411,22 @@ async function main() {
         user: image.user ?? "unknown"
       }))
     },
+    externalRuntime: {
+      status: artifacts.externalRuntime?.status ?? "missing",
+      images: (artifacts.externalRuntime?.externalImages ?? []).map((image) => ({
+        name: image.name ?? "unknown",
+        image: image.image ?? "unknown",
+        status: image.status ?? "unknown",
+        draftStatus: image.draft?.status ?? "missing",
+        evidenceFile: image.evidenceFile ?? "unknown"
+      })),
+      evidenceDrafts: (artifacts.externalRuntime?.evidenceDrafts ?? []).map((draft) => ({
+        name: draft.name ?? "unknown",
+        status: draft.status ?? "missing",
+        evidenceState: draft.evidenceState ?? "missing",
+        missingEvidence: draft.missingEvidence ?? []
+      }))
+    },
     commands,
     mutationBoundary: mutations,
     missingEvidence,

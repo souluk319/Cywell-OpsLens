@@ -45,7 +45,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 - Replace placeholder support contacts and maintainer email with production values.
 - Run `operator-sdk bundle validate` and `operator-sdk scorecard` with the target OpenShift versions.
 - Run vulnerability scans for all referenced images and attach remediation evidence.
-- Generate same-HEAD owned image provenance, then collect external runtime source digest, mirror digest, SBOM, provenance, license/support review, security approval, and release approval evidence before any image mirror/sign step.
+- Generate same-HEAD owned image provenance, then collect external runtime source digest, mirror digest, SBOM, provenance, license/support review, security approval, and release approval evidence before any image mirror/sign step. Use `npm run evidence:external-runtime:draft -- --name vllm|qdrant` only for ignored reviewer draft intake; final readiness still requires reviewed `docs/release/evidence/external-runtime/vllm.json` and `qdrant.json`.
 - Build and push signed Operator, API, dashboard, bundle, catalog, and model runtime images to the release registry.
 - Generate the release publish plan and collect release-manager, registry-admin, security, and product-owner approval before pushing, signing, or mirroring images.
 - Run server-side dry-run preflight against the target lab cluster before any mutating install attempt.
