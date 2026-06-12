@@ -33,6 +33,7 @@
     "verify:runtime-rag:fixture": "node ./scripts/verify-runtime-rag-fixture.mjs",
     "verify:lightspeed:routing": "node ./scripts/verify-lightspeed-tool-routing.mjs",
     "verify:evidence-checkpoint": "node ./scripts/verify-evidence-checkpoint.mjs",
+    "verify:roadmap-plan": "node ./scripts/verify-roadmap-plan-alignment.mjs",
     "verify:external-runtime-plan": "node ./scripts/verify-external-runtime-images-plan.mjs",
     "verify:release-plan": "node ./scripts/verify-release-publish-plan.mjs",
     "verify:lightspeed": "node ./scripts/verify-lightspeed-mcp.mjs",

@@ -88,6 +88,7 @@ Primary references:
 - `npm run verify:operator:dry-run` as the non-mutating live API/schema/admission preflight verifier.
 - `npm run verify:install-plan` as the non-mutating human approval, risk, command, evidence, and rollback contract before mutating install.
 - `npm run verify:evidence-checkpoint` as the current-head evidence board for MVP, RAG approval queue, image, Operator dry-run, Lightspeed routing/readiness, external runtime, release, and install readiness.
+- `npm run verify:roadmap-plan` as the product-plan alignment board for `kugnus-idea/CywellOpsLens_plan.md` stages 1-5.
 - `packages/operator-controller` reconcile core with `ValidateOnly`, explicit `PatchOLSConfig`, evidence, missing evidence, risk, rollback path, assistant plan-only policy, and RAG approval queue mutation blocked.
 - `npm run verify:operator:reconcile` as the fixture-based reconcile verifier.
 
