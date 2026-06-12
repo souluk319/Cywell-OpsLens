@@ -947,6 +947,44 @@ button {
   line-height: 1.35;
 }
 
+.install-approval-summary {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #ededed;
+}
+
+.approval-summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 8px;
+}
+
+.approval-summary-grid div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.approval-summary-grid span {
+  color: #6a6e73;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.approval-summary-grid strong {
+  color: #151515;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .coverage-controls {
   display: flex;
   flex-wrap: wrap;
@@ -1928,6 +1966,7 @@ button {
   .route-usage-row,
   .metric-query-row,
   .remediation-target-grid,
+  .approval-summary-grid,
   .rag-validation-fields,
   .rag-validation-result li,
   .readiness-grid {

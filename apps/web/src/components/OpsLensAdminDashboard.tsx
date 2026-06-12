@@ -129,6 +129,7 @@ export function OpsLensAdminDashboard() {
           ]
         : []
     ) ?? [];
+  const approvalPlan = overview?.installReadiness.approvalPlan;
   const validationFailed = validation?.issues.some(
     (issue) => issue.severity === "fail"
   );
@@ -524,6 +525,50 @@ export function OpsLensAdminDashboard() {
               {item}
             </p>
           ))}
+          {approvalPlan ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-install-approval-plan"
+            >
+              <div className="admin-evidence-line">
+                <span>{approvalPlan.actionMode}</span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(approvalPlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(approvalPlan.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Approvals</span>
+                  <strong>{approvalPlan.requiredApprovals.join(", ")}</strong>
+                </div>
+                <div>
+                  <span>Mutating Commands</span>
+                  <strong>
+                    {approvalPlan.mutatingCommands.length
+                      ? approvalPlan.mutatingCommands
+                          .map((command) => command.id)
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {approvalPlan.risk[0] ??
+                    "Mutating install commands remain blocked until approval."}
+                </p>
+                <p>
+                  {approvalPlan.rollbackPath[0] ??
+                    "Rollback path must be reviewed before install."}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </article>
       </div>
     </section>

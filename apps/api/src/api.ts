@@ -24,6 +24,7 @@ import type {
   OpsLensAdminOverviewResponse,
   OpsLensCitation,
   OpsLensImageBuildReadiness,
+  OpsLensInstallApprovalPlanSummary,
   OpsLensInstallPlanReadiness,
   OpsLensLightspeedMcpReadiness,
   OpsLensOperatorDryRunReadiness,
@@ -368,9 +369,12 @@ type InstallApprovalPlanEvidenceArtifact = {
   requiredApprovals?: string[];
   commands?: Array<{
     id?: string;
+    phase?: string;
     mutation?: boolean;
     requiresExplicitApproval?: boolean;
   }>;
+  risk?: string[];
+  rollbackPath?: string[];
   missingEvidence?: string[];
 };
 
@@ -456,7 +460,12 @@ function mapOperatorDryRunReadinessStatus(
 function mapInstallApprovalPlanReadinessStatus(
   artifact: InstallApprovalPlanEvidenceArtifact
 ): OpsLensInstallPlanReadiness {
-  if (artifact.status === "BLOCKED" || artifact.status === "FAIL") {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.status === "FAIL" ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
     return "failed";
   }
   if (artifact.ref?.worktreeDirty || artifact.status === "NEEDS_EVIDENCE") {
@@ -654,12 +663,35 @@ function getOperatorDryRunReadiness(): {
 function getInstallApprovalPlanReadiness(): {
   status: OpsLensInstallPlanReadiness;
   evidence: string[];
+  plan: OpsLensInstallApprovalPlanSummary;
 } {
   const evidencePath = installApprovalPlanEvidencePath();
 
   if (!existsSync(evidencePath)) {
     return {
       status: "needs-evidence",
+      plan: {
+        status: "needs-evidence",
+        actionMode: "approvalPlanOnly",
+        clusterMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        requiredApprovals: [
+          "cluster-admin",
+          "cluster-sre",
+          "security-reviewer",
+          "product-owner"
+        ],
+        mutatingCommands: [],
+        risk: [
+          "No install approval plan evidence is available yet; mutating install commands remain blocked."
+        ],
+        rollbackPath: [
+          "Generate install approval evidence before attempting rollback or install commands."
+        ],
+        missingEvidence: [
+          `install approval plan evidence is missing at ${evidencePath}`
+        ]
+      },
       evidence: [
         "run npm run verify:install-plan to create install approval plan evidence",
         "dashboard keeps install plan as needs-evidence until approval plan evidence is available",
@@ -675,19 +707,36 @@ function getInstallApprovalPlanReadiness(): {
     const status = mapInstallApprovalPlanReadinessStatus(artifact);
     const mutatingCommands = (artifact.commands ?? [])
       .filter((command) => command.mutation)
+      .map((command) => ({
+        id: command.id ?? "unknown",
+        phase: command.phase ?? "unknown",
+        requiresExplicitApproval: command.requiresExplicitApproval === true
+      }));
+    const mutatingCommandNames = mutatingCommands
       .map((command) => command.id)
-      .filter(Boolean)
       .join(", ");
 
     return {
       status,
+      plan: {
+        status,
+        actionMode: "approvalPlanOnly",
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        requiredApprovals: artifact.requiredApprovals ?? [],
+        mutatingCommands,
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? [],
+        missingEvidence: artifact.missingEvidence ?? []
+      },
       evidence: [
         `Install approval plan evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `install approval plan generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `actionMode=${artifact.actionMode ?? "unknown"} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")} mutationAllowedByThisVerifier=${String(artifact.mutationAllowedByThisVerifier ?? "unknown")}`,
         `required approvals=${(artifact.requiredApprovals ?? []).join(", ") || "unknown"}`,
-        mutatingCommands
-          ? `mutating commands require explicit approval: ${mutatingCommands}`
+        mutatingCommandNames
+          ? `mutating commands require explicit approval: ${mutatingCommandNames}`
           : "mutating commands are not listed in latest approval plan",
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads install approval plan evidence only; it does not run install commands"
@@ -696,6 +745,23 @@ function getInstallApprovalPlanReadiness(): {
   } catch (error) {
     return {
       status: "failed",
+      plan: {
+        status: "failed",
+        actionMode: "approvalPlanOnly",
+        clusterMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        requiredApprovals: [],
+        mutatingCommands: [],
+        risk: [
+          "Install approval plan evidence is invalid; mutating install commands remain blocked."
+        ],
+        rollbackPath: [
+          "Regenerate install approval evidence before attempting rollback or install commands."
+        ],
+        missingEvidence: [
+          error instanceof Error ? error.message : "unknown evidence parse error"
+        ]
+      },
       evidence: [
         `Install approval plan evidence could not be parsed from ${evidencePath}`,
         error instanceof Error ? error.message : "unknown evidence parse error",
@@ -860,6 +926,7 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
       operatorPackaging: "draft",
       operatorDryRun: operatorDryRunReadiness.status,
       installPlan: installPlanReadiness.status,
+      approvalPlan: installPlanReadiness.plan,
       imageBuilds: imageBuildReadiness.status,
       certification: "draft",
       evidence: [

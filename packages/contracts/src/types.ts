@@ -608,6 +608,22 @@ export type OpsLensInstallPlanReadiness =
   | "needs-evidence"
   | "failed";
 
+export interface OpsLensInstallApprovalPlanSummary {
+  status: OpsLensInstallPlanReadiness;
+  actionMode: "approvalPlanOnly";
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  requiredApprovals: string[];
+  mutatingCommands: Array<{
+    id: string;
+    phase: string;
+    requiresExplicitApproval: boolean;
+  }>;
+  risk: string[];
+  rollbackPath: string[];
+  missingEvidence: string[];
+}
+
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
@@ -630,6 +646,7 @@ export interface OpsLensAdminOverviewResponse {
     operatorPackaging: "not-started" | "draft" | "ready";
     operatorDryRun: OpsLensOperatorDryRunReadiness;
     installPlan: OpsLensInstallPlanReadiness;
+    approvalPlan: OpsLensInstallApprovalPlanSummary;
     imageBuilds: OpsLensImageBuildReadiness;
     certification: "not-started" | "draft" | "ready";
     evidence: string[];

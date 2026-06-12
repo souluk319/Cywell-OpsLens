@@ -784,6 +784,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         operatorPackaging?: string;
         operatorDryRun?: string;
         installPlan?: string;
+        approvalPlan?: {
+          actionMode?: string;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          requiredApprovals?: string[];
+          mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         imageBuilds?: string;
         certification?: string;
         evidence?: string[];
@@ -877,6 +886,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ]).toContain(body.installReadiness?.installPlan);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /install approval plan/i
+    );
+    expect(body.installReadiness?.approvalPlan).toMatchObject({
+      actionMode: "approvalPlanOnly",
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.approvalPlan?.requiredApprovals
+    ).toEqual(
+      expect.arrayContaining([
+        "cluster-admin",
+        "cluster-sre",
+        "security-reviewer",
+        "product-owner"
+      ])
     );
     expect(["ready", "needs-evidence", "failed"]).toContain(
       body.installReadiness?.imageBuilds
@@ -1049,6 +1073,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Install Plan"
+    );
+    await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
+      "approvalPlanOnly"
+    );
+    await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
+      "clusterMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
+      "cluster-admin"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       /needs-live-check|needs-configuration|needs-evidence|partial|ready|approval-required|failed/
