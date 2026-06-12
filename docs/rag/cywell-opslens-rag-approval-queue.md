@@ -1,6 +1,6 @@
 # Cywell OpsLens RAG Approval Queue Design
 
-Status: MVP 0.1 design contract. The product exports validation evidence, but does not enqueue, persist, or index uploaded drafts yet.
+Status: MVP 0.1 plus Stage 3 bridge. The default product path exports validation evidence and keeps the queue `designOnly`; an explicitly enabled local persistence path can write metadata-only queue items for human approval without raw Markdown, vector writes, or cluster mutation.
 
 ## Goal
 
@@ -12,7 +12,10 @@ Create a safe path from operator-authored runbook drafts to future private RAG i
 - `POST /api/opslens/admin/rag/evidence-export` returns `opslens.rag.validation-evidence.v0.1`.
 - The evidence artifact includes validation result, redacted chunk preview, issue list, missing evidence, validation hash, and approval queue intent.
 - The artifact never returns raw Markdown or raw document body.
-- `approvalQueue.mode=designOnly`, `enqueueAllowed=false`, and `approvalQueueMutationAllowed=false`.
+- `approvalQueue.mode=designOnly`, `enqueueAllowed=false`, and `approvalQueueMutationAllowed=false` for evidence export.
+- `POST /api/opslens/admin/rag/approval-queue/submit` returns `opslens.rag.approval-queue-submission.v0.2`.
+- By default, queue submission returns `state=design-only`, `persisted=false`, `queuePersistenceAllowed=false`, `vectorWriteAllowed=false`, and `clusterMutationAllowed=false`.
+- If `CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_PERSISTENCE=enabled`, accepted drafts can persist a local JSON queue item containing validation metadata, redacted chunks, validation hash, and required approvers only.
 - `OpsLensInstallation.spec.rag` exposes the same policy to Operator installs: `documentIntake.mode=ValidateOnly`, `rawDocumentReturnAllowed=false`, `approvalQueue.mode=DesignOnly`, and `enqueueAllowed=false`.
 - The Operator renders `cywell-opslens-rag-policy` and API environment variables from that policy, while still forcing raw return and queue enqueue off in MVP 0.1.
 
@@ -22,7 +25,7 @@ Create a safe path from operator-authored runbook drafts to future private RAG i
 |---|---|---|
 | `draft-validated` | Validation passed and evidence export exists. | Human reviewer may request approval. |
 | `rejected-before-approval` | Validation failed before any queue entry is allowed. | Author must fix draft and revalidate. |
-| `pending-human-approval` | Future durable queue item awaiting review. | Two approvals or rejection. |
+| `pending-human-approval` | Opt-in durable metadata queue item awaiting review. | Two approvals or rejection. |
 | `approved-for-ingestion` | Future queue item approved for indexing. | Ingestion job may write to vector store. |
 | `indexed` | Future ingestion job wrote chunks and citation metadata. | Revalidation required for changes. |
 
@@ -40,13 +43,15 @@ Create a safe path from operator-authored runbook drafts to future private RAG i
 - No vector DB writes from the dashboard.
 - No automatic approval based only on validation success.
 - No assistant-triggered ingestion, apply, delete, or scale.
+- No production database queue in the local MVP bridge; the current persistence path is local JSON evidence for controlled validation.
 
 ## Verification Mapping
 
 | Requirement | Verification |
 |---|---|
 | Evidence export does not leak raw draft content | `npm run verify:rag` and Playwright API assertions check `markdownReturned=false`, `documentBodyReturned=false`, `rawDocumentReturned=false`, and sensitive text redaction. |
-| Queue remains design-only | `npm run verify:rag` checks `mode=designOnly`, `enqueueAllowed=false`, and `approvalQueueMutationAllowed=false`. |
+| Queue remains design-only by default | `npm run verify:rag` checks `mode=designOnly`, `enqueueAllowed=false`, and `approvalQueueMutationAllowed=false`; Playwright checks default queue submit returns `state=design-only` and `persisted=false`. |
+| Opt-in queue persistence is metadata-only | `npm run verify:rag:approval-queue` enables the local queue in a temporary directory and checks `state=pending-human-approval`, `persisted=true`, redacted chunks, no raw Markdown, no secret-like values, `vectorWriteAllowed=false`, and `clusterMutationAllowed=false`. |
 | Operator install keeps the same policy | `npm run verify:operator` and `npm run verify:operator:reconcile` check `OpsLensInstallation.spec.rag`, `cywell-opslens-rag-policy`, API env, and reconcile status. |
-| Dashboard exposes artifact evidence | Playwright checks `opslens-rag-evidence-export` after `Export Evidence`. |
-| Real ingestion remains out of scope | Acceptance matrix marks durable ingestion, approval persistence, and vector DB writes as later lanes. |
+| Dashboard exposes artifact evidence | Playwright checks `opslens-rag-evidence-export` after `Export Evidence` and `opslens-rag-approval-queue` after `Queue Evidence`. |
+| Real ingestion remains out of scope | Acceptance matrix marks production DB-backed queue, approval UI, durable ingestion jobs, and vector DB writes as later lanes. |

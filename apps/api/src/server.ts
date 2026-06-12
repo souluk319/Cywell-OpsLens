@@ -10,6 +10,7 @@ import {
   getDashboardRisks,
   getOpsLensTools,
   handleOpsLensMcpRequest,
+  submitOpsLensRagApprovalQueue,
   syncContext,
   validateOpsLensRagDocument
 } from "./api";
@@ -156,6 +157,18 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
         response,
         200,
         exportOpsLensRagEvidence((await readJson(request)) as never)
+      );
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      url.pathname === "/api/opslens/admin/rag/approval-queue/submit"
+    ) {
+      sendJson(
+        response,
+        200,
+        await submitOpsLensRagApprovalQueue((await readJson(request)) as never)
       );
       return;
     }

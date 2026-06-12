@@ -17,6 +17,7 @@ const evidenceDefaults = {
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
   runtimeRag: "test-results/cywell-opslens-runtime-rag-contract.json",
   runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
+  ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
@@ -298,6 +299,34 @@ function checkLightspeedRoutingScore(routingArtifact) {
   );
 }
 
+function checkRagApprovalQueuePolicy(queueArtifact) {
+  if (!queueArtifact) return;
+  const policy = queueArtifact.policy ?? {};
+  const submissions = queueArtifact.submissions ?? {};
+  const violations = [];
+
+  if (policy.rawDocumentReturned !== false) violations.push("rawDocumentReturned");
+  if (policy.rawMarkdownPersisted !== false) violations.push("rawMarkdownPersisted");
+  if (policy.vectorWriteAllowed !== false) violations.push("vectorWriteAllowed");
+  if (policy.clusterMutationAllowed !== false) violations.push("clusterMutationAllowed");
+  if (submissions.disabled?.state !== "design-only") violations.push("disabled.state");
+  if (submissions.disabled?.persisted !== false) violations.push("disabled.persisted");
+  if (submissions.enabled?.state !== "pending-human-approval") violations.push("enabled.state");
+  if (submissions.enabled?.persisted !== true) violations.push("enabled.persisted");
+  if (submissions.rejected?.state !== "rejected-before-approval") violations.push("rejected.state");
+  if (submissions.rejected?.persisted !== false) violations.push("rejected.persisted");
+
+  if (violations.length > 0) {
+    fail("RAG approval queue safety", `queue policy violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "RAG approval queue safety",
+    "default queue is design-only, opt-in local persistence is metadata-only, and rejected drafts do not persist"
+  );
+}
+
 function checkPatchPreview(patchArtifact) {
   if (!patchArtifact) return;
   if (patchArtifact.clusterMutationAttempted === true) {
@@ -360,6 +389,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "ragApprovalQueue",
+    label: "RAG approval queue",
+    artifact: artifacts.ragApprovalQueue,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "lightspeedRouting",
     label: "Lightspeed tool routing",
     artifact: artifacts.lightspeedRouting,
@@ -417,6 +453,7 @@ async function main() {
   });
 
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
+  checkRagApprovalQueuePolicy(artifacts.ragApprovalQueue);
   checkImageActualBuilds(artifacts.imageBuild);
   checkPatchPreview(artifacts.lightspeedPatchPreview);
 
@@ -446,6 +483,7 @@ async function main() {
     acceptance: [
       "AC-DASH-001",
       "AC-RAG-001",
+      "AC-RAG-002",
       "AC-LS-001",
       "AC-LS-002",
       "AC-OP-004",

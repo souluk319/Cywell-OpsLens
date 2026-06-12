@@ -17,7 +17,7 @@ import type {
 } from "./types.js";
 
 const sensitivePattern =
-  /(token|password|passwd|secret|api[_-]?key|bearer\s+[a-z0-9._-]+)/gi;
+  /\b(?:token|password|passwd|secret|api[_-]?key)\s*[:=]\s*\S+|bearer\s+[a-z0-9._~+/=-]+|\b(?:token|password|passwd|secret|api[_-]?key)\b/gi;
 const vectorDimensions = 64;
 
 export function redactSensitiveText(text: string) {

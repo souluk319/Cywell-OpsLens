@@ -12,6 +12,8 @@ import type {
   OcpEventsResponse,
   OcpPodLogsResponse,
   OpsLensAdminOverviewResponse,
+  OpsLensRagApprovalQueueSubmitRequest,
+  OpsLensRagApprovalQueueSubmissionResponse,
   OpsLensRagEvidenceExportRequest,
   OpsLensRagEvidenceExportResponse,
   OpsLensRagValidationRequest,
@@ -75,6 +77,18 @@ export function validateOpsLensRagDocument(request: OpsLensRagValidationRequest)
 export function exportOpsLensRagEvidence(request: OpsLensRagEvidenceExportRequest) {
   return requestJson<OpsLensRagEvidenceExportResponse>(
     "/api/opslens/admin/rag/evidence-export",
+    {
+      method: "POST",
+      body: JSON.stringify(request)
+    }
+  );
+}
+
+export function submitOpsLensRagApprovalQueue(
+  request: OpsLensRagApprovalQueueSubmitRequest
+) {
+  return requestJson<OpsLensRagApprovalQueueSubmissionResponse>(
+    "/api/opslens/admin/rag/approval-queue/submit",
     {
       method: "POST",
       body: JSON.stringify(request)

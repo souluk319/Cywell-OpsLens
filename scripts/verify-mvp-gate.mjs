@@ -56,6 +56,13 @@ const steps = [
     purpose: "Verify tenant-scoped local RAG, redaction, validate-only intake, and evidence export."
   },
   {
+    id: "RAG-APPROVAL-QUEUE",
+    command: "npm",
+    args: ["run", "verify:rag:approval-queue"],
+    acceptance: ["AC-RAG-002", "AC-DASH-001"],
+    purpose: "Verify env-gated RAG approval queue persistence keeps raw Markdown, vector writes, and cluster mutation blocked."
+  },
+  {
     id: "RUNTIME",
     command: "npm",
     args: ["run", "verify:runtime"],

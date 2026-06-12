@@ -10,6 +10,7 @@ import {
   createRagValidationEvidenceExport,
   redactSensitiveText,
   searchLocalRagIndex,
+  submitRagApprovalQueueItem,
   validateRagDocumentIntake
 } from "@kugnus/rag";
 import type {
@@ -43,6 +44,8 @@ import type {
   OpsLensRuntimeRagAudit,
   OpsLensRagEvidenceExportRequest,
   OpsLensRagEvidenceExportResponse,
+  OpsLensRagApprovalQueueSubmitRequest,
+  OpsLensRagApprovalQueueSubmissionResponse,
   OpsLensRagValidationRequest,
   OpsLensRagValidationResponse,
   OpsLensToolName,
@@ -2174,6 +2177,39 @@ export function exportOpsLensRagEvidence(
 ): OpsLensRagEvidenceExportResponse {
   assertRagEvidenceExportRequest(request);
   return createRagValidationEvidenceExport(localRagIndex, request);
+}
+
+function assertRagApprovalQueueSubmitRequest(
+  request: OpsLensRagApprovalQueueSubmitRequest
+): asserts request is OpsLensRagApprovalQueueSubmitRequest {
+  assertRagEvidenceExportRequest(request);
+  if (typeof request.requestedBy !== "string" || request.requestedBy.trim() === "") {
+    throw new Error("requestedBy is required for RAG approval queue submission");
+  }
+  if (typeof request.reason !== "string" || request.reason.trim() === "") {
+    throw new Error("reason is required for RAG approval queue submission");
+  }
+  if (request.ticketRef !== undefined && typeof request.ticketRef !== "string") {
+    throw new Error("ticketRef must be a string");
+  }
+}
+
+function ragApprovalQueuePersistenceMode() {
+  return envBoolean("CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_PERSISTENCE", false)
+    ? "enabled"
+    : "disabled";
+}
+
+export async function submitOpsLensRagApprovalQueue(
+  request: OpsLensRagApprovalQueueSubmitRequest
+): Promise<OpsLensRagApprovalQueueSubmissionResponse> {
+  assertRagApprovalQueueSubmitRequest(request);
+  return submitRagApprovalQueueItem(localRagIndex, request, {
+    persistenceMode: ragApprovalQueuePersistenceMode(),
+    queueDir:
+      process.env.CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_DIR ??
+      join(repoRoot, "test-results", "rag-approval-queue")
+  });
 }
 
 export function createPlanOnlyRemediationProposal(params: {

@@ -605,6 +605,71 @@ export interface OpsLensRagEvidenceExportResponse {
   };
 }
 
+export interface OpsLensRagApprovalQueueSubmitRequest extends OpsLensRagEvidenceExportRequest {
+  requestedBy: string;
+  reason: string;
+  ticketRef?: string;
+}
+
+export interface OpsLensRagApprovalQueueSubmissionResponse {
+  artifactType: "opslens.rag.approval-queue-submission.v0.2";
+  artifactVersion: "0.2";
+  generatedAt: string;
+  queueItemId: string;
+  tenantId: string;
+  fileName: string;
+  actionMode: "approvalQueueOnly";
+  state:
+    | "design-only"
+    | "pending-human-approval"
+    | "rejected-before-approval";
+  validation: OpsLensRagValidationResponse;
+  evidenceExport: {
+    artifactType: OpsLensRagEvidenceExportResponse["artifactType"];
+    exportId: string;
+    validationHash: string;
+  };
+  content: {
+    markdownReturned: false;
+    documentBodyReturned: false;
+    chunksRedacted: true;
+    rawMarkdownPersisted: false;
+    vectorWriteAttempted: false;
+  };
+  approvalQueue: {
+    mode: "designOnly" | "persistentLocal";
+    enqueueAllowed: boolean;
+    persisted: boolean;
+    storagePath?: string;
+    requiredApprovals: string[];
+    approvals: Array<{
+      approver: string;
+      role: string;
+      approvedAt: string;
+    }>;
+    blockers: string[];
+    evidence: string[];
+  };
+  audit: {
+    requestedBy: string;
+    reason: string;
+    ticketRef?: string;
+    validationHash: string;
+    sourceIndexVersion: "local-vector-v0.1";
+    sourceDocumentCount: number;
+    sourceChunkCount: number;
+  };
+  policy: OpsLensRagValidationResponse["policy"] & {
+    evidenceExportAllowed: true;
+    queuePersistenceAllowed: boolean;
+    vectorWriteAllowed: false;
+    clusterMutationAllowed: false;
+  };
+  risk: string[];
+  rollbackPath: string[];
+  missingEvidence: string[];
+}
+
 export interface OpsLensTokenRouteUsage {
   route: "lightspeed-mcp" | "incident-analysis" | "admin-dashboard" | "rag-indexing";
   requests: number;

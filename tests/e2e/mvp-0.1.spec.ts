@@ -1442,6 +1442,77 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(evidenceExportBody.audit?.validationHash).toHaveLength(64);
     expect(JSON.stringify(evidenceExportBody)).not.toContain("token=demo-secret");
 
+    const queueSubmit = await request.post(
+      "/api/opslens/admin/rag/approval-queue/submit",
+      {
+        data: {
+          tenantId: "cywell-payments",
+          fileName: "payments-timeout-triage.md",
+          markdown: [
+            "---",
+            "id: customer-runbook:payments-timeout-triage",
+            "label: Payments Timeout Triage",
+            "sourceType: customer-runbook",
+            "trustLevel: draft",
+            "---",
+            "",
+            "# Payments Timeout Triage",
+            "",
+            "결제 승인 지연이 감지되면 최근 10분의 API latency, gateway error rate, egress policy change, readiness probe 상태를 함께 확인한다.",
+            "",
+            "1. Secret 원문은 조회하지 않고 key reference와 mount 상태만 확인한다.",
+            "2. 자동 rollback은 하지 않고 GitOps pull request로만 변경한다. token=demo-secret"
+          ].join("\n"),
+          requestedBy: "playwright",
+          reason: "queue token=demo-secret for human approval",
+          ticketRef: "OPS-PLAYWRIGHT"
+        }
+      }
+    );
+    expect(queueSubmit.ok()).toBe(true);
+    const queueSubmitBody = (await queueSubmit.json()) as {
+      artifactType?: string;
+      queueItemId?: string;
+      actionMode?: string;
+      state?: string;
+      content?: {
+        rawMarkdownPersisted?: boolean;
+        vectorWriteAttempted?: boolean;
+      };
+      approvalQueue?: {
+        mode?: string;
+        enqueueAllowed?: boolean;
+        persisted?: boolean;
+        blockers?: string[];
+      };
+      policy?: {
+        queuePersistenceAllowed?: boolean;
+        vectorWriteAllowed?: boolean;
+        clusterMutationAllowed?: boolean;
+      };
+    };
+    expect(queueSubmitBody.artifactType).toBe(
+      "opslens.rag.approval-queue-submission.v0.2"
+    );
+    expect(queueSubmitBody.queueItemId).toContain("rag-queue-");
+    expect(queueSubmitBody.actionMode).toBe("approvalQueueOnly");
+    expect(queueSubmitBody.state).toBe("design-only");
+    expect(queueSubmitBody.content).toMatchObject({
+      rawMarkdownPersisted: false,
+      vectorWriteAttempted: false
+    });
+    expect(queueSubmitBody.approvalQueue).toMatchObject({
+      mode: "designOnly",
+      enqueueAllowed: false,
+      persisted: false
+    });
+    expect(queueSubmitBody.policy).toMatchObject({
+      queuePersistenceAllowed: false,
+      vectorWriteAllowed: false,
+      clusterMutationAllowed: false
+    });
+    expect(JSON.stringify(queueSubmitBody)).not.toContain("token=demo-secret");
+
     const dashboard = page.getByTestId("opslens-admin-dashboard");
     await dashboard.scrollIntoViewIfNeeded();
     await expect(dashboard).toBeVisible();
@@ -1584,6 +1655,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-rag-evidence-export")).toContainText(
       "enqueueAllowed=false"
+    );
+    await page
+      .getByTestId("opslens-rag-validation")
+      .getByRole("button", { name: "Queue Evidence" })
+      .click();
+    await expect(page.getByTestId("opslens-rag-approval-queue")).toContainText(
+      "rag-queue-"
+    );
+    await expect(page.getByTestId("opslens-rag-approval-queue")).toContainText(
+      "design-only"
+    );
+    await expect(page.getByTestId("opslens-rag-approval-queue")).toContainText(
+      "persisted=false"
+    );
+    await expect(page.getByTestId("opslens-rag-approval-queue")).toContainText(
+      "vectorWrite=false"
     );
   });
 

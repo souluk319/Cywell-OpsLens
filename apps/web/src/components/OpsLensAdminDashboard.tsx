@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type {
   OpsLensAdminOverviewResponse,
+  OpsLensRagApprovalQueueSubmissionResponse,
   OpsLensRagEvidenceExportResponse,
   OpsLensRagValidationResponse
 } from "@kugnus/contracts";
@@ -18,6 +19,7 @@ import {
 import {
   exportOpsLensRagEvidence,
   fetchOpsLensAdminOverview,
+  submitOpsLensRagApprovalQueue,
   validateOpsLensRagDocument
 } from "../lib/api";
 
@@ -79,8 +81,11 @@ export function OpsLensAdminDashboard() {
     useState<OpsLensRagValidationResponse | null>(null);
   const [evidenceExport, setEvidenceExport] =
     useState<OpsLensRagEvidenceExportResponse | null>(null);
+  const [queueSubmission, setQueueSubmission] =
+    useState<OpsLensRagApprovalQueueSubmissionResponse | null>(null);
   const [validating, setValidating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [queueing, setQueueing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -148,6 +153,7 @@ export function OpsLensAdminDashboard() {
       });
       setValidation(response);
       setEvidenceExport(null);
+      setQueueSubmission(null);
       setError(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "RAG validation failed");
@@ -168,6 +174,7 @@ export function OpsLensAdminDashboard() {
       });
       setEvidenceExport(response);
       setValidation(response.validation);
+      setQueueSubmission(null);
       setError(null);
     } catch (caught) {
       setError(
@@ -175,6 +182,29 @@ export function OpsLensAdminDashboard() {
       );
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function submitApprovalQueue() {
+    setQueueing(true);
+    try {
+      const response = await submitOpsLensRagApprovalQueue({
+        tenantId,
+        fileName,
+        markdown,
+        requestedBy: "admin-dashboard",
+        reason: "submit redacted validation evidence for human approval",
+        ticketRef: "dashboard-local-draft"
+      });
+      setQueueSubmission(response);
+      setValidation(response.validation);
+      setError(null);
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "RAG approval queue submit failed"
+      );
+    } finally {
+      setQueueing(false);
     }
   }
 
@@ -308,6 +338,15 @@ export function OpsLensAdminDashboard() {
                 <Download size={16} aria-hidden="true" />
                 {exporting ? "Exporting" : "Export Evidence"}
               </button>
+              <button
+                className="text-icon-button"
+                type="button"
+                onClick={() => void submitApprovalQueue()}
+                disabled={queueing}
+              >
+                <FileDiff size={16} aria-hidden="true" />
+                {queueing ? "Queueing" : "Queue Evidence"}
+              </button>
             </div>
             {validation ? (
               <div className="rag-validation-result">
@@ -338,6 +377,26 @@ export function OpsLensAdminDashboard() {
                       <span>{evidenceExport.approvalQueue.mode}</span>
                       <span>enqueueAllowed=false</span>
                       <span>{evidenceExport.audit.validationHash.slice(0, 12)}</span>
+                    </div>
+                  </div>
+                ) : null}
+                {queueSubmission ? (
+                  <div
+                    className="rag-export-summary"
+                    data-testid="opslens-rag-approval-queue"
+                  >
+                    <div className="admin-evidence-line">
+                      <span>{queueSubmission.queueItemId}</span>
+                      <span>{queueSubmission.state}</span>
+                      <span>{queueSubmission.approvalQueue.mode}</span>
+                      <span>
+                        persisted={String(queueSubmission.approvalQueue.persisted)}
+                      </span>
+                      <span>
+                        vectorWrite={String(
+                          queueSubmission.policy.vectorWriteAllowed
+                        )}
+                      </span>
                     </div>
                   </div>
                 ) : null}

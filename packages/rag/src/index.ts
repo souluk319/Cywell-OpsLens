@@ -8,3 +8,10 @@ export {
   tokenize,
   validateRagDocumentIntake
 } from "./localIndex.js";
+export {
+  submitRagApprovalQueueItem
+} from "./approvalQueue.js";
+export type {
+  RagApprovalQueuePersistenceMode,
+  RagApprovalQueueSubmitOptions
+} from "./approvalQueue.js";

@@ -68,7 +68,7 @@ Primary references:
 
 1. Run `npm run verify:evidence-checkpoint` after the latest dry-run, Lightspeed routing score, Lightspeed patch preview, `verify:images:build` actual image build evidence, release/runtime plans, and MVP evidence are fresh; collect explicit approvals before any mutating OLM install, OLSConfig patch, image push, signing, or mirroring.
 2. Run `npm run verify:operator:dry-run` and `npm run verify:lightspeed -- --mcp-url <cluster-or-local-mcp-url> --require-mcp` against a real OpenShift Lightspeed environment.
-3. Implement durable RAG approval queue persistence after the approval-state contract is reviewed.
+3. Harden the new env-gated RAG approval queue bridge into a production database-backed approval UI: `npm run verify:rag:approval-queue` now proves default design-only behavior plus opt-in local metadata-only persistence, but human approval workflow, database storage, and ingestion jobs remain later lanes.
 4. Run `npm run verify:runtime-rag:fixture` before each runtime adapter change, then run `npm run verify:runtime -- --live` after Qdrant/vLLM services are reachable and enable `CYWELL_OPSLENS_RAG_RUNTIME_MODE=hybrid` for controlled live retrieval checks before replacing the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs.
 5. Build and test the scaffolded Go/controller-runtime Operator manager once Go and Operator SDK are available, then run live OLSConfig patch, install, upgrade, uninstall, and rollback smoke tests.
 6. Run a live OLM install/upgrade/uninstall smoke test once images and a lab OpenShift cluster are available.
@@ -84,9 +84,10 @@ Primary references:
 - OLM bundle skeleton with CSV, CRD, annotations, bundle Dockerfile, related images, and RBAC for `olsconfigs`, `consoleplugins`, and `networkpolicies`.
 - Go/controller-runtime manager source under `deploy/operator/controller-runtime/**` with scheme registration, health checks, `OpsLensInstallation` types, reconcile entrypoint, install resources, RAG policy rendering, and explicit `ValidateOnly`/`PatchOLSConfig` OLSConfig patch split.
 - `npm run verify:operator` as the local package contract verifier.
+- `npm run verify:rag:approval-queue` as the local metadata-only approval queue bridge verifier before any future ingestion job.
 - `npm run verify:operator:dry-run` as the non-mutating live API/schema/admission preflight verifier.
 - `npm run verify:install-plan` as the non-mutating human approval, risk, command, evidence, and rollback contract before mutating install.
-- `npm run verify:evidence-checkpoint` as the current-head evidence board for MVP, image, Operator dry-run, Lightspeed routing/readiness, external runtime, release, and install readiness.
+- `npm run verify:evidence-checkpoint` as the current-head evidence board for MVP, RAG approval queue, image, Operator dry-run, Lightspeed routing/readiness, external runtime, release, and install readiness.
 - `packages/operator-controller` reconcile core with `ValidateOnly`, explicit `PatchOLSConfig`, evidence, missing evidence, risk, rollback path, assistant plan-only policy, and RAG approval queue mutation blocked.
 - `npm run verify:operator:reconcile` as the fixture-based reconcile verifier.
 

@@ -23,13 +23,14 @@ npm run verify:evidence-checkpoint
 npm run verify:runtime-rag
 npm run verify:runtime-rag:fixture
 npm run verify:lightspeed:routing
+npm run verify:rag:approval-queue
 npm run test:e2e
 npm run verify:lightspeed:fixture
 ```
 
 `npm run verify:mvp` runs the MVP 0.1 release gate and writes local evidence to `test-results/cywell-opslens-mvp-0.1-gate.json`. Use `npm run verify:mvp -- --skip-e2e` for a faster static/API gate when UI evidence is not required.
 
-`npm run verify:evidence-checkpoint` reads the current local evidence artifacts, including the Lightspeed routing score, checks that they are stamped with the current git head, keeps live OCP/Lightspeed and external runtime gaps visible, and writes `test-results/cywell-opslens-evidence-checkpoint.json`. It does not build, push, patch, apply, delete, scale, or contact the cluster.
+`npm run verify:evidence-checkpoint` reads the current local evidence artifacts, including the RAG approval queue bridge and Lightspeed routing score, checks that they are stamped with the current git head, keeps live OCP/Lightspeed and external runtime gaps visible, and writes `test-results/cywell-opslens-evidence-checkpoint.json`. It does not build, push, patch, apply, delete, scale, or contact the cluster.
 
 `npm run dev` starts both:
 
@@ -46,6 +47,7 @@ MVP 0.1 has a mock read-only assistant/backend contract:
 - `GET /api/opslens/tools`
 - `GET /api/opslens/admin/overview`
 - `GET /api/opslens/runtime/readiness`
+- `POST /api/opslens/admin/rag/approval-queue/submit`
 - `POST /api/opslens/ask`
 - `POST /api/opslens/incidents/analyze`
 - `POST /mcp`
@@ -59,7 +61,9 @@ Cywell OpsLens Stage 1 uses the OpenShift Lightspeed custom MCP server path, not
 
 Stage 2 begins with `POST /api/opslens/incidents/analyze`: an alert-triggered, plan-only incident endpoint that combines read-only resource detail, pod candidates, events, `sinceSeconds`-bounded pod logs, and opt-in Prometheus metric correlation with private runbook citations. Failed reads are returned as `missingEvidence`, not hidden.
 
-Stage 3 starts with `GET /api/opslens/admin/overview` and the OpsLens Admin Dashboard surface for RAG document health, token usage, GPU/runtime samples, Lightspeed MCP tool matrix plus routing score, incident metric query status, and install readiness.
+Stage 3 starts with `GET /api/opslens/admin/overview` and the OpsLens Admin Dashboard surface for RAG document health, validate-only evidence export, env-gated RAG approval queue persistence, token usage, GPU/runtime samples, Lightspeed MCP tool matrix plus routing score, incident metric query status, and install readiness.
+
+`npm run verify:rag:approval-queue` proves the post-MVP approval queue bridge: default API mode remains `designOnly`, an explicitly enabled local queue persists only metadata/redacted chunks/approval requirements, invalid drafts are rejected before persistence, and no raw Markdown, vector write, cluster mutation, or secret-like value is stored.
 
 The answer path now carries a runtime RAG audit contract. By default `CYWELL_OPSLENS_RAG_RUNTIME_MODE=local`, so `/api/opslens/ask`, `/mcp`, and incident analysis do not call live Qdrant/vLLM endpoints. When explicitly set to `hybrid` or `runtime`, OpsLens tries vLLM embeddings plus Qdrant redacted snippet search and falls back to local tenant RAG with visible `missingEvidence` if runtime evidence is absent. `npm run verify:runtime-rag:fixture` proves that success path against local mock runtime services without touching OpenShift.
 
