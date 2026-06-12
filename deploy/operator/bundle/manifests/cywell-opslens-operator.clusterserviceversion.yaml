@@ -171,7 +171,6 @@ spec:
                 - persistentvolumeclaims
                 - services
                 - serviceaccounts
-                - secrets
               verbs:
                 - get
                 - list

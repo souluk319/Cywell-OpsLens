@@ -285,6 +285,12 @@ function validateRbac(clusterRole, csv) {
     fail("config RBAC ServiceAccount", "serviceaccounts get/create/patch permissions are missing");
   }
 
+  if (!hasRuleFor(rbacRules, "", "secrets", ["get"])) {
+    pass("config RBAC no Secret read", "operator does not receive raw Secret read permissions in MVP 0.1");
+  } else {
+    fail("config RBAC no Secret read", "secrets get/list/watch permissions must stay out of MVP 0.1");
+  }
+
   const csvRules = (csv?.spec?.install?.spec?.clusterPermissions ?? []).flatMap(
     (permission) => permission.rules ?? []
   );
@@ -310,6 +316,12 @@ function validateRbac(clusterRole, csv) {
     pass("CSV RBAC ServiceAccount", "can reconcile the API service account");
   } else {
     fail("CSV RBAC ServiceAccount", "serviceaccounts permissions are missing");
+  }
+
+  if (!hasRuleFor(csvRules, "", "secrets", ["get"])) {
+    pass("CSV RBAC no Secret read", "operator bundle does not grant raw Secret read permissions");
+  } else {
+    fail("CSV RBAC no Secret read", "CSV must not grant secrets get/list/watch in MVP 0.1");
   }
 }
 

@@ -18,7 +18,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 
 | Area | Control | Evidence |
 |---|---|---|
-| RBAC | Operator RBAC is scoped to OpsLens resources, install resources, ConsolePlugin, and OLSConfig patching. | `deploy/operator/config/rbac/cluster_role.yaml` |
+| RBAC | Operator RBAC is scoped to OpsLens resources, install resources, ConsolePlugin, and OLSConfig patching, and does not grant raw Secret read access in MVP 0.1. | `deploy/operator/config/rbac/cluster_role.yaml`, `npm run verify:operator` |
 | Mutation boundary | Assistant responses stay read-only or plan-only; only the Operator can patch installation resources when the CR explicitly requests it. | `packages/operator-controller/src/reconcile.ts` |
 | Lightspeed registration | `ValidateOnly` never mutates; `PatchOLSConfig` preserves existing MCP servers and emits rollback evidence. | `npm run verify:operator:reconcile` |
 | RAG install policy | `OpsLensInstallation.spec.rag` exposes validate-only document intake and design-only approval queue; rendered API env and ConfigMap keep raw return and enqueue disabled. | `npm run verify:operator`, `npm run verify:operator:reconcile` |
@@ -26,7 +26,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 | Customer data | RAG inventory returns metadata only, snippets are redacted, raw documents are not returned. | `GET /api/opslens/admin/overview` |
 | RAG isolation | Local vector index is tenant-scoped and blocks unknown tenant retrieval. | `npm run verify:rag` |
 | RAG evidence export | Validation evidence artifacts return redacted previews and design-only approval intent without raw Markdown, queue mutation, or vector writes. | `POST /api/opslens/admin/rag/evidence-export`, `npm run verify:rag` |
-| Secrets | Raw Kubernetes Secret fetch remains blocked in API discovery. | `AC-OCP-001` |
+| Secrets | Raw Kubernetes Secret fetch remains blocked in API discovery, and Operator RBAC does not grant `secrets get/list/watch`. | `AC-OCP-001`, `npm run verify:operator` |
 | Disconnected | CSV and FBC include `relatedImages` for all runtime images. | `deploy/operator/bundle/manifests/*.yaml`, `deploy/catalog/fbc/catalog.yaml` |
 | Proxy/TLS | Certification annotations declare proxy-aware and TLS-profile readiness intent. | CSV annotations |
 | FIPS | FIPS is currently declared unsupported until image/runtime validation proves compliance. | `features.operators.openshift.io/fips-compliant: "false"` |

@@ -124,6 +124,14 @@ async function gitValue(commandArgs, fallback) {
   return result.output.split(/\r?\n/).at(-1)?.trim() || fallback;
 }
 
+async function gitOutput(commandArgs, fallback = "") {
+  const result = await runCapture("git", commandArgs);
+  if (result.exitCode !== 0) {
+    return fallback;
+  }
+  return result.output;
+}
+
 function runStep(step) {
   return new Promise((resolveStep) => {
     const startedAt = new Date();
@@ -187,10 +195,15 @@ async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
   const baseRef = await gitValue(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], "origin/main");
+  const worktreeStatus = await gitOutput(["status", "--short"]);
+  const worktreeDirty = worktreeStatus.trim().length > 0;
   const results = [];
 
   console.log(`[MVP-GATE] Cywell OpsLens MVP 0.1 gate`);
-  console.log(`[MVP-GATE] branch=${branch} head=${headSha} base=${baseRef}`);
+  console.log(`[MVP-GATE] branch=${branch} head=${headSha} base=${baseRef} dirty=${worktreeDirty}`);
+  if (worktreeDirty) {
+    console.log("[MVP-GATE] worktree has uncommitted changes; evidence is useful for verification but not a clean release stamp.");
+  }
   if (skipE2E) {
     console.log("[MVP-GATE] --skip-e2e enabled; UI/API acceptance lanes are not fully covered.");
   }
@@ -211,6 +224,8 @@ async function main() {
     branch,
     headSha,
     baseRef,
+    worktreeDirty,
+    worktreeStatus: worktreeStatus.trim() ? worktreeStatus.split(/\r?\n/) : [],
     startedAt,
     finishedAt: new Date().toISOString(),
     skipped: {
