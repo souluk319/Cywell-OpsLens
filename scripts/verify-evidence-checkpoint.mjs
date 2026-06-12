@@ -17,6 +17,7 @@ const evidenceDefaults = {
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
   runtimeRag: "test-results/cywell-opslens-runtime-rag-contract.json",
   runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
+  lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
@@ -257,6 +258,46 @@ function checkImageActualBuilds(imageArtifact) {
   pass("image actual build evidence", "operator/api/dashboard/bundle actual local builds passed");
 }
 
+function checkLightspeedRoutingScore(routingArtifact) {
+  if (!routingArtifact) return;
+  const selectedPasses = Number(routingArtifact.score?.selectedPasses ?? 0);
+  const responsePasses = Number(routingArtifact.score?.responsePasses ?? 0);
+  const total = Number(routingArtifact.score?.total ?? 0);
+  const threshold = Number(routingArtifact.score?.threshold ?? 8);
+  const cases = Array.isArray(routingArtifact.cases) ? routingArtifact.cases : [];
+  const unsafeCases = cases
+    .filter((testCase) =>
+      testCase?.mutationAllowed === true ||
+      testCase?.rawDocumentReturned === true ||
+      !testCase?.selectedTool ||
+      testCase?.selectionPassed !== true ||
+      testCase?.responsePassed !== true
+    )
+    .map((testCase) => testCase?.id ?? "unknown");
+
+  if (
+    selectedPasses < threshold ||
+    responsePasses < threshold ||
+    total < threshold ||
+    routingArtifact.mutationAllowed !== false ||
+    routingArtifact.rawDocumentReturned !== false ||
+    routingArtifact.clusterMutationAttempted === true ||
+    routingArtifact.registryMutationAttempted === true ||
+    unsafeCases.length > 0
+  ) {
+    fail(
+      "Lightspeed routing score",
+      `selected=${selectedPasses}/${total} responses=${responsePasses}/${total} threshold=${threshold} unsafeCases=${unsafeCases.join(", ") || "none"}`
+    );
+    return;
+  }
+
+  pass(
+    "Lightspeed routing score",
+    `selected=${selectedPasses}/${total} responses=${responsePasses}/${total} threshold=${threshold} readOnly=true`
+  );
+}
+
 function checkPatchPreview(patchArtifact) {
   if (!patchArtifact) return;
   if (patchArtifact.clusterMutationAttempted === true) {
@@ -319,6 +360,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "lightspeedRouting",
+    label: "Lightspeed tool routing",
+    artifact: artifacts.lightspeedRouting,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "imageBuild",
     label: "image build readiness",
     artifact: artifacts.imageBuild,
@@ -368,6 +416,7 @@ async function main() {
     currentHeadSha: headSha
   });
 
+  checkLightspeedRoutingScore(artifacts.lightspeedRouting);
   checkImageActualBuilds(artifacts.imageBuild);
   checkPatchPreview(artifacts.lightspeedPatchPreview);
 
@@ -397,6 +446,7 @@ async function main() {
     acceptance: [
       "AC-DASH-001",
       "AC-RAG-001",
+      "AC-LS-001",
       "AC-LS-002",
       "AC-OP-004",
       "AC-OP-005",

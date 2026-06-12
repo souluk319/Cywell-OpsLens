@@ -29,7 +29,7 @@ npm run verify:lightspeed:fixture
 
 `npm run verify:mvp` runs the MVP 0.1 release gate and writes local evidence to `test-results/cywell-opslens-mvp-0.1-gate.json`. Use `npm run verify:mvp -- --skip-e2e` for a faster static/API gate when UI evidence is not required.
 
-`npm run verify:evidence-checkpoint` reads the current local evidence artifacts, checks that they are stamped with the current git head, keeps live OCP/Lightspeed and external runtime gaps visible, and writes `test-results/cywell-opslens-evidence-checkpoint.json`. It does not build, push, patch, apply, delete, scale, or contact the cluster.
+`npm run verify:evidence-checkpoint` reads the current local evidence artifacts, including the Lightspeed routing score, checks that they are stamped with the current git head, keeps live OCP/Lightspeed and external runtime gaps visible, and writes `test-results/cywell-opslens-evidence-checkpoint.json`. It does not build, push, patch, apply, delete, scale, or contact the cluster.
 
 `npm run dev` starts both:
 
