@@ -1,7 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { createRagValidationEvidenceExport, redactSensitiveText } from "./localIndex.js";
 import type {
+  RagApprovalQueueInventory,
+  RagApprovalQueueInventoryItem,
   RagApprovalQueueSubmission,
   RagApprovalQueueSubmitRequest,
   RagIndex
@@ -13,6 +15,14 @@ export interface RagApprovalQueueSubmitOptions {
   persistenceMode?: RagApprovalQueuePersistenceMode;
   queueDir?: string;
   generatedAt?: string;
+}
+
+export interface RagApprovalQueueListOptions {
+  persistenceMode?: RagApprovalQueuePersistenceMode;
+  queueDir?: string;
+  tenantId?: string;
+  generatedAt?: string;
+  maxItems?: number;
 }
 
 function safeSegment(value: string) {
@@ -149,4 +159,150 @@ export async function submitRagApprovalQueueItem(
   }
 
   return artifact;
+}
+
+function inventoryPolicy(): RagApprovalQueueInventory["policy"] {
+  return {
+    readOnly: true,
+    rawMarkdownReturned: false,
+    documentBodyReturned: false,
+    chunksReturned: false,
+    vectorWriteAllowed: false,
+    clusterMutationAllowed: false,
+    approvalMutationAllowed: false
+  };
+}
+
+function summarizeQueueSubmission(
+  submission: RagApprovalQueueSubmission
+): RagApprovalQueueInventoryItem {
+  return {
+    queueItemId: submission.queueItemId,
+    generatedAt: submission.generatedAt,
+    tenantId: submission.tenantId,
+    fileName: submission.fileName,
+    state: submission.state,
+    validationAccepted: submission.validation.accepted,
+    redactionCount: submission.validation.redactionCount,
+    chunkCount: submission.validation.chunks.length,
+    requiredApprovals: submission.approvalQueue.requiredApprovals,
+    approvals: submission.approvalQueue.approvals,
+    blockers: submission.approvalQueue.blockers,
+    missingEvidence: submission.missingEvidence,
+    audit: {
+      requestedBy: submission.audit.requestedBy,
+      ticketRef: submission.audit.ticketRef,
+      validationHash: submission.audit.validationHash
+    },
+    content: {
+      markdownReturned: false,
+      documentBodyReturned: false,
+      chunksReturned: false,
+      rawMarkdownPersisted: false,
+      vectorWriteAttempted: false
+    },
+    evidence: [
+      `validationHash=${submission.audit.validationHash}`,
+      `state=${submission.state}`,
+      "inventory response contains metadata only"
+    ]
+  };
+}
+
+function inventoryArtifact(params: {
+  generatedAt: string;
+  persistenceEnabled: boolean;
+  items: RagApprovalQueueInventoryItem[];
+  missingEvidence: string[];
+}): RagApprovalQueueInventory {
+  return {
+    artifactType: "opslens.rag.approval-queue-inventory.v0.2",
+    artifactVersion: "0.2",
+    generatedAt: params.generatedAt,
+    actionMode: "approvalQueueReadOnly",
+    mode: params.persistenceEnabled ? "persistentLocal" : "designOnly",
+    queuePersistenceEnabled: params.persistenceEnabled,
+    itemCount: params.items.length,
+    items: params.items,
+    policy: inventoryPolicy(),
+    evidence: [
+      "approval queue inventory is read-only",
+      "inventory returns queue item metadata, validation hash, and approval requirements only",
+      "approval, rejection, ingestion, vector writes, and cluster mutation are not exposed"
+    ],
+    missingEvidence: params.missingEvidence,
+    risk: [
+      "Local JSON queue inventory is a bridge, not the production approval database.",
+      "Inventory visibility must not be treated as approval for ingestion."
+    ],
+    rollbackPath: [
+      "Disable local queue persistence to return inventory to design-only mode.",
+      "Remove local queue item JSON before approval if a draft should no longer be reviewed."
+    ]
+  };
+}
+
+export async function listRagApprovalQueueItems(
+  options: RagApprovalQueueListOptions = {}
+): Promise<RagApprovalQueueInventory> {
+  const generatedAt = options.generatedAt ?? new Date().toISOString();
+  const persistenceEnabled = options.persistenceMode === "enabled";
+  const storageRoot = resolve(options.queueDir ?? "test-results/rag-approval-queue");
+
+  if (!persistenceEnabled) {
+    return inventoryArtifact({
+      generatedAt,
+      persistenceEnabled,
+      items: [],
+      missingEvidence: [
+        "approval queue persistence is disabled; inventory is design-only"
+      ]
+    });
+  }
+
+  const missingEvidence: string[] = [];
+  const tenantSegments = options.tenantId
+    ? [safeSegment(options.tenantId)]
+    : await readdir(storageRoot, { withFileTypes: true })
+        .then((entries) => entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name))
+        .catch(() => {
+          missingEvidence.push("approval queue directory does not exist or cannot be read");
+          return [];
+        });
+  const items: RagApprovalQueueInventoryItem[] = [];
+
+  for (const tenantSegment of tenantSegments) {
+    const tenantDir = resolve(storageRoot, tenantSegment);
+    assertWithin(storageRoot, tenantDir);
+    const files = await readdir(tenantDir, { withFileTypes: true }).catch(() => []);
+    for (const file of files) {
+      if (!file.isFile() || !/^rag-queue-[a-z0-9]+\.json$/i.test(file.name)) continue;
+      const itemPath = resolve(tenantDir, file.name);
+      assertWithin(storageRoot, itemPath);
+      try {
+        const submission = JSON.parse(await readFile(itemPath, "utf8")) as RagApprovalQueueSubmission;
+        if (submission.artifactType !== "opslens.rag.approval-queue-submission.v0.2") {
+          missingEvidence.push(`${file.name} is not a RAG approval queue submission artifact`);
+          continue;
+        }
+        items.push(summarizeQueueSubmission(submission));
+      } catch (error) {
+        missingEvidence.push(
+          `${file.name} could not be read as metadata-only queue evidence: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+    }
+  }
+
+  items.sort((left, right) => right.generatedAt.localeCompare(left.generatedAt));
+  const maxItems = Math.max(1, Math.min(options.maxItems ?? 20, 100));
+
+  return inventoryArtifact({
+    generatedAt,
+    persistenceEnabled,
+    items: items.slice(0, maxItems),
+    missingEvidence
+  });
 }

@@ -6,6 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildLocalRagIndex,
+  listRagApprovalQueueItems,
   submitRagApprovalQueueItem
 } from "../packages/rag/dist/index.js";
 import { execFile } from "node:child_process";
@@ -124,6 +125,22 @@ try {
     "vectorWriteAllowed=false clusterMutationAllowed=false rawMarkdownPersisted=false"
   );
 
+  const disabledInventory = await listRagApprovalQueueItems({
+    persistenceMode: "disabled",
+    queueDir: tmpQueue
+  });
+
+  expectCheck(
+    "disabled inventory is read-only design-only",
+    disabledInventory.actionMode === "approvalQueueReadOnly" &&
+      disabledInventory.mode === "designOnly" &&
+      disabledInventory.itemCount === 0 &&
+      disabledInventory.policy.readOnly === true &&
+      disabledInventory.policy.approvalMutationAllowed === false &&
+      disabledInventory.policy.vectorWriteAllowed === false,
+    `mode=${disabledInventory.mode} items=${disabledInventory.itemCount} readOnly=${disabledInventory.policy.readOnly}`
+  );
+
   const enabledSubmission = await submitRagApprovalQueueItem(index, baseRequest, {
     persistenceMode: "enabled",
     queueDir: tmpQueue
@@ -159,6 +176,24 @@ try {
       persisted?.missingEvidence?.includes("rag-owner approval") &&
       persisted?.missingEvidence?.includes("cluster-sre approval"),
     `required=${persisted?.approvalQueue?.requiredApprovals?.join(",") ?? "missing"}`
+  );
+
+  const enabledInventory = await listRagApprovalQueueItems({
+    persistenceMode: "enabled",
+    queueDir: tmpQueue
+  });
+
+  expectCheck(
+    "enabled inventory returns metadata-only queue item",
+    enabledInventory.mode === "persistentLocal" &&
+      enabledInventory.itemCount === 1 &&
+      enabledInventory.items[0]?.queueItemId === enabledSubmission.queueItemId &&
+      enabledInventory.items[0]?.chunkCount === enabledSubmission.validation.chunks.length &&
+      enabledInventory.items[0]?.content.chunksReturned === false &&
+      enabledInventory.items[0]?.content.rawMarkdownPersisted === false &&
+      enabledInventory.policy.approvalMutationAllowed === false &&
+      !containsRawSecret(enabledInventory),
+    `mode=${enabledInventory.mode} items=${enabledInventory.itemCount} queueItem=${enabledInventory.items[0]?.queueItemId ?? "missing"}`
   );
 
   const rejectedSubmission = await submitRagApprovalQueueItem(
@@ -218,6 +253,18 @@ try {
       rejected: {
         state: rejectedSubmission.state,
         persisted: rejectedSubmission.approvalQueue.persisted
+      }
+    },
+    inventory: {
+      disabled: {
+        mode: disabledInventory.mode,
+        itemCount: disabledInventory.itemCount
+      },
+      enabled: {
+        mode: enabledInventory.mode,
+        itemCount: enabledInventory.itemCount,
+        readOnly: enabledInventory.policy.readOnly,
+        approvalMutationAllowed: enabledInventory.policy.approvalMutationAllowed
       }
     },
     policy: {

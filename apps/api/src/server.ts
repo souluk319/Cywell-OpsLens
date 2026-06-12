@@ -10,6 +10,7 @@ import {
   getDashboardRisks,
   getOpsLensTools,
   handleOpsLensMcpRequest,
+  listOpsLensRagApprovalQueue,
   submitOpsLensRagApprovalQueue,
   syncContext,
   validateOpsLensRagDocument
@@ -158,6 +159,14 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
         200,
         exportOpsLensRagEvidence((await readJson(request)) as never)
       );
+      return;
+    }
+
+    if (
+      request.method === "GET" &&
+      url.pathname === "/api/opslens/admin/rag/approval-queue"
+    ) {
+      sendJson(response, 200, await listOpsLensRagApprovalQueue());
       return;
     }
 

@@ -9,9 +9,11 @@ export {
   validateRagDocumentIntake
 } from "./localIndex.js";
 export {
+  listRagApprovalQueueItems,
   submitRagApprovalQueueItem
 } from "./approvalQueue.js";
 export type {
+  RagApprovalQueueListOptions,
   RagApprovalQueuePersistenceMode,
   RagApprovalQueueSubmitOptions
 } from "./approvalQueue.js";

@@ -1513,6 +1513,40 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     });
     expect(JSON.stringify(queueSubmitBody)).not.toContain("token=demo-secret");
 
+    const queueInventory = await request.get(
+      "/api/opslens/admin/rag/approval-queue"
+    );
+    expect(queueInventory.ok()).toBe(true);
+    const queueInventoryBody = (await queueInventory.json()) as {
+      artifactType?: string;
+      actionMode?: string;
+      mode?: string;
+      itemCount?: number;
+      items?: unknown[];
+      policy?: {
+        readOnly?: boolean;
+        chunksReturned?: boolean;
+        vectorWriteAllowed?: boolean;
+        clusterMutationAllowed?: boolean;
+        approvalMutationAllowed?: boolean;
+      };
+    };
+    expect(queueInventoryBody.artifactType).toBe(
+      "opslens.rag.approval-queue-inventory.v0.2"
+    );
+    expect(queueInventoryBody.actionMode).toBe("approvalQueueReadOnly");
+    expect(queueInventoryBody.mode).toBe("designOnly");
+    expect(queueInventoryBody.itemCount).toBe(0);
+    expect(queueInventoryBody.items).toHaveLength(0);
+    expect(queueInventoryBody.policy).toMatchObject({
+      readOnly: true,
+      chunksReturned: false,
+      vectorWriteAllowed: false,
+      clusterMutationAllowed: false,
+      approvalMutationAllowed: false
+    });
+    expect(JSON.stringify(queueInventoryBody)).not.toContain("token=demo-secret");
+
     const dashboard = page.getByTestId("opslens-admin-dashboard");
     await dashboard.scrollIntoViewIfNeeded();
     await expect(dashboard).toBeVisible();
@@ -1672,6 +1706,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-rag-approval-queue")).toContainText(
       "vectorWrite=false"
     );
+    await expect(
+      page.getByTestId("opslens-rag-approval-queue-inventory")
+    ).toContainText("designOnly");
+    await expect(
+      page.getByTestId("opslens-rag-approval-queue-inventory")
+    ).toContainText("0 queued");
+    await expect(
+      page.getByTestId("opslens-rag-approval-queue-inventory")
+    ).toContainText("readOnly=true");
+    await expect(
+      page.getByTestId("opslens-rag-approval-queue-inventory")
+    ).toContainText("approvalMutation=false");
   });
 
   test("AC-OCP-001 discovers and reads live OpenShift resources", async ({

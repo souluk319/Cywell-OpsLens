@@ -8,6 +8,7 @@ import {
 import {
   buildLocalRagIndex,
   createRagValidationEvidenceExport,
+  listRagApprovalQueueItems,
   redactSensitiveText,
   searchLocalRagIndex,
   submitRagApprovalQueueItem,
@@ -42,10 +43,11 @@ import type {
   OpsLensRuntimeReadiness,
   OpsLensRuntimeReadinessStatus,
   OpsLensRuntimeRagAudit,
-  OpsLensRagEvidenceExportRequest,
-  OpsLensRagEvidenceExportResponse,
+  OpsLensRagApprovalQueueInventoryResponse,
   OpsLensRagApprovalQueueSubmitRequest,
   OpsLensRagApprovalQueueSubmissionResponse,
+  OpsLensRagEvidenceExportRequest,
+  OpsLensRagEvidenceExportResponse,
   OpsLensRagValidationRequest,
   OpsLensRagValidationResponse,
   OpsLensToolName,
@@ -2200,15 +2202,28 @@ function ragApprovalQueuePersistenceMode() {
     : "disabled";
 }
 
+function ragApprovalQueueDir() {
+  return (
+    process.env.CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_DIR ??
+    join(repoRoot, "test-results", "rag-approval-queue")
+  );
+}
+
 export async function submitOpsLensRagApprovalQueue(
   request: OpsLensRagApprovalQueueSubmitRequest
 ): Promise<OpsLensRagApprovalQueueSubmissionResponse> {
   assertRagApprovalQueueSubmitRequest(request);
   return submitRagApprovalQueueItem(localRagIndex, request, {
     persistenceMode: ragApprovalQueuePersistenceMode(),
-    queueDir:
-      process.env.CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_DIR ??
-      join(repoRoot, "test-results", "rag-approval-queue")
+    queueDir: ragApprovalQueueDir()
+  });
+}
+
+export async function listOpsLensRagApprovalQueue(): Promise<OpsLensRagApprovalQueueInventoryResponse> {
+  return listRagApprovalQueueItems({
+    persistenceMode: ragApprovalQueuePersistenceMode(),
+    queueDir: ragApprovalQueueDir(),
+    maxItems: 20
   });
 }
 

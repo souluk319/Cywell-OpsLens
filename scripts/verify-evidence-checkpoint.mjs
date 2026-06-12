@@ -303,6 +303,7 @@ function checkRagApprovalQueuePolicy(queueArtifact) {
   if (!queueArtifact) return;
   const policy = queueArtifact.policy ?? {};
   const submissions = queueArtifact.submissions ?? {};
+  const inventory = queueArtifact.inventory ?? {};
   const violations = [];
 
   if (policy.rawDocumentReturned !== false) violations.push("rawDocumentReturned");
@@ -315,6 +316,14 @@ function checkRagApprovalQueuePolicy(queueArtifact) {
   if (submissions.enabled?.persisted !== true) violations.push("enabled.persisted");
   if (submissions.rejected?.state !== "rejected-before-approval") violations.push("rejected.state");
   if (submissions.rejected?.persisted !== false) violations.push("rejected.persisted");
+  if (inventory.disabled?.mode !== "designOnly") violations.push("inventory.disabled.mode");
+  if (inventory.disabled?.itemCount !== 0) violations.push("inventory.disabled.itemCount");
+  if (inventory.enabled?.mode !== "persistentLocal") violations.push("inventory.enabled.mode");
+  if (inventory.enabled?.itemCount !== 1) violations.push("inventory.enabled.itemCount");
+  if (inventory.enabled?.readOnly !== true) violations.push("inventory.enabled.readOnly");
+  if (inventory.enabled?.approvalMutationAllowed !== false) {
+    violations.push("inventory.enabled.approvalMutationAllowed");
+  }
 
   if (violations.length > 0) {
     fail("RAG approval queue safety", `queue policy violations=${violations.join(", ")}`);
@@ -323,7 +332,7 @@ function checkRagApprovalQueuePolicy(queueArtifact) {
 
   pass(
     "RAG approval queue safety",
-    "default queue is design-only, opt-in local persistence is metadata-only, and rejected drafts do not persist"
+    "default queue is design-only, opt-in local persistence is metadata-only, inventory is read-only, and rejected drafts do not persist"
   );
 }
 

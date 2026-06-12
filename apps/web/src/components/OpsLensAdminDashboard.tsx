@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type {
   OpsLensAdminOverviewResponse,
+  OpsLensRagApprovalQueueInventoryResponse,
   OpsLensRagApprovalQueueSubmissionResponse,
   OpsLensRagEvidenceExportResponse,
   OpsLensRagValidationResponse
@@ -19,6 +20,7 @@ import {
 import {
   exportOpsLensRagEvidence,
   fetchOpsLensAdminOverview,
+  fetchOpsLensRagApprovalQueue,
   submitOpsLensRagApprovalQueue,
   validateOpsLensRagDocument
 } from "../lib/api";
@@ -83,6 +85,8 @@ export function OpsLensAdminDashboard() {
     useState<OpsLensRagEvidenceExportResponse | null>(null);
   const [queueSubmission, setQueueSubmission] =
     useState<OpsLensRagApprovalQueueSubmissionResponse | null>(null);
+  const [queueInventory, setQueueInventory] =
+    useState<OpsLensRagApprovalQueueInventoryResponse | null>(null);
   const [validating, setValidating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [queueing, setQueueing] = useState(false);
@@ -102,7 +106,21 @@ export function OpsLensAdminDashboard() {
       }
     }
 
+    async function loadQueueInventory() {
+      try {
+        const response = await fetchOpsLensRagApprovalQueue();
+        if (!active) return;
+        setQueueInventory(response);
+      } catch (caught) {
+        if (!active) return;
+        setError(
+          caught instanceof Error ? caught.message : "RAG approval queue inventory failed"
+        );
+      }
+    }
+
     void loadOverview();
+    void loadQueueInventory();
 
     return () => {
       active = false;
@@ -198,6 +216,7 @@ export function OpsLensAdminDashboard() {
       });
       setQueueSubmission(response);
       setValidation(response.validation);
+      setQueueInventory(await fetchOpsLensRagApprovalQueue());
       setError(null);
     } catch (caught) {
       setError(
@@ -289,6 +308,34 @@ export function OpsLensAdminDashboard() {
             <span>{overview?.rag.uploadIntake.mode ?? "validate-only"}</span>
             <span>{numberText(overview?.rag.uploadIntake.pending)} pending</span>
             <span>{numberText(overview?.rag.uploadIntake.rejected)} rejected</span>
+          </div>
+          <div
+            className="rag-export-summary"
+            data-testid="opslens-rag-approval-queue-inventory"
+          >
+            <div className="admin-evidence-line">
+              <span>{queueInventory?.mode ?? "designOnly"}</span>
+              <span>{numberText(queueInventory?.itemCount)} queued</span>
+              <span>readOnly=true</span>
+              <span>
+                vectorWrite={String(
+                  queueInventory?.policy.vectorWriteAllowed ?? false
+                )}
+              </span>
+              <span>
+                approvalMutation={String(
+                  queueInventory?.policy.approvalMutationAllowed ?? false
+                )}
+              </span>
+            </div>
+            {queueInventory?.items.slice(0, 3).map((item) => (
+              <div className="admin-evidence-line" key={item.queueItemId}>
+                <span>{item.queueItemId}</span>
+                <span>{item.state}</span>
+                <span>{item.tenantId}</span>
+                <span>approvals {item.approvals.length}</span>
+              </div>
+            ))}
           </div>
           <div className="rag-validation-form" data-testid="opslens-rag-validation">
             <div className="rag-validation-fields">

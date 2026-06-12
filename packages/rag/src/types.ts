@@ -210,3 +210,55 @@ export interface RagApprovalQueueSubmission {
   rollbackPath: string[];
   missingEvidence: string[];
 }
+
+export interface RagApprovalQueueInventoryItem {
+  queueItemId: string;
+  generatedAt: string;
+  tenantId: string;
+  fileName: string;
+  state: RagApprovalQueueSubmission["state"];
+  validationAccepted: boolean;
+  redactionCount: number;
+  chunkCount: number;
+  requiredApprovals: string[];
+  approvals: RagApprovalQueueSubmission["approvalQueue"]["approvals"];
+  blockers: string[];
+  missingEvidence: string[];
+  audit: {
+    requestedBy: string;
+    ticketRef?: string;
+    validationHash: string;
+  };
+  content: {
+    markdownReturned: false;
+    documentBodyReturned: false;
+    chunksReturned: false;
+    rawMarkdownPersisted: false;
+    vectorWriteAttempted: false;
+  };
+  evidence: string[];
+}
+
+export interface RagApprovalQueueInventory {
+  artifactType: "opslens.rag.approval-queue-inventory.v0.2";
+  artifactVersion: "0.2";
+  generatedAt: string;
+  actionMode: "approvalQueueReadOnly";
+  mode: "designOnly" | "persistentLocal";
+  queuePersistenceEnabled: boolean;
+  itemCount: number;
+  items: RagApprovalQueueInventoryItem[];
+  policy: {
+    readOnly: true;
+    rawMarkdownReturned: false;
+    documentBodyReturned: false;
+    chunksReturned: false;
+    vectorWriteAllowed: false;
+    clusterMutationAllowed: false;
+    approvalMutationAllowed: false;
+  };
+  evidence: string[];
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}

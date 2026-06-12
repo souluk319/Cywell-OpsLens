@@ -12,6 +12,7 @@ import type {
   OcpEventsResponse,
   OcpPodLogsResponse,
   OpsLensAdminOverviewResponse,
+  OpsLensRagApprovalQueueInventoryResponse,
   OpsLensRagApprovalQueueSubmitRequest,
   OpsLensRagApprovalQueueSubmissionResponse,
   OpsLensRagEvidenceExportRequest,
@@ -93,6 +94,12 @@ export function submitOpsLensRagApprovalQueue(
       method: "POST",
       body: JSON.stringify(request)
     }
+  );
+}
+
+export function fetchOpsLensRagApprovalQueue() {
+  return requestJson<OpsLensRagApprovalQueueInventoryResponse>(
+    "/api/opslens/admin/rag/approval-queue"
   );
 }
 
