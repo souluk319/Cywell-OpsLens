@@ -46,7 +46,14 @@ function percentText(value: number | undefined) {
 
 function statusClass(status: string) {
   if (status === "indexed" || status === "ready") return "fresh";
-  if (status === "stale" || status === "missing") return "stale";
+  if (
+    status === "stale" ||
+    status === "missing" ||
+    status === "needs-live-check" ||
+    status === "needs-configuration"
+  ) {
+    return "stale";
+  }
   return "missing";
 }
 
@@ -491,16 +498,26 @@ export function OpsLensAdminDashboard() {
                 }).map(([label, value]) => (
                   <div key={label}>
                     <span>{label}</span>
-                    <strong>{value}</strong>
+                    <strong className={`freshness ${statusClass(value)}`}>
+                      {value}
+                    </strong>
                   </div>
                 ))
               : null}
           </div>
-          <div className="admin-evidence-line">
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-install-readiness-evidence"
+          >
             <span>dashboard-only</span>
             <span>mutationAllowed=false</span>
             <span>rawDocumentReturned=false</span>
           </div>
+          {overview?.installReadiness.evidence.slice(0, 3).map((item) => (
+            <p className="readiness-note" key={item}>
+              {item}
+            </p>
+          ))}
         </article>
       </div>
     </section>

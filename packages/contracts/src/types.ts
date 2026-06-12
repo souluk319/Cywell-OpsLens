@@ -586,6 +586,12 @@ export interface OpsLensAdminIncidentMetricSummary {
   lastAnalyzedAt: string;
 }
 
+export type OpsLensLightspeedMcpReadiness =
+  | "ready"
+  | "needs-live-check"
+  | "needs-configuration"
+  | "failed";
+
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
@@ -603,7 +609,7 @@ export interface OpsLensAdminOverviewResponse {
   runtime: OpsLensRuntimeHealth;
   incidents: OpsLensAdminIncidentMetricSummary[];
   installReadiness: {
-    lightspeedMcp: "ready" | "needs-live-check";
+    lightspeedMcp: OpsLensLightspeedMcpReadiness;
     consoleDashboard: "prototype" | "ready";
     operatorPackaging: "not-started" | "draft" | "ready";
     certification: "not-started" | "draft" | "ready";

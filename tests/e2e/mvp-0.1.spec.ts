@@ -783,6 +783,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         lightspeedMcp?: string;
         operatorPackaging?: string;
         certification?: string;
+        evidence?: string[];
       };
       policy?: {
         mutationAllowed?: boolean;
@@ -850,7 +851,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.incidents?.[0]?.remediationProposal?.reviewGate).toMatchObject({
       required: true
     });
-    expect(body.installReadiness?.lightspeedMcp).toBe("ready");
+    expect([
+      "ready",
+      "needs-live-check",
+      "needs-configuration",
+      "failed"
+    ]).toContain(body.installReadiness?.lightspeedMcp);
+    expect(body.installReadiness?.evidence?.join(" ")).toContain(
+      "Lightspeed"
+    );
     expect(body.installReadiness?.operatorPackaging).toBe("draft");
     expect(body.installReadiness?.certification).toBe("draft");
     expect(body.policy).toMatchObject({
@@ -1009,6 +1018,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Certification"
     );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      /needs-live-check|needs-configuration|ready|failed/
+    );
+    await expect(
+      page.getByTestId("opslens-install-readiness-evidence")
+    ).toContainText("mutationAllowed=false");
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "mutationAllowed=false"
     );

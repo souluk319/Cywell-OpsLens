@@ -935,6 +935,18 @@ button {
   font-size: 0.84rem;
 }
 
+.readiness-grid strong.freshness {
+  justify-self: start;
+  line-height: 1.25;
+}
+
+.readiness-note {
+  margin: 0;
+  color: #4f5255;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .coverage-controls {
   display: flex;
   flex-wrap: wrap;

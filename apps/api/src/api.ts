@@ -23,6 +23,7 @@ import type {
   McpJsonRpcResponse,
   OpsLensAdminOverviewResponse,
   OpsLensCitation,
+  OpsLensLightspeedMcpReadiness,
   OpsLensRemediationProposal,
   OpsLensRagEvidenceExportRequest,
   OpsLensRagEvidenceExportResponse,
@@ -33,7 +34,7 @@ import type {
   OpsLensToolResponse
 } from "@kugnus/contracts";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -273,10 +274,104 @@ function gpuSamples(now = Date.now()): OpsLensAdminOverviewResponse["runtime"]["
   });
 }
 
+type LightspeedReadinessEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  readiness?: {
+    mode?: string;
+    sources?: {
+      crd?: string;
+      olsConfig?: string;
+      mcpEndpoint?: string;
+    };
+    olsConfig?: {
+      label?: string;
+      featureGate?: string;
+      cywellRegistration?: string;
+    };
+  };
+  missingEvidence?: string[];
+};
+
+function lightspeedReadinessEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_LIGHTSPEED_READINESS_EVIDENCE ??
+    join(process.cwd(), "test-results", "cywell-opslens-lightspeed-readiness.json")
+  );
+}
+
+function mapLightspeedReadinessStatus(
+  artifact: LightspeedReadinessEvidenceArtifact
+): OpsLensLightspeedMcpReadiness {
+  if (artifact.readiness?.mode === "fixture") {
+    return "needs-live-check";
+  }
+  if (artifact.status === "PASS") {
+    return "ready";
+  }
+  if (artifact.status === "NEEDS_CONFIGURATION") {
+    return "needs-configuration";
+  }
+  if (artifact.status === "FAIL") {
+    return "failed";
+  }
+  return "needs-live-check";
+}
+
+function getLightspeedMcpReadiness(): {
+  status: OpsLensLightspeedMcpReadiness;
+  evidence: string[];
+} {
+  const evidencePath = lightspeedReadinessEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-live-check",
+      evidence: [
+        "run npm run verify:lightspeed to create live Lightspeed MCP readiness evidence",
+        "dashboard keeps Lightspeed MCP as needs-live-check until live OLSConfig evidence is available",
+        "no dashboard request mutates OLSConfig or calls apply/delete/scale"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as LightspeedReadinessEvidenceArtifact;
+    const status = mapLightspeedReadinessStatus(artifact);
+    const sources = artifact.readiness?.sources ?? {};
+    const olsConfig = artifact.readiness?.olsConfig ?? {};
+
+    return {
+      status,
+      evidence: [
+        `Lightspeed readiness evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `readiness generated at ${artifact.generatedAt ?? "unknown"}`,
+        `sources crd=${sources.crd ?? "unknown"} olsConfig=${sources.olsConfig ?? "unknown"} mcp=${sources.mcpEndpoint ?? "unknown"}`,
+        `OLSConfig ${olsConfig.label ?? "unknown"} featureGate=${olsConfig.featureGate ?? "unknown"} cywellRegistration=${olsConfig.cywellRegistration ?? "unknown"}`,
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads readiness evidence only; it does not patch OLSConfig"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      evidence: [
+        `Lightspeed readiness evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid readiness evidence blocks overclaiming Lightspeed MCP readiness"
+      ]
+    };
+  }
+}
+
 export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
   const documents = getOpsLensRagDocuments();
   const usedTokens = 784_200;
   const budgetTokens = 1_500_000;
+  const lightspeedReadiness = getLightspeedMcpReadiness();
 
   return {
     generatedAt: new Date().toISOString(),
@@ -409,11 +504,12 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
       }
     ],
     installReadiness: {
-      lightspeedMcp: "ready",
+      lightspeedMcp: lightspeedReadiness.status,
       consoleDashboard: "prototype",
       operatorPackaging: "draft",
       certification: "draft",
       evidence: [
+        ...lightspeedReadiness.evidence,
         "Stage 1 MCP contract has verifier coverage",
         "Stage 2 incident packet has logs/events/metrics coverage",
         "Stage 3 dashboard is now served by /api/opslens/admin/overview",
