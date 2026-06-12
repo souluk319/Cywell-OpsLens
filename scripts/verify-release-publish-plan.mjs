@@ -159,7 +159,7 @@ function requiredPublishImages(imageEvidence, catalogSource) {
   return images;
 }
 
-function buildEvidenceGaps(imageEvidence, publishImages) {
+function buildEvidenceGaps(imageEvidence, publishImages, currentHeadSha) {
   const actualBuilds = imageEvidence?.actualBuilds ?? [];
   const actualBuildStatus = new Map(actualBuilds.map((build) => [build.name, build.status]));
   const buildRequiredNames = ["operator", "api", "dashboard", "bundle", "catalog"];
@@ -170,6 +170,9 @@ function buildEvidenceGaps(imageEvidence, publishImages) {
   }
   if (imageEvidence?.worktreeDirty !== false) {
     gaps.push(`image readiness worktreeDirty=${String(imageEvidence?.worktreeDirty ?? "unknown")}`);
+  }
+  if (imageEvidence?.headSha !== currentHeadSha) {
+    gaps.push(`image readiness headSha=${imageEvidence?.headSha ?? "missing"} currentHead=${currentHeadSha}`);
   }
   if (imageEvidence?.actualBuildRequested !== true) {
     gaps.push("run npm run verify:images:build before publishing release images");
@@ -307,6 +310,7 @@ async function buildPlan() {
   const imageEvidence = loadJsonArtifact(options.imageEvidence, "Image readiness evidence");
   const csvImages = relatedImages(csv);
   const publishImages = requiredPublishImages(imageEvidence, catalogSource);
+  const currentHeadSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
 
   expectCheck(
     "CatalogSource release image",
@@ -340,7 +344,7 @@ async function buildPlan() {
     "release publish plan must include operator, api, dashboard, bundle, and catalog images"
   );
 
-  const missingEvidence = buildEvidenceGaps(imageEvidence, publishImages);
+  const missingEvidence = buildEvidenceGaps(imageEvidence, publishImages, currentHeadSha);
   for (const gap of missingEvidence) {
     warn("release publish evidence gap", gap);
   }
@@ -361,7 +365,7 @@ async function buildPlan() {
     acceptance: ["AC-CERT-001", "AC-OP-005"],
     ref: {
       branch: await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown"),
-      headSha: await gitValue(["rev-parse", "--short", "HEAD"], "unknown"),
+      headSha: currentHeadSha,
       baseRef: await gitValue(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], "origin/main"),
       worktreeDirty: worktreeStatus.length > 0,
       worktreeStatus

@@ -69,7 +69,7 @@ Primary references:
 4. Replace the local hash-vector index with production Qdrant/pgvector ingestion and live embedding jobs when runtime images are available.
 5. Build and test the scaffolded Go/controller-runtime Operator manager once Go and Operator SDK are available, then run live OLSConfig patch, install, upgrade, uninstall, and rollback smoke tests.
 6. Run a live OLM install/upgrade/uninstall smoke test once images and a lab OpenShift cluster are available.
-7. Run `npm run verify:release-plan` after actual image build evidence is fresh; then replace catalog/certification placeholders, run `opm`, `operator-sdk bundle validate`, `operator-sdk scorecard`, image scanning, and Partner Connect submission once external tooling and images are available.
+7. Run `npm run verify:release-plan` after same-HEAD actual image build evidence is fresh; then replace catalog/certification placeholders, run `opm`, `operator-sdk bundle validate`, `operator-sdk scorecard`, image scanning, and Partner Connect submission once external tooling and images are available.
 
 ## Stage 4 Package Lock
 

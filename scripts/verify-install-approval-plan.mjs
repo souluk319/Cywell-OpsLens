@@ -266,14 +266,16 @@ function buildCommands(subscription, installation) {
   ];
 }
 
-function buildApprovalChecklist({ dryRun, lightspeedReadiness, patchPreview, image, mvp }) {
+function buildApprovalChecklist({ dryRun, lightspeedReadiness, patchPreview, image, mvp, currentHeadSha }) {
   const actualImageBuilds = image?.actualBuilds ?? [];
   const actualImageBuildFailures = actualImageBuilds.filter(
     (build) => build?.status && build.status !== "PASS" && build.status !== "WARN"
   );
+  const imageEvidenceHeadMatches = image?.headSha === currentHeadSha;
   const actualImageBuildEvidenceReady =
     image?.status === "PASS" &&
     image?.worktreeDirty === false &&
+    imageEvidenceHeadMatches &&
     image?.actualBuildRequested === true &&
     actualImageBuilds.length > 0 &&
     actualImageBuildFailures.length === 0;
@@ -317,6 +319,7 @@ function buildApprovalChecklist({ dryRun, lightspeedReadiness, patchPreview, ima
       status: actualImageBuildEvidenceReady ? "pass" : "needs-evidence",
       evidence:
         `Image readiness status=${evidenceStatus(image)} dirty=${String(image?.worktreeDirty ?? "unknown")} ` +
+        `head=${image?.headSha ?? "unknown"} currentHead=${currentHeadSha} ` +
         `actualBuildRequested=${String(image?.actualBuildRequested ?? "unknown")} actualBuilds=${actualImageBuilds.length} ` +
         `actualBuildFailures=${actualImageBuildFailures.length}`
     },
@@ -399,12 +402,14 @@ async function buildPlan() {
   );
   const image = loadJsonArtifact(options.imageEvidence, "Image readiness evidence");
   const mvp = loadJsonArtifact(options.mvpEvidence, "MVP gate evidence");
+  const currentHeadSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
   const checklist = buildApprovalChecklist({
     dryRun,
     lightspeedReadiness,
     patchPreview,
     image,
-    mvp
+    mvp,
+    currentHeadSha
   });
   for (const item of checklist) {
     if (item.status === "needs-evidence") {
@@ -427,7 +432,7 @@ async function buildPlan() {
     acceptance: ["AC-OP-004", "AC-OP-005", "AC-CERT-001"],
     ref: {
       branch: await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown"),
-      headSha: await gitValue(["rev-parse", "--short", "HEAD"], "unknown"),
+      headSha: currentHeadSha,
       baseRef: await gitValue(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], "origin/main"),
       worktreeDirty: worktreeStatus.length > 0,
       worktreeStatus
@@ -483,15 +488,19 @@ async function buildPlan() {
 
 async function writePlan(plan) {
   const reportPath = resolve(options.evidenceOut);
-  const serialized = `${JSON.stringify(plan, null, 2)}\n`;
-  const leakedSecret = secretValuesForLeakCheck().some((secret) => serialized.includes(secret));
+  const initialSerialized = `${JSON.stringify(plan, null, 2)}\n`;
+  const leakedSecret = secretValuesForLeakCheck().some((secret) => initialSerialized.includes(secret));
   if (leakedSecret) {
+    throw new Error("install approval plan would include a configured secret value");
+  }
+  pass("install approval plan evidence export", `${reportPath} written without secret material`);
+  const serialized = `${JSON.stringify(plan, null, 2)}\n`;
+  if (secretValuesForLeakCheck().some((secret) => serialized.includes(secret))) {
     throw new Error("install approval plan would include a configured secret value");
   }
 
   await mkdir(dirname(reportPath), { recursive: true });
   await writeFile(reportPath, serialized);
-  pass("install approval plan evidence export", `${reportPath} written without secret material`);
 }
 
 function printSummary() {
