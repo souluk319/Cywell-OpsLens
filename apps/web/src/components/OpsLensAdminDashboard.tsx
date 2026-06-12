@@ -130,6 +130,7 @@ export function OpsLensAdminDashboard() {
         : []
     ) ?? [];
   const approvalPlan = overview?.installReadiness.approvalPlan;
+  const releasePlan = overview?.installReadiness.releasePlan;
   const validationFailed = validation?.issues.some(
     (issue) => issue.severity === "fail"
   );
@@ -501,6 +502,7 @@ export function OpsLensAdminDashboard() {
                   "Operator Dry-run": overview.installReadiness.operatorDryRun,
                   "Install Plan": overview.installReadiness.installPlan,
                   "Image Builds": overview.installReadiness.imageBuilds,
+                  "Release Publish": overview.installReadiness.releasePublish,
                   Certification: overview.installReadiness.certification
                 }).map(([label, value]) => (
                   <div key={label}>
@@ -565,6 +567,54 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {approvalPlan.rollbackPath[0] ??
                     "Rollback path must be reviewed before install."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {releasePlan ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-release-publish-plan"
+            >
+              <div className="admin-evidence-line">
+                <span>{releasePlan.actionMode}</span>
+                <span>
+                  registryMutationAttempted=
+                  {String(releasePlan.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(releasePlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(releasePlan.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Approvals</span>
+                  <strong>{releasePlan.requiredApprovals.join(", ")}</strong>
+                </div>
+                <div>
+                  <span>Publish Commands</span>
+                  <strong>
+                    {releasePlan.mutatingCommands.length
+                      ? releasePlan.mutatingCommands
+                          .map((command) => command.id)
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {releasePlan.risk[0] ??
+                    "Release publish commands remain blocked until approval."}
+                </p>
+                <p>
+                  {releasePlan.rollbackPath[0] ??
+                    "Rollback path must be reviewed before publishing images."}
                 </p>
               </div>
             </div>

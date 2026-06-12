@@ -794,6 +794,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
         };
         imageBuilds?: string;
+        releasePublish?: string;
+        releasePlan?: {
+          actionMode?: string;
+          registryMutationAttempted?: boolean;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          requiredApprovals?: string[];
+          mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
+          risk?: string[];
+          rollbackPath?: string[];
+          missingEvidence?: string[];
+        };
         certification?: string;
         evidence?: string[];
       };
@@ -907,6 +919,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     expect(body.installReadiness?.evidence?.join(" ")).toContain(
       "image readiness"
+    );
+    expect([
+      "approval-required",
+      "needs-evidence",
+      "failed"
+    ]).toContain(body.installReadiness?.releasePublish);
+    expect(body.installReadiness?.releasePlan).toMatchObject({
+      actionMode: "approvalPlanOnly",
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.releasePlan?.requiredApprovals
+    ).toEqual(
+      expect.arrayContaining([
+        "release-manager",
+        "registry-admin",
+        "security-reviewer",
+        "product-owner"
+      ])
+    );
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /release publish plan/i
     );
     expect(body.installReadiness?.certification).toBe("draft");
     expect(body.policy).toMatchObject({
@@ -1069,6 +1105,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Image Builds"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Release Publish"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Operator Dry-run"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
@@ -1082,6 +1121,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
       "cluster-admin"
+    );
+    await expect(page.getByTestId("opslens-release-publish-plan")).toContainText(
+      "approvalPlanOnly"
+    );
+    await expect(page.getByTestId("opslens-release-publish-plan")).toContainText(
+      "registryMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-release-publish-plan")).toContainText(
+      "release-manager"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       /needs-live-check|needs-configuration|needs-evidence|partial|ready|approval-required|failed/

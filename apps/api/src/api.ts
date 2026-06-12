@@ -28,6 +28,8 @@ import type {
   OpsLensInstallPlanReadiness,
   OpsLensLightspeedMcpReadiness,
   OpsLensOperatorDryRunReadiness,
+  OpsLensReleasePublishPlanSummary,
+  OpsLensReleasePublishReadiness,
   OpsLensRemediationProposal,
   OpsLensRagEvidenceExportRequest,
   OpsLensRagEvidenceExportResponse,
@@ -378,6 +380,37 @@ type InstallApprovalPlanEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type ReleasePublishPlanEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  requiredApprovals?: string[];
+  publishImages?: Array<{
+    name?: string;
+    image?: string;
+    source?: string;
+  }>;
+  commands?: Array<{
+    id?: string;
+    phase?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+  }>;
+  risk?: string[];
+  rollbackPath?: string[];
+  missingEvidence?: string[];
+};
+
 function lightspeedReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_READINESS_EVIDENCE ??
@@ -403,6 +436,13 @@ function installApprovalPlanEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_INSTALL_APPROVAL_PLAN_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-install-approval-plan.json")
+  );
+}
+
+function releasePublishPlanEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_RELEASE_PUBLISH_PLAN_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-release-publish-plan.json")
   );
 }
 
@@ -472,6 +512,27 @@ function mapInstallApprovalPlanReadinessStatus(
     return "needs-evidence";
   }
   if (artifact.status === "APPROVAL_REQUIRED") {
+    return "approval-required";
+  }
+  return "needs-evidence";
+}
+
+function mapReleasePublishPlanReadinessStatus(
+  artifact: ReleasePublishPlanEvidenceArtifact
+): OpsLensReleasePublishReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.status === "FAIL" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "failed";
+  }
+  if (artifact.ref?.worktreeDirty || artifact.status === "NEEDS_EVIDENCE") {
+    return "needs-evidence";
+  }
+  if (artifact.status === "PUBLISH_APPROVAL_REQUIRED") {
     return "approval-required";
   }
   return "needs-evidence";
@@ -771,6 +832,130 @@ function getInstallApprovalPlanReadiness(): {
   }
 }
 
+function getReleasePublishPlanReadiness(): {
+  status: OpsLensReleasePublishReadiness;
+  evidence: string[];
+  plan: OpsLensReleasePublishPlanSummary;
+} {
+  const evidencePath = releasePublishPlanEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      plan: {
+        status: "needs-evidence",
+        actionMode: "approvalPlanOnly",
+        registryMutationAttempted: false,
+        clusterMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        requiredApprovals: [
+          "release-manager",
+          "registry-admin",
+          "security-reviewer",
+          "product-owner"
+        ],
+        publishImages: [],
+        mutatingCommands: [],
+        risk: [
+          "No release publish plan evidence is available yet; image push, signing, mirroring, and catalog publication remain blocked."
+        ],
+        rollbackPath: [
+          "Generate release publish evidence before attempting registry or catalog publication commands."
+        ],
+        missingEvidence: [
+          `release publish plan evidence is missing at ${evidencePath}`
+        ]
+      },
+      evidence: [
+        "run npm run verify:release-plan to create release publish plan evidence",
+        "dashboard keeps release publish as needs-evidence until no-push approval evidence is available",
+        "release publish plan evidence must keep registryMutationAttempted=false and clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as ReleasePublishPlanEvidenceArtifact;
+    const status = mapReleasePublishPlanReadinessStatus(artifact);
+    const publishImages = (artifact.publishImages ?? []).map((image) => ({
+      name: image.name ?? "unknown",
+      image: image.image ?? "unknown",
+      source: image.source ?? "unknown"
+    }));
+    const mutatingCommands = (artifact.commands ?? [])
+      .filter((command) => command.mutation)
+      .map((command) => ({
+        id: command.id ?? "unknown",
+        phase: command.phase ?? "unknown",
+        requiresExplicitApproval: command.requiresExplicitApproval === true
+      }));
+    const mutatingCommandNames = mutatingCommands
+      .map((command) => command.id)
+      .join(", ");
+    const imageNames = publishImages.map((image) => image.name).join(", ");
+
+    return {
+      status,
+      plan: {
+        status,
+        actionMode: "approvalPlanOnly",
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        requiredApprovals: artifact.requiredApprovals ?? [],
+        publishImages,
+        mutatingCommands,
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? [],
+        missingEvidence: artifact.missingEvidence ?? []
+      },
+      evidence: [
+        `Release publish plan evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `release publish plan generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `actionMode=${artifact.actionMode ?? "unknown"} registryMutationAttempted=${String(artifact.registryMutationAttempted ?? "unknown")} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")}`,
+        `required approvals=${(artifact.requiredApprovals ?? []).join(", ") || "unknown"}`,
+        imageNames ? `release publish image inventory=${imageNames}` : "release publish image inventory not listed",
+        mutatingCommandNames
+          ? `publish commands require explicit approval: ${mutatingCommandNames}`
+          : "publish commands are not listed in latest release plan",
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads release publish evidence only; it does not push, sign, mirror, or publish catalog images"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      plan: {
+        status: "failed",
+        actionMode: "approvalPlanOnly",
+        registryMutationAttempted: false,
+        clusterMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        requiredApprovals: [],
+        publishImages: [],
+        mutatingCommands: [],
+        risk: [
+          "Release publish plan evidence is invalid; registry and catalog publication commands remain blocked."
+        ],
+        rollbackPath: [
+          "Regenerate release publish evidence before attempting registry or catalog publication commands."
+        ],
+        missingEvidence: [
+          error instanceof Error ? error.message : "unknown evidence parse error"
+        ]
+      },
+      evidence: [
+        `Release publish plan evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid release publish evidence blocks overclaiming release readiness"
+      ]
+    };
+  }
+}
+
 export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
   const documents = getOpsLensRagDocuments();
   const usedTokens = 784_200;
@@ -779,15 +964,18 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
   const imageBuildReadiness = getImageBuildReadiness();
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
   const installPlanReadiness = getInstallApprovalPlanReadiness();
+  const releasePublishReadiness = getReleasePublishPlanReadiness();
   const installReadinessEvidence = [
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
     installPlanReadiness.evidence[0],
     imageBuildReadiness.evidence[0],
+    releasePublishReadiness.evidence[0],
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
     ...installPlanReadiness.evidence.slice(1),
-    ...imageBuildReadiness.evidence.slice(1)
+    ...imageBuildReadiness.evidence.slice(1),
+    ...releasePublishReadiness.evidence.slice(1)
   ].filter((item): item is string => Boolean(item));
 
   return {
@@ -928,6 +1116,8 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
       installPlan: installPlanReadiness.status,
       approvalPlan: installPlanReadiness.plan,
       imageBuilds: imageBuildReadiness.status,
+      releasePublish: releasePublishReadiness.status,
+      releasePlan: releasePublishReadiness.plan,
       certification: "draft",
       evidence: [
         ...installReadinessEvidence,
@@ -939,7 +1129,8 @@ export function getOpsLensAdminOverview(): OpsLensAdminOverviewResponse {
         "Stage 4 mutating install approval plan is generated by npm run verify:install-plan",
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
-        "Stage 5 image build readiness is validated by npm run verify:images"
+        "Stage 5 image build readiness is validated by npm run verify:images",
+        "Stage 5 release publish approval plan is generated by npm run verify:release-plan"
       ]
     },
     policy: {

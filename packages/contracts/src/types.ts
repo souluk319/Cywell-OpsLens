@@ -608,12 +608,39 @@ export type OpsLensInstallPlanReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensReleasePublishReadiness =
+  | "approval-required"
+  | "needs-evidence"
+  | "failed";
+
 export interface OpsLensInstallApprovalPlanSummary {
   status: OpsLensInstallPlanReadiness;
   actionMode: "approvalPlanOnly";
   clusterMutationAttempted: boolean;
   mutationAllowedByThisVerifier: boolean;
   requiredApprovals: string[];
+  mutatingCommands: Array<{
+    id: string;
+    phase: string;
+    requiresExplicitApproval: boolean;
+  }>;
+  risk: string[];
+  rollbackPath: string[];
+  missingEvidence: string[];
+}
+
+export interface OpsLensReleasePublishPlanSummary {
+  status: OpsLensReleasePublishReadiness;
+  actionMode: "approvalPlanOnly";
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  requiredApprovals: string[];
+  publishImages: Array<{
+    name: string;
+    image: string;
+    source: string;
+  }>;
   mutatingCommands: Array<{
     id: string;
     phase: string;
@@ -648,6 +675,8 @@ export interface OpsLensAdminOverviewResponse {
     installPlan: OpsLensInstallPlanReadiness;
     approvalPlan: OpsLensInstallApprovalPlanSummary;
     imageBuilds: OpsLensImageBuildReadiness;
+    releasePublish: OpsLensReleasePublishReadiness;
+    releasePlan: OpsLensReleasePublishPlanSummary;
     certification: "not-started" | "draft" | "ready";
     evidence: string[];
   };
