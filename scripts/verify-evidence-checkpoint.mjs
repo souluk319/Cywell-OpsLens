@@ -21,6 +21,7 @@ const evidenceDefaults = {
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
+  ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   ocpConnectivity: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
@@ -260,6 +261,38 @@ function checkImageActualBuilds(imageArtifact) {
     return;
   }
   pass("image actual build evidence", "operator/api/dashboard/bundle actual local builds passed");
+}
+
+function checkOwnedImageProvenance(provenanceArtifact) {
+  if (!provenanceArtifact) return;
+  const required = new Set(["operator", "api", "dashboard", "bundle"]);
+  const images = provenanceArtifact.images ?? [];
+  const statusByName = new Map(images.map((image) => [image.name, image.status]));
+  const missing = [...required].filter((name) => statusByName.get(name) !== "PASS");
+  const mutations = [];
+
+  if (provenanceArtifact.registryMutationAttempted === true) {
+    mutations.push("registryMutationAttempted");
+  }
+  if (provenanceArtifact.clusterMutationAttempted === true) {
+    mutations.push("clusterMutationAttempted");
+  }
+  if (provenanceArtifact.mutationAllowedByThisVerifier === true) {
+    mutations.push("mutationAllowedByThisVerifier");
+  }
+
+  if (missing.length > 0 || mutations.length > 0) {
+    fail(
+      "owned image provenance",
+      `required missing=${missing.join(", ") || "none"} mutation violations=${mutations.join(", ") || "none"}`
+    );
+    return;
+  }
+
+  pass(
+    "owned image provenance",
+    "operator/api/dashboard/bundle local image IDs are inspected without registry or cluster mutation"
+  );
 }
 
 function checkLightspeedRoutingScore(routingArtifact) {
@@ -601,6 +634,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "ownedImageProvenance",
+    label: "owned image provenance",
+    artifact: artifacts.ownedImageProvenance,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "ocpConnectivity",
     label: "OCP connectivity diagnostic",
     artifact: artifacts.ocpConnectivity,
@@ -662,6 +702,7 @@ async function main() {
   checkRagApprovalQueuePolicy(artifacts.ragApprovalQueue);
   checkInstallPlanRagIngestion(artifacts.installPlan);
   checkImageActualBuilds(artifacts.imageBuild);
+  checkOwnedImageProvenance(artifacts.ownedImageProvenance);
   checkOcpConnectivityDiagnostic(artifacts.ocpConnectivity);
   checkPatchPreview(artifacts.lightspeedPatchPreview);
 

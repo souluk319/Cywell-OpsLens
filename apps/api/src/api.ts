@@ -42,6 +42,8 @@ import type {
   OpsLensOcpConnectivityDiagnosticSummary,
   OpsLensOcpConnectivityReadiness,
   OpsLensOperatorDryRunReadiness,
+  OpsLensOwnedImageProvenanceReadiness,
+  OpsLensOwnedImageProvenanceSummary,
   OpsLensReleasePublishPlanSummary,
   OpsLensReleasePublishReadiness,
   OpsLensRemediationProposal,
@@ -1134,6 +1136,41 @@ type ImageBuildReadinessEvidenceArtifact = {
   }>;
 };
 
+type OwnedImageProvenanceEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  requiredImages?: string[];
+  summary?: {
+    requiredPassed?: boolean;
+    inspectedCount?: number;
+    repoDigestsPresent?: boolean;
+  };
+  images?: Array<{
+    name?: string;
+    image?: string;
+    localTag?: string;
+    status?: string;
+    imageId?: string;
+    repoDigests?: string[];
+    user?: string;
+    rootfsLayerCount?: number;
+  }>;
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type ExternalRuntimeImagesPlanEvidenceArtifact = {
   artifactType?: string;
   status?: string;
@@ -1374,6 +1411,13 @@ function imageBuildReadinessEvidencePath() {
   );
 }
 
+function ownedImageProvenanceEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_OWNED_IMAGE_PROVENANCE_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-owned-image-provenance.json")
+  );
+}
+
 function externalRuntimeImagesPlanEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_EXTERNAL_RUNTIME_IMAGES_PLAN_EVIDENCE ??
@@ -1454,6 +1498,24 @@ function mapImageBuildReadinessStatus(
     return "ready";
   }
   return "needs-evidence";
+}
+
+function mapOwnedImageProvenanceReadinessStatus(
+  artifact: OwnedImageProvenanceEvidenceArtifact
+): OpsLensOwnedImageProvenanceReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.status === "FAIL" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "failed";
+  }
+  if (artifact.ref?.worktreeDirty || artifact.status !== "PASS") {
+    return "needs-evidence";
+  }
+  return "ready";
 }
 
 function mapExternalRuntimeImagesPlanReadinessStatus(
@@ -1760,6 +1822,116 @@ function getImageBuildReadiness(): {
         `Image readiness evidence could not be parsed from ${evidencePath}`,
         error instanceof Error ? error.message : "unknown evidence parse error",
         "invalid image readiness evidence blocks overclaiming image build readiness"
+      ]
+    };
+  }
+}
+
+function missingOwnedImageProvenanceSummary(
+  reason: string,
+  status: OpsLensOwnedImageProvenanceReadiness = "needs-evidence"
+): OpsLensOwnedImageProvenanceSummary {
+  return {
+    status,
+    artifactStatus: status === "failed" ? "invalid" : "missing",
+    actionMode: "readOnlyEvidenceOnly",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    requiredImages: ["operator", "api", "dashboard", "bundle"],
+    images: [],
+    missingEvidence: [reason],
+    risk: [
+      "Owned image provenance is missing, so release publish approval cannot prove which local images were inspected."
+    ],
+    rollbackPath: [
+      "Run npm run verify:images:build from a clean worktree, then run npm run verify:owned-image-provenance."
+    ]
+  };
+}
+
+function getOwnedImageProvenanceReadiness(): {
+  status: OpsLensOwnedImageProvenanceReadiness;
+  evidence: string[];
+  plan: OpsLensOwnedImageProvenanceSummary;
+} {
+  const evidencePath = ownedImageProvenanceEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      plan: missingOwnedImageProvenanceSummary(
+        `owned image provenance evidence is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run verify:owned-image-provenance to inspect local owned image metadata",
+        "dashboard keeps owned image provenance as needs-evidence until Docker image inspect evidence is available",
+        "owned image provenance reads local Docker metadata only and performs no registry or cluster mutation"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as OwnedImageProvenanceEvidenceArtifact;
+    const status = mapOwnedImageProvenanceReadinessStatus(artifact);
+    const images = (artifact.images ?? []).map((image) => ({
+      name: image.name ?? "unknown",
+      image: image.image ?? "unknown",
+      localTag: image.localTag ?? "unknown",
+      status: image.status ?? "unknown",
+      imageId: image.imageId ?? "unknown",
+      repoDigests: image.repoDigests ?? [],
+      user: image.user ?? "unknown",
+      rootfsLayerCount: image.rootfsLayerCount ?? 0
+    }));
+    const imageSummary = images
+      .map((image) => `${image.name}:${image.status}`)
+      .join(", ");
+    const repoDigestGap = artifact.summary?.repoDigestsPresent === false
+      ? "registry repo digests are not present for local-only images"
+      : "registry repo digests are present for required images";
+
+    return {
+      status,
+      plan: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "readOnlyEvidenceOnly",
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        requiredImages: artifact.requiredImages ?? [],
+        images,
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `Owned image provenance ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `owned image provenance generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `actionMode=${artifact.actionMode ?? "unknown"} registryMutationAttempted=${String(artifact.registryMutationAttempted ?? "unknown")} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")}`,
+        imageSummary
+          ? `owned image inspect status=${imageSummary}`
+          : "owned image inspect status is not listed",
+        repoDigestGap,
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads owned image provenance only; it does not build, push, sign, mirror, or patch resources"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      plan: missingOwnedImageProvenanceSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "failed"
+      ),
+      evidence: [
+        `Owned image provenance could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid owned image provenance blocks overclaiming release readiness"
       ]
     };
   }
@@ -2714,6 +2886,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const runtimeReadiness = await getOpsLensRuntimeReadiness();
   const lightspeedReadiness = getLightspeedMcpReadiness();
   const imageBuildReadiness = getImageBuildReadiness();
+  const ownedImageProvenanceReadiness = getOwnedImageProvenanceReadiness();
   const externalRuntimeImagesReadiness = getExternalRuntimeImagesPlanReadiness();
   const ocpConnectivityReadiness = getOcpConnectivityDiagnosticReadiness();
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
@@ -2729,6 +2902,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     operatorDryRunReadiness.evidence[0],
     installPlanReadiness.evidence[0],
     imageBuildReadiness.evidence[0],
+    ownedImageProvenanceReadiness.evidence[0],
     externalRuntimeImagesReadiness.evidence[0],
     releasePublishReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
@@ -2736,6 +2910,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...operatorDryRunReadiness.evidence.slice(1),
     ...installPlanReadiness.evidence.slice(1),
     ...imageBuildReadiness.evidence.slice(1),
+    ...ownedImageProvenanceReadiness.evidence.slice(1),
     ...externalRuntimeImagesReadiness.evidence.slice(1),
     ...releasePublishReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
@@ -2884,6 +3059,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       installPlan: installPlanReadiness.status,
       approvalPlan: installPlanReadiness.plan,
       imageBuilds: imageBuildReadiness.status,
+      ownedImageProvenance: ownedImageProvenanceReadiness.status,
+      ownedImageProvenancePlan: ownedImageProvenanceReadiness.plan,
       externalRuntimeImages: externalRuntimeImagesReadiness.status,
       externalRuntimePlan: externalRuntimeImagesReadiness.plan,
       releasePublish: releasePublishReadiness.status,
@@ -2906,6 +3083,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
         "Stage 5 image build readiness is validated by npm run verify:images",
+        "Stage 5 owned image provenance is validated by npm run verify:owned-image-provenance",
         "Stage 5 external runtime evidence plan is generated by npm run verify:external-runtime-plan",
         "Stage 5 release publish approval plan is generated by npm run verify:release-plan",
         "Current-head release/install evidence is summarized by npm run verify:evidence-checkpoint"

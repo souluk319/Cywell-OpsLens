@@ -12,6 +12,7 @@ const paths = {
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
+  ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   roadmapOut: "test-results/cywell-opslens-roadmap-plan-alignment.json"
 };
 
@@ -239,10 +240,12 @@ async function main() {
   const checkpoint = loadJson(paths.evidenceCheckpoint, "evidence checkpoint");
   const mvpGate = loadJson(paths.mvpGate, "MVP gate");
   const imageBuild = loadJson(paths.imageBuild, "image build readiness");
+  const ownedImageProvenance = loadJson(paths.ownedImageProvenance, "owned image provenance");
   const globalRequirements = [
     artifactFreshnessRequirement(checkpoint, "checkpoint-fresh", "Evidence checkpoint", headSha),
     artifactFreshnessRequirement(mvpGate, "mvp-gate-fresh", "MVP gate", headSha),
-    artifactFreshnessRequirement(imageBuild, "image-build-fresh", "Image build readiness", headSha)
+    artifactFreshnessRequirement(imageBuild, "image-build-fresh", "Image build readiness", headSha),
+    artifactFreshnessRequirement(ownedImageProvenance, "owned-image-provenance-fresh", "Owned image provenance", headSha)
   ];
 
   const stages = [
@@ -303,6 +306,7 @@ async function main() {
       mvpRequirement(mvpGate, "CERTIFICATION", "Certification readiness verifier"),
       laneRequirement(checkpoint, "externalRuntime", "External runtime image evidence", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "releasePublish", "Release publish approval plan", ["pass", "needs-evidence"]),
+      laneRequirement(checkpoint, "ownedImageProvenance", "Owned image provenance", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "imageBuild", "Image build readiness")
     ])
   ];

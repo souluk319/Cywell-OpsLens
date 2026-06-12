@@ -994,6 +994,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
         };
         imageBuilds?: string;
+        ownedImageProvenance?: string;
+        ownedImageProvenancePlan?: {
+          actionMode?: string;
+          registryMutationAttempted?: boolean;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          requiredImages?: string[];
+          images?: Array<{ name?: string; status?: string }>;
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         externalRuntimeImages?: string;
         externalRuntimePlan?: {
           actionMode?: string;
@@ -1394,6 +1406,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.evidence?.join(" ")).toContain(
       "image readiness"
     );
+    expect(["ready", "needs-evidence", "failed"]).toContain(
+      body.installReadiness?.ownedImageProvenance
+    );
+    expect(body.installReadiness?.ownedImageProvenancePlan).toMatchObject({
+      actionMode: "readOnlyEvidenceOnly",
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.ownedImageProvenancePlan?.requiredImages
+    ).toEqual(expect.arrayContaining(["operator", "api", "dashboard", "bundle"]));
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /owned image provenance/i
+    );
     expect([
       "approval-required",
       "needs-evidence",
@@ -1792,6 +1819,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Image Builds"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Owned Provenance"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "External Runtime"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
@@ -1859,6 +1889,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
       "vllm"
+    );
+    await expect(page.getByTestId("opslens-owned-image-provenance")).toContainText(
+      "readOnlyEvidenceOnly"
+    );
+    await expect(page.getByTestId("opslens-owned-image-provenance")).toContainText(
+      "registryMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-owned-image-provenance")).toContainText(
+      "operator"
     );
     await expect(page.getByTestId("opslens-release-publish-plan")).toContainText(
       "approvalPlanOnly"

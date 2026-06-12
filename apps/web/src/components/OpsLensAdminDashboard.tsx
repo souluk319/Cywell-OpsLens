@@ -168,6 +168,8 @@ export function OpsLensAdminDashboard() {
     ) ?? [];
   const approvalPlan = overview?.installReadiness.approvalPlan;
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
+  const ownedImageProvenancePlan =
+    overview?.installReadiness.ownedImageProvenancePlan;
   const releasePlan = overview?.installReadiness.releasePlan;
   const checkpoint = overview?.installReadiness.checkpoint;
   const liveHandoff = overview?.installReadiness.handoff;
@@ -867,6 +869,8 @@ export function OpsLensAdminDashboard() {
                   "RAG Ingestion":
                     overview.installReadiness.approvalPlan.ragIngestion.status,
                   "Image Builds": overview.installReadiness.imageBuilds,
+                  "Owned Provenance":
+                    overview.installReadiness.ownedImageProvenance,
                   "External Runtime":
                     overview.installReadiness.externalRuntimeImages,
                   "Release Publish": overview.installReadiness.releasePublish,
@@ -1192,6 +1196,66 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {externalRuntimePlan.rollbackPath[0] ??
                     "Rollback path must be reviewed before mirroring runtime images."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {ownedImageProvenancePlan ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-owned-image-provenance"
+            >
+              <div className="admin-evidence-line">
+                <span>{ownedImageProvenancePlan.actionMode}</span>
+                <span>
+                  registryMutationAttempted=
+                  {String(ownedImageProvenancePlan.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(ownedImageProvenancePlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(ownedImageProvenancePlan.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Required Images</span>
+                  <strong>
+                    {ownedImageProvenancePlan.requiredImages.length
+                      ? ownedImageProvenancePlan.requiredImages.join(", ")
+                      : "operator, api, dashboard, bundle"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Local Inspect</span>
+                  <strong>
+                    {ownedImageProvenancePlan.images.length
+                      ? ownedImageProvenancePlan.images
+                          .map((image) => `${image.name}:${image.status}`)
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Remaining Evidence</span>
+                  <strong>
+                    {ownedImageProvenancePlan.missingEvidence.length
+                      ? `${ownedImageProvenancePlan.missingEvidence.length} gaps`
+                      : "none"}
+                  </strong>
+                </div>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {ownedImageProvenancePlan.risk[0] ??
+                    "Owned image provenance reads local image metadata only."}
+                </p>
+                <p>
+                  {ownedImageProvenancePlan.rollbackPath[0] ??
+                    "Regenerate image build and provenance evidence from a clean worktree."}
                 </p>
               </div>
             </div>

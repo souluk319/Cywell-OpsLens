@@ -981,6 +981,11 @@ export type OpsLensImageBuildReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensOwnedImageProvenanceReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "failed";
+
 export type OpsLensExternalRuntimeReadiness =
   | "approval-required"
   | "needs-evidence"
@@ -1155,6 +1160,29 @@ export interface OpsLensReleasePublishPlanSummary {
   missingEvidence: string[];
 }
 
+export interface OpsLensOwnedImageProvenanceSummary {
+  status: OpsLensOwnedImageProvenanceReadiness;
+  artifactStatus: string;
+  actionMode: "readOnlyEvidenceOnly";
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  requiredImages: string[];
+  images: Array<{
+    name: string;
+    image: string;
+    localTag: string;
+    status: string;
+    imageId: string;
+    repoDigests: string[];
+    user: string;
+    rootfsLayerCount: number;
+  }>;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface OpsLensExternalRuntimeImagesPlanSummary {
   status: OpsLensExternalRuntimeReadiness;
   actionMode: "approvalPlanOnly";
@@ -1213,6 +1241,8 @@ export interface OpsLensAdminOverviewResponse {
     installPlan: OpsLensInstallPlanReadiness;
     approvalPlan: OpsLensInstallApprovalPlanSummary;
     imageBuilds: OpsLensImageBuildReadiness;
+    ownedImageProvenance: OpsLensOwnedImageProvenanceReadiness;
+    ownedImageProvenancePlan: OpsLensOwnedImageProvenanceSummary;
     externalRuntimeImages: OpsLensExternalRuntimeReadiness;
     externalRuntimePlan: OpsLensExternalRuntimeImagesPlanSummary;
     releasePublish: OpsLensReleasePublishReadiness;

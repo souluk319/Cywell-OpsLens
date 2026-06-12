@@ -29,6 +29,7 @@
     "verify:certification": "node ./scripts/verify-certification-readiness.mjs",
     "verify:images": "node ./scripts/verify-image-build-readiness.mjs",
     "verify:images:build": "node ./scripts/verify-image-build-readiness.mjs --build",
+    "verify:owned-image-provenance": "node ./scripts/verify-owned-image-provenance.mjs",
     "verify:runtime": "node ./scripts/verify-runtime-readiness.mjs",
     "verify:runtime-rag": "node ./scripts/verify-runtime-rag-contract.mjs",
     "verify:runtime-rag:fixture": "node ./scripts/verify-runtime-rag-fixture.mjs",

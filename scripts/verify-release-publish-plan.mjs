@@ -11,6 +11,7 @@ const execFileAsync = promisify(execFile);
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-release-publish-plan.json",
   imageEvidence: "test-results/cywell-opslens-image-build-readiness.json",
+  ownedImageProvenanceEvidence: "test-results/cywell-opslens-owned-image-provenance.json",
   externalRuntimeEvidence: "test-results/cywell-opslens-external-runtime-images-plan.json",
   catalogSource: "deploy/catalog/openshift/catalogsource.yaml",
   subscription: "deploy/catalog/openshift/subscription.yaml",
@@ -39,6 +40,7 @@ const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   imageEvidence: parsed.get("image-evidence") ?? defaults.imageEvidence,
+  ownedImageProvenanceEvidence: parsed.get("owned-image-provenance-evidence") ?? defaults.ownedImageProvenanceEvidence,
   externalRuntimeEvidence: parsed.get("external-runtime-evidence") ?? defaults.externalRuntimeEvidence,
   catalogSource: parsed.get("catalog-source") ?? defaults.catalogSource,
   subscription: parsed.get("subscription") ?? defaults.subscription,
@@ -169,10 +171,14 @@ function requiredPublishImages(imageEvidence, catalogSource) {
   return images;
 }
 
-function buildEvidenceGaps(imageEvidence, externalRuntimeEvidence, publishImages, currentHeadSha, currentWorktreeDirty) {
+function buildEvidenceGaps(imageEvidence, ownedImageProvenanceEvidence, externalRuntimeEvidence, publishImages, currentHeadSha, currentWorktreeDirty) {
   const actualBuilds = imageEvidence?.actualBuilds ?? [];
   const actualBuildStatus = new Map(actualBuilds.map((build) => [build.name, build.status]));
   const buildRequiredNames = ["operator", "api", "dashboard", "bundle", "catalog"];
+  const provenanceRequiredNames = ["operator", "api", "dashboard", "bundle"];
+  const provenanceImageStatus = new Map(
+    (ownedImageProvenanceEvidence?.images ?? []).map((image) => [image.name, image.status])
+  );
   const externalRuntimeStatus = new Map(
     (externalRuntimeEvidence?.externalImages ?? []).map((image) => [image.name, image.status])
   );
@@ -192,6 +198,33 @@ function buildEvidenceGaps(imageEvidence, externalRuntimeEvidence, publishImages
   }
   if (imageEvidence?.actualBuildRequested !== true) {
     gaps.push("run npm run verify:images:build before publishing release images");
+  }
+
+  if (!ownedImageProvenanceEvidence) {
+    gaps.push("run npm run verify:owned-image-provenance before publishing release images");
+  } else {
+    if (ownedImageProvenanceEvidence.status !== "PASS") {
+      gaps.push(`owned image provenance status=${ownedImageProvenanceEvidence.status ?? "missing"}`);
+    }
+    if (ownedImageProvenanceEvidence.ref?.worktreeDirty !== false) {
+      gaps.push(`owned image provenance worktreeDirty=${String(ownedImageProvenanceEvidence.ref?.worktreeDirty ?? "unknown")}`);
+    }
+    if (ownedImageProvenanceEvidence.ref?.headSha !== currentHeadSha) {
+      gaps.push(`owned image provenance headSha=${ownedImageProvenanceEvidence.ref?.headSha ?? "missing"} currentHead=${currentHeadSha}`);
+    }
+    if (
+      ownedImageProvenanceEvidence.registryMutationAttempted !== false ||
+      ownedImageProvenanceEvidence.clusterMutationAttempted !== false ||
+      ownedImageProvenanceEvidence.mutationAllowedByThisVerifier !== false
+    ) {
+      gaps.push("owned image provenance must show no registry or cluster mutation");
+    }
+    for (const name of provenanceRequiredNames) {
+      const status = provenanceImageStatus.get(name);
+      if (status !== "PASS") {
+        gaps.push(`${name} owned image provenance status=${status ?? "missing"}`);
+      }
+    }
   }
 
   if (!externalRuntimeEvidence) {
@@ -288,8 +321,8 @@ function buildCommands(publishImages, catalogSource, subscription) {
     command(
       "run-release-preflight",
       "preflight",
-      "npm run verify:images:build && npm run verify:certification && npm run verify:external-runtime-plan && npm run verify:release-plan",
-      "Regenerate local image build, certification, external runtime, and release publish evidence before external mutations.",
+      "npm run verify:images:build && npm run verify:owned-image-provenance && npm run verify:certification && npm run verify:external-runtime-plan && npm run verify:release-plan",
+      "Regenerate local image build, owned-image provenance, certification, external runtime, and release publish evidence before external mutations.",
       "No rollback is required for local preflight.",
       false
     ),
@@ -323,6 +356,36 @@ function buildCommands(publishImages, catalogSource, subscription) {
   ];
 }
 
+function ownedImageProvenanceSummary(ownedImageProvenanceEvidence) {
+  if (!ownedImageProvenanceEvidence) {
+    return {
+      status: "missing",
+      requiredImages: ["operator", "api", "dashboard", "bundle"],
+      images: [],
+      missingEvidence: [
+        `owned image provenance evidence is missing at ${resolve(options.ownedImageProvenanceEvidence)}`
+      ]
+    };
+  }
+
+  return {
+    status: ownedImageProvenanceEvidence.status ?? "unknown",
+    requiredImages: ownedImageProvenanceEvidence.requiredImages ?? [],
+    requiredPassed: ownedImageProvenanceEvidence.summary?.requiredPassed === true,
+    images: (ownedImageProvenanceEvidence.images ?? []).map((image) => ({
+      name: image.name ?? "unknown",
+      image: image.image ?? "unknown",
+      localTag: image.localTag ?? "unknown",
+      status: image.status ?? "unknown",
+      imageId: image.imageId ?? "unknown",
+      repoDigests: image.repoDigests ?? [],
+      user: image.user ?? "unknown",
+      rootfsLayerCount: image.rootfsLayerCount ?? 0
+    })),
+    missingEvidence: ownedImageProvenanceEvidence.missingEvidence ?? []
+  };
+}
+
 function planStatus(missingEvidence) {
   if (checks.some((check) => check.status === "FAIL")) return "BLOCKED";
   if (missingEvidence.length > 0) return "NEEDS_EVIDENCE";
@@ -349,6 +412,7 @@ async function buildPlan() {
     loadSingleYaml(options.csv)
   ]);
   const imageEvidence = loadJsonArtifact(options.imageEvidence, "Image readiness evidence");
+  const ownedImageProvenanceEvidence = loadJsonArtifact(options.ownedImageProvenanceEvidence, "Owned image provenance evidence");
   const externalRuntimeEvidence = loadJsonArtifact(options.externalRuntimeEvidence, "External runtime images plan evidence");
   const csvImages = relatedImages(csv);
   const publishImages = requiredPublishImages(imageEvidence, catalogSource);
@@ -389,6 +453,7 @@ async function buildPlan() {
 
   const missingEvidence = buildEvidenceGaps(
     imageEvidence,
+    ownedImageProvenanceEvidence,
     externalRuntimeEvidence,
     publishImages,
     currentHeadSha,
@@ -425,6 +490,7 @@ async function buildPlan() {
       "product-owner"
     ],
     publishImages,
+    ownedImageProvenance: ownedImageProvenanceSummary(ownedImageProvenanceEvidence),
     catalog: {
       catalogSourceImage: catalogSource?.spec?.image ?? "unknown",
       subscriptionNamespace: subscription?.metadata?.namespace ?? "unknown",
@@ -435,6 +501,7 @@ async function buildPlan() {
     missingEvidence,
     risk: [
       "Publishing mutable or unsigned images can make later OLM install evidence unreproducible.",
+      "Local owned-image provenance is not a substitute for registry digest, signature, SBOM, or scan evidence.",
       "Catalog image publishing is blocked until registry.redhat.io base-image authentication is available locally or in CI.",
       "External vLLM/Qdrant runtime images require certification and mirroring evidence before Certified Operator submission.",
       "Pushing images does not install OpsLens; cluster install remains gated by the separate install approval plan."
@@ -447,6 +514,7 @@ async function buildPlan() {
     ],
     evidenceSources: {
       imageReadiness: resolve(options.imageEvidence),
+      ownedImageProvenance: resolve(options.ownedImageProvenanceEvidence),
       externalRuntimeImagesPlan: resolve(options.externalRuntimeEvidence),
       catalogSource: resolve(options.catalogSource),
       subscription: resolve(options.subscription),
