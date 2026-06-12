@@ -242,7 +242,9 @@ async function runOc(args) {
       ok: false,
       stdout: sanitize(error.stdout?.trim?.() ?? ""),
       stderr: sanitize(error.stderr?.trim?.() ?? error.message),
-      message: sanitize(error.message)
+      message: sanitize(error.message),
+      code: error.code,
+      signal: error.signal
     };
   }
 }
@@ -376,13 +378,14 @@ async function checkOcConnection() {
     return false;
   }
 
-  const server = await runOc(["whoami", "--show-server"]);
+  const server = await runOc(["get", "--raw=/version"]);
   if (server.ok) {
-    let detail = server.stdout;
+    let detail = ocEvidence().host ?? "configured OCP API";
     try {
-      detail = new URL(server.stdout).host;
+      const version = JSON.parse(server.stdout);
+      detail = `${detail} kubernetes=${version.gitVersion ?? "unknown"}`;
     } catch {
-      // Keep oc output if it is not a URL.
+      // Keep host-only evidence if /version output is not JSON.
     }
     pass("oc server", `connected to ${detail}`);
     return true;
@@ -411,7 +414,15 @@ async function dryRunObject(object, sourcePath, index) {
 
   const filePath = await writeObjectTempFile(object, index);
   const result = await runOc(["apply", "--dry-run=server", "--validate=true", "-f", filePath, "-o", "name"]);
-  const output = result.stdout || result.stderr || result.message || "";
+  const output = [
+    result.stdout ? `stdout: ${result.stdout}` : "",
+    result.stderr ? `stderr: ${result.stderr}` : "",
+    result.message ? `message: ${result.message}` : "",
+    result.code !== undefined ? `code: ${result.code}` : "",
+    result.signal ? `signal: ${result.signal}` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
   if (result.ok) {
     pass("server dry-run", `${label(object)} accepted by the live API`, {
       resource: label(object),

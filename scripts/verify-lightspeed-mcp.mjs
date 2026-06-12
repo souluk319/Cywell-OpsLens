@@ -127,19 +127,40 @@ function expectCheck(name, condition, detail, failureDetail = detail) {
   }
 }
 
+function sanitize(text) {
+  let result = text ?? "";
+  for (const secret of secretValuesForLeakCheck()) {
+    result = result.split(secret).join("<redacted>");
+  }
+  return result;
+}
+
+function ocBaseArgs() {
+  const config = ocpApiConfig();
+  const args = [];
+  if (config.baseUrl && config.token) {
+    args.push("--server", config.baseUrl, "--token", config.token);
+    if (!config.tlsVerify) {
+      args.push("--insecure-skip-tls-verify=true");
+    }
+  }
+  args.push(`--request-timeout=${Math.ceil(options.timeoutMs / 1000)}s`);
+  return args;
+}
+
 async function runOc(args) {
   try {
-    const { stdout } = await execFileAsync("oc", args, {
+    const { stdout } = await execFileAsync("oc", [...ocBaseArgs(), ...args], {
       encoding: "utf8",
       maxBuffer: 10 * 1024 * 1024,
       timeout: options.timeoutMs
     });
-    return stdout;
+    return sanitize(stdout);
   } catch (error) {
     const message = [
-      error.message,
-      error.stdout ? `stdout: ${error.stdout}` : "",
-      error.stderr ? `stderr: ${error.stderr}` : ""
+      sanitize(error.message),
+      error.stdout ? `stdout: ${sanitize(error.stdout)}` : "",
+      error.stderr ? `stderr: ${sanitize(error.stderr)}` : ""
     ]
       .filter(Boolean)
       .join("\n");
