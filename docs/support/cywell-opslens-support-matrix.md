@@ -2,6 +2,12 @@
 
 Status: draft support policy for internal catalog and certification readiness.
 
+## Support Contact
+
+- Product owner: Cywell OpsLens Team
+- Support alias: `opslens-support@cywell.com`
+- Certified Operator submission requires confirming the alias is monitored by Cywell support before publication.
+
 ## Supported Platform Targets
 
 | Item | Target |

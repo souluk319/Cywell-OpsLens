@@ -12,6 +12,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 - The package name is `cywell-opslens`.
 - The supported OpenShift range declared for readiness is `v4.16-v4.19`.
 - Manual install plan approval is required for catalog installs.
+- The CSV maintainer contact is `opslens-support@cywell.com`; alias ownership must be confirmed before Certified Operator submission.
 - OpenShift Lightspeed MCP remains a Technology Preview integration path, so the product support center stays on Operator, Console Plugin, and Cywell-controlled RAG.
 
 ## Security Controls
@@ -43,7 +44,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 ## Required Before Certified Submission
 
 - Certify the operator image and each runtime image referenced by `relatedImages`.
-- Replace placeholder support contacts and maintainer email with production values.
+- Confirm `opslens-support@cywell.com` is monitored by Cywell support and accepted for external Operator publication.
 - Run `npm run verify:catalog-toolchain` on a clean Git HEAD and clear required `opm`, `operator-sdk`, and registry.redhat.io auth gaps before catalog image build/release review.
 - Run `operator-sdk bundle validate` and `operator-sdk scorecard` with the target OpenShift versions.
 - Run vulnerability scans for all referenced images and attach remediation evidence.

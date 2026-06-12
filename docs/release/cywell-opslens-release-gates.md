@@ -36,7 +36,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 - External vLLM and Qdrant runtime images have a no-mutation certification/mirroring approval plan before release publication.
 - vLLM and Qdrant real evidence files are created only after source digest, mirror digest, scan, SBOM, provenance, license/support, and approval artifacts exist.
 - DCO, package ownership, release notes, and public documentation are ready.
-- Repository/product URLs point to the release repo, and placeholder support contacts are replaced.
+- Repository/product URLs point to the release repo, and the `opslens-support@cywell.com` support alias is confirmed as monitored before external publication.
 
 ## Certified Operator Gate
 

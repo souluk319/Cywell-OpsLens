@@ -101,7 +101,7 @@ spec:
     name: Cywell
   maintainers:
     - name: Cywell OpsLens Team
-      email: opslens@example.invalid
+      email: opslens-support@cywell.com
   keywords:
     - openshift
     - lightspeed
