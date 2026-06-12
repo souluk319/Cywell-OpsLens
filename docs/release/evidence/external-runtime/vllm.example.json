@@ -1,0 +1,47 @@
+{
+  "schema": "cywell.opslens.external-runtime-evidence.v0.1",
+  "artifactType": "opslens.external-runtime-image-evidence.v0.1",
+  "name": "vllm",
+  "image": "quay.io/cywell/opslens-vllm:0.1.0",
+  "sourceImage": "quay.io/cywell/opslens-vllm:0.1.0",
+  "sourceDigest": "quay.io/cywell/opslens-vllm@sha256:<fill-after-source-inspection>",
+  "mirroredImage": "<internal-registry>/cywell/opslens-vllm:0.1.0",
+  "mirroredDigest": "<internal-registry>/cywell/opslens-vllm@sha256:<fill-after-approved-mirror>",
+  "certification": {
+    "status": "pending",
+    "evidenceUrl": "<container-certification-run-or-ticket>",
+    "checkedAt": "<ISO-8601 timestamp>"
+  },
+  "vulnerabilityScan": {
+    "status": "pending",
+    "scanner": "trivy",
+    "criticalFindings": 0,
+    "highFindings": "<fill-after-review>",
+    "evidencePath": "docs/release/evidence/external-runtime/vllm-vulnerability-scan.json"
+  },
+  "sbom": {
+    "status": "pending",
+    "format": "spdx-json",
+    "evidencePath": "docs/release/evidence/external-runtime/vllm-sbom.spdx.json"
+  },
+  "provenance": {
+    "status": "pending",
+    "source": "<model-runtime-source-build-or-release-reference>",
+    "evidenceUrl": "<provenance-artifact-or-ticket>"
+  },
+  "licenseReview": {
+    "status": "pending",
+    "evidenceUrl": "<license-and-support-review-ticket>"
+  },
+  "approval": {
+    "status": "pending",
+    "approvers": [
+      "registry-admin",
+      "security-reviewer",
+      "release-manager",
+      "product-owner"
+    ],
+    "approvedAt": "<ISO-8601 timestamp>",
+    "ticket": "<change-or-release-ticket>"
+  }
+}

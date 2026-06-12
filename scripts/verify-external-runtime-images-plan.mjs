@@ -183,6 +183,20 @@ function externalRuntimeImages(csvImages) {
   }));
 }
 
+function loadJsonFile(path, label) {
+  const absolutePath = resolve(path);
+  if (!existsSync(absolutePath)) {
+    fail(label, `${absolutePath} is missing`);
+    return undefined;
+  }
+  try {
+    return JSON.parse(readFileSync(absolutePath, "utf8"));
+  } catch (error) {
+    fail(label, `${absolutePath} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
+  }
+}
+
 function command(id, phase, text, rationale, rollback, mutation = false) {
   return {
     id,
@@ -254,6 +268,104 @@ function buildCommands(images) {
     ...mirrorCommands,
     ...signCommands
   ];
+}
+
+function evidenceTemplateRequirements(image, template) {
+  return [
+    {
+      id: `${image.name}-template-image`,
+      pass: template?.image === image.image && template?.sourceImage === image.image,
+      evidence: `template references ${image.image}`
+    },
+    {
+      id: `${image.name}-template-source-digest`,
+      pass: typeof template?.sourceDigest === "string" && template.sourceDigest.includes("@sha256:"),
+      evidence: "template includes sourceDigest field"
+    },
+    {
+      id: `${image.name}-template-mirror-digest`,
+      pass:
+        typeof template?.mirroredImage === "string" &&
+        typeof template?.mirroredDigest === "string" &&
+        template.mirroredDigest.includes("@sha256:"),
+      evidence: "template includes mirroredImage and mirroredDigest fields"
+    },
+    {
+      id: `${image.name}-template-certification`,
+      pass: typeof template?.certification?.status === "string" && typeof template?.certification?.evidenceUrl === "string",
+      evidence: "template includes certification status and evidenceUrl"
+    },
+    {
+      id: `${image.name}-template-vulnerability-scan`,
+      pass:
+        typeof template?.vulnerabilityScan?.status === "string" &&
+        Number(template?.vulnerabilityScan?.criticalFindings ?? 1) === 0 &&
+        typeof template?.vulnerabilityScan?.evidencePath === "string",
+      evidence: "template includes vulnerability scan status, criticalFindings=0, and evidencePath"
+    },
+    {
+      id: `${image.name}-template-sbom`,
+      pass: typeof template?.sbom?.status === "string" && typeof template?.sbom?.evidencePath === "string",
+      evidence: "template includes SBOM status and evidencePath"
+    },
+    {
+      id: `${image.name}-template-provenance`,
+      pass: typeof template?.provenance?.status === "string" && typeof template?.provenance?.evidenceUrl === "string",
+      evidence: "template includes provenance status and evidenceUrl"
+    },
+    {
+      id: `${image.name}-template-license-review`,
+      pass: typeof template?.licenseReview?.status === "string" && typeof template?.licenseReview?.evidenceUrl === "string",
+      evidence: "template includes license review status and evidenceUrl"
+    },
+    {
+      id: `${image.name}-template-approval`,
+      pass:
+        typeof template?.approval?.status === "string" &&
+        Array.isArray(template?.approval?.approvers) &&
+        template.approval.approvers.length >= 4,
+      evidence: "template includes release approval status and required approvers"
+    }
+  ];
+}
+
+function loadEvidenceTemplates(images) {
+  const readmePath = resolve(options.externalEvidenceDir, "README.md");
+  if (!existsSync(readmePath)) {
+    fail("external runtime evidence README", `${readmePath} is missing`);
+  } else {
+    const text = readFileSync(readmePath, "utf8");
+    expectCheck(
+      "external runtime evidence README",
+      text.includes("vllm.json") &&
+        text.includes("qdrant.json") &&
+        text.includes("sourceDigest") &&
+        text.includes("mirroredDigest") &&
+        text.includes("criticalFindings=0"),
+      "README documents vLLM/Qdrant evidence files, immutable digests, and vulnerability scan gate",
+      "README must document vLLM/Qdrant files, source/mirror digests, and criticalFindings=0"
+    );
+  }
+
+  return images.map((image) => {
+    const templatePath = resolve(options.externalEvidenceDir, `${image.name}.example.json`);
+    const template = loadJsonFile(templatePath, `${image.name} external runtime evidence template`);
+    const requirements = evidenceTemplateRequirements(image, template);
+    const unmet = requirements.filter((requirement) => !requirement.pass);
+    if (unmet.length > 0) {
+      for (const requirement of unmet) {
+        fail(`${image.name} external runtime evidence template`, `${requirement.id}: ${requirement.evidence}`);
+      }
+    } else {
+      pass(`${image.name} external runtime evidence template`, `${templatePath} has all required placeholder fields`);
+    }
+    return {
+      name: image.name,
+      templatePath,
+      status: unmet.length > 0 ? "blocked" : "ready",
+      requirements
+    };
+  });
 }
 
 function hasDigest(value) {
@@ -361,6 +473,7 @@ async function buildPlan() {
   const csvImages = relatedImagesFromCsv(csv);
   const fbcImages = relatedImagesFromFbc(fbc);
   const images = externalRuntimeImages(csvImages);
+  const evidenceTemplates = loadEvidenceTemplates(images);
   const missingEvidence = [];
 
   expectCheck(
@@ -480,6 +593,7 @@ async function buildPlan() {
       "release-manager",
       "product-owner"
     ],
+    evidenceTemplates,
     externalImages: externalEvidence,
     commands: buildCommands(images),
     missingEvidence,
