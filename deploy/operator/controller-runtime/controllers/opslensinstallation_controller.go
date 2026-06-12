@@ -7,10 +7,12 @@ import (
 	opslensv1alpha1 "github.com/cywell/opslens-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -18,7 +20,8 @@ import (
 )
 
 const (
-	appName = "cywell-opslens"
+	appName            = "cywell-opslens"
+	apiServiceAccount  = "cywell-opslens-api"
 	ragPolicyConfigMap = "cywell-opslens-rag-policy"
 )
 
@@ -36,6 +39,10 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	namespace := targetNamespace(&installation)
+	if err := r.reconcileAPIServiceAccount(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := r.reconcileRAGPolicy(ctx, &installation, namespace); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -44,7 +51,15 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if err := r.reconcileAPIService(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := r.reconcileDashboardDeployment(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileDashboardService(ctx, &installation, namespace); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -52,7 +67,15 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if err := r.reconcileVectorService(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := r.reconcileModelRuntime(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileModelRuntimeService(ctx, &installation, namespace); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -77,9 +100,73 @@ func (r *OpsLensInstallationReconciler) SetupWithManager(mgr ctrl.Manager) error
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&opslensv1alpha1.OpsLensInstallation{}).
 		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.ServiceAccount{}).
+		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
 		Complete(r)
+}
+
+func (r *OpsLensInstallationReconciler) reconcileAPIServiceAccount(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	serviceAccount := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      apiServiceAccount,
+			Namespace: namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
+		serviceAccount.Labels = labels("api")
+		return r.setControllerReferenceIfSameNamespace(installation, namespace, serviceAccount)
+	})
+	return err
+}
+
+func (r *OpsLensInstallationReconciler) reconcileAPIService(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	return r.reconcileService(ctx, installation, namespace, valueOrDefault(installation.Spec.Components.API.ServiceName, "cywell-opslens-api"), "api", []corev1.ServicePort{
+		{Name: "http", Port: 80, TargetPort: intstr.FromString("http")},
+		{Name: "mcp", Port: 443, TargetPort: intstr.FromString("http")},
+	})
+}
+
+func (r *OpsLensInstallationReconciler) reconcileDashboardService(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	return r.reconcileService(ctx, installation, namespace, valueOrDefault(installation.Spec.Components.Dashboard.ServiceName, "cywell-opslens-dashboard"), "dashboard", []corev1.ServicePort{
+		{Name: "http", Port: 80, TargetPort: intstr.FromString("http")},
+	})
+}
+
+func (r *OpsLensInstallationReconciler) reconcileVectorService(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	port := int32(6333)
+	if installation.Spec.Components.VectorStore.Provider == "pgvector" {
+		port = 5432
+	}
+
+	return r.reconcileService(ctx, installation, namespace, "cywell-opslens-vector", "vector-store", []corev1.ServicePort{
+		{Name: "http", Port: port, TargetPort: intstr.FromString("http")},
+	})
+}
+
+func (r *OpsLensInstallationReconciler) reconcileModelRuntimeService(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	return r.reconcileService(ctx, installation, namespace, "cywell-opslens-vllm", "model-runtime", []corev1.ServicePort{
+		{Name: "http", Port: 8000, TargetPort: intstr.FromString("http")},
+	})
+}
+
+func (r *OpsLensInstallationReconciler) reconcileService(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string, name string, component string, ports []corev1.ServicePort) error {
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
+		service.Labels = labels(component)
+		service.Spec.Selector = labels(component)
+		service.Spec.Ports = ports
+		return r.setControllerReferenceIfSameNamespace(installation, namespace, service)
+	})
+	return err
 }
 
 func (r *OpsLensInstallationReconciler) reconcileRAGPolicy(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
@@ -105,7 +192,7 @@ func (r *OpsLensInstallationReconciler) reconcileRAGPolicy(ctx context.Context, 
 			"approvalQueueEnqueueAllowed": "false",
 			"requiredApprovals": settings.RequiredApprovals,
 		}
-		return controllerutil.SetControllerReference(installation, configMap, r.Scheme)
+		return r.setControllerReferenceIfSameNamespace(installation, namespace, configMap)
 	})
 	return err
 }
@@ -131,11 +218,15 @@ func (r *OpsLensInstallationReconciler) reconcileDashboardDeployment(ctx context
 		deployment.Spec.Template.Labels = labels("dashboard")
 		deployment.Spec.Template.Spec.Containers = []corev1.Container{
 			{
-				Name:  "dashboard",
-				Image: installation.Spec.Components.Dashboard.Image,
+				Name:            "dashboard",
+				Image:           installation.Spec.Components.Dashboard.Image,
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Ports: []corev1.ContainerPort{
+					{Name: "http", ContainerPort: 8080},
+				},
 			},
 		}
-		return controllerutil.SetControllerReference(installation, deployment, r.Scheme)
+		return r.setControllerReferenceIfSameNamespace(installation, namespace, deployment)
 	})
 	return err
 }
@@ -143,6 +234,17 @@ func (r *OpsLensInstallationReconciler) reconcileDashboardDeployment(ctx context
 func (r *OpsLensInstallationReconciler) reconcileVectorStore(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
 	provider := valueOrDefault(installation.Spec.Components.VectorStore.Provider, "qdrant")
 	image := valueOrDefault(installation.Spec.Components.VectorStore.Image, "docker.io/qdrant/qdrant:v1.12.1")
+	port := int32(6333)
+	mountPath := "/qdrant/storage"
+	if provider == "pgvector" {
+		port = 5432
+		mountPath = "/var/lib/postgresql/data"
+	}
+	storageSize := valueOrDefault(installation.Spec.Components.VectorStore.StorageSize, "20Gi")
+	storageQuantity, err := resource.ParseQuantity(storageSize)
+	if err != nil {
+		return fmt.Errorf("invalid vector store storageSize %q: %w", storageSize, err)
+	}
 	statefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "cywell-opslens-vector",
@@ -159,17 +261,51 @@ func (r *OpsLensInstallationReconciler) reconcileVectorStore(ctx context.Context
 		statefulSet.Spec.Template.Labels = labels("vector-store")
 		statefulSet.Spec.Template.Spec.Containers = []corev1.Container{
 			{
-				Name:  provider,
-				Image: image,
+				Name:            provider,
+				Image:           image,
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Ports: []corev1.ContainerPort{
+					{Name: "http", ContainerPort: port},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: "vector-data", MountPath: mountPath},
+				},
 			},
 		}
-		return controllerutil.SetControllerReference(installation, statefulSet, r.Scheme)
+		statefulSet.Spec.VolumeClaimTemplates = []corev1.PersistentVolumeClaim{
+			{
+				ObjectMeta: metav1.ObjectMeta{Name: "vector-data"},
+				Spec: corev1.PersistentVolumeClaimSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					Resources: corev1.VolumeResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceStorage: storageQuantity,
+						},
+					},
+				},
+			},
+		}
+		return r.setControllerReferenceIfSameNamespace(installation, namespace, statefulSet)
 	})
 	return err
 }
 
 func (r *OpsLensInstallationReconciler) reconcileModelRuntime(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
 	image := valueOrDefault(installation.Spec.Components.ModelRuntime.Image, "quay.io/cywell/opslens-vllm:0.1.0")
+	resources := corev1.ResourceRequirements{}
+	if installation.Spec.Components.ModelRuntime.GPU == nil || installation.Spec.Components.ModelRuntime.GPU.Enabled == nil || *installation.Spec.Components.ModelRuntime.GPU.Enabled {
+		deviceClass := "nvidia.com/gpu"
+		count := int64(1)
+		if installation.Spec.Components.ModelRuntime.GPU != nil {
+			deviceClass = valueOrDefault(installation.Spec.Components.ModelRuntime.GPU.DeviceClass, deviceClass)
+			if installation.Spec.Components.ModelRuntime.GPU.Count != nil {
+				count = int64(*installation.Spec.Components.ModelRuntime.GPU.Count)
+			}
+		}
+		resources.Limits = corev1.ResourceList{
+			corev1.ResourceName(deviceClass): *resource.NewQuantity(count, resource.DecimalSI),
+		}
+	}
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "cywell-opslens-vllm",
@@ -188,12 +324,17 @@ func (r *OpsLensInstallationReconciler) reconcileModelRuntime(ctx context.Contex
 		deployment.Spec.Template.Labels = labels("model-runtime")
 		deployment.Spec.Template.Spec.Containers = []corev1.Container{
 			{
-				Name:  "vllm",
-				Image: image,
-				Args:  []string{"--model", installation.Spec.Components.ModelRuntime.Model},
+				Name:            "vllm",
+				Image:           image,
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Args:            []string{"--model", installation.Spec.Components.ModelRuntime.Model},
+				Ports: []corev1.ContainerPort{
+					{Name: "http", ContainerPort: 8000},
+				},
+				Resources: resources,
 			},
 		}
-		return controllerutil.SetControllerReference(installation, deployment, r.Scheme)
+		return r.setControllerReferenceIfSameNamespace(installation, namespace, deployment)
 	})
 	return err
 }
@@ -222,6 +363,17 @@ func (r *OpsLensInstallationReconciler) reconcileConsolePlugin(ctx context.Conte
 				"port":      int64(80),
 				"basePath":  "/",
 			},
+			"proxy": []interface{}{
+				map[string]interface{}{
+					"alias": "opslens-api",
+					"service": map[string]interface{}{
+						"name":      valueOrDefault(installation.Spec.Components.API.ServiceName, "cywell-opslens-api"),
+						"namespace": namespace,
+						"port":      int64(80),
+					},
+					"authorize": true,
+				},
+			},
 		}
 		return nil
 	})
@@ -248,12 +400,15 @@ func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Conte
 		deployment.Spec.Replicas = &replicas
 		deployment.Spec.Selector = &metav1.LabelSelector{MatchLabels: labels("api")}
 		deployment.Spec.Template.Labels = labels("api")
-		deployment.Spec.Template.Spec.ServiceAccountName = "cywell-opslens-api"
+		deployment.Spec.Template.Spec.ServiceAccountName = apiServiceAccount
 		deployment.Spec.Template.Spec.Containers = []corev1.Container{
 			{
-				Name:  "api",
-				Image: installation.Spec.Components.API.Image,
+				Name:            "api",
+				Image:           installation.Spec.Components.API.Image,
+				ImagePullPolicy: corev1.PullIfNotPresent,
 				Env: []corev1.EnvVar{
+					{Name: "CYWELL_OPSLENS_VECTOR_URL", Value: "http://cywell-opslens-vector:6333"},
+					{Name: "CYWELL_OPSLENS_MODEL_URL", Value: "http://cywell-opslens-vllm:8000"},
 					{Name: "CYWELL_OPSLENS_ACTION_MODE", Value: "plan-only"},
 					{Name: "CYWELL_OPSLENS_RAG_DOCUMENT_INTAKE_MODE", Value: settings.DocumentIntakeMode},
 					{Name: "CYWELL_OPSLENS_RAG_EVIDENCE_EXPORT", Value: settings.EvidenceExport},
@@ -262,9 +417,12 @@ func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Conte
 					{Name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_ENQUEUE_ALLOWED", Value: "false"},
 					{Name: "CYWELL_OPSLENS_RAG_REQUIRED_APPROVALS", Value: settings.RequiredApprovals},
 				},
+				Ports: []corev1.ContainerPort{
+					{Name: "http", ContainerPort: 8080},
+				},
 			},
 		}
-		return controllerutil.SetControllerReference(installation, deployment, r.Scheme)
+		return r.setControllerReferenceIfSameNamespace(installation, namespace, deployment)
 	})
 	return err
 }
@@ -378,6 +536,13 @@ func buildStatus(installation *opslensv1alpha1.OpsLensInstallation) opslensv1alp
 			},
 		},
 	}
+}
+
+func (r *OpsLensInstallationReconciler) setControllerReferenceIfSameNamespace(installation *opslensv1alpha1.OpsLensInstallation, namespace string, object client.Object) error {
+	if installation.Namespace != namespace {
+		return nil
+	}
+	return controllerutil.SetControllerReference(installation, object, r.Scheme)
 }
 
 func targetNamespace(installation *opslensv1alpha1.OpsLensInstallation) string {

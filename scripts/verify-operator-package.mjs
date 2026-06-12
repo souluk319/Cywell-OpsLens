@@ -279,6 +279,12 @@ function validateRbac(clusterRole, csv) {
     fail("config RBAC ConsolePlugin", "consoleplugins get/create/patch permissions are missing");
   }
 
+  if (hasRuleFor(rbacRules, "", "serviceaccounts", ["get", "create", "patch"])) {
+    pass("config RBAC ServiceAccount", "operator can reconcile the API service account");
+  } else {
+    fail("config RBAC ServiceAccount", "serviceaccounts get/create/patch permissions are missing");
+  }
+
   const csvRules = (csv?.spec?.install?.spec?.clusterPermissions ?? []).flatMap(
     (permission) => permission.rules ?? []
   );
@@ -298,6 +304,12 @@ function validateRbac(clusterRole, csv) {
     pass("CSV RBAC ConsolePlugin", "can reconcile ConsolePlugin");
   } else {
     fail("CSV RBAC ConsolePlugin", "consoleplugins permissions are missing");
+  }
+
+  if (hasRuleFor(csvRules, "", "serviceaccounts", ["get", "create", "patch"])) {
+    pass("CSV RBAC ServiceAccount", "can reconcile the API service account");
+  } else {
+    fail("CSV RBAC ServiceAccount", "serviceaccounts permissions are missing");
   }
 }
 

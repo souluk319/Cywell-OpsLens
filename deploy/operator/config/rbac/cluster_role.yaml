@@ -32,6 +32,7 @@ rules:
       - configmaps
       - persistentvolumeclaims
       - services
+      - serviceaccounts
       - secrets
     verbs:
       - get
