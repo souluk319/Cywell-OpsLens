@@ -22,6 +22,7 @@
     "verify:operator:reconcile": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-operator-reconcile.mjs",
     "verify:operator:runtime": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-operator-runtime-parity.mjs",
     "verify:certification": "node ./scripts/verify-certification-readiness.mjs",
+    "verify:images": "node ./scripts/verify-image-build-readiness.mjs",
     "verify:lightspeed": "node ./scripts/verify-lightspeed-mcp.mjs",
     "verify:lightspeed:patch-preview": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-lightspeed-mcp.mjs --patch-preview --skip-mcp",
     "verify:lightspeed:fixture": "node ./scripts/verify-lightspeed-mcp.mjs --crd-fixture ./deploy/lightspeed/fixtures/olsconfig-crd-mcp.json --skip-mcp --evidence-out ./test-results/cywell-opslens-lightspeed-readiness-fixture.json"

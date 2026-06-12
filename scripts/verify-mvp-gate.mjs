@@ -82,6 +82,13 @@ const steps = [
     args: ["run", "verify:certification"],
     acceptance: ["AC-CERT-001"],
     purpose: "Verify catalog, FBC, scorecard, release, support, and security readiness."
+  },
+  {
+    id: "IMAGES",
+    command: "npm",
+    args: ["run", "verify:images"],
+    acceptance: ["AC-CERT-001"],
+    purpose: "Verify Operator, API, dashboard, bundle, and catalog image build readiness without pushing images."
   }
 ].filter((step) => !(skipE2E && step.id === "E2E"));
 

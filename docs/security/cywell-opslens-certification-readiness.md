@@ -28,6 +28,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 | RAG evidence export | Validation evidence artifacts return redacted previews and design-only approval intent without raw Markdown, queue mutation, or vector writes. | `POST /api/opslens/admin/rag/evidence-export`, `npm run verify:rag` |
 | Secrets | Raw Kubernetes Secret fetch remains blocked in API discovery, and Operator RBAC does not grant `secrets get/list/watch`. | `AC-OCP-001`, `npm run verify:operator` |
 | Disconnected | CSV and FBC include `relatedImages` for all runtime images. | `deploy/operator/bundle/manifests/*.yaml`, `deploy/catalog/fbc/catalog.yaml` |
+| Image build contracts | Operator, API, dashboard, bundle, and catalog images have explicit Dockerfile/build-context readiness checks; external runtime images remain marked for certification evidence. | `apps/api/Dockerfile`, `apps/web/Dockerfile`, `deploy/operator/controller-runtime/Dockerfile`, `npm run verify:images` |
 | Proxy/TLS | Certification annotations declare proxy-aware and TLS-profile readiness intent. | CSV annotations |
 | FIPS | FIPS is currently declared unsupported until image/runtime validation proves compliance. | `features.operators.openshift.io/fips-compliant: "false"` |
 
@@ -37,6 +38,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 - Replace placeholder support contacts and maintainer email with production values.
 - Run `operator-sdk bundle validate` and `operator-sdk scorecard` with the target OpenShift versions.
 - Run vulnerability scans for all referenced images and attach remediation evidence.
+- Build and push signed Operator, API, dashboard, bundle, catalog, and model runtime images to the release registry.
 - Run live install, upgrade, uninstall, and rollback smoke tests through OLM.
 - Confirm service TLS, proxy, disconnected mirroring, and SCC/Pod Security behavior in a lab cluster.
 
