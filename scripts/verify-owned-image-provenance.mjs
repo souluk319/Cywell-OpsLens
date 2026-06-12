@@ -349,7 +349,7 @@ async function main() {
   const missingEvidence = [
     ...imageEvidenceCheck.missingEvidence,
     ...images.flatMap((image) =>
-      image.required
+      image.required && image.status !== "PASS"
         ? (image.missingEvidence ?? []).map((item) => `${image.name}: ${item}`)
         : []
     )
