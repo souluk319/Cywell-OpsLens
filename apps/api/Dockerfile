@@ -26,8 +26,9 @@ RUN chown -R 1001:0 /opt/app-root/src \
 
 ENV NODE_ENV=production
 ENV PORT=8080
+ENV KUGNUS_API_HOST=0.0.0.0
 
-EXPOSE 8080
+EXPOSE 8080 9443
 USER 1001
 
 CMD ["npm", "run", "-w", "@kugnus/api", "start"]

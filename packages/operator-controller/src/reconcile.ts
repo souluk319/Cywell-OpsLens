@@ -10,6 +10,12 @@ import type {
 
 const defaultNamespace = "cywell-opslens";
 const appName = "cywell-opslens";
+const serviceServingCertAnnotation = "service.beta.openshift.io/serving-cert-secret-name";
+const tlsMountPath = "/var/run/secrets/cywell-opslens/tls";
+const apiTlsSecretName = "cywell-opslens-api-tls";
+const dashboardTlsSecretName = "cywell-opslens-dashboard-tls";
+const httpsContainerPort = 9443;
+const httpsServicePort = 443;
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
@@ -82,14 +88,21 @@ function normalizeRagSettings(installation: OpsLensInstallation) {
   };
 }
 
-function service(name: string, namespace: string, component: string, ports: unknown[]): KubernetesObject {
+function service(
+  name: string,
+  namespace: string,
+  component: string,
+  ports: unknown[],
+  annotations?: Record<string, string>
+): KubernetesObject {
   return {
     apiVersion: "v1",
     kind: "Service",
     metadata: {
       name,
       namespace,
-      labels: labels(component)
+      labels: labels(component),
+      ...(annotations ? { annotations } : {})
     },
     spec: {
       selector: labels(component),
@@ -104,7 +117,8 @@ function deployment(
   component: string,
   image: string,
   replicas: number,
-  container: Record<string, unknown>
+  container: Record<string, unknown>,
+  podSpec: Record<string, unknown> = {}
 ): KubernetesObject {
   return {
     apiVersion: "apps/v1",
@@ -132,7 +146,8 @@ function deployment(
               imagePullPolicy: "IfNotPresent",
               ...container
             }
-          ]
+          ],
+          ...podSpec
         }
       }
     }
@@ -194,6 +209,26 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
     deployment(apiServiceName, namespace, "api", api.image, api.replicas ?? 2, {
       env: [
         {
+          name: "KUGNUS_API_HOST",
+          value: "0.0.0.0"
+        },
+        {
+          name: "KUGNUS_API_PORT",
+          value: String(httpsContainerPort)
+        },
+        {
+          name: "PORT",
+          value: String(httpsContainerPort)
+        },
+        {
+          name: "CYWELL_OPSLENS_TLS_CERT_FILE",
+          value: `${tlsMountPath}/tls.crt`
+        },
+        {
+          name: "CYWELL_OPSLENS_TLS_KEY_FILE",
+          value: `${tlsMountPath}/tls.key`
+        },
+        {
           name: "CYWELL_OPSLENS_VECTOR_URL",
           value: "http://cywell-opslens-vector:6333"
         },
@@ -232,24 +267,46 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
       ],
       ports: [
         {
-          name: "http",
-          containerPort: 8080
+          name: "https",
+          containerPort: httpsContainerPort
         }
       ],
+      volumeMounts: [
+        {
+          name: "service-serving-cert",
+          mountPath: tlsMountPath,
+          readOnly: true
+        }
+      ],
+      readinessProbe: {
+        httpGet: {
+          path: "/healthz",
+          port: "https",
+          scheme: "HTTPS"
+        },
+        initialDelaySeconds: 5,
+        periodSeconds: 10
+      },
       resources: api.resources
+    }, {
+      volumes: [
+        {
+          name: "service-serving-cert",
+          secret: {
+            secretName: apiTlsSecretName
+          }
+        }
+      ]
     }),
     service(apiServiceName, namespace, "api", [
       {
-        name: "http",
-        port: 80,
-        targetPort: "http"
-      },
-      {
-        name: "mcp",
-        port: 443,
-        targetPort: "http"
+        name: "https",
+        port: httpsServicePort,
+        targetPort: "https"
       }
-    ]),
+    ], {
+      [serviceServingCertAnnotation]: apiTlsSecretName
+    }),
     deployment(
       dashboardServiceName,
       namespace,
@@ -257,21 +314,67 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
       dashboard.image,
       dashboard.replicas ?? 1,
       {
+        env: [
+          {
+            name: "HOST",
+            value: "0.0.0.0"
+          },
+          {
+            name: "PORT",
+            value: String(httpsContainerPort)
+          },
+          {
+            name: "CYWELL_OPSLENS_TLS_CERT_FILE",
+            value: `${tlsMountPath}/tls.crt`
+          },
+          {
+            name: "CYWELL_OPSLENS_TLS_KEY_FILE",
+            value: `${tlsMountPath}/tls.key`
+          }
+        ],
         ports: [
           {
-            name: "http",
-            containerPort: 8080
+            name: "https",
+            containerPort: httpsContainerPort
+          }
+        ],
+        volumeMounts: [
+          {
+            name: "service-serving-cert",
+            mountPath: tlsMountPath,
+            readOnly: true
+          }
+        ],
+        readinessProbe: {
+          httpGet: {
+            path: "/healthz",
+            port: "https",
+            scheme: "HTTPS"
+          },
+          initialDelaySeconds: 5,
+          periodSeconds: 10
+        }
+      },
+      {
+        volumes: [
+          {
+            name: "service-serving-cert",
+            secret: {
+              secretName: dashboardTlsSecretName
+            }
           }
         ]
       }
     ),
     service(dashboardServiceName, namespace, "dashboard", [
       {
-        name: "http",
-        port: 80,
-        targetPort: "http"
+        name: "https",
+        port: httpsServicePort,
+        targetPort: "https"
       }
-    ]),
+    ], {
+      [serviceServingCertAnnotation]: dashboardTlsSecretName
+    }),
     {
       apiVersion: "apps/v1",
       kind: "StatefulSet",
@@ -372,21 +475,27 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
       },
       spec: {
         displayName: "Cywell OpsLens",
-        service: {
-          name: dashboardServiceName,
-          namespace,
-          port: 80,
-          basePath: "/"
+        backend: {
+          type: "Service",
+          service: {
+            name: dashboardServiceName,
+            namespace,
+            port: httpsServicePort,
+            basePath: "/"
+          }
         },
         proxy: [
           {
             alias: "opslens-api",
-            service: {
-              name: apiServiceName,
-              namespace,
-              port: 80
-            },
-            authorize: true
+            authorization: "UserToken",
+            endpoint: {
+              type: "Service",
+              service: {
+                name: apiServiceName,
+                namespace,
+                port: httpsServicePort
+              }
+            }
           }
         ]
       }

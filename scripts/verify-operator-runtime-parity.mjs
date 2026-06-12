@@ -192,12 +192,14 @@ try {
   expectCheck(
     "Go Service parity",
       controller.includes("corev1.Service") &&
-      controller.includes('Name: "mcp"') &&
-      controller.includes("Port: 443") &&
+      controller.includes('Name: "https"') &&
+      controller.includes("httpsServicePort") &&
+      controller.includes("service.beta.openshift.io/serving-cert-secret-name") &&
       (controller.includes("Port: 6333") || controller.includes("int32(6333)")) &&
       controller.includes("Port: 8000") &&
+      controller.includes('TargetPort: intstr.FromString("https")') &&
       controller.includes('TargetPort: intstr.FromString("http")'),
-    "API, dashboard, vector, and model runtime Services mirror the TS plan ports"
+    "API/dashboard HTTPS Services and vector/model HTTP Services mirror the TS plan ports"
   );
 
   expectCheck(
@@ -213,13 +215,21 @@ try {
   const consolePlugin = findResource(plan, "ConsolePlugin", "cywell-opslens");
   expectCheck(
     "Go ConsolePlugin proxy parity",
-    consolePlugin?.spec?.proxy?.[0]?.alias === "opslens-api" &&
-      consolePlugin?.spec?.proxy?.[0]?.authorize === true &&
+    consolePlugin?.spec?.backend?.type === "Service" &&
+      consolePlugin?.spec?.backend?.service?.port === 443 &&
+      consolePlugin?.spec?.proxy?.[0]?.alias === "opslens-api" &&
+      consolePlugin?.spec?.proxy?.[0]?.authorization === "UserToken" &&
+      consolePlugin?.spec?.proxy?.[0]?.endpoint?.type === "Service" &&
+      consolePlugin?.spec?.proxy?.[0]?.endpoint?.service?.port === 443 &&
+      consolePlugin?.spec?.service === undefined &&
+      consolePlugin?.spec?.proxy?.[0]?.authorize === undefined &&
       controller.includes('"proxy"') &&
+      controller.includes('"backend"') &&
       controller.includes('"opslens-api"') &&
-      controller.includes('"authorize": true') &&
+      controller.includes('"authorization": "UserToken"') &&
+      controller.includes('"endpoint"') &&
       controller.includes("installation.Spec.Components.API.ServiceName"),
-    "ConsolePlugin exposes the dashboard and authorized API proxy without hiding the dashboard-first UX"
+    "ConsolePlugin exposes the dashboard backend and UserToken API proxy using the live OpenShift schema"
   );
 
   expectCheck(

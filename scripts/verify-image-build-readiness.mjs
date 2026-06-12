@@ -34,14 +34,14 @@ const imageBuilds = [
     image: "quay.io/cywell/opslens-api:0.1.0",
     context: ".",
     dockerfile: paths.apiDockerfile,
-    requiredText: ["@kugnus/api", "npm ci", "PORT=8080", "USER 1001", "chown -R 1001:0", "data/runbooks"]
+    requiredText: ["@kugnus/api", "npm ci", "KUGNUS_API_HOST=0.0.0.0", "EXPOSE 8080 9443", "USER 1001", "chown -R 1001:0", "data/runbooks"]
   },
   {
     name: "dashboard",
     image: "quay.io/cywell/opslens-dashboard:0.1.0",
     context: ".",
     dockerfile: paths.dashboardDockerfile,
-    requiredText: ["@kugnus/web", "npm ci", "preview", "EXPOSE 8080", "USER 1001", "chown -R 1001:0"]
+    requiredText: ["@kugnus/web", "npm ci", "serve", "EXPOSE 8080 9443", "USER 1001", "chown -R 1001:0"]
   }
 ];
 

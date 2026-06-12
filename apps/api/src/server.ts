@@ -1,4 +1,6 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { existsSync, readFileSync } from "node:fs";
+import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
 import {
   createActionPlan,
   exportOpsLensRagEvidence,
@@ -29,8 +31,25 @@ import {
 
 loadEnvFile();
 
-const port = Number(process.env.KUGNUS_API_PORT ?? 4174);
-const host = process.env.KUGNUS_API_HOST ?? "127.0.0.1";
+const port = Number(process.env.KUGNUS_API_PORT ?? process.env.PORT ?? 4174);
+const host = process.env.KUGNUS_API_HOST ?? process.env.HOST ?? "127.0.0.1";
+const tlsCertFile = process.env.CYWELL_OPSLENS_TLS_CERT_FILE;
+const tlsKeyFile = process.env.CYWELL_OPSLENS_TLS_KEY_FILE;
+
+function loadTlsOptions() {
+  if (!tlsCertFile || !tlsKeyFile) {
+    return undefined;
+  }
+
+  if (!existsSync(tlsCertFile) || !existsSync(tlsKeyFile)) {
+    return undefined;
+  }
+
+  return {
+    cert: readFileSync(tlsCertFile),
+    key: readFileSync(tlsKeyFile)
+  };
+}
 
 async function readJson(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -64,7 +83,7 @@ function sendNotFound(response: ServerResponse) {
   });
 }
 
-const server = createServer(async (request, response) => {
+const requestHandler = async (request: IncomingMessage, response: ServerResponse) => {
   try {
     const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
 
@@ -354,8 +373,14 @@ const server = createServer(async (request, response) => {
       error: error instanceof Error ? error.message : "unknown request error"
     });
   }
-});
+};
+
+const tlsOptions = loadTlsOptions();
+const server = tlsOptions
+  ? createHttpsServer(tlsOptions, requestHandler)
+  : createHttpServer(requestHandler);
 
 server.listen(port, host, () => {
-  console.log(`Cywell OpsLens API listening on http://${host}:${port}`);
+  const scheme = tlsOptions ? "https" : "http";
+  console.log(`Cywell OpsLens API listening on ${scheme}://${host}:${port}`);
 });

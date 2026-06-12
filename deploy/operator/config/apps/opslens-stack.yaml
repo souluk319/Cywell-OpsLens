@@ -59,6 +59,16 @@ spec:
           image: quay.io/cywell/opslens-api:0.1.0
           imagePullPolicy: IfNotPresent
           env:
+            - name: KUGNUS_API_HOST
+              value: "0.0.0.0"
+            - name: KUGNUS_API_PORT
+              value: "9443"
+            - name: PORT
+              value: "9443"
+            - name: CYWELL_OPSLENS_TLS_CERT_FILE
+              value: /var/run/secrets/cywell-opslens/tls/tls.crt
+            - name: CYWELL_OPSLENS_TLS_KEY_FILE
+              value: /var/run/secrets/cywell-opslens/tls/tls.key
             - name: CYWELL_OPSLENS_VECTOR_URL
               value: http://cywell-opslens-vector:6333
             - name: CYWELL_OPSLENS_MODEL_URL
@@ -78,14 +88,23 @@ spec:
             - name: CYWELL_OPSLENS_RAG_REQUIRED_APPROVALS
               value: rag-owner,cluster-sre
           ports:
-            - name: http
-              containerPort: 8080
+            - name: https
+              containerPort: 9443
+          volumeMounts:
+            - name: service-serving-cert
+              mountPath: /var/run/secrets/cywell-opslens/tls
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /healthz
-              port: 8080
+              port: https
+              scheme: HTTPS
             initialDelaySeconds: 5
             periodSeconds: 10
+      volumes:
+        - name: service-serving-cert
+          secret:
+            secretName: cywell-opslens-api-tls
 ---
 apiVersion: v1
 kind: Service
@@ -95,17 +114,16 @@ metadata:
   labels:
     app.kubernetes.io/name: cywell-opslens
     app.kubernetes.io/component: api
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: cywell-opslens-api-tls
 spec:
   selector:
     app.kubernetes.io/name: cywell-opslens
     app.kubernetes.io/component: api
   ports:
-    - name: http
-      port: 80
-      targetPort: http
-    - name: mcp
+    - name: https
       port: 443
-      targetPort: http
+      targetPort: https
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -131,9 +149,33 @@ spec:
         - name: dashboard
           image: quay.io/cywell/opslens-dashboard:0.1.0
           imagePullPolicy: IfNotPresent
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "9443"
+            - name: CYWELL_OPSLENS_TLS_CERT_FILE
+              value: /var/run/secrets/cywell-opslens/tls/tls.crt
+            - name: CYWELL_OPSLENS_TLS_KEY_FILE
+              value: /var/run/secrets/cywell-opslens/tls/tls.key
           ports:
-            - name: http
-              containerPort: 8080
+            - name: https
+              containerPort: 9443
+          volumeMounts:
+            - name: service-serving-cert
+              mountPath: /var/run/secrets/cywell-opslens/tls
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: service-serving-cert
+          secret:
+            secretName: cywell-opslens-dashboard-tls
 ---
 apiVersion: v1
 kind: Service
@@ -143,14 +185,16 @@ metadata:
   labels:
     app.kubernetes.io/name: cywell-opslens
     app.kubernetes.io/component: dashboard
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: cywell-opslens-dashboard-tls
 spec:
   selector:
     app.kubernetes.io/name: cywell-opslens
     app.kubernetes.io/component: dashboard
   ports:
-    - name: http
-      port: 80
-      targetPort: http
+    - name: https
+      port: 443
+      targetPort: https
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -270,18 +314,22 @@ metadata:
     app.kubernetes.io/component: console-plugin
 spec:
   displayName: Cywell OpsLens
-  service:
-    name: cywell-opslens-dashboard
-    namespace: cywell-opslens
-    port: 80
-    basePath: /
+  backend:
+    type: Service
+    service:
+      name: cywell-opslens-dashboard
+      namespace: cywell-opslens
+      port: 443
+      basePath: /
   proxy:
     - alias: opslens-api
-      service:
-        name: cywell-opslens-api
-        namespace: cywell-opslens
-        port: 80
-      authorize: true
+      authorization: UserToken
+      endpoint:
+        type: Service
+        service:
+          name: cywell-opslens-api
+          namespace: cywell-opslens
+          port: 443
 ---
 apiVersion: ols.openshift.io/v1alpha1
 kind: OLSConfig

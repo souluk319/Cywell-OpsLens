@@ -29,7 +29,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 | Secrets | Raw Kubernetes Secret fetch remains blocked in API discovery, and Operator RBAC does not grant `secrets get/list/watch`. | `AC-OCP-001`, `npm run verify:operator` |
 | Disconnected | CSV and FBC include `relatedImages` for all runtime images. | `deploy/operator/bundle/manifests/*.yaml`, `deploy/catalog/fbc/catalog.yaml` |
 | Image build contracts | Operator, API, dashboard, bundle, and catalog images have explicit Dockerfile/build-context readiness checks and optional local Docker build evidence; catalog build records a registry-auth warning until Red Hat registry credentials are available; external runtime images remain marked for certification evidence. | `apps/api/Dockerfile`, `apps/web/Dockerfile`, `deploy/operator/controller-runtime/Dockerfile`, `deploy/operator/controller-runtime/go.sum`, `npm run verify:images`, `npm run verify:images:build` |
-| Proxy/TLS | Certification annotations declare proxy-aware and TLS-profile readiness intent. | CSV annotations |
+| Proxy/TLS | ConsolePlugin backend/proxy uses the live OpenShift schema, service-ca serving certificates, HTTPS service ports, TLS secret mounts, and UserToken proxy authorization. | `deploy/operator/config/apps/opslens-stack.yaml`, `npm run verify:operator`, `npm run verify:operator:runtime` |
 | FIPS | FIPS is currently declared unsupported until image/runtime validation proves compliance. | `features.operators.openshift.io/fips-compliant: "false"` |
 
 ## Required Before Certified Submission
@@ -40,10 +40,10 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 - Run vulnerability scans for all referenced images and attach remediation evidence.
 - Build and push signed Operator, API, dashboard, bundle, catalog, and model runtime images to the release registry.
 - Run live install, upgrade, uninstall, and rollback smoke tests through OLM.
-- Confirm service TLS, proxy, disconnected mirroring, and SCC/Pod Security behavior in a lab cluster.
+- Confirm service TLS, UserToken proxy behavior, disconnected mirroring, and SCC/Pod Security behavior in a lab cluster.
 
 ## Known Gaps
 
-- Go/controller-runtime manager source is scaffolded with an explicit OLSConfig patch path and statically verified, but local `go test`, `go build`, Operator SDK generation, and live manager execution are not run here because Go and Operator SDK are unavailable locally.
+- Go/controller-runtime manager source is scaffolded with an explicit OLSConfig patch path and statically verified; local `go test`, Operator SDK generation, and live manager execution are not run here because Go and Operator SDK are unavailable locally. Container image build evidence verifies the manager compiles.
 - `opm` is unavailable locally, so FBC rendering is statically verified but not built as an image here.
 - Red Hat Partner Connect submission is external to this workspace.

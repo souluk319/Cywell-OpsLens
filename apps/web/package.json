@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --project tsconfig.json && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "serve": "node ./scripts/serve.mjs"
   },
   "dependencies": {
     "@kugnus/contracts": "0.1.0",

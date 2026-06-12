@@ -23,7 +23,7 @@ RUN chown -R 1001:0 /opt/app-root/src \
 
 ENV NODE_ENV=production
 
-EXPOSE 8080
+EXPOSE 8080 9443
 USER 1001
 
-CMD ["npm", "run", "-w", "@kugnus/web", "preview", "--", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["npm", "run", "-w", "@kugnus/web", "serve"]

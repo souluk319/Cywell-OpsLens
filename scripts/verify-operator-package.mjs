@@ -410,6 +410,103 @@ function validateApps(apps) {
     fail("API RAG safety env", "RAG safety environment variables are missing or unsafe");
   }
 
+  const serviceCertAnnotation = "service.beta.openshift.io/serving-cert-secret-name";
+  const apiService = findDoc(apps, "Service", "cywell-opslens-api");
+  const dashboard = findDoc(apps, "Deployment", "cywell-opslens-dashboard");
+  const dashboardService = findDoc(apps, "Service", "cywell-opslens-dashboard");
+  const apiContainer = api?.spec?.template?.spec?.containers?.[0] ?? {};
+  const dashboardContainer = dashboard?.spec?.template?.spec?.containers?.[0] ?? {};
+  const dashboardEnv = dashboardContainer.env ?? [];
+  const hasEnv = (entries, name, value) => entries.some((entry) => entry.name === name && entry.value === value);
+  const hasVolume = (deployment, secretName) =>
+    (deployment?.spec?.template?.spec?.volumes ?? []).some(
+      (volume) => volume.name === "service-serving-cert" && volume.secret?.secretName === secretName
+    );
+  const hasMount = (container) =>
+    (container.volumeMounts ?? []).some(
+      (mount) =>
+        mount.name === "service-serving-cert" &&
+        mount.mountPath === "/var/run/secrets/cywell-opslens/tls" &&
+        mount.readOnly === true
+    );
+  const hasHttpsReadiness = (container) =>
+    container.readinessProbe?.httpGet?.path === "/healthz" &&
+    container.readinessProbe?.httpGet?.port === "https" &&
+    container.readinessProbe?.httpGet?.scheme === "HTTPS";
+  const hasHttpsPort = (service) =>
+    (service?.spec?.ports ?? []).some(
+      (port) => port.name === "https" && port.port === 443 && port.targetPort === "https"
+    );
+
+  if (
+    apiService?.metadata?.annotations?.[serviceCertAnnotation] === "cywell-opslens-api-tls" &&
+    dashboardService?.metadata?.annotations?.[serviceCertAnnotation] === "cywell-opslens-dashboard-tls" &&
+    hasHttpsPort(apiService) &&
+    hasHttpsPort(dashboardService)
+  ) {
+    pass("ConsolePlugin HTTPS Services", "API and dashboard services use service-ca serving certs on port 443");
+  } else {
+    fail("ConsolePlugin HTTPS Services", "API/dashboard services must expose https:443 with service serving cert annotations");
+  }
+
+  if (
+    hasEnv(env, "KUGNUS_API_HOST", "0.0.0.0") &&
+    hasEnv(env, "KUGNUS_API_PORT", "9443") &&
+    hasEnv(env, "CYWELL_OPSLENS_TLS_CERT_FILE", "/var/run/secrets/cywell-opslens/tls/tls.crt") &&
+    hasEnv(env, "CYWELL_OPSLENS_TLS_KEY_FILE", "/var/run/secrets/cywell-opslens/tls/tls.key") &&
+    hasVolume(api, "cywell-opslens-api-tls") &&
+    hasMount(apiContainer) &&
+    hasHttpsReadiness(apiContainer)
+  ) {
+    pass("API HTTPS runtime", "service-ca cert is mounted and readiness probes HTTPS /healthz on 9443");
+  } else {
+    fail("API HTTPS runtime", "API deployment must mount service-ca TLS and probe HTTPS /healthz");
+  }
+
+  if (
+    hasEnv(dashboardEnv, "HOST", "0.0.0.0") &&
+    hasEnv(dashboardEnv, "PORT", "9443") &&
+    hasEnv(dashboardEnv, "CYWELL_OPSLENS_TLS_CERT_FILE", "/var/run/secrets/cywell-opslens/tls/tls.crt") &&
+    hasEnv(dashboardEnv, "CYWELL_OPSLENS_TLS_KEY_FILE", "/var/run/secrets/cywell-opslens/tls/tls.key") &&
+    hasVolume(dashboard, "cywell-opslens-dashboard-tls") &&
+    hasMount(dashboardContainer) &&
+    hasHttpsReadiness(dashboardContainer)
+  ) {
+    pass("Dashboard HTTPS runtime", "service-ca cert is mounted and readiness probes HTTPS /healthz on 9443");
+  } else {
+    fail("Dashboard HTTPS runtime", "Dashboard deployment must mount service-ca TLS and probe HTTPS /healthz");
+  }
+
+  const consolePlugin = findDoc(apps, "ConsolePlugin", "cywell-opslens");
+  const consoleProxy = consolePlugin?.spec?.proxy?.[0];
+  if (
+    consolePlugin?.spec?.backend?.type === "Service" &&
+    consolePlugin?.spec?.backend?.service?.name === "cywell-opslens-dashboard" &&
+    consolePlugin?.spec?.backend?.service?.namespace === "cywell-opslens" &&
+    consolePlugin?.spec?.backend?.service?.port === 443 &&
+    consolePlugin?.spec?.backend?.service?.basePath === "/" &&
+    consolePlugin?.spec?.service === undefined
+  ) {
+    pass("ConsolePlugin backend schema", "uses spec.backend Service on HTTPS service port 443");
+  } else {
+    fail("ConsolePlugin backend schema", "ConsolePlugin must use spec.backend Service, not legacy spec.service");
+  }
+
+  if (
+    consoleProxy?.alias === "opslens-api" &&
+    consoleProxy?.authorization === "UserToken" &&
+    consoleProxy?.endpoint?.type === "Service" &&
+    consoleProxy?.endpoint?.service?.name === "cywell-opslens-api" &&
+    consoleProxy?.endpoint?.service?.namespace === "cywell-opslens" &&
+    consoleProxy?.endpoint?.service?.port === 443 &&
+    consoleProxy?.authorize === undefined &&
+    consoleProxy?.service === undefined
+  ) {
+    pass("ConsolePlugin proxy schema", "uses UserToken proxy endpoint Service for OpsLens API");
+  } else {
+    fail("ConsolePlugin proxy schema", "ConsolePlugin proxy must use authorization=UserToken and endpoint.service, not legacy authorize/service");
+  }
+
   const ragPolicy = findDoc(apps, "ConfigMap", "cywell-opslens-rag-policy");
   if (
     ragPolicy?.data?.documentIntakeMode === "validate-only" &&

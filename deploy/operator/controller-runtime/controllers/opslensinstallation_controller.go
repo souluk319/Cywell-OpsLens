@@ -22,9 +22,15 @@ import (
 )
 
 const (
-	appName            = "cywell-opslens"
-	apiServiceAccount  = "cywell-opslens-api"
-	ragPolicyConfigMap = "cywell-opslens-rag-policy"
+	appName                      = "cywell-opslens"
+	apiServiceAccount            = "cywell-opslens-api"
+	ragPolicyConfigMap           = "cywell-opslens-rag-policy"
+	serviceServingCertAnnotation = "service.beta.openshift.io/serving-cert-secret-name"
+	tlsMountPath                 = "/var/run/secrets/cywell-opslens/tls"
+	apiTLSSecretName             = "cywell-opslens-api-tls"
+	dashboardTLSSecretName       = "cywell-opslens-dashboard-tls"
+	httpsContainerPort           = int32(9443)
+	httpsServicePort             = int32(443)
 )
 
 type OpsLensInstallationReconciler struct {
@@ -125,15 +131,18 @@ func (r *OpsLensInstallationReconciler) reconcileAPIServiceAccount(ctx context.C
 }
 
 func (r *OpsLensInstallationReconciler) reconcileAPIService(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
-	return r.reconcileService(ctx, installation, namespace, valueOrDefault(installation.Spec.Components.API.ServiceName, "cywell-opslens-api"), "api", []corev1.ServicePort{
-		{Name: "http", Port: 80, TargetPort: intstr.FromString("http")},
-		{Name: "mcp", Port: 443, TargetPort: intstr.FromString("http")},
+	return r.reconcileServiceWithAnnotations(ctx, installation, namespace, valueOrDefault(installation.Spec.Components.API.ServiceName, "cywell-opslens-api"), "api", []corev1.ServicePort{
+		{Name: "https", Port: httpsServicePort, TargetPort: intstr.FromString("https")},
+	}, map[string]string{
+		serviceServingCertAnnotation: apiTLSSecretName,
 	})
 }
 
 func (r *OpsLensInstallationReconciler) reconcileDashboardService(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
-	return r.reconcileService(ctx, installation, namespace, valueOrDefault(installation.Spec.Components.Dashboard.ServiceName, "cywell-opslens-dashboard"), "dashboard", []corev1.ServicePort{
-		{Name: "http", Port: 80, TargetPort: intstr.FromString("http")},
+	return r.reconcileServiceWithAnnotations(ctx, installation, namespace, valueOrDefault(installation.Spec.Components.Dashboard.ServiceName, "cywell-opslens-dashboard"), "dashboard", []corev1.ServicePort{
+		{Name: "https", Port: httpsServicePort, TargetPort: intstr.FromString("https")},
+	}, map[string]string{
+		serviceServingCertAnnotation: dashboardTLSSecretName,
 	})
 }
 
@@ -155,6 +164,10 @@ func (r *OpsLensInstallationReconciler) reconcileModelRuntimeService(ctx context
 }
 
 func (r *OpsLensInstallationReconciler) reconcileService(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string, name string, component string, ports []corev1.ServicePort) error {
+	return r.reconcileServiceWithAnnotations(ctx, installation, namespace, name, component, ports, nil)
+}
+
+func (r *OpsLensInstallationReconciler) reconcileServiceWithAnnotations(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string, name string, component string, ports []corev1.ServicePort, annotations map[string]string) error {
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -164,6 +177,7 @@ func (r *OpsLensInstallationReconciler) reconcileService(ctx context.Context, in
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, service, func() error {
 		service.Labels = labels(component)
+		service.Annotations = annotations
 		service.Spec.Selector = labels(component)
 		service.Spec.Ports = ports
 		return r.setControllerReferenceIfSameNamespace(installation, namespace, service)
@@ -184,15 +198,15 @@ func (r *OpsLensInstallationReconciler) reconcileRAGPolicy(ctx context.Context, 
 		configMap.Labels = labels("rag-policy")
 		configMap.Annotations = map[string]string{
 			"opslens.cywell.io/document-intake": "validate-only",
-			"opslens.cywell.io/approval-queue": "design-only",
+			"opslens.cywell.io/approval-queue":  "design-only",
 		}
 		configMap.Data = map[string]string{
-			"documentIntakeMode": settings.DocumentIntakeMode,
-			"evidenceExport": settings.EvidenceExport,
-			"rawDocumentReturnAllowed": "false",
-			"approvalQueueMode": settings.ApprovalQueueMode,
+			"documentIntakeMode":          settings.DocumentIntakeMode,
+			"evidenceExport":              settings.EvidenceExport,
+			"rawDocumentReturnAllowed":    "false",
+			"approvalQueueMode":           settings.ApprovalQueueMode,
 			"approvalQueueEnqueueAllowed": "false",
-			"requiredApprovals": settings.RequiredApprovals,
+			"requiredApprovals":           settings.RequiredApprovals,
 		}
 		return r.setControllerReferenceIfSameNamespace(installation, namespace, configMap)
 	})
@@ -223,8 +237,38 @@ func (r *OpsLensInstallationReconciler) reconcileDashboardDeployment(ctx context
 				Name:            "dashboard",
 				Image:           installation.Spec.Components.Dashboard.Image,
 				ImagePullPolicy: corev1.PullIfNotPresent,
+				Env: []corev1.EnvVar{
+					{Name: "HOST", Value: "0.0.0.0"},
+					{Name: "PORT", Value: fmt.Sprintf("%d", httpsContainerPort)},
+					{Name: "CYWELL_OPSLENS_TLS_CERT_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.crt"},
+					{Name: "CYWELL_OPSLENS_TLS_KEY_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.key"},
+				},
 				Ports: []corev1.ContainerPort{
-					{Name: "http", ContainerPort: 8080},
+					{Name: "https", ContainerPort: httpsContainerPort},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: "service-serving-cert", MountPath: tlsMountPath, ReadOnly: true},
+				},
+				ReadinessProbe: &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/healthz",
+							Port:   intstr.FromString("https"),
+							Scheme: corev1.URISchemeHTTPS,
+						},
+					},
+					InitialDelaySeconds: 5,
+					PeriodSeconds:       10,
+				},
+			},
+		}
+		deployment.Spec.Template.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "service-serving-cert",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: dashboardTLSSecretName,
+					},
 				},
 			},
 		}
@@ -359,21 +403,27 @@ func (r *OpsLensInstallationReconciler) reconcileConsolePlugin(ctx context.Conte
 		plugin.SetLabels(labels("console-plugin"))
 		plugin.Object["spec"] = map[string]interface{}{
 			"displayName": "Cywell OpsLens",
-			"service": map[string]interface{}{
-				"name":      valueOrDefault(installation.Spec.Components.Dashboard.ServiceName, "cywell-opslens-dashboard"),
-				"namespace": namespace,
-				"port":      int64(80),
-				"basePath":  "/",
+			"backend": map[string]interface{}{
+				"type": "Service",
+				"service": map[string]interface{}{
+					"name":      valueOrDefault(installation.Spec.Components.Dashboard.ServiceName, "cywell-opslens-dashboard"),
+					"namespace": namespace,
+					"port":      int64(httpsServicePort),
+					"basePath":  "/",
+				},
 			},
 			"proxy": []interface{}{
 				map[string]interface{}{
-					"alias": "opslens-api",
-					"service": map[string]interface{}{
-						"name":      valueOrDefault(installation.Spec.Components.API.ServiceName, "cywell-opslens-api"),
-						"namespace": namespace,
-						"port":      int64(80),
+					"alias":         "opslens-api",
+					"authorization": "UserToken",
+					"endpoint": map[string]interface{}{
+						"type": "Service",
+						"service": map[string]interface{}{
+							"name":      valueOrDefault(installation.Spec.Components.API.ServiceName, "cywell-opslens-api"),
+							"namespace": namespace,
+							"port":      int64(httpsServicePort),
+						},
 					},
-					"authorize": true,
 				},
 			},
 		}
@@ -409,6 +459,11 @@ func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Conte
 				Image:           installation.Spec.Components.API.Image,
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Env: []corev1.EnvVar{
+					{Name: "KUGNUS_API_HOST", Value: "0.0.0.0"},
+					{Name: "KUGNUS_API_PORT", Value: fmt.Sprintf("%d", httpsContainerPort)},
+					{Name: "PORT", Value: fmt.Sprintf("%d", httpsContainerPort)},
+					{Name: "CYWELL_OPSLENS_TLS_CERT_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.crt"},
+					{Name: "CYWELL_OPSLENS_TLS_KEY_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.key"},
 					{Name: "CYWELL_OPSLENS_VECTOR_URL", Value: "http://cywell-opslens-vector:6333"},
 					{Name: "CYWELL_OPSLENS_MODEL_URL", Value: "http://cywell-opslens-vllm:8000"},
 					{Name: "CYWELL_OPSLENS_ACTION_MODE", Value: "plan-only"},
@@ -420,7 +475,31 @@ func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Conte
 					{Name: "CYWELL_OPSLENS_RAG_REQUIRED_APPROVALS", Value: settings.RequiredApprovals},
 				},
 				Ports: []corev1.ContainerPort{
-					{Name: "http", ContainerPort: 8080},
+					{Name: "https", ContainerPort: httpsContainerPort},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: "service-serving-cert", MountPath: tlsMountPath, ReadOnly: true},
+				},
+				ReadinessProbe: &corev1.Probe{
+					ProbeHandler: corev1.ProbeHandler{
+						HTTPGet: &corev1.HTTPGetAction{
+							Path:   "/healthz",
+							Port:   intstr.FromString("https"),
+							Scheme: corev1.URISchemeHTTPS,
+						},
+					},
+					InitialDelaySeconds: 5,
+					PeriodSeconds:       10,
+				},
+			},
+		}
+		deployment.Spec.Template.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "service-serving-cert",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: apiTLSSecretName,
+					},
 				},
 			},
 		}
@@ -571,9 +650,9 @@ func upsertMCPServer(existing []interface{}, desired map[string]interface{}, nam
 
 type ragSettings struct {
 	DocumentIntakeMode string
-	EvidenceExport string
-	ApprovalQueueMode string
-	RequiredApprovals string
+	EvidenceExport     string
+	ApprovalQueueMode  string
+	RequiredApprovals  string
 }
 
 func normalizeRAGSettings(installation *opslensv1alpha1.OpsLensInstallation) ragSettings {
@@ -590,9 +669,9 @@ func normalizeRAGSettings(installation *opslensv1alpha1.OpsLensInstallation) rag
 
 	return ragSettings{
 		DocumentIntakeMode: "validate-only",
-		EvidenceExport: "enabled",
-		ApprovalQueueMode: "design-only",
-		RequiredApprovals: approvals,
+		EvidenceExport:     "enabled",
+		ApprovalQueueMode:  "design-only",
+		RequiredApprovals:  approvals,
 	}
 }
 
@@ -610,27 +689,27 @@ func buildStatus(installation *opslensv1alpha1.OpsLensInstallation) opslensv1alp
 		Phase: "Ready",
 		Conditions: []metav1.Condition{
 			{
-				Type: "LightspeedRegistration",
-				Status: metav1.ConditionTrue,
-				Reason: lightspeedPhase,
+				Type:    "LightspeedRegistration",
+				Status:  metav1.ConditionTrue,
+				Reason:  lightspeedPhase,
 				Message: "Lightspeed registration keeps ValidateOnly and PatchOLSConfig paths explicit.",
 			},
 			{
-				Type: "AssistantSafety",
-				Status: metav1.ConditionTrue,
-				Reason: "PlanOnly",
+				Type:    "AssistantSafety",
+				Status:  metav1.ConditionTrue,
+				Reason:  "PlanOnly",
 				Message: "Assistant actions remain read-only or plan-only.",
 			},
 			{
-				Type: "RagDocumentIntake",
-				Status: metav1.ConditionTrue,
-				Reason: "ValidateOnly",
+				Type:    "RagDocumentIntake",
+				Status:  metav1.ConditionTrue,
+				Reason:  "ValidateOnly",
 				Message: "RAG document intake is validate-only and raw document return is disabled.",
 			},
 			{
-				Type: "RagApprovalQueue",
-				Status: metav1.ConditionTrue,
-				Reason: "DesignOnly",
+				Type:    "RagApprovalQueue",
+				Status:  metav1.ConditionTrue,
+				Reason:  "DesignOnly",
 				Message: "RAG approval queue enqueue is disabled in MVP 0.1.",
 			},
 		},
@@ -643,12 +722,12 @@ func buildStatus(installation *opslensv1alpha1.OpsLensInstallation) opslensv1alp
 		},
 		RAG: opslensv1alpha1.RAGPolicyStatus{
 			DocumentIntake: opslensv1alpha1.RAGDocumentIntakeStatus{
-				Mode: "ValidateOnly",
-				EvidenceExport: "enabled",
+				Mode:                     "ValidateOnly",
+				EvidenceExport:           "enabled",
 				RawDocumentReturnAllowed: false,
 			},
 			ApprovalQueue: opslensv1alpha1.RAGApprovalQueueStatus{
-				Phase: "DesignOnly",
+				Phase:          "DesignOnly",
 				EnqueueAllowed: false,
 				Evidence: []string{
 					"RAG document upload is validate-only in MVP 0.1",
@@ -679,7 +758,7 @@ func valueOrDefault(value string, fallback string) string {
 
 func labels(component string) map[string]string {
 	return map[string]string{
-		"app.kubernetes.io/name": appName,
+		"app.kubernetes.io/name":      appName,
 		"app.kubernetes.io/component": component,
 	}
 }
