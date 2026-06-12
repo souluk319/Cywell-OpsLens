@@ -391,6 +391,19 @@ export function OpsLensAdminDashboard() {
             <span>{lightspeedMcp?.endpoint ?? "/mcp"}</span>
             <span>readOnly={numberText(lightspeedMcp?.readOnlyCount)}</span>
             <span>apply_remediation excluded</span>
+            <span data-testid="opslens-lightspeed-routing-score">
+              routing={numberText(lightspeedMcp?.routing?.selectedPasses)}/
+              {numberText(lightspeedMcp?.routing?.total)}
+            </span>
+          </div>
+          <div className="admin-evidence-line">
+            <span>{lightspeedMcp?.routing?.status ?? "needs-evidence"}</span>
+            <span>
+              responses={numberText(lightspeedMcp?.routing?.responsePasses)}/
+              {numberText(lightspeedMcp?.routing?.total)}
+            </span>
+            <span>threshold={numberText(lightspeedMcp?.routing?.threshold)}</span>
+            <span>head={lightspeedMcp?.routing?.headSha ?? "missing"}</span>
           </div>
           <div className="mcp-tool-list">
             {lightspeedMcp?.tools.map((tool) => (

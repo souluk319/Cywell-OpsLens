@@ -223,6 +223,18 @@ export interface OpsLensLightspeedToolSurface {
   readOnlyCount: number;
   mutatingToolExcluded: true;
   excludedTools: string[];
+  routing: {
+    status: "pass" | "needs-evidence" | "failed";
+    artifactStatus: string;
+    selectedPasses: number;
+    responsePasses: number;
+    total: number;
+    threshold: number;
+    headSha: string;
+    worktreeDirty: boolean;
+    evidence: string[];
+    missingEvidence: string[];
+  };
   tools: OpsLensMcpToolSurfaceItem[];
   evidence: string[];
 }

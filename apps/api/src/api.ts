@@ -301,6 +301,121 @@ function mcpToolActionMode(
   return tool === "propose_remediation" ? "planOnly" : "readOnly";
 }
 
+type LightspeedRoutingEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  mutationAllowed?: boolean;
+  rawDocumentReturned?: boolean;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  score?: {
+    selectedPasses?: number;
+    responsePasses?: number;
+    total?: number;
+    threshold?: number;
+  };
+  missingEvidence?: string[];
+};
+
+function lightspeedRoutingEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_LIGHTSPEED_ROUTING_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-lightspeed-tool-routing.json")
+  );
+}
+
+function getLightspeedRoutingScore(): OpsLensAdminOverviewResponse["lightspeed"]["mcp"]["routing"] {
+  const evidencePath = lightspeedRoutingEvidencePath();
+  const missingEvidence = [
+    `Lightspeed routing evidence is missing at ${evidencePath}`,
+    "run npm run verify:lightspeed:routing to create the 10-question routing score"
+  ];
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      artifactStatus: "missing",
+      selectedPasses: 0,
+      responsePasses: 0,
+      total: 10,
+      threshold: 8,
+      headSha: "missing",
+      worktreeDirty: false,
+      evidence: [
+        "Lightspeed routing score is not available yet",
+        "dashboard reports missing evidence instead of assuming live model/tool routing quality"
+      ],
+      missingEvidence
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as LightspeedRoutingEvidenceArtifact;
+    const selectedPasses = Number(artifact.score?.selectedPasses ?? 0);
+    const responsePasses = Number(artifact.score?.responsePasses ?? 0);
+    const total = Number(artifact.score?.total ?? 0);
+    const threshold = Number(artifact.score?.threshold ?? 8);
+    const unsafe =
+      artifact.mutationAllowed !== false ||
+      artifact.rawDocumentReturned !== false ||
+      artifact.clusterMutationAttempted === true ||
+      artifact.registryMutationAttempted === true;
+    const status =
+      artifact.status !== "PASS" || unsafe || selectedPasses < threshold || responsePasses < threshold
+        ? "failed"
+        : artifact.ref?.worktreeDirty === true
+          ? "needs-evidence"
+          : "pass";
+
+    return {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      selectedPasses,
+      responsePasses,
+      total,
+      threshold,
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      evidence: [
+        `Lightspeed routing evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `routing score selected=${selectedPasses}/${total} responses=${responsePasses}/${total} threshold=${threshold}`,
+        "regenerate with npm run verify:lightspeed:routing",
+        `routing generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"}`,
+        "routing verifier performs local JSON-RPC tools/list and tools/call only; it does not patch OLSConfig or mutate the cluster"
+      ],
+      missingEvidence: artifact.missingEvidence ?? []
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      artifactStatus: "invalid",
+      selectedPasses: 0,
+      responsePasses: 0,
+      total: 10,
+      threshold: 8,
+      headSha: "unknown",
+      worktreeDirty: false,
+      evidence: [
+        `Lightspeed routing evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid routing evidence blocks overclaiming Lightspeed tool-routing quality"
+      ],
+      missingEvidence: [
+        "regenerate routing evidence with npm run verify:lightspeed:routing"
+      ]
+    };
+  }
+}
+
 function getLightspeedToolSurface(): OpsLensAdminOverviewResponse["lightspeed"] {
   const tools: OpsLensMcpToolSurfaceItem[] = opsLensMcpTools.map((tool) => ({
     name: tool.name,
@@ -328,10 +443,12 @@ function getLightspeedToolSurface(): OpsLensAdminOverviewResponse["lightspeed"] 
       readOnlyCount: tools.filter((tool) => tool.readOnly).length,
       mutatingToolExcluded: true,
       excludedTools: ["apply_remediation"],
+      routing: getLightspeedRoutingScore(),
       tools,
       evidence: [
         "OpenShift Lightspeed custom MCP server is the supported extension point for tool calls",
         "AC-LS-001 verifies tools/list and tools/call for the MVP read-only tool surface",
+        "routing score comes from npm run verify:lightspeed:routing and the 10-question / 8-pass fixture",
         "all MVP tools keep approvalRequired=false and destructive=false",
         "apply_remediation is deliberately excluded from the MVP tool catalog",
         "tool responses include citations, missingEvidence, risks, rollbackPath, and audit.runtimeRag"

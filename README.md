@@ -59,7 +59,7 @@ Cywell OpsLens Stage 1 uses the OpenShift Lightspeed custom MCP server path, not
 
 Stage 2 begins with `POST /api/opslens/incidents/analyze`: an alert-triggered, plan-only incident endpoint that combines read-only resource detail, pod candidates, events, `sinceSeconds`-bounded pod logs, and opt-in Prometheus metric correlation with private runbook citations. Failed reads are returned as `missingEvidence`, not hidden.
 
-Stage 3 starts with `GET /api/opslens/admin/overview` and the OpsLens Admin Dashboard surface for RAG document health, token usage, GPU/runtime samples, Lightspeed MCP tool matrix, incident metric query status, and install readiness.
+Stage 3 starts with `GET /api/opslens/admin/overview` and the OpsLens Admin Dashboard surface for RAG document health, token usage, GPU/runtime samples, Lightspeed MCP tool matrix plus routing score, incident metric query status, and install readiness.
 
 The answer path now carries a runtime RAG audit contract. By default `CYWELL_OPSLENS_RAG_RUNTIME_MODE=local`, so `/api/opslens/ask`, `/mcp`, and incident analysis do not call live Qdrant/vLLM endpoints. When explicitly set to `hybrid` or `runtime`, OpsLens tries vLLM embeddings plus Qdrant redacted snippet search and falls back to local tenant RAG with visible `missingEvidence` if runtime evidence is absent. `npm run verify:runtime-rag:fixture` proves that success path against local mock runtime services without touching OpenShift.
 

@@ -1002,6 +1002,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           toolCount?: number;
           readOnlyCount?: number;
           mutatingToolExcluded?: boolean;
+          routing?: {
+            status?: string;
+            artifactStatus?: string;
+            selectedPasses?: number;
+            responsePasses?: number;
+            total?: number;
+            threshold?: number;
+            headSha?: string;
+            worktreeDirty?: boolean;
+            evidence?: string[];
+            missingEvidence?: string[];
+          };
           excludedTools?: string[];
           tools?: Array<{
             name?: string;
@@ -1051,6 +1063,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       readOnlyCount: 6,
       mutatingToolExcluded: true
     });
+    expect(["pass", "needs-evidence", "failed"]).toContain(
+      body.lightspeed?.mcp?.routing?.status
+    );
+    expect(body.lightspeed?.mcp?.routing?.threshold).toBe(8);
+    expect(body.lightspeed?.mcp?.routing?.evidence?.join(" ")).toContain(
+      "verify:lightspeed:routing"
+    );
+    if (body.lightspeed?.mcp?.routing?.status === "pass") {
+      expect(body.lightspeed.mcp.routing.selectedPasses).toBeGreaterThanOrEqual(
+        body.lightspeed.mcp.routing.threshold ?? 8
+      );
+      expect(body.lightspeed.mcp.routing.responsePasses).toBeGreaterThanOrEqual(
+        body.lightspeed.mcp.routing.threshold ?? 8
+      );
+      expect(body.lightspeed.mcp.routing.worktreeDirty).toBe(false);
+    }
     expect(body.lightspeed?.mcp?.excludedTools).toContain("apply_remediation");
     expect(adminMcpToolNames).toEqual(
       expect.arrayContaining([
@@ -1441,6 +1469,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-mcp-tool-propose_remediation")
     ).toContainText("planOnly");
+    await expect(
+      page.getByTestId("opslens-lightspeed-routing-score")
+    ).toContainText("routing=");
     await expect(page.getByTestId("opslens-gpu-runtime")).toContainText(
       "Gemma 4"
     );
