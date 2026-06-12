@@ -666,6 +666,23 @@ export function OpsLensAdminDashboard() {
             <span>threshold={numberText(lightspeedMcp?.routing?.threshold)}</span>
             <span>head={lightspeedMcp?.routing?.headSha ?? "missing"}</span>
           </div>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-lightspeed-trojan-horse"
+          >
+            <span>{lightspeedMcp?.trojanHorse.status ?? "needs-evidence"}</span>
+            <span>tool={lightspeedMcp?.trojanHorse.selectedTool ?? "missing"}</span>
+            <span>
+              citations={numberText(lightspeedMcp?.trojanHorse.citationCount)}
+            </span>
+            <span>
+              redaction={String(lightspeedMcp?.trojanHorse.redactionPassed)}
+            </span>
+            <span>
+              mutationAllowed=
+              {String(lightspeedMcp?.trojanHorse.mutationAllowed)}
+            </span>
+          </div>
           <div className="mcp-tool-list">
             {lightspeedMcp?.tools.map((tool) => (
               <div

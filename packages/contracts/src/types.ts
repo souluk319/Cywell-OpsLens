@@ -235,6 +235,22 @@ export interface OpsLensLightspeedToolSurface {
     evidence: string[];
     missingEvidence: string[];
   };
+  trojanHorse: {
+    status: "pass" | "needs-evidence" | "failed";
+    artifactStatus: string;
+    question: string;
+    selectedTool: string;
+    citationCount: number;
+    redactionPassed: boolean;
+    mutationAllowed: boolean;
+    rawDocumentReturned: boolean;
+    clusterMutationAttempted: boolean;
+    vectorWriteAttempted: boolean;
+    headSha: string;
+    worktreeDirty: boolean;
+    evidence: string[];
+    missingEvidence: string[];
+  };
   tools: OpsLensMcpToolSurfaceItem[];
   evidence: string[];
 }

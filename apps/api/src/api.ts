@@ -340,10 +340,56 @@ type LightspeedRoutingEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type LightspeedTrojanHorseEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  mutationAllowed?: boolean;
+  rawDocumentReturned?: boolean;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  vectorWriteAttempted?: boolean;
+  ingestionJobCreated?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  scenario?: {
+    userQuestion?: string;
+    selectedTool?: string;
+  };
+  primaryCall?: {
+    passed?: boolean;
+    citationCount?: number;
+    customerRunbookCitationFound?: boolean;
+  };
+  redactionProbe?: {
+    passed?: boolean;
+    redactedSecret?: boolean;
+  };
+  policy?: {
+    privateRag?: boolean;
+    rawDocumentReturned?: boolean;
+    mcpTechnologyPreview?: boolean;
+    mutationAllowed?: boolean;
+  };
+  missingEvidence?: string[];
+};
+
 function lightspeedRoutingEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_ROUTING_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-lightspeed-tool-routing.json")
+  );
+}
+
+function lightspeedTrojanHorseEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_LIGHTSPEED_TROJAN_HORSE_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-lightspeed-trojan-horse.json")
   );
 }
 
@@ -432,6 +478,118 @@ function getLightspeedRoutingScore(): OpsLensAdminOverviewResponse["lightspeed"]
   }
 }
 
+function getLightspeedTrojanHorseProof(): OpsLensAdminOverviewResponse["lightspeed"]["mcp"]["trojanHorse"] {
+  const evidencePath = lightspeedTrojanHorseEvidencePath();
+  const exactQuestion = "우리 회사 결제 시스템 Pod 장애 대응 매뉴얼 알려줘";
+  const missingEvidence = [
+    `Lightspeed Trojan Horse evidence is missing at ${evidencePath}`,
+    "run npm run verify:lightspeed:trojan-horse to prove the exact Stage 1 custom question"
+  ];
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      artifactStatus: "missing",
+      question: exactQuestion,
+      selectedTool: "missing",
+      citationCount: 0,
+      redactionPassed: false,
+      mutationAllowed: true,
+      rawDocumentReturned: true,
+      clusterMutationAttempted: false,
+      vectorWriteAttempted: false,
+      headSha: "missing",
+      worktreeDirty: false,
+      evidence: [
+        "Lightspeed Trojan Horse exact-question proof is not available yet",
+        "dashboard reports missing evidence instead of assuming the custom question works"
+      ],
+      missingEvidence
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as LightspeedTrojanHorseEvidenceArtifact;
+    const mutationAllowed =
+      artifact.policy?.mutationAllowed ?? artifact.mutationAllowed ?? true;
+    const rawDocumentReturned =
+      artifact.policy?.rawDocumentReturned ?? artifact.rawDocumentReturned ?? true;
+    const clusterMutationAttempted = artifact.clusterMutationAttempted === true;
+    const vectorWriteAttempted = artifact.vectorWriteAttempted === true;
+    const redactionPassed =
+      artifact.redactionProbe?.passed === true &&
+      artifact.redactionProbe?.redactedSecret === true;
+    const citationCount = Number(artifact.primaryCall?.citationCount ?? 0);
+    const unsafe =
+      artifact.status !== "PASS" ||
+      artifact.scenario?.userQuestion !== exactQuestion ||
+      artifact.scenario?.selectedTool !== "generate_playbook" ||
+      artifact.primaryCall?.passed !== true ||
+      artifact.primaryCall?.customerRunbookCitationFound !== true ||
+      !redactionPassed ||
+      mutationAllowed !== false ||
+      rawDocumentReturned !== false ||
+      clusterMutationAttempted ||
+      vectorWriteAttempted ||
+      artifact.registryMutationAttempted === true ||
+      artifact.ingestionJobCreated === true ||
+      artifact.mutationAllowedByThisVerifier === true;
+    const status = unsafe
+      ? "failed"
+      : artifact.ref?.worktreeDirty === true
+        ? "needs-evidence"
+        : "pass";
+
+    return {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      question: artifact.scenario?.userQuestion ?? exactQuestion,
+      selectedTool: artifact.scenario?.selectedTool ?? "unknown",
+      citationCount,
+      redactionPassed,
+      mutationAllowed: mutationAllowed === true,
+      rawDocumentReturned: rawDocumentReturned === true,
+      clusterMutationAttempted,
+      vectorWriteAttempted,
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      evidence: [
+        `Lightspeed Trojan Horse evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `exact question selected ${artifact.scenario?.selectedTool ?? "unknown"} citations=${citationCount}`,
+        "regenerate with npm run verify:lightspeed:trojan-horse",
+        `Trojan Horse generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"}`,
+        "Trojan Horse verifier performs local JSON-RPC /mcp tools/list and tools/call only; it does not patch OLSConfig, write vectors, or mutate the cluster"
+      ],
+      missingEvidence: artifact.missingEvidence ?? []
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      artifactStatus: "invalid",
+      question: exactQuestion,
+      selectedTool: "unknown",
+      citationCount: 0,
+      redactionPassed: false,
+      mutationAllowed: true,
+      rawDocumentReturned: true,
+      clusterMutationAttempted: false,
+      vectorWriteAttempted: false,
+      headSha: "unknown",
+      worktreeDirty: false,
+      evidence: [
+        `Lightspeed Trojan Horse evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid Trojan Horse evidence blocks overclaiming the exact custom question"
+      ],
+      missingEvidence: [
+        "regenerate Trojan Horse evidence with npm run verify:lightspeed:trojan-horse"
+      ]
+    };
+  }
+}
+
 function getLightspeedToolSurface(): OpsLensAdminOverviewResponse["lightspeed"] {
   const tools: OpsLensMcpToolSurfaceItem[] = opsLensMcpTools.map((tool) => ({
     name: tool.name,
@@ -460,10 +618,12 @@ function getLightspeedToolSurface(): OpsLensAdminOverviewResponse["lightspeed"] 
       mutatingToolExcluded: true,
       excludedTools: ["apply_remediation"],
       routing: getLightspeedRoutingScore(),
+      trojanHorse: getLightspeedTrojanHorseProof(),
       tools,
       evidence: [
         "OpenShift Lightspeed custom MCP server is the supported extension point for tool calls",
         "AC-LS-001 verifies tools/list and tools/call for the MVP read-only tool surface",
+        "exact Trojan Horse question proof comes from npm run verify:lightspeed:trojan-horse",
         "routing score comes from npm run verify:lightspeed:routing and the 10-question / 8-pass fixture",
         "all MVP tools keep approvalRequired=false and destructive=false",
         "apply_remediation is deliberately excluded from the MVP tool catalog",
