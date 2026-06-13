@@ -578,6 +578,12 @@ export async function analyzeOpsLensIncident(
   const remediationProposal = createPlanOnlyRemediationProposal({
     namespace: podNamespace ?? namespace ?? "unknown",
     workload: remediationTarget.name,
+    alert: {
+      name: request.alert.name,
+      severity: request.alert.severity,
+      namespace,
+      workload
+    },
     targetApiVersion: remediationTarget.apiVersion,
     targetKind: remediationTarget.kind,
     targetName: remediationTarget.name,
@@ -586,6 +592,41 @@ export async function analyzeOpsLensIncident(
     currentValue: observedMemoryLimit ?? "unknown",
     currentValueSource: observedMemoryLimit ? "cluster-observed" : "unknown",
     currentValueObservedInCluster: Boolean(observedMemoryLimit),
+    triggerEvidence: {
+      logs: {
+        windowMinutes,
+        sinceSeconds,
+        currentRead: Boolean(logEvidence),
+        previousRead: Boolean(previousLogEvidence),
+        redacted: true,
+        pod: podName,
+        missingEvidence: logEvidence
+          ? []
+          : missingEvidence.filter((entry) => entry.startsWith("pod logs"))
+      },
+      events: {
+        read: Boolean(eventEvidence),
+        count: eventEvidence?.items.length ?? 0,
+        redacted: true,
+        missingEvidence: eventEvidence
+          ? []
+          : missingEvidence.filter((entry) => entry.startsWith("events"))
+      },
+      metrics: {
+        windowMinutes,
+        enabled: metricEvidence.enabled,
+        reachable: metricEvidence.reachable,
+        queries: metricEvidence.queries.map((query) => ({
+          name: query.name,
+          status: query.reachable ? "ready" : "missing",
+          sampleCount: query.sample.length
+        })),
+        missingEvidence: missingEvidence.filter((entry) =>
+          entry.startsWith("metrics/")
+        )
+      },
+      runbookCitations: baseAnalysis.citations.map((citation) => citation.id)
+    },
     evidence: unique([
       ...evidence,
       ...ocpReads,

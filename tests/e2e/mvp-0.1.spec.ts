@@ -683,6 +683,35 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             source?: string;
             evidence?: string[];
           };
+          triggerEvidence?: {
+            logs?: {
+              windowMinutes?: number;
+              sinceSeconds?: number;
+              currentRead?: boolean;
+              previousRead?: boolean;
+              redacted?: boolean;
+              pod?: string;
+              missingEvidence?: string[];
+            };
+            events?: {
+              read?: boolean;
+              count?: number;
+              redacted?: boolean;
+              missingEvidence?: string[];
+            };
+            metrics?: {
+              windowMinutes?: number;
+              enabled?: boolean;
+              reachable?: boolean;
+              queries?: Array<{
+                name?: string;
+                status?: string;
+                sampleCount?: number;
+              }>;
+              missingEvidence?: string[];
+            };
+            runbookCitations?: string[];
+          };
           yamlPatch?: string;
           evidence?: string[];
           missingEvidence?: string[];
@@ -758,6 +787,32 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       value: "4Gi",
       source: "candidate-remediation"
     });
+    expect(body.analysis?.remediationProposal?.triggerEvidence?.logs).toMatchObject({
+      windowMinutes: 10,
+      sinceSeconds: 600,
+      currentRead: true,
+      redacted: true
+    });
+    expect(body.analysis?.remediationProposal?.triggerEvidence?.events?.redacted).toBe(
+      true
+    );
+    expect(
+      body.analysis?.remediationProposal?.triggerEvidence?.metrics?.queries?.map(
+        (query) => query.name
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        "firing-alert",
+        "pod-restarts",
+        "pod-cpu",
+        "pod-memory"
+      ])
+    );
+    expect(
+      body.analysis?.remediationProposal?.triggerEvidence?.runbookCitations?.some(
+        (citation) => citation.includes("customer-runbook")
+      )
+    ).toBe(true);
     expect(body.analysis?.remediationProposal?.yamlPatch).toContain(
       "memory: 4Gi"
     );
@@ -948,6 +1003,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           };
           currentValue?: { value?: string; source?: string };
           proposedValue?: { value?: string; source?: string };
+          triggerEvidence?: {
+            logs?: { windowMinutes?: number; currentRead?: boolean };
+            metrics?: { queries?: Array<{ name?: string; status?: string }> };
+            runbookCitations?: string[];
+          };
           yamlPatch?: string;
           forbiddenActions?: string[];
           reviewGate?: { required?: boolean };
@@ -1688,6 +1748,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       value: "4Gi",
       source: "candidate-remediation"
     });
+    expect(
+      body.incidents?.[0]?.remediationProposal?.triggerEvidence?.logs
+    ).toMatchObject({
+      windowMinutes: 10,
+      currentRead: true
+    });
+    expect(
+      body.incidents?.[0]?.remediationProposal?.triggerEvidence?.metrics?.queries?.map(
+        (query) => query.name
+      )
+    ).toEqual(expect.arrayContaining(["firing-alert", "pod-memory"]));
+    expect(
+      body.incidents?.[0]?.remediationProposal?.triggerEvidence?.runbookCitations
+        ?.length
+    ).toBeGreaterThan(0);
     expect(body.incidents?.[0]?.remediationProposal?.yamlPatch).toContain(
       "memory: 4Gi"
     );
@@ -2755,6 +2830,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-remediation-proposal")).toContainText(
       "reviewGate=true"
     );
+    await expect(
+      page.getByTestId("opslens-remediation-trigger-evidence")
+    ).toContainText("logs=true:10m");
+    await expect(
+      page.getByTestId("opslens-remediation-trigger-evidence")
+    ).toContainText("pod-memory:ready");
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Certification"
     );

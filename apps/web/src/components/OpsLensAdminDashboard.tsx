@@ -872,6 +872,28 @@ export function OpsLensAdminDashboard() {
                   <span>targetConfidence={proposal.target.confidence}</span>
                   <span>{proposal.target.fieldPath}</span>
                 </div>
+                <div
+                  className="admin-evidence-line"
+                  data-testid="opslens-remediation-trigger-evidence"
+                >
+                  <span>
+                    logs={String(proposal.triggerEvidence.logs.currentRead)}:
+                    {proposal.triggerEvidence.logs.windowMinutes}m
+                  </span>
+                  <span>
+                    events={String(proposal.triggerEvidence.events.read)}:
+                    {proposal.triggerEvidence.events.count}
+                  </span>
+                  <span>
+                    metrics=
+                    {proposal.triggerEvidence.metrics.queries
+                      .map((query) => `${query.name}:${query.status}`)
+                      .join(", ")}
+                  </span>
+                  <span>
+                    runbooks={proposal.triggerEvidence.runbookCitations.length}
+                  </span>
+                </div>
                 <div className="remediation-notes">
                   <p>{proposal.risks[0]}</p>
                   <p>{proposal.rollbackPath[0]}</p>

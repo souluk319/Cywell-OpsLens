@@ -339,6 +339,41 @@ export interface OpsLensRemediationProposal {
     source: "runbook-recommendation" | "candidate-remediation";
     evidence: string[];
   };
+  triggerEvidence: {
+    alert?: {
+      name: string;
+      severity?: Severity;
+      namespace?: string;
+      workload?: string;
+    };
+    logs: {
+      windowMinutes: number;
+      sinceSeconds: number;
+      currentRead: boolean;
+      previousRead: boolean;
+      redacted: true;
+      pod?: string;
+      missingEvidence: string[];
+    };
+    events: {
+      read: boolean;
+      count: number;
+      redacted: true;
+      missingEvidence: string[];
+    };
+    metrics: {
+      windowMinutes: number;
+      enabled: boolean;
+      reachable: boolean;
+      queries: Array<{
+        name: string;
+        status: "ready" | "missing";
+        sampleCount: number;
+      }>;
+      missingEvidence: string[];
+    };
+    runbookCitations: string[];
+  };
   yamlPatch: string;
   rationale: string[];
   evidence: string[];

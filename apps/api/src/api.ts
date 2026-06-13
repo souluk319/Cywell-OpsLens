@@ -5695,11 +5695,50 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         remediationProposal: createPlanOnlyRemediationProposal({
           namespace: "payments-prod",
           workload: "payments-api",
+          alert: {
+            name: "PodCrashLooping",
+            severity: "warning",
+            namespace: "payments-prod",
+            workload: "payments-api"
+          },
           targetName: "payments-api",
           targetConfidence: "medium",
           currentValue: "2Gi",
           currentValueSource: "runbook-baseline",
           currentValueObservedInCluster: false,
+          triggerEvidence: {
+            logs: {
+              windowMinutes: 10,
+              sinceSeconds: 600,
+              currentRead: true,
+              previousRead: false,
+              redacted: true,
+              pod: "payments-api",
+              missingEvidence: []
+            },
+            events: {
+              read: true,
+              count: 3,
+              redacted: true,
+              missingEvidence: []
+            },
+            metrics: {
+              windowMinutes: 10,
+              enabled: true,
+              reachable: true,
+              queries: [
+                { name: "firing-alert", status: "ready", sampleCount: 1 },
+                { name: "pod-restarts", status: "ready", sampleCount: 6 },
+                { name: "pod-cpu", status: "missing", sampleCount: 0 },
+                { name: "pod-memory", status: "ready", sampleCount: 12 }
+              ],
+              missingEvidence: ["metrics/pod-cpu: monitoring proxy disabled or no matching CPU series"]
+            },
+            runbookCitations: [
+              "customer-runbook:payments-api-crashloop",
+              "customer-runbook:payments-api-rollback"
+            ]
+          },
           evidence: [
             "admin overview uses the same remediation proposal contract as incident analysis",
             "memory query_range is available for dashboard charting"
@@ -5944,6 +5983,7 @@ export async function planOpsLensRagIngestion(
 export function createPlanOnlyRemediationProposal(params: {
   namespace: string;
   workload: string;
+  alert?: OpsLensRemediationProposal["triggerEvidence"]["alert"];
   targetApiVersion?: string;
   targetKind?: string;
   targetName?: string;
@@ -5953,6 +5993,7 @@ export function createPlanOnlyRemediationProposal(params: {
   currentValueSource?: OpsLensRemediationProposal["currentValue"]["source"];
   currentValueObservedInCluster?: boolean;
   proposedValue?: string;
+  triggerEvidence?: Partial<OpsLensRemediationProposal["triggerEvidence"]>;
   evidence?: string[];
   missingEvidence?: string[];
   risks?: string[];
@@ -5969,9 +6010,50 @@ export function createPlanOnlyRemediationProposal(params: {
   const proposedValue = params.proposedValue ?? "4Gi";
   const fieldPath =
     `spec.template.spec.containers[name=${container}].resources.limits.memory`;
+  const triggerEvidence = {
+    alert: params.triggerEvidence?.alert ?? params.alert,
+    logs: {
+      windowMinutes: params.triggerEvidence?.logs?.windowMinutes ?? 10,
+      sinceSeconds: params.triggerEvidence?.logs?.sinceSeconds ?? 600,
+      currentRead: params.triggerEvidence?.logs?.currentRead ?? false,
+      previousRead: params.triggerEvidence?.logs?.previousRead ?? false,
+      redacted: true as const,
+      pod: params.triggerEvidence?.logs?.pod,
+      missingEvidence: uniqueStrings(
+        params.triggerEvidence?.logs?.missingEvidence ?? [
+          "live pod log evidence was not attached to this proposal"
+        ]
+      )
+    },
+    events: {
+      read: params.triggerEvidence?.events?.read ?? false,
+      count: params.triggerEvidence?.events?.count ?? 0,
+      redacted: true as const,
+      missingEvidence: uniqueStrings(
+        params.triggerEvidence?.events?.missingEvidence ?? [
+          "live event evidence was not attached to this proposal"
+        ]
+      )
+    },
+    metrics: {
+      windowMinutes: params.triggerEvidence?.metrics?.windowMinutes ?? 10,
+      enabled: params.triggerEvidence?.metrics?.enabled ?? false,
+      reachable: params.triggerEvidence?.metrics?.reachable ?? false,
+      queries: params.triggerEvidence?.metrics?.queries ?? [],
+      missingEvidence: uniqueStrings(
+        params.triggerEvidence?.metrics?.missingEvidence ?? [
+          "Prometheus metric evidence was not attached to this proposal"
+        ]
+      )
+    },
+    runbookCitations: uniqueStrings(
+      params.triggerEvidence?.runbookCitations ?? []
+    )
+  };
   const evidence = uniqueStrings([
     "propose_remediation returns a plan-only artifact and never mutates cluster state",
     "customer runbook recommends increasing memory only after log, event, and metric evidence are reviewed",
+    "triggerEvidence records alert, log, event, metric, and runbook citation inputs for the YAML proposal",
     ...(params.evidence ?? [])
   ]);
   const missingEvidence = uniqueStrings([
@@ -6022,6 +6104,7 @@ export function createPlanOnlyRemediationProposal(params: {
         "proposal requires human review and does not include an apply command"
       ]
     },
+    triggerEvidence,
     yamlPatch: [
       `apiVersion: ${targetApiVersion}`,
       `kind: ${targetKind}`,
