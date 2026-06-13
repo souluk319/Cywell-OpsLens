@@ -345,7 +345,7 @@ function ocpConnectivityAction(networkHandoff) {
       request:
         "Refresh the configured OCP API credential or grant the read-only RBAC needed for /version and OLSConfig CRD discovery.",
       evidenceNeeded: `OCP connectivity diagnostic classification=${classification} becomes api-ready; oc whoami and oc auth can-i get crd olsconfigs.ols.openshift.io succeed.`,
-      nextCommand: "npm run verify:ocp:connectivity",
+      nextCommand: "npm run evidence:ocp-auth-rbac-plan",
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
     };
   }

@@ -2047,6 +2047,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           item.nextCommand?.includes("evidence:external-runtime:candidate-scan")
         )
     ).toBe(true);
+    const ocpAuthAction = body.installReadiness?.actionQueue?.items?.find(
+      (item) => item.id === "cluster-admin-fix-ocp-auth-rbac"
+    );
+    if (ocpAuthAction) {
+      expect(ocpAuthAction.nextCommand).toContain("evidence:ocp-auth-rbac-plan");
+    }
     expect(
       body.installReadiness?.actionQueue?.commandCounts?.readOnly ?? 0
     ).toBeGreaterThan(0);
