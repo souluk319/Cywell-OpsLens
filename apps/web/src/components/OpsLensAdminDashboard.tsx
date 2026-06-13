@@ -195,6 +195,10 @@ export function OpsLensAdminDashboard() {
     releaseActionQueue?.items.filter((entry) =>
       entry.id.includes("candidate-matrix")
     ) ?? [];
+  const releaseSecurityReviewActions =
+    releaseActionQueue?.items.filter((entry) =>
+      entry.id.startsWith("security-review-")
+    ) ?? [];
   const releaseActionQueuePacketName =
     releaseActionQueue?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const checkpoint = overview?.installReadiness.checkpoint;
@@ -1657,6 +1661,29 @@ export function OpsLensAdminDashboard() {
                   ))
                 ) : (
                   <span>candidate actions clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-security-review-actions"
+              >
+                {releaseSecurityReviewActions.length > 0 ? (
+                  releaseSecurityReviewActions.slice(0, 6).map((entry) => (
+                    <span key={entry.id}>
+                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
+                      :readOnly=
+                      {entry.readOnlyCommands
+                        .slice(0, 3)
+                        .map((command) => command.id)
+                        .join(", ")}
+                      :approval=
+                      {entry.approvalGatedCommands
+                        .map((command) => command.id)
+                        .join(", ")}
+                    </span>
+                  ))
+                ) : (
+                  <span>security review actions clear</span>
                 )}
               </div>
               <div className="remediation-notes">

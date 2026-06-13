@@ -15,6 +15,7 @@ const defaults = {
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   certificationReadiness:
     "test-results/cywell-opslens-certification-readiness.json",
+  securityScanPlan: "test-results/cywell-opslens-security-scan-plan.json",
   externalRuntimeReviewPacket:
     "test-results/cywell-opslens-external-runtime-review-packet.json",
   ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
@@ -52,6 +53,8 @@ const options = {
   certificationReadiness:
     parsed.get("certification-readiness-evidence") ??
     defaults.certificationReadiness,
+  securityScanPlan:
+    parsed.get("security-scan-plan-evidence") ?? defaults.securityScanPlan,
   externalRuntimeReviewPacket:
     parsed.get("external-runtime-review-packet-evidence") ??
     defaults.externalRuntimeReviewPacket,
@@ -306,8 +309,24 @@ function readOnlyCommands(artifacts) {
     mutation: command.mutation === true,
     writesLocalEvidence: /verify:certification|verify:catalog-toolchain/i.test(command.command ?? "")
   }));
+  const securityScanCommands = (artifacts.securityScanPlan?.commands?.readOnly ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "security-scan",
+    command: sanitize(command.command ?? "unknown"),
+    purpose: sanitize(command.purpose ?? "Security scan or review draft evidence command"),
+    mutation: command.mutation === true,
+    writesLocalEvidence: command.writesLocalEvidence === true
+  }));
   return uniqueByKey(
-    [...fixedReadOnlyCommands(), ...externalCommands, ...networkCommands, ...ocpAuthRbacCommands, ...certificationToolingCommands, ...bundleCommands],
+    [
+      ...fixedReadOnlyCommands(),
+      ...externalCommands,
+      ...securityScanCommands,
+      ...networkCommands,
+      ...ocpAuthRbacCommands,
+      ...certificationToolingCommands,
+      ...bundleCommands
+    ],
     (command) => `${command.id}:${command.command}`
   );
 }
@@ -317,6 +336,7 @@ function approvalGatedCommands(artifacts) {
     [
       ...(artifacts.releaseBundle?.commands?.mutatingApprovalRequired ?? []),
       ...(artifacts.externalRuntimeReview?.approvalGatedCommands ?? []),
+      ...(artifacts.securityScanPlan?.commands?.approvalGated ?? []),
       ...(artifacts.ocpAuthRbacPlan?.approvalGatedCommands ?? []),
       ...(artifacts.certificationReadiness?.toolingHandoff?.approvalGatedCommands ?? []),
       ...(artifacts.releasePlan?.commands ?? []).filter((command) => command.mutation === true),
@@ -581,6 +601,65 @@ function externalRuntimeItems(packet) {
   });
 }
 
+function securityScanItems(plan) {
+  const readOnlyCommands = plan?.commands?.readOnly ?? [];
+  const approvalGatedCommands = plan?.commands?.approvalGated ?? [];
+  return (plan?.images ?? [])
+    .filter((image) => image.required === true)
+    .filter((image) => image.securityEvidence?.reviewExists !== true)
+    .map((image) => {
+      const securityEvidence = image.securityEvidence ?? {};
+      const reviewDraft = securityEvidence.reviewDraft ?? {};
+      const imageName = sanitize(image.name ?? "unknown");
+      const finalEvidenceFile =
+        reviewDraft.finalEvidenceFile ??
+        `docs/release/evidence/security/${imageName}-security-review.json`;
+      const draftMissingEvidence = reviewDraft.missingEvidence ?? [];
+      const relevantReadOnly = readOnlyCommands.filter((command) => {
+        const id = command.id ?? "";
+        return (
+          id === "security-review-drafts-all" ||
+          id === "security-scan-evidence-runner" ||
+          id === "security-scan-evidence-runner-docker" ||
+          id.includes(imageName)
+        );
+      });
+      const relevantApprovalGated = approvalGatedCommands.filter((command) =>
+        String(command.id ?? "").includes(imageName)
+      );
+      const nextCommand =
+        reviewDraft.exists === true && reviewDraft.sameHead === true
+          ? `npm run evidence:security-review:draft -- --name ${imageName} --reviewer <security-reviewer> --ticket <security-ticket> --force`
+          : `npm run evidence:security-review:draft -- --name ${imageName} --force`;
+      return item({
+        id: `security-review-${imageName}-final-evidence`,
+        owner: "security-reviewer",
+        priority: "high",
+        source: `securityScanPlan:${imageName}`,
+        request:
+          `Complete final reviewed security evidence for ${imageName} without signing, pushing, mirroring, or mutating cluster resources.`,
+        evidenceNeeded: [
+          `${finalEvidenceFile} exists with artifactType=opslens.security-review.v0.1`,
+          `reviewDraft=${reviewDraft.evidenceState ?? "missing"}`,
+          `sameHead=${String(reviewDraft.sameHead === true)}`,
+          `readyForFinalReview=${String(reviewDraft.readyForFinalReview === true)}`,
+          `scan=${String(securityEvidence.vulnerabilityReportExists === true)}`,
+          `sbom=${String(securityEvidence.sbomExists === true)}`,
+          `reviewer=${String(reviewDraft.reviewerProvided === true)}`,
+          `ticket=${String(reviewDraft.ticketProvided === true)}`
+        ].join("; "),
+        nextCommand,
+        readOnlyCommands: relevantReadOnly,
+        approvalGatedCommands: relevantApprovalGated,
+        blockedBy: [
+          `${imageName} final security review evidence is missing`,
+          ...draftMissingEvidence
+        ],
+        acceptance: ["AC-CERT-001"]
+      });
+    });
+}
+
 function bundleDecisionItems(bundle) {
   const decision = bundle?.decision ?? {};
   const items = [];
@@ -695,6 +774,7 @@ function buildItems(artifacts) {
         artifacts.ocpAuthRbacPlan
       ),
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
+      ...securityScanItems(artifacts.securityScanPlan),
       ...bundleDecisionItems(artifacts.releaseBundle),
       ...networkItems(artifacts.ocpNetworkHandoff),
       ...ocpAuthRbacItems(artifacts.ocpAuthRbacPlan)
@@ -976,6 +1056,7 @@ async function main() {
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
     checkpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint", true),
     certificationReadiness: loadJson(options.certificationReadiness, "certification readiness", false),
+    securityScanPlan: loadJson(options.securityScanPlan, "security scan plan", false),
     externalRuntimeReview: loadJson(options.externalRuntimeReviewPacket, "external runtime review packet", false),
     ocpNetworkHandoff: loadJson(options.ocpNetworkHandoff, "OCP network handoff", false),
     ocpAuthRbacPlan: loadJson(options.ocpAuthRbacPlan, "OCP auth/RBAC plan", false),
@@ -987,6 +1068,7 @@ async function main() {
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.checkpoint, headSha, true),
     sourceSummary("certificationReadiness", "certification readiness", options.certificationReadiness, artifacts.certificationReadiness, headSha),
+    sourceSummary("securityScanPlan", "security scan plan", options.securityScanPlan, artifacts.securityScanPlan, headSha),
     sourceSummary("externalRuntimeReviewPacket", "external runtime review packet", options.externalRuntimeReviewPacket, artifacts.externalRuntimeReview, headSha),
     sourceSummary("ocpNetworkHandoff", "OCP network handoff", options.ocpNetworkHandoff, artifacts.ocpNetworkHandoff, headSha),
     sourceSummary("ocpAuthRbacPlan", "OCP auth/RBAC plan", options.ocpAuthRbacPlan, artifacts.ocpAuthRbacPlan, headSha),
@@ -1029,6 +1111,9 @@ async function main() {
       artifacts.releaseBundle?.mutationBoundary?.passed !== false &&
       artifacts.checkpoint?.registryMutationAttempted !== true &&
       artifacts.checkpoint?.clusterMutationAttempted !== true &&
+      artifacts.securityScanPlan?.registryMutationAttempted !== true &&
+      artifacts.securityScanPlan?.clusterMutationAttempted !== true &&
+      artifacts.securityScanPlan?.mutationAllowedByThisVerifier !== true &&
       artifacts.ocpAuthRbacPlan?.registryMutationAttempted !== true &&
       artifacts.ocpAuthRbacPlan?.clusterMutationAttempted !== true &&
       artifacts.ocpAuthRbacPlan?.mutationAllowedByThisVerifier !== true,
@@ -1079,6 +1164,7 @@ async function main() {
     missingEvidence: [
       ...(artifacts.releaseBundle?.missingEvidence ?? []),
       ...(artifacts.checkpoint?.missingEvidence ?? []),
+      ...(artifacts.securityScanPlan?.missingEvidence ?? []),
       ...items.flatMap((entry) => entry.blockedBy ?? [])
     ].map(sanitize),
     risk: [

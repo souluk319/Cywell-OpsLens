@@ -2216,6 +2216,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     const actionQueueOwners =
       body.installReadiness?.actionQueue?.owners?.map((owner) => owner.owner) ?? [];
     expect(actionQueueOwners).toContain("release-manager");
+    expect(actionQueueOwners).toContain("security-reviewer");
     expect(
       actionQueueOwners.some((owner) =>
         ["network-sre", "cluster-admin", "cluster-sre"].includes(owner)
@@ -2260,6 +2261,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         .every((item) =>
           item.nextCommand?.includes("evidence:external-runtime:candidate-scan")
         )
+    ).toBe(true);
+    const securityReviewAction = body.installReadiness?.actionQueue?.items?.find(
+      (item) => item.id === "security-review-operator-final-evidence"
+    );
+    expect(securityReviewAction?.nextCommand).toContain(
+      "evidence:security-review:draft"
+    );
+    expect(securityReviewAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
+      expect.arrayContaining(["security-review-drafts-all"])
+    );
+    expect(
+      securityReviewAction?.approvalGatedCommands?.map((command) => command.id)
+    ).toEqual(expect.arrayContaining(["sign-owned-operator"]));
+    expect(
+      securityReviewAction?.approvalGatedCommands?.every(
+        (command) =>
+          command.mutation === true && command.requiresExplicitApproval === true
+      )
     ).toBe(true);
     const ocpAuthAction = body.installReadiness?.actionQueue?.items?.find(
       (item) => item.id === "cluster-admin-fix-ocp-auth-rbac"
@@ -3008,6 +3027,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-candidate-actions")
     ).toContainText("evidence:external-runtime:candidate-scan");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-security-review-actions")
+    ).toContainText("security-review-operator-final-evidence");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-security-review-actions")
+    ).toContainText("evidence:security-review:draft");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-security-review-actions")
+    ).toContainText("sign-owned-operator");
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "localEvidenceRefresh"
     );
