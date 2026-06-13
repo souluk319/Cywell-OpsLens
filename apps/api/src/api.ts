@@ -1494,6 +1494,23 @@ type CertificationReadinessEvidenceArtifact = {
       requiredForExternalSubmission?: boolean;
     }>;
     missingRequiredTools?: string[];
+    freshnessPolicy?: {
+      requiredHead?: string;
+      worktreeRequirement?: string;
+      rerunAfter?: string[];
+    };
+    executionLanes?: Array<{
+      id?: string;
+      owner?: string;
+      status?: string;
+      purpose?: string;
+      requiredTools?: string[];
+      requiredEvidence?: string[];
+      blockedBy?: string[];
+      nextCommands?: string[];
+      mutation?: boolean;
+      requiresExplicitApproval?: boolean;
+    }>;
     readOnlyCommands?: Array<{
       id?: string;
       command?: string;
@@ -1828,6 +1845,7 @@ type ReleaseActionQueueArtifact = {
       requiresExplicitApproval?: boolean;
     }>;
     missingRequiredTools?: string[];
+    blockedBy?: string[];
   }>;
   sourceArtifacts?: Array<{
     id?: string;
@@ -3941,6 +3959,12 @@ function missingCertificationToolingHandoff(
     status: "needs-evidence",
     requiredTools: [],
     missingRequiredTools: [],
+    freshnessPolicy: {
+      requiredHead: "missing",
+      worktreeRequirement: "missing certification readiness evidence",
+      rerunAfter: ["certification readiness evidence is regenerated"]
+    },
+    executionLanes: [],
     readOnlyCommands: [
       {
         id: "refresh-certification-evidence",
@@ -3978,6 +4002,18 @@ function mapCertificationToolingHandoff(
       status: missingRequiredTools.length > 0 ? "needs-tooling" : "needs-evidence",
       requiredTools: cli.filter((tool) => tool.requiredForExternalSubmission),
       missingRequiredTools,
+      freshnessPolicy: {
+        requiredHead: "current Git HEAD",
+        worktreeRequirement:
+          "clean worktree before Community or Certified Operator submission",
+        rerunAfter: [
+          "tooling change",
+          "bundle or catalog manifest change",
+          "release image digest change",
+          "external runtime evidence change"
+        ]
+      },
+      executionLanes: [],
       setupCommands: missingRequiredTools.map((tool) => ({
         id: `install-${tool}`,
         command: `install ${tool} through an approved release-manager workstation or CI image`,
@@ -4008,6 +4044,26 @@ function mapCertificationToolingHandoff(
         tool.requiredForExternalSubmission === true
     })),
     missingRequiredTools: artifact.missingRequiredTools ?? [],
+    freshnessPolicy: {
+      requiredHead:
+        artifact.freshnessPolicy?.requiredHead ?? "current Git HEAD",
+      worktreeRequirement:
+        artifact.freshnessPolicy?.worktreeRequirement ??
+        "clean worktree before Community or Certified Operator submission",
+      rerunAfter: artifact.freshnessPolicy?.rerunAfter ?? []
+    },
+    executionLanes: (artifact.executionLanes ?? []).map((lane) => ({
+      id: lane.id ?? "unknown",
+      owner: lane.owner ?? "release-manager",
+      status: lane.status ?? "unknown",
+      purpose: lane.purpose ?? "certification tooling execution lane",
+      requiredTools: lane.requiredTools ?? [],
+      requiredEvidence: lane.requiredEvidence ?? [],
+      blockedBy: lane.blockedBy ?? [],
+      nextCommands: lane.nextCommands ?? [],
+      mutation: lane.mutation === true,
+      requiresExplicitApproval: lane.requiresExplicitApproval === true
+    })),
     readOnlyCommands: (artifact.readOnlyCommands ?? []).map((command) => ({
       id: command.id ?? "unknown",
       command: command.command ?? "unknown",
@@ -4154,6 +4210,10 @@ function getCertificationReadiness(): {
           ? `missing external submission CLIs=${missingExternalTools}`
           : "all reported external submission CLIs are available",
         `certification tooling handoff ${toolingHandoff.actionMode} status=${toolingHandoff.status} missingRequiredTools=${toolingHandoff.missingRequiredTools.join(", ") || "none"} next=${toolingHandoff.nextCommands[0] ?? "unknown"}`,
+        toolingHandoff.executionLanes.length
+          ? `certification tooling lanes=${toolingHandoff.executionLanes.map((lane) => `${lane.id}:${lane.status}`).join(", ")}`
+          : "certification tooling execution lanes are not listed",
+        `certification tooling freshness requiredHead=${toolingHandoff.freshnessPolicy.requiredHead} rerunAfter=${toolingHandoff.freshnessPolicy.rerunAfter.join(", ") || "none"}`,
         documentSummary
           ? `certification documents=${documentSummary}`
           : "certification documents are not listed",
@@ -4940,7 +5000,8 @@ function getReleaseActionQueueReadiness(): {
         mutation: command.mutation === true,
         requiresExplicitApproval: command.requiresExplicitApproval === true
       })),
-      missingRequiredTools: entry.missingRequiredTools ?? []
+      missingRequiredTools: entry.missingRequiredTools ?? [],
+      blockedBy: entry.blockedBy ?? []
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
       id: source.id ?? "unknown",

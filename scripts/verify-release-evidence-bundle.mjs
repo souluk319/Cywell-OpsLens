@@ -765,6 +765,12 @@ async function main() {
         missingRequiredTools:
           artifacts.certificationReadiness?.toolingHandoff
             ?.missingRequiredTools ?? [],
+        freshnessPolicy:
+          artifacts.certificationReadiness?.toolingHandoff
+            ?.freshnessPolicy ?? {},
+        executionLanes:
+          artifacts.certificationReadiness?.toolingHandoff
+            ?.executionLanes ?? [],
         readOnlyCommands:
           artifacts.certificationReadiness?.toolingHandoff
             ?.readOnlyCommands ?? [],

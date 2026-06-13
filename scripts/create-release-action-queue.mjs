@@ -524,8 +524,16 @@ function checkpointItems(checkpoint, networkHandoff, certificationReadiness, aut
       certificationReadiness?.toolingHandoff?.nextCommands ?? [],
     setupCommands:
       certificationReadiness?.toolingHandoff?.setupCommands ?? [],
+    readOnlyCommands:
+      certificationReadiness?.toolingHandoff?.readOnlyCommands ?? [],
+    approvalGatedCommands:
+      certificationReadiness?.toolingHandoff?.approvalGatedCommands ?? [],
     missingRequiredTools:
       certificationReadiness?.toolingHandoff?.missingRequiredTools ?? [],
+    blockedBy: uniqueStrings(
+      (certificationReadiness?.toolingHandoff?.executionLanes ?? [])
+        .flatMap((lane) => lane.blockedBy ?? [])
+    ),
     acceptance: ["AC-CERT-001"]
   });
   addIfOpen("releasePublish", {

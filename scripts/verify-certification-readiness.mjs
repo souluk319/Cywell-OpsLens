@@ -340,6 +340,8 @@ async function validateDocs() {
       sections: [
         "## Required Local Tools",
         "## Read-Only Validation Commands",
+        "## Execution Lanes",
+        "## Freshness and Owner Handoff",
         "## Human Setup Boundary",
         "## Approval-Gated Commands Not Run",
         "## Evidence Refresh"
@@ -481,12 +483,100 @@ function buildToolingHandoff() {
   const missingRequiredTools = requiredTools
     .filter((entry) => !entry.available)
     .map((entry) => entry.name);
+  const requiredToolNames = requiredTools.map((entry) => entry.name);
+  const toolingReady = missingRequiredTools.length === 0;
 
   return {
     actionMode: "humanSetupOnly",
-    status: missingRequiredTools.length > 0 ? "needs-tooling" : "ready-for-validation",
+    status: toolingReady ? "ready-for-validation" : "needs-tooling",
     requiredTools,
     missingRequiredTools,
+    freshnessPolicy: {
+      requiredHead: "current Git HEAD",
+      worktreeRequirement: "clean worktree before Community or Certified Operator submission",
+      rerunAfter: [
+        "tooling change",
+        "bundle or catalog manifest change",
+        "release image digest change",
+        "external runtime evidence change"
+      ]
+    },
+    executionLanes: [
+      {
+        id: "local-workstation",
+        owner: "release-manager",
+        status: toolingReady ? "ready-for-validation" : "blocked-by-missing-tooling",
+        purpose: "Run local read-only certification and catalog validation from an approved release workstation.",
+        requiredTools: requiredToolNames,
+        requiredEvidence: [
+          "CLI versions recorded in certification readiness evidence",
+          "opm validate deploy/catalog/fbc output",
+          "operator-sdk bundle validate output",
+          "operator-sdk scorecard output",
+          "current-head npm run verify:certification and verify:catalog-toolchain artifacts"
+        ],
+        blockedBy: missingRequiredTools.map((tool) => `${tool} CLI unavailable on PATH`),
+        nextCommands: toolingReady
+          ? [
+              "opm validate deploy/catalog/fbc",
+              "operator-sdk bundle validate ./deploy/operator/bundle --select-optional suite=operatorframework",
+              "operator-sdk scorecard ./deploy/operator/bundle",
+              "npm run verify:certification"
+            ]
+          : [
+              "review docs/release/cywell-opslens-certification-tooling.md",
+              "install missing certification tooling through an approved release-manager path",
+              "npm run verify:certification"
+            ],
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      {
+        id: "approved-ci-image",
+        owner: "release-manager",
+        status: "needs-evidence",
+        purpose: "Use an approved CI image or runner when a local workstation cannot provide trusted opm/operator-sdk tooling.",
+        requiredTools: requiredToolNames,
+        requiredEvidence: [
+          "approved CI image or runner digest",
+          "tool versions captured from the CI lane",
+          "current-head certification and catalog toolchain artifacts exported by the CI lane"
+        ],
+        blockedBy: [
+          "approved CI image or runner digest is not recorded in this artifact"
+        ],
+        nextCommands: [
+          "provide approved CI image or runner evidence",
+          "npm run verify:certification",
+          "npm run verify:catalog-toolchain"
+        ],
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      {
+        id: "hosted-certification-pipeline",
+        owner: "release-manager",
+        status: "approval-gated",
+        purpose: "Submit externally only after local or CI readiness reaches READY_FOR_REVIEW and release evidence is complete.",
+        requiredTools: ["opm", "operator-sdk"],
+        requiredEvidence: [
+          "READY_FOR_REVIEW certification readiness artifact",
+          "current-head release evidence bundle",
+          "security, SBOM, provenance, and external runtime evidence",
+          "explicit release-manager and security-reviewer approval"
+        ],
+        blockedBy: [
+          ...(toolingReady ? [] : ["local or CI certification tooling readiness is not complete"]),
+          "release publish, security, and external runtime evidence must be approved before external submission"
+        ],
+        nextCommands: [
+          "do not submit to Partner Connect or OperatorHub from this verifier",
+          "refresh npm run verify:release-refresh -- --live-timeout-ms 30000 before external review"
+        ],
+        mutation: true,
+        requiresExplicitApproval: true
+      }
+    ],
     readOnlyCommands: [
       {
         id: "check-oc-version",
@@ -622,8 +712,24 @@ async function writeEvidence() {
   );
   const worktreeStatus = await gitStatusShort();
   const worktreeDirty = worktreeStatus.length > 0;
-  const status = statusFromChecks();
   const toolingHandoff = buildToolingHandoff();
+  expectCheck(
+    "certification tooling execution lanes",
+    toolingHandoff.executionLanes.some((lane) => lane.id === "local-workstation") &&
+      toolingHandoff.executionLanes.some((lane) => lane.id === "approved-ci-image") &&
+      toolingHandoff.executionLanes.some((lane) => lane.id === "hosted-certification-pipeline"),
+    "local-workstation, approved-ci-image, and hosted-certification-pipeline lanes are declared",
+    "certification tooling handoff must declare local, CI, and hosted certification lanes"
+  );
+  expectCheck(
+    "certification tooling lane mutation boundary",
+    toolingHandoff.executionLanes.every(
+      (lane) => lane.mutation !== true || lane.requiresExplicitApproval === true
+    ),
+    "mutating execution lanes require explicit approval",
+    "mutating execution lanes must require explicit approval"
+  );
+  const status = statusFromChecks();
   const missingEvidence = [
     ...cli
       .filter((entry) => entry.requiredForExternalSubmission && !entry.available)

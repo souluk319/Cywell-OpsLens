@@ -2142,6 +2142,16 @@ export function OpsLensAdminDashboard() {
                       : "none"}
                   </strong>
                 </div>
+                <div>
+                  <span>Execution Lanes</span>
+                  <strong>
+                    {certificationPlan.toolingHandoff.executionLanes.length
+                      ? certificationPlan.toolingHandoff.executionLanes
+                          .map((lane) => `${lane.id}:${lane.status}`)
+                          .join(", ")
+                      : "not listed"}
+                  </strong>
+                </div>
               </div>
               <div
                 className="admin-evidence-line"
@@ -2182,6 +2192,40 @@ export function OpsLensAdminDashboard() {
                     certificationPlan.toolingHandoff.approvalGatedCommands
                       .length
                   }
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-certification-execution-lanes"
+              >
+                {certificationPlan.toolingHandoff.executionLanes.map((lane) => (
+                  <span key={lane.id}>
+                    {lane.id}:{lane.status}:owner={lane.owner}:mutation=
+                    {String(lane.mutation)}:approval=
+                    {String(lane.requiresExplicitApproval)}
+                  </span>
+                ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-certification-freshness-policy"
+              >
+                <span>
+                  requiredHead=
+                  {certificationPlan.toolingHandoff.freshnessPolicy.requiredHead}
+                </span>
+                <span>
+                  worktree=
+                  {
+                    certificationPlan.toolingHandoff.freshnessPolicy
+                      .worktreeRequirement
+                  }
+                </span>
+                <span>
+                  rerunAfter=
+                  {certificationPlan.toolingHandoff.freshnessPolicy.rerunAfter
+                    .slice(0, 4)
+                    .join(", ") || "none"}
                 </span>
               </div>
               <div

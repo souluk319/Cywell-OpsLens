@@ -32,6 +32,24 @@ npm run verify:catalog-toolchain
 
 The commands above must not publish catalog images, push images, mirror external runtime images, sign images, or mutate a cluster.
 
+## Execution Lanes
+
+Certification tooling readiness can be completed through one of these lanes:
+
+- `local-workstation`: release-manager runs the read-only validation commands from an approved workstation with `oc`, `docker`, `opm`, and `operator-sdk` on `PATH`.
+- `approved-ci-image`: release-manager provides an approved CI image or runner digest that contains the required tooling, then exports the same current-head evidence artifacts.
+- `hosted-certification-pipeline`: release-manager submits externally only after local or CI readiness reaches `READY_FOR_REVIEW` and security, SBOM, provenance, external runtime, and release evidence are approved.
+
+The hosted lane is approval-gated and may mutate an external portal or listing workflow. It is listed as a handoff only; local verifiers must never run it.
+
+## Freshness and Owner Handoff
+
+Certification evidence is fresh only when it is generated on the current Git HEAD from a clean worktree before Community or Certified Operator submission.
+
+Rerun the certification and catalog toolchain verifiers after any tooling change, bundle or catalog manifest change, release image digest change, or external runtime evidence change.
+
+The `release-manager` owns tooling setup and lane selection. The `security-reviewer` must approve any credentialed download, registry login, Partner Connect workflow, or externally downloaded binary before it is used for submission evidence.
+
 ## Human Setup Boundary
 
 Installing or updating `opm`, `operator-sdk`, Docker/Podman, registry credentials, or Red Hat Partner Connect tooling is a human setup task owned by `release-manager` with `security-reviewer` approval when credentials or externally downloaded binaries are involved.

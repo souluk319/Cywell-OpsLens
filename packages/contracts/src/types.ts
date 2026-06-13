@@ -1449,6 +1449,23 @@ export interface OpsLensCertificationReadinessSummary {
       requiredForExternalSubmission: boolean;
     }>;
     missingRequiredTools: string[];
+    freshnessPolicy: {
+      requiredHead: string;
+      worktreeRequirement: string;
+      rerunAfter: string[];
+    };
+    executionLanes: Array<{
+      id: string;
+      owner: string;
+      status: string;
+      purpose: string;
+      requiredTools: string[];
+      requiredEvidence: string[];
+      blockedBy: string[];
+      nextCommands: string[];
+      mutation: boolean;
+      requiresExplicitApproval: boolean;
+    }>;
     readOnlyCommands: Array<{
       id: string;
       command: string;
@@ -1664,6 +1681,7 @@ export interface OpsLensReleaseActionQueueSummary {
       requiresExplicitApproval: boolean;
     }>;
     missingRequiredTools: string[];
+    blockedBy: string[];
   }>;
   sourceArtifacts: Array<{
     id: string;

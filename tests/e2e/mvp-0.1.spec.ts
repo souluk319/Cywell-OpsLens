@@ -1169,6 +1169,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             actionMode?: string;
             status?: string;
             missingRequiredTools?: string[];
+            freshnessPolicy?: {
+              requiredHead?: string;
+              worktreeRequirement?: string;
+              rerunAfter?: string[];
+            };
+            executionLanes?: Array<{
+              id?: string;
+              owner?: string;
+              status?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+              blockedBy?: string[];
+              nextCommands?: string[];
+            }>;
             readOnlyCommands?: Array<{ id?: string; command?: string; mutation?: boolean }>;
             setupCommands?: Array<{ id?: string; mutation?: boolean }>;
             approvalGatedCommands?: Array<{ id?: string; mutation?: boolean }>;
@@ -1460,6 +1474,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               requiresExplicitApproval?: boolean;
             }>;
             missingRequiredTools?: string[];
+            blockedBy?: string[];
           }>;
           sourceArtifacts?: Array<{
             id?: string;
@@ -2063,6 +2078,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     expect(
       body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.executionLanes?.map((lane) => lane.id)
+    ).toEqual(
+      expect.arrayContaining([
+        "local-workstation",
+        "approved-ci-image",
+        "hosted-certification-pipeline"
+      ])
+    );
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.executionLanes?.every(
+          (lane) => lane.mutation !== true || lane.requiresExplicitApproval === true
+        )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.freshnessPolicy?.requiredHead
+    ).toBe("current Git HEAD");
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
         ?.readOnlyCommands?.some(
           (command) =>
             command.command?.includes("verify:certification") &&
@@ -2446,6 +2481,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(releaseManagerOwnerPacket?.markdownPath).toContain(
       "release-manager.md"
     );
+    expect(releaseManagerOwnerPacket?.readOnlyCommandIds).toEqual(
+      expect.arrayContaining(["refresh-certification-evidence"])
+    );
+    expect(releaseManagerOwnerPacket?.approvalGatedCommandIds).toEqual(
+      expect.arrayContaining(["partner-connect-submit"])
+    );
     expect(
       body.installReadiness?.actionQueue?.items?.some((item) =>
         item.nextCommand?.startsWith("npm run")
@@ -2551,6 +2592,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(
         certificationToolingAction.handoffNextCommands?.join(" ")
       ).toContain("verify:certification");
+      expect(
+        certificationToolingAction.readOnlyCommands?.map((command) => command.id)
+      ).toEqual(
+        expect.arrayContaining(["refresh-certification-evidence"])
+      );
+      expect(
+        certificationToolingAction.approvalGatedCommands?.map(
+          (command) => command.id
+        )
+      ).toEqual(expect.arrayContaining(["partner-connect-submit"]));
       expect(
         certificationToolingAction.setupCommands?.every(
           (command) => command.mutation === false
@@ -3145,6 +3196,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-certification-tooling-handoff")
     ).toContainText("approvalGated=");
+    await expect(
+      page.getByTestId("opslens-certification-execution-lanes")
+    ).toContainText("local-workstation");
+    await expect(
+      page.getByTestId("opslens-certification-execution-lanes")
+    ).toContainText("hosted-certification-pipeline");
+    await expect(
+      page.getByTestId("opslens-certification-freshness-policy")
+    ).toContainText("current Git HEAD");
     await expect(
       page.getByTestId("opslens-certification-tooling-next")
     ).toContainText("verify:certification");
