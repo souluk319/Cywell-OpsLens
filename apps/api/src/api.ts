@@ -40,6 +40,7 @@ import type {
   OpsLensImageBuildReadiness,
   OpsLensInstallApprovalPlanSummary,
   OpsLensInstallPlanReadiness,
+  OpsLensLightspeedRegistrationApprovalPlanSummary,
   OpsLensLiveEvidenceHandoffReadiness,
   OpsLensLiveEvidenceHandoffSummary,
   OpsLensLightspeedMcpReadiness,
@@ -1349,6 +1350,34 @@ type InstallApprovalPlanEvidenceArtifact = {
     worktreeDirty?: boolean;
   };
   requiredApprovals?: string[];
+  lightspeedRegistration?: {
+    actionMode?: string;
+    status?: string;
+    phase?: string;
+    mode?: string;
+    configResourceKind?: string;
+    target?: {
+      namespace?: string;
+      name?: string;
+    };
+    desiredServer?: {
+      name?: string;
+      url?: string;
+    };
+    willPatch?: boolean;
+    operatorMutationAllowedByMode?: boolean;
+    clusterMutationAttempted?: boolean;
+    mutationAllowedByThisVerifier?: boolean;
+    legacyConfigMapMutationAttempted?: boolean;
+    readOnlyCommands?: Array<{
+      id?: string;
+      command?: string;
+    }>;
+    evidence?: string[];
+    risk?: string[];
+    rollbackPath?: string[];
+    missingEvidence?: string[];
+  };
   ragIngestion?: {
     actionMode?: string;
     status?: string;
@@ -3257,6 +3286,89 @@ function missingRagIngestionPlan(
   };
 }
 
+function missingLightspeedRegistrationPlan(
+  reason: string
+): OpsLensLightspeedRegistrationApprovalPlanSummary {
+  return {
+    actionMode: "previewOnly",
+    status: "needs-evidence",
+    phase: "MissingEvidence",
+    mode: "unknown",
+    configResourceKind: "OLSConfig",
+    target: {
+      namespace: "openshift-lightspeed",
+      name: "cluster"
+    },
+    desiredServer: {
+      name: "cywell-opslens",
+      url: "unknown"
+    },
+    willPatch: false,
+    operatorMutationAllowedByMode: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    legacyConfigMapMutationAttempted: false,
+    readOnlyCommands: [
+      {
+        id: "preview-lightspeed-patch",
+        command: "npm run verify:lightspeed:patch-preview"
+      }
+    ],
+    evidence: [],
+    risk: [
+      "Lightspeed registration readiness is unknown; OLSConfig mutation remains blocked."
+    ],
+    rollbackPath: [
+      "Regenerate Lightspeed patch preview and install approval evidence before approving any OLSConfig change."
+    ],
+    missingEvidence: [reason]
+  };
+}
+
+function mapLightspeedRegistrationApprovalPlan(
+  artifact:
+    | InstallApprovalPlanEvidenceArtifact["lightspeedRegistration"]
+    | undefined
+): OpsLensLightspeedRegistrationApprovalPlanSummary {
+  if (!artifact) {
+    return missingLightspeedRegistrationPlan(
+      "install approval plan does not include Lightspeed registration evidence"
+    );
+  }
+
+  return {
+    actionMode: "previewOnly",
+    status: artifact.status ?? "needs-evidence",
+    phase: artifact.phase ?? "unknown",
+    mode: artifact.mode ?? "unknown",
+    configResourceKind: "OLSConfig",
+    target: {
+      namespace: artifact.target?.namespace ?? "openshift-lightspeed",
+      name: artifact.target?.name ?? "cluster"
+    },
+    desiredServer: {
+      name: artifact.desiredServer?.name ?? "cywell-opslens",
+      url: artifact.desiredServer?.url ?? "unknown"
+    },
+    willPatch: artifact.willPatch === true,
+    operatorMutationAllowedByMode:
+      artifact.operatorMutationAllowedByMode === true,
+    clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+    mutationAllowedByThisVerifier:
+      artifact.mutationAllowedByThisVerifier === true,
+    legacyConfigMapMutationAttempted:
+      artifact.legacyConfigMapMutationAttempted === true,
+    readOnlyCommands: (artifact.readOnlyCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown"
+    })),
+    evidence: artifact.evidence ?? [],
+    risk: artifact.risk ?? [],
+    rollbackPath: artifact.rollbackPath ?? [],
+    missingEvidence: artifact.missingEvidence ?? []
+  };
+}
+
 function mapRagIngestionApprovalPlan(
   artifact:
     | InstallApprovalPlanEvidenceArtifact["ragIngestion"]
@@ -3333,6 +3445,9 @@ function getInstallApprovalPlanReadiness(): {
         missingEvidence: [
           `install approval plan evidence is missing at ${evidencePath}`
         ],
+        lightspeedRegistration: missingLightspeedRegistrationPlan(
+          "install approval plan evidence is missing"
+        ),
         ragIngestion: missingRagIngestionPlan(
           "install approval plan evidence is missing"
         )
@@ -3363,6 +3478,15 @@ function getInstallApprovalPlanReadiness(): {
     const ragIngestion = mapRagIngestionApprovalPlan(
       artifact.ragIngestion
     );
+    const lightspeedRegistration = mapLightspeedRegistrationApprovalPlan(
+      artifact.lightspeedRegistration
+    );
+    const lightspeedRegistrationEvidence =
+      `Lightspeed registration ${lightspeedRegistration.actionMode} ` +
+      `mode=${lightspeedRegistration.mode} target=${lightspeedRegistration.target.namespace}/${lightspeedRegistration.target.name} ` +
+      `willPatch=${String(lightspeedRegistration.willPatch)} ` +
+      `legacyConfigMapMutationAttempted=${String(lightspeedRegistration.legacyConfigMapMutationAttempted)} ` +
+      `clusterMutationAttempted=${String(lightspeedRegistration.clusterMutationAttempted)}`;
     const ragIngestionEvidence =
       `RAG ingestion plan ${ragIngestion.actionMode} status=${ragIngestion.status} ` +
       `approvedPlan=${ragIngestion.approvedPlanStatus} ingestionJobCreated=${String(ragIngestion.ingestionJobCreated)} ` +
@@ -3381,6 +3505,7 @@ function getInstallApprovalPlanReadiness(): {
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? [],
         missingEvidence: artifact.missingEvidence ?? [],
+        lightspeedRegistration,
         ragIngestion
       },
       evidence: [
@@ -3391,6 +3516,7 @@ function getInstallApprovalPlanReadiness(): {
         mutatingCommandNames
           ? `mutating commands require explicit approval: ${mutatingCommandNames}`
           : "mutating commands are not listed in latest approval plan",
+        lightspeedRegistrationEvidence,
         ragIngestionEvidence,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads install approval plan evidence only; it does not run install commands"
@@ -3415,6 +3541,9 @@ function getInstallApprovalPlanReadiness(): {
         missingEvidence: [
           error instanceof Error ? error.message : "unknown evidence parse error"
         ],
+        lightspeedRegistration: missingLightspeedRegistrationPlan(
+          error instanceof Error ? error.message : "unknown evidence parse error"
+        ),
         ragIngestion: missingRagIngestionPlan(
           error instanceof Error ? error.message : "unknown evidence parse error",
           "failed"

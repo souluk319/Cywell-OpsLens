@@ -983,6 +983,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           mutationAllowedByThisVerifier?: boolean;
           requiredApprovals?: string[];
           mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
+          lightspeedRegistration?: {
+            actionMode?: string;
+            status?: string;
+            phase?: string;
+            mode?: string;
+            configResourceKind?: string;
+            target?: { namespace?: string; name?: string };
+            desiredServer?: { name?: string; url?: string };
+            willPatch?: boolean;
+            operatorMutationAllowedByMode?: boolean;
+            clusterMutationAttempted?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+            legacyConfigMapMutationAttempted?: boolean;
+            readOnlyCommands?: Array<{ id?: string; command?: string }>;
+          };
           ragIngestion?: {
             actionMode?: string;
             status?: string;
@@ -1676,6 +1691,34 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "product-owner"
       ])
     );
+    expect(
+      body.installReadiness?.approvalPlan?.lightspeedRegistration
+    ).toMatchObject({
+      actionMode: "previewOnly",
+      mode: "PatchOLSConfig",
+      configResourceKind: "OLSConfig",
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      legacyConfigMapMutationAttempted: false
+    });
+    expect(
+      body.installReadiness?.approvalPlan?.lightspeedRegistration?.target
+    ).toMatchObject({
+      namespace: "openshift-lightspeed",
+      name: "cluster"
+    });
+    expect(
+      body.installReadiness?.approvalPlan?.lightspeedRegistration?.desiredServer
+        ?.url
+    ).toMatch(/\/mcp$/);
+    expect(
+      (
+        body.installReadiness?.approvalPlan?.lightspeedRegistration
+          ?.readOnlyCommands ?? []
+      )
+        .map((command) => command.command)
+        .join(" ")
+    ).toContain("verify:lightspeed:patch-preview");
     expect(body.installReadiness?.approvalPlan?.ragIngestion).toMatchObject({
       actionMode: "ingestionPlanOnly",
       clusterMutationAttempted: false,
@@ -2551,6 +2594,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
       "cluster-admin"
     );
+    await expect(
+      page.getByTestId("opslens-lightspeed-registration-plan")
+    ).toContainText("previewOnly");
+    await expect(
+      page.getByTestId("opslens-lightspeed-registration-plan")
+    ).toContainText("OLSConfig");
+    await expect(
+      page.getByTestId("opslens-lightspeed-registration-plan")
+    ).toContainText("mode=PatchOLSConfig");
+    await expect(
+      page.getByTestId("opslens-lightspeed-registration-plan")
+    ).toContainText("legacyConfigMapMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-lightspeed-registration-plan")
+    ).toContainText("clusterMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-lightspeed-registration-commands")
+    ).toContainText("verify:lightspeed:patch-preview");
     await expect(
       page.getByTestId("opslens-rag-ingestion-approval-plan")
     ).toContainText("ingestionPlanOnly");

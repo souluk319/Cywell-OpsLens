@@ -281,6 +281,71 @@ function buildCommands(subscription, installation) {
   ];
 }
 
+function buildLightspeedRegistrationPlan(installation, patchPreview) {
+  const registration = installation?.spec?.lightspeedRegistration ?? {};
+  const target = {
+    namespace:
+      patchPreview?.target?.namespace ??
+      registration.olsConfigNamespace ??
+      "openshift-lightspeed",
+    name: patchPreview?.target?.name ?? registration.olsConfigName ?? "cluster"
+  };
+  const desiredServer = {
+    name:
+      patchPreview?.desiredServer?.name ??
+      patchPreview?.target?.mcpServerName ??
+      registration.mcpServerName ??
+      "cywell-opslens",
+    url:
+      patchPreview?.desiredServer?.url ??
+      patchPreview?.target?.endpoint ??
+      registration.endpoint ??
+      "unknown"
+  };
+
+  return {
+    actionMode: "previewOnly",
+    status: patchPreview?.status ?? "missing",
+    phase: patchPreview?.phase ?? "MissingEvidence",
+    mode: patchPreview?.mode ?? registration.mode ?? "unknown",
+    configResourceKind: "OLSConfig",
+    target,
+    desiredServer,
+    willPatch: patchPreview?.willPatch === true,
+    operatorMutationAllowedByMode:
+      patchPreview?.operatorMutationAllowedByMode === true ||
+      registration.mode === "PatchOLSConfig",
+    clusterMutationAttempted: patchPreview?.clusterMutationAttempted === true,
+    mutationAllowedByThisVerifier: false,
+    legacyConfigMapMutationAttempted: false,
+    readOnlyCommands: [
+      {
+        id: "preview-lightspeed-patch",
+        command: "npm run verify:lightspeed:patch-preview"
+      },
+      {
+        id: "verify-lightspeed-registration",
+        command: `oc get olsconfig ${target.name} -n ${target.namespace} -o yaml`
+      }
+    ],
+    evidence: patchPreview?.evidence ?? [
+      `target OLSConfig ${target.namespace}/${target.name}`,
+      `desired MCP server ${desiredServer.name} -> ${desiredServer.url}`
+    ],
+    risk: patchPreview?.risks ?? [
+      "OpenShift Lightspeed MCP registration must remain explicit through OpsLensInstallation.spec.lightspeedRegistration.mode.",
+      "This verifier previews the OLSConfig registration only and does not patch the cluster."
+    ],
+    rollbackPath: patchPreview?.rollbackPath ?? [
+      `Restore previous OLSConfig ${target.namespace}/${target.name} spec.featureGates and spec.mcpServers from GitOps or cluster backup.`,
+      `Remove only the ${desiredServer.name} MCP server entry if OpsLens is uninstalled.`
+    ],
+    missingEvidence: patchPreview?.missingEvidence ?? [
+      "Lightspeed patch preview evidence is missing"
+    ]
+  };
+}
+
 function buildApprovalChecklist({
   dryRun,
   lightspeedReadiness,
@@ -506,6 +571,21 @@ async function buildPlan() {
     }
   }
   const commands = buildCommands(subscription, installation);
+  const lightspeedRegistration = buildLightspeedRegistrationPlan(
+    installation,
+    patchPreview
+  );
+  expectCheck(
+    "Lightspeed registration approval boundary",
+    lightspeedRegistration.actionMode === "previewOnly" &&
+      lightspeedRegistration.configResourceKind === "OLSConfig" &&
+      lightspeedRegistration.mode === "PatchOLSConfig" &&
+      lightspeedRegistration.clusterMutationAttempted === false &&
+      lightspeedRegistration.mutationAllowedByThisVerifier === false &&
+      lightspeedRegistration.legacyConfigMapMutationAttempted === false,
+    `${lightspeedRegistration.mode} ${lightspeedRegistration.target.namespace}/${lightspeedRegistration.target.name} previewOnly legacyConfigMapMutationAttempted=false`,
+    "install approval plan must expose non-mutating OLSConfig PatchOLSConfig registration instead of a ConfigMap mutation"
+  );
   const status = planStatus(checklist);
   const approvedIngestionPlan = ragApprovalQueue?.ingestionPlan?.approved ?? {};
   const ragIngestionStatus =
@@ -544,6 +624,7 @@ async function buildPlan() {
         `${installation?.spec?.lightspeedRegistration?.olsConfigNamespace ?? "openshift-lightspeed"}/${installation?.spec?.lightspeedRegistration?.olsConfigName ?? "cluster"}`,
       mcpEndpoint: installation?.spec?.lightspeedRegistration?.endpoint ?? "unknown"
     },
+    lightspeedRegistration,
     requiredApprovals: [
       "cluster-admin",
       "cluster-sre",

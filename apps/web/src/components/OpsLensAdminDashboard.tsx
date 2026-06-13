@@ -1598,12 +1598,57 @@ export function OpsLensAdminDashboard() {
                   </strong>
                 </div>
                 <div>
+                  <span>Lightspeed Registration</span>
+                  <strong>
+                    {approvalPlan.lightspeedRegistration.mode} /{" "}
+                    {approvalPlan.lightspeedRegistration.target.namespace}/
+                    {approvalPlan.lightspeedRegistration.target.name}
+                  </strong>
+                </div>
+                <div>
                   <span>RAG Ingestion</span>
                   <strong>
                     {approvalPlan.ragIngestion.status} / jobCreated=
                     {String(approvalPlan.ragIngestion.ingestionJobCreated)}
                   </strong>
                 </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-lightspeed-registration-plan"
+              >
+                <span>{approvalPlan.lightspeedRegistration.actionMode}</span>
+                <span>
+                  {approvalPlan.lightspeedRegistration.configResourceKind}
+                </span>
+                <span>mode={approvalPlan.lightspeedRegistration.mode}</span>
+                <span>
+                  willPatch=
+                  {String(approvalPlan.lightspeedRegistration.willPatch)}
+                </span>
+                <span>
+                  legacyConfigMapMutationAttempted=
+                  {String(
+                    approvalPlan.lightspeedRegistration
+                      .legacyConfigMapMutationAttempted
+                  )}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(
+                    approvalPlan.lightspeedRegistration.clusterMutationAttempted
+                  )}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-lightspeed-registration-commands"
+              >
+                {approvalPlan.lightspeedRegistration.readOnlyCommands.map(
+                  (command) => (
+                    <span key={command.id}>{command.command}</span>
+                  )
+                )}
               </div>
               <div
                 className="admin-evidence-line"

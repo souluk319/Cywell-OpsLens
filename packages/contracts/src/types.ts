@@ -1507,6 +1507,35 @@ export interface OpsLensRagIngestionApprovalPlanSummary {
   missingEvidence: string[];
 }
 
+export interface OpsLensLightspeedRegistrationApprovalPlanSummary {
+  actionMode: "previewOnly";
+  status: string;
+  phase: string;
+  mode: string;
+  configResourceKind: "OLSConfig";
+  target: {
+    namespace: string;
+    name: string;
+  };
+  desiredServer: {
+    name: string;
+    url: string;
+  };
+  willPatch: boolean;
+  operatorMutationAllowedByMode: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  legacyConfigMapMutationAttempted: boolean;
+  readOnlyCommands: Array<{
+    id: string;
+    command: string;
+  }>;
+  evidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+  missingEvidence: string[];
+}
+
 export interface OpsLensInstallApprovalPlanSummary {
   status: OpsLensInstallPlanReadiness;
   actionMode: "approvalPlanOnly";
@@ -1521,6 +1550,7 @@ export interface OpsLensInstallApprovalPlanSummary {
   risk: string[];
   rollbackPath: string[];
   missingEvidence: string[];
+  lightspeedRegistration: OpsLensLightspeedRegistrationApprovalPlanSummary;
   ragIngestion: OpsLensRagIngestionApprovalPlanSummary;
 }
 
