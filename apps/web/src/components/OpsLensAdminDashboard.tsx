@@ -191,6 +191,10 @@ export function OpsLensAdminDashboard() {
   const releaseBundlePacketName =
     releaseBundle?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const releaseActionQueue = overview?.installReadiness.actionQueue;
+  const releaseCandidateActions =
+    releaseActionQueue?.items.filter((entry) =>
+      entry.id.includes("candidate-matrix")
+    ) ?? [];
   const releaseActionQueuePacketName =
     releaseActionQueue?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const checkpoint = overview?.installReadiness.checkpoint;
@@ -1493,6 +1497,20 @@ export function OpsLensAdminDashboard() {
                     <small>{entry.nextCommand}</small>
                   </div>
                 ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-candidate-actions"
+              >
+                {releaseCandidateActions.length > 0 ? (
+                  releaseCandidateActions.map((entry) => (
+                    <span key={entry.id}>
+                      {entry.owner}:{entry.priority}:{entry.nextCommand}
+                    </span>
+                  ))
+                ) : (
+                  <span>candidate actions clear</span>
+                )}
               </div>
               <div className="remediation-notes">
                 <p>
