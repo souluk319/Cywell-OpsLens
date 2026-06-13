@@ -468,6 +468,8 @@ function externalRuntimeItems(packet) {
     const candidate = image.candidateMatrix;
     const candidateStatus = candidate?.status ?? "missing";
     const candidateReady = ["candidate-ready-for-review", "current-evidence-release-eligible"].includes(candidateStatus);
+    const candidateScanCommand =
+      `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback`;
     const candidateItem = candidateReady
       ? []
       : [
@@ -487,7 +489,7 @@ function externalRuntimeItems(packet) {
                 : "best=missing",
               candidate?.recommendation ?? "candidate recommendation missing"
             ].join("; "),
-            nextCommand: "npm run evidence:external-runtime:candidates",
+            nextCommand: candidateScanCommand,
             blockedBy: candidate?.missingEvidence ?? image.missingEvidence ?? [],
             acceptance: ["AC-CERT-001"]
           })

@@ -2037,6 +2037,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       )
     ).toBe(true);
     expect(
+      body.installReadiness?.actionQueue?.items
+        ?.filter((item) => item.id?.includes("candidate-matrix"))
+        .every((item) =>
+          item.nextCommand?.includes("evidence:external-runtime:candidate-scan")
+        )
+    ).toBe(true);
+    expect(
       body.installReadiness?.actionQueue?.commandCounts?.readOnly ?? 0
     ).toBeGreaterThan(0);
     expect(
