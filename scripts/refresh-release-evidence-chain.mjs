@@ -204,11 +204,11 @@ function buildChain() {
       : npmScript("image-readiness-build", "release", "verify:images:build", [], { timeoutMs: Math.max(options.commandTimeoutMs, 900000) }),
     npmScript("owned-image-provenance", "release", "verify:owned-image-provenance"),
     npmScript("external-runtime-plan", "release", "verify:external-runtime-plan"),
-    options.securityScanDocker
-      ? npmScript("security-scan-runner-docker", "release", "evidence:security-scan:docker", [], {
+    ...(options.securityScanDocker
+      ? [npmScript("security-scan-runner-docker", "release", "evidence:security-scan:docker", [], {
           timeoutMs: Math.max(options.commandTimeoutMs, 900000)
-        })
-      : npmScript("security-scan-runner", "release", "evidence:security-scan", ["--all"]),
+        })]
+      : []),
     npmScript("security-scan-plan", "release", "verify:security-scan-plan")
   ];
 
@@ -564,7 +564,7 @@ async function main() {
       "Local Docker image builds may update local image cache when --skip-image-build is not used, but registry mutation remains false.",
       options.securityScanDocker
         ? "The security scan Docker fallback may pull scanner images and write local vulnerability/SBOM evidence, but registry and cluster mutation remain false."
-        : "Security scan execution is plan-only unless --security-scan-docker is supplied.",
+        : "Security scan execution is not run by default; existing runner evidence is preserved and the security scan plan reports missing or stale runner evidence.",
       "Expected live OCP/Lightspeed failures are preserved as evidence gaps so release review does not confuse stale evidence with readiness."
     ],
     rollbackPath: [

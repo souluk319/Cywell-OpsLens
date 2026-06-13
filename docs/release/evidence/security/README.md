@@ -52,7 +52,7 @@ npm run evidence:security-scan:docker
 
 The runner pulls the configured scanner images, resolves immutable RepoDigests before execution, mounts the local Docker socket for local image scans, writes ignored local/CI vulnerability/SBOM files, and creates ignored `*.draft.json` review packets. It does not sign, push, mirror, apply, delete, scale, or create final human-approved security review evidence.
 
-`npm run verify:security-scan-plan` consumes the same-HEAD runner artifact when it is clean, `EVIDENCE_WRITTEN`, and backed by digest-resolved scanner images. That lets Docker fallback evidence satisfy owned-image scan/SBOM generation while keeping final security review and signing approval as explicit gaps.
+`npm run verify:security-scan-plan` consumes the same-HEAD runner artifact when it is clean, `EVIDENCE_WRITTEN`, and backed by digest-resolved scanner images. That lets Docker fallback evidence satisfy owned-image scan/SBOM generation while keeping final security review and signing approval as explicit gaps. The default release refresh preserves existing runner evidence instead of overwriting it with a plan-only artifact; use `--security-scan-docker` when scan/SBOM evidence must be regenerated.
 
 To include that Docker fallback lane inside the same release evidence refresh:
 
