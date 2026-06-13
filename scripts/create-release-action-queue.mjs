@@ -445,6 +445,65 @@ function ocpClassification(networkHandoff) {
   return networkHandoff?.diagnostics?.classification ?? "unknown";
 }
 
+function ocpNetworkDiagnostics(networkHandoff) {
+  const diagnostics = networkHandoff?.diagnostics ?? {};
+  const target = networkHandoff?.target ?? {};
+  const dnsAddresses = Array.isArray(diagnostics.dns?.addresses)
+    ? diagnostics.dns.addresses.join(",")
+    : "";
+  const rbacReviews = diagnostics.rbacAccessReviews ?? [];
+  const allowedReviews = rbacReviews.filter((review) => review.status === "allowed");
+  const deniedReviews = rbacReviews.filter((review) => review.status === "denied");
+  const unknownReviews = rbacReviews.filter((review) => review.status === "unknown");
+  const readOnlyCommandIds = (networkHandoff?.readOnlyCommands ?? [])
+    .map((command) => command.id)
+    .filter(Boolean);
+
+  return [
+    {
+      id: "ocp-network-handoff-status",
+      label: "OCP network handoff",
+      value:
+        `status=${networkHandoff?.status ?? "missing"} actionMode=${networkHandoff?.actionMode ?? "missing"} classification=${diagnostics.classification ?? "missing"}`
+    },
+    {
+      id: "ocp-network-target",
+      label: "OCP target",
+      value:
+        `host=${target.host ?? "missing"} port=${target.port ?? "missing"} tokenConfigured=${String(target.tokenConfigured === true)} tlsVerify=${String(target.tlsVerify === true)}`
+    },
+    {
+      id: "ocp-network-dns",
+      label: "DNS",
+      value:
+        `status=${diagnostics.dns?.status ?? "unknown"} addresses=${dnsAddresses || "none"}`
+    },
+    {
+      id: "ocp-network-probes",
+      label: "Probe status",
+      value:
+        `tcp=${diagnostics.tcp?.status ?? "unknown"} tcpError=${diagnostics.tcp?.error ?? "none"} tls=${diagnostics.tls?.status ?? "unknown"} version=${diagnostics.kubernetesVersion?.status ?? "unknown"} oc=${diagnostics.oc?.versionGet ?? "unknown"}`
+    },
+    {
+      id: "ocp-network-boundary",
+      label: "Mutation boundary",
+      value:
+        `clusterMutationAttempted=${String(networkHandoff?.clusterMutationAttempted === true)} registryMutationAttempted=${String(networkHandoff?.registryMutationAttempted === true)} mutationAllowed=${String(networkHandoff?.mutationAllowedByThisVerifier === true)}`
+    },
+    {
+      id: "ocp-network-rbac",
+      label: "RBAC readiness",
+      value:
+        `allowed=${allowedReviews.length}/${rbacReviews.length} denied=${deniedReviews.length} unknown=${unknownReviews.length}`
+    },
+    {
+      id: "ocp-network-readonly",
+      label: "Read-only handoff",
+      value: readOnlyCommandIds.slice(0, 6).join(", ") || "missing"
+    }
+  ];
+}
+
 function authLikeOcpClassification(classification) {
   return ["auth-or-rbac", "auth-failed", "token-missing"].includes(classification);
 }
@@ -470,6 +529,7 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
       handoffNextCommands: authRbacHandoffCommands(authRbacPlan),
       readOnlyCommands: authRbacPlan?.readOnlyCommands ?? [],
       approvalGatedCommands: authRbacPlan?.approvalGatedCommands ?? [],
+      diagnostics: ocpNetworkDiagnostics(networkHandoff),
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
     };
   }
@@ -482,6 +542,7 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
         "Fix OCP API TLS trust, proxy TLS interception, or OCP_TLS_VERIFY settings after DNS/TCP evidence has passed.",
       evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
       nextCommand: "npm run verify:ocp:connectivity",
+      diagnostics: ocpNetworkDiagnostics(networkHandoff),
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
     };
   }
@@ -492,6 +553,7 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
     request: "Restore TCP reachability from the verifier workstation or approved bastion to the company OCP API.",
     evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
     nextCommand: "npm run verify:ocp:connectivity",
+    diagnostics: ocpNetworkDiagnostics(networkHandoff),
     acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
   };
 }
@@ -1326,6 +1388,7 @@ function networkItems(networkHandoff) {
         .filter(Boolean),
       readOnlyCommands: handoffCommands,
       blockedBy: networkHandoff.missingEvidence ?? [],
+      diagnostics: ocpNetworkDiagnostics(networkHandoff),
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
     })
   ];

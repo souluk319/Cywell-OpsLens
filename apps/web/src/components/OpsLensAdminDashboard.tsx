@@ -219,12 +219,60 @@ export function OpsLensAdminDashboard() {
         entry.source.includes("aiopsIncidentPipeline") ||
         entry.id.includes("monitoring-proxy")
     ) ?? [];
+  const releaseNetworkActions =
+    releaseActionQueue?.items.filter(
+      (entry) =>
+        entry.source.includes("ocpNetworkHandoff") ||
+        entry.source.includes("ocpConnectivity") ||
+        entry.id.includes("ocp-api") ||
+        entry.id.includes("ocp-tls") ||
+        entry.id.includes("ocp-auth-rbac")
+    ) ?? [];
   const releaseLightspeedReadinessActions =
     releaseActionQueue?.items.filter(
       (entry) =>
         entry.id.includes("lightspeed-readiness") ||
         entry.source.includes("lightspeedReadiness")
     ) ?? [];
+  const releaseApprovalHandoffActions = releaseActionQueue
+    ? [
+        ...releaseActionQueue.items.filter((entry) =>
+          entry.approvalGatedCommands.some(
+            (command) =>
+              command.id.includes("live-evidence-reader") ||
+              command.id.includes("short-lived-live-reader")
+          )
+        ),
+        ...releaseActionQueue.items.filter(
+          (entry) => entry.approvalGatedCommands.length > 0
+        )
+      ]
+        .filter(
+          (entry, index, entries) =>
+            entries.findIndex((candidate) => candidate.id === entry.id) === index
+        )
+        .slice(0, 6)
+    : [];
+  const releaseReadOnlyHandoffActions = releaseActionQueue
+    ? [
+        ...releaseActionQueue.items.filter((entry) =>
+          entry.readOnlyCommands.some(
+            (command) =>
+              command.id === "ocp-connectivity" ||
+              command.id.includes("live-reader") ||
+              command.id === "lightspeed-readiness-live"
+          )
+        ),
+        ...releaseActionQueue.items.filter(
+          (entry) => entry.readOnlyCommands.length > 0
+        )
+      ]
+        .filter(
+          (entry, index, entries) =>
+            entries.findIndex((candidate) => candidate.id === entry.id) === index
+        )
+        .slice(0, 6)
+    : [];
   const releaseActionQueuePacketName =
     releaseActionQueue?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const checkpoint = overview?.installReadiness.checkpoint;
@@ -1853,10 +1901,7 @@ export function OpsLensAdminDashboard() {
                 className="admin-evidence-line"
                 data-testid="opslens-release-action-queue-approval-handoff"
               >
-                {releaseActionQueue.items
-                  .filter((entry) => entry.approvalGatedCommands.length > 0)
-                  .slice(0, 3)
-                  .map((entry) => (
+                {releaseApprovalHandoffActions.map((entry) => (
                     <span key={entry.id}>
                       {entry.owner}:
                       {entry.approvalGatedCommands
@@ -1869,10 +1914,7 @@ export function OpsLensAdminDashboard() {
                 className="admin-evidence-line"
                 data-testid="opslens-release-action-queue-readonly-handoff"
               >
-                {releaseActionQueue.items
-                  .filter((entry) => entry.readOnlyCommands.length > 0)
-                  .slice(0, 4)
-                  .map((entry) => (
+                {releaseReadOnlyHandoffActions.map((entry) => (
                     <span key={entry.id}>
                       {entry.owner}:
                       {entry.readOnlyCommands
@@ -1895,6 +1937,33 @@ export function OpsLensAdminDashboard() {
                       {entry.setupCommands.map((command) => command.id).join(", ")}
                     </span>
                   ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-network-actions"
+              >
+                {releaseNetworkActions.length > 0 ? (
+                  releaseNetworkActions.slice(0, 5).map((entry) => (
+                    <span key={entry.id}>
+                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
+                      :readOnly=
+                      {entry.readOnlyCommands
+                        .slice(0, 4)
+                        .map((command) => command.id)
+                        .join(", ")}
+                      :diagnostics=
+                      {entry.diagnostics
+                        .slice(0, 6)
+                        .map(
+                          (diagnostic) =>
+                            `${diagnostic.id}=${diagnostic.value}`
+                        )
+                        .join(" | ")}
+                    </span>
+                  ))
+                ) : (
+                  <span>network actions clear</span>
+                )}
               </div>
               <div
                 className="admin-evidence-line"

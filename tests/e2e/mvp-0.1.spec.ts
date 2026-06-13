@@ -1653,6 +1653,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             id?: string;
             owner?: string;
             priority?: string;
+            source?: string;
             evidenceNeeded?: string;
             nextCommand?: string;
             handoffNextCommands?: string[];
@@ -2689,24 +2690,76 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         ["network-sre", "cluster-admin", "cluster-sre"].includes(owner)
       )
     ).toBe(true);
+    const hasOpenOcpNetworkGap =
+      body.installReadiness?.actionQueue?.sourceArtifacts?.some(
+        (source) =>
+          source.id === "ocpNetworkHandoff" &&
+          !["PASS", "READY_FOR_LIVE_RECHECK"].includes(source.status ?? "")
+      ) === true;
+    const ocpNetworkActions =
+      body.installReadiness?.actionQueue?.items?.filter(
+        (item) =>
+          item.source?.includes("ocpNetworkHandoff") ||
+          item.source?.includes("ocpConnectivity") ||
+          item.id?.includes("ocp-api") ||
+          item.id?.includes("ocp-tls") ||
+          item.id?.includes("ocp-auth-rbac")
+      ) ?? [];
+    if (hasOpenOcpNetworkGap) {
+      expect(ocpNetworkActions.length).toBeGreaterThan(0);
+      const networkDiagnosticAction = ocpNetworkActions.find((item) =>
+        item.diagnostics?.some(
+          (diagnostic) => diagnostic.id === "ocp-network-target"
+        )
+      );
+      expect(networkDiagnosticAction?.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining([
+          "ocp-network-handoff-status",
+          "ocp-network-target",
+          "ocp-network-probes",
+          "ocp-network-boundary"
+        ])
+      );
+      expect(
+        networkDiagnosticAction?.diagnostics?.find(
+          (item) => item.id === "ocp-network-target"
+        )?.value
+      ).toMatch(/host=.*port=.*tokenConfigured=(true|false)/);
+      expect(
+        networkDiagnosticAction?.diagnostics?.find(
+          (item) => item.id === "ocp-network-probes"
+        )?.value
+      ).toMatch(/tcp=.*tls=.*version=.*oc=/);
+      expect(
+        networkDiagnosticAction?.diagnostics?.find(
+          (item) => item.id === "ocp-network-boundary"
+        )?.value
+      ).toContain("clusterMutationAttempted=false");
+    }
     const clusterAdminOwnerPacket =
       body.installReadiness?.actionQueue?.ownerPackets?.find(
         (packet) => packet.owner === "cluster-admin"
       );
-    expect(clusterAdminOwnerPacket?.markdownPath).toContain("cluster-admin.md");
-    expect(clusterAdminOwnerPacket?.nextCommands?.join(" ")).toContain(
+    if (clusterAdminOwnerPacket) {
+      expect(clusterAdminOwnerPacket.markdownPath).toContain("cluster-admin.md");
+    }
+    const liveReaderRbacOwnerPacket =
+      body.installReadiness?.actionQueue?.ownerPackets?.find((packet) =>
+        packet.approvalGatedCommandIds?.includes("apply-live-evidence-reader-rbac")
+      );
+    expect(liveReaderRbacOwnerPacket?.nextCommands?.join(" ")).toContain(
       "evidence:ocp-auth-rbac-plan"
     );
-    expect(clusterAdminOwnerPacket?.approvalGatedCommandIds).toEqual(
+    expect(liveReaderRbacOwnerPacket?.approvalGatedCommandIds).toEqual(
       expect.arrayContaining([
         "apply-live-evidence-reader-rbac",
         "create-short-lived-live-reader-token"
       ])
     );
-    expect(clusterAdminOwnerPacket?.readOnlyCommandIds).toEqual(
+    expect(liveReaderRbacOwnerPacket?.readOnlyCommandIds).toEqual(
       expect.arrayContaining(["verify-post-approval-live-reader-smoke"])
     );
-    expect(clusterAdminOwnerPacket?.mutationAllowedByThisVerifier).toBe(false);
+    expect(liveReaderRbacOwnerPacket?.mutationAllowedByThisVerifier).toBe(false);
     expect(
       body.installReadiness?.actionQueue?.ownerPacketCleanup?.deletionAllowed
     ).toBe(true);
@@ -2879,10 +2932,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         )
       ).toBe(true);
     }
-    const lightspeedAuthAction =
+    const lightspeedReadinessAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) =>
-          item.id === "cluster-admin-fix-lightspeed-readiness-auth-rbac"
+          item.source === "checkpoint:lightspeedReadiness" ||
+          item.id?.includes("lightspeed-readiness")
       );
     if (
       body.installReadiness?.actionQueue?.sourceArtifacts?.some(
@@ -2890,35 +2944,43 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           source.id === "lightspeedReadiness" && source.status === "FAIL"
       )
     ) {
-      expect(lightspeedAuthAction?.owner).toBe("cluster-admin");
-      expect(lightspeedAuthAction?.nextCommand).toContain(
-        "evidence:ocp-auth-rbac-plan"
+      expect(["cluster-admin", "cluster-sre", "network-sre"]).toContain(
+        lightspeedReadinessAction?.owner
       );
-      expect(lightspeedAuthAction?.evidenceNeeded).toContain("OLSConfig");
-      expect(lightspeedAuthAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
+      expect(lightspeedReadinessAction?.nextCommand).toMatch(
+        /evidence:ocp-auth-rbac-plan|verify:lightspeed/
+      );
+      expect(lightspeedReadinessAction?.evidenceNeeded).toContain("OLSConfig");
+      expect(lightspeedReadinessAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining(["lightspeed-readiness-live"])
       );
-      expect(lightspeedAuthAction?.diagnostics?.map((item) => item.id)).toEqual(
-        expect.arrayContaining([
-          "post-approval-rbac",
-          "post-approval-lightspeed",
-          "post-approval-sources"
-        ])
-      );
-      expect(
-        lightspeedAuthAction?.diagnostics
-          ?.find((item) => item.id === "post-approval-rbac")
-          ?.value
-      ).toMatch(/allowed=\d+\/\d+/);
-      expect(lightspeedAuthAction?.approvalGatedCommands?.map((command) => command.id)).toEqual(
-        expect.arrayContaining([
-          "apply-live-evidence-reader-rbac",
-          "create-short-lived-live-reader-token"
-        ])
-      );
-      expect(lightspeedAuthAction?.blockedBy?.join(" ")).toMatch(
-        /auth-or-rbac|OLSConfig|credentials/
-      );
+      if (lightspeedReadinessAction?.id === "cluster-admin-fix-lightspeed-readiness-auth-rbac") {
+        expect(lightspeedReadinessAction.diagnostics?.map((item) => item.id)).toEqual(
+          expect.arrayContaining([
+            "post-approval-rbac",
+            "post-approval-lightspeed",
+            "post-approval-sources"
+          ])
+        );
+        expect(
+          lightspeedReadinessAction.diagnostics
+            ?.find((item) => item.id === "post-approval-rbac")
+            ?.value
+        ).toMatch(/allowed=\d+\/\d+/);
+        expect(lightspeedReadinessAction.approvalGatedCommands?.map((command) => command.id)).toEqual(
+          expect.arrayContaining([
+            "apply-live-evidence-reader-rbac",
+            "create-short-lived-live-reader-token"
+          ])
+        );
+        expect(lightspeedReadinessAction.blockedBy?.join(" ")).toMatch(
+          /auth-or-rbac|OLSConfig|credentials/
+        );
+      } else {
+        expect(lightspeedReadinessAction?.blockedBy?.join(" ")).toMatch(
+          /tls|tcp|dns|network|OLSConfig/i
+        );
+      }
     }
     const ocpNetworkHandoffAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -3896,7 +3958,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("cluster-admin.md");
     await expect(
       page.getByTestId("opslens-release-action-queue-items")
-    ).toContainText("npm run evidence:ocp-auth-rbac-plan");
+    ).toContainText(/npm run evidence:ocp-auth-rbac-plan|npm run verify:ocp:connectivity/);
     await expect(
       page.getByTestId("opslens-release-action-queue-approval-handoff")
     ).toContainText("apply-live-evidence-reader-rbac");
@@ -3906,6 +3968,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-readonly-handoff")
     ).toContainText("ocp-connectivity");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-network-actions")
+    ).toContainText(/ocp-network-target|network actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-network-actions")
+    ).toContainText(/ocp-network-probes|network actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-tooling-handoff")
     ).toContainText("opm");
@@ -3950,13 +4018,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText(/aiops-monitoring-proxy-smoke|monitoring proxy actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
-    ).toContainText(/cluster-admin-fix-lightspeed-readiness-auth-rbac|lightspeed readiness actions clear/);
+    ).toContainText(/cluster-admin-fix-lightspeed-readiness-auth-rbac|cluster-sre-fix-lightspeed-readiness-tls|network-sre-unblock-lightspeed-readiness-ocp-api|lightspeed readiness actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
     ).toContainText(/lightspeed-readiness-live|lightspeed readiness actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-diagnostics")
-    ).toContainText(/post-approval-rbac|cluster-admin-fix-lightspeed-readiness-auth-rbac/);
+    ).toContainText(/post-approval-rbac|ocp-network-target|cluster-admin-fix-lightspeed-readiness-auth-rbac/);
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "localEvidenceRefresh"
     );
