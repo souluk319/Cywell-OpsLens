@@ -16,6 +16,7 @@ This directory holds human-reviewed vulnerability scan, SBOM, signature, and pro
 
 - Vulnerability scans must record scanner name, scanner version, image reference, immutable digest when available, critical findings, high findings, report path, reviewer, and review timestamp.
 - SBOM evidence must record generator name, generator version, output format, image reference, immutable digest when available, artifact path, reviewer, and review timestamp.
+- Security review evidence must use `opslens.security-review.v0.1`, match the image name, include reviewer, reviewed timestamp, ticket, scan/SBOM paths, `decision`, and `criticalFindings`.
 - Release approval must confirm unresolved Critical findings are zero before any external publication.
 - Signature and registry attachment commands remain approval-gated; local evidence generation does not sign, push, mirror, or mutate a cluster.
 
@@ -33,5 +34,7 @@ This directory holds human-reviewed vulnerability scan, SBOM, signature, and pro
 - `vllm-sbom.spdx.json`
 - `qdrant-vulnerability.json`
 - `qdrant-sbom.spdx.json`
+- `qdrant-security-review.json`
+- `security-review.example.json`
 
 Generated reviewer drafts may be kept outside source control until reviewed. Final release evidence should be linked from `test-results/cywell-opslens-security-scan-plan.json` and the release evidence bundle.

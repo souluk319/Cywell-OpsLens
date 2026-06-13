@@ -1,0 +1,18 @@
+{
+  "schema": "cywell.opslens.security-review.v0.1",
+  "artifactType": "opslens.security-review.v0.1",
+  "imageName": "operator",
+  "image": "quay.io/cywell/opslens-operator@sha256:<image-digest>",
+  "decision": "approved",
+  "criticalFindings": 0,
+  "highFindings": 0,
+  "vulnerabilityReport": "docs/release/evidence/security/operator-vulnerability.json",
+  "sbom": "docs/release/evidence/security/operator-sbom.spdx.json",
+  "reviewer": "<security-reviewer>",
+  "reviewedAt": "<ISO-8601 timestamp>",
+  "ticket": "<release-or-security-ticket>",
+  "notes": [
+    "Replace placeholders with reviewed evidence before using this as final release evidence.",
+    "Do not approve if unresolved Critical findings are present."
+  ]
+}

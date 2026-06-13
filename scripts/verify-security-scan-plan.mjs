@@ -197,12 +197,223 @@ function evidencePaths(image) {
   };
 }
 
+function placeholderValue(value) {
+  return value === undefined ||
+    value === null ||
+    value === "" ||
+    /<[^>]+>/.test(String(value)) ||
+    /\b(TBD|TODO|PLACEHOLDER|FILL_ME)\b/i.test(String(value));
+}
+
+function optionalJson(path, label) {
+  if (!existsSync(path)) return { exists: false, valid: false, missingEvidence: [] };
+  try {
+    return {
+      exists: true,
+      valid: true,
+      artifact: JSON.parse(readFileSync(path, "utf8")),
+      missingEvidence: []
+    };
+  } catch (error) {
+    return {
+      exists: true,
+      valid: false,
+      artifact: undefined,
+      missingEvidence: [`${label} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`]
+    };
+  }
+}
+
+function criticalFindingsFromTrivy(report) {
+  if (!Array.isArray(report?.Results)) return undefined;
+  return report.Results.reduce((total, result) => {
+    const vulnerabilities = Array.isArray(result?.Vulnerabilities)
+      ? result.Vulnerabilities
+      : [];
+    return total + vulnerabilities.filter((vulnerability) =>
+      String(vulnerability?.Severity ?? "").toUpperCase() === "CRITICAL"
+    ).length;
+  }, 0);
+}
+
+function numberField(...values) {
+  for (const value of values) {
+    const numberValue = Number(value);
+    if (Number.isFinite(numberValue)) return numberValue;
+  }
+  return undefined;
+}
+
+function validateVulnerabilityEvidence(path, image) {
+  const loaded = optionalJson(path, `${image.name} vulnerability evidence`);
+  if (!loaded.exists) {
+    return {
+      exists: false,
+      valid: false,
+      criticalFindings: undefined,
+      scanner: "missing",
+      missingEvidence: []
+    };
+  }
+  const report = loaded.artifact;
+  const criticalFindings = numberField(
+    report?.criticalFindings,
+    report?.summary?.criticalFindings,
+    report?.metadata?.criticalFindings,
+    criticalFindingsFromTrivy(report)
+  );
+  const scanner = report?.scanner?.name ?? report?.metadata?.scanner ?? "trivy-json";
+  const missingEvidence = [...loaded.missingEvidence];
+  if (criticalFindings === undefined) {
+    missingEvidence.push(`${image.name} vulnerability evidence must expose criticalFindings or Trivy Results`);
+  } else if (criticalFindings > 0) {
+    missingEvidence.push(`${image.name} vulnerability evidence reports criticalFindings=${criticalFindings}`);
+  }
+  if (
+    report &&
+    !report.SchemaVersion &&
+    !report.schema &&
+    !report.artifactType &&
+    !report.scanner
+  ) {
+    missingEvidence.push(`${image.name} vulnerability evidence must identify the scanner or schema`);
+  }
+  return {
+    exists: true,
+    valid: missingEvidence.length === 0,
+    criticalFindings,
+    scanner,
+    missingEvidence
+  };
+}
+
+function validateSbomEvidence(path, image) {
+  const loaded = optionalJson(path, `${image.name} SBOM evidence`);
+  if (!loaded.exists) {
+    return {
+      exists: false,
+      valid: false,
+      format: "missing",
+      packageCount: 0,
+      missingEvidence: []
+    };
+  }
+  const sbom = loaded.artifact;
+  const missingEvidence = [...loaded.missingEvidence];
+  const packageCount = Array.isArray(sbom?.packages)
+    ? sbom.packages.length
+    : Array.isArray(sbom?.artifacts)
+      ? sbom.artifacts.length
+      : 0;
+  const format = sbom?.spdxVersion ? "spdx-json" : sbom?.artifacts ? "syft-json" : "unknown";
+  if (!sbom?.spdxVersion && !Array.isArray(sbom?.artifacts)) {
+    missingEvidence.push(`${image.name} SBOM evidence must be SPDX JSON or Syft JSON`);
+  }
+  if (packageCount <= 0) {
+    missingEvidence.push(`${image.name} SBOM evidence must list at least one package/artifact`);
+  }
+  return {
+    exists: true,
+    valid: missingEvidence.length === 0,
+    format,
+    packageCount,
+    missingEvidence
+  };
+}
+
+function validateSecurityReview(path, image) {
+  const loaded = optionalJson(path, `${image.name} security review`);
+  if (!loaded.exists) {
+    return {
+      exists: false,
+      valid: false,
+      approved: false,
+      decision: "missing",
+      missingEvidence: []
+    };
+  }
+  const review = loaded.artifact;
+  const missingEvidence = [...loaded.missingEvidence];
+  const decision = String(review?.decision ?? review?.status ?? "missing").toLowerCase();
+  const criticalFindings = numberField(
+    review?.criticalFindings,
+    review?.vulnerabilityScan?.criticalFindings
+  );
+  if (
+    review?.artifactType !== "opslens.security-review.v0.1" &&
+    review?.schema !== "cywell.opslens.security-review.v0.1"
+  ) {
+    missingEvidence.push(`${image.name} security review must use opslens.security-review.v0.1`);
+  }
+  if (review?.imageName !== image.name) {
+    missingEvidence.push(`${image.name} security review imageName must equal ${image.name}`);
+  }
+  if (!["approved", "needs-remediation", "accepted-risk", "rejected"].includes(decision)) {
+    missingEvidence.push(`${image.name} security review decision must be approved, needs-remediation, accepted-risk, or rejected`);
+  }
+  if (placeholderValue(review?.reviewer)) {
+    missingEvidence.push(`${image.name} security review must identify a non-placeholder reviewer`);
+  }
+  if (placeholderValue(review?.reviewedAt) || Number.isNaN(Date.parse(String(review?.reviewedAt)))) {
+    missingEvidence.push(`${image.name} security review must include reviewedAt as an ISO timestamp`);
+  }
+  if (placeholderValue(review?.ticket)) {
+    missingEvidence.push(`${image.name} security review must include a release/security ticket`);
+  }
+  if (criticalFindings === undefined) {
+    missingEvidence.push(`${image.name} security review must record criticalFindings`);
+  } else if (criticalFindings > 0 && decision === "approved") {
+    missingEvidence.push(`${image.name} security review cannot approve unresolved criticalFindings=${criticalFindings}`);
+  }
+  const approved = decision === "approved" && criticalFindings === 0;
+  if (!approved) {
+    missingEvidence.push(`${image.name} security review must be approved with criticalFindings=0 before release`);
+  }
+  return {
+    exists: true,
+    valid: missingEvidence.length === 0,
+    approved,
+    decision,
+    reviewer: review?.reviewer ?? "missing",
+    criticalFindings,
+    missingEvidence
+  };
+}
+
 function existingEvidenceState(image) {
   const paths = evidencePaths(image);
+  const vulnerability = validateVulnerabilityEvidence(paths.vulnerabilityReport, image);
+  const sbom = validateSbomEvidence(paths.sbom, image);
+  const review = validateSecurityReview(paths.review, image);
+  for (const [label, state] of [
+    ["vulnerability evidence", vulnerability],
+    ["SBOM evidence", sbom],
+    ["security review", review]
+  ]) {
+    if (state.exists && state.valid) {
+      pass(`${image.name} ${label}`, "existing evidence is parseable and release-review compatible");
+    } else if (state.exists) {
+      warn(`${image.name} ${label}`, state.missingEvidence.join("; "));
+    }
+  }
   return {
     vulnerabilityReportExists: existsSync(paths.vulnerabilityReport),
     sbomExists: existsSync(paths.sbom),
     reviewExists: existsSync(paths.review),
+    vulnerabilityReportValid: vulnerability.valid,
+    vulnerabilityCriticalFindings: vulnerability.criticalFindings,
+    sbomValid: sbom.valid,
+    sbomFormat: sbom.format,
+    sbomPackageCount: sbom.packageCount,
+    reviewValid: review.valid,
+    reviewApproved: review.approved,
+    reviewDecision: review.decision,
+    reviewCriticalFindings: review.criticalFindings,
+    validationMissingEvidence: [
+      ...vulnerability.missingEvidence,
+      ...sbom.missingEvidence,
+      ...review.missingEvidence
+    ],
     paths
   };
 }
@@ -340,12 +551,18 @@ async function main() {
   for (const image of allImages.filter((image) => image.required)) {
     if (!image.securityEvidence.vulnerabilityReportExists) {
       missingEvidence.push(`${image.name} vulnerability scan evidence missing at ${image.securityEvidence.paths.vulnerabilityReport}`);
+    } else if (!image.securityEvidence.vulnerabilityReportValid) {
+      missingEvidence.push(...image.securityEvidence.validationMissingEvidence.filter((entry) => entry.includes("vulnerability")));
     }
     if (!image.securityEvidence.sbomExists) {
       missingEvidence.push(`${image.name} SBOM evidence missing at ${image.securityEvidence.paths.sbom}`);
+    } else if (!image.securityEvidence.sbomValid) {
+      missingEvidence.push(...image.securityEvidence.validationMissingEvidence.filter((entry) => entry.includes("SBOM")));
     }
     if (!image.securityEvidence.reviewExists) {
       missingEvidence.push(`${image.name} security review evidence missing at ${image.securityEvidence.paths.review}`);
+    } else if (!image.securityEvidence.reviewApproved) {
+      missingEvidence.push(...image.securityEvidence.validationMissingEvidence.filter((entry) => entry.includes("security review")));
     }
   }
 
