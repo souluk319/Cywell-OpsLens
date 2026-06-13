@@ -8,6 +8,8 @@ Cywell OpsLens uses OpenShift Lightspeed as the first user-facing validation cha
 
 The Stage 1 integration point is a custom MCP server registered through `OLSConfig.spec.mcpServers`, not an undocumented REST webhook. The REST endpoint remains useful for local smoke tests and partner demos, while `/mcp` is the Lightspeed-facing contract.
 
+For Stage 4 installs, the approved registration path is `OpsLensInstallation.spec.lightspeedRegistration.mode=PatchOLSConfig` with a previewed OLSConfig patch and rollback path. Legacy Lightspeed ConfigMap mutation is not used or attempted by MVP 0.1 evidence.
+
 ## Evidence From Official Platform Docs
 
 - OpenShift Lightspeed 1.0 documents custom MCP servers through `spec.featureGates: [MCPServer]` and `spec.mcpServers`.

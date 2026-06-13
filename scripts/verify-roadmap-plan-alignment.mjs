@@ -14,6 +14,7 @@ const paths = {
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
+  installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   roadmapOut: "test-results/cywell-opslens-roadmap-plan-alignment.json"
 };
 
@@ -163,6 +164,68 @@ function imageActualBuildRequirement(imageBuild) {
   };
 }
 
+function installPlanLightspeedRegistrationRequirement(installPlan) {
+  if (!installPlan) {
+    return {
+      id: "install-plan-lightspeed-registration",
+      label: "Install approval plan Lightspeed registration contract",
+      status: "needs-evidence",
+      evidence: [],
+      missingEvidence: ["install approval plan artifact is missing"]
+    };
+  }
+
+  const registration = installPlan.lightspeedRegistration;
+  const blockers = [];
+  if (!registration) {
+    blockers.push("lightspeedRegistration summary is missing");
+  }
+  if (registration?.actionMode !== "previewOnly") {
+    blockers.push(`actionMode=${registration?.actionMode ?? "missing"}`);
+  }
+  if (registration?.configResourceKind !== "OLSConfig") {
+    blockers.push(`configResourceKind=${registration?.configResourceKind ?? "missing"}`);
+  }
+  if (registration?.mode !== "PatchOLSConfig") {
+    blockers.push(`mode=${registration?.mode ?? "missing"}`);
+  }
+  if (registration?.desiredServer?.url?.endsWith("/mcp") !== true) {
+    blockers.push("desired MCP server URL must end with /mcp");
+  }
+  if (registration?.legacyConfigMapMutationAttempted !== false) {
+    blockers.push(
+      `legacyConfigMapMutationAttempted=${String(registration?.legacyConfigMapMutationAttempted)}`
+    );
+  }
+  if (registration?.clusterMutationAttempted !== false) {
+    blockers.push(`clusterMutationAttempted=${String(registration?.clusterMutationAttempted)}`);
+  }
+  if (registration?.mutationAllowedByThisVerifier !== false) {
+    blockers.push(
+      `mutationAllowedByThisVerifier=${String(registration?.mutationAllowedByThisVerifier)}`
+    );
+  }
+  const hasPatchPreviewCommand = (registration?.readOnlyCommands ?? []).some((command) =>
+    command.command?.includes("verify:lightspeed:patch-preview")
+  );
+  if (!hasPatchPreviewCommand) {
+    blockers.push("read-only patch-preview command is missing");
+  }
+
+  return {
+    id: "install-plan-lightspeed-registration",
+    label: "Install approval plan Lightspeed registration contract",
+    status: blockers.length === 0 ? "pass" : "blocked",
+    evidence: blockers.length === 0
+      ? [
+          `${registration.mode} ${registration.configResourceKind} ${registration.target?.namespace}/${registration.target?.name} desired=${registration.desiredServer?.name}`
+        ]
+      : [],
+    missingEvidence: blockers,
+    blockers
+  };
+}
+
 function artifactRef(artifact) {
   return {
     headSha: artifact?.headSha ?? artifact?.ref?.headSha,
@@ -243,12 +306,14 @@ async function main() {
   const imageBuild = loadJson(paths.imageBuild, "image build readiness");
   const ownedImageProvenance = loadJson(paths.ownedImageProvenance, "owned image provenance");
   const consolePluginAssets = loadJson(paths.consolePluginAssets, "ConsolePlugin assets");
+  const installPlan = loadJson(paths.installPlan, "install approval plan");
   const globalRequirements = [
     artifactFreshnessRequirement(checkpoint, "checkpoint-fresh", "Evidence checkpoint", headSha),
     artifactFreshnessRequirement(mvpGate, "mvp-gate-fresh", "MVP gate", headSha),
     artifactFreshnessRequirement(imageBuild, "image-build-fresh", "Image build readiness", headSha),
     artifactFreshnessRequirement(ownedImageProvenance, "owned-image-provenance-fresh", "Owned image provenance", headSha),
-    artifactFreshnessRequirement(consolePluginAssets, "console-plugin-assets-fresh", "ConsolePlugin assets", headSha)
+    artifactFreshnessRequirement(consolePluginAssets, "console-plugin-assets-fresh", "ConsolePlugin assets", headSha),
+    artifactFreshnessRequirement(installPlan, "install-plan-fresh", "Install approval plan", headSha)
   ];
 
   const stages = [
@@ -301,6 +366,7 @@ async function main() {
       laneRequirement(checkpoint, "consolePluginAssets", "ConsolePlugin dynamic plugin asset evidence"),
       laneRequirement(checkpoint, "operatorDryRun", "Live Operator server dry-run", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "installPlan", "Human install approval plan", ["pass", "needs-evidence"]),
+      installPlanLightspeedRegistrationRequirement(installPlan),
       laneRequirement(checkpoint, "liveHandoff", "SRE-safe live evidence handoff"),
       laneRequirement(checkpoint, "ocpNetworkHandoff", "Network/SRE handoff packet"),
       laneRequirement(checkpoint, "ocpAuthRbacPlan", "OCP auth/RBAC approval packet"),
