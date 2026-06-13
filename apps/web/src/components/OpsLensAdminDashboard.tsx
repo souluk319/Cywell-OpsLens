@@ -59,7 +59,8 @@ function statusClass(status: string) {
     status === "indexed" ||
     status === "ready" ||
     status === "ready-for-ingestion-job" ||
-    status === "ready-for-dry-run"
+    status === "ready-for-dry-run" ||
+    status === "ready-for-scan"
   ) {
     return "fresh";
   }
@@ -176,6 +177,7 @@ export function OpsLensAdminDashboard() {
   const catalogToolchainPlan =
     overview?.installReadiness.catalogToolchainPlan;
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
+  const securityScanPlan = overview?.installReadiness.securityScanPlan;
   const ownedImageProvenancePlan =
     overview?.installReadiness.ownedImageProvenancePlan;
   const releasePlan = overview?.installReadiness.releasePlan;
@@ -884,6 +886,7 @@ export function OpsLensAdminDashboard() {
                     overview.installReadiness.ownedImageProvenance,
                   "External Runtime":
                     overview.installReadiness.externalRuntimeImages,
+                  "Security Scan": overview.installReadiness.securityScan,
                   "Release Publish": overview.installReadiness.releasePublish,
                   "Release Refresh": overview.installReadiness.releaseRefresh,
                   "Evidence Checkpoint":
@@ -1384,6 +1387,90 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {externalRuntimePlan.rollbackPath[0] ??
                     "Rollback path must be reviewed before mirroring runtime images."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {securityScanPlan ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-security-scan-plan"
+            >
+              <div className="admin-evidence-line">
+                <span>{securityScanPlan.artifactStatus}</span>
+                <span>{securityScanPlan.actionMode}</span>
+                <span>
+                  registryMutationAttempted=
+                  {String(securityScanPlan.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(securityScanPlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(securityScanPlan.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Scan CLI</span>
+                  <strong>
+                    {securityScanPlan.cli.length
+                      ? securityScanPlan.cli
+                          .map(
+                            (tool) =>
+                              `${tool.name}:${tool.available ? "ready" : "missing"}`
+                          )
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Image Evidence</span>
+                  <strong>
+                    {securityScanPlan.images.length
+                      ? securityScanPlan.images
+                          .slice(0, 6)
+                          .map(
+                            (image) =>
+                              `${image.name}:scan=${String(image.vulnerabilityReportExists)} sbom=${String(image.sbomExists)} review=${String(image.reviewExists)}`
+                          )
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Read-only Evidence</span>
+                  <strong>
+                    {securityScanPlan.readOnlyCommands.length
+                      ? securityScanPlan.readOnlyCommands
+                          .slice(0, 5)
+                          .map((command) => command.id)
+                          .join(", ")
+                      : "none"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Approval-gated Signing</span>
+                  <strong>
+                    {securityScanPlan.approvalGatedCommands.length
+                      ? securityScanPlan.approvalGatedCommands
+                          .slice(0, 5)
+                          .map((command) => command.id)
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {securityScanPlan.risk[0] ??
+                    "Security scan evidence reads local readiness only."}
+                </p>
+                <p>
+                  {securityScanPlan.rollbackPath[0] ??
+                    "Regenerate security scan evidence from a clean worktree."}
                 </p>
               </div>
             </div>

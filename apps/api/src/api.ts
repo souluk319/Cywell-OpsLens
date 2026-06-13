@@ -51,6 +51,8 @@ import type {
   OpsLensReleaseEvidenceRefreshReadiness,
   OpsLensReleaseEvidenceRefreshSummary,
   OpsLensRemediationProposal,
+  OpsLensSecurityScanPlanSummary,
+  OpsLensSecurityScanReadiness,
   OpsLensRagIngestionApprovalPlanSummary,
   OpsLensRuntimeDependencyReadiness,
   OpsLensRuntimeReadiness,
@@ -1374,6 +1376,66 @@ type CatalogToolchainEvidenceArtifact = {
   rollbackPath?: string[];
 };
 
+type SecurityScanPlanEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  cli?: Array<{
+    name?: string;
+    available?: boolean;
+    version?: string;
+  }>;
+  images?: Array<{
+    name?: string;
+    image?: string;
+    required?: boolean;
+    source?: string;
+    securityEvidence?: {
+      vulnerabilityReportExists?: boolean;
+      sbomExists?: boolean;
+      reviewExists?: boolean;
+    };
+  }>;
+  commands?: {
+    readOnly?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      requiresNetwork?: boolean;
+      mutation?: boolean;
+      writesLocalEvidence?: boolean;
+    }>;
+    setup?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      requiresNetwork?: boolean;
+      mutation?: boolean;
+    }>;
+    approvalGated?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      requiresNetwork?: boolean;
+      mutation?: boolean;
+      requiresExplicitApproval?: boolean;
+    }>;
+  };
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type ReleaseEvidenceRefreshArtifact = {
   artifactType?: string;
   status?: string;
@@ -1570,6 +1632,13 @@ function catalogToolchainEvidencePath() {
   );
 }
 
+function securityScanPlanEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_SECURITY_SCAN_PLAN_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-security-scan-plan.json")
+  );
+}
+
 function releaseEvidenceRefreshPath() {
   return (
     process.env.CYWELL_OPSLENS_RELEASE_EVIDENCE_REFRESH ??
@@ -1756,6 +1825,30 @@ function mapCatalogToolchainReadinessStatus(
   }
   if (artifact.status === "READY_FOR_DRY_RUN") {
     return "ready-for-dry-run";
+  }
+  if (artifact.status === "NEEDS_TOOLING") {
+    return "needs-tooling";
+  }
+  return "needs-evidence";
+}
+
+function mapSecurityScanPlanReadinessStatus(
+  artifact: SecurityScanPlanEvidenceArtifact
+): OpsLensSecurityScanReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.status === "FAIL" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "failed";
+  }
+  if (artifact.ref?.worktreeDirty) {
+    return "needs-evidence";
+  }
+  if (artifact.status === "READY_FOR_SCAN") {
+    return "ready-for-scan";
   }
   if (artifact.status === "NEEDS_TOOLING") {
     return "needs-tooling";
@@ -2973,6 +3066,160 @@ function getCatalogToolchainReadiness(): {
   }
 }
 
+function missingSecurityScanPlanSummary(
+  reason: string,
+  status: OpsLensSecurityScanReadiness = "needs-evidence"
+): OpsLensSecurityScanPlanSummary {
+  return {
+    status,
+    artifactStatus: status === "failed" ? "invalid" : "missing",
+    actionMode: "scanPlanOnly",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    cli: [],
+    images: [],
+    readOnlyCommands: [
+      {
+        id: "generate-security-scan-plan",
+        command: "npm run verify:security-scan-plan",
+        phase: "local-contract",
+        requiresNetwork: false,
+        mutation: false,
+        writesLocalEvidence: true
+      }
+    ],
+    setupCommands: [],
+    approvalGatedCommands: [],
+    missingEvidence: [reason],
+    risk: [
+      "Without security scan plan evidence, release review cannot distinguish missing scan/SBOM inputs from approved signing or registry actions."
+    ],
+    rollbackPath: [
+      "Run npm run verify:security-scan-plan from a clean Git HEAD before release-manager review."
+    ]
+  };
+}
+
+function getSecurityScanPlanReadiness(): {
+  status: OpsLensSecurityScanReadiness;
+  evidence: string[];
+  plan: OpsLensSecurityScanPlanSummary;
+} {
+  const evidencePath = securityScanPlanEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      plan: missingSecurityScanPlanSummary(
+        `security scan plan evidence is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run verify:security-scan-plan to create vulnerability/SBOM/signature readiness evidence",
+        "dashboard keeps security scan readiness as needs-evidence until scan tooling and evidence gaps are recorded",
+        "security scan evidence must keep registryMutationAttempted=false and clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as SecurityScanPlanEvidenceArtifact;
+    const status = mapSecurityScanPlanReadinessStatus(artifact);
+    const cli = (artifact.cli ?? []).map((tool) => ({
+      name: tool.name ?? "unknown",
+      available: tool.available === true,
+      version: tool.version ?? "missing"
+    }));
+    const images = (artifact.images ?? []).map((image) => ({
+      name: image.name ?? "unknown",
+      image: image.image ?? "unknown",
+      required: image.required === true,
+      source: image.source ?? "unknown",
+      vulnerabilityReportExists:
+        image.securityEvidence?.vulnerabilityReportExists === true,
+      sbomExists: image.securityEvidence?.sbomExists === true,
+      reviewExists: image.securityEvidence?.reviewExists === true
+    }));
+    const readOnlyCommands = (artifact.commands?.readOnly ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      phase: command.phase ?? "unknown",
+      requiresNetwork: command.requiresNetwork === true,
+      mutation: command.mutation === true,
+      writesLocalEvidence: command.writesLocalEvidence === true
+    }));
+    const setupCommands = (artifact.commands?.setup ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      phase: command.phase ?? "unknown",
+      requiresNetwork: command.requiresNetwork === true,
+      mutation: command.mutation === true
+    }));
+    const approvalGatedCommands = (artifact.commands?.approvalGated ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      phase: command.phase ?? "unknown",
+      requiresNetwork: command.requiresNetwork === true,
+      mutation: command.mutation === true,
+      requiresExplicitApproval: command.requiresExplicitApproval === true
+    }));
+    const missingTools = cli
+      .filter((tool) => !tool.available)
+      .map((tool) => tool.name)
+      .join(", ");
+    const requiredMissingEvidence = images.filter(
+      (image) =>
+        image.required &&
+        (!image.vulnerabilityReportExists || !image.sbomExists || !image.reviewExists)
+    ).length;
+
+    return {
+      status,
+      plan: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "scanPlanOnly",
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        cli,
+        images,
+        readOnlyCommands,
+        setupCommands,
+        approvalGatedCommands,
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `Security scan plan ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `security scan plan generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `scanReadOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length} approvalGatedCommands=${approvalGatedCommands.length}`,
+        missingTools ? `missing local scan/sign CLIs=${missingTools}` : "all reported scan/sign CLIs are available",
+        `required images missing scan/SBOM/review evidence=${requiredMissingEvidence}`,
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads security scan evidence only; it does not sign, push, mirror, or mutate cluster resources"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      plan: missingSecurityScanPlanSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "failed"
+      ),
+      evidence: [
+        `Security scan plan evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid security scan evidence blocks overclaiming certification readiness"
+      ]
+    };
+  }
+}
+
 function missingReleaseEvidenceRefreshSummary(
   reason: string,
   status: OpsLensReleaseEvidenceRefreshReadiness = "needs-evidence"
@@ -3378,6 +3625,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
   const installPlanReadiness = getInstallApprovalPlanReadiness();
   const catalogToolchainReadiness = getCatalogToolchainReadiness();
+  const securityScanReadiness = getSecurityScanPlanReadiness();
   const releasePublishReadiness = getReleasePublishPlanReadiness();
   const releaseEvidenceRefreshReadiness = getReleaseEvidenceRefreshReadiness();
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
@@ -3394,6 +3642,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     imageBuildReadiness.evidence[0],
     ownedImageProvenanceReadiness.evidence[0],
     externalRuntimeImagesReadiness.evidence[0],
+    securityScanReadiness.evidence[0],
     releasePublishReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
     ...lightspeedReadiness.evidence.slice(1),
@@ -3403,6 +3652,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...imageBuildReadiness.evidence.slice(1),
     ...ownedImageProvenanceReadiness.evidence.slice(1),
     ...externalRuntimeImagesReadiness.evidence.slice(1),
+    ...securityScanReadiness.evidence.slice(1),
     ...releasePublishReadiness.evidence.slice(1),
     ...releaseEvidenceRefreshReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
@@ -3557,6 +3807,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       ownedImageProvenancePlan: ownedImageProvenanceReadiness.plan,
       externalRuntimeImages: externalRuntimeImagesReadiness.status,
       externalRuntimePlan: externalRuntimeImagesReadiness.plan,
+      securityScan: securityScanReadiness.status,
+      securityScanPlan: securityScanReadiness.plan,
       releasePublish: releasePublishReadiness.status,
       releasePlan: releasePublishReadiness.plan,
       releaseRefresh: releaseEvidenceRefreshReadiness.status,
@@ -3582,6 +3834,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 5 image build readiness is validated by npm run verify:images",
         "Stage 5 owned image provenance is validated by npm run verify:owned-image-provenance",
         "Stage 5 external runtime evidence plan is generated by npm run verify:external-runtime-plan",
+        "Stage 5 security scan and SBOM plan is generated by npm run verify:security-scan-plan",
         "Stage 5 release publish approval plan is generated by npm run verify:release-plan",
         "Stage 5 release evidence refresh chain is generated by npm run verify:release-refresh",
         "Current-head release/install evidence is summarized by npm run verify:evidence-checkpoint"

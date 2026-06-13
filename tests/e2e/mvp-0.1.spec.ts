@@ -1050,6 +1050,37 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
           missingEvidence?: string[];
         };
+        securityScan?: string;
+        securityScanPlan?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          registryMutationAttempted?: boolean;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          cli?: Array<{ name?: string; available?: boolean }>;
+          images?: Array<{
+            name?: string;
+            required?: boolean;
+            vulnerabilityReportExists?: boolean;
+            sbomExists?: boolean;
+            reviewExists?: boolean;
+          }>;
+          readOnlyCommands?: Array<{
+            id?: string;
+            mutation?: boolean;
+            writesLocalEvidence?: boolean;
+          }>;
+          setupCommands?: Array<{ id?: string; mutation?: boolean }>;
+          approvalGatedCommands?: Array<{
+            id?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+          }>;
+          risk?: string[];
+          rollbackPath?: string[];
+          missingEvidence?: string[];
+        };
         releasePublish?: string;
         releasePlan?: {
           actionMode?: string;
@@ -1562,6 +1593,41 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       /external runtime evidence templates/i
     );
     expect([
+      "ready-for-scan",
+      "needs-tooling",
+      "needs-evidence",
+      "failed"
+    ]).toContain(body.installReadiness?.securityScan);
+    expect(body.installReadiness?.securityScanPlan).toMatchObject({
+      actionMode: "scanPlanOnly",
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.securityScanPlan?.cli?.map((tool) => tool.name)
+    ).toEqual(expect.arrayContaining(["trivy", "syft", "grype", "cosign", "docker"]));
+    expect(
+      body.installReadiness?.securityScanPlan?.images?.map((image) => image.name)
+    ).toEqual(
+      expect.arrayContaining(["operator", "api", "dashboard", "bundle", "vllm", "qdrant"])
+    );
+    expect(
+      body.installReadiness?.securityScanPlan?.readOnlyCommands?.every(
+        (command) => command.mutation === false
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.securityScanPlan?.approvalGatedCommands?.every(
+        (command) =>
+          command.mutation === true &&
+          command.requiresExplicitApproval === true
+      )
+    ).toBe(true);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /security scan/i
+    );
+    expect([
       "approval-required",
       "needs-evidence",
       "failed"
@@ -1601,6 +1667,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect.arrayContaining([
         "mvp-gate",
         "catalog-toolchain",
+        "security-scan-plan",
         "release-evidence-bundle"
       ])
     );
@@ -1998,6 +2065,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Catalog Toolchain"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Security Scan"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Release Refresh"
     );
     await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
@@ -2035,6 +2105,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
       "vllm"
+    );
+    await expect(page.getByTestId("opslens-security-scan-plan")).toContainText(
+      "scanPlanOnly"
+    );
+    await expect(page.getByTestId("opslens-security-scan-plan")).toContainText(
+      "registryMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-security-scan-plan")).toContainText(
+      "trivy:"
+    );
+    await expect(page.getByTestId("opslens-security-scan-plan")).toContainText(
+      "sign-owned"
     );
     await expect(page.getByTestId("opslens-owned-image-provenance")).toContainText(
       "readOnlyEvidenceOnly"

@@ -1018,6 +1018,12 @@ export type OpsLensCatalogToolchainReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensSecurityScanReadiness =
+  | "ready-for-scan"
+  | "needs-tooling"
+  | "needs-evidence"
+  | "failed";
+
 export type OpsLensReleaseEvidenceRefreshReadiness =
   | "ready"
   | "needs-evidence"
@@ -1155,6 +1161,55 @@ export interface OpsLensCatalogToolchainSummary {
     phase: string;
     requiresNetwork: boolean;
     mutation: boolean;
+  }>;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensSecurityScanPlanSummary {
+  status: OpsLensSecurityScanReadiness;
+  artifactStatus: string;
+  actionMode: "scanPlanOnly";
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  cli: Array<{
+    name: string;
+    available: boolean;
+    version: string;
+  }>;
+  images: Array<{
+    name: string;
+    image: string;
+    required: boolean;
+    source: string;
+    vulnerabilityReportExists: boolean;
+    sbomExists: boolean;
+    reviewExists: boolean;
+  }>;
+  readOnlyCommands: Array<{
+    id: string;
+    command: string;
+    phase: string;
+    requiresNetwork: boolean;
+    mutation: boolean;
+    writesLocalEvidence: boolean;
+  }>;
+  setupCommands: Array<{
+    id: string;
+    command: string;
+    phase: string;
+    requiresNetwork: boolean;
+    mutation: boolean;
+  }>;
+  approvalGatedCommands: Array<{
+    id: string;
+    command: string;
+    phase: string;
+    requiresNetwork: boolean;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
   }>;
   missingEvidence: string[];
   risk: string[];
@@ -1345,6 +1400,8 @@ export interface OpsLensAdminOverviewResponse {
     ownedImageProvenancePlan: OpsLensOwnedImageProvenanceSummary;
     externalRuntimeImages: OpsLensExternalRuntimeReadiness;
     externalRuntimePlan: OpsLensExternalRuntimeImagesPlanSummary;
+    securityScan: OpsLensSecurityScanReadiness;
+    securityScanPlan: OpsLensSecurityScanPlanSummary;
     releasePublish: OpsLensReleasePublishReadiness;
     releasePlan: OpsLensReleasePublishPlanSummary;
     releaseRefresh: OpsLensReleaseEvidenceRefreshReadiness;
