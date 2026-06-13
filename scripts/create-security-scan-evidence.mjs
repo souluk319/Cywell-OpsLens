@@ -55,6 +55,8 @@ const options = {
   executeDockerFallback: parsed.flags.has("execute-docker-fallback"),
   trivyImage: parsed.values.get("trivy-image") ?? "aquasec/trivy:latest",
   syftImage: parsed.values.get("syft-image") ?? "anchore/syft:latest",
+  trivyTimeout: parsed.values.get("trivy-timeout") ?? "30m",
+  trivyScanners: parsed.values.get("trivy-scanners") ?? "vuln",
   includeExternal: parsed.flags.has("include-external"),
   imageOverride: parsed.values.get("image"),
   scanRefOverride: parsed.values.get("scan-ref")
@@ -280,7 +282,7 @@ function commandPlan(target) {
     cli: [
       {
         id: `trivy-${target.name}`,
-        command: `trivy image --format json --output ${paths.vulnerabilityReport} ${target.scanRef}`,
+        command: `trivy image --timeout ${options.trivyTimeout} --scanners ${options.trivyScanners} --format json --output ${paths.vulnerabilityReport} ${target.scanRef}`,
         writesLocalEvidence: true
       },
       {
@@ -297,7 +299,7 @@ function commandPlan(target) {
     dockerFallback: [
       {
         id: `trivy-docker-${target.name}`,
-        command: `docker run --rm -v ${resolve(".")}:/workspace -v /var/run/docker.sock:/var/run/docker.sock ${options.trivyImage} image --format json --output /workspace/docs/release/evidence/security/${target.name}-vulnerability.json ${target.scanRef}`,
+        command: `docker run --rm -v ${resolve(".")}:/workspace -v /var/run/docker.sock:/var/run/docker.sock ${options.trivyImage} image --timeout ${options.trivyTimeout} --scanners ${options.trivyScanners} --format json --output /workspace/docs/release/evidence/security/${target.name}-vulnerability.json ${target.scanRef}`,
         writesLocalEvidence: true
       },
       {
@@ -390,6 +392,10 @@ async function executeForTarget(plan) {
   await mkdir(dirname(plan.paths.vulnerabilityReport), { recursive: true });
   const trivy = await runCapture("trivy", [
     "image",
+    "--timeout",
+    options.trivyTimeout,
+    "--scanners",
+    options.trivyScanners,
     "--format",
     "json",
     "--output",
@@ -455,6 +461,10 @@ async function executeDockerFallbackForTarget(plan, scannerImages) {
     dockerSocketMount,
     trivyImage,
     "image",
+    "--timeout",
+    options.trivyTimeout,
+    "--scanners",
+    options.trivyScanners,
     "--format",
     "json",
     "--output",
@@ -634,7 +644,9 @@ async function main() {
       includeExternal: options.includeExternal,
       imageOverride: options.imageOverride,
       scanRefOverride: options.scanRefOverride,
-      securityEvidenceDir: resolve(options.securityEvidenceDir)
+      securityEvidenceDir: resolve(options.securityEvidenceDir),
+      trivyTimeout: options.trivyTimeout,
+      trivyScanners: options.trivyScanners
     },
     scannerImages,
     cli: {

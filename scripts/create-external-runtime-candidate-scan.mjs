@@ -91,7 +91,9 @@ const options = {
   skipMatrix: parsed.flags.has("skip-matrix"),
   timeoutMs: Number(parsed.values.get("timeout-ms") ?? defaults.timeoutMs),
   trivyImage: parsed.values.get("trivy-image"),
-  syftImage: parsed.values.get("syft-image")
+  syftImage: parsed.values.get("syft-image"),
+  trivyTimeout: parsed.values.get("trivy-timeout"),
+  trivyScanners: parsed.values.get("trivy-scanners")
 };
 
 const startedAt = new Date().toISOString();
@@ -248,6 +250,8 @@ function securityScanArgs() {
   if (options.executeDockerFallback) args.push("--execute-docker-fallback");
   if (options.trivyImage) args.push("--trivy-image", options.trivyImage);
   if (options.syftImage) args.push("--syft-image", options.syftImage);
+  if (options.trivyTimeout) args.push("--trivy-timeout", options.trivyTimeout);
+  if (options.trivyScanners) args.push("--trivy-scanners", options.trivyScanners);
   return args;
 }
 
@@ -375,7 +379,7 @@ async function main() {
       {
         id: "execute-candidate-scan-docker-fallback",
         phase: "candidate-scan",
-        command: `npm run evidence:external-runtime:candidate-scan -- --name ${options.name} --candidate-image ${options.candidateImage} --candidate-label ${options.candidateLabel} --execute-docker-fallback`,
+        command: `npm run evidence:external-runtime:candidate-scan -- --name ${options.name} --candidate-image ${options.candidateImage} --candidate-label ${options.candidateLabel} --execute-docker-fallback${options.trivyTimeout ? ` --trivy-timeout ${options.trivyTimeout}` : ""}${options.trivyScanners ? ` --trivy-scanners ${options.trivyScanners}` : ""}`,
         mutation: false,
         writesLocalEvidence: true,
         requiresNetwork: true,

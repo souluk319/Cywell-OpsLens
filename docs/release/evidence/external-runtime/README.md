@@ -105,7 +105,7 @@ The candidate scan wrapper writes local candidate vulnerability/SBOM/review-draf
 For vLLM, use an approved long-running runner and an immutable digest because the official OpenAI-compatible vLLM images are large:
 
 ```sh
-npm run evidence:external-runtime:candidate-scan -- --name vllm --candidate-image docker.io/vllm/vllm-openai@sha256:ddcd4ffe817ab0ac1c2e3f9c59330cab3c1b316fc70271d399bdba62cdc1be53 --candidate-label v0.23.0-x86_64-ubuntu2404-sha256-ddcd4ffe --execute-docker-fallback --timeout-ms 7200000
+npm run evidence:external-runtime:candidate-scan -- --name vllm --candidate-image docker.io/vllm/vllm-openai@sha256:ddcd4ffe817ab0ac1c2e3f9c59330cab3c1b316fc70271d399bdba62cdc1be53 --candidate-label v0.23.0-x86_64-ubuntu2404-sha256-ddcd4ffe --execute-docker-fallback --timeout-ms 7200000 --trivy-timeout 30m --trivy-scanners vuln
 npm run evidence:external-runtime:candidates
 ```
 
