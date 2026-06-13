@@ -1,8 +1,12 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { execFile } from "node:child_process";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { promisify } from "node:util";
 import { parseAllDocuments } from "yaml";
 import { buildOpsLensReconcilePlan } from "../packages/operator-controller/dist/index.js";
+
+const execFileAsync = promisify(execFile);
 
 const paths = {
   patchInstallation: "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation.yaml",
@@ -11,10 +15,52 @@ const paths = {
   registeredOlsConfig: "deploy/operator/fixtures/olsconfig-registered.yaml"
 };
 
+const defaults = {
+  evidenceOut: "test-results/cywell-opslens-operator-reconcile.json",
+  timeoutMs: 10000
+};
+
+function parseArgs(argv) {
+  const values = new Map();
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) continue;
+    const [key, inlineValue] = arg.slice(2).split("=", 2);
+    const next = argv[index + 1];
+    if (inlineValue !== undefined) {
+      values.set(key, inlineValue);
+    } else if (next && !next.startsWith("--")) {
+      values.set(key, next);
+      index += 1;
+    }
+  }
+  return values;
+}
+
+const parsed = parseArgs(process.argv.slice(2));
+const options = {
+  evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
+};
+
 const checks = [];
+const startedAt = new Date().toISOString();
+let evidenceContext = {
+  validateOnlyPlan: undefined,
+  patchPlan: undefined,
+  readyPlan: undefined,
+  missingPlan: undefined
+};
+
+function sanitize(value) {
+  return String(value ?? "")
+    .replace(/--token\s+\S+/gi, "--token <redacted>")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
+    .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>");
+}
 
 function record(status, name, detail) {
-  checks.push({ status, name, detail });
+  checks.push({ status, name, detail: sanitize(detail) });
 }
 
 function pass(name, detail) {
@@ -61,6 +107,107 @@ function headerTypes(server) {
   return (server?.headers ?? []).map((header) => header.valueFrom?.type);
 }
 
+async function runCapture(command, args) {
+  try {
+    const { stdout } = await execFileAsync(command, args, {
+      encoding: "utf8",
+      timeout: options.timeoutMs
+    });
+    return sanitize(stdout.trim());
+  } catch {
+    return "";
+  }
+}
+
+async function gitValue(args, fallback) {
+  const value = await runCapture("git", args);
+  return value.split(/\r?\n/).at(-1)?.trim() || fallback;
+}
+
+async function gitStatusShort() {
+  const value = await runCapture("git", ["status", "--short"]);
+  return value.split(/\r?\n/).filter(Boolean).map(sanitize);
+}
+
+function statusFromChecks() {
+  return checks.some((check) => check.status === "FAIL") ? "FAIL" : "PASS";
+}
+
+function summarizePlan(plan) {
+  return {
+    phase: plan?.lightspeedRegistration?.phase ?? "missing",
+    mode: plan?.lightspeedRegistration?.mode ?? "missing",
+    willPatch: plan?.lightspeedRegistration?.willPatch === true,
+    mutationAllowed: plan?.lightspeedRegistration?.mutationAllowed === true,
+    missingEvidence: plan?.lightspeedRegistration?.missingEvidence ?? [],
+    desiredResourceCount: plan?.desiredResources?.length ?? 0,
+    assistantMutationAllowed: plan?.policy?.assistantMutationAllowed === true,
+    ragApprovalQueueMutationAllowed:
+      plan?.policy?.ragApprovalQueueMutationAllowed === true,
+    ragRawDocumentReturnAllowed:
+      plan?.policy?.ragRawDocumentReturnAllowed === true,
+    rollbackPath: plan?.lightspeedRegistration?.rollbackPath ?? []
+  };
+}
+
+async function writeEvidence() {
+  const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
+  const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
+  const baseRef = await gitValue(
+    ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+    "unknown"
+  );
+  const worktreeStatus = await gitStatusShort();
+  const failures = checks.filter((check) => check.status === "FAIL");
+  const artifact = {
+    schema: "cywell.opslens.operator-reconcile.v0.1",
+    artifactType: "opslens.operator-reconcile.v0.1",
+    generatedAt: new Date().toISOString(),
+    startedAt,
+    status: statusFromChecks(),
+    actionMode: "operatorReconcileFixtureOnly",
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    ref: {
+      branch,
+      headSha,
+      baseRef,
+      worktreeDirty: worktreeStatus.length > 0,
+      worktreeStatus
+    },
+    fixtures: paths,
+    planSummaries: {
+      validateOnly: summarizePlan(evidenceContext.validateOnlyPlan),
+      patchOLSConfig: summarizePlan(evidenceContext.patchPlan),
+      alreadyRegistered: summarizePlan(evidenceContext.readyPlan),
+      missingOLSConfig: summarizePlan(evidenceContext.missingPlan)
+    },
+    evidence: [
+      "ValidateOnly reports Lightspeed registration gaps without patching OLSConfig.",
+      "PatchOLSConfig preserves existing featureGates and MCP servers while planning the Cywell /mcp registration.",
+      "Missing OLSConfig blocks patching instead of inventing or overwriting a cluster resource.",
+      "Assistant actions remain plan-only; only explicit Operator install reconciliation can patch OLSConfig."
+    ],
+    missingEvidence: failures.map((check) => `${check.name}: ${check.detail}`),
+    risk: [
+      "Fixture reconcile evidence does not prove live cluster RBAC or server-side dry-run success.",
+      "PatchOLSConfig is an install-time Operator path and must remain separate from assistant apply/delete/scale behavior."
+    ],
+    rollbackPath: [
+      "Restore previous OLSConfig spec.featureGates and spec.mcpServers from GitOps or cluster backup.",
+      "Remove only the cywell-opslens mcpServers entry if OpsLens is uninstalled.",
+      "Rerun npm run verify:operator:reconcile and npm run verify:lightspeed:patch-preview:fixture after rollback."
+    ],
+    checks
+  };
+  const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
+  await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
+  await writeFile(resolve(options.evidenceOut), serialized, "utf8");
+  pass("operator reconcile evidence export", `${resolve(options.evidenceOut)} written without secret material`);
+  return artifact;
+}
+
 function printSummary() {
   const statusWeight = {
     FAIL: 0,
@@ -87,6 +234,7 @@ try {
   const registeredOlsConfig = await loadSingleYaml(paths.registeredOlsConfig);
 
   const validateOnlyPlan = buildOpsLensReconcilePlan(validateOnlyInstallation, baseOlsConfig);
+  evidenceContext.validateOnlyPlan = validateOnlyPlan;
   expectCheck(
     "ValidateOnly does not patch",
     validateOnlyPlan.lightspeedRegistration.mode === "ValidateOnly" &&
@@ -112,6 +260,7 @@ try {
   );
 
   const patchPlan = buildOpsLensReconcilePlan(patchInstallation, baseOlsConfig);
+  evidenceContext.patchPlan = patchPlan;
   const patch = patchPlan.lightspeedRegistration.strategicMergePatch;
   const cywellServer = patch?.spec.mcpServers.find((server) => server.name === "cywell-opslens");
   expectCheck(
@@ -185,6 +334,7 @@ try {
   );
 
   const readyPlan = buildOpsLensReconcilePlan(patchInstallation, registeredOlsConfig);
+  evidenceContext.readyPlan = readyPlan;
   expectCheck(
     "Registered OLSConfig is ready",
     readyPlan.lightspeedRegistration.phase === "Ready" &&
@@ -194,6 +344,7 @@ try {
   );
 
   const missingPlan = buildOpsLensReconcilePlan(patchInstallation);
+  evidenceContext.missingPlan = missingPlan;
   expectCheck(
     "Missing OLSConfig blocks patching",
     missingPlan.lightspeedRegistration.phase === "MissingOLSConfig" &&
@@ -204,5 +355,6 @@ try {
 } catch (error) {
   fail("operator reconcile verifier", error instanceof Error ? error.message : String(error));
 } finally {
+  await writeEvidence();
   printSummary();
 }

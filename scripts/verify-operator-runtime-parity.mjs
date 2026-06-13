@@ -1,8 +1,12 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { execFile } from "node:child_process";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { promisify } from "node:util";
 import { parseAllDocuments } from "yaml";
 import { buildOpsLensReconcilePlan } from "../packages/operator-controller/dist/index.js";
+
+const execFileAsync = promisify(execFile);
 
 const paths = {
   installation: "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation.yaml",
@@ -13,10 +17,50 @@ const paths = {
   acceptance: "docs/acceptance/mvp-0.1.md"
 };
 
+const defaults = {
+  evidenceOut: "test-results/cywell-opslens-operator-runtime-parity.json",
+  timeoutMs: 10000
+};
+
+function parseArgs(argv) {
+  const values = new Map();
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) continue;
+    const [key, inlineValue] = arg.slice(2).split("=", 2);
+    const next = argv[index + 1];
+    if (inlineValue !== undefined) {
+      values.set(key, inlineValue);
+    } else if (next && !next.startsWith("--")) {
+      values.set(key, next);
+      index += 1;
+    }
+  }
+  return values;
+}
+
+const parsed = parseArgs(process.argv.slice(2));
+const options = {
+  evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
+};
+
 const checks = [];
+const startedAt = new Date().toISOString();
+let evidenceContext = {
+  expectedResources: [],
+  plan: undefined
+};
+
+function sanitize(value) {
+  return String(value ?? "")
+    .replace(/--token\s+\S+/gi, "--token <redacted>")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
+    .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>");
+}
 
 function record(status, name, detail) {
-  checks.push({ status, name, detail });
+  checks.push({ status, name, detail: sanitize(detail) });
 }
 
 function pass(name, detail) {
@@ -84,6 +128,101 @@ function hasRuleFor(rules, apiGroup, resource, verbs = []) {
   });
 }
 
+async function runCapture(command, args) {
+  try {
+    const { stdout } = await execFileAsync(command, args, {
+      encoding: "utf8",
+      timeout: options.timeoutMs
+    });
+    return sanitize(stdout.trim());
+  } catch {
+    return "";
+  }
+}
+
+async function gitValue(args, fallback) {
+  const value = await runCapture("git", args);
+  return value.split(/\r?\n/).at(-1)?.trim() || fallback;
+}
+
+async function gitStatusShort() {
+  const value = await runCapture("git", ["status", "--short"]);
+  return value.split(/\r?\n/).filter(Boolean).map(sanitize);
+}
+
+function statusFromChecks() {
+  return checks.some((check) => check.status === "FAIL") ? "FAIL" : "PASS";
+}
+
+async function writeEvidence() {
+  const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
+  const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
+  const baseRef = await gitValue(
+    ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+    "unknown"
+  );
+  const worktreeStatus = await gitStatusShort();
+  const failures = checks.filter((check) => check.status === "FAIL");
+  const plan = evidenceContext.plan;
+  const desiredResources = evidenceContext.expectedResources.map(([kind, name]) => ({
+    kind,
+    name,
+    present: Boolean(plan && findResource(plan, kind, name))
+  }));
+  const artifact = {
+    schema: "cywell.opslens.operator-runtime-parity.v0.1",
+    artifactType: "opslens.operator-runtime-parity.v0.1",
+    generatedAt: new Date().toISOString(),
+    startedAt,
+    status: statusFromChecks(),
+    actionMode: "operatorRuntimeParityOnly",
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    ref: {
+      branch,
+      headSha,
+      baseRef,
+      worktreeDirty: worktreeStatus.length > 0,
+      worktreeStatus
+    },
+    fixtures: paths,
+    desiredResources,
+    parity: {
+      desiredResourceCount: plan?.desiredResources?.length ?? 0,
+      expectedResourceCount: evidenceContext.expectedResources.length,
+      lightspeedMode: plan?.lightspeedRegistration?.mode ?? "missing",
+      lightspeedPhase: plan?.lightspeedRegistration?.phase ?? "missing",
+      willPatchLightspeed: plan?.lightspeedRegistration?.willPatch === true,
+      assistantMutationAllowed: plan?.policy?.assistantMutationAllowed === true,
+      ragApprovalQueueMutationAllowed:
+        plan?.policy?.ragApprovalQueueMutationAllowed === true,
+      ragRawDocumentReturnAllowed:
+        plan?.policy?.ragRawDocumentReturnAllowed === true
+    },
+    evidence: [
+      "TypeScript desired resources and Go/controller-runtime reconcile lanes are checked for parity.",
+      "ConsolePlugin backend/proxy, API/dashboard services, NetworkPolicies, vector/model runtime, and OLSConfig patch paths are covered.",
+      "RBAC rules in config and CSV cover the resources reconciled by the Go controller."
+    ],
+    missingEvidence: failures.map((check) => `${check.name}: ${check.detail}`),
+    risk: [
+      "Runtime parity is source-level evidence; live OLM install and server-side dry-run still require cluster access.",
+      "Go compile is covered by image build gates until the local Go toolchain is installed."
+    ],
+    rollbackPath: [
+      "Revert the mismatched controller-runtime or TypeScript desired plan change and rerun runtime parity.",
+      "Regenerate bundle and catalog evidence after any controller/runtime parity fix."
+    ],
+    checks
+  };
+  const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
+  await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
+  await writeFile(resolve(options.evidenceOut), serialized, "utf8");
+  pass("operator runtime parity evidence export", `${resolve(options.evidenceOut)} written without secret material`);
+  return artifact;
+}
+
 function printSummary() {
   const statusWeight = {
     FAIL: 0,
@@ -111,6 +250,7 @@ try {
   const controller = await readText(paths.controller);
   const acceptance = await readText(paths.acceptance);
   const plan = buildOpsLensReconcilePlan(installation, baseOlsConfig);
+  evidenceContext.plan = plan;
 
   const expectedResources = [
     ["Namespace", "cywell-opslens"],
@@ -128,6 +268,7 @@ try {
     ["Service", "cywell-opslens-vllm"],
     ["ConsolePlugin", "cywell-opslens"]
   ];
+  evidenceContext.expectedResources = expectedResources;
 
   for (const [kind, name] of expectedResources) {
     expectCheck(
@@ -325,5 +466,6 @@ try {
 } catch (error) {
   fail("operator runtime parity verifier", error instanceof Error ? error.message : String(error));
 } finally {
+  await writeEvidence();
   printSummary();
 }

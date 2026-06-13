@@ -28,6 +28,8 @@ const evidenceDefaults = {
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   ocpConnectivity: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
   ocpAuthRbacPlan: "test-results/cywell-opslens-ocp-auth-rbac-plan.json",
+  operatorReconcile: "test-results/cywell-opslens-operator-reconcile.json",
+  operatorRuntimeParity: "test-results/cywell-opslens-operator-runtime-parity.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
   lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
@@ -960,6 +962,20 @@ async function main() {
       "AUTH_RBAC_APPROVAL_REQUIRED",
       "WAITING_FOR_CONNECTIVITY"
     ],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "operatorReconcile",
+    label: "operator reconcile fixture safety",
+    artifact: artifacts.operatorReconcile,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "operatorRuntimeParity",
+    label: "operator runtime parity",
+    artifact: artifacts.operatorRuntimeParity,
+    desiredStatuses: ["PASS"],
     currentHeadSha: headSha
   });
   laneResult({

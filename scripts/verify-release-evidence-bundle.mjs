@@ -25,6 +25,8 @@ const defaults = {
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
   ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
   ocpAuthRbacPlan: "test-results/cywell-opslens-ocp-auth-rbac-plan.json",
+  operatorReconcile: "test-results/cywell-opslens-operator-reconcile.json",
+  operatorRuntimeParity: "test-results/cywell-opslens-operator-runtime-parity.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   timeoutMs: 10000
@@ -74,6 +76,10 @@ const options = {
     parsed.get("ocp-network-handoff-evidence") ?? defaults.ocpNetworkHandoff,
   ocpAuthRbacPlan:
     parsed.get("ocp-auth-rbac-plan-evidence") ?? defaults.ocpAuthRbacPlan,
+  operatorReconcile:
+    parsed.get("operator-reconcile-evidence") ?? defaults.operatorReconcile,
+  operatorRuntimeParity:
+    parsed.get("operator-runtime-parity-evidence") ?? defaults.operatorRuntimeParity,
   evidenceCheckpoint:
     parsed.get("evidence-checkpoint") ?? defaults.evidenceCheckpoint,
   roadmapPlan: parsed.get("roadmap-plan-evidence") ?? defaults.roadmapPlan,
@@ -654,6 +660,8 @@ async function main() {
     liveHandoff: loadJson(options.liveHandoff, "live evidence handoff"),
     ocpNetworkHandoff: loadJson(options.ocpNetworkHandoff, "OCP network handoff"),
     ocpAuthRbacPlan: loadJson(options.ocpAuthRbacPlan, "OCP auth/RBAC plan"),
+    operatorReconcile: loadJson(options.operatorReconcile, "Operator reconcile"),
+    operatorRuntimeParity: loadJson(options.operatorRuntimeParity, "Operator runtime parity"),
     evidenceCheckpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint"),
     roadmapPlan: loadJson(options.roadmapPlan, "roadmap plan alignment")
   };
@@ -674,6 +682,8 @@ async function main() {
     sourceSummary("liveHandoff", "live evidence handoff", options.liveHandoff, artifacts.liveHandoff, headSha, ["PASS"]),
     sourceSummary("ocpNetworkHandoff", "OCP network handoff", options.ocpNetworkHandoff, artifacts.ocpNetworkHandoff, headSha, ["READY_FOR_NETWORK_REVIEW", "READY_FOR_LIVE_RECHECK", "PASS"]),
     sourceSummary("ocpAuthRbacPlan", "OCP auth/RBAC plan", options.ocpAuthRbacPlan, artifacts.ocpAuthRbacPlan, headSha, ["READY_FOR_LIVE_CHECK", "AUTH_RBAC_APPROVAL_REQUIRED", "WAITING_FOR_CONNECTIVITY"]),
+    sourceSummary("operatorReconcile", "Operator reconcile", options.operatorReconcile, artifacts.operatorReconcile, headSha, ["PASS"]),
+    sourceSummary("operatorRuntimeParity", "Operator runtime parity", options.operatorRuntimeParity, artifacts.operatorRuntimeParity, headSha, ["PASS"]),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.evidenceCheckpoint, headSha, ["PASS", "NEEDS_EVIDENCE"]),
     sourceSummary("roadmapPlan", "roadmap plan alignment", options.roadmapPlan, artifacts.roadmapPlan, headSha, ["PASS", "NEEDS_EVIDENCE"])
   ];

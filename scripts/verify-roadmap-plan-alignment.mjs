@@ -15,6 +15,8 @@ const paths = {
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
+  operatorReconcile: "test-results/cywell-opslens-operator-reconcile.json",
+  operatorRuntimeParity: "test-results/cywell-opslens-operator-runtime-parity.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   roadmapOut: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   roadmapMarkdownOut: "test-results/cywell-opslens-roadmap-plan-alignment.md"
@@ -424,6 +426,8 @@ async function main() {
   const imageBuild = loadJson(paths.imageBuild, "image build readiness");
   const ownedImageProvenance = loadJson(paths.ownedImageProvenance, "owned image provenance");
   const consolePluginAssets = loadJson(paths.consolePluginAssets, "ConsolePlugin assets");
+  const operatorReconcile = loadJson(paths.operatorReconcile, "Operator reconcile");
+  const operatorRuntimeParity = loadJson(paths.operatorRuntimeParity, "Operator runtime parity");
   const installPlan = loadJson(paths.installPlan, "install approval plan");
   const globalRequirements = [
     artifactFreshnessRequirement(checkpoint, "checkpoint-fresh", "Evidence checkpoint", headSha),
@@ -432,6 +436,8 @@ async function main() {
     artifactFreshnessRequirement(imageBuild, "image-build-fresh", "Image build readiness", headSha),
     artifactFreshnessRequirement(ownedImageProvenance, "owned-image-provenance-fresh", "Owned image provenance", headSha),
     artifactFreshnessRequirement(consolePluginAssets, "console-plugin-assets-fresh", "ConsolePlugin assets", headSha),
+    artifactFreshnessRequirement(operatorReconcile, "operator-reconcile-fresh", "Operator reconcile", headSha),
+    artifactFreshnessRequirement(operatorRuntimeParity, "operator-runtime-parity-fresh", "Operator runtime parity", headSha),
     artifactFreshnessRequirement(installPlan, "install-plan-fresh", "Install approval plan", headSha)
   ];
 
@@ -494,6 +500,20 @@ async function main() {
       mvpRequirement(mvpGate, "OPERATOR-PACKAGE", "Operator package verifier"),
       mvpRequirement(mvpGate, "OPERATOR-RECONCILE", "Operator reconcile safety verifier"),
       mvpRequirement(mvpGate, "OPERATOR-RUNTIME", "Operator runtime parity verifier"),
+      artifactStatusRequirement(
+        operatorReconcile,
+        "operator-reconcile-fixture-proof",
+        "Operator reconcile fixture proof",
+        ["PASS"]
+      ),
+      artifactStatusRequirement(
+        operatorRuntimeParity,
+        "operator-runtime-parity-proof",
+        "Operator runtime parity proof",
+        ["PASS"]
+      ),
+      laneRequirement(checkpoint, "operatorReconcile", "Operator reconcile checkpoint"),
+      laneRequirement(checkpoint, "operatorRuntimeParity", "Operator runtime parity checkpoint"),
       laneRequirement(checkpoint, "consolePluginAssets", "ConsolePlugin dynamic plugin asset evidence"),
       laneRequirement(checkpoint, "operatorDryRun", "Live Operator server dry-run", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "installPlan", "Human install approval plan", ["pass", "needs-evidence"]),
