@@ -70,6 +70,7 @@ function statusClass(status: string) {
     status === "stale" ||
     status === "missing" ||
     status === "needs-live-check" ||
+    status === "needs-live-evidence" ||
     status === "needs-configuration" ||
     status === "needs-evidence" ||
     status === "partial" ||
@@ -175,6 +176,7 @@ export function OpsLensAdminDashboard() {
           ]
         : []
     ) ?? [];
+  const aiopsPipeline = overview?.aiops.incidentPipeline;
   const approvalPlan = overview?.installReadiness.approvalPlan;
   const certificationPlan = overview?.installReadiness.certificationPlan;
   const catalogToolchainPlan =
@@ -904,6 +906,88 @@ export function OpsLensAdminDashboard() {
         </article>
 
         <article
+          className="ops-card aiops-pipeline-card"
+          data-testid="opslens-aiops-pipeline"
+        >
+          <div className="card-title-row">
+            <h3>AI Ops Pipeline</h3>
+            <ListChecks size={18} aria-hidden="true" />
+          </div>
+          <div className="readiness-grid">
+            <div>
+              <span>Status</span>
+              <strong
+                className={`freshness ${statusClass(
+                  aiopsPipeline?.status ?? "needs-live-evidence"
+                )}`}
+              >
+                {aiopsPipeline?.status ?? "needs-live-evidence"}
+              </strong>
+            </div>
+            <div>
+              <span>Live Smoke</span>
+              <strong>{aiopsPipeline?.liveSmokeStatus ?? "missing"}</strong>
+            </div>
+            <div>
+              <span>Head</span>
+              <strong>{aiopsPipeline?.headSha ?? "missing"}</strong>
+            </div>
+            <div>
+              <span>Selected Pod</span>
+              <strong>
+                {aiopsPipeline?.selectedPod
+                  ? `${aiopsPipeline.selectedPod.namespace}/${aiopsPipeline.selectedPod.name}`
+                  : "missing"}
+              </strong>
+            </div>
+          </div>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-aiops-pipeline-evidence"
+          >
+            <span>{aiopsPipeline?.actionMode ?? "readOnlyEvidenceOnly"}</span>
+            <span>
+              clusterMutationAttempted=
+              {String(aiopsPipeline?.clusterMutationAttempted ?? false)}
+            </span>
+            <span>
+              vectorWriteAttempted=
+              {String(aiopsPipeline?.vectorWriteAttempted ?? false)}
+            </span>
+            <span>
+              ingestionJobCreated=
+              {String(aiopsPipeline?.ingestionJobCreated ?? false)}
+            </span>
+            <span>verify:aiops</span>
+            <span>
+              triggerEvidence=
+              {(aiopsPipeline?.triggerEvidenceRequired ?? []).join("/")}
+            </span>
+          </div>
+          <div className="metric-query-list">
+            {aiopsPipeline?.metricQueries.map((query) => (
+              <div className="metric-query-row" key={query.name}>
+                <span className={`freshness ${statusClass(query.status)}`}>
+                  {query.status}
+                </span>
+                <strong>{query.name}</strong>
+                <small>{query.sampleCount} samples</small>
+              </div>
+            ))}
+          </div>
+          <div className="remediation-notes">
+            {(aiopsPipeline?.missingEvidence.length
+              ? aiopsPipeline.missingEvidence
+              : aiopsPipeline?.evidence ?? []
+            )
+              .slice(0, 2)
+              .map((item) => (
+                <p key={item}>{item}</p>
+              ))}
+          </div>
+        </article>
+
+        <article
           className="ops-card readiness-admin-card"
           data-testid="opslens-install-readiness"
         >
@@ -915,6 +999,7 @@ export function OpsLensAdminDashboard() {
             {overview
               ? Object.entries({
                   "Lightspeed MCP": overview.installReadiness.lightspeedMcp,
+                  "AI Ops Pipeline": overview.aiops.incidentPipeline.status,
                   "Console Dashboard": overview.installReadiness.consoleDashboard,
                   Operator: overview.installReadiness.operatorPackaging,
                   "OCP Connectivity": overview.installReadiness.ocpConnectivity,

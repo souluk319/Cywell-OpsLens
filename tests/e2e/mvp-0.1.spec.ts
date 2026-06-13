@@ -1013,6 +1013,35 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           reviewGate?: { required?: boolean };
         };
       }>;
+      aiops?: {
+        incidentPipeline?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          headSha?: string;
+          worktreeDirty?: boolean;
+          liveSmokeStatus?: string;
+          selectedPod?: { namespace?: string; name?: string };
+          clusterMutationAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          vectorWriteAttempted?: boolean;
+          ingestionJobCreated?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          requiredMetricQueries?: string[];
+          metricQueries?: Array<{
+            name?: string;
+            status?: string;
+            sampleCount?: number;
+            missingEvidence?: string[];
+          }>;
+          triggerEvidenceRequired?: string[];
+          acceptance?: string[];
+          evidence?: string[];
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
+      };
       installReadiness?: {
         lightspeedMcp?: string;
         operatorPackaging?: string;
@@ -1774,6 +1803,50 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.incidents?.[0]?.remediationProposal?.reviewGate).toMatchObject({
       required: true
     });
+    expect(["ready", "needs-live-evidence", "failed"]).toContain(
+      body.aiops?.incidentPipeline?.status
+    );
+    expect(body.aiops?.incidentPipeline).toMatchObject({
+      actionMode: "readOnlyEvidenceOnly",
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.aiops?.incidentPipeline?.acceptance
+    ).toEqual(
+      expect.arrayContaining(["AC-AIOPS-001", "AC-AIOPS-002", "AC-DASH-001"])
+    );
+    expect(
+      body.aiops?.incidentPipeline?.requiredMetricQueries
+    ).toEqual(
+      expect.arrayContaining([
+        "firing-alert",
+        "pod-restarts",
+        "pod-cpu",
+        "pod-memory"
+      ])
+    );
+    expect(
+      body.aiops?.incidentPipeline?.metricQueries?.map((query) => query.name)
+    ).toEqual(
+      expect.arrayContaining([
+        "firing-alert",
+        "pod-restarts",
+        "pod-cpu",
+        "pod-memory"
+      ])
+    );
+    expect(
+      body.aiops?.incidentPipeline?.triggerEvidenceRequired
+    ).toEqual(
+      expect.arrayContaining(["logs", "events", "metrics", "runbookCitations"])
+    );
+    expect(body.aiops?.incidentPipeline?.evidence?.join(" ")).toMatch(
+      /verify:aiops|AI Ops incident pipeline/i
+    );
     expect([
       "ready",
       "needs-live-check",
@@ -2836,8 +2909,32 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-remediation-trigger-evidence")
     ).toContainText("pod-memory:ready");
+    await expect(page.getByTestId("opslens-aiops-pipeline")).toContainText(
+      "AI Ops Pipeline"
+    );
+    await expect(
+      page.getByTestId("opslens-aiops-pipeline-evidence")
+    ).toContainText("readOnlyEvidenceOnly");
+    await expect(
+      page.getByTestId("opslens-aiops-pipeline-evidence")
+    ).toContainText("clusterMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-aiops-pipeline-evidence")
+    ).toContainText("vectorWriteAttempted=false");
+    await expect(
+      page.getByTestId("opslens-aiops-pipeline-evidence")
+    ).toContainText("verify:aiops");
+    await expect(
+      page.getByTestId("opslens-aiops-pipeline-evidence")
+    ).toContainText("triggerEvidence=");
+    await expect(page.getByTestId("opslens-aiops-pipeline")).toContainText(
+      "pod-memory"
+    );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Certification"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "AI Ops Pipeline"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Image Builds"

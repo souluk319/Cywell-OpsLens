@@ -574,6 +574,7 @@ button {
 }
 
 .metric-admin-card,
+.aiops-pipeline-card,
 .mcp-admin-card,
 .readiness-admin-card {
   grid-column: span 2;

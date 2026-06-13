@@ -26,6 +26,8 @@ import type {
   McpJsonRpcRequest,
   McpJsonRpcResponse,
   OpsLensAdminOverviewResponse,
+  OpsLensAiopsIncidentPipelineReadiness,
+  OpsLensAiopsIncidentPipelineSummary,
   OpsLensCatalogToolchainReadiness,
   OpsLensCatalogToolchainSummary,
   OpsLensCertificationReadiness,
@@ -1866,6 +1868,53 @@ type EvidenceCheckpointArtifact = {
   rollbackPath?: string[];
 };
 
+type AiopsIncidentPipelineArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  vectorWriteAttempted?: boolean;
+  ingestionJobCreated?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  acceptance?: string[];
+  pipeline?: {
+    requiredMetricQueries?: string[];
+    triggerEvidenceRequired?: string[];
+  };
+  liveSmoke?: {
+    status?: string;
+    selectedPod?: {
+      namespace?: string;
+      name?: string;
+    };
+    incident?: {
+      actionMode?: string;
+      missingEvidence?: string[];
+      metricQueries?: Array<{
+        name?: string;
+        enabled?: boolean;
+        reachable?: boolean;
+        sampleCount?: number;
+        error?: string;
+      }>;
+      remediationProposal?: OpsLensRemediationProposal;
+    };
+    missingEvidence?: string[];
+  };
+  evidence?: string[];
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type LiveEvidenceHandoffArtifact = {
   artifactType?: string;
   status?: string;
@@ -2152,6 +2201,13 @@ function evidenceCheckpointPath() {
   return (
     process.env.CYWELL_OPSLENS_EVIDENCE_CHECKPOINT ??
     join(repoRoot, "test-results", "cywell-opslens-evidence-checkpoint.json")
+  );
+}
+
+function aiopsIncidentPipelinePath() {
+  return (
+    process.env.CYWELL_OPSLENS_AIOPS_INCIDENT_PIPELINE_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-aiops-incident-pipeline.json")
   );
 }
 
@@ -2485,6 +2541,29 @@ function mapEvidenceCheckpointStatus(
     return "ready";
   }
   return "needs-evidence";
+}
+
+function mapAiopsIncidentPipelineStatus(
+  artifact: AiopsIncidentPipelineArtifact
+): OpsLensAiopsIncidentPipelineReadiness {
+  if (
+    artifact.status === "FAIL" ||
+    artifact.clusterMutationAttempted ||
+    artifact.registryMutationAttempted ||
+    artifact.vectorWriteAttempted ||
+    artifact.ingestionJobCreated ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "failed";
+  }
+  if (
+    artifact.status === "PASS" &&
+    artifact.liveSmoke?.status === "pass" &&
+    artifact.ref?.worktreeDirty !== true
+  ) {
+    return "ready";
+  }
+  return "needs-live-evidence";
 }
 
 function defaultOcpConnectivityActionHints(classification: string) {
@@ -5513,6 +5592,220 @@ function getEvidenceCheckpointReadiness(): {
   }
 }
 
+const aiopsRequiredMetricQueries = [
+  "firing-alert",
+  "pod-restarts",
+  "pod-cpu",
+  "pod-memory"
+];
+
+const aiopsTriggerEvidenceRequired = [
+  "alert",
+  "logs",
+  "events",
+  "metrics",
+  "runbookCitations"
+];
+
+function mapAiopsMetricQueries(
+  artifact: AiopsIncidentPipelineArtifact
+): OpsLensAiopsIncidentPipelineSummary["metricQueries"] {
+  const requiredQueries =
+    artifact.pipeline?.requiredMetricQueries ?? aiopsRequiredMetricQueries;
+  const liveQueries = artifact.liveSmoke?.incident?.metricQueries ?? [];
+  const queryByName = new Map(liveQueries.map((query) => [query.name, query]));
+
+  return requiredQueries.map((name) => {
+    const query = queryByName.get(name);
+    const sampleCount =
+      typeof query?.sampleCount === "number" ? query.sampleCount : 0;
+    const status: OpsLensAiopsIncidentPipelineSummary["metricQueries"][number]["status"] =
+      sampleCount > 0 ? "ready" : query?.enabled === false ? "disabled" : "missing";
+    const missingEvidence =
+      status === "ready"
+        ? []
+        : [
+            query?.error
+              ? `metrics/${name}: ${query.error}`
+              : `metrics/${name}: no live sample evidence is available`
+          ];
+
+    return {
+      name,
+      query: name,
+      status,
+      sampleCount,
+      evidence:
+        status === "ready"
+          ? [`${name} returned ${sampleCount} live sample(s)`]
+          : [],
+      missingEvidence
+    };
+  });
+}
+
+function getAiopsIncidentPipelineReadiness(): {
+  status: OpsLensAiopsIncidentPipelineReadiness;
+  evidence: string[];
+  incidentPipeline: OpsLensAiopsIncidentPipelineSummary;
+} {
+  const evidencePath = aiopsIncidentPipelinePath();
+
+  if (!existsSync(evidencePath)) {
+    const missingEvidence = [
+      `AI Ops incident pipeline evidence is missing at ${evidencePath}`
+    ];
+    const evidence = [
+      "run npm run verify:aiops to create live AI Ops incident pipeline evidence",
+      "dashboard keeps the AI Ops pipeline as needs-live-evidence until the artifact exists",
+      "verify:aiops starts the public API and performs read-only OCP evidence reads only"
+    ];
+
+    return {
+      status: "needs-live-evidence",
+      evidence,
+      incidentPipeline: {
+        status: "needs-live-evidence",
+        artifactStatus: "missing",
+        actionMode: "readOnlyEvidenceOnly",
+        headSha: "missing",
+        worktreeDirty: false,
+        liveSmokeStatus: "missing",
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        vectorWriteAttempted: false,
+        ingestionJobCreated: false,
+        mutationAllowedByThisVerifier: false,
+        requiredMetricQueries: aiopsRequiredMetricQueries,
+        metricQueries: aiopsRequiredMetricQueries.map((name) => ({
+          name,
+          query: name,
+          status: "missing",
+          sampleCount: 0,
+          evidence: [],
+          missingEvidence: [`metrics/${name}: evidence artifact is missing`]
+        })),
+        triggerEvidenceRequired: aiopsTriggerEvidenceRequired,
+        acceptance: ["AC-AIOPS-001", "AC-AIOPS-002", "AC-DASH-001"],
+        evidence,
+        missingEvidence,
+        risk: [
+          "Without the AI Ops pipeline artifact, the dashboard cannot prove live log/event/metric evidence routing."
+        ],
+        rollbackPath: [
+          "Regenerate the artifact with npm run verify:aiops; no cluster rollback is required because the verifier is read-only."
+        ]
+      }
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as AiopsIncidentPipelineArtifact;
+    const status = mapAiopsIncidentPipelineStatus(artifact);
+    const requiredMetricQueries =
+      artifact.pipeline?.requiredMetricQueries ?? aiopsRequiredMetricQueries;
+    const triggerEvidenceRequired =
+      artifact.pipeline?.triggerEvidenceRequired ?? aiopsTriggerEvidenceRequired;
+    const selectedPodSource = artifact.liveSmoke?.selectedPod;
+    const selectedPod =
+      selectedPodSource?.namespace && selectedPodSource.name
+        ? {
+            namespace: selectedPodSource.namespace,
+            name: selectedPodSource.name
+          }
+        : undefined;
+    const liveMissingEvidence = [
+      ...(artifact.liveSmoke?.missingEvidence ?? []),
+      ...(artifact.liveSmoke?.incident?.missingEvidence ?? [])
+    ];
+    const metricQueries = mapAiopsMetricQueries(artifact);
+    const evidence = [
+      `AI Ops incident pipeline ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+      `verify:aiops generated ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+      `liveSmoke=${artifact.liveSmoke?.status ?? "missing"} actionMode=${artifact.liveSmoke?.incident?.actionMode ?? artifact.actionMode ?? "unknown"}`,
+      `triggerEvidence=${triggerEvidenceRequired.join(",")}`,
+      `mutationBoundary cluster=${String(artifact.clusterMutationAttempted ?? false)} registry=${String(artifact.registryMutationAttempted ?? false)} vector=${String(artifact.vectorWriteAttempted ?? false)} ingestion=${String(artifact.ingestionJobCreated ?? false)} allowed=${String(artifact.mutationAllowedByThisVerifier ?? false)}`,
+      ...(artifact.evidence ?? []).slice(0, 3)
+    ];
+
+    return {
+      status,
+      evidence,
+      incidentPipeline: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "readOnlyEvidenceOnly",
+        headSha: artifact.ref?.headSha ?? "unknown",
+        worktreeDirty: artifact.ref?.worktreeDirty === true,
+        liveSmokeStatus: artifact.liveSmoke?.status ?? "missing",
+        selectedPod,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        vectorWriteAttempted: artifact.vectorWriteAttempted === true,
+        ingestionJobCreated: artifact.ingestionJobCreated === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        requiredMetricQueries,
+        metricQueries,
+        triggerEvidenceRequired,
+        acceptance: artifact.acceptance ?? [
+          "AC-AIOPS-001",
+          "AC-AIOPS-002",
+          "AC-DASH-001"
+        ],
+        evidence,
+        missingEvidence: [
+          ...(artifact.missingEvidence ?? []),
+          ...liveMissingEvidence,
+          ...metricQueries.flatMap((query) => query.missingEvidence)
+        ],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      }
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "unknown AI Ops evidence parse error";
+    const evidence = [
+      `AI Ops incident pipeline could not be parsed from ${evidencePath}`,
+      message,
+      "invalid AI Ops evidence blocks overclaiming live incident readiness"
+    ];
+
+    return {
+      status: "failed",
+      evidence,
+      incidentPipeline: {
+        status: "failed",
+        artifactStatus: "invalid",
+        actionMode: "readOnlyEvidenceOnly",
+        headSha: "unknown",
+        worktreeDirty: false,
+        liveSmokeStatus: "invalid",
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        vectorWriteAttempted: false,
+        ingestionJobCreated: false,
+        mutationAllowedByThisVerifier: false,
+        requiredMetricQueries: aiopsRequiredMetricQueries,
+        metricQueries: [],
+        triggerEvidenceRequired: aiopsTriggerEvidenceRequired,
+        acceptance: ["AC-AIOPS-001", "AC-AIOPS-002", "AC-DASH-001"],
+        evidence,
+        missingEvidence: [message],
+        risk: [
+          "Invalid AI Ops pipeline evidence blocks confident remediation planning claims."
+        ],
+        rollbackPath: [
+          "Regenerate the artifact with npm run verify:aiops before publishing dashboard evidence."
+        ]
+      }
+    };
+  }
+}
+
 export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewResponse> {
   const documents = getOpsLensRagDocuments();
   const usedTokens = 784_200;
@@ -5535,12 +5828,14 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const releaseEvidenceBundleReadiness = getReleaseEvidenceBundleReadiness();
   const releaseActionQueueReadiness = getReleaseActionQueueReadiness();
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
+  const aiopsIncidentPipelineReadiness = getAiopsIncidentPipelineReadiness();
   const liveHandoffReadiness = getLiveEvidenceHandoffReadiness();
   const ocpNetworkHandoffReadiness = getOcpNetworkHandoffReadiness();
   const ocpAuthRbacPlanReadiness = getOcpAuthRbacPlanReadiness();
   const installReadinessEvidence = [
     releaseEvidenceRefreshReadiness.evidence[0],
     evidenceCheckpointReadiness.evidence[0],
+    aiopsIncidentPipelineReadiness.evidence[0],
     liveHandoffReadiness.evidence[0],
     ocpNetworkHandoffReadiness.evidence[0],
     ocpAuthRbacPlanReadiness.evidence[0],
@@ -5573,6 +5868,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...releaseEvidenceRefreshReadiness.evidence.slice(1),
     ...releaseEvidenceBundleReadiness.evidence.slice(1),
     ...releaseActionQueueReadiness.evidence.slice(1),
+    ...aiopsIncidentPipelineReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
     ...ocpNetworkHandoffReadiness.evidence.slice(1),
     ...ocpAuthRbacPlanReadiness.evidence.slice(1),
@@ -5750,6 +6046,9 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         lastAnalyzedAt: new Date().toISOString()
       }
     ],
+    aiops: {
+      incidentPipeline: aiopsIncidentPipelineReadiness.incidentPipeline
+    },
     installReadiness: {
       lightspeedMcp: lightspeedReadiness.status,
       consoleDashboard: "prototype",
@@ -5794,6 +6093,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         ...installReadinessEvidence,
         "Stage 1 MCP contract has verifier coverage",
         "Stage 2 incident packet has logs/events/metrics coverage",
+        "Stage 2 AI Ops incident pipeline is validated by npm run verify:aiops",
         "Stage 3 dashboard is now served by /api/opslens/admin/overview",
         "Stage 4 Operator package skeleton is validated by npm run verify:operator",
         "Stage 4 live API preflight is validated by npm run verify:operator:dry-run",

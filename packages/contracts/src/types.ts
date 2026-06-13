@@ -1005,6 +1005,37 @@ export interface OpsLensAdminIncidentMetricSummary {
   lastAnalyzedAt: string;
 }
 
+export type OpsLensAiopsIncidentPipelineReadiness =
+  | "ready"
+  | "needs-live-evidence"
+  | "failed";
+
+export interface OpsLensAiopsIncidentPipelineSummary {
+  status: OpsLensAiopsIncidentPipelineReadiness;
+  artifactStatus: string;
+  actionMode: "readOnlyEvidenceOnly";
+  headSha: string;
+  worktreeDirty: boolean;
+  liveSmokeStatus: string;
+  selectedPod?: {
+    namespace: string;
+    name: string;
+  };
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  vectorWriteAttempted: boolean;
+  ingestionJobCreated: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  requiredMetricQueries: string[];
+  metricQueries: OpsLensAdminMetricQueryStatus[];
+  triggerEvidenceRequired: string[];
+  acceptance: string[];
+  evidence: string[];
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export type OpsLensLightspeedMcpReadiness =
   | "ready"
   | "needs-live-check"
@@ -1870,6 +1901,9 @@ export interface OpsLensAdminOverviewResponse {
   tokenUsage: OpsLensTokenUsageSummary;
   runtime: OpsLensRuntimeHealth;
   incidents: OpsLensAdminIncidentMetricSummary[];
+  aiops: {
+    incidentPipeline: OpsLensAiopsIncidentPipelineSummary;
+  };
   installReadiness: {
     lightspeedMcp: OpsLensLightspeedMcpReadiness;
     consoleDashboard: "prototype" | "ready";
