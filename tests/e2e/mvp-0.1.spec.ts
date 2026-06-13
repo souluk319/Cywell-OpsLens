@@ -2996,9 +2996,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(qdrantCandidateAction?.nextCommand).toContain(
       "evidence:external-runtime:draft"
     );
+    expect(qdrantCandidateAction?.nextCommand).toContain("--scan-evidence");
+    expect(qdrantCandidateAction?.nextCommand).toContain("--sbom-evidence");
+    expect(qdrantCandidateAction?.nextCommand).toContain(
+      "qdrant-cywell-minimal-ubi9"
+    );
     expect(qdrantCandidateAction?.evidenceNeeded).toContain(
       "criticalFindings=0"
     );
+    expect(qdrantCandidateAction?.evidenceNeeded).toContain("sbom=");
     expect(qdrantCandidateAction?.diagnostics?.map((item) => item.id)).toEqual(
       expect.arrayContaining([
         "candidate-status",

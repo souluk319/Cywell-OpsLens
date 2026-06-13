@@ -887,8 +887,10 @@ function externalRuntimeItems(packet) {
       : "";
     const candidateScanCommand =
       `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${candidateTimeout}${candidateScannerOptions}`;
-    const candidateApprovalCommand =
-      `npm run evidence:external-runtime:draft -- --name ${image.name} --scan-status approved --scan-evidence <zero-critical-scan-report> --scan-critical-findings 0 --ticket <change-ticket> --force`;
+    const bestCandidate = candidate?.bestCandidate;
+    const candidateApprovalCommand = candidateReady && bestCandidate?.releaseEligible === true
+      ? `npm run evidence:external-runtime:draft -- --name ${image.name} --scan-status approved --scan-evidence ${bestCandidate.vulnerabilityPath ?? "<zero-critical-scan-report>"} --scan-critical-findings ${bestCandidate.criticalFindings ?? 0} --scan-high-findings ${bestCandidate.highFindings ?? "<high-findings>"} --sbom-status approved --sbom-evidence ${bestCandidate.sbomPath ?? "<approved-sbom-path-or-url>"} --ticket <change-ticket> --force`
+      : `npm run evidence:external-runtime:draft -- --name ${image.name} --scan-status approved --scan-evidence <zero-critical-scan-report> --scan-critical-findings 0 --ticket <change-ticket> --force`;
     const candidateNextCommand = candidateReady
       ? candidateApprovalCommand
       : candidateScanCommand;
@@ -898,14 +900,14 @@ function externalRuntimeItems(packet) {
       priority: "high",
       source: `externalRuntimeReviewPacket:${image.name}:candidateMatrix`,
       request: candidateReady
-        ? `Review the zero-critical ${image.name} candidate and attach approved scan evidence before external runtime promotion.`
+        ? `Review the zero-critical ${image.name} candidate ${bestCandidate?.image ?? "best=missing"} and attach approved scan/SBOM evidence before external runtime promotion.`
         : candidateStatus === "candidate-reduces-risk-but-remediation-required"
           ? `Find or approve a zero-critical ${image.name} replacement candidate before external runtime promotion.`
           : `Scan at least one ${image.name} replacement candidate before external runtime promotion review.`,
       evidenceNeeded: [
         `candidateMatrix status=${candidateStatus}`,
-        candidate?.bestCandidate
-          ? `best=${candidate.bestCandidate.image} criticalFindings=${candidate.bestCandidate.criticalFindings} highFindings=${candidate.bestCandidate.highFindings}`
+        bestCandidate
+          ? `best=${bestCandidate.image} criticalFindings=${bestCandidate.criticalFindings} highFindings=${bestCandidate.highFindings} scan=${bestCandidate.vulnerabilityPath ?? "missing"} sbom=${bestCandidate.sbomPath ?? "missing"}`
           : "best=missing",
         candidate?.recommendation ?? "candidate recommendation missing"
       ].join("; "),

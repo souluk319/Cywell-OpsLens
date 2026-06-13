@@ -224,6 +224,9 @@ function summarizeCandidate(candidate) {
     mediumFindings: counts.MEDIUM ?? "unknown",
     lowFindings: counts.LOW ?? "unknown",
     deltaFromCurrent: candidate.deltaFromCurrent ?? {},
+    vulnerabilityPath: candidate.vulnerability?.path ?? "missing",
+    sbomPath: candidate.sbom?.path ?? "missing",
+    reviewDraftPath: candidate.reviewDraft?.path ?? "missing",
     sbomPackageCount: candidate.sbom?.packageCount ?? "unknown",
     reviewDecision: candidate.reviewDraft?.decision ?? "unknown"
   };
@@ -254,7 +257,9 @@ function candidateMatrixSummary(name, candidateMatrix) {
 function candidateEvidenceLine(candidateMatrix) {
   const best = candidateMatrix?.bestCandidate;
   if (!best) return "";
-  return `Best scanned candidate ${best.image} reports criticalFindings=${best.criticalFindings} highFindings=${best.highFindings}; it reduces risk but still needs remediation or security exception before promotion`;
+  return best.releaseEligible === true
+    ? `Best scanned candidate ${best.image} reports criticalFindings=0 highFindings=${best.highFindings}; scan=${best.vulnerabilityPath} sbom=${best.sbomPath}; approval is still required before promotion`
+    : `Best scanned candidate ${best.image} reports criticalFindings=${best.criticalFindings} highFindings=${best.highFindings}; it reduces risk but still needs remediation or security exception before promotion`;
 }
 
 function candidateScanCommand(name) {
