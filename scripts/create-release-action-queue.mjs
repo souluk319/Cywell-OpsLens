@@ -606,7 +606,15 @@ function securityScanItems(plan) {
   const approvalGatedCommands = plan?.commands?.approvalGated ?? [];
   return (plan?.images ?? [])
     .filter((image) => image.required === true)
-    .filter((image) => image.securityEvidence?.reviewExists !== true)
+    .filter((image) => {
+      const securityEvidence = image.securityEvidence ?? {};
+      return !(
+        securityEvidence.reviewExists === true &&
+        securityEvidence.reviewValid === true &&
+        securityEvidence.reviewApproved === true &&
+        String(securityEvidence.reviewDecision ?? "").toLowerCase() === "approved"
+      );
+    })
     .map((image) => {
       const securityEvidence = image.securityEvidence ?? {};
       const reviewDraft = securityEvidence.reviewDraft ?? {};
@@ -615,6 +623,13 @@ function securityScanItems(plan) {
         reviewDraft.finalEvidenceFile ??
         `docs/release/evidence/security/${imageName}-security-review.json`;
       const draftMissingEvidence = reviewDraft.missingEvidence ?? [];
+      const validationMissingEvidence =
+        securityEvidence.validationMissingEvidence ?? [];
+      const finalReviewState =
+        `exists=${String(securityEvidence.reviewExists === true)}, ` +
+        `valid=${String(securityEvidence.reviewValid === true)}, ` +
+        `approved=${String(securityEvidence.reviewApproved === true)}, ` +
+        `decision=${securityEvidence.reviewDecision ?? "missing"}`;
       const relevantReadOnly = readOnlyCommands.filter((command) => {
         const id = command.id ?? "";
         return (
@@ -637,9 +652,13 @@ function securityScanItems(plan) {
         priority: "high",
         source: `securityScanPlan:${imageName}`,
         request:
-          `Complete final reviewed security evidence for ${imageName} without signing, pushing, mirroring, or mutating cluster resources.`,
+          `Complete or refresh final reviewed security evidence for ${imageName} without signing, pushing, mirroring, or mutating cluster resources.`,
         evidenceNeeded: [
           `${finalEvidenceFile} exists with artifactType=opslens.security-review.v0.1`,
+          `reviewExists=${String(securityEvidence.reviewExists === true)}`,
+          `reviewValid=${String(securityEvidence.reviewValid === true)}`,
+          `reviewApproved=${String(securityEvidence.reviewApproved === true)}`,
+          `reviewDecision=${securityEvidence.reviewDecision ?? "missing"}`,
           `reviewDraft=${reviewDraft.evidenceState ?? "missing"}`,
           `sameHead=${String(reviewDraft.sameHead === true)}`,
           `readyForFinalReview=${String(reviewDraft.readyForFinalReview === true)}`,
@@ -652,7 +671,8 @@ function securityScanItems(plan) {
         readOnlyCommands: relevantReadOnly,
         approvalGatedCommands: relevantApprovalGated,
         blockedBy: [
-          `${imageName} final security review evidence is missing`,
+          `${imageName} final security review evidence is not approved/current (${finalReviewState})`,
+          ...validationMissingEvidence,
           ...draftMissingEvidence
         ],
         acceptance: ["AC-CERT-001"]

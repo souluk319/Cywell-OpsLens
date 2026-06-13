@@ -1330,6 +1330,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             id?: string;
             owner?: string;
             priority?: string;
+            evidenceNeeded?: string;
             nextCommand?: string;
             handoffNextCommands?: string[];
             setupCommands?: Array<{ id?: string; mutation?: boolean }>;
@@ -2267,6 +2268,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     expect(securityReviewAction?.nextCommand).toContain(
       "evidence:security-review:draft"
+    );
+    expect(securityReviewAction?.evidenceNeeded).toContain(
+      "reviewApproved=false"
     );
     expect(securityReviewAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
       expect.arrayContaining(["security-review-drafts-all"])
