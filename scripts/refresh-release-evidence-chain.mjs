@@ -371,6 +371,61 @@ function summarizeArtifacts(headSha) {
   });
 }
 
+function actionQueueSummary(headSha) {
+  const loaded = loadArtifact(evidencePaths.releaseActionQueue);
+  const artifact = loaded.artifact;
+  if (!artifact) {
+    warn("release action queue owner packets", "release action queue artifact is missing or unreadable");
+    return {
+      status: "missing",
+      ownerPacketCount: 0,
+      ownerPacketsReady: false,
+      missingOwnerPackets: ["release action queue artifact is missing or unreadable"],
+      ownerPackets: []
+    };
+  }
+
+  const fresh = artifactHead(artifact) === headSha && artifactDirty(artifact) === false;
+  const ownerPackets = (artifact.ownerPackets ?? []).map((packet) => {
+    const markdownPath = packet.markdownPath ?? "missing";
+    return {
+      owner: sanitize(packet.owner ?? "unknown"),
+      status: sanitize(packet.status ?? "unknown"),
+      markdownPath: sanitize(markdownPath),
+      exists: markdownPath !== "missing" && existsSync(markdownPath),
+      open: packet.open ?? 0,
+      blocker: packet.blocker ?? 0,
+      high: packet.high ?? 0,
+      approvalGatedCommandCount: (packet.approvalGatedCommandIds ?? []).length,
+      mutationAllowedByThisVerifier: packet.mutationAllowedByThisVerifier === true
+    };
+  });
+  const missingOwnerPackets = ownerPackets
+    .filter((packet) => !packet.exists)
+    .map((packet) => `${packet.owner} owner packet missing at ${packet.markdownPath}`);
+  const mutatingOwnerPackets = ownerPackets
+    .filter((packet) => packet.mutationAllowedByThisVerifier)
+    .map((packet) => `${packet.owner} owner packet reports mutationAllowedByThisVerifier=true`);
+  const blockers = [
+    ...(fresh ? [] : [`release action queue is stale head=${artifactHead(artifact) ?? "missing"}`]),
+    ...(ownerPackets.length > 0 ? [] : ["release action queue has no ownerPackets"]),
+    ...missingOwnerPackets,
+    ...mutatingOwnerPackets
+  ];
+  if (blockers.length > 0) {
+    fail("release action queue owner packets", blockers.join("; "));
+  } else {
+    pass("release action queue owner packets", `${ownerPackets.length} owner packet(s) exist for head=${headSha}`);
+  }
+  return {
+    status: blockers.length > 0 ? "blocked" : "ready",
+    ownerPacketCount: ownerPackets.length,
+    ownerPacketsReady: blockers.length === 0,
+    missingOwnerPackets,
+    ownerPackets
+  };
+}
+
 function unique(values) {
   return Array.from(new Set(values.filter(Boolean).map(sanitize)));
 }
@@ -394,6 +449,7 @@ async function main() {
   }
 
   const artifacts = summarizeArtifacts(headSha);
+  const actionQueue = actionQueueSummary(headSha);
   const staleArtifacts = artifacts.filter((artifact) => artifact.exists && !artifact.parseError && !artifact.fresh);
   const missingArtifacts = artifacts.filter((artifact) => !artifact.exists || artifact.parseError);
   for (const artifact of missingArtifacts) {
@@ -415,6 +471,7 @@ async function main() {
     ...artifacts.flatMap((artifact) =>
       artifact.missingEvidence.map((item) => `${artifact.id}: ${item}`)
     ),
+    ...actionQueue.missingOwnerPackets,
     options.skipImageBuild ? "image build refresh was skipped; release approval still requires same-HEAD actual build evidence" : "",
     options.skipLive ? "live OCP/Lightspeed refresh was skipped; live readiness still requires same-HEAD evidence" : ""
   ]);
@@ -454,6 +511,7 @@ async function main() {
     },
     commands: commandResults,
     artifacts,
+    actionQueue,
     missingEvidence,
     risk: [
       "This refresh chain only runs local verifiers and live read-only diagnostics; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions.",

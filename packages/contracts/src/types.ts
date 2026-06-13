@@ -1438,6 +1438,23 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
     headSha: string;
     worktreeDirty: boolean | string;
   }>;
+  actionQueue: {
+    status: string;
+    ownerPacketCount: number;
+    ownerPacketsReady: boolean;
+    missingOwnerPackets: string[];
+    ownerPackets: Array<{
+      owner: string;
+      status: string;
+      markdownPath: string;
+      exists: boolean;
+      open: number;
+      blocker: number;
+      high: number;
+      approvalGatedCommandCount: number;
+      mutationAllowedByThisVerifier: boolean;
+    }>;
+  };
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];

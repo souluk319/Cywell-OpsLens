@@ -1229,6 +1229,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             status?: string;
             fresh?: boolean;
           }>;
+          actionQueue?: {
+            status?: string;
+            ownerPacketCount?: number;
+            ownerPacketsReady?: boolean;
+            missingOwnerPackets?: string[];
+            ownerPackets?: Array<{
+              owner?: string;
+              markdownPath?: string;
+              exists?: boolean;
+              approvalGatedCommandCount?: number;
+            }>;
+          };
           risk?: string[];
           rollbackPath?: string[];
           missingEvidence?: string[];
@@ -2091,6 +2103,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.refresh?.artifacts?.length ?? 0
     ).toBeGreaterThan(0);
+    expect(body.installReadiness?.refresh?.actionQueue).toMatchObject({
+      status: "ready",
+      ownerPacketsReady: true
+    });
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.ownerPackets?.map(
+        (packet) => packet.owner
+      )
+    ).toEqual(expect.arrayContaining(["cluster-admin", "release-manager"]));
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.ownerPackets?.every(
+        (packet) => packet.exists === true
+      )
+    ).toBe(true);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /release evidence refresh/i
     );
@@ -2927,6 +2953,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "dirty=false"
     );
+    await expect(
+      page.getByTestId("opslens-release-refresh-owner-packets")
+    ).toContainText("cluster-admin.md");
+    await expect(
+      page.getByTestId("opslens-release-refresh-owner-packets")
+    ).toContainText("exists=true");
     await expect(page.getByTestId("opslens-evidence-checkpoint")).toContainText(
       /PASS|NEEDS_EVIDENCE|BLOCKED|missing/
     );

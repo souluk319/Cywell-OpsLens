@@ -1294,6 +1294,26 @@ export function OpsLensAdminDashboard() {
                       : "none"}
                   </strong>
                 </div>
+                <div>
+                  <span>Owner Packets</span>
+                  <strong>
+                    ready={String(releaseRefresh.actionQueue.ownerPacketsReady)},
+                    count={releaseRefresh.actionQueue.ownerPacketCount}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-refresh-owner-packets"
+              >
+                {releaseRefresh.actionQueue.ownerPackets.slice(0, 6).map((packet) => (
+                  <span key={packet.owner}>
+                    {packet.owner}:
+                    {packet.markdownPath.split(/[\\/]/).pop() ??
+                      packet.markdownPath}
+                    :exists={String(packet.exists)}
+                  </span>
+                ))}
               </div>
               <div className="remediation-notes">
                 <p>

@@ -1658,6 +1658,23 @@ type ReleaseEvidenceRefreshArtifact = {
     headSha?: string;
     worktreeDirty?: boolean | string;
   }>;
+  actionQueue?: {
+    status?: string;
+    ownerPacketCount?: number;
+    ownerPacketsReady?: boolean;
+    missingOwnerPackets?: string[];
+    ownerPackets?: Array<{
+      owner?: string;
+      status?: string;
+      markdownPath?: string;
+      exists?: boolean;
+      open?: number;
+      blocker?: number;
+      high?: number;
+      approvalGatedCommandCount?: number;
+      mutationAllowedByThisVerifier?: boolean;
+    }>;
+  };
   missingEvidence?: string[];
   risk?: string[];
   rollbackPath?: string[];
@@ -4332,6 +4349,13 @@ function missingReleaseEvidenceRefreshSummary(
       }
     ],
     artifacts: [],
+    actionQueue: {
+      status: "missing",
+      ownerPacketCount: 0,
+      ownerPacketsReady: false,
+      missingOwnerPackets: [reason],
+      ownerPackets: []
+    },
     missingEvidence: [reason],
     risk: [
       "Without release refresh evidence, reviewers cannot tell whether local gate artifacts were regenerated in dependency order."
@@ -4382,6 +4406,24 @@ function getReleaseEvidenceRefreshReadiness(): {
       headSha: source.headSha ?? "missing",
       worktreeDirty: source.worktreeDirty ?? "unknown"
     }));
+    const actionQueue = {
+      status: artifact.actionQueue?.status ?? "missing",
+      ownerPacketCount: artifact.actionQueue?.ownerPacketCount ?? 0,
+      ownerPacketsReady: artifact.actionQueue?.ownerPacketsReady === true,
+      missingOwnerPackets: artifact.actionQueue?.missingOwnerPackets ?? [],
+      ownerPackets: (artifact.actionQueue?.ownerPackets ?? []).map((packet) => ({
+        owner: packet.owner ?? "unknown",
+        status: packet.status ?? "unknown",
+        markdownPath: packet.markdownPath ?? "missing",
+        exists: packet.exists === true,
+        open: packet.open ?? 0,
+        blocker: packet.blocker ?? 0,
+        high: packet.high ?? 0,
+        approvalGatedCommandCount: packet.approvalGatedCommandCount ?? 0,
+        mutationAllowedByThisVerifier:
+          packet.mutationAllowedByThisVerifier === true
+      }))
+    };
     const commandSummary = commands
       .slice(0, 6)
       .map((command) => `${command.id}:${command.status}`)
@@ -4402,6 +4444,7 @@ function getReleaseEvidenceRefreshReadiness(): {
         worktreeDirty: artifact.ref?.worktreeDirty === true,
         commands,
         artifacts,
+        actionQueue,
         missingEvidence: artifact.missingEvidence ?? [],
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? []
@@ -4410,6 +4453,7 @@ function getReleaseEvidenceRefreshReadiness(): {
         `Release evidence refresh ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `release refresh generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `localDockerBuildAllowed=${String(artifact.localDockerBuildAllowed ?? false)} commandCount=${commands.length} artifactCount=${artifacts.length}`,
+        `release refresh action queue owner packets ready=${String(actionQueue.ownerPacketsReady)} count=${actionQueue.ownerPacketCount}`,
         commandSummary ? `refresh commands=${commandSummary}` : "refresh command summary is not listed",
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads release refresh evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
