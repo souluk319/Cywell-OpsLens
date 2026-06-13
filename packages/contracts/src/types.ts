@@ -1646,6 +1646,7 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
       role: string;
       request: string;
       evidenceNeeded: string;
+      nextCommand: string;
     }>;
     missingEvidenceCount: number;
   }>;

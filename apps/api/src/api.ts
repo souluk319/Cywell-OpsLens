@@ -1291,6 +1291,7 @@ type ExternalRuntimeReviewPacketEvidenceArtifact = {
       role?: string;
       request?: string;
       evidenceNeeded?: string;
+      nextCommand?: string;
     }>;
     missingEvidence?: string[];
   }>;
@@ -2948,7 +2949,9 @@ function getExternalRuntimeReviewPacketReadiness(): {
       reviewerRequests: (image.reviewerRequests ?? []).map((request) => ({
         role: request.role ?? "unknown",
         request: request.request ?? "unknown",
-        evidenceNeeded: request.evidenceNeeded ?? "unknown"
+        evidenceNeeded: request.evidenceNeeded ?? "unknown",
+        nextCommand:
+          request.nextCommand ?? "npm run evidence:external-runtime:review-packet"
       })),
       missingEvidenceCount: image.missingEvidence?.length ?? 0
     }));

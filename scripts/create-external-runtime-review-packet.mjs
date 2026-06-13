@@ -257,14 +257,29 @@ function candidateEvidenceLine(candidateMatrix) {
   return `Best scanned candidate ${best.image} reports criticalFindings=${best.criticalFindings} highFindings=${best.highFindings}; it reduces risk but still needs remediation or security exception before promotion`;
 }
 
+function digestReferenceBase(imageRef, fallbackName) {
+  const value = String(imageRef ?? `<internal-registry>/cywell/${fallbackName}:<tag>`);
+  const lastSlash = value.lastIndexOf("/");
+  const lastColon = value.lastIndexOf(":");
+  if (lastColon > lastSlash) return value.slice(0, lastColon);
+  return value;
+}
+
 function reviewerRequests(name, image, draftMissingEvidence, draft, candidateMatrix) {
   const missing = draftMissingEvidence.join("\n");
   const requests = [];
-  const add = (role, request, evidenceNeeded) => {
+  const draftCommand = (args) =>
+    [
+      `npm run evidence:external-runtime:draft -- --name ${name}`,
+      ...args,
+      "--force"
+    ].join(" ");
+  const add = (role, request, evidenceNeeded, nextCommand) => {
     requests.push({
       role,
       request: sanitize(request),
-      evidenceNeeded: sanitize(evidenceNeeded)
+      evidenceNeeded: sanitize(evidenceNeeded),
+      nextCommand: sanitize(nextCommand)
     });
   };
 
@@ -273,21 +288,33 @@ function reviewerRequests(name, image, draftMissingEvidence, draft, candidateMat
       "registry-admin",
       `Resolve immutable source digest for ${image.image}.`,
       draft?.sourceDigestInspection?.detail ??
-        "docker buildx imagetools inspect or registry-admin evidence with sha256 digest"
+        "docker buildx imagetools inspect or registry-admin evidence with sha256 digest",
+      "npm run evidence:external-runtime:draft:digests"
     );
   }
   if (missing.includes(`${name}-mirror-digest`)) {
+    const desiredMirror = image.desiredMirror ?? `<internal-registry>/cywell/${name}:<tag>`;
     add(
       "registry-admin",
       `Record the approved internal mirror digest for ${name}.`,
-      "mirroredImage and mirroredDigest pinned to the controlled internal registry"
+      "mirroredImage and mirroredDigest pinned to the controlled internal registry",
+      draftCommand([
+        `--mirrored-image ${desiredMirror}`,
+        `--mirrored-digest ${digestReferenceBase(desiredMirror, name)}@sha256:<digest>`,
+        "--ticket <change-ticket>"
+      ])
     );
   }
   if (missing.includes(`${name}-certification`)) {
     add(
       "security-reviewer",
       `Attach container certification evidence for ${name}.`,
-      "container certification run, ticket, or approval reference"
+      "container certification run, ticket, or approval reference",
+      draftCommand([
+        "--certification-status approved",
+        "--certification-evidence <certification-ticket-or-url>",
+        "--ticket <change-ticket>"
+      ])
     );
   }
   if (missing.includes(`${name}-vulnerability-scan`)) {
@@ -301,7 +328,15 @@ function reviewerRequests(name, image, draftMissingEvidence, draft, candidateMat
             `current ${scan.evidencePath ?? "scan evidence"} reports criticalFindings=${scan.criticalFindings ?? "unknown"} highFindings=${scan.highFindings ?? "unknown"}; replace or patch the image, then attach a reviewed zero-critical scan`,
             candidateLine
           ]).join("; ")
-        : "trivy/grype report with criticalFindings=0 and reviewed high findings"
+        : "trivy/grype report with criticalFindings=0 and reviewed high findings",
+      candidateMatrix?.status === "candidate-ready-for-review"
+        ? draftCommand([
+            "--scan-status approved",
+            "--scan-evidence <zero-critical-scan-report>",
+            "--scan-critical-findings 0",
+            "--ticket <change-ticket>"
+          ])
+        : `npm run evidence:external-runtime:candidate-scan -- --name ${name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback`
     );
   }
   if (missing.includes(`${name}-sbom`)) {
@@ -311,28 +346,48 @@ function reviewerRequests(name, image, draftMissingEvidence, draft, candidateMat
       `Attach SBOM evidence for ${name}.`,
       sbom?.status === "generated"
         ? `generated SBOM exists at ${sbom.evidencePath ?? "unknown"} with packages=${sbom.packageCount ?? "unknown"}; reviewer approval is still required`
-        : "SPDX JSON or approved SBOM artifact path"
+        : "SPDX JSON or approved SBOM artifact path",
+      draftCommand([
+        "--sbom-status approved",
+        "--sbom-evidence <approved-sbom-path-or-url>",
+        "--ticket <change-ticket>"
+      ])
     );
   }
   if (missing.includes(`${name}-provenance`)) {
     add(
       "release-manager",
       `Record source/build provenance for ${name}.`,
-      "vendor release, model runtime build source, or provenance artifact"
+      "vendor release, model runtime build source, or provenance artifact",
+      draftCommand([
+        "--provenance-status approved",
+        "--provenance-evidence <provenance-url-or-ticket>",
+        "--ticket <change-ticket>"
+      ])
     );
   }
   if (missing.includes(`${name}-license-review`)) {
     add(
       "product-owner",
       `Approve license and support boundary for ${name}.`,
-      "license/support review ticket"
+      "license/support review ticket",
+      draftCommand([
+        "--license-status approved",
+        "--license-evidence <license-review-ticket>",
+        "--ticket <change-ticket>"
+      ])
     );
   }
   if (missing.includes(`${name}-approval`)) {
     add(
       "release-manager",
       `Record final release approval for ${name}.`,
-      "approver list, approval timestamp, and change/release ticket"
+      "approver list, approval timestamp, and change/release ticket",
+      draftCommand([
+        "--approval-status approved",
+        "--approved-at <iso-timestamp>",
+        "--ticket <change-ticket>"
+      ])
     );
   }
 
@@ -567,7 +622,9 @@ function markdownFor(packet) {
       lines.push("- No draft-level reviewer requests remain, but final evidence still requires human promotion.", "");
     } else {
       for (const request of image.reviewerRequests) {
-        lines.push(`- ${request.role}: ${request.request} Evidence: ${request.evidenceNeeded}`);
+        lines.push(
+          `- ${request.role}: ${request.request} Evidence: ${request.evidenceNeeded}. Next: \`${request.nextCommand}\``
+        );
       }
       lines.push("");
     }

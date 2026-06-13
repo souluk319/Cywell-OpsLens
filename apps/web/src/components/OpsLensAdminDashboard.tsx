@@ -1995,6 +1995,18 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-external-runtime-reviewer-actions"
+              >
+                {externalRuntimeReview.images.flatMap((image) =>
+                  image.reviewerRequests.slice(0, 3).map((request) => (
+                    <span key={`${image.name}-${request.role}-${request.request}`}>
+                      {image.name}:{request.role}:{request.nextCommand}
+                    </span>
+                  ))
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-external-runtime-review-commands"
               >
                 {externalRuntimeReview.readOnlyCommands

@@ -460,7 +460,8 @@ function externalRuntimeItems(packet) {
         source: `externalRuntimeReviewPacket:${image.name}`,
         request: request.request ?? `Complete ${image.name} reviewer request.`,
         evidenceNeeded: request.evidenceNeeded ?? `${image.name} reviewer evidence`,
-        nextCommand: "npm run evidence:external-runtime:review-packet",
+        nextCommand:
+          request.nextCommand ?? "npm run evidence:external-runtime:review-packet",
         blockedBy: image.missingEvidence ?? [],
         acceptance: ["AC-CERT-001"]
       })

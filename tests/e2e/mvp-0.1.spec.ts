@@ -1123,6 +1123,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               role?: string;
               request?: string;
               evidenceNeeded?: string;
+              nextCommand?: string;
             }>;
             missingEvidenceCount?: number;
           }>;
@@ -1876,6 +1877,17 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(String(qdrantCandidate.criticalFindings)).toMatch(/^(\d+|unknown)$/);
       expect(String(qdrantCandidate.highFindings)).toMatch(/^(\d+|unknown)$/);
     }
+    const externalRuntimeReviewerCommands =
+      body.installReadiness?.externalRuntimeReview?.images
+        ?.flatMap((image) => image.reviewerRequests ?? [])
+        .map((request) => request.nextCommand ?? "")
+        .join(" ") ?? "";
+    expect(externalRuntimeReviewerCommands).toContain(
+      "evidence:external-runtime:draft"
+    );
+    expect(externalRuntimeReviewerCommands).toContain(
+      "evidence:external-runtime:candidate-scan"
+    );
     expect(
       body.installReadiness?.externalRuntimeReview?.readOnlyCommands?.every(
         (command) => command.mutation === false
@@ -2602,6 +2614,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-external-runtime-candidates")
     ).toContainText(/zeroCritical=/);
+    await expect(
+      page.getByTestId("opslens-external-runtime-reviewer-actions")
+    ).toContainText("evidence:external-runtime:draft");
+    await expect(
+      page.getByTestId("opslens-external-runtime-reviewer-actions")
+    ).toContainText("evidence:external-runtime:candidate-scan");
     await expect(
       page.getByTestId("opslens-external-runtime-review-commands")
     ).toContainText("mutation=false");
