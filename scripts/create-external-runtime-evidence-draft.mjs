@@ -46,30 +46,39 @@ function parseArgs(argv) {
 
 const parsed = parseArgs(process.argv.slice(2));
 const imageName = parsed.get("name");
+const allRequested = parsed.get("all") === "true";
 
 function usage() {
   return [
     "Usage:",
+    "  npm run evidence:external-runtime:draft -- --all --force",
     "  npm run evidence:external-runtime:draft -- --name vllm --source-digest quay.io/cywell/opslens-vllm@sha256:<digest> --mirrored-image <internal>/cywell/opslens-vllm:0.1.0 --mirrored-digest <internal>/cywell/opslens-vllm@sha256:<digest> --ticket CHG-123 --force",
     "",
+    "For --all, image-specific overrides may be passed as --vllm-source-digest, --qdrant-source-digest, and so on.",
     "Supported names: vllm, qdrant",
     "This script writes only *.draft.json files. It never creates final vllm.json/qdrant.json evidence."
   ].join("\n");
 }
 
-if (!imageName || !Object.hasOwn(imageDefaults, imageName)) {
+if ((!allRequested && (!imageName || !Object.hasOwn(imageDefaults, imageName))) ||
+  (allRequested && imageName && !Object.hasOwn(imageDefaults, imageName))) {
   console.error(usage());
   process.exit(1);
 }
 
 const options = {
-  name: imageName,
+  names: allRequested ? Object.keys(imageDefaults) : [imageName],
   externalEvidenceDir:
     parsed.get("external-evidence-dir") ?? defaults.externalEvidenceDir,
   evidenceOut: parsed.get("evidence-out"),
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs),
   force: parsed.get("force") === "true"
 };
+
+if (allRequested && options.evidenceOut) {
+  console.error("--evidence-out can only be used with --name; --all writes each default *.draft.json file");
+  process.exit(1);
+}
 
 function sanitize(value) {
   return String(value ?? "")
@@ -85,8 +94,8 @@ function secretLike(value) {
     /[?&](?:access_)?token=[^&\s]+/i.test(value);
 }
 
-function cliValue(key) {
-  const value = parsed.get(key);
+function cliValue(key, name) {
+  const value = parsed.get(`${name}-${key}`) ?? parsed.get(key);
   if (value && secretLike(value)) {
     throw new Error(`${key} appears to contain secret material; store the redacted evidence URL or ticket id instead`);
   }
@@ -232,10 +241,10 @@ function evidenceRequirements(draft) {
   ];
 }
 
-function applyInputs(example) {
+function applyInputs(example, name) {
   const now = new Date().toISOString();
   const approvers = commaList(
-    cliValue("approvers"),
+    cliValue("approvers", name),
     example.approval?.approvers ?? [
       "registry-admin",
       "security-reviewer",
@@ -257,62 +266,62 @@ function applyInputs(example) {
     mutationAllowedByThisVerifier: false,
     finalEvidenceFile: resolve(
       options.externalEvidenceDir,
-      imageDefaults[options.name].final
+      imageDefaults[name].final
     ),
-    name: options.name,
-    sourceDigest: cliValue("source-digest") ?? example.sourceDigest,
-    mirroredImage: cliValue("mirrored-image") ?? example.mirroredImage,
-    mirroredDigest: cliValue("mirrored-digest") ?? example.mirroredDigest,
+    name,
+    sourceDigest: cliValue("source-digest", name) ?? example.sourceDigest,
+    mirroredImage: cliValue("mirrored-image", name) ?? example.mirroredImage,
+    mirroredDigest: cliValue("mirrored-digest", name) ?? example.mirroredDigest,
     certification: {
       ...example.certification,
-      status: cliValue("certification-status") ?? example.certification?.status ?? "pending",
-      evidenceUrl: cliValue("certification-evidence") ?? example.certification?.evidenceUrl,
-      checkedAt: cliValue("certification-checked-at") ?? cliValue("checked-at") ?? now
+      status: cliValue("certification-status", name) ?? example.certification?.status ?? "pending",
+      evidenceUrl: cliValue("certification-evidence", name) ?? example.certification?.evidenceUrl,
+      checkedAt: cliValue("certification-checked-at", name) ?? cliValue("checked-at", name) ?? now
     },
     vulnerabilityScan: {
       ...example.vulnerabilityScan,
-      status: cliValue("scan-status") ?? example.vulnerabilityScan?.status ?? "pending",
-      scanner: cliValue("scan-scanner") ?? example.vulnerabilityScan?.scanner ?? "trivy",
+      status: cliValue("scan-status", name) ?? example.vulnerabilityScan?.status ?? "pending",
+      scanner: cliValue("scan-scanner", name) ?? example.vulnerabilityScan?.scanner ?? "trivy",
       criticalFindings: numberOrPlaceholder(
-        cliValue("scan-critical-findings"),
+        cliValue("scan-critical-findings", name),
         example.vulnerabilityScan?.criticalFindings ?? "<missing:critical-findings>"
       ),
       highFindings: numberOrPlaceholder(
-        cliValue("scan-high-findings"),
+        cliValue("scan-high-findings", name),
         example.vulnerabilityScan?.highFindings ?? "<missing:high-findings>"
       ),
-      evidencePath: cliValue("scan-evidence") ?? example.vulnerabilityScan?.evidencePath
+      evidencePath: cliValue("scan-evidence", name) ?? example.vulnerabilityScan?.evidencePath
     },
     sbom: {
       ...example.sbom,
-      status: cliValue("sbom-status") ?? example.sbom?.status ?? "pending",
-      format: cliValue("sbom-format") ?? example.sbom?.format ?? "spdx-json",
-      evidencePath: cliValue("sbom-evidence") ?? example.sbom?.evidencePath
+      status: cliValue("sbom-status", name) ?? example.sbom?.status ?? "pending",
+      format: cliValue("sbom-format", name) ?? example.sbom?.format ?? "spdx-json",
+      evidencePath: cliValue("sbom-evidence", name) ?? example.sbom?.evidencePath
     },
     provenance: {
       ...example.provenance,
-      status: cliValue("provenance-status") ?? example.provenance?.status ?? "pending",
-      source: cliValue("provenance-source") ?? example.provenance?.source,
-      evidenceUrl: cliValue("provenance-evidence") ?? example.provenance?.evidenceUrl
+      status: cliValue("provenance-status", name) ?? example.provenance?.status ?? "pending",
+      source: cliValue("provenance-source", name) ?? example.provenance?.source,
+      evidenceUrl: cliValue("provenance-evidence", name) ?? example.provenance?.evidenceUrl
     },
     licenseReview: {
       ...example.licenseReview,
-      status: cliValue("license-status") ?? example.licenseReview?.status ?? "pending",
-      evidenceUrl: cliValue("license-evidence") ?? example.licenseReview?.evidenceUrl
+      status: cliValue("license-status", name) ?? example.licenseReview?.status ?? "pending",
+      evidenceUrl: cliValue("license-evidence", name) ?? example.licenseReview?.evidenceUrl
     },
     approval: {
       ...example.approval,
-      status: cliValue("approval-status") ?? example.approval?.status ?? "pending",
+      status: cliValue("approval-status", name) ?? example.approval?.status ?? "pending",
       approvers,
-      approvedAt: cliValue("approved-at") ?? example.approval?.approvedAt ?? "<missing:approved-at>",
-      ticket: cliValue("ticket") ?? example.approval?.ticket ?? "<missing:change-ticket>"
+      approvedAt: cliValue("approved-at", name) ?? example.approval?.approvedAt ?? "<missing:approved-at>",
+      ticket: cliValue("ticket", name) ?? example.approval?.ticket ?? "<missing:change-ticket>"
     }
   };
 }
 
-async function buildDraft() {
-  const example = loadExample(options.name);
-  const draft = applyInputs(example);
+async function buildDraft(name) {
+  const example = loadExample(name);
+  const draft = applyInputs(example, name);
   const requirements = evidenceRequirements(draft);
   const unmet = requirements.filter((requirement) => !requirement.pass);
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
@@ -337,7 +346,7 @@ async function buildDraft() {
     missingEvidence: unmet.map((requirement) => `${requirement.id}: ${requirement.evidence}`),
     promotionRequirements: [
       "Human reviewer must verify every source artifact, ticket, scan, SBOM, provenance record, and approval.",
-      `Only after review, create ${imageDefaults[options.name].final}; do not rename this draft blindly.`,
+      `Only after review, create ${imageDefaults[name].final}; do not rename this draft blindly.`,
       "Regenerate npm run verify:external-runtime-plan, verify:release-plan, verify:evidence-checkpoint, and verify:release-evidence-bundle from the same clean Git HEAD."
     ],
     evidence: [
@@ -357,28 +366,35 @@ async function buildDraft() {
 }
 
 async function main() {
-  const outputPath = resolve(
-    options.evidenceOut ??
-      resolve(options.externalEvidenceDir, imageDefaults[options.name].draft)
-  );
-  if (!outputPath.endsWith(".draft.json")) {
-    throw new Error("draft evidence output must end with .draft.json");
-  }
-  if (existsSync(outputPath) && !options.force) {
-    throw new Error(`${outputPath} already exists; pass --force to replace the draft`);
+  const outputs = options.names.map((name) => ({
+    name,
+    outputPath: resolve(
+      options.evidenceOut ??
+        resolve(options.externalEvidenceDir, imageDefaults[name].draft)
+    )
+  }));
+  for (const { outputPath } of outputs) {
+    if (!outputPath.endsWith(".draft.json")) {
+      throw new Error("draft evidence output must end with .draft.json");
+    }
+    if (existsSync(outputPath) && !options.force) {
+      throw new Error(`${outputPath} already exists; pass --force to replace the draft`);
+    }
   }
 
-  const draft = await buildDraft();
-  const serialized = `${JSON.stringify(draft, null, 2)}\n`;
-  if (secretLike(serialized)) {
-    throw new Error("draft evidence would include secret-like material");
+  for (const { name, outputPath } of outputs) {
+    const draft = await buildDraft(name);
+    const serialized = `${JSON.stringify(draft, null, 2)}\n`;
+    if (secretLike(serialized)) {
+      throw new Error(`${name} draft evidence would include secret-like material`);
+    }
+
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, serialized, "utf8");
+
+    console.log(`Cywell OpsLens external runtime draft written: ${outputPath}`);
+    console.log(`name=${draft.name} state=${draft.evidenceState} missingEvidence=${draft.missingEvidence.length}`);
   }
-
-  await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, serialized, "utf8");
-
-  console.log(`Cywell OpsLens external runtime draft written: ${outputPath}`);
-  console.log(`name=${draft.name} state=${draft.evidenceState} missingEvidence=${draft.missingEvidence.length}`);
   console.log("mutationAllowedByThisVerifier=false registryMutationAttempted=false clusterMutationAttempted=false");
 }
 

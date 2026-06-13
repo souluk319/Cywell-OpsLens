@@ -47,8 +47,9 @@ The verifier must remain non-mutating. Mirroring, signing, pushing, or changing 
 Use the draft helper to collect reviewer inputs without promoting them to final evidence:
 
 ```sh
+npm run evidence:external-runtime:draft -- --all --force
 npm run evidence:external-runtime:draft -- --name vllm --source-digest quay.io/cywell/opslens-vllm@sha256:<digest> --mirrored-image <internal-registry>/cywell/opslens-vllm:0.1.0 --mirrored-digest <internal-registry>/cywell/opslens-vllm@sha256:<digest> --ticket <change-ticket> --force
 npm run evidence:external-runtime:draft -- --name qdrant --source-digest docker.io/qdrant/qdrant@sha256:<digest> --mirrored-image <internal-registry>/cywell/qdrant:v1.12.1 --mirrored-digest <internal-registry>/cywell/qdrant@sha256:<digest> --ticket <change-ticket> --force
 ```
 
-The helper rejects secret-like values, writes only `*.draft.json`, records branch/head/base/dirty state, and keeps `registryMutationAttempted=false` and `clusterMutationAttempted=false`. A human reviewer must still create the final `vllm.json` or `qdrant.json` after validating the referenced digest, scan, SBOM, provenance, license, and approval evidence.
+For bulk intake, pass image-specific overrides such as `--vllm-source-digest`, `--vllm-mirrored-digest`, `--qdrant-source-digest`, and `--qdrant-mirrored-digest`. The helper rejects secret-like values, writes only `*.draft.json`, records branch/head/base/dirty state, and keeps `registryMutationAttempted=false` and `clusterMutationAttempted=false`. A human reviewer must still create the final `vllm.json` or `qdrant.json` after validating the referenced digest, scan, SBOM, provenance, license, and approval evidence.
