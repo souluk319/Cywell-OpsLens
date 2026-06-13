@@ -3134,6 +3134,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(ragOwnerQueueAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining(["rag-approval-queue-contract"])
       );
+      expect(ragOwnerQueueAction?.blockedBy?.join(" ")).toMatch(
+        /production database-backed queue|production ingestion worker|vector write audit/
+      );
+      expect(ragOwnerQueueAction?.blockedBy?.some((entry) =>
+        /releaseActionQueue:\s*releaseActionQueue:/i.test(entry)
+      )).toBe(false);
     }
     const monitoringProxyAction =
       body.installReadiness?.actionQueue?.items?.find(

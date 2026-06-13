@@ -508,7 +508,9 @@ async function main() {
     ...missingArtifacts.map((artifact) => `${artifact.id} artifact missing or unreadable`),
     ...staleArtifacts.map((artifact) => `${artifact.id} artifact not fresh for current head`),
     ...artifacts.flatMap((artifact) =>
-      artifact.missingEvidence.map((item) => `${artifact.id}: ${item}`)
+      artifact.id === "releaseActionQueue"
+        ? []
+        : artifact.missingEvidence.map((item) => `${artifact.id}: ${item}`)
     ),
     ...actionQueue.missingOwnerPackets,
     options.skipImageBuild ? "image build refresh was skipped; release approval still requires same-HEAD actual build evidence" : "",

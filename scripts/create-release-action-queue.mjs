@@ -236,6 +236,14 @@ function uniqueStrings(values) {
   return [...new Set(values.map(sanitize).filter(Boolean))];
 }
 
+function stripReleaseActionQueueFeedback(value) {
+  return sanitize(value).replace(/^(?:releaseActionQueue:\s*)+/i, "");
+}
+
+function normalizedEvidence(values) {
+  return uniqueStrings(values.map(stripReleaseActionQueueFeedback));
+}
+
 function ownerSlug(owner) {
   return sanitize(owner)
     .toLowerCase()
@@ -1205,7 +1213,7 @@ function runtimeRagDiagnostics(runtimeRagContract, runtimeRagFixture) {
 }
 
 function runtimeLiveItems(releaseRefresh, runtimeReadiness, runtimeRagContract, runtimeRagFixture) {
-  const missingEvidence = releaseRefresh?.missingEvidence ?? [];
+  const missingEvidence = normalizedEvidence(releaseRefresh?.missingEvidence ?? []);
   const runtimeProbeGaps = missingEvidence.filter((entry) =>
     /runtimeReadiness:.*(?:qdrant|vllm).*live probe/i.test(entry)
   );
@@ -1875,7 +1883,7 @@ async function main() {
     readOnlyCommands: readOnly,
     approvalGatedCommands: approvalGated,
     mutationBoundary,
-    missingEvidence: uniqueStrings([
+    missingEvidence: normalizedEvidence([
       ...(artifacts.releaseBundle?.missingEvidence ?? []),
       ...(artifacts.releaseRefresh?.missingEvidence ?? []),
       ...(artifacts.checkpoint?.missingEvidence ?? []),
