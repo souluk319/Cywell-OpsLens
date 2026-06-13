@@ -2676,6 +2676,50 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         expect.arrayContaining(["registry-login"])
       );
     }
+    const runtimeLiveAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "runtime-platform-run-live-vllm-qdrant-probes"
+      );
+    if (
+      body.installReadiness?.refresh?.missingEvidence?.some((entry) =>
+        entry.includes("runtimeReadiness:")
+      )
+    ) {
+      expect(runtimeLiveAction?.owner).toBe("runtime-platform");
+      expect(runtimeLiveAction?.nextCommand).toContain("verify:runtime");
+      expect(runtimeLiveAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
+        expect.arrayContaining(["runtime-readiness-live"])
+      );
+    }
+    const runtimeRagAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "data-ml-engineer-prove-runtime-rag-live-quality"
+      );
+    if (
+      body.installReadiness?.refresh?.missingEvidence?.some((entry) =>
+        entry.includes("runtimeRag:")
+      )
+    ) {
+      expect(runtimeRagAction?.owner).toBe("data-ml-engineer");
+      expect(runtimeRagAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
+        expect.arrayContaining(["runtime-rag-contract", "runtime-rag-fixture"])
+      );
+      expect(runtimeRagAction?.evidenceNeeded).toContain("vLLM /v1/embeddings");
+    }
+    const ragOwnerQueueAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "rag-owner-enable-production-approval-queue"
+      );
+    if (
+      body.installReadiness?.refresh?.missingEvidence?.some((entry) =>
+        entry.includes("ragApprovalQueue:")
+      )
+    ) {
+      expect(ragOwnerQueueAction?.owner).toBe("rag-owner");
+      expect(ragOwnerQueueAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
+        expect.arrayContaining(["rag-approval-queue-contract"])
+      );
+    }
     expect(
       body.installReadiness?.actionQueue?.commandCounts?.readOnly ?? 0
     ).toBeGreaterThan(0);
@@ -3468,6 +3512,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
     ).toContainText(/registry-base-inspect|catalog registry actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-runtime-live-actions")
+    ).toContainText(/runtime-platform-run-live-vllm-qdrant-probes|runtime live actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-runtime-live-actions")
+    ).toContainText(/runtime-readiness-live|runtime live actions clear/);
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "localEvidenceRefresh"
     );

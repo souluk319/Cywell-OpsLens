@@ -11,6 +11,7 @@ const defaults = {
   evidenceOut: "test-results/cywell-opslens-release-action-queue.json",
   markdownOut: "test-results/cywell-opslens-release-action-queue.md",
   ownerPacketsDir: "test-results/release-action-queue-owners",
+  releaseRefreshEvidence: "test-results/cywell-opslens-release-evidence-refresh.json",
   releaseBundleEvidence: "test-results/cywell-opslens-release-evidence-bundle.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   certificationReadiness:
@@ -47,6 +48,8 @@ const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
   ownerPacketsDir: parsed.get("owner-packets-dir") ?? defaults.ownerPacketsDir,
+  releaseRefreshEvidence:
+    parsed.get("release-refresh-evidence") ?? defaults.releaseRefreshEvidence,
   releaseBundleEvidence:
     parsed.get("release-bundle-evidence") ?? defaults.releaseBundleEvidence,
   evidenceCheckpoint: parsed.get("evidence-checkpoint") ?? defaults.evidenceCheckpoint,
@@ -821,6 +824,121 @@ function catalogToolchainItems(bundle) {
   ];
 }
 
+function runtimeLiveItems(releaseRefresh) {
+  const missingEvidence = releaseRefresh?.missingEvidence ?? [];
+  const runtimeProbeGaps = missingEvidence.filter((entry) =>
+    /runtimeReadiness:.*(?:qdrant|vllm).*live probe/i.test(entry)
+  );
+  const runtimeRagGaps = missingEvidence.filter((entry) =>
+    /runtimeRag|runtimeRagFixture/i.test(entry)
+  );
+  const ragQueueGaps = missingEvidence.filter((entry) =>
+    /ragApprovalQueue:.*(?:production|vector write audit|ingestion worker)/i.test(entry)
+  );
+  const items = [];
+
+  if (runtimeProbeGaps.length > 0) {
+    items.push(item({
+      id: "runtime-platform-run-live-vllm-qdrant-probes",
+      owner: "runtime-platform",
+      priority: "high",
+      source: "releaseEvidenceRefresh:runtimeReadiness",
+      request:
+        "Run read-only live probes against the deployed vLLM and Qdrant services before claiming runtime readiness.",
+      evidenceNeeded:
+        "runtimeReadiness liveProbeEnabled=true with qdrant=ready and vllm=ready against approved runtime endpoints.",
+      nextCommand: "npm run verify:runtime -- --live --timeout-ms 30000",
+      handoffNextCommands: [
+        "set CYWELL_OPSLENS_VECTOR_URL and CYWELL_OPSLENS_MODEL_URL to the approved in-cluster or port-forwarded endpoints",
+        "npm run verify:runtime -- --live --timeout-ms 30000"
+      ],
+      readOnlyCommands: [
+        {
+          id: "runtime-readiness-live",
+          phase: "runtime-live-evidence",
+          command: "npm run verify:runtime -- --live --timeout-ms 30000",
+          mutation: false,
+          requiresNetwork: true,
+          writesLocalEvidence: true
+        }
+      ],
+      blockedBy: runtimeProbeGaps,
+      acceptance: ["AC-LS-001", "AC-RAG-001"]
+    }));
+  }
+
+  if (runtimeRagGaps.length > 0) {
+    items.push(item({
+      id: "data-ml-engineer-prove-runtime-rag-live-quality",
+      owner: "data-ml-engineer",
+      priority: "high",
+      source: "releaseEvidenceRefresh:runtimeRag",
+      request:
+        "Prove that runtime RAG uses live vLLM embeddings and Qdrant tenant-scoped snippets, then record citation quality evidence.",
+      evidenceNeeded:
+        "runtimeRag live evidence includes vLLM /v1/embeddings, Qdrant /points/search, tenant-scoped redacted snippets, and citation support for the generated plan.",
+      nextCommand: "npm run verify:runtime-rag:fixture",
+      handoffNextCommands: [
+        "npm run verify:runtime-rag",
+        "npm run verify:runtime-rag:fixture",
+        "run the deployed API with CYWELL_OPSLENS_RAG_RUNTIME_MODE=hybrid or runtime after live vLLM/Qdrant endpoints are approved"
+      ],
+      readOnlyCommands: [
+        {
+          id: "runtime-rag-contract",
+          phase: "runtime-rag-evidence",
+          command: "npm run verify:runtime-rag",
+          mutation: false,
+          requiresNetwork: false,
+          writesLocalEvidence: true
+        },
+        {
+          id: "runtime-rag-fixture",
+          phase: "runtime-rag-evidence",
+          command: "npm run verify:runtime-rag:fixture",
+          mutation: false,
+          requiresNetwork: false,
+          writesLocalEvidence: true
+        }
+      ],
+      blockedBy: runtimeRagGaps,
+      acceptance: ["AC-LS-001", "AC-RAG-001", "AC-AIOPS-001"]
+    }));
+  }
+
+  if (ragQueueGaps.length > 0) {
+    items.push(item({
+      id: "rag-owner-enable-production-approval-queue",
+      owner: "rag-owner",
+      priority: "high",
+      source: "releaseEvidenceRefresh:ragApprovalQueue",
+      request:
+        "Replace the design-only RAG approval queue with approved production persistence, ingestion worker, and vector-write audit evidence.",
+      evidenceNeeded:
+        "production database-backed queue, ingestion worker, and approved vector write audit sink are present before enabling runtime vector writes.",
+      nextCommand: "npm run verify:rag:approval-queue",
+      handoffNextCommands: [
+        "configure production RAG queue persistence and audit sink",
+        "npm run verify:rag:approval-queue"
+      ],
+      readOnlyCommands: [
+        {
+          id: "rag-approval-queue-contract",
+          phase: "rag-approval-queue",
+          command: "npm run verify:rag:approval-queue",
+          mutation: false,
+          requiresNetwork: false,
+          writesLocalEvidence: true
+        }
+      ],
+      blockedBy: ragQueueGaps,
+      acceptance: ["AC-RAG-001", "AC-DASH-001"]
+    }));
+  }
+
+  return items;
+}
+
 function networkItems(networkHandoff) {
   if (!networkHandoff || ["READY_FOR_LIVE_RECHECK", "PASS"].includes(networkHandoff.status)) {
     return [];
@@ -906,6 +1024,7 @@ function buildItems(artifacts) {
       ...securityScanItems(artifacts.securityScanPlan),
       ...bundleDecisionItems(artifacts.releaseBundle),
       ...catalogToolchainItems(artifacts.releaseBundle),
+      ...runtimeLiveItems(artifacts.releaseRefresh),
       ...networkItems(artifacts.ocpNetworkHandoff),
       ...ocpAuthRbacItems(artifacts.ocpAuthRbacPlan)
     ],
@@ -1183,6 +1302,7 @@ async function main() {
   else pass("current worktree", `dirty=false head=${headSha}`);
 
   const artifacts = {
+    releaseRefresh: loadJson(options.releaseRefreshEvidence, "release evidence refresh", false),
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
     checkpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint", true),
     certificationReadiness: loadJson(options.certificationReadiness, "certification readiness", false),
@@ -1195,6 +1315,7 @@ async function main() {
   };
 
   const sourceArtifacts = [
+    sourceSummary("releaseRefresh", "release evidence refresh", options.releaseRefreshEvidence, artifacts.releaseRefresh, headSha),
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.checkpoint, headSha, true),
     sourceSummary("certificationReadiness", "certification readiness", options.certificationReadiness, artifacts.certificationReadiness, headSha),
@@ -1293,6 +1414,7 @@ async function main() {
     mutationBoundary,
     missingEvidence: uniqueStrings([
       ...(artifacts.releaseBundle?.missingEvidence ?? []),
+      ...(artifacts.releaseRefresh?.missingEvidence ?? []),
       ...(artifacts.checkpoint?.missingEvidence ?? []),
       ...(artifacts.securityScanPlan?.missingEvidence ?? []),
       ...items.flatMap((entry) => entry.blockedBy ?? [])

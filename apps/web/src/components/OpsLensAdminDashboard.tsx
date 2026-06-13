@@ -205,6 +205,13 @@ export function OpsLensAdminDashboard() {
     releaseActionQueue?.items.filter((entry) =>
       entry.id.includes("catalog-base-image")
     ) ?? [];
+  const releaseRuntimeLiveActions =
+    releaseActionQueue?.items.filter(
+      (entry) =>
+        entry.source.includes("runtime") ||
+        entry.id.includes("runtime-rag") ||
+        entry.id.includes("rag-owner-enable-production")
+    ) ?? [];
   const releaseActionQueuePacketName =
     releaseActionQueue?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const checkpoint = overview?.installReadiness.checkpoint;
@@ -1849,6 +1856,24 @@ export function OpsLensAdminDashboard() {
                   ))
                 ) : (
                   <span>catalog registry actions clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-runtime-live-actions"
+              >
+                {releaseRuntimeLiveActions.length > 0 ? (
+                  releaseRuntimeLiveActions.slice(0, 5).map((entry) => (
+                    <span key={entry.id}>
+                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
+                      :readOnly=
+                      {entry.readOnlyCommands
+                        .map((command) => command.id)
+                        .join(", ")}
+                    </span>
+                  ))
+                ) : (
+                  <span>runtime live actions clear</span>
                 )}
               </div>
               <div className="remediation-notes">
