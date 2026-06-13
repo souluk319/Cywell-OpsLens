@@ -29,6 +29,38 @@ Each runtime image evidence file must include:
 - license/support review status
 - security/release approval status with named approvers
 
+## Reviewer Roles
+
+Use these owners when collecting final evidence:
+
+- `registry-admin`: resolves immutable `sourceDigest`, records approved `mirroredImage` and `mirroredDigest`, and confirms the mirror registry is approved for disconnected install evidence.
+- `security-reviewer`: attaches container certification, vulnerability scan, SBOM, and security review evidence; unresolved Critical findings block promotion.
+- `release-manager`: records provenance, final release approval, change ticket, and confirms same-HEAD `verify:release-plan`, `verify:evidence-checkpoint`, and `verify:release-evidence-bundle` evidence.
+- `product-owner`: approves license/support boundary and confirms the external runtime remains within the supported product position.
+
+## Evidence State Machine
+
+External runtime evidence moves through these states only:
+
+1. `example-only`: `vllm.example.json` and `qdrant.example.json` describe the required shape but do not satisfy release readiness.
+2. `draft-needs-evidence`: ignored `*.draft.json` files collect reviewer input, source digest inspection, and missing evidence without promotion.
+3. `draft-review-ready`: draft files have all required fields but still need a named reviewer and ticket before final promotion.
+4. `reviewed-final`: `vllm.json` or `qdrant.json` exists, contains no placeholders, lists approvers, and has passed `evidence:external-runtime:promote`.
+
+Only `reviewed-final` evidence can satisfy release readiness. Drafts and review packets remain intake artifacts.
+
+## Approval-Gated Commands
+
+The following command classes must never run from `verify:external-runtime-plan`, `evidence:external-runtime:draft:*`, or `evidence:external-runtime:review-packet`:
+
+- `oc image mirror`
+- `cosign sign`
+- image push/copy to the release registry
+- catalog or CSV reference changes for mirrored digests
+- cluster install, patch, apply, delete, or scale
+
+When approval exists, run mutating registry work from a separate change ticket, then record the immutable result back into draft/final evidence and rerun the read-only verifier chain.
+
 ## Verification
 
 Run these commands from a clean worktree and the same Git head:

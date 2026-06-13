@@ -349,15 +349,39 @@ function loadEvidenceTemplates(images) {
     fail("external runtime evidence README", `${readmePath} is missing`);
   } else {
     const text = readFileSync(readmePath, "utf8");
+    const requiredReadmeSections = [
+      "## Required Evidence",
+      "## Reviewer Roles",
+      "## Evidence State Machine",
+      "## Approval-Gated Commands",
+      "## Verification",
+      "## Draft Intake",
+      "## Review Packet",
+      "## Reviewed Promotion"
+    ];
+    const requiredReadmeTerms = [
+      "registry-admin",
+      "security-reviewer",
+      "release-manager",
+      "product-owner",
+      "example-only",
+      "draft-needs-evidence",
+      "draft-review-ready",
+      "reviewed-final",
+      "oc image mirror",
+      "cosign sign"
+    ];
     expectCheck(
       "external runtime evidence README",
       text.includes("vllm.json") &&
         text.includes("qdrant.json") &&
         text.includes("sourceDigest") &&
         text.includes("mirroredDigest") &&
-        text.includes("criticalFindings=0"),
-      "README documents vLLM/Qdrant evidence files, immutable digests, and vulnerability scan gate",
-      "README must document vLLM/Qdrant files, source/mirror digests, and criticalFindings=0"
+        text.includes("criticalFindings=0") &&
+        requiredReadmeSections.every((section) => text.includes(section)) &&
+        requiredReadmeTerms.every((term) => text.includes(term)),
+      "README documents vLLM/Qdrant files, immutable digests, reviewer roles, evidence states, and approval-gated commands",
+      `README must document vLLM/Qdrant files, source/mirror digests, criticalFindings=0, sections=${requiredReadmeSections.join(", ")}, terms=${requiredReadmeTerms.join(", ")}`
     );
   }
 
