@@ -19,6 +19,7 @@ const evidenceDefaults = {
   runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
   aiopsIncidentPipeline: "test-results/cywell-opslens-aiops-incident-pipeline.json",
   ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
+  ragProductionReadiness: "test-results/cywell-opslens-rag-production-readiness.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
@@ -592,6 +593,100 @@ function checkRagApprovalQueuePolicy(queueArtifact) {
   );
 }
 
+function checkRagProductionReadinessPolicy(productionArtifact) {
+  if (!productionArtifact) return;
+  const readiness = productionArtifact.readiness ?? {};
+  const components = productionArtifact.components ?? {};
+  const queue = components.queue ?? {};
+  const worker = components.ingestionWorker ?? {};
+  const audit = components.vectorWriteAuditSink ?? {};
+  const readOnlyCommands = productionArtifact.readOnlyCommands ?? [];
+  const approvalGatedCommands = productionArtifact.approvalGatedCommands ?? [];
+  const violations = [];
+
+  if (productionArtifact.status !== "APPROVAL_REQUIRED") {
+    violations.push(`status=${productionArtifact.status ?? "missing"}`);
+  }
+  if (productionArtifact.actionMode !== "productionReadinessOnly") {
+    violations.push("actionMode");
+  }
+  if (artifactClusterMutationAttempted(productionArtifact)) {
+    violations.push("clusterMutationAttempted");
+  }
+  if (artifactRegistryMutationAttempted(productionArtifact)) {
+    violations.push("registryMutationAttempted");
+  }
+  if (artifactMutationAllowedByVerifier(productionArtifact)) {
+    violations.push("mutationAllowedByThisVerifier");
+  }
+  if (productionArtifact.vectorWriteAttempted !== false) {
+    violations.push("vectorWriteAttempted");
+  }
+  if (productionArtifact.ingestionJobCreated !== false) {
+    violations.push("ingestionJobCreated");
+  }
+  if (readiness.contractReady !== true) {
+    violations.push("readiness.contractReady");
+  }
+  if (readiness.approvalRequired !== true) {
+    violations.push("readiness.approvalRequired");
+  }
+  if (readiness.productionQueueLive !== false) {
+    violations.push("readiness.productionQueueLive");
+  }
+  if (readiness.ingestionWorkerLive !== false) {
+    violations.push("readiness.ingestionWorkerLive");
+  }
+  if (readiness.vectorWriteAuditSinkLive !== false) {
+    violations.push("readiness.vectorWriteAuditSinkLive");
+  }
+  if (queue.backendClass !== "database-backed") {
+    violations.push("queue.backendClass");
+  }
+  if (queue.contractReady !== true || queue.liveReady !== false) {
+    violations.push("queue.readiness");
+  }
+  if (queue.storesRawMarkdown !== false) {
+    violations.push("queue.storesRawMarkdown");
+  }
+  if (worker.contractReady !== true || worker.liveReady !== false) {
+    violations.push("worker.readiness");
+  }
+  if (worker.createsKubernetesJobByThisVerifier !== false) {
+    violations.push("worker.createsKubernetesJobByThisVerifier");
+  }
+  if (audit.contractReady !== true || audit.liveReady !== false) {
+    violations.push("audit.readiness");
+  }
+  if (audit.appendOnly !== true || audit.recordsRollbackChunkIds !== true) {
+    violations.push("audit.appendOnlyRollback");
+  }
+  if (!productionArtifact.requiredApprovals?.includes("security-reviewer")) {
+    violations.push("requiredApprovals.security-reviewer");
+  }
+  if (readOnlyCommands.length === 0 || readOnlyCommands.some((command) => command.mutation !== false)) {
+    violations.push("readOnlyCommands");
+  }
+  if (
+    approvalGatedCommands.length === 0 ||
+    approvalGatedCommands.some((command) =>
+      command.mutation !== true || command.requiresExplicitApproval !== true
+    )
+  ) {
+    violations.push("approvalGatedCommands");
+  }
+
+  if (violations.length > 0) {
+    fail("RAG production readiness boundary", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "RAG production readiness boundary",
+    "production queue, ingestion worker, and vector audit sink are contract-ready but approval-required and non-mutating"
+  );
+}
+
 function checkInstallPlanRagIngestion(installPlanArtifact) {
   if (!installPlanArtifact) return;
   const ragIngestion = installPlanArtifact.ragIngestion ?? {};
@@ -915,6 +1010,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "ragProductionReadiness",
+    label: "RAG production readiness",
+    artifact: artifacts.ragProductionReadiness,
+    desiredStatuses: ["APPROVAL_REQUIRED"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "lightspeedRouting",
     label: "Lightspeed tool routing",
     artifact: artifacts.lightspeedRouting,
@@ -1077,6 +1179,7 @@ async function main() {
   checkLightspeedTrojanHorse(artifacts.lightspeedTrojanHorse);
   checkAiopsIncidentPipeline(artifacts.aiopsIncidentPipeline);
   checkRagApprovalQueuePolicy(artifacts.ragApprovalQueue);
+  checkRagProductionReadinessPolicy(artifacts.ragProductionReadiness);
   checkInstallPlanRagIngestion(artifacts.installPlan);
   checkImageActualBuilds(artifacts.imageBuild);
   checkOwnedImageProvenance(artifacts.ownedImageProvenance);
