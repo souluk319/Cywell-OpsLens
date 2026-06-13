@@ -21,6 +21,7 @@ const evidencePaths = {
   ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
+  certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
   catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
@@ -177,6 +178,7 @@ function buildChain() {
     npmScript("rag-approval-queue", "core", "verify:rag:approval-queue"),
     npmScript("lightspeed-routing", "core", "verify:lightspeed:routing"),
     npmScript("lightspeed-trojan-horse", "core", "verify:lightspeed:trojan-horse"),
+    npmScript("certification-readiness", "release", "verify:certification"),
     npmScript("catalog-toolchain", "release", "verify:catalog-toolchain"),
     options.skipImageBuild
       ? npmScript("image-readiness-static", "release", "verify:images")

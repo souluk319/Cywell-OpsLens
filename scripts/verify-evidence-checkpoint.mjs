@@ -20,6 +20,7 @@ const evidenceDefaults = {
   ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
+  certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
   catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
@@ -208,8 +209,8 @@ function laneResult({ id, label, artifact, desiredStatuses, currentHeadSha, requ
       blockers.push(`${label} reports mutationAllowedByThisVerifier=true`);
     }
     if (!desiredStatuses.includes(status)) {
-      if (status === "NEEDS_EVIDENCE") {
-        missingEvidence.push(`${label} status=NEEDS_EVIDENCE`);
+      if (status === "NEEDS_EVIDENCE" || status === "NEEDS_TOOLING") {
+        missingEvidence.push(`${label} status=${status}`);
       } else if (id === "lightspeedReadiness" && liveConnectionBlocked(artifact)) {
         missingEvidence.push(`${label} live OCP/Lightspeed endpoint is unreachable`);
       } else {
@@ -748,6 +749,13 @@ async function main() {
     label: "Lightspeed Trojan Horse exact question",
     artifact: artifacts.lightspeedTrojanHorse,
     desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "certificationReadiness",
+    label: "certification readiness",
+    artifact: artifacts.certificationReadiness,
+    desiredStatuses: ["READY_FOR_REVIEW"],
     currentHeadSha: headSha
   });
   laneResult({

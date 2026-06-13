@@ -21,6 +21,7 @@ npm run build
 npm run verify:mvp
 npm run verify:evidence-checkpoint
 npm run verify:roadmap-plan
+npm run verify:certification
 npm run verify:catalog-toolchain
 npm run verify:security-scan-plan
 npm run verify:release-refresh
@@ -39,6 +40,8 @@ npm run verify:lightspeed:fixture
 `npm run verify:evidence-checkpoint` reads the current local evidence artifacts, including the RAG approval queue bridge and Lightspeed routing score, checks that they are stamped with the current git head, keeps live OCP/Lightspeed and external runtime gaps visible, and writes `test-results/cywell-opslens-evidence-checkpoint.json`. It does not build, push, patch, apply, delete, scale, or contact the cluster.
 
 `npm run verify:roadmap-plan` maps `kugnus-idea/CywellOpsLens_plan.md` to current evidence for the five launch stages: Lightspeed MCP PoC, AI Ops pipeline, dedicated dashboard, Operator/internal catalog packaging, and Red Hat certification/GTM. It writes `test-results/cywell-opslens-roadmap-plan-alignment.json` and treats live OCP/Lightspeed reachability, external runtime certification inputs, release approval, and install approval as explicit `NEEDS_EVIDENCE` gaps rather than hidden completion.
+
+`npm run verify:certification` validates the Community/Certified Operator packaging shape, FBC/catalog/subscription parity, scorecard config, Red Hat-oriented CSV annotations, support/security/release docs, and local certification tooling availability. It writes `test-results/cywell-opslens-certification-readiness.json` with ref stamps, missing tooling evidence, mutation flags, risk, and rollback path; it does not submit to Partner Connect, push images, or mutate the cluster.
 
 `npm run verify:catalog-toolchain` checks the local catalog/certification toolchain contract without publishing or applying anything. It validates CSV/FBC/CatalogSource/Subscription/scorecard parity, records local `docker`/`opm`/`operator-sdk`/`podman`/`oc` availability, checks whether registry.redhat.io auth is configured without exporting credentials, and writes `test-results/cywell-opslens-catalog-toolchain-plan.json`.
 

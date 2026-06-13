@@ -12,6 +12,7 @@ const defaults = {
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
+  certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
   catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
   externalRuntimeReviewPacket: "test-results/cywell-opslens-external-runtime-review-packet.json",
@@ -50,6 +51,8 @@ const options = {
   imageBuild: parsed.get("image-build-evidence") ?? defaults.imageBuild,
   ownedImageProvenance:
     parsed.get("owned-image-provenance-evidence") ?? defaults.ownedImageProvenance,
+  certificationReadiness:
+    parsed.get("certification-readiness-evidence") ?? defaults.certificationReadiness,
   catalogToolchain:
     parsed.get("catalog-toolchain-evidence") ?? defaults.catalogToolchain,
   externalRuntime: parsed.get("external-runtime-evidence") ?? defaults.externalRuntime,
@@ -250,6 +253,16 @@ function commandSummary(artifacts) {
     mutation: command.mutation === true,
     requiresExplicitApproval: false
   }));
+  const certificationCommands = [
+    {
+      id: "verify-certification-readiness",
+      phase: "release-readiness",
+      command: "npm run verify:certification",
+      mutation: false,
+      requiresExplicitApproval: false,
+      writesLocalEvidence: true
+    }
+  ];
   const securityCommands = (artifacts.securityScan?.commands?.readOnly ?? []).map((command) => ({
     id: command.id ?? "unknown",
     phase: command.phase ?? "unknown",
@@ -268,7 +281,7 @@ function commandSummary(artifacts) {
       writesLocalEvidence: command.writesLocalEvidence === true
     }));
   return {
-    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...networkHandoffCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...securityCommands, ...securityRunnerCommands]
+    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...networkHandoffCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...securityCommands, ...securityRunnerCommands]
       .filter((command) => command.mutation === false),
     mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...externalRuntimeApprovalCommands]
       .filter((command) => command.mutation === true),
@@ -343,6 +356,9 @@ function mutationBoundary(artifacts) {
     ["externalRuntimeReviewPacket.mutationAllowedByThisVerifier", artifacts.externalRuntimeReviewPacket?.mutationAllowedByThisVerifier],
     ["ownedImageProvenance.registryMutationAttempted", artifacts.ownedImageProvenance?.registryMutationAttempted],
     ["ownedImageProvenance.clusterMutationAttempted", artifacts.ownedImageProvenance?.clusterMutationAttempted],
+    ["certificationReadiness.registryMutationAttempted", artifacts.certificationReadiness?.registryMutationAttempted],
+    ["certificationReadiness.clusterMutationAttempted", artifacts.certificationReadiness?.clusterMutationAttempted],
+    ["certificationReadiness.mutationAllowedByThisVerifier", artifacts.certificationReadiness?.mutationAllowedByThisVerifier],
     ["catalogToolchain.registryMutationAttempted", artifacts.catalogToolchain?.registryMutationAttempted],
     ["catalogToolchain.clusterMutationAttempted", artifacts.catalogToolchain?.clusterMutationAttempted],
     ["catalogToolchain.mutationAllowedByThisVerifier", artifacts.catalogToolchain?.mutationAllowedByThisVerifier],
@@ -401,6 +417,7 @@ function evidenceGaps(artifacts, sources) {
     ...(artifacts.evidenceCheckpoint?.missingEvidence ?? []),
     ...(artifacts.releasePlan?.missingEvidence ?? []),
     ...(artifacts.installPlan?.missingEvidence ?? []),
+    ...(artifacts.certificationReadiness?.missingEvidence ?? []),
     ...(artifacts.catalogToolchain?.missingEvidence ?? []),
     ...(artifacts.externalRuntime?.missingEvidence ?? []),
     ...(artifacts.externalRuntimeReviewPacket?.missingEvidence ?? []),
@@ -427,6 +444,7 @@ async function main() {
     mvpGate: loadJson(options.mvpGate, "MVP gate"),
     imageBuild: loadJson(options.imageBuild, "image build readiness"),
     ownedImageProvenance: loadJson(options.ownedImageProvenance, "owned image provenance"),
+    certificationReadiness: loadJson(options.certificationReadiness, "certification readiness"),
     catalogToolchain: loadJson(options.catalogToolchain, "catalog toolchain plan"),
     externalRuntime: loadJson(options.externalRuntime, "external runtime plan"),
     externalRuntimeReviewPacket: loadJson(options.externalRuntimeReviewPacket, "external runtime review packet"),
@@ -444,6 +462,7 @@ async function main() {
     sourceSummary("mvpGate", "MVP gate", options.mvpGate, artifacts.mvpGate, headSha, ["PASS"]),
     sourceSummary("imageBuild", "image build readiness", options.imageBuild, artifacts.imageBuild, headSha, ["PASS"]),
     sourceSummary("ownedImageProvenance", "owned image provenance", options.ownedImageProvenance, artifacts.ownedImageProvenance, headSha, ["PASS"]),
+    sourceSummary("certificationReadiness", "certification readiness", options.certificationReadiness, artifacts.certificationReadiness, headSha, ["READY_FOR_REVIEW", "NEEDS_TOOLING"]),
     sourceSummary("catalogToolchain", "catalog toolchain plan", options.catalogToolchain, artifacts.catalogToolchain, headSha, ["READY_FOR_DRY_RUN", "NEEDS_TOOLING"]),
     sourceSummary("externalRuntime", "external runtime plan", options.externalRuntime, artifacts.externalRuntime, headSha, ["APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("externalRuntimeReviewPacket", "external runtime review packet", options.externalRuntimeReviewPacket, artifacts.externalRuntimeReviewPacket, headSha, ["REVIEW_PACKET_READY"]),
@@ -521,6 +540,20 @@ async function main() {
         repoDigests: image.repoDigests ?? [],
         user: image.user ?? "unknown"
       }))
+    },
+    certificationReadiness: {
+      status: artifacts.certificationReadiness?.status ?? "missing",
+      actionMode: artifacts.certificationReadiness?.actionMode ?? "missing",
+      cli: (artifacts.certificationReadiness?.cli ?? []).map((tool) => ({
+        name: tool.name ?? "unknown",
+        available: tool.available === true,
+        requiredForExternalSubmission:
+          tool.requiredForExternalSubmission === true,
+        version: tool.version ?? "missing"
+      })),
+      documents: artifacts.certificationReadiness?.documents ?? {},
+      missingEvidence:
+        artifacts.certificationReadiness?.missingEvidence ?? []
     },
     catalogToolchain: {
       status: artifacts.catalogToolchain?.status ?? "missing",

@@ -221,6 +221,14 @@ function fixedReadOnlyCommands() {
       writesLocalEvidence: true
     },
     {
+      id: "verify-certification-readiness",
+      phase: "release-readiness",
+      command: "npm run verify:certification",
+      purpose: "Regenerate Community/Certified Operator packaging readiness evidence.",
+      mutation: false,
+      writesLocalEvidence: true
+    },
+    {
       id: "verify-roadmap-plan",
       phase: "local-evidence-refresh",
       command: "npm run verify:roadmap-plan",
@@ -346,6 +354,15 @@ function checkpointItems(checkpoint) {
     request: "Coordinate final reviewed vLLM/Qdrant evidence files after registry/security/product inputs are complete.",
     evidenceNeeded: "docs/release/evidence/external-runtime/vllm.json and qdrant.json pass verify:external-runtime-plan.",
     nextCommand: "npm run verify:external-runtime-plan",
+    acceptance: ["AC-CERT-001"]
+  });
+  addIfOpen("certificationReadiness", {
+    id: "release-manager-complete-certification-tooling",
+    owner: "release-manager",
+    priority: "high",
+    request: "Install or provide approved opm/operator-sdk certification tooling and rerun certification readiness.",
+    evidenceNeeded: "Certification readiness artifact reaches READY_FOR_REVIEW with current-head packaging/doc checks.",
+    nextCommand: "npm run verify:certification",
     acceptance: ["AC-CERT-001"]
   });
   addIfOpen("releasePublish", {

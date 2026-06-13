@@ -306,6 +306,7 @@ async function main() {
         /Partner Connect|OperatorHub|인증/i
       ]),
       mvpRequirement(mvpGate, "CERTIFICATION", "Certification readiness verifier"),
+      laneRequirement(checkpoint, "certificationReadiness", "Certification readiness evidence", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "catalogToolchain", "Catalog toolchain readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "externalRuntime", "External runtime image evidence", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "externalRuntimeReviewPacket", "External runtime reviewer packet", ["pass", "needs-evidence"]),

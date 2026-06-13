@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
 import { parseAllDocuments } from "yaml";
 
 const execFileAsync = promisify(execFile);
+
+const defaults = {
+  evidenceOut: "test-results/cywell-opslens-certification-readiness.json",
+  timeoutMs: 10000
+};
 
 const paths = {
   csv: "deploy/operator/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml",
@@ -22,11 +27,44 @@ const paths = {
   ragApprovalQueueDoc: "docs/rag/cywell-opslens-rag-approval-queue.md"
 };
 
+function parseArgs(argv) {
+  const values = new Map();
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) continue;
+    const [key, inlineValue] = arg.slice(2).split("=", 2);
+    const next = argv[index + 1];
+    if (inlineValue !== undefined) {
+      values.set(key, inlineValue);
+    } else if (next && !next.startsWith("--")) {
+      values.set(key, next);
+      index += 1;
+    }
+  }
+  return values;
+}
+
+const parsed = parseArgs(process.argv.slice(2));
+const options = {
+  evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
+};
+
 const checks = [];
+const cli = [];
 const yamlCache = new Map();
+const startedAt = new Date().toISOString();
+
+function sanitize(value) {
+  return String(value ?? "")
+    .replace(/--token\s+\S+/gi, "--token <redacted>")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
+    .replace(/([?&](?:access_)?token=)[^&\s]+/gi, "$1<redacted>")
+    .replace(/(auth|token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>");
+}
 
 function record(status, name, detail) {
-  checks.push({ status, name, detail });
+  checks.push({ status, name, detail: sanitize(detail) });
 }
 
 function pass(name, detail) {
@@ -327,27 +365,32 @@ async function validateCliAvailability() {
     {
       name: "oc",
       args: ["version", "--client"],
-      required: false
+      required: false,
+      requiredForExternalSubmission: true
     },
     {
       name: "docker",
       args: ["--version"],
-      required: false
+      required: false,
+      requiredForExternalSubmission: true
     },
     {
       name: "opm",
       args: ["version"],
-      required: false
+      required: false,
+      requiredForExternalSubmission: true
     },
     {
       name: "operator-sdk",
       args: ["version"],
-      required: false
+      required: false,
+      requiredForExternalSubmission: true
     },
     {
       name: "podman",
       args: ["--version"],
-      required: false
+      required: false,
+      requiredForExternalSubmission: false
     }
   ];
 
@@ -355,11 +398,24 @@ async function validateCliAvailability() {
     try {
       const { stdout } = await execFileAsync(command.name, command.args, {
         encoding: "utf8",
-        timeout: 5000
+        timeout: options.timeoutMs
       });
-      pass(`CLI ${command.name}`, stdout.trim().split("\n")[0] || "available");
+      const version = sanitize(stdout.trim().split("\n")[0] || "available");
+      cli.push({
+        name: command.name,
+        available: true,
+        version,
+        requiredForExternalSubmission: command.requiredForExternalSubmission
+      });
+      pass(`CLI ${command.name}`, version);
     } catch (error) {
       const detail = `${command.name} unavailable locally; static readiness checks still run`;
+      cli.push({
+        name: command.name,
+        available: false,
+        version: "unavailable",
+        requiredForExternalSubmission: command.requiredForExternalSubmission
+      });
       if (command.required) {
         fail(`CLI ${command.name}`, detail);
       } else {
@@ -367,6 +423,116 @@ async function validateCliAvailability() {
       }
     }
   }
+}
+
+async function runCapture(command, args) {
+  try {
+    const { stdout } = await execFileAsync(command, args, {
+      encoding: "utf8",
+      timeout: options.timeoutMs
+    });
+    return sanitize(stdout.trim());
+  } catch {
+    return "";
+  }
+}
+
+async function gitValue(args, fallback) {
+  const value = await runCapture("git", args);
+  return value.split(/\r?\n/).at(-1)?.trim() || fallback;
+}
+
+async function gitStatusShort() {
+  const value = await runCapture("git", ["status", "--short"]);
+  return value.split(/\r?\n/).filter(Boolean).map(sanitize);
+}
+
+function statusFromChecks() {
+  if (checks.some((check) => check.status === "FAIL")) return "FAILED";
+  const requiredToolingMissing = cli.some(
+    (entry) => entry.requiredForExternalSubmission && !entry.available
+  );
+  if (requiredToolingMissing || checks.some((check) => check.status === "WARN")) {
+    return "NEEDS_TOOLING";
+  }
+  return "READY_FOR_REVIEW";
+}
+
+async function writeEvidence() {
+  const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
+  const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
+  const baseRef = await gitValue(
+    ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+    "unknown"
+  );
+  const worktreeStatus = await gitStatusShort();
+  const worktreeDirty = worktreeStatus.length > 0;
+  const status = statusFromChecks();
+  const missingEvidence = [
+    ...cli
+      .filter((entry) => entry.requiredForExternalSubmission && !entry.available)
+      .map((entry) => `${entry.name} CLI is required before Community/Certified Operator submission`),
+    ...checks
+      .filter((check) => check.status === "WARN")
+      .map((check) => `${check.name}: ${check.detail}`)
+  ].map(sanitize);
+  const artifact = {
+    schema: "cywell.opslens.certification-readiness.v0.1",
+    artifactType: "opslens.certification-readiness.v0.1",
+    generatedAt: new Date().toISOString(),
+    startedAt,
+    status,
+    actionMode: "certificationReadinessOnly",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    ref: {
+      branch,
+      headSha,
+      baseRef,
+      worktreeDirty,
+      worktreeStatus
+    },
+    gates: {
+      internalCatalog: checks.filter((check) =>
+        /CSV|bundle|FBC|CatalogSource|Subscription|scorecard|catalog Dockerfile/i.test(check.name)
+      ),
+      communityOperator: checks.filter((check) =>
+        /FBC|bundle|scorecard|repository|maintainer|release gate/i.test(check.name)
+      ),
+      certifiedOperator: checks.filter((check) =>
+        /features\.operators|com\.redhat|Security Controls|Certified|CLI opm|CLI operator-sdk|CLI docker|CLI oc/i.test(check.name)
+      )
+    },
+    cli,
+    documents: {
+      security: paths.securityDoc,
+      support: paths.supportDoc,
+      releaseGates: paths.releaseGates,
+      ragApprovalQueue: paths.ragApprovalQueueDoc
+    },
+    missingEvidence,
+    risk: [
+      "This verifier proves local catalog/certification packaging shape only; it does not submit to Partner Connect or OperatorHub.",
+      "Missing opm/operator-sdk tooling prevents local bundle validation, scorecard, and hosted-pipeline parity before external submission.",
+      "All related images still require release evidence, vulnerability/SBOM/provenance evidence, and external runtime certification evidence before Certified Operator approval."
+    ],
+    rollbackPath: [
+      "No rollback is required because this verifier reads local manifests/docs and writes local evidence only.",
+      "If a packaging check fails, fix the referenced YAML or documentation and rerun npm run verify:certification.",
+      "Keep release publish and install plans in NEEDS_EVIDENCE until certification and release evidence are refreshed on the same Git head."
+    ],
+    checks
+  };
+
+  const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
+  if (/Bearer\s+(?!<redacted>)[A-Za-z0-9._~+/=-]+|--token\s+(?!<redacted>)[^\s]+/i.test(serialized)) {
+    throw new Error("certification readiness evidence would include secret-like material");
+  }
+  await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
+  await writeFile(resolve(options.evidenceOut), serialized, "utf8");
+  pass("certification readiness export", `${resolve(options.evidenceOut)} written without secret material`);
+  return artifact;
 }
 
 function printSummary() {
@@ -407,6 +573,7 @@ try {
   validateScorecard(scorecard);
   await validateDocs();
   await validateCliAvailability();
+  await writeEvidence();
 } catch (error) {
   fail("certification readiness verifier", error instanceof Error ? error.message : String(error));
 } finally {
