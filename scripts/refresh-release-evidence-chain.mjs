@@ -30,6 +30,7 @@ const evidencePaths = {
   lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
   securityScan: "test-results/cywell-opslens-security-scan-plan.json",
+  securityScanRunner: "test-results/cywell-opslens-security-scan-evidence-runner.json",
   releasePublish: "test-results/cywell-opslens-release-publish-plan.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
@@ -179,7 +180,8 @@ function buildChain() {
       : npmScript("image-readiness-build", "release", "verify:images:build", [], { timeoutMs: Math.max(options.commandTimeoutMs, 900000) }),
     npmScript("owned-image-provenance", "release", "verify:owned-image-provenance"),
     npmScript("external-runtime-plan", "release", "verify:external-runtime-plan"),
-    npmScript("security-scan-plan", "release", "verify:security-scan-plan")
+    npmScript("security-scan-plan", "release", "verify:security-scan-plan"),
+    npmScript("security-scan-runner", "release", "evidence:security-scan", ["--all"])
   ];
 
   if (options.skipLive) {

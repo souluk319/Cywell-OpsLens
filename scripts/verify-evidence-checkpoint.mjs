@@ -29,6 +29,7 @@ const evidenceDefaults = {
   lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
   securityScan: "test-results/cywell-opslens-security-scan-plan.json",
+  securityScanRunner: "test-results/cywell-opslens-security-scan-evidence-runner.json",
   releasePublish: "test-results/cywell-opslens-release-publish-plan.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json"
@@ -538,6 +539,39 @@ function checkPatchPreview(patchArtifact) {
   pass("Lightspeed patch preview safety", "preview is PatchPlanned and non-mutating");
 }
 
+function checkSecurityScanRunnerPolicy(runnerArtifact) {
+  if (!runnerArtifact) return;
+  const violations = [];
+  if (!["scanEvidencePlanOnly", "scanEvidenceLocalWrite"].includes(runnerArtifact.actionMode)) {
+    violations.push("actionMode");
+  }
+  if (artifactClusterMutationAttempted(runnerArtifact)) violations.push("clusterMutationAttempted");
+  if (artifactRegistryMutationAttempted(runnerArtifact)) violations.push("registryMutationAttempted");
+  if (artifactMutationAllowedByVerifier(runnerArtifact)) violations.push("mutationAllowedByThisVerifier");
+  if (!["PLAN_READY", "EVIDENCE_WRITTEN"].includes(runnerArtifact.status)) {
+    violations.push(`status=${runnerArtifact.status ?? "missing"}`);
+  }
+  const commandPlans = Array.isArray(runnerArtifact.commandPlans) ? runnerArtifact.commandPlans : [];
+  if (commandPlans.length === 0) violations.push("commandPlans");
+  const forbidden = commandPlans
+    .flatMap((plan) => [...(plan.cli ?? []), ...(plan.dockerFallback ?? [])])
+    .filter((command) => /oc\s+(apply|delete|patch|scale)|docker\s+push|podman\s+push|skopeo\s+copy|cosign\s+sign/i.test(command.command ?? ""))
+    .map((command) => command.id ?? "unknown");
+  if (forbidden.length > 0) {
+    violations.push(`forbiddenCommands=${forbidden.join(",")}`);
+  }
+
+  if (violations.length > 0) {
+    fail("security scan runner boundary", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "security scan runner boundary",
+    `actionMode=${runnerArtifact.actionMode} targetPlans=${commandPlans.length} clusterMutation=false registryMutation=false`
+  );
+}
+
 function checkOcpConnectivityDiagnostic(connectivityArtifact) {
   if (!connectivityArtifact) return;
   const classification = connectivityArtifact.diagnostics?.classification ?? "unknown";
@@ -692,6 +726,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "securityScanRunner",
+    label: "security scan evidence runner",
+    artifact: artifacts.securityScanRunner,
+    desiredStatuses: ["PLAN_READY", "EVIDENCE_WRITTEN"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "releasePublish",
     label: "release publish plan",
     artifact: artifacts.releasePublish,
@@ -721,6 +762,7 @@ async function main() {
   checkOwnedImageProvenance(artifacts.ownedImageProvenance);
   checkOcpConnectivityDiagnostic(artifacts.ocpConnectivity);
   checkPatchPreview(artifacts.lightspeedPatchPreview);
+  checkSecurityScanRunnerPolicy(artifacts.securityScanRunner);
 
   const blockers = lanes.flatMap((lane) => lane.blockers.map((item) => `${lane.id}: ${item}`));
   const missingEvidence = lanes.flatMap((lane) =>
