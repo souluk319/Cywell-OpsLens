@@ -28,6 +28,7 @@ const evidenceDefaults = {
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
   lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
+  securityScan: "test-results/cywell-opslens-security-scan-plan.json",
   releasePublish: "test-results/cywell-opslens-release-publish-plan.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json"
@@ -681,6 +682,13 @@ async function main() {
     label: "external runtime evidence plan",
     artifact: artifacts.externalRuntime,
     desiredStatuses: ["APPROVAL_REQUIRED"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "securityScan",
+    label: "security scan and SBOM plan",
+    artifact: artifacts.securityScan,
+    desiredStatuses: ["READY_FOR_SCAN", "NEEDS_TOOLING"],
     currentHeadSha: headSha
   });
   laneResult({

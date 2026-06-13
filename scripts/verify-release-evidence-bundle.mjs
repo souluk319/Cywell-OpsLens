@@ -14,6 +14,7 @@ const defaults = {
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
+  securityScan: "test-results/cywell-opslens-security-scan-plan.json",
   releasePlan: "test-results/cywell-opslens-release-publish-plan.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
@@ -49,6 +50,7 @@ const options = {
   catalogToolchain:
     parsed.get("catalog-toolchain-evidence") ?? defaults.catalogToolchain,
   externalRuntime: parsed.get("external-runtime-evidence") ?? defaults.externalRuntime,
+  securityScan: parsed.get("security-scan-evidence") ?? defaults.securityScan,
   releasePlan: parsed.get("release-plan-evidence") ?? defaults.releasePlan,
   installPlan: parsed.get("install-plan-evidence") ?? defaults.installPlan,
   liveHandoff: parsed.get("live-handoff-evidence") ?? defaults.liveHandoff,
@@ -217,8 +219,15 @@ function commandSummary(artifacts) {
     mutation: command.mutation === true,
     requiresExplicitApproval: false
   }));
+  const securityCommands = (artifacts.securityScan?.commands?.readOnly ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "unknown",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: false
+  }));
   return {
-    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...catalogCommands]
+    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...catalogCommands, ...securityCommands]
       .filter((command) => command.mutation === false),
     mutatingApprovalRequired: [...releaseCommands, ...installCommands]
       .filter((command) => command.mutation === true),
@@ -287,6 +296,9 @@ function mutationBoundary(artifacts) {
     ["catalogToolchain.registryMutationAttempted", artifacts.catalogToolchain?.registryMutationAttempted],
     ["catalogToolchain.clusterMutationAttempted", artifacts.catalogToolchain?.clusterMutationAttempted],
     ["catalogToolchain.mutationAllowedByThisVerifier", artifacts.catalogToolchain?.mutationAllowedByThisVerifier],
+    ["securityScan.registryMutationAttempted", artifacts.securityScan?.registryMutationAttempted],
+    ["securityScan.clusterMutationAttempted", artifacts.securityScan?.clusterMutationAttempted],
+    ["securityScan.mutationAllowedByThisVerifier", artifacts.securityScan?.mutationAllowedByThisVerifier],
     ["liveHandoff.clusterMutationAttempted", artifacts.liveHandoff?.clusterMutationAttempted],
     ["liveHandoff.registryMutationAttempted", artifacts.liveHandoff?.registryMutationAttempted]
   ];
@@ -325,6 +337,7 @@ function evidenceGaps(artifacts, sources) {
     ...(artifacts.installPlan?.missingEvidence ?? []),
     ...(artifacts.catalogToolchain?.missingEvidence ?? []),
     ...(artifacts.externalRuntime?.missingEvidence ?? []),
+    ...(artifacts.securityScan?.missingEvidence ?? []),
     ...(artifacts.liveHandoff?.missingEvidence ?? [])
   ]);
 }
@@ -347,6 +360,7 @@ async function main() {
     ownedImageProvenance: loadJson(options.ownedImageProvenance, "owned image provenance"),
     catalogToolchain: loadJson(options.catalogToolchain, "catalog toolchain plan"),
     externalRuntime: loadJson(options.externalRuntime, "external runtime plan"),
+    securityScan: loadJson(options.securityScan, "security scan plan"),
     releasePlan: loadJson(options.releasePlan, "release publish plan"),
     installPlan: loadJson(options.installPlan, "install approval plan"),
     liveHandoff: loadJson(options.liveHandoff, "live evidence handoff"),
@@ -360,6 +374,7 @@ async function main() {
     sourceSummary("ownedImageProvenance", "owned image provenance", options.ownedImageProvenance, artifacts.ownedImageProvenance, headSha, ["PASS"]),
     sourceSummary("catalogToolchain", "catalog toolchain plan", options.catalogToolchain, artifacts.catalogToolchain, headSha, ["READY_FOR_DRY_RUN", "NEEDS_TOOLING"]),
     sourceSummary("externalRuntime", "external runtime plan", options.externalRuntime, artifacts.externalRuntime, headSha, ["APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
+    sourceSummary("securityScan", "security scan plan", options.securityScan, artifacts.securityScan, headSha, ["READY_FOR_SCAN", "NEEDS_TOOLING"]),
     sourceSummary("releasePlan", "release publish plan", options.releasePlan, artifacts.releasePlan, headSha, ["PUBLISH_APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("installPlan", "install approval plan", options.installPlan, artifacts.installPlan, headSha, ["APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("liveHandoff", "live evidence handoff", options.liveHandoff, artifacts.liveHandoff, headSha, ["PASS"]),
@@ -461,6 +476,27 @@ async function main() {
         missingEvidence: draft.missingEvidence ?? []
       }))
     },
+    securityScan: {
+      status: artifacts.securityScan?.status ?? "missing",
+      actionMode: artifacts.securityScan?.actionMode ?? "missing",
+      cli: (artifacts.securityScan?.cli ?? []).map((tool) => ({
+        name: tool.name ?? "unknown",
+        available: tool.available === true,
+        version: tool.version ?? "missing"
+      })),
+      images: (artifacts.securityScan?.images ?? []).map((image) => ({
+        name: image.name ?? "unknown",
+        image: image.image ?? "unknown",
+        required: image.required === true,
+        source: image.source ?? "unknown",
+        vulnerabilityReportExists: image.securityEvidence?.vulnerabilityReportExists === true,
+        sbomExists: image.securityEvidence?.sbomExists === true,
+        reviewExists: image.securityEvidence?.reviewExists === true
+      })),
+      readOnlyCommands: artifacts.securityScan?.commands?.readOnly ?? [],
+      setupCommands: artifacts.securityScan?.commands?.setup ?? [],
+      approvalGatedCommands: artifacts.securityScan?.commands?.approvalGated ?? []
+    },
     commands,
     mutationBoundary: mutations,
     missingEvidence,
@@ -472,12 +508,14 @@ async function main() {
       ...(artifacts.releasePlan?.risk ?? []),
       ...(artifacts.installPlan?.risk ?? []),
       ...(artifacts.externalRuntime?.risk ?? []),
+      ...(artifacts.securityScan?.risk ?? []),
       ...(artifacts.liveHandoff?.risk ?? []),
       "This bundle is a read-only release packet. It does not publish images, install Operators, patch OLSConfig, or approve RAG ingestion."
     ]),
     rollbackPath: unique([
       ...(artifacts.releasePlan?.rollbackPath ?? []),
       ...(artifacts.installPlan?.rollbackPath ?? []),
+      ...(artifacts.securityScan?.rollbackPath ?? []),
       ...(artifacts.liveHandoff?.rollbackPath ?? []),
       "Regenerate this bundle after any source evidence artifact changes."
     ]),

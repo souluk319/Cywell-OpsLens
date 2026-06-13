@@ -22,6 +22,7 @@ npm run verify:mvp
 npm run verify:evidence-checkpoint
 npm run verify:roadmap-plan
 npm run verify:catalog-toolchain
+npm run verify:security-scan-plan
 npm run verify:release-refresh
 npm run verify:ocp:connectivity
 npm run verify:runtime-rag
@@ -39,6 +40,8 @@ npm run verify:lightspeed:fixture
 `npm run verify:roadmap-plan` maps `kugnus-idea/CywellOpsLens_plan.md` to current evidence for the five launch stages: Lightspeed MCP PoC, AI Ops pipeline, dedicated dashboard, Operator/internal catalog packaging, and Red Hat certification/GTM. It writes `test-results/cywell-opslens-roadmap-plan-alignment.json` and treats live OCP/Lightspeed reachability, external runtime certification inputs, release approval, and install approval as explicit `NEEDS_EVIDENCE` gaps rather than hidden completion.
 
 `npm run verify:catalog-toolchain` checks the local catalog/certification toolchain contract without publishing or applying anything. It validates CSV/FBC/CatalogSource/Subscription/scorecard parity, records local `docker`/`opm`/`operator-sdk`/`podman`/`oc` availability, checks whether registry.redhat.io auth is configured without exporting credentials, and writes `test-results/cywell-opslens-catalog-toolchain-plan.json`.
+
+`npm run verify:security-scan-plan` builds the read-only vulnerability/SBOM/signature evidence plan for owned Operator/API/dashboard/bundle/catalog images plus external vLLM/Qdrant runtime images. It records local `trivy`/`syft`/`grype`/`cosign`/`docker` readiness, required scan/SBOM/review files under `docs/release/evidence/security`, approval-gated signing commands, risk, rollback, and writes `test-results/cywell-opslens-security-scan-plan.json` without signing, pushing, or mutating the cluster.
 
 `npm run verify:release-refresh` regenerates the release evidence chain in dependency order for the current Git HEAD, then writes `test-results/cywell-opslens-release-evidence-refresh.json`. By default it runs local image build evidence and live read-only OCP/Lightspeed diagnostics; use `-- --skip-image-build` for a faster static refresh or `-- --skip-live` when the target cluster network is known to be unavailable.
 

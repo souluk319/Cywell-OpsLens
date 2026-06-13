@@ -17,6 +17,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 - `npm run verify:images:build` passes on the same Git HEAD before publishing release images; it builds Operator, API, dashboard, and bundle images locally without pushing, and records catalog build as an explicit warning until `registry.redhat.io` credentials are available.
 - `npm run verify:owned-image-provenance` passes on the same Git HEAD after `verify:images:build`; it records local Docker image IDs, user, ports, labels, rootfs layer count, and any missing repo digest evidence for Operator, API, dashboard, bundle, and optional catalog without pushing or signing images.
 - `npm run verify:external-runtime-plan` passes before release publication and writes `test-results/cywell-opslens-external-runtime-images-plan.json`, keeping vLLM/Qdrant certification, vulnerability scan, SBOM, provenance, mirror digest, approval, risk, and rollback evidence separate from any registry mutation.
+- `npm run verify:security-scan-plan` writes `test-results/cywell-opslens-security-scan-plan.json`, records `trivy`/`syft`/`grype`/`cosign`/`docker` readiness, lists required vulnerability scan, SBOM, and security review files for owned and external images, and keeps signing commands approval-gated.
 - External runtime evidence templates live under `docs/release/evidence/external-runtime/*.example.json`; they define the required shape for real `vllm.json` and `qdrant.json` evidence but do not satisfy the release gate by themselves.
 - `npm run evidence:external-runtime:draft -- --name vllm|qdrant` may create ignored reviewer intake drafts, but draft status never satisfies release publication; final reviewed `vllm.json` and `qdrant.json` remain required.
 - `npm run verify:release-plan` passes against a clean current worktree, same-HEAD image evidence, same-HEAD owned-image provenance evidence, and same-HEAD external runtime evidence, then writes `test-results/cywell-opslens-release-publish-plan.json` before any image push, sign, mirror, or catalog publication attempt.
@@ -35,6 +36,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 - Operator, API, dashboard, bundle, and catalog Dockerfiles match CSV `relatedImages`, declared build contexts, local Docker build evidence, local owned-image provenance evidence, and any credential-gated catalog gap is recorded before release.
 - External vLLM and Qdrant runtime images have a no-mutation certification/mirroring approval plan before release publication.
 - vLLM and Qdrant real evidence files are created only after source digest, mirror digest, scan, SBOM, provenance, license/support, and approval artifacts exist.
+- Owned and external runtime images have vulnerability scan, SBOM, signature-readiness, and security-review evidence linked through the security scan plan before release-manager review.
 - DCO, package ownership, release notes, and public documentation are ready.
 - Repository/product URLs point to the release repo, and the `opslens-support@cywell.com` support alias is confirmed as monitored before external publication.
 
@@ -42,6 +44,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 
 - Every image in `relatedImages` has container certification evidence.
 - External runtime images record immutable source digests, internal mirror digests, vulnerability scan evidence, SBOM evidence, provenance, license/support review, and explicit security/release approval.
+- Security scan plan evidence is refreshed from a clean Git HEAD and all unresolved Critical findings have explicit remediation, acceptance, or image replacement decisions.
 - Hosted or local certification pipeline passes.
 - Vulnerability scan results have no unresolved Critical findings.
 - Support matrix, security controls, known limitations, and rollback procedure are published.
