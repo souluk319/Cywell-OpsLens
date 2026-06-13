@@ -85,7 +85,11 @@ npm run evidence:external-runtime:draft -- --name vllm --source-digest quay.io/c
 npm run evidence:external-runtime:draft -- --name qdrant --source-digest docker.io/qdrant/qdrant@sha256:<digest> --mirrored-image <internal-registry>/cywell/qdrant:v1.12.1 --mirrored-digest <internal-registry>/cywell/qdrant@sha256:<digest> --ticket <change-ticket> --force
 ```
 
-For bulk intake, pass image-specific overrides such as `--vllm-source-digest`, `--vllm-mirrored-digest`, `--qdrant-source-digest`, and `--qdrant-mirrored-digest`. The helper rejects secret-like values, writes only `*.draft.json`, records branch/head/base/dirty state, and keeps `registryMutationAttempted=false` and `clusterMutationAttempted=false`. `--collect-source-digests` and `evidence:external-runtime:draft:digests` only inspect registry manifests; they do not pull, push, mirror, sign, or promote images. A human reviewer must still create the final `vllm.json` or `qdrant.json` after validating the referenced digest, scan, SBOM, provenance, license, and approval evidence.
+For bulk intake, pass image-specific overrides such as `--vllm-source-digest`, `--vllm-mirrored-digest`, `--qdrant-source-digest`, and `--qdrant-mirrored-digest`. The helper rejects secret-like values, writes only `*.draft.json`, records branch/head/base/dirty state, and keeps `registryMutationAttempted=false` and `clusterMutationAttempted=false`. `--collect-source-digests` and `evidence:external-runtime:draft:digests` only inspect registry manifests; they do not pull, push, mirror, sign, or promote images.
+
+The draft helper also reads generated security evidence from `docs/release/evidence/security` by default. If `<name>-vulnerability.json` exists, Trivy severity counts are copied into the draft. Critical findings set vulnerability status to `needs-remediation`, so the draft remains blocked until the image is replaced, patched, or explicitly reviewed with `criticalFindings=0`. If `<name>-sbom.spdx.json` exists, SPDX package/file counts are copied into the draft with status `generated`; this is intake evidence only, not final approval. Use `--security-evidence-dir <dir>` when CI stores raw scan/SBOM artifacts elsewhere.
+
+A human reviewer must still create the final `vllm.json` or `qdrant.json` after validating the referenced digest, scan, SBOM, provenance, license, and approval evidence.
 
 ## Review Packet
 

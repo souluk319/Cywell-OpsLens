@@ -242,17 +242,23 @@ function reviewerRequests(name, image, draftMissingEvidence, draft) {
     );
   }
   if (missing.includes(`${name}-vulnerability-scan`)) {
+    const scan = draft?.vulnerabilityScan;
     add(
       "security-reviewer",
       `Attach vulnerability scan evidence for ${name}.`,
-      "trivy/grype report with criticalFindings=0 and reviewed high findings"
+      scan?.status === "needs-remediation"
+        ? `current ${scan.evidencePath ?? "scan evidence"} reports criticalFindings=${scan.criticalFindings ?? "unknown"} highFindings=${scan.highFindings ?? "unknown"}; replace or patch the image, then attach a reviewed zero-critical scan`
+        : "trivy/grype report with criticalFindings=0 and reviewed high findings"
     );
   }
   if (missing.includes(`${name}-sbom`)) {
+    const sbom = draft?.sbom;
     add(
       "security-reviewer",
       `Attach SBOM evidence for ${name}.`,
-      "SPDX JSON or approved SBOM artifact path"
+      sbom?.status === "generated"
+        ? `generated SBOM exists at ${sbom.evidencePath ?? "unknown"} with packages=${sbom.packageCount ?? "unknown"}; reviewer approval is still required`
+        : "SPDX JSON or approved SBOM artifact path"
     );
   }
   if (missing.includes(`${name}-provenance`)) {
@@ -319,6 +325,27 @@ function imagePackets(externalRuntime) {
       sourceDigestInspection: draft?.sourceDigestInspection ?? {
         status: "missing",
         detail: "draft source digest inspection is missing"
+      },
+      vulnerabilityScan: draft?.vulnerabilityScan ?? {
+        status: "missing",
+        criticalFindings: "unknown",
+        highFindings: "unknown",
+        evidencePath: "missing"
+      },
+      sbom: draft?.sbom ?? {
+        status: "missing",
+        format: "unknown",
+        evidencePath: "missing"
+      },
+      securityEvidenceInspection: draft?.securityEvidenceInspection ?? {
+        vulnerabilityScan: {
+          state: "missing",
+          detail: "draft vulnerability evidence inspection is missing"
+        },
+        sbom: {
+          state: "missing",
+          detail: "draft SBOM evidence inspection is missing"
+        }
       },
       missingEvidence: draftMissingEvidence,
       reviewerRequests: reviewerRequests(image.name, image, draftMissingEvidence, draft),
@@ -454,6 +481,8 @@ function markdownFor(packet) {
       `- Draft: ${image.draftStatus} (${image.evidenceState})`,
       `- Final evidence: ${image.finalEvidence.exists ? image.finalEvidence.status : "missing"} -> ${image.finalEvidenceFile}`,
       `- Source inspection: ${image.sourceDigestInspection.status ?? "missing"} ${image.sourceDigestInspection.detail ? `- ${image.sourceDigestInspection.detail}` : ""}`,
+      `- Vulnerability scan: status=${image.vulnerabilityScan.status ?? "missing"}, critical=${image.vulnerabilityScan.criticalFindings ?? "unknown"}, high=${image.vulnerabilityScan.highFindings ?? "unknown"}, evidence=${image.vulnerabilityScan.evidencePath ?? "missing"}`,
+      `- SBOM: status=${image.sbom.status ?? "missing"}, packages=${image.sbom.packageCount ?? "unknown"}, evidence=${image.sbom.evidencePath ?? "missing"}`,
       ""
     );
     if (image.reviewerRequests.length === 0) {

@@ -2,13 +2,14 @@
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
 const defaults = {
   externalEvidenceDir: "docs/release/evidence/external-runtime",
+  securityEvidenceDir: "docs/release/evidence/security",
   timeoutMs: 10000
 };
 
@@ -58,7 +59,8 @@ function usage() {
     "For --all, image-specific overrides may be passed as --vllm-source-digest, --qdrant-source-digest, and so on.",
     "Supported names: vllm, qdrant",
     "This script writes only *.draft.json files. It never creates final vllm.json/qdrant.json evidence.",
-    "--collect-source-digests performs read-only docker manifest inspection and never pulls, pushes, mirrors, or signs images."
+    "--collect-source-digests performs read-only docker manifest inspection and never pulls, pushes, mirrors, or signs images.",
+    "--security-evidence-dir may point at generated vulnerability/SBOM evidence for draft intake."
   ].join("\n");
 }
 
@@ -72,6 +74,8 @@ const options = {
   names: allRequested ? Object.keys(imageDefaults) : [imageName],
   externalEvidenceDir:
     parsed.get("external-evidence-dir") ?? defaults.externalEvidenceDir,
+  securityEvidenceDir:
+    parsed.get("security-evidence-dir") ?? defaults.securityEvidenceDir,
   evidenceOut: parsed.get("evidence-out"),
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs),
   force: parsed.get("force") === "true",
@@ -175,6 +179,12 @@ function numberOrPlaceholder(value, placeholder) {
   return Number.isFinite(numberValue) ? numberValue : value;
 }
 
+function workspaceRelativePath(absolutePath) {
+  const rel = relative(resolve("."), absolutePath);
+  if (!rel || rel.startsWith("..")) return absolutePath;
+  return rel.replace(/\\/g, "/");
+}
+
 function commaList(value, fallback) {
   if (!value) return fallback;
   return value
@@ -213,6 +223,128 @@ function parseManifestIndexDigest(output) {
   } catch {
     return undefined;
   }
+}
+
+function loadJsonEvidence(path) {
+  const absolutePath = resolve(path);
+  const evidencePath = workspaceRelativePath(absolutePath);
+  if (!existsSync(absolutePath)) {
+    return {
+      state: "missing",
+      evidencePath,
+      detail: `${evidencePath} is missing`
+    };
+  }
+
+  const text = readFileSync(absolutePath, "utf8");
+  if (text.trim().length === 0) {
+    return {
+      state: "invalid",
+      evidencePath,
+      detail: `${evidencePath} is empty`
+    };
+  }
+
+  try {
+    return {
+      state: "loaded",
+      evidencePath,
+      artifact: JSON.parse(text)
+    };
+  } catch (error) {
+    return {
+      state: "invalid",
+      evidencePath,
+      detail: `${evidencePath} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+
+function severityCountsFromTrivy(report) {
+  const counts = {
+    CRITICAL: 0,
+    HIGH: 0,
+    MEDIUM: 0,
+    LOW: 0,
+    UNKNOWN: 0
+  };
+  for (const result of report?.Results ?? []) {
+    for (const finding of result?.Vulnerabilities ?? []) {
+      const severity = String(finding?.Severity ?? "UNKNOWN").toUpperCase();
+      counts[Object.hasOwn(counts, severity) ? severity : "UNKNOWN"] += 1;
+    }
+  }
+  return counts;
+}
+
+function inspectVulnerabilityEvidence(name) {
+  const loaded = loadJsonEvidence(
+    resolve(options.securityEvidenceDir, `${name}-vulnerability.json`)
+  );
+  if (loaded.state !== "loaded") return loaded;
+
+  const counts = severityCountsFromTrivy(loaded.artifact);
+  const criticalFindings = counts.CRITICAL;
+  const highFindings = counts.HIGH;
+  return {
+    state: "loaded",
+    evidencePath: loaded.evidencePath,
+    detail:
+      criticalFindings === 0
+        ? `Trivy evidence loaded with criticalFindings=0 highFindings=${highFindings}`
+        : `Trivy evidence loaded with criticalFindings=${criticalFindings} highFindings=${highFindings}; remediation is required before promotion`,
+    draftValue: {
+      status: criticalFindings === 0 ? "generated" : "needs-remediation",
+      scanner: "trivy",
+      criticalFindings,
+      highFindings,
+      evidencePath: loaded.evidencePath,
+      severityCounts: counts,
+      artifactName: loaded.artifact?.ArtifactName ?? "<missing:artifact-name>",
+      artifactType: loaded.artifact?.ArtifactType ?? "<missing:artifact-type>",
+      schemaVersion: loaded.artifact?.SchemaVersion ?? "<missing:schema-version>"
+    }
+  };
+}
+
+function inspectSbomEvidence(name) {
+  const loaded = loadJsonEvidence(
+    resolve(options.securityEvidenceDir, `${name}-sbom.spdx.json`)
+  );
+  if (loaded.state !== "loaded") return loaded;
+
+  const packageCount = Array.isArray(loaded.artifact?.packages)
+    ? loaded.artifact.packages.length
+    : 0;
+  const fileCount = Array.isArray(loaded.artifact?.files)
+    ? loaded.artifact.files.length
+    : 0;
+  const relationshipCount = Array.isArray(loaded.artifact?.relationships)
+    ? loaded.artifact.relationships.length
+    : 0;
+
+  return {
+    state: "loaded",
+    evidencePath: loaded.evidencePath,
+    detail: `SPDX SBOM evidence loaded with packages=${packageCount} files=${fileCount}`,
+    draftValue: {
+      status: "generated",
+      format: "spdx-json",
+      evidencePath: loaded.evidencePath,
+      spdxVersion: loaded.artifact?.spdxVersion ?? "<missing:spdx-version>",
+      documentName: loaded.artifact?.name ?? "<missing:document-name>",
+      packageCount,
+      fileCount,
+      relationshipCount
+    }
+  };
+}
+
+function inspectSecurityEvidence(name) {
+  return {
+    vulnerabilityScan: inspectVulnerabilityEvidence(name),
+    sbom: inspectSbomEvidence(name)
+  };
 }
 
 async function collectSourceDigest(name, example) {
@@ -329,8 +461,10 @@ function evidenceRequirements(draft) {
   ];
 }
 
-function applyInputs(example, name, sourceDigestInspection) {
+function applyInputs(example, name, sourceDigestInspection, securityEvidenceInspection) {
   const now = new Date().toISOString();
+  const scanEvidence = securityEvidenceInspection.vulnerabilityScan?.draftValue;
+  const sbomEvidence = securityEvidenceInspection.sbom?.draftValue;
   const approvers = commaList(
     cliValue("approvers", name),
     example.approval?.approvers ?? [
@@ -362,6 +496,7 @@ function applyInputs(example, name, sourceDigestInspection) {
       sourceDigestInspection.sourceDigest ??
       example.sourceDigest,
     sourceDigestInspection,
+    securityEvidenceInspection,
     mirroredImage: cliValue("mirrored-image", name) ?? example.mirroredImage,
     mirroredDigest: cliValue("mirrored-digest", name) ?? example.mirroredDigest,
     certification: {
@@ -372,23 +507,25 @@ function applyInputs(example, name, sourceDigestInspection) {
     },
     vulnerabilityScan: {
       ...example.vulnerabilityScan,
-      status: cliValue("scan-status", name) ?? example.vulnerabilityScan?.status ?? "pending",
-      scanner: cliValue("scan-scanner", name) ?? example.vulnerabilityScan?.scanner ?? "trivy",
+      ...(scanEvidence ?? {}),
+      status: cliValue("scan-status", name) ?? scanEvidence?.status ?? example.vulnerabilityScan?.status ?? "pending",
+      scanner: cliValue("scan-scanner", name) ?? scanEvidence?.scanner ?? example.vulnerabilityScan?.scanner ?? "trivy",
       criticalFindings: numberOrPlaceholder(
         cliValue("scan-critical-findings", name),
-        example.vulnerabilityScan?.criticalFindings ?? "<missing:critical-findings>"
+        scanEvidence?.criticalFindings ?? example.vulnerabilityScan?.criticalFindings ?? "<missing:critical-findings>"
       ),
       highFindings: numberOrPlaceholder(
         cliValue("scan-high-findings", name),
-        example.vulnerabilityScan?.highFindings ?? "<missing:high-findings>"
+        scanEvidence?.highFindings ?? example.vulnerabilityScan?.highFindings ?? "<missing:high-findings>"
       ),
-      evidencePath: cliValue("scan-evidence", name) ?? example.vulnerabilityScan?.evidencePath
+      evidencePath: cliValue("scan-evidence", name) ?? scanEvidence?.evidencePath ?? example.vulnerabilityScan?.evidencePath
     },
     sbom: {
       ...example.sbom,
-      status: cliValue("sbom-status", name) ?? example.sbom?.status ?? "pending",
-      format: cliValue("sbom-format", name) ?? example.sbom?.format ?? "spdx-json",
-      evidencePath: cliValue("sbom-evidence", name) ?? example.sbom?.evidencePath
+      ...(sbomEvidence ?? {}),
+      status: cliValue("sbom-status", name) ?? sbomEvidence?.status ?? example.sbom?.status ?? "pending",
+      format: cliValue("sbom-format", name) ?? sbomEvidence?.format ?? example.sbom?.format ?? "spdx-json",
+      evidencePath: cliValue("sbom-evidence", name) ?? sbomEvidence?.evidencePath ?? example.sbom?.evidencePath
     },
     provenance: {
       ...example.provenance,
@@ -414,7 +551,8 @@ function applyInputs(example, name, sourceDigestInspection) {
 async function buildDraft(name) {
   const example = loadExample(name);
   const sourceDigestInspection = await collectSourceDigest(name, example);
-  const draft = applyInputs(example, name, sourceDigestInspection);
+  const securityEvidenceInspection = inspectSecurityEvidence(name);
+  const draft = applyInputs(example, name, sourceDigestInspection, securityEvidenceInspection);
   const requirements = evidenceRequirements(draft);
   const unmet = requirements.filter((requirement) => !requirement.pass);
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
@@ -448,6 +586,8 @@ async function buildDraft(name) {
       sourceDigestInspection.status === "pass"
         ? `Source digest was collected by ${sourceDigestInspection.method}.`
         : `Source digest inspection status=${sourceDigestInspection.status}: ${sourceDigestInspection.detail}`,
+      `Vulnerability evidence intake: ${securityEvidenceInspection.vulnerabilityScan.detail}`,
+      `SBOM evidence intake: ${securityEvidenceInspection.sbom.detail}`,
       "The external runtime verifier may surface this draft, but final release readiness still requires the reviewed vllm.json/qdrant.json file."
     ],
     risk: [
