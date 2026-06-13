@@ -2710,6 +2710,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         item.nextCommand?.startsWith("npm run")
       )
     ).toBe(true);
+    expect(
+      body.installReadiness?.actionQueue?.sourceArtifacts?.map((source) => source.id)
+    ).toEqual(expect.arrayContaining(["aiopsIncidentPipeline"]));
     const candidateMatrixItems =
       body.installReadiness?.actionQueue?.items?.filter((item) =>
         item.id?.includes("candidate-matrix")
@@ -2920,6 +2923,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(ragOwnerQueueAction?.owner).toBe("rag-owner");
       expect(ragOwnerQueueAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining(["rag-approval-queue-contract"])
+      );
+    }
+    const monitoringProxyAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "cluster-sre-enable-monitoring-proxy-evidence"
+      );
+    if (
+      body.aiops?.incidentPipeline?.alertmanagerIntake?.missingEvidence?.some(
+        (entry) =>
+          entry.includes("Monitoring service proxy") ||
+          entry.includes("OCP_ENABLE_MONITORING_PROXY")
+      )
+    ) {
+      expect(monitoringProxyAction?.owner).toBe("cluster-sre");
+      expect(monitoringProxyAction?.nextCommand).toContain("verify:aiops");
+      expect(monitoringProxyAction?.evidenceNeeded).toContain(
+        "OCP_ENABLE_MONITORING_PROXY=true"
+      );
+      expect(monitoringProxyAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
+        expect.arrayContaining(["aiops-monitoring-proxy-smoke"])
+      );
+      expect(monitoringProxyAction?.blockedBy?.join(" ")).toMatch(
+        /metrics\/|Monitoring service proxy/
       );
     }
     expect(
@@ -3738,6 +3764,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-runtime-live-actions")
     ).toContainText(/runtime-readiness-live|runtime live actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-monitoring-proxy-actions")
+    ).toContainText(/cluster-sre-enable-monitoring-proxy-evidence|monitoring proxy actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-monitoring-proxy-actions")
+    ).toContainText(/aiops-monitoring-proxy-smoke|monitoring proxy actions clear/);
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "localEvidenceRefresh"
     );

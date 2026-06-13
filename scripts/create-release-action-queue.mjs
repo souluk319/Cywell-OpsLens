@@ -13,6 +13,8 @@ const defaults = {
   ownerPacketsDir: "test-results/release-action-queue-owners",
   releaseRefreshEvidence: "test-results/cywell-opslens-release-evidence-refresh.json",
   releaseBundleEvidence: "test-results/cywell-opslens-release-evidence-bundle.json",
+  aiopsIncidentPipeline:
+    "test-results/cywell-opslens-aiops-incident-pipeline.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   certificationReadiness:
     "test-results/cywell-opslens-certification-readiness.json",
@@ -52,6 +54,9 @@ const options = {
     parsed.get("release-refresh-evidence") ?? defaults.releaseRefreshEvidence,
   releaseBundleEvidence:
     parsed.get("release-bundle-evidence") ?? defaults.releaseBundleEvidence,
+  aiopsIncidentPipeline:
+    parsed.get("aiops-incident-pipeline-evidence") ??
+    defaults.aiopsIncidentPipeline,
   evidenceCheckpoint: parsed.get("evidence-checkpoint") ?? defaults.evidenceCheckpoint,
   certificationReadiness:
     parsed.get("certification-readiness-evidence") ??
@@ -939,6 +944,54 @@ function runtimeLiveItems(releaseRefresh) {
   return items;
 }
 
+function aiopsMonitoringItems(aiopsIncidentPipeline) {
+  const missingEvidence = [
+    ...(aiopsIncidentPipeline?.missingEvidence ?? []),
+    ...(aiopsIncidentPipeline?.liveSmoke?.missingEvidence ?? []),
+    ...(aiopsIncidentPipeline?.liveSmoke?.incident?.missingEvidence ?? []),
+    ...(aiopsIncidentPipeline?.liveSmoke?.alertmanagerIntake?.missingEvidence ?? [])
+  ];
+  const monitoringGaps = uniqueStrings(
+    missingEvidence.filter((entry) =>
+      /metrics\/|Prometheus|Monitoring service proxy|OCP_ENABLE_MONITORING_PROXY/i.test(entry)
+    )
+  );
+
+  if (monitoringGaps.length === 0) {
+    return [];
+  }
+
+  return [
+    item({
+      id: "cluster-sre-enable-monitoring-proxy-evidence",
+      owner: "cluster-sre",
+      priority: "high",
+      source: "aiopsIncidentPipeline:metrics",
+      request:
+        "Configure or approve the read-only OCP monitoring proxy path so OpsLens can correlate Alertmanager alerts with Prometheus samples.",
+      evidenceNeeded:
+        "verify:aiops shows firing-alert, pod-restarts, pod-cpu, and pod-memory query evidence with OCP_ENABLE_MONITORING_PROXY=true, or records an explicit approved monitoring exception.",
+      nextCommand: "npm run verify:aiops",
+      handoffNextCommands: [
+        "set OCP_ENABLE_MONITORING_PROXY=true only for an approved read-only service proxy path",
+        "npm run verify:aiops"
+      ],
+      readOnlyCommands: [
+        {
+          id: "aiops-monitoring-proxy-smoke",
+          phase: "aiops-monitoring-evidence",
+          command: "npm run verify:aiops",
+          mutation: false,
+          requiresNetwork: true,
+          writesLocalEvidence: true
+        }
+      ],
+      blockedBy: monitoringGaps,
+      acceptance: ["AC-AIOPS-002", "AC-DASH-001"]
+    })
+  ];
+}
+
 function networkItems(networkHandoff) {
   if (!networkHandoff || ["READY_FOR_LIVE_RECHECK", "PASS"].includes(networkHandoff.status)) {
     return [];
@@ -1025,6 +1078,7 @@ function buildItems(artifacts) {
       ...bundleDecisionItems(artifacts.releaseBundle),
       ...catalogToolchainItems(artifacts.releaseBundle),
       ...runtimeLiveItems(artifacts.releaseRefresh),
+      ...aiopsMonitoringItems(artifacts.aiopsIncidentPipeline),
       ...networkItems(artifacts.ocpNetworkHandoff),
       ...ocpAuthRbacItems(artifacts.ocpAuthRbacPlan)
     ],
@@ -1304,6 +1358,7 @@ async function main() {
   const artifacts = {
     releaseRefresh: loadJson(options.releaseRefreshEvidence, "release evidence refresh", false),
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
+    aiopsIncidentPipeline: loadJson(options.aiopsIncidentPipeline, "AI Ops incident pipeline", false),
     checkpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint", true),
     certificationReadiness: loadJson(options.certificationReadiness, "certification readiness", false),
     securityScanPlan: loadJson(options.securityScanPlan, "security scan plan", false),
@@ -1317,6 +1372,7 @@ async function main() {
   const sourceArtifacts = [
     sourceSummary("releaseRefresh", "release evidence refresh", options.releaseRefreshEvidence, artifacts.releaseRefresh, headSha),
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
+    sourceSummary("aiopsIncidentPipeline", "AI Ops incident pipeline", options.aiopsIncidentPipeline, artifacts.aiopsIncidentPipeline, headSha),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.checkpoint, headSha, true),
     sourceSummary("certificationReadiness", "certification readiness", options.certificationReadiness, artifacts.certificationReadiness, headSha),
     sourceSummary("securityScanPlan", "security scan plan", options.securityScanPlan, artifacts.securityScanPlan, headSha),

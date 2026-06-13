@@ -213,6 +213,12 @@ export function OpsLensAdminDashboard() {
         entry.id.includes("runtime-rag") ||
         entry.id.includes("rag-owner-enable-production")
     ) ?? [];
+  const releaseMonitoringProxyActions =
+    releaseActionQueue?.items.filter(
+      (entry) =>
+        entry.source.includes("aiopsIncidentPipeline") ||
+        entry.id.includes("monitoring-proxy")
+    ) ?? [];
   const releaseActionQueuePacketName =
     releaseActionQueue?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const checkpoint = overview?.installReadiness.checkpoint;
@@ -1901,6 +1907,24 @@ export function OpsLensAdminDashboard() {
                   ))
                 ) : (
                   <span>runtime live actions clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-monitoring-proxy-actions"
+              >
+                {releaseMonitoringProxyActions.length > 0 ? (
+                  releaseMonitoringProxyActions.map((entry) => (
+                    <span key={entry.id}>
+                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
+                      :readOnly=
+                      {entry.readOnlyCommands
+                        .map((command) => command.id)
+                        .join(", ")}
+                    </span>
+                  ))
+                ) : (
+                  <span>monitoring proxy actions clear</span>
                 )}
               </div>
               <div className="remediation-notes">
