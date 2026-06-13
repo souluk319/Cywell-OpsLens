@@ -2670,7 +2670,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(
       page.getByTestId("opslens-release-action-queue-items")
-    ).toContainText("npm run verify:ocp:connectivity");
+    ).toContainText("npm run evidence:ocp-auth-rbac-plan");
     await expect(
       page.getByTestId("opslens-release-action-queue-candidate-actions")
     ).toContainText("evidence:external-runtime:candidate-scan");
