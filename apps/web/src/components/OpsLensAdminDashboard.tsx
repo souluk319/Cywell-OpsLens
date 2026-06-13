@@ -1947,6 +1947,33 @@ export function OpsLensAdminDashboard() {
                       .join(", ") || "missing"}
                   </strong>
                 </div>
+                <div>
+                  <span>Candidate Matrix</span>
+                  <strong>
+                    {externalRuntimeReview.images
+                      .map((image) => {
+                        const best = image.candidateMatrix.bestCandidate;
+                        return best
+                          ? `${image.name}:${image.candidateMatrix.status} best=${best.label} critical=${best.criticalFindings} high=${best.highFindings}`
+                          : `${image.name}:${image.candidateMatrix.status} best=missing`;
+                      })
+                      .join(", ") || "missing"}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-external-runtime-candidates"
+              >
+                {externalRuntimeReview.images.map((image) => (
+                  <span key={`${image.name}-candidate`}>
+                    {image.name}:candidate={image.candidateMatrix.status}
+                    {image.candidateMatrix.bestCandidate
+                      ? ` critical=${image.candidateMatrix.bestCandidate.criticalFindings} high=${image.candidateMatrix.bestCandidate.highFindings}`
+                      : " best=missing"} zeroCritical=
+                    {image.candidateMatrix.zeroCriticalCount}
+                  </span>
+                ))}
               </div>
               <div
                 className="admin-evidence-line"

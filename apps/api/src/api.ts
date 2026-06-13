@@ -1269,6 +1269,24 @@ type ExternalRuntimeReviewPacketEvidenceArtifact = {
       exists?: boolean;
       status?: string;
     };
+    candidateMatrix?: {
+      status?: string;
+      matrixStatus?: string;
+      bestCandidate?: {
+        label?: string;
+        image?: string;
+        status?: string;
+        releaseEligible?: boolean;
+        criticalFindings?: number | string;
+        highFindings?: number | string;
+        mediumFindings?: number | string;
+        lowFindings?: number | string;
+        reviewDecision?: string;
+      };
+      zeroCriticalCandidates?: Array<unknown>;
+      recommendation?: string;
+      missingEvidence?: string[];
+    };
     reviewerRequests?: Array<{
       role?: string;
       request?: string;
@@ -2854,6 +2872,30 @@ function missingExternalRuntimeReviewPacketSummary(
   };
 }
 
+function summarizeExternalRuntimeCandidate(
+  candidate: NonNullable<
+    NonNullable<
+      NonNullable<ExternalRuntimeReviewPacketEvidenceArtifact["images"]>[number]["candidateMatrix"]
+    >["bestCandidate"]
+  > | undefined
+) {
+  if (!candidate) {
+    return undefined;
+  }
+
+  return {
+    label: candidate.label ?? "unknown",
+    image: candidate.image ?? "unknown",
+    status: candidate.status ?? "unknown",
+    releaseEligible: candidate.releaseEligible === true,
+    criticalFindings: candidate.criticalFindings ?? "unknown",
+    highFindings: candidate.highFindings ?? "unknown",
+    mediumFindings: candidate.mediumFindings ?? "unknown",
+    lowFindings: candidate.lowFindings ?? "unknown",
+    reviewDecision: candidate.reviewDecision ?? "unknown"
+  };
+}
+
 function getExternalRuntimeReviewPacketReadiness(): {
   status: OpsLensExternalRuntimeReviewPacketReadiness;
   evidence: string[];
@@ -2889,6 +2931,19 @@ function getExternalRuntimeReviewPacketReadiness(): {
       draftStatus: image.draftStatus ?? "missing",
       evidenceState: image.evidenceState ?? "missing",
       finalEvidenceExists: image.finalEvidence?.exists === true,
+      candidateMatrix: {
+        status: image.candidateMatrix?.status ?? "missing",
+        matrixStatus: image.candidateMatrix?.matrixStatus ?? "missing",
+        bestCandidate: summarizeExternalRuntimeCandidate(
+          image.candidateMatrix?.bestCandidate
+        ),
+        zeroCriticalCount:
+          image.candidateMatrix?.zeroCriticalCandidates?.length ?? 0,
+        recommendation:
+          image.candidateMatrix?.recommendation ??
+          "candidate matrix evidence is missing",
+        missingEvidenceCount: image.candidateMatrix?.missingEvidence?.length ?? 0
+      },
       reviewerRequests: (image.reviewerRequests ?? []).map((request) => ({
         role: request.role ?? "unknown",
         request: request.request ?? "unknown",
@@ -2909,7 +2964,10 @@ function getExternalRuntimeReviewPacketReadiness(): {
       requiresExplicitApproval: command.requiresExplicitApproval === true
     }));
     const imageSummary = images
-      .map((image) => `${image.name}:${image.sourceDigestInspectionStatus} requests=${image.reviewerRequests.length}`)
+      .map(
+        (image) =>
+          `${image.name}:${image.sourceDigestInspectionStatus} requests=${image.reviewerRequests.length} candidate=${image.candidateMatrix.status}`
+      )
       .join(", ");
 
     return {

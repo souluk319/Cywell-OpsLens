@@ -1106,6 +1106,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             name?: string;
             sourceDigestInspectionStatus?: string;
             finalEvidenceExists?: boolean;
+            candidateMatrix?: {
+              status?: string;
+              matrixStatus?: string;
+              bestCandidate?: {
+                label?: string;
+                image?: string;
+                criticalFindings?: number | string;
+                highFindings?: number | string;
+              };
+              zeroCriticalCount?: number;
+              recommendation?: string;
+              missingEvidenceCount?: number;
+            };
             reviewerRequests?: Array<{
               role?: string;
               request?: string;
@@ -1844,6 +1857,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       ])
     );
     expect(
+      body.installReadiness?.externalRuntimeReview?.images?.map(
+        (image) => `${image.name}:${image.candidateMatrix?.status}`
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^vllm:(needs-candidate|candidate-ready-for-review|current-evidence-release-eligible|missing)$/),
+        expect.stringMatching(/^qdrant:(candidate-reduces-risk-but-remediation-required|candidate-ready-for-review|current-evidence-release-eligible|missing)$/)
+      ])
+    );
+    const qdrantCandidate = body.installReadiness?.externalRuntimeReview?.images?.find(
+      (image) => image.name === "qdrant"
+    )?.candidateMatrix?.bestCandidate;
+    if (qdrantCandidate) {
+      expect(String(qdrantCandidate.criticalFindings)).toMatch(/^(\d+|unknown)$/);
+      expect(String(qdrantCandidate.highFindings)).toMatch(/^(\d+|unknown)$/);
+    }
+    expect(
       body.installReadiness?.externalRuntimeReview?.readOnlyCommands?.every(
         (command) => command.mutation === false
       )
@@ -2546,6 +2576,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-external-runtime-review-packet")
     ).toContainText("vllm");
+    await expect(
+      page.getByTestId("opslens-external-runtime-candidates")
+    ).toContainText(/candidate=/);
+    await expect(
+      page.getByTestId("opslens-external-runtime-candidates")
+    ).toContainText(/zeroCritical=/);
     await expect(
       page.getByTestId("opslens-external-runtime-review-commands")
     ).toContainText("mutation=false");

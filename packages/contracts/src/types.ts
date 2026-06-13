@@ -1624,6 +1624,24 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
     draftStatus: string;
     evidenceState: string;
     finalEvidenceExists: boolean;
+    candidateMatrix: {
+      status: string;
+      matrixStatus: string;
+      bestCandidate?: {
+        label: string;
+        image: string;
+        status: string;
+        releaseEligible: boolean;
+        criticalFindings: number | string;
+        highFindings: number | string;
+        mediumFindings: number | string;
+        lowFindings: number | string;
+        reviewDecision: string;
+      };
+      zeroCriticalCount: number;
+      recommendation: string;
+      missingEvidenceCount: number;
+    };
     reviewerRequests: Array<{
       role: string;
       request: string;
