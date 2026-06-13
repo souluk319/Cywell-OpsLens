@@ -54,6 +54,8 @@ import type {
   OpsLensReleasePublishReadiness,
   OpsLensReleaseEvidenceRefreshReadiness,
   OpsLensReleaseEvidenceRefreshSummary,
+  OpsLensReleaseEvidenceBundleReadiness,
+  OpsLensReleaseEvidenceBundleSummary,
   OpsLensRemediationProposal,
   OpsLensSecurityScanPlanSummary,
   OpsLensSecurityScanReadiness,
@@ -1528,6 +1530,49 @@ type ReleaseEvidenceRefreshArtifact = {
   rollbackPath?: string[];
 };
 
+type ReleaseEvidenceBundleArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  decision?: {
+    publishReady?: boolean;
+    installReady?: boolean;
+    roadmapComplete?: boolean;
+    checkpointStatus?: string;
+    releaseStatus?: string;
+    installStatus?: string;
+    roadmapStatus?: string;
+  };
+  approvals?: Record<string, string[]>;
+  sources?: Array<{
+    id?: string;
+    status?: string;
+    fresh?: boolean;
+    acceptable?: boolean;
+    mutationViolation?: boolean;
+  }>;
+  commands?: {
+    readOnly?: unknown[];
+    mutatingApprovalRequired?: unknown[];
+  };
+  mutationBoundary?: {
+    passed?: boolean;
+  };
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type EvidenceCheckpointArtifact = {
   artifactType?: string;
   status?: string;
@@ -1750,6 +1795,13 @@ function releaseEvidenceRefreshPath() {
   return (
     process.env.CYWELL_OPSLENS_RELEASE_EVIDENCE_REFRESH ??
     join(repoRoot, "test-results", "cywell-opslens-release-evidence-refresh.json")
+  );
+}
+
+function releaseEvidenceBundlePath() {
+  return (
+    process.env.CYWELL_OPSLENS_RELEASE_EVIDENCE_BUNDLE ??
+    join(repoRoot, "test-results", "cywell-opslens-release-evidence-bundle.json")
   );
 }
 
@@ -2006,6 +2058,27 @@ function mapReleaseEvidenceRefreshStatus(
   }
   if (artifact.status === "PASS") {
     return "ready";
+  }
+  return "needs-evidence";
+}
+
+function mapReleaseEvidenceBundleStatus(
+  artifact: ReleaseEvidenceBundleArtifact
+): OpsLensReleaseEvidenceBundleReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier ||
+    artifact.mutationBoundary?.passed === false
+  ) {
+    return "blocked";
+  }
+  if (artifact.ref?.worktreeDirty || artifact.status === "NEEDS_EVIDENCE") {
+    return "needs-evidence";
+  }
+  if (artifact.status === "APPROVAL_READY") {
+    return "approval-ready";
   }
   return "needs-evidence";
 }
@@ -3612,6 +3685,145 @@ function getReleaseEvidenceRefreshReadiness(): {
   }
 }
 
+function missingReleaseEvidenceBundleSummary(
+  reason: string,
+  status: OpsLensReleaseEvidenceBundleReadiness = "needs-evidence"
+): OpsLensReleaseEvidenceBundleSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "bundleOnly",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    headSha: "missing",
+    worktreeDirty: false,
+    decision: {
+      publishReady: false,
+      installReady: false,
+      roadmapComplete: false,
+      checkpointStatus: "missing",
+      releaseStatus: "missing",
+      installStatus: "missing",
+      roadmapStatus: "missing"
+    },
+    approvals: {},
+    sourceArtifacts: [],
+    commandCounts: {
+      readOnly: 0,
+      mutatingApprovalRequired: 0
+    },
+    mutationBoundaryPassed: false,
+    missingEvidence: [reason],
+    risk: [
+      "Without the release evidence bundle, release-manager review cannot see the consolidated source freshness and mutation boundary."
+    ],
+    rollbackPath: [
+      "Run npm run verify:release-evidence-bundle after refreshing release evidence."
+    ]
+  };
+}
+
+function getReleaseEvidenceBundleReadiness(): {
+  status: OpsLensReleaseEvidenceBundleReadiness;
+  evidence: string[];
+  bundle: OpsLensReleaseEvidenceBundleSummary;
+} {
+  const evidencePath = releaseEvidenceBundlePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      bundle: missingReleaseEvidenceBundleSummary(
+        `release evidence bundle is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run verify:release-evidence-bundle to create release-manager bundle evidence",
+        "dashboard keeps release evidence bundle as needs-evidence until the bundle exists",
+        "release bundle evidence must keep registryMutationAttempted=false and clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as ReleaseEvidenceBundleArtifact;
+    const status = mapReleaseEvidenceBundleStatus(artifact);
+    const sourceArtifacts = (artifact.sources ?? []).map((source) => ({
+      id: source.id ?? "unknown",
+      status: source.status ?? "unknown",
+      fresh: source.fresh === true,
+      acceptable: source.acceptable === true,
+      mutationViolation: source.mutationViolation === true
+    }));
+    const decision = {
+      publishReady: artifact.decision?.publishReady === true,
+      installReady: artifact.decision?.installReady === true,
+      roadmapComplete: artifact.decision?.roadmapComplete === true,
+      checkpointStatus: artifact.decision?.checkpointStatus ?? "unknown",
+      releaseStatus: artifact.decision?.releaseStatus ?? "unknown",
+      installStatus: artifact.decision?.installStatus ?? "unknown",
+      roadmapStatus: artifact.decision?.roadmapStatus ?? "unknown"
+    };
+    const commandCounts = {
+      readOnly: artifact.commands?.readOnly?.length ?? 0,
+      mutatingApprovalRequired:
+        artifact.commands?.mutatingApprovalRequired?.length ?? 0
+    };
+    const sourceSummary = sourceArtifacts
+      .slice(0, 6)
+      .map((source) => `${source.id}:${source.status}:fresh=${String(source.fresh)}`)
+      .join(", ");
+
+    return {
+      status,
+      bundle: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "bundleOnly",
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        headSha: artifact.ref?.headSha ?? "unknown",
+        worktreeDirty: artifact.ref?.worktreeDirty === true,
+        decision,
+        approvals: artifact.approvals ?? {},
+        sourceArtifacts,
+        commandCounts,
+        mutationBoundaryPassed: artifact.mutationBoundary?.passed === true,
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `Release evidence bundle ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `release bundle generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `bundle decision publishReady=${String(decision.publishReady)} installReady=${String(decision.installReady)} roadmapComplete=${String(decision.roadmapComplete)}`,
+        `bundle command counts readOnly=${commandCounts.readOnly} mutatingApprovalRequired=${commandCounts.mutatingApprovalRequired}`,
+        sourceSummary ? `bundle sources=${sourceSummary}` : "bundle sources are not listed",
+        `bundle mutationBoundaryPassed=${String(artifact.mutationBoundary?.passed ?? false)}`,
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads release bundle evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "blocked",
+      bundle: missingReleaseEvidenceBundleSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "blocked"
+      ),
+      evidence: [
+        `Release evidence bundle could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid release bundle evidence blocks overclaiming release readiness"
+      ]
+    };
+  }
+}
+
 function normalizeCheckpointLaneStatus(
   status?: string
 ): "pass" | "needs-evidence" | "blocked" {
@@ -4052,6 +4264,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const securityScanReadiness = getSecurityScanPlanReadiness();
   const releasePublishReadiness = getReleasePublishPlanReadiness();
   const releaseEvidenceRefreshReadiness = getReleaseEvidenceRefreshReadiness();
+  const releaseEvidenceBundleReadiness = getReleaseEvidenceBundleReadiness();
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
   const liveHandoffReadiness = getLiveEvidenceHandoffReadiness();
   const ocpNetworkHandoffReadiness = getOcpNetworkHandoffReadiness();
@@ -4071,6 +4284,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     externalRuntimeReviewPacketReadiness.evidence[0],
     securityScanReadiness.evidence[0],
     releasePublishReadiness.evidence[0],
+    releaseEvidenceBundleReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
@@ -4083,6 +4297,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...securityScanReadiness.evidence.slice(1),
     ...releasePublishReadiness.evidence.slice(1),
     ...releaseEvidenceRefreshReadiness.evidence.slice(1),
+    ...releaseEvidenceBundleReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
     ...ocpNetworkHandoffReadiness.evidence.slice(1),
     ...evidenceCheckpointReadiness.evidence.slice(1)
@@ -4244,6 +4459,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       releasePlan: releasePublishReadiness.plan,
       releaseRefresh: releaseEvidenceRefreshReadiness.status,
       refresh: releaseEvidenceRefreshReadiness.refresh,
+      releaseEvidenceBundle: releaseEvidenceBundleReadiness.status,
+      bundle: releaseEvidenceBundleReadiness.bundle,
       evidenceCheckpoint: evidenceCheckpointReadiness.status,
       checkpoint: evidenceCheckpointReadiness.checkpoint,
       liveHandoff: liveHandoffReadiness.status,
@@ -4272,6 +4489,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 5 security scan and SBOM plan is generated by npm run verify:security-scan-plan",
         "Stage 5 release publish approval plan is generated by npm run verify:release-plan",
         "Stage 5 release evidence refresh chain is generated by npm run verify:release-refresh",
+        "Stage 5 release evidence bundle is generated by npm run verify:release-evidence-bundle",
         "Current-head release/install evidence is summarized by npm run verify:evidence-checkpoint"
       ]
     },

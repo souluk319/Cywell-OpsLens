@@ -1034,6 +1034,11 @@ export type OpsLensReleaseEvidenceRefreshReadiness =
   | "needs-evidence"
   | "blocked";
 
+export type OpsLensReleaseEvidenceBundleReadiness =
+  | "approval-ready"
+  | "needs-evidence"
+  | "blocked";
+
 export type OpsLensEvidenceCheckpointReadiness =
   | "ready"
   | "needs-evidence"
@@ -1295,6 +1300,42 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
   rollbackPath: string[];
 }
 
+export interface OpsLensReleaseEvidenceBundleSummary {
+  status: OpsLensReleaseEvidenceBundleReadiness;
+  artifactStatus: string;
+  actionMode: "bundleOnly";
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  headSha: string;
+  worktreeDirty: boolean;
+  decision: {
+    publishReady: boolean;
+    installReady: boolean;
+    roadmapComplete: boolean;
+    checkpointStatus: string;
+    releaseStatus: string;
+    installStatus: string;
+    roadmapStatus: string;
+  };
+  approvals: Record<string, string[]>;
+  sourceArtifacts: Array<{
+    id: string;
+    status: string;
+    fresh: boolean;
+    acceptable: boolean;
+    mutationViolation: boolean;
+  }>;
+  commandCounts: {
+    readOnly: number;
+    mutatingApprovalRequired: number;
+  };
+  mutationBoundaryPassed: boolean;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface OpsLensRagIngestionApprovalPlanSummary {
   actionMode: "ingestionPlanOnly";
   status: "ready-for-ingestion-job" | "needs-evidence" | "failed";
@@ -1499,6 +1540,8 @@ export interface OpsLensAdminOverviewResponse {
     releasePlan: OpsLensReleasePublishPlanSummary;
     releaseRefresh: OpsLensReleaseEvidenceRefreshReadiness;
     refresh: OpsLensReleaseEvidenceRefreshSummary;
+    releaseEvidenceBundle: OpsLensReleaseEvidenceBundleReadiness;
+    bundle: OpsLensReleaseEvidenceBundleSummary;
     evidenceCheckpoint: OpsLensEvidenceCheckpointReadiness;
     checkpoint: OpsLensEvidenceCheckpointSummary;
     liveHandoff: OpsLensLiveEvidenceHandoffReadiness;

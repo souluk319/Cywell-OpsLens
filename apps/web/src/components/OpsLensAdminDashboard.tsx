@@ -184,6 +184,7 @@ export function OpsLensAdminDashboard() {
     overview?.installReadiness.ownedImageProvenancePlan;
   const releasePlan = overview?.installReadiness.releasePlan;
   const releaseRefresh = overview?.installReadiness.refresh;
+  const releaseBundle = overview?.installReadiness.bundle;
   const checkpoint = overview?.installReadiness.checkpoint;
   const liveHandoff = overview?.installReadiness.handoff;
   const networkHandoff = overview?.installReadiness.networkHandoff;
@@ -894,6 +895,8 @@ export function OpsLensAdminDashboard() {
                   "Security Scan": overview.installReadiness.securityScan,
                   "Release Publish": overview.installReadiness.releasePublish,
                   "Release Refresh": overview.installReadiness.releaseRefresh,
+                  "Release Bundle":
+                    overview.installReadiness.releaseEvidenceBundle,
                   "Evidence Checkpoint":
                     overview.installReadiness.evidenceCheckpoint,
                   "Live Handoff": overview.installReadiness.liveHandoff,
@@ -1198,6 +1201,90 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {releaseRefresh.rollbackPath[0] ??
                     "Rerun the release refresh after code or evidence changes."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {releaseBundle ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-release-evidence-bundle"
+            >
+              <div className="admin-evidence-line">
+                <span>{releaseBundle.artifactStatus}</span>
+                <span>{releaseBundle.actionMode}</span>
+                <span>head={releaseBundle.headSha}</span>
+                <span>dirty={String(releaseBundle.worktreeDirty)}</span>
+                <span>
+                  mutationBoundaryPassed=
+                  {String(releaseBundle.mutationBoundaryPassed)}
+                </span>
+              </div>
+              <div className="admin-evidence-line">
+                <span>
+                  registryMutationAttempted=
+                  {String(releaseBundle.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(releaseBundle.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(releaseBundle.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Decision</span>
+                  <strong>
+                    publish={String(releaseBundle.decision.publishReady)},
+                    install={String(releaseBundle.decision.installReady)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Sources</span>
+                  <strong>
+                    {
+                      releaseBundle.sourceArtifacts.filter(
+                        (source) => source.fresh && source.acceptable
+                      ).length
+                    }
+                    /{releaseBundle.sourceArtifacts.length}
+                  </strong>
+                </div>
+                <div>
+                  <span>Commands</span>
+                  <strong>
+                    readOnly={releaseBundle.commandCounts.readOnly},
+                    gated=
+                    {releaseBundle.commandCounts.mutatingApprovalRequired}
+                  </strong>
+                </div>
+                <div>
+                  <span>Open Items</span>
+                  <strong>
+                    {releaseBundle.missingEvidence.length
+                      ? `${releaseBundle.missingEvidence.length} missing evidence`
+                      : "none"}
+                  </strong>
+                </div>
+              </div>
+              <div className="admin-evidence-line">
+                {releaseBundle.sourceArtifacts.slice(0, 4).map((source) => (
+                  <span key={source.id}>
+                    {source.id} fresh={String(source.fresh)}
+                  </span>
+                ))}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {releaseBundle.risk[0] ??
+                    "Release evidence bundle is a read-only review packet."}
+                </p>
+                <p>
+                  {releaseBundle.rollbackPath[0] ??
+                    "Regenerate the release bundle after evidence changes."}
                 </p>
               </div>
             </div>
