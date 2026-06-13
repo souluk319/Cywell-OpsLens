@@ -53,6 +53,8 @@ npm run verify:lightspeed:fixture
 
 `npm run verify:ocp:connectivity` performs a read-only live connectivity diagnostic for the configured OCP API endpoint. It loads `.env`/kubeconfig candidates, redacts token values, checks DNS, TCP, TLS, Kubernetes `/version`, and `oc get --raw=/version`, then writes `test-results/cywell-opslens-ocp-connectivity-diagnostic.json`. A `tcp-timeout` classification means the API host resolves but port 6443 is not reachable from this machine yet.
 
+`npm run evidence:ocp-network-handoff` turns the current OCP connectivity, Lightspeed, Operator dry-run, and live handoff evidence into a redacted JSON plus Markdown packet for Network/SRE review. It includes target host/port, DNS/TCP classification, read-only Windows/oc follow-up commands, mutation boundaries, and the verifier chain to rerun after VPN/firewall/routing changes.
+
 `npm run dev` starts both:
 
 - API: `http://127.0.0.1:4174`

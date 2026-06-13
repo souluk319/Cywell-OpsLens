@@ -34,6 +34,7 @@ const evidencePaths = {
   releasePublish: "test-results/cywell-opslens-release-publish-plan.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
+  ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   releaseEvidenceBundle: "test-results/cywell-opslens-release-evidence-bundle.json"
@@ -221,6 +222,7 @@ function buildChain() {
     npmScript("release-plan", "approval", "verify:release-plan"),
     npmScript("install-plan", "approval", "verify:install-plan"),
     npmScript("live-handoff", "approval", "verify:live-handoff"),
+    npmScript("ocp-network-handoff", "approval", "evidence:ocp-network-handoff"),
     npmScript("evidence-checkpoint", "approval", "verify:evidence-checkpoint"),
     npmScript("roadmap-plan", "approval", "verify:roadmap-plan", [], { expectedNonZero: true }),
     npmScript("release-evidence-bundle", "approval", "verify:release-evidence-bundle")
