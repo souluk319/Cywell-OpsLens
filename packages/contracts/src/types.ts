@@ -1352,6 +1352,42 @@ export interface OpsLensCertificationReadinessSummary {
     version: string;
     requiredForExternalSubmission: boolean;
   }>;
+  toolingHandoff: {
+    actionMode: "humanSetupOnly";
+    status: string;
+    requiredTools: Array<{
+      name: string;
+      available: boolean;
+      version: string;
+      requiredForExternalSubmission: boolean;
+    }>;
+    missingRequiredTools: string[];
+    readOnlyCommands: Array<{
+      id: string;
+      command: string;
+      phase: string;
+      mutation: boolean;
+      requiresNetwork: boolean;
+    }>;
+    setupCommands: Array<{
+      id: string;
+      command: string;
+      phase: string;
+      mutation: boolean;
+      requiresNetwork: boolean;
+      requiresHumanApproval: boolean;
+    }>;
+    approvalGatedCommands: Array<{
+      id: string;
+      command: string;
+      phase: string;
+      mutation: boolean;
+      requiresExplicitApproval: boolean;
+    }>;
+    nextCommands: string[];
+    risk: string[];
+    rollbackPath: string[];
+  };
   documents: Record<string, string>;
   gateCounts: {
     internalCatalog: {

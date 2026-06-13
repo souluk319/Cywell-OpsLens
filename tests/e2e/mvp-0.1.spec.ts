@@ -1050,6 +1050,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             available?: boolean;
             requiredForExternalSubmission?: boolean;
           }>;
+          toolingHandoff?: {
+            actionMode?: string;
+            status?: string;
+            missingRequiredTools?: string[];
+            readOnlyCommands?: Array<{ id?: string; command?: string; mutation?: boolean }>;
+            setupCommands?: Array<{ id?: string; mutation?: boolean }>;
+            approvalGatedCommands?: Array<{ id?: string; mutation?: boolean }>;
+            nextCommands?: string[];
+          };
           documents?: Record<string, string>;
           gateCounts?: {
             internalCatalog?: {
@@ -1784,6 +1793,32 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (tool) => tool.requiredForExternalSubmission
       ).length ?? 0
     ).toBeGreaterThanOrEqual(4);
+    expect(body.installReadiness?.certificationPlan?.toolingHandoff).toMatchObject({
+      actionMode: "humanSetupOnly"
+    });
+    expect([
+      "needs-tooling",
+      "ready-for-validation",
+      "needs-evidence"
+    ]).toContain(
+      body.installReadiness?.certificationPlan?.toolingHandoff?.status
+    );
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.readOnlyCommands?.some(
+          (command) =>
+            command.command?.includes("verify:certification") &&
+            command.mutation === false
+        )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.setupCommands?.every((command) => command.mutation === false)
+    ).toBe(true);
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.approvalGatedCommands?.every((command) => command.mutation === true)
+    ).toBe(true);
     expect(
       body.installReadiness?.certificationPlan?.gateCounts?.internalCatalog?.total ??
         0
@@ -2648,6 +2683,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-certification-cli")).toContainText(
       "operator-sdk:"
     );
+    await expect(
+      page.getByTestId("opslens-certification-tooling-handoff")
+    ).toContainText("humanSetupOnly");
+    await expect(
+      page.getByTestId("opslens-certification-tooling-handoff")
+    ).toContainText("readOnlyCommands=");
+    await expect(
+      page.getByTestId("opslens-certification-tooling-handoff")
+    ).toContainText("approvalGated=");
+    await expect(
+      page.getByTestId("opslens-certification-tooling-next")
+    ).toContainText("verify:certification");
     await expect(page.getByTestId("opslens-certification-gates")).toContainText(
       "certifiedOperator"
     );

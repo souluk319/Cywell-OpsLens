@@ -1476,6 +1476,42 @@ type CertificationReadinessEvidenceArtifact = {
     version?: string;
     requiredForExternalSubmission?: boolean;
   }>;
+  toolingHandoff?: {
+    actionMode?: string;
+    status?: string;
+    requiredTools?: Array<{
+      name?: string;
+      available?: boolean;
+      version?: string;
+      requiredForExternalSubmission?: boolean;
+    }>;
+    missingRequiredTools?: string[];
+    readOnlyCommands?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      mutation?: boolean;
+      requiresNetwork?: boolean;
+    }>;
+    setupCommands?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      mutation?: boolean;
+      requiresNetwork?: boolean;
+      requiresHumanApproval?: boolean;
+    }>;
+    approvalGatedCommands?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      mutation?: boolean;
+      requiresExplicitApproval?: boolean;
+    }>;
+    nextCommands?: string[];
+    risk?: string[];
+    rollbackPath?: string[];
+  };
   documents?: Record<string, string>;
   missingEvidence?: string[];
   risk?: string[];
@@ -3695,6 +3731,111 @@ function countCertificationGateStatuses(
   return counts;
 }
 
+function missingCertificationToolingHandoff(
+  reason: string
+): OpsLensCertificationReadinessSummary["toolingHandoff"] {
+  return {
+    actionMode: "humanSetupOnly",
+    status: "needs-evidence",
+    requiredTools: [],
+    missingRequiredTools: [],
+    readOnlyCommands: [
+      {
+        id: "refresh-certification-evidence",
+        command: "npm run verify:certification",
+        phase: "evidence-refresh",
+        mutation: false,
+        requiresNetwork: false
+      }
+    ],
+    setupCommands: [],
+    approvalGatedCommands: [],
+    nextCommands: ["npm run verify:certification"],
+    risk: [
+      "Certification tooling readiness is unknown; external submission remains blocked."
+    ],
+    rollbackPath: [
+      "Regenerate certification readiness evidence before installing tooling or submitting externally.",
+      reason
+    ]
+  };
+}
+
+function mapCertificationToolingHandoff(
+  artifact: CertificationReadinessEvidenceArtifact["toolingHandoff"] | undefined,
+  cli: OpsLensCertificationReadinessSummary["cli"]
+): OpsLensCertificationReadinessSummary["toolingHandoff"] {
+  if (!artifact) {
+    const missingRequiredTools = cli
+      .filter((tool) => tool.requiredForExternalSubmission && !tool.available)
+      .map((tool) => tool.name);
+    return {
+      ...missingCertificationToolingHandoff(
+        "certification readiness evidence does not include tooling handoff"
+      ),
+      status: missingRequiredTools.length > 0 ? "needs-tooling" : "needs-evidence",
+      requiredTools: cli.filter((tool) => tool.requiredForExternalSubmission),
+      missingRequiredTools,
+      setupCommands: missingRequiredTools.map((tool) => ({
+        id: `install-${tool}`,
+        command: `install ${tool} through an approved release-manager workstation or CI image`,
+        phase: "human-setup",
+        mutation: false,
+        requiresNetwork: true,
+        requiresHumanApproval: true
+      })),
+      nextCommands:
+        missingRequiredTools.length > 0
+          ? [
+              "review docs/release/cywell-opslens-certification-tooling.md",
+              "npm run verify:certification",
+              "npm run verify:catalog-toolchain"
+            ]
+          : ["npm run verify:certification"]
+    };
+  }
+
+  return {
+    actionMode: "humanSetupOnly",
+    status: artifact.status ?? "needs-evidence",
+    requiredTools: (artifact.requiredTools ?? []).map((tool) => ({
+      name: tool.name ?? "unknown",
+      available: tool.available === true,
+      version: tool.version ?? "missing",
+      requiredForExternalSubmission:
+        tool.requiredForExternalSubmission === true
+    })),
+    missingRequiredTools: artifact.missingRequiredTools ?? [],
+    readOnlyCommands: (artifact.readOnlyCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      phase: command.phase ?? "unknown",
+      mutation: command.mutation === true,
+      requiresNetwork: command.requiresNetwork === true
+    })),
+    setupCommands: (artifact.setupCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      phase: command.phase ?? "unknown",
+      mutation: command.mutation === true,
+      requiresNetwork: command.requiresNetwork === true,
+      requiresHumanApproval: command.requiresHumanApproval === true
+    })),
+    approvalGatedCommands: (artifact.approvalGatedCommands ?? []).map(
+      (command) => ({
+        id: command.id ?? "unknown",
+        command: command.command ?? "unknown",
+        phase: command.phase ?? "unknown",
+        mutation: command.mutation === true,
+        requiresExplicitApproval: command.requiresExplicitApproval === true
+      })
+    ),
+    nextCommands: artifact.nextCommands ?? [],
+    risk: artifact.risk ?? [],
+    rollbackPath: artifact.rollbackPath ?? []
+  };
+}
+
 function missingCertificationReadinessSummary(
   reason: string,
   status: OpsLensCertificationReadiness = "needs-evidence"
@@ -3709,6 +3850,7 @@ function missingCertificationReadinessSummary(
     headSha: "missing",
     worktreeDirty: false,
     cli: [],
+    toolingHandoff: missingCertificationToolingHandoff(reason),
     documents: {},
     gateCounts: {
       internalCatalog: { pass: 0, warn: 0, fail: 0, total: 0 },
@@ -3758,6 +3900,10 @@ function getCertificationReadiness(): {
       requiredForExternalSubmission:
         tool.requiredForExternalSubmission === true
     }));
+    const toolingHandoff = mapCertificationToolingHandoff(
+      artifact.toolingHandoff,
+      cli
+    );
     const gateCounts = {
       internalCatalog: countCertificationGateStatuses(
         artifact.gates?.internalCatalog
@@ -3791,6 +3937,7 @@ function getCertificationReadiness(): {
         headSha: artifact.ref?.headSha ?? "unknown",
         worktreeDirty: artifact.ref?.worktreeDirty === true,
         cli,
+        toolingHandoff,
         documents,
         gateCounts,
         missingEvidence: artifact.missingEvidence ?? [],
@@ -3804,6 +3951,7 @@ function getCertificationReadiness(): {
         missingExternalTools
           ? `missing external submission CLIs=${missingExternalTools}`
           : "all reported external submission CLIs are available",
+        `certification tooling handoff ${toolingHandoff.actionMode} status=${toolingHandoff.status} missingRequiredTools=${toolingHandoff.missingRequiredTools.join(", ") || "none"} next=${toolingHandoff.nextCommands[0] ?? "unknown"}`,
         documentSummary
           ? `certification documents=${documentSummary}`
           : "certification documents are not listed",

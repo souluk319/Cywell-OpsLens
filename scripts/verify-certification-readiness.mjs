@@ -469,6 +469,150 @@ function statusFromChecks() {
   return "READY_FOR_REVIEW";
 }
 
+function buildToolingHandoff() {
+  const requiredTools = cli
+    .filter((entry) => entry.requiredForExternalSubmission)
+    .map((entry) => ({
+      name: entry.name,
+      available: entry.available,
+      version: entry.version,
+      requiredForExternalSubmission: entry.requiredForExternalSubmission
+    }));
+  const missingRequiredTools = requiredTools
+    .filter((entry) => !entry.available)
+    .map((entry) => entry.name);
+
+  return {
+    actionMode: "humanSetupOnly",
+    status: missingRequiredTools.length > 0 ? "needs-tooling" : "ready-for-validation",
+    requiredTools,
+    missingRequiredTools,
+    readOnlyCommands: [
+      {
+        id: "check-oc-version",
+        phase: "tool-version",
+        command: "oc version --client",
+        mutation: false,
+        requiresNetwork: false
+      },
+      {
+        id: "check-docker-version",
+        phase: "tool-version",
+        command: "docker --version",
+        mutation: false,
+        requiresNetwork: false
+      },
+      {
+        id: "check-opm-version",
+        phase: "tool-version",
+        command: "opm version",
+        mutation: false,
+        requiresNetwork: false
+      },
+      {
+        id: "check-operator-sdk-version",
+        phase: "tool-version",
+        command: "operator-sdk version",
+        mutation: false,
+        requiresNetwork: false
+      },
+      {
+        id: "validate-fbc",
+        phase: "certification-validation",
+        command: "opm validate deploy/catalog/fbc",
+        mutation: false,
+        requiresNetwork: false
+      },
+      {
+        id: "validate-bundle",
+        phase: "certification-validation",
+        command: "operator-sdk bundle validate ./deploy/operator/bundle --select-optional suite=operatorframework",
+        mutation: false,
+        requiresNetwork: false
+      },
+      {
+        id: "run-scorecard",
+        phase: "certification-validation",
+        command: "operator-sdk scorecard ./deploy/operator/bundle",
+        mutation: false,
+        requiresNetwork: false
+      },
+      {
+        id: "refresh-certification-evidence",
+        phase: "evidence-refresh",
+        command: "npm run verify:certification",
+        mutation: false,
+        requiresNetwork: false
+      },
+      {
+        id: "refresh-catalog-toolchain-evidence",
+        phase: "evidence-refresh",
+        command: "npm run verify:catalog-toolchain",
+        mutation: false,
+        requiresNetwork: false
+      }
+    ],
+    setupCommands: [
+      {
+        id: "install-opm",
+        phase: "human-setup",
+        command: "install opm matching the target OpenShift/OLM toolchain through an approved release-manager workstation or CI image",
+        mutation: false,
+        requiresNetwork: true,
+        requiresHumanApproval: true
+      },
+      {
+        id: "install-operator-sdk",
+        phase: "human-setup",
+        command: "install operator-sdk matching the target Operator SDK release through an approved release-manager workstation or CI image",
+        mutation: false,
+        requiresNetwork: true,
+        requiresHumanApproval: true
+      }
+    ],
+    approvalGatedCommands: [
+      {
+        id: "partner-connect-submit",
+        phase: "external-submission",
+        command: "submit reviewed certification bundle through Red Hat Partner Connect",
+        mutation: true,
+        requiresExplicitApproval: true
+      },
+      {
+        id: "operatorhub-submit",
+        phase: "external-submission",
+        command: "submit reviewed OperatorHub/community catalog pull request or certified listing package",
+        mutation: true,
+        requiresExplicitApproval: true
+      }
+    ],
+    nextCommands:
+      missingRequiredTools.length > 0
+        ? [
+            "review docs/release/cywell-opslens-certification-tooling.md",
+            "install opm and operator-sdk through an approved release-manager path",
+            "npm run verify:certification",
+            "npm run verify:catalog-toolchain"
+          ]
+        : [
+            "opm validate deploy/catalog/fbc",
+            "operator-sdk bundle validate ./deploy/operator/bundle --select-optional suite=operatorframework",
+            "operator-sdk scorecard ./deploy/operator/bundle",
+            "npm run verify:release-refresh -- --live-timeout-ms 30000"
+          ],
+    risk: [
+      "Tool versions must match the target OpenShift/OLM release pipeline or local validation can drift from hosted certification results.",
+      "Installing downloaded binaries, registry credentials, or Partner Connect tooling is a human setup task and is not performed by this verifier.",
+      "External submission remains blocked until release images, runtime evidence, scan/SBOM/provenance, and approval evidence are complete."
+    ],
+    rollbackPath: [
+      "Remove unapproved tooling from the workstation or CI image if version or provenance review fails.",
+      "Regenerate certification and catalog toolchain evidence after any tooling change.",
+      "Do not submit to Partner Connect or OperatorHub from this handoff artifact."
+    ]
+  };
+}
+
 async function writeEvidence() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -479,6 +623,7 @@ async function writeEvidence() {
   const worktreeStatus = await gitStatusShort();
   const worktreeDirty = worktreeStatus.length > 0;
   const status = statusFromChecks();
+  const toolingHandoff = buildToolingHandoff();
   const missingEvidence = [
     ...cli
       .filter((entry) => entry.requiredForExternalSubmission && !entry.available)
@@ -516,6 +661,7 @@ async function writeEvidence() {
       )
     },
     cli,
+    toolingHandoff,
     documents: {
       security: paths.securityDoc,
       support: paths.supportDoc,

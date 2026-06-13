@@ -1834,6 +1834,18 @@ export function OpsLensAdminDashboard() {
                       : "none"}
                   </strong>
                 </div>
+                <div>
+                  <span>Tooling Handoff</span>
+                  <strong>
+                    {certificationPlan.toolingHandoff.status} / missing=
+                    {certificationPlan.toolingHandoff.missingRequiredTools
+                      .length
+                      ? certificationPlan.toolingHandoff.missingRequiredTools.join(
+                          ", "
+                        )
+                      : "none"}
+                  </strong>
+                </div>
               </div>
               <div
                 className="admin-evidence-line"
@@ -1845,6 +1857,46 @@ export function OpsLensAdminDashboard() {
                     {String(tool.requiredForExternalSubmission)}
                   </span>
                 ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-certification-tooling-handoff"
+              >
+                <span>{certificationPlan.toolingHandoff.actionMode}</span>
+                <span>
+                  status={certificationPlan.toolingHandoff.status}
+                </span>
+                <span>
+                  missing=
+                  {certificationPlan.toolingHandoff.missingRequiredTools.join(
+                    ", "
+                  ) || "none"}
+                </span>
+                <span>
+                  readOnlyCommands=
+                  {certificationPlan.toolingHandoff.readOnlyCommands.length}
+                </span>
+                <span>
+                  setupCommands=
+                  {certificationPlan.toolingHandoff.setupCommands.length}
+                </span>
+                <span>
+                  approvalGated=
+                  {
+                    certificationPlan.toolingHandoff.approvalGatedCommands
+                      .length
+                  }
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-certification-tooling-next"
+              >
+                {certificationPlan.toolingHandoff.nextCommands
+                  .slice(0, 4)
+                  .map((command) => (
+                    <span key={command}>{command}</span>
+                  ))}
               </div>
               <div
                 className="admin-evidence-line"
