@@ -34,14 +34,16 @@ const imageBuilds = [
     image: "quay.io/cywell/opslens-api:0.1.0",
     context: ".",
     dockerfile: paths.apiDockerfile,
-    requiredText: ["@kugnus/api", "npm ci", "KUGNUS_API_HOST=0.0.0.0", "EXPOSE 8080 9443", "USER 1001", "chown -R 1001:0", "data/runbooks"]
+    requiredText: ["@kugnus/api", "npm ci", "KUGNUS_API_HOST=0.0.0.0", "EXPOSE 8080 9443", "USER 1001", "COPY --chown=1001:0", "data/runbooks"],
+    forbiddenText: ["chown -R", "chmod -R"]
   },
   {
     name: "dashboard",
     image: "quay.io/cywell/opslens-dashboard:0.1.0",
     context: ".",
     dockerfile: paths.dashboardDockerfile,
-    requiredText: ["@kugnus/web", "npm ci", "serve", "EXPOSE 8080 9443", "USER 1001", "chown -R 1001:0"]
+    requiredText: ["@kugnus/web", "npm ci", "serve", "EXPOSE 8080 9443", "USER 1001", "COPY --chown=1001:0"],
+    forbiddenText: ["chown -R", "chmod -R"]
   }
 ];
 
@@ -145,6 +147,14 @@ async function validateDockerfile(build, csvImages) {
       text.includes(required),
       "present",
       "missing"
+    );
+  }
+  for (const forbidden of build.forbiddenText ?? []) {
+    expectCheck(
+      `${build.name} Dockerfile avoids ${forbidden}`,
+      !text.includes(forbidden),
+      "absent",
+      `${build.dockerfile} must not use ${forbidden}; use COPY --chown plus non-root build steps so image evidence refresh does not spend minutes walking node_modules`
     );
   }
 
