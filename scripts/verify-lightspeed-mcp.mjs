@@ -74,6 +74,7 @@ const checks = [];
 const startedAt = new Date().toISOString();
 let loadedEnv = false;
 let currentOlsConfigForPatchPreview;
+let liveOcpFailure;
 const readiness = {
   mode: options.crdFixture ? "fixture" : "live",
   sources: {
@@ -314,6 +315,83 @@ function safeOcpApiEvidence() {
   };
 }
 
+function classifyLiveReadFailure(ocError, apiError) {
+  const config = ocpApiConfig();
+  const combined = sanitize(
+    [
+      ocError instanceof Error ? ocError.message : String(ocError),
+      apiError instanceof Error ? apiError.message : String(apiError)
+    ].join("\n")
+  );
+  const lower = combined.toLowerCase();
+  let classification = "api-unreachable";
+  let evidence =
+    "live OCP read failed before Lightspeed OLSConfig or CRD readiness could be confirmed";
+  let nextCommand = "npm run verify:ocp:connectivity";
+  let owner = "cluster-sre";
+
+  if (!config.baseUrl || !config.token) {
+    classification = !config.baseUrl ? "not-configured" : "token-missing";
+    evidence = "OCP API URL or token is not configured for live Lightspeed readiness";
+    nextCommand = "npm run verify:env";
+    owner = "cluster-admin";
+  } else if (
+    lower.includes("unauthorized") ||
+    lower.includes("provide credentials") ||
+    lower.includes("you must be logged in") ||
+    lower.includes("forbidden")
+  ) {
+    classification = "auth-or-rbac";
+    evidence =
+      "OCP API was reachable, but the configured credential was rejected or lacks read access";
+    nextCommand = "npm run evidence:ocp-auth-rbac-plan";
+    owner = "cluster-admin";
+  } else if (
+    lower.includes("certificate") ||
+    lower.includes("tls") ||
+    lower.includes("self-signed")
+  ) {
+    classification = "tls-handshake-failed";
+    evidence = "OCP API TLS validation failed before Lightspeed readiness could read OLSConfig";
+  } else if (
+    lower.includes("timed out") ||
+    lower.includes("timeout") ||
+    lower.includes("etimedout")
+  ) {
+    classification = "tcp-timeout";
+    evidence = "OCP API request timed out before Lightspeed readiness could read OLSConfig";
+  } else if (
+    lower.includes("enotfound") ||
+    lower.includes("getaddrinfo")
+  ) {
+    classification = "dns-unresolved";
+    evidence = "OCP API hostname could not be resolved";
+  } else if (
+    lower.includes("econnrefused") ||
+    lower.includes("no such host")
+  ) {
+    classification = "tcp-unreachable";
+    evidence = "OCP API TCP endpoint could not be reached";
+  }
+
+  return {
+    classification,
+    owner,
+    evidence,
+    nextCommand,
+    redactedDetail: combined.split(/\r?\n/).slice(0, 6).join("\n")
+  };
+}
+
+function compactLiveFailureDetail(failure) {
+  return [
+    `classification=${failure.classification}`,
+    `owner=${failure.owner}`,
+    failure.evidence,
+    `next=${failure.nextCommand}`
+  ].join("; ");
+}
+
 function runOcpApi(path) {
   const config = ocpApiConfig();
   if (!config.baseUrl || !config.token) {
@@ -383,12 +461,9 @@ async function readLiveJson({ ocArgs, apiPath, ocSource, apiSource }) {
         json
       };
     } catch (apiError) {
-      throw new Error(
-        [
-          `oc failed: ${ocError.message}`,
-          `OCP API fallback failed: ${apiError.message}`
-        ].join("\n")
-      );
+      const failure = classifyLiveReadFailure(ocError, apiError);
+      liveOcpFailure = failure;
+      throw new Error(compactLiveFailureDetail(failure));
     }
   }
 }
@@ -1019,6 +1094,15 @@ async function buildEvidenceArtifact() {
       readOnlyMethods: ["oc get", "GET OpenShift API", "MCP tools/list", "MCP tools/call"]
     },
     ocpApi: safeOcpApiEvidence(),
+    currentGap: liveOcpFailure
+      ? {
+          classification: liveOcpFailure.classification,
+          owner: liveOcpFailure.owner,
+          evidence: liveOcpFailure.evidence,
+          nextCommand: liveOcpFailure.nextCommand,
+          redactedDetail: liveOcpFailure.redactedDetail
+        }
+      : undefined,
     readiness,
     checks,
     missingEvidence: checks

@@ -1681,6 +1681,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.evidence?.join(" ")).toContain(
       "Lightspeed"
     );
+    expect(body.installReadiness?.evidence?.join(" ")).toContain(
+      "Lightspeed currentGap="
+    );
     expect(body.installReadiness?.operatorPackaging).toBe("draft");
     expect(["ready", "needs-evidence", "failed"]).toContain(
       body.installReadiness?.ocpConnectivity

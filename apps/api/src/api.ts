@@ -1108,6 +1108,12 @@ type LightspeedReadinessEvidenceArtifact = {
   artifactType?: string;
   status?: string;
   generatedAt?: string;
+  currentGap?: {
+    classification?: string;
+    owner?: string;
+    evidence?: string;
+    nextCommand?: string;
+  };
   readiness?: {
     mode?: string;
     sources?: {
@@ -2599,6 +2605,7 @@ function getLightspeedMcpReadiness(): {
     const status = mapLightspeedReadinessStatus(artifact);
     const sources = artifact.readiness?.sources ?? {};
     const olsConfig = artifact.readiness?.olsConfig ?? {};
+    const currentGap = artifact.currentGap;
 
     return {
       status,
@@ -2607,9 +2614,13 @@ function getLightspeedMcpReadiness(): {
         `readiness generated at ${artifact.generatedAt ?? "unknown"}`,
         `sources crd=${sources.crd ?? "unknown"} olsConfig=${sources.olsConfig ?? "unknown"} mcp=${sources.mcpEndpoint ?? "unknown"}`,
         `OLSConfig ${olsConfig.label ?? "unknown"} featureGate=${olsConfig.featureGate ?? "unknown"} cywellRegistration=${olsConfig.cywellRegistration ?? "unknown"}`,
+        currentGap
+          ? `Lightspeed currentGap=${currentGap.classification ?? "unknown"} owner=${currentGap.owner ?? "unknown"} next=${currentGap.nextCommand ?? "unknown"}`
+          : "Lightspeed currentGap=none",
+        currentGap?.evidence ?? "",
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads readiness evidence only; it does not patch OLSConfig"
-      ]
+      ].filter(Boolean)
     };
   } catch (error) {
     return {
