@@ -1663,6 +1663,12 @@ type ReleaseEvidenceRefreshArtifact = {
     ownerPacketCount?: number;
     ownerPacketsReady?: boolean;
     missingOwnerPackets?: string[];
+    ownerPacketCleanup?: {
+      dir?: string;
+      expectedFiles?: string[];
+      staleRemoved?: string[];
+      deletionAllowed?: boolean;
+    };
     ownerPackets?: Array<{
       owner?: string;
       status?: string;
@@ -1764,6 +1770,12 @@ type ReleaseActionQueueArtifact = {
     acceptance?: string[];
     mutationAllowedByThisVerifier?: boolean;
   }>;
+  ownerPacketCleanup?: {
+    dir?: string;
+    expectedFiles?: string[];
+    staleRemoved?: string[];
+    deletionAllowed?: boolean;
+  };
   items?: Array<{
     id?: string;
     owner?: string;
@@ -4354,6 +4366,12 @@ function missingReleaseEvidenceRefreshSummary(
       ownerPacketCount: 0,
       ownerPacketsReady: false,
       missingOwnerPackets: [reason],
+      ownerPacketCleanup: {
+        dir: "missing",
+        expectedFiles: [],
+        staleRemoved: [],
+        deletionAllowed: false
+      },
       ownerPackets: []
     },
     missingEvidence: [reason],
@@ -4411,6 +4429,15 @@ function getReleaseEvidenceRefreshReadiness(): {
       ownerPacketCount: artifact.actionQueue?.ownerPacketCount ?? 0,
       ownerPacketsReady: artifact.actionQueue?.ownerPacketsReady === true,
       missingOwnerPackets: artifact.actionQueue?.missingOwnerPackets ?? [],
+      ownerPacketCleanup: {
+        dir: artifact.actionQueue?.ownerPacketCleanup?.dir ?? "missing",
+        expectedFiles:
+          artifact.actionQueue?.ownerPacketCleanup?.expectedFiles ?? [],
+        staleRemoved:
+          artifact.actionQueue?.ownerPacketCleanup?.staleRemoved ?? [],
+        deletionAllowed:
+          artifact.actionQueue?.ownerPacketCleanup?.deletionAllowed === true
+      },
       ownerPackets: (artifact.actionQueue?.ownerPackets ?? []).map((packet) => ({
         owner: packet.owner ?? "unknown",
         status: packet.status ?? "unknown",
@@ -4635,6 +4662,12 @@ function missingReleaseActionQueueSummary(
     worktreeDirty: false,
     owners: [],
     ownerPackets: [],
+    ownerPacketCleanup: {
+      dir: "missing",
+      expectedFiles: [],
+      staleRemoved: [],
+      deletionAllowed: false
+    },
     items: [],
     sourceArtifacts: [],
     commandCounts: {
@@ -4720,6 +4753,12 @@ function getReleaseActionQueueReadiness(): {
       mutationAllowedByThisVerifier:
         packet.mutationAllowedByThisVerifier === true
     }));
+    const ownerPacketCleanup = {
+      dir: artifact.ownerPacketCleanup?.dir ?? "missing",
+      expectedFiles: artifact.ownerPacketCleanup?.expectedFiles ?? [],
+      staleRemoved: artifact.ownerPacketCleanup?.staleRemoved ?? [],
+      deletionAllowed: artifact.ownerPacketCleanup?.deletionAllowed === true
+    };
     const items = (artifact.items ?? []).map((entry) => ({
       id: entry.id ?? "unknown",
       owner: entry.owner ?? "unknown",
@@ -4787,6 +4826,7 @@ function getReleaseActionQueueReadiness(): {
         worktreeDirty: artifact.ref?.worktreeDirty === true,
         owners,
         ownerPackets,
+        ownerPacketCleanup,
         items,
         sourceArtifacts,
         commandCounts,
@@ -4800,6 +4840,7 @@ function getReleaseActionQueueReadiness(): {
         `release action queue generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `release action queue markdown packet=${markdownPath}`,
         `release action queue owner packets=${ownerPackets.length}`,
+        `release action queue owner packet cleanup deletionAllowed=${String(ownerPacketCleanup.deletionAllowed)} expected=${ownerPacketCleanup.expectedFiles.length} staleRemoved=${ownerPacketCleanup.staleRemoved.length}`,
         `release action queue owners=${owners.length} items=${items.length}`,
         ownerSummary ? `release action queue owner summary=${ownerSummary}` : "release action queue owners are not listed",
         `release action queue command counts readOnly=${commandCounts.readOnly} approvalGated=${commandCounts.approvalGated}`,

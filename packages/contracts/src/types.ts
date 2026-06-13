@@ -1443,6 +1443,12 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
     ownerPacketCount: number;
     ownerPacketsReady: boolean;
     missingOwnerPackets: string[];
+    ownerPacketCleanup: {
+      dir: string;
+      expectedFiles: string[];
+      staleRemoved: string[];
+      deletionAllowed: boolean;
+    };
     ownerPackets: Array<{
       owner: string;
       status: string;
@@ -1532,6 +1538,12 @@ export interface OpsLensReleaseActionQueueSummary {
     acceptance: string[];
     mutationAllowedByThisVerifier: boolean;
   }>;
+  ownerPacketCleanup: {
+    dir: string;
+    expectedFiles: string[];
+    staleRemoved: string[];
+    deletionAllowed: boolean;
+  };
   items: Array<{
     id: string;
     owner: string;

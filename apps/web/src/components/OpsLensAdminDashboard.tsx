@@ -1315,6 +1315,25 @@ export function OpsLensAdminDashboard() {
                   </span>
                 ))}
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-refresh-owner-packet-cleanup"
+              >
+                <span>
+                  deletionAllowed=
+                  {String(releaseRefresh.actionQueue.ownerPacketCleanup.deletionAllowed)}
+                </span>
+                <span>
+                  expected=
+                  {releaseRefresh.actionQueue.ownerPacketCleanup.expectedFiles.join(", ") ||
+                    "none"}
+                </span>
+                <span>
+                  staleRemoved=
+                  {releaseRefresh.actionQueue.ownerPacketCleanup.staleRemoved.join(", ") ||
+                    "none"}
+                </span>
+              </div>
               <div className="remediation-notes">
                 <p>
                   {releaseRefresh.risk[0] ??
@@ -1505,6 +1524,25 @@ export function OpsLensAdminDashboard() {
                     {packet.approvalGatedCommandIds.length}
                   </span>
                 ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-owner-packet-cleanup"
+              >
+                <span>
+                  deletionAllowed=
+                  {String(releaseActionQueue.ownerPacketCleanup.deletionAllowed)}
+                </span>
+                <span>
+                  expected=
+                  {releaseActionQueue.ownerPacketCleanup.expectedFiles.join(", ") ||
+                    "none"}
+                </span>
+                <span>
+                  staleRemoved=
+                  {releaseActionQueue.ownerPacketCleanup.staleRemoved.join(", ") ||
+                    "none"}
+                </span>
               </div>
               <div className="admin-evidence-line">
                 {releaseActionQueue.items.slice(0, 4).map((entry) => (

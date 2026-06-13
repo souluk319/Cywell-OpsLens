@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -213,6 +213,11 @@ function ownerSlug(owner) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "unknown";
+}
+
+function insideWorkspace(path) {
+  const relation = relative(process.cwd(), path);
+  return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
 }
 
 function fixedReadOnlyCommands() {
@@ -758,6 +763,43 @@ function buildOwnerPackets(owners, items) {
   });
 }
 
+async function cleanupOwnerPacketDirectory(expectedPaths) {
+  const ownerPacketsDir = resolve(options.ownerPacketsDir);
+  const expectedNames = new Set(expectedPaths.map((path) => basename(path)));
+  if (!insideWorkspace(ownerPacketsDir)) {
+    fail("release action queue owner packet cleanup", `${ownerPacketsDir} is outside workspace`);
+    return {
+      dir: ownerPacketsDir,
+      staleRemoved: [],
+      expectedFiles: [...expectedNames],
+      deletionAllowed: false
+    };
+  }
+
+  await mkdir(ownerPacketsDir, { recursive: true });
+  const staleRemoved = [];
+  const entries = await readdir(ownerPacketsDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".md") || expectedNames.has(entry.name)) {
+      continue;
+    }
+    await unlink(resolve(ownerPacketsDir, entry.name));
+    staleRemoved.push(entry.name);
+  }
+  pass(
+    "release action queue owner packet cleanup",
+    staleRemoved.length > 0
+      ? `removed stale owner packet(s): ${staleRemoved.join(", ")}`
+      : "no stale owner packets found"
+  );
+  return {
+    dir: ownerPacketsDir,
+    staleRemoved,
+    expectedFiles: [...expectedNames],
+    deletionAllowed: true
+  };
+}
+
 function markdownFor(queue) {
   const lines = [
     "# Cywell OpsLens Release Action Queue",
@@ -783,6 +825,13 @@ function markdownFor(queue) {
     ...queue.ownerPackets.map((packet) =>
       `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}`
     ),
+    "",
+    "## Owner Packet Cleanup",
+    "",
+    `- Directory: ${queue.ownerPacketCleanup.dir}`,
+    `- Expected files: ${queue.ownerPacketCleanup.expectedFiles.join(", ")}`,
+    `- Stale removed: ${queue.ownerPacketCleanup.staleRemoved.join(", ") || "none"}`,
+    `- Deletion allowed: ${String(queue.ownerPacketCleanup.deletionAllowed)}`,
     "",
     "## Open Actions",
     ""
@@ -1046,12 +1095,20 @@ async function main() {
     checks
   };
 
-  const serialized = `${JSON.stringify(queue, null, 2)}\n`;
-  const markdown = markdownFor(queue);
   const ownerPacketMarkdowns = queue.ownerPackets.map((packet) => ({
     path: packet.markdownPath,
     markdown: ownerPacketMarkdown(queue, packet)
   }));
+
+  await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
+  await mkdir(dirname(resolve(options.markdownOut)), { recursive: true });
+  const ownerPacketCleanup = await cleanupOwnerPacketDirectory(
+    ownerPacketMarkdowns.map((packet) => packet.path)
+  );
+  queue.ownerPacketCleanup = ownerPacketCleanup;
+
+  const serialized = `${JSON.stringify(queue, null, 2)}\n`;
+  const markdown = markdownFor(queue);
   if (
     secretLike(serialized) ||
     secretLike(markdown) ||
@@ -1060,9 +1117,6 @@ async function main() {
     throw new Error("release action queue would include secret-like material");
   }
 
-  await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
-  await mkdir(dirname(resolve(options.markdownOut)), { recursive: true });
-  await mkdir(resolve(options.ownerPacketsDir), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");
   await writeFile(resolve(options.markdownOut), markdown, "utf8");
   for (const packet of ownerPacketMarkdowns) {

@@ -381,6 +381,12 @@ function actionQueueSummary(headSha) {
       ownerPacketCount: 0,
       ownerPacketsReady: false,
       missingOwnerPackets: ["release action queue artifact is missing or unreadable"],
+      ownerPacketCleanup: {
+        dir: "missing",
+        expectedFiles: [],
+        staleRemoved: [],
+        deletionAllowed: false
+      },
       ownerPackets: []
     };
   }
@@ -400,6 +406,18 @@ function actionQueueSummary(headSha) {
       mutationAllowedByThisVerifier: packet.mutationAllowedByThisVerifier === true
     };
   });
+  const ownerPacketCleanup = {
+    dir: sanitize(artifact.ownerPacketCleanup?.dir ?? "missing"),
+    expectedFiles: (artifact.ownerPacketCleanup?.expectedFiles ?? []).map(sanitize),
+    staleRemoved: (artifact.ownerPacketCleanup?.staleRemoved ?? []).map(sanitize),
+    deletionAllowed: artifact.ownerPacketCleanup?.deletionAllowed === true
+  };
+  const ownerPacketFileNames = new Set(
+    ownerPackets.map((packet) => packet.markdownPath.split(/[\\/]/).pop() ?? packet.markdownPath)
+  );
+  const cleanupExpectedMissing = ownerPacketCleanup.expectedFiles
+    .filter((expectedFile) => !ownerPacketFileNames.has(expectedFile))
+    .map((expectedFile) => `owner packet cleanup expected file is not exported: ${expectedFile}`);
   const missingOwnerPackets = ownerPackets
     .filter((packet) => !packet.exists)
     .map((packet) => `${packet.owner} owner packet missing at ${packet.markdownPath}`);
@@ -409,6 +427,13 @@ function actionQueueSummary(headSha) {
   const blockers = [
     ...(fresh ? [] : [`release action queue is stale head=${artifactHead(artifact) ?? "missing"}`]),
     ...(ownerPackets.length > 0 ? [] : ["release action queue has no ownerPackets"]),
+    ...(ownerPacketCleanup.deletionAllowed
+      ? []
+      : ["release action queue owner packet cleanup did not allow deletion inside generated evidence directory"]),
+    ...(ownerPacketCleanup.expectedFiles.length === ownerPackets.length
+      ? []
+      : [`release action queue owner packet cleanup expected=${ownerPacketCleanup.expectedFiles.length} exported=${ownerPackets.length}`]),
+    ...cleanupExpectedMissing,
     ...missingOwnerPackets,
     ...mutatingOwnerPackets
   ];
@@ -422,6 +447,7 @@ function actionQueueSummary(headSha) {
     ownerPacketCount: ownerPackets.length,
     ownerPacketsReady: blockers.length === 0,
     missingOwnerPackets,
+    ownerPacketCleanup,
     ownerPackets
   };
 }

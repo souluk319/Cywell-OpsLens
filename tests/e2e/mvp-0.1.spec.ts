@@ -1234,6 +1234,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             ownerPacketCount?: number;
             ownerPacketsReady?: boolean;
             missingOwnerPackets?: string[];
+            ownerPacketCleanup?: {
+              dir?: string;
+              expectedFiles?: string[];
+              staleRemoved?: string[];
+              deletionAllowed?: boolean;
+            };
             ownerPackets?: Array<{
               owner?: string;
               markdownPath?: string;
@@ -1306,6 +1312,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             missingRequiredTools?: string[];
             mutationAllowedByThisVerifier?: boolean;
           }>;
+          ownerPacketCleanup?: {
+            dir?: string;
+            expectedFiles?: string[];
+            staleRemoved?: string[];
+            deletionAllowed?: boolean;
+          };
           items?: Array<{
             id?: string;
             owner?: string;
@@ -2105,8 +2117,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toBeGreaterThan(0);
     expect(body.installReadiness?.refresh?.actionQueue).toMatchObject({
       status: "ready",
-      ownerPacketsReady: true
+      ownerPacketsReady: true,
+      ownerPacketCleanup: {
+        deletionAllowed: true
+      }
     });
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.ownerPacketCleanup?.expectedFiles
+    ).toEqual(expect.arrayContaining(["cluster-admin.md", "release-manager.md"]));
     expect(
       body.installReadiness?.refresh?.actionQueue?.ownerPackets?.map(
         (packet) => packet.owner
@@ -2193,6 +2211,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       ])
     );
     expect(clusterAdminOwnerPacket?.mutationAllowedByThisVerifier).toBe(false);
+    expect(
+      body.installReadiness?.actionQueue?.ownerPacketCleanup?.deletionAllowed
+    ).toBe(true);
+    expect(
+      body.installReadiness?.actionQueue?.ownerPacketCleanup?.expectedFiles
+    ).toEqual(expect.arrayContaining(["cluster-admin.md", "release-manager.md"]));
     const releaseManagerOwnerPacket =
       body.installReadiness?.actionQueue?.ownerPackets?.find(
         (packet) => packet.owner === "release-manager"
@@ -2924,6 +2948,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       page.getByTestId("opslens-release-action-queue-owner-packets")
     ).toContainText("release-manager.md");
     await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packet-cleanup")
+    ).toContainText("deletionAllowed=true");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packet-cleanup")
+    ).toContainText("cluster-admin.md");
+    await expect(
       page.getByTestId("opslens-release-action-queue-items")
     ).toContainText("npm run evidence:ocp-auth-rbac-plan");
     await expect(
@@ -2959,6 +2989,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-refresh-owner-packets")
     ).toContainText("exists=true");
+    await expect(
+      page.getByTestId("opslens-release-refresh-owner-packet-cleanup")
+    ).toContainText("deletionAllowed=true");
+    await expect(
+      page.getByTestId("opslens-release-refresh-owner-packet-cleanup")
+    ).toContainText("cluster-admin.md");
     await expect(page.getByTestId("opslens-evidence-checkpoint")).toContainText(
       /PASS|NEEDS_EVIDENCE|BLOCKED|missing/
     );
