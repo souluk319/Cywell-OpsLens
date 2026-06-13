@@ -34,6 +34,7 @@
     "verify:owned-image-provenance": "node ./scripts/verify-owned-image-provenance.mjs",
     "verify:security-scan-plan": "node ./scripts/verify-security-scan-plan.mjs",
     "evidence:security-scan": "node ./scripts/create-security-scan-evidence.mjs",
+    "evidence:security-scan:docker": "node ./scripts/create-security-scan-evidence.mjs --execute-docker-fallback",
     "verify:runtime": "node ./scripts/verify-runtime-readiness.mjs",
     "verify:runtime-rag": "node ./scripts/verify-runtime-rag-contract.mjs",
     "verify:runtime-rag:fixture": "node ./scripts/verify-runtime-rag-fixture.mjs",

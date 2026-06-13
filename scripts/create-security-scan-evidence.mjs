@@ -52,6 +52,9 @@ const options = {
   name: parsed.values.get("name") ?? (parsed.flags.has("all") ? "all" : "owned-required"),
   timeoutMs: Number(parsed.values.get("timeout-ms") ?? defaults.timeoutMs),
   execute: parsed.flags.has("execute"),
+  executeDockerFallback: parsed.flags.has("execute-docker-fallback"),
+  trivyImage: parsed.values.get("trivy-image") ?? "aquasec/trivy:latest",
+  syftImage: parsed.values.get("syft-image") ?? "anchore/syft:latest",
   includeExternal: parsed.flags.has("include-external")
 };
 
@@ -195,6 +198,14 @@ function pathsFor(target) {
   };
 }
 
+function workspacePath(absolutePath) {
+  const workspaceRoot = resolve(".");
+  return `/workspace/${absolutePath
+    .replace(workspaceRoot, "")
+    .replace(/^[/\\]+/, "")
+    .replace(/\\/g, "/")}`;
+}
+
 function commandPlan(target) {
   const paths = pathsFor(target);
   return {
@@ -220,12 +231,12 @@ function commandPlan(target) {
     dockerFallback: [
       {
         id: `trivy-docker-${target.name}`,
-        command: `docker run --rm -v ${resolve(".")}:/workspace aquasec/trivy:latest image --format json --output /workspace/docs/release/evidence/security/${target.name}-vulnerability.json ${target.scanRef}`,
+        command: `docker run --rm -v ${resolve(".")}:/workspace -v /var/run/docker.sock:/var/run/docker.sock ${options.trivyImage} image --format json --output /workspace/docs/release/evidence/security/${target.name}-vulnerability.json ${target.scanRef}`,
         writesLocalEvidence: true
       },
       {
         id: `syft-docker-${target.name}`,
-        command: `docker run --rm -v ${resolve(".")}:/workspace anchore/syft:latest ${target.scanRef} -o spdx-json=/workspace/docs/release/evidence/security/${target.name}-sbom.spdx.json`,
+        command: `docker run --rm -v ${resolve(".")}:/workspace -v /var/run/docker.sock:/var/run/docker.sock ${options.syftImage} ${target.scanRef} -o spdx-json=/workspace/docs/release/evidence/security/${target.name}-sbom.spdx.json`,
         writesLocalEvidence: true
       }
     ]
@@ -237,6 +248,76 @@ async function cliAvailable(name, args) {
   if (result.ok) pass(`CLI ${name}`, result.stdout.split(/\r?\n/)[0] || "available");
   else warn(`CLI ${name}`, `${name} unavailable locally`);
   return result.ok;
+}
+
+async function resolveScannerImage(name, image) {
+  if (!options.executeDockerFallback) {
+    return {
+      name,
+      requested: image,
+      immutableRef: image,
+      digestResolved: false,
+      pullStatus: "not-requested"
+    };
+  }
+
+  const pull = await runCapture("docker", ["pull", image]);
+  if (!pull.ok) {
+    fail(`${name} scanner image pull`, pull.stderr || pull.stdout || `docker pull ${image} failed`);
+    return {
+      name,
+      requested: image,
+      immutableRef: image,
+      digestResolved: false,
+      pullStatus: "failed"
+    };
+  }
+
+  const inspect = await runCapture("docker", [
+    "image",
+    "inspect",
+    image,
+    "--format",
+    "{{json .RepoDigests}}"
+  ]);
+  if (!inspect.ok) {
+    fail(`${name} scanner image inspect`, inspect.stderr || inspect.stdout || `docker image inspect ${image} failed`);
+    return {
+      name,
+      requested: image,
+      immutableRef: image,
+      digestResolved: false,
+      pullStatus: "pulled"
+    };
+  }
+
+  try {
+    const repoDigests = JSON.parse(inspect.stdout.trim());
+    const immutableRef = Array.isArray(repoDigests) && repoDigests.length > 0
+      ? repoDigests[0]
+      : image;
+    if (immutableRef.includes("@sha256:")) {
+      pass(`${name} scanner image digest`, `${image} -> ${immutableRef}`);
+    } else {
+      warn(`${name} scanner image digest`, `${image} did not expose a RepoDigest; evidence remains tag-based`);
+    }
+    return {
+      name,
+      requested: image,
+      immutableRef,
+      digestResolved: immutableRef.includes("@sha256:"),
+      pullStatus: "pulled"
+    };
+  } catch (error) {
+    fail(`${name} scanner image digest parse`, error instanceof Error ? error.message : String(error));
+    return {
+      name,
+      requested: image,
+      immutableRef: image,
+      digestResolved: false,
+      pullStatus: "pulled"
+    };
+  }
 }
 
 async function executeForTarget(plan) {
@@ -280,6 +361,91 @@ async function executeForTarget(plan) {
   }
 }
 
+async function executeDockerFallbackForTarget(plan, scannerImages) {
+  await mkdir(dirname(plan.paths.vulnerabilityReport), { recursive: true });
+  const workspaceMount = `${resolve(".")}:/workspace`;
+  const dockerSocketMount = "/var/run/docker.sock:/var/run/docker.sock";
+  const vulnerabilityWorkspacePath = workspacePath(plan.paths.vulnerabilityReport);
+  const sbomWorkspacePath = workspacePath(plan.paths.sbom);
+  const trivyImage = scannerImages.trivy.immutableRef;
+  const syftImage = scannerImages.syft.immutableRef;
+
+  const trivy = await runCapture("docker", [
+    "run",
+    "--rm",
+    "-v",
+    workspaceMount,
+    "-v",
+    dockerSocketMount,
+    trivyImage,
+    "image",
+    "--format",
+    "json",
+    "--output",
+    vulnerabilityWorkspacePath,
+    plan.target.scanRef
+  ]);
+  const syft = await runCapture("docker", [
+    "run",
+    "--rm",
+    "-v",
+    workspaceMount,
+    "-v",
+    dockerSocketMount,
+    syftImage,
+    plan.target.scanRef,
+    "-o",
+    `spdx-json=${sbomWorkspacePath}`
+  ]);
+  const reviewDraft = trivy.ok && syft.ok
+    ? await runCapture("node", [
+        "scripts/create-security-review-evidence-draft.mjs",
+        "--name",
+        plan.target.name,
+        "--image",
+        plan.target.image,
+        "--force"
+      ], 60000)
+    : { ok: false, exitCode: 1, stdout: "", stderr: "scan/SBOM evidence was not complete" };
+
+  results.push({
+    name: plan.target.name,
+    scanRef: plan.target.scanRef,
+    executionMode: "docker-fallback",
+    scannerImages,
+    vulnerabilityReport: {
+      path: plan.paths.vulnerabilityReport,
+      status: trivy.ok ? "PASS" : "FAIL",
+      exitCode: trivy.exitCode,
+      stderrTail: trivy.stderr.slice(-1000)
+    },
+    sbom: {
+      path: plan.paths.sbom,
+      status: syft.ok ? "PASS" : "FAIL",
+      exitCode: syft.exitCode,
+      stderrTail: syft.stderr.slice(-1000)
+    },
+    reviewDraft: {
+      path: plan.paths.reviewDraft,
+      status: reviewDraft.ok ? "PASS" : "FAIL",
+      exitCode: reviewDraft.exitCode,
+      stderrTail: reviewDraft.stderr.slice(-1000)
+    }
+  });
+
+  if (trivy.ok && syft.ok && reviewDraft.ok) {
+    pass(
+      `${plan.target.name} docker fallback scan evidence`,
+      `wrote ${plan.paths.vulnerabilityReport}, ${plan.paths.sbom}, and ${plan.paths.reviewDraft}`
+    );
+  } else {
+    fail(
+      `${plan.target.name} docker fallback scan evidence`,
+      `trivy=${trivy.exitCode} syft=${syft.exitCode} reviewDraft=${reviewDraft.exitCode}`
+    );
+  }
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -306,6 +472,10 @@ async function main() {
   const syftAvailable = await cliAvailable("syft", ["version"]);
   const dockerAvailable = await cliAvailable("docker", ["--version"]);
   const plans = selectedTargets.map(commandPlan);
+  const scannerImages = {
+    trivy: await resolveScannerImage("trivy", options.trivyImage),
+    syft: await resolveScannerImage("syft", options.syftImage)
+  };
 
   if (options.execute) {
     if (!trivyAvailable || !syftAvailable) {
@@ -315,13 +485,23 @@ async function main() {
         await executeForTarget(plan);
       }
     }
+  } else if (options.executeDockerFallback) {
+    if (!dockerAvailable) {
+      fail("docker fallback prerequisites", "execute-docker-fallback mode requires Docker");
+    } else if (!scannerImages.trivy.digestResolved || !scannerImages.syft.digestResolved) {
+      fail("docker fallback scanner image digests", "scanner images must resolve to immutable RepoDigests before evidence collection");
+    } else {
+      for (const plan of plans) {
+        await executeDockerFallbackForTarget(plan, scannerImages);
+      }
+    }
   } else {
-    pass("scan runner mode", "plan-only; pass --execute to write vulnerability/SBOM evidence locally");
+    pass("scan runner mode", "plan-only; pass --execute or --execute-docker-fallback to write vulnerability/SBOM evidence locally");
   }
 
   const status = checks.some((check) => check.status === "FAIL")
     ? "BLOCKED"
-    : options.execute
+    : options.execute || options.executeDockerFallback
       ? "EVIDENCE_WRITTEN"
       : "PLAN_READY";
   const evidenceOutPath = resolve(options.evidenceOut);
@@ -333,7 +513,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     startedAt,
     status,
-    actionMode: options.execute ? "scanEvidenceLocalWrite" : "scanEvidencePlanOnly",
+    actionMode: options.execute || options.executeDockerFallback ? "scanEvidenceLocalWrite" : "scanEvidencePlanOnly",
     registryMutationAttempted: false,
     clusterMutationAttempted: false,
     mutationAllowedByThisVerifier: false,
@@ -347,9 +527,11 @@ async function main() {
     options: {
       name: options.name,
       execute: options.execute,
+      executeDockerFallback: options.executeDockerFallback,
       includeExternal: options.includeExternal,
       securityEvidenceDir: resolve(options.securityEvidenceDir)
     },
+    scannerImages,
     cli: {
       trivy: trivyAvailable,
       syft: syftAvailable,
@@ -358,13 +540,17 @@ async function main() {
     commandPlans: plans,
     results,
     missingEvidence: [
-      ...(!trivyAvailable ? ["trivy CLI unavailable for --execute mode"] : []),
-      ...(!syftAvailable ? ["syft CLI unavailable for --execute mode"] : []),
+      ...(!trivyAvailable && !options.executeDockerFallback ? ["trivy CLI unavailable for --execute mode"] : []),
+      ...(!syftAvailable && !options.executeDockerFallback ? ["syft CLI unavailable for --execute mode"] : []),
+      ...(options.executeDockerFallback && !scannerImages.trivy.digestResolved ? ["trivy Docker scanner image digest was not resolved"] : []),
+      ...(options.executeDockerFallback && !scannerImages.syft.digestResolved ? ["syft Docker scanner image digest was not resolved"] : []),
       ...(plans.length === 0 ? [`no scan targets matched ${options.name}`] : [])
     ],
     risk: [
       "This runner is local evidence generation only; it does not sign, push, mirror, apply, delete, scale, or patch cluster resources.",
-      "Docker fallback commands are emitted as a plan because scanner image pulls should be reviewed and pinned before release evidence collection.",
+      options.executeDockerFallback
+        ? "Docker fallback scanner images are pulled locally and converted to immutable RepoDigests before scans run."
+        : "Docker fallback commands are emitted as a plan because scanner image pulls should be reviewed and pinned before release evidence collection.",
       "Final release readiness still requires reviewed *-security-review.json evidence with criticalFindings=0."
     ],
     rollbackPath: [
@@ -392,7 +578,7 @@ async function main() {
     console.log(`[${check.status}] ${check.name}: ${check.detail}`);
   }
   console.log("");
-  console.log(`Cywell OpsLens security scan evidence runner: status=${artifact.status}, targets=${plans.length}, execute=${options.execute}`);
+  console.log(`Cywell OpsLens security scan evidence runner: status=${artifact.status}, targets=${plans.length}, execute=${options.execute}, executeDockerFallback=${options.executeDockerFallback}`);
   if (artifact.status === "BLOCKED") process.exitCode = 1;
 }
 

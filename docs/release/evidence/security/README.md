@@ -30,6 +30,24 @@ npm run evidence:security-review:draft -- --name operator --reviewer <security-r
 
 A human reviewer must still create the final `operator-security-review.json`, `api-security-review.json`, or matching image-specific final file after validating the scan/SBOM inputs.
 
+## Docker Fallback Runner
+
+When local `trivy` and `syft` CLIs are not installed but Docker is available, generate owned-image scan/SBOM evidence with scanner containers:
+
+```bash
+npm run evidence:security-scan:docker
+```
+
+The runner pulls the configured scanner images, resolves immutable RepoDigests before execution, mounts the local Docker socket for local image scans, writes ignored local/CI vulnerability/SBOM files, and creates ignored `*.draft.json` review packets. It does not sign, push, mirror, apply, delete, scale, or create final human-approved security review evidence.
+
+`npm run verify:security-scan-plan` consumes the same-HEAD runner artifact when it is clean, `EVIDENCE_WRITTEN`, and backed by digest-resolved scanner images. That lets Docker fallback evidence satisfy owned-image scan/SBOM generation while keeping final security review and signing approval as explicit gaps.
+
+To include that Docker fallback lane inside the same release evidence refresh:
+
+```bash
+npm run verify:release-refresh -- --security-scan-docker
+```
+
 ## Suggested Artifact Names
 
 - `operator-vulnerability.json`
@@ -47,4 +65,4 @@ A human reviewer must still create the final `operator-security-review.json`, `a
 - `qdrant-security-review.json`
 - `security-review.example.json`
 
-Generated reviewer drafts may be kept outside source control until reviewed. Final release evidence should be linked from `test-results/cywell-opslens-security-scan-plan.json` and the release evidence bundle.
+Generated raw scanner outputs and reviewer drafts may be kept outside source control until reviewed because they are large release/CI artifacts. Final human-reviewed `*-security-review.json` evidence should be linked from `test-results/cywell-opslens-security-scan-plan.json` and the release evidence bundle.

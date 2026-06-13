@@ -72,6 +72,7 @@ const options = {
   withE2e: parsed.flags.has("with-e2e"),
   skipImageBuild: parsed.flags.has("skip-image-build"),
   skipLive: parsed.flags.has("skip-live"),
+  securityScanDocker: parsed.flags.has("security-scan-docker"),
   failFast: parsed.flags.has("fail-fast")
 };
 
@@ -187,7 +188,11 @@ function buildChain() {
     npmScript("owned-image-provenance", "release", "verify:owned-image-provenance"),
     npmScript("external-runtime-plan", "release", "verify:external-runtime-plan"),
     npmScript("security-scan-plan", "release", "verify:security-scan-plan"),
-    npmScript("security-scan-runner", "release", "evidence:security-scan", ["--all"])
+    options.securityScanDocker
+      ? npmScript("security-scan-runner-docker", "release", "evidence:security-scan:docker", [], {
+          timeoutMs: Math.max(options.commandTimeoutMs, 900000)
+        })
+      : npmScript("security-scan-runner", "release", "evidence:security-scan", ["--all"])
   ];
 
   if (options.skipLive) {
@@ -426,6 +431,7 @@ async function main() {
       withE2e: options.withE2e,
       skipImageBuild: options.skipImageBuild,
       skipLive: options.skipLive,
+      securityScanDocker: options.securityScanDocker,
       failFast: options.failFast,
       commandTimeoutMs: options.commandTimeoutMs,
       liveTimeoutMs: options.liveTimeoutMs
@@ -443,6 +449,9 @@ async function main() {
     risk: [
       "This refresh chain only runs local verifiers and live read-only diagnostics; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions.",
       "Local Docker image builds may update local image cache when --skip-image-build is not used, but registry mutation remains false.",
+      options.securityScanDocker
+        ? "The security scan Docker fallback may pull scanner images and write local vulnerability/SBOM evidence, but registry and cluster mutation remain false."
+        : "Security scan execution is plan-only unless --security-scan-docker is supplied.",
       "Expected live OCP/Lightspeed failures are preserved as evidence gaps so release review does not confuse stale evidence with readiness."
     ],
     rollbackPath: [

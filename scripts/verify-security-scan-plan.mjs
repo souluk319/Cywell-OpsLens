@@ -11,6 +11,7 @@ const defaults = {
   evidenceOut: "test-results/cywell-opslens-security-scan-plan.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
+  securityScanRunner: "test-results/cywell-opslens-security-scan-evidence-runner.json",
   securityEvidenceDir: "docs/release/evidence/security",
   timeoutMs: 10000
 };
@@ -45,6 +46,7 @@ const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   ownedImageProvenance: parsed.get("owned-image-provenance-evidence") ?? defaults.ownedImageProvenance,
   externalRuntime: parsed.get("external-runtime-evidence") ?? defaults.externalRuntime,
+  securityScanRunner: parsed.get("security-scan-runner-evidence") ?? defaults.securityScanRunner,
   securityEvidenceDir: parsed.get("security-evidence-dir") ?? defaults.securityEvidenceDir,
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
 };
@@ -225,7 +227,9 @@ function optionalJson(path, label) {
 }
 
 function criticalFindingsFromTrivy(report) {
-  if (!Array.isArray(report?.Results)) return undefined;
+  if (!Array.isArray(report?.Results)) {
+    return report?.SchemaVersion && report?.Trivy ? 0 : undefined;
+  }
   return report.Results.reduce((total, result) => {
     const vulnerabilities = Array.isArray(result?.Vulnerabilities)
       ? result.Vulnerabilities
@@ -234,6 +238,48 @@ function criticalFindingsFromTrivy(report) {
       String(vulnerability?.Severity ?? "").toUpperCase() === "CRITICAL"
     ).length;
   }, 0);
+}
+
+function securityScanRunnerCoverage(runner, currentHeadSha) {
+  const required = new Set(["operator", "api", "dashboard", "bundle"]);
+  const results = Array.isArray(runner?.results) ? runner.results : [];
+  const passedTargets = new Set(
+    results
+      .filter((result) =>
+        required.has(result.name) &&
+        result.executionMode === "docker-fallback" &&
+        result.vulnerabilityReport?.status === "PASS" &&
+        result.sbom?.status === "PASS"
+      )
+      .map((result) => result.name)
+  );
+  const missingTargets = [...required].filter((name) => !passedTargets.has(name));
+  const fresh =
+    artifactHeadSha(runner) === currentHeadSha &&
+    artifactDirty(runner) === false;
+  const scannerDigestsPinned =
+    runner?.scannerImages?.trivy?.digestResolved === true &&
+    runner?.scannerImages?.syft?.digestResolved === true;
+  const evidenceWritten =
+    runner?.status === "EVIDENCE_WRITTEN" &&
+    runner?.actionMode === "scanEvidenceLocalWrite" &&
+    runner?.options?.executeDockerFallback === true &&
+    fresh &&
+    scannerDigestsPinned &&
+    missingTargets.length === 0 &&
+    runner?.registryMutationAttempted === false &&
+    runner?.clusterMutationAttempted === false &&
+    runner?.mutationAllowedByThisVerifier === false;
+
+  return {
+    evidenceWritten,
+    fresh,
+    scannerDigestsPinned,
+    missingTargets,
+    status: runner?.status ?? "missing",
+    actionMode: runner?.actionMode ?? "missing",
+    executeDockerFallback: runner?.options?.executeDockerFallback === true
+  };
 }
 
 function numberField(...values) {
@@ -425,6 +471,7 @@ function buildCommands({ ownedImages, externalImages }) {
     command("owned-provenance", "static-readiness", "npm run verify:owned-image-provenance", "Refresh owned image provenance before scan review."),
     command("external-runtime-plan", "static-readiness", "npm run verify:external-runtime-plan", "Refresh external runtime certification/mirroring plan before scan review."),
     command("security-scan-evidence-runner", "local-evidence-plan", "npm run evidence:security-scan -- --all", "Generate the local scan/SBOM evidence command packet before human security review.", { writesLocalEvidence: true }),
+    command("security-scan-evidence-runner-docker", "local-evidence-generation", "npm run evidence:security-scan:docker", "Generate owned-image vulnerability/SBOM evidence through digest-resolved Docker scanner containers when local trivy/syft CLIs are unavailable.", { writesLocalEvidence: true }),
     ...ownedImages.flatMap((image) => [
       command(`trivy-owned-${image.name}`, "local-scan", `trivy image --format json --output docs/release/evidence/security/${image.name}-vulnerability.json ${scanTarget(image)}`, `Generate vulnerability scan evidence for owned image ${image.name}.`, { writesLocalEvidence: true }),
       command(`syft-owned-${image.name}`, "local-sbom", `syft ${scanTarget(image)} -o spdx-json > docs/release/evidence/security/${image.name}-sbom.spdx.json`, `Generate SBOM evidence for owned image ${image.name}.`, { writesLocalEvidence: true }),
@@ -523,6 +570,19 @@ async function main() {
   const cliByName = new Map(cli.map((entry) => [entry.name, entry]));
   const ownedProvenance = loadJson(options.ownedImageProvenance, "owned image provenance");
   const externalRuntime = loadJson(options.externalRuntime, "external runtime plan");
+  const securityScanRunner = loadJson(options.securityScanRunner, "security scan evidence runner");
+  const runnerCoverage = securityScanRunnerCoverage(securityScanRunner, headSha);
+  if (runnerCoverage.evidenceWritten) {
+    pass(
+      "security scan Docker fallback evidence",
+      `same-head owned scan/SBOM evidence exists for operator, api, dashboard, bundle with digest-resolved scanner images`
+    );
+  } else if (securityScanRunner) {
+    warn(
+      "security scan Docker fallback evidence",
+      `status=${runnerCoverage.status} actionMode=${runnerCoverage.actionMode} fresh=${String(runnerCoverage.fresh)} digestPinned=${String(runnerCoverage.scannerDigestsPinned)} missingTargets=${runnerCoverage.missingTargets.join(",") || "none"}`
+    );
+  }
 
   const ownedImages = ownedImagesFrom(ownedProvenance);
   const externalImages = externalImagesFrom(externalRuntime);
@@ -543,7 +603,9 @@ async function main() {
   }
   for (const name of ["trivy", "syft"]) {
     if (!cliByName.get(name)?.available) {
-      missingEvidence.push(`${name} CLI is required for vulnerability/SBOM evidence generation`);
+      if (!runnerCoverage.evidenceWritten) {
+        missingEvidence.push(`${name} CLI is required for vulnerability/SBOM evidence generation unless same-head Docker fallback evidence is written`);
+      }
     }
   }
   if (!cliByName.get("cosign")?.available) {
@@ -591,13 +653,16 @@ async function main() {
     imageSources: {
       ownedImageProvenance: resolve(options.ownedImageProvenance),
       externalRuntime: resolve(options.externalRuntime),
+      securityScanRunner: resolve(options.securityScanRunner),
       securityEvidenceDir: resolve(options.securityEvidenceDir)
     },
+    securityScanRunner: runnerCoverage,
     images: allImages,
     commands,
     missingEvidence,
     risk: [
       "A scan plan is not a certification result; release approval still requires reviewed scan, SBOM, signature, provenance, and critical-finding evidence.",
+      "Same-head Docker fallback evidence can satisfy owned-image scan/SBOM generation when local trivy/syft CLIs are unavailable, but it does not replace final security review approval.",
       "External runtime image scans may require registry network access and immutable source digests before they are accepted for Certified Operator submission.",
       "Signing and registry attachment commands remain approval-gated and are not run by this verifier."
     ],

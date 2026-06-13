@@ -10,3 +10,5 @@ coverage/
 *.log
 docs/release/evidence/external-runtime/*.draft.json
 docs/release/evidence/security/*.draft.json
+docs/release/evidence/security/*-vulnerability.json
+docs/release/evidence/security/*-sbom.spdx.json
