@@ -1,0 +1,140 @@
+schema: cywell.opslens.rag-production-readiness-contract.v0.1
+artifactType: opslens.rag-production-readiness-contract.v0.1
+artifactVersion: "0.1"
+owner: rag-owner
+actionMode: productionReadinessContractOnly
+
+defaultState:
+  productionQueueEnabled: false
+  ingestionWorkerEnabled: false
+  vectorWriteAllowed: false
+  ingestionAllowed: false
+  clusterMutationAllowed: false
+  registryMutationAllowed: false
+  rawMarkdownReturned: false
+  rawMarkdownPersistedByOpsLensApi: false
+
+requiredApprovals:
+  - rag-owner
+  - cluster-sre
+  - security-reviewer
+
+components:
+  queue:
+    required: true
+    contractReady: true
+    liveReady: false
+    backendClass: database-backed
+    allowedBackends:
+      - postgresql
+      - external-approved-workflow-db
+    storesRawMarkdown: false
+    storesValidationMetadata: true
+    storesRedactedChunks: true
+    requiredFields:
+      - tenantId
+      - queueItemId
+      - validationHash
+      - sourceRef
+      - requiredApprovals
+      - approvals
+      - status
+      - createdAt
+      - updatedAt
+  ingestionWorker:
+    required: true
+    contractReady: true
+    liveReady: false
+    mode: approval-gated-job
+    enabledByDefault: false
+    sourceOfTruth: approved-source-ref
+    createsKubernetesJobByThisVerifier: false
+    readsRawMarkdownFromOpsLensApi: false
+    requiredPreflights:
+      - npm run verify:rag
+      - npm run verify:rag:approval-queue
+      - npm run verify:rag:production-readiness
+  vectorWriteAuditSink:
+    required: true
+    contractReady: true
+    liveReady: false
+    appendOnly: true
+    recordsRollbackChunkIds: true
+    recordsValidationHash: true
+    recordsSourceRef: true
+    recordsApproverRoles: true
+    recordsVectorStoreCollection: true
+
+promotionGates:
+  - id: approval-queue-same-head
+    required: true
+    evidence: test-results/cywell-opslens-rag-approval-queue.json
+  - id: production-db-reviewed
+    required: true
+    evidence: approved database-backed queue deployment review
+  - id: worker-reviewed
+    required: true
+    evidence: approved ingestion worker deployment review
+  - id: audit-sink-reviewed
+    required: true
+    evidence: approved append-only vector write audit sink
+  - id: rollback-export-reviewed
+    required: true
+    evidence: rollback export path with previous vector chunk ids
+
+readOnlyCommands:
+  - id: verify-rag-approval-queue
+    phase: rag-production-readiness
+    command: npm run verify:rag:approval-queue
+    mutation: false
+    writesLocalEvidence: true
+  - id: verify-rag-production-readiness
+    phase: rag-production-readiness
+    command: npm run verify:rag:production-readiness
+    mutation: false
+    writesLocalEvidence: true
+  - id: verify-install-plan-rag-ingestion
+    phase: rag-production-readiness
+    command: npm run verify:install-plan
+    mutation: false
+    writesLocalEvidence: true
+
+approvalGatedCommands:
+  - id: apply-approved-rag-production-stack
+    phase: post-approval-rag-ingestion
+    command: oc apply -f deploy/rag-production/approved-rag-ingestion-stack.yaml
+    mutation: true
+    requiresExplicitApproval: true
+    requiredApprovals:
+      - rag-owner
+      - cluster-sre
+      - security-reviewer
+    rationale: Create production queue, ingestion worker, and audit sink only after the evidence packet is approved.
+    rollback: oc delete -f deploy/rag-production/approved-rag-ingestion-stack.yaml
+  - id: run-approved-rag-ingestion-job
+    phase: post-approval-rag-ingestion
+    command: oc create job --from=cronjob/cywell-opslens-rag-ingestion cywell-opslens-rag-ingestion-manual
+    mutation: true
+    requiresExplicitApproval: true
+    requiredApprovals:
+      - rag-owner
+      - cluster-sre
+    rationale: Ingest an approved queue item after source-ref, validation hash, and audit sink are verified.
+    rollback: oc delete job/cywell-opslens-rag-ingestion-manual
+
+forbiddenActions:
+  - assistant-triggered-ingestion
+  - dashboard-vector-write
+  - api-raw-markdown-return
+  - approval-from-validation-only
+  - apply-delete-scale-without-human-approval
+
+risk:
+  - Production ingestion can make stale or unapproved operational guidance retrievable.
+  - Queue approval metadata is not the raw source of truth; the worker must fetch an approved source ref.
+  - Vector writes require append-only audit and rollback chunk ids before any live enablement.
+
+rollbackPath:
+  - Disable the ingestion worker schedule and stop manual job creation.
+  - Revert the approved source ref and regenerate validation evidence.
+  - Remove vector chunk ids recorded by the audit sink for the reverted validation hash.

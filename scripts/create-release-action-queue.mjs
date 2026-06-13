@@ -18,6 +18,8 @@ const defaults = {
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
   runtimeRagContract: "test-results/cywell-opslens-runtime-rag-contract.json",
   runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
+  ragProductionReadiness:
+    "test-results/cywell-opslens-rag-production-readiness.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
   ocpLiveReaderSmoke: "test-results/cywell-opslens-ocp-live-reader-smoke.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
@@ -68,6 +70,9 @@ const options = {
     parsed.get("runtime-rag-contract-evidence") ?? defaults.runtimeRagContract,
   runtimeRagFixture:
     parsed.get("runtime-rag-fixture-evidence") ?? defaults.runtimeRagFixture,
+  ragProductionReadiness:
+    parsed.get("rag-production-readiness-evidence") ??
+    defaults.ragProductionReadiness,
   lightspeedReadiness:
     parsed.get("lightspeed-readiness-evidence") ??
     defaults.lightspeedReadiness,
@@ -350,9 +355,18 @@ function readOnlyCommands(artifacts) {
     mutation: command.mutation === true,
     writesLocalEvidence: command.writesLocalEvidence === true
   }));
+  const ragProductionCommands = (artifacts.ragProductionReadiness?.readOnlyCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "rag-production-readiness",
+    command: sanitize(command.command ?? "unknown"),
+    purpose: "RAG production readiness handoff validation command",
+    mutation: command.mutation === true,
+    writesLocalEvidence: command.writesLocalEvidence === true
+  }));
   return uniqueByKey(
     [
       ...fixedReadOnlyCommands(),
+      ...ragProductionCommands,
       ...externalCommands,
       ...securityScanCommands,
       ...networkCommands,
@@ -370,6 +384,7 @@ function approvalGatedCommands(artifacts) {
       ...(artifacts.releaseBundle?.commands?.mutatingApprovalRequired ?? []),
       ...(artifacts.externalRuntimeReview?.approvalGatedCommands ?? []),
       ...(artifacts.securityScanPlan?.commands?.approvalGated ?? []),
+      ...(artifacts.ragProductionReadiness?.approvalGatedCommands ?? []),
       ...(artifacts.ocpAuthRbacPlan?.approvalGatedCommands ?? []),
       ...(artifacts.certificationReadiness?.toolingHandoff?.approvalGatedCommands ?? []),
       ...(artifacts.releasePlan?.commands ?? []).filter((command) => command.mutation === true),
@@ -1212,7 +1227,50 @@ function runtimeRagDiagnostics(runtimeRagContract, runtimeRagFixture) {
   ];
 }
 
-function runtimeLiveItems(releaseRefresh, runtimeReadiness, runtimeRagContract, runtimeRagFixture) {
+function ragProductionReadinessDiagnostics(ragProductionReadiness) {
+  const readiness = ragProductionReadiness?.readiness ?? {};
+  const components = ragProductionReadiness?.components ?? {};
+  return [
+    {
+      id: "rag-production-readiness-status",
+      label: "RAG production readiness",
+      value:
+        `${artifactStatusLine(ragProductionReadiness)} contractReady=${String(readiness.contractReady === true)} approvalRequired=${String(readiness.approvalRequired === true)}`
+    },
+    {
+      id: "rag-production-queue",
+      label: "Production queue",
+      value:
+        `backend=${components.queue?.backendClass ?? "missing"} contractReady=${String(components.queue?.contractReady === true)} liveReady=${String(components.queue?.liveReady === true)} rawMarkdown=${String(components.queue?.storesRawMarkdown === true)}`
+    },
+    {
+      id: "rag-production-worker",
+      label: "Ingestion worker",
+      value:
+        `mode=${components.ingestionWorker?.mode ?? "missing"} contractReady=${String(components.ingestionWorker?.contractReady === true)} liveReady=${String(components.ingestionWorker?.liveReady === true)} createsJobByVerifier=${String(components.ingestionWorker?.createsKubernetesJobByThisVerifier === true)}`
+    },
+    {
+      id: "rag-production-audit",
+      label: "Vector audit sink",
+      value:
+        `appendOnly=${String(components.vectorWriteAuditSink?.appendOnly === true)} rollbackChunkIds=${String(components.vectorWriteAuditSink?.recordsRollbackChunkIds === true)} liveReady=${String(components.vectorWriteAuditSink?.liveReady === true)}`
+    },
+    {
+      id: "rag-production-boundary",
+      label: "Mutation boundary",
+      value:
+        `clusterMutation=${String(ragProductionReadiness?.clusterMutationAttempted === true)} vectorWrite=${String(ragProductionReadiness?.vectorWriteAttempted === true)} ingestionJob=${String(ragProductionReadiness?.ingestionJobCreated === true)}`
+    }
+  ];
+}
+
+function runtimeLiveItems(
+  releaseRefresh,
+  runtimeReadiness,
+  runtimeRagContract,
+  runtimeRagFixture,
+  ragProductionReadiness
+) {
   const missingEvidence = normalizedEvidence(releaseRefresh?.missingEvidence ?? []);
   const runtimeProbeGaps = missingEvidence.filter((entry) =>
     /runtimeReadiness:.*(?:qdrant|vllm).*live probe/i.test(entry)
@@ -1221,7 +1279,7 @@ function runtimeLiveItems(releaseRefresh, runtimeReadiness, runtimeRagContract, 
     /runtimeRag|runtimeRagFixture/i.test(entry)
   );
   const ragQueueGaps = missingEvidence.filter((entry) =>
-    /ragApprovalQueue:.*(?:production|vector write audit|ingestion worker)/i.test(entry)
+    /ragApprovalQueue:.*(?:production|vector write audit|ingestion worker)|ragProductionReadiness:/i.test(entry)
   );
   const items = [];
 
@@ -1301,15 +1359,16 @@ function runtimeLiveItems(releaseRefresh, runtimeReadiness, runtimeRagContract, 
       id: "rag-owner-enable-production-approval-queue",
       owner: "rag-owner",
       priority: "high",
-      source: "releaseEvidenceRefresh:ragApprovalQueue",
+      source: "releaseEvidenceRefresh:ragProductionReadiness",
       request:
-        "Replace the design-only RAG approval queue with approved production persistence, ingestion worker, and vector-write audit evidence.",
+        "Review the production RAG approval queue contract, then approve database-backed persistence, ingestion worker, and vector-write audit evidence before any live ingestion.",
       evidenceNeeded:
-        "production database-backed queue, ingestion worker, and approved vector write audit sink are present before enabling runtime vector writes.",
-      nextCommand: "npm run verify:rag:approval-queue",
+        "same-head local queue bridge, production database-backed queue approval, ingestion worker approval, append-only vector write audit sink, source-ref retrieval path, and rollback export evidence.",
+      nextCommand: "npm run verify:rag:production-readiness",
       handoffNextCommands: [
-        "configure production RAG queue persistence and audit sink",
-        "npm run verify:rag:approval-queue"
+        "npm run verify:rag:approval-queue",
+        "npm run verify:rag:production-readiness",
+        "configure production RAG queue persistence and audit sink only after named approvals"
       ],
       readOnlyCommands: [
         {
@@ -1319,10 +1378,20 @@ function runtimeLiveItems(releaseRefresh, runtimeReadiness, runtimeRagContract, 
           mutation: false,
           requiresNetwork: false,
           writesLocalEvidence: true
+        },
+        {
+          id: "rag-production-readiness",
+          phase: "rag-production-readiness",
+          command: "npm run verify:rag:production-readiness",
+          mutation: false,
+          requiresNetwork: false,
+          writesLocalEvidence: true
         }
       ],
+      approvalGatedCommands: ragProductionReadiness?.approvalGatedCommands ?? [],
       blockedBy: ragQueueGaps,
-      acceptance: ["AC-RAG-001", "AC-DASH-001"]
+      diagnostics: ragProductionReadinessDiagnostics(ragProductionReadiness),
+      acceptance: ["AC-RAG-001", "AC-RAG-002", "AC-DASH-001", "AC-OP-005"]
     }));
   }
 
@@ -1469,7 +1538,8 @@ function buildItems(artifacts) {
         artifacts.releaseRefresh,
         artifacts.runtimeReadiness,
         artifacts.runtimeRagContract,
-        artifacts.runtimeRagFixture
+        artifacts.runtimeRagFixture,
+        artifacts.ragProductionReadiness
       ),
       ...aiopsMonitoringItems(artifacts.aiopsIncidentPipeline),
       ...networkItems(artifacts.ocpNetworkHandoff),
@@ -1767,6 +1837,7 @@ async function main() {
     runtimeReadiness: loadJson(options.runtimeReadiness, "runtime readiness", false),
     runtimeRagContract: loadJson(options.runtimeRagContract, "runtime RAG contract", false),
     runtimeRagFixture: loadJson(options.runtimeRagFixture, "runtime RAG fixture", false),
+    ragProductionReadiness: loadJson(options.ragProductionReadiness, "RAG production readiness", false),
     lightspeedReadiness: loadJson(options.lightspeedReadiness, "Lightspeed readiness", false),
     ocpLiveReaderSmoke: loadJson(options.ocpLiveReaderSmoke, "OCP live reader smoke", false),
     checkpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint", true),
@@ -1786,6 +1857,7 @@ async function main() {
     sourceSummary("runtimeReadiness", "runtime readiness", options.runtimeReadiness, artifacts.runtimeReadiness, headSha),
     sourceSummary("runtimeRagContract", "runtime RAG contract", options.runtimeRagContract, artifacts.runtimeRagContract, headSha),
     sourceSummary("runtimeRagFixture", "runtime RAG fixture", options.runtimeRagFixture, artifacts.runtimeRagFixture, headSha),
+    sourceSummary("ragProductionReadiness", "RAG production readiness", options.ragProductionReadiness, artifacts.ragProductionReadiness, headSha),
     sourceSummary("lightspeedReadiness", "Lightspeed readiness", options.lightspeedReadiness, artifacts.lightspeedReadiness, headSha),
     sourceSummary("ocpLiveReaderSmoke", "OCP live reader smoke", options.ocpLiveReaderSmoke, artifacts.ocpLiveReaderSmoke, headSha),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.checkpoint, headSha, true),
@@ -1836,6 +1908,11 @@ async function main() {
       artifacts.securityScanPlan?.registryMutationAttempted !== true &&
       artifacts.securityScanPlan?.clusterMutationAttempted !== true &&
       artifacts.securityScanPlan?.mutationAllowedByThisVerifier !== true &&
+      artifacts.ragProductionReadiness?.clusterMutationAttempted !== true &&
+      artifacts.ragProductionReadiness?.registryMutationAttempted !== true &&
+      artifacts.ragProductionReadiness?.mutationAllowedByThisVerifier !== true &&
+      artifacts.ragProductionReadiness?.vectorWriteAttempted !== true &&
+      artifacts.ragProductionReadiness?.ingestionJobCreated !== true &&
       artifacts.ocpAuthRbacPlan?.registryMutationAttempted !== true &&
       artifacts.ocpAuthRbacPlan?.clusterMutationAttempted !== true &&
       artifacts.ocpAuthRbacPlan?.mutationAllowedByThisVerifier !== true,
@@ -1888,6 +1965,7 @@ async function main() {
       ...(artifacts.releaseRefresh?.missingEvidence ?? []),
       ...(artifacts.checkpoint?.missingEvidence ?? []),
       ...(artifacts.securityScanPlan?.missingEvidence ?? []),
+      ...(artifacts.ragProductionReadiness?.missingEvidence ?? []),
       ...items.flatMap((entry) => entry.blockedBy ?? [])
     ]),
     risk: [
