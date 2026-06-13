@@ -1775,6 +1775,11 @@ export interface OpsLensReleaseActionQueueSummary {
     }>;
     missingRequiredTools: string[];
     blockedBy: string[];
+    diagnostics: Array<{
+      id: string;
+      label: string;
+      value: string;
+    }>;
   }>;
   sourceArtifacts: Array<{
     id: string;

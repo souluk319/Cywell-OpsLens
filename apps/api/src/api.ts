@@ -1853,6 +1853,11 @@ type ReleaseActionQueueArtifact = {
     }>;
     missingRequiredTools?: string[];
     blockedBy?: string[];
+    diagnostics?: Array<{
+      id?: string;
+      label?: string;
+      value?: string;
+    }>;
   }>;
   sourceArtifacts?: Array<{
     id?: string;
@@ -5055,7 +5060,12 @@ function getReleaseActionQueueReadiness(): {
         requiresExplicitApproval: command.requiresExplicitApproval === true
       })),
       missingRequiredTools: entry.missingRequiredTools ?? [],
-      blockedBy: entry.blockedBy ?? []
+      blockedBy: entry.blockedBy ?? [],
+      diagnostics: (entry.diagnostics ?? []).map((diagnostic) => ({
+        id: diagnostic.id ?? "unknown",
+        label: diagnostic.label ?? "Diagnostic",
+        value: diagnostic.value ?? "unknown"
+      }))
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
       id: source.id ?? "unknown",

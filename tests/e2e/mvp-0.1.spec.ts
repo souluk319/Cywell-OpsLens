@@ -1669,6 +1669,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             }>;
             missingRequiredTools?: string[];
             blockedBy?: string[];
+            diagnostics?: Array<{
+              id?: string;
+              label?: string;
+              value?: string;
+            }>;
           }>;
           sourceArtifacts?: Array<{
             id?: string;
@@ -2848,6 +2853,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(lightspeedAuthAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining(["lightspeed-readiness-live"])
       );
+      expect(lightspeedAuthAction?.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining([
+          "post-approval-rbac",
+          "post-approval-lightspeed",
+          "post-approval-sources"
+        ])
+      );
+      expect(
+        lightspeedAuthAction?.diagnostics
+          ?.find((item) => item.id === "post-approval-rbac")
+          ?.value
+      ).toMatch(/allowed=\d+\/\d+/);
       expect(lightspeedAuthAction?.approvalGatedCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining([
           "apply-live-evidence-reader-rbac",
@@ -3856,6 +3873,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
     ).toContainText(/lightspeed-readiness-live|lightspeed readiness actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-diagnostics")
+    ).toContainText(/post-approval-rbac|cluster-admin-fix-lightspeed-readiness-auth-rbac/);
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "localEvidenceRefresh"
     );

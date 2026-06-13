@@ -1831,6 +1831,26 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-diagnostics"
+              >
+                {releaseActionQueue.items
+                  .filter((entry) => entry.diagnostics.length > 0)
+                  .slice(0, 3)
+                  .map((entry) => (
+                    <span key={entry.id}>
+                      {entry.id}:
+                      {entry.diagnostics
+                        .slice(0, 2)
+                        .map(
+                          (diagnostic) =>
+                            `${diagnostic.id}=${diagnostic.value}`
+                        )
+                        .join(" | ")}
+                    </span>
+                  ))}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-release-action-queue-approval-handoff"
               >
                 {releaseActionQueue.items

@@ -16,6 +16,7 @@ const defaults = {
   aiopsIncidentPipeline:
     "test-results/cywell-opslens-aiops-incident-pipeline.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
+  ocpLiveReaderSmoke: "test-results/cywell-opslens-ocp-live-reader-smoke.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   certificationReadiness:
     "test-results/cywell-opslens-certification-readiness.json",
@@ -61,6 +62,9 @@ const options = {
   lightspeedReadiness:
     parsed.get("lightspeed-readiness-evidence") ??
     defaults.lightspeedReadiness,
+  ocpLiveReaderSmoke:
+    parsed.get("ocp-live-reader-smoke-evidence") ??
+    defaults.ocpLiveReaderSmoke,
   evidenceCheckpoint: parsed.get("evidence-checkpoint") ?? defaults.evidenceCheckpoint,
   certificationReadiness:
     parsed.get("certification-readiness-evidence") ??
@@ -380,6 +384,7 @@ function item({
   approvalGatedCommands = [],
   missingRequiredTools = [],
   blockedBy = [],
+  diagnostics = [],
   acceptance = []
 }) {
   return {
@@ -418,6 +423,11 @@ function item({
     })),
     missingRequiredTools: missingRequiredTools.map(sanitize),
     blockedBy: blockedBy.map(sanitize),
+    diagnostics: diagnostics.map((diagnostic) => ({
+      id: sanitize(diagnostic.id ?? "unknown"),
+      label: sanitize(diagnostic.label ?? "Diagnostic"),
+      value: sanitize(diagnostic.value ?? "unknown")
+    })),
     acceptance
   };
 }
@@ -489,7 +499,61 @@ function networkHandoffId(classification) {
   return "network-sre-review-network-handoff";
 }
 
-function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan) {
+function liveReaderSmokeDiagnostics(ocpLiveReaderSmoke) {
+  const diagnostics = ocpLiveReaderSmoke?.diagnostics ?? {};
+  const reviews = diagnostics.requiredRbacReviews ?? [];
+  const allowedReviews = reviews.filter((review) => review.status === "allowed");
+  const deniedReviews = reviews.filter((review) => review.status === "denied");
+  const unknownReviews = reviews.filter((review) => review.status === "unknown");
+  const sourceArtifacts = (ocpLiveReaderSmoke?.sourceArtifacts ?? [])
+    .slice(0, 3)
+    .map((source) =>
+      `${source.id ?? "unknown"}:${source.status ?? "unknown"}:fresh=${String(source.fresh === true)}`
+    )
+    .join(", ");
+  const verifierRuns = (ocpLiveReaderSmoke?.verifierRuns ?? [])
+    .slice(0, 3)
+    .map((run) =>
+      `${run.id ?? "unknown"}:ok=${String(run.ok === true)}:skipped=${String(run.skipped === true)}`
+    )
+    .join(", ");
+  return [
+    {
+      id: "post-approval-smoke-status",
+      label: "Post-approval smoke",
+      value: ocpLiveReaderSmoke?.status ?? "missing"
+    },
+    {
+      id: "post-approval-rbac",
+      label: "Required RBAC",
+      value:
+        `allowed=${allowedReviews.length}/${reviews.length} denied=${deniedReviews.length} unknown=${unknownReviews.length}`
+    },
+    {
+      id: "post-approval-ocp-classification",
+      label: "OCP classification",
+      value: diagnostics.ocpClassification ?? "missing"
+    },
+    {
+      id: "post-approval-lightspeed",
+      label: "Lightspeed readiness",
+      value:
+        `classification=${diagnostics.lightspeedClassification ?? "missing"} authReady=${String(diagnostics.lightspeedAuthReady === true)}`
+    },
+    {
+      id: "post-approval-sources",
+      label: "Source artifacts",
+      value: sourceArtifacts || "missing"
+    },
+    {
+      id: "post-approval-verifiers",
+      label: "Verifier runs",
+      value: verifierRuns || "missing"
+    }
+  ];
+}
+
+function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveReaderSmoke) {
   const gap = lightspeedReadiness?.currentGap ?? {};
   const classification = gap.classification ?? "unknown";
   const readOnlyCommands = [
@@ -526,6 +590,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan) {
         ...(lightspeedReadiness?.missingEvidence ?? []),
         gap.evidence ?? ""
       ],
+      diagnostics: liveReaderSmokeDiagnostics(ocpLiveReaderSmoke),
       acceptance: ["AC-LS-002", "AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
     };
   }
@@ -575,7 +640,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan) {
   };
 }
 
-function checkpointItems(checkpoint, networkHandoff, certificationReadiness, authRbacPlan, lightspeedReadiness) {
+function checkpointItems(checkpoint, networkHandoff, certificationReadiness, authRbacPlan, lightspeedReadiness, ocpLiveReaderSmoke) {
   const lanes = checkpoint?.lanes ?? [];
   const byId = new Map(lanes.map((lane) => [lane.id, lane]));
   const items = [];
@@ -596,7 +661,7 @@ function checkpointItems(checkpoint, networkHandoff, certificationReadiness, aut
   addIfOpen("ocpConnectivity", ocpConnectivityAction(networkHandoff, authRbacPlan));
   addIfOpen(
     "lightspeedReadiness",
-    lightspeedReadinessAction(lightspeedReadiness, authRbacPlan)
+    lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveReaderSmoke)
   );
   addIfOpen("externalRuntime", {
     id: "release-manager-complete-external-runtime-final-evidence",
@@ -1161,7 +1226,8 @@ function buildItems(artifacts) {
         artifacts.ocpNetworkHandoff,
         artifacts.certificationReadiness,
         artifacts.ocpAuthRbacPlan,
-        artifacts.lightspeedReadiness
+        artifacts.lightspeedReadiness,
+        artifacts.ocpLiveReaderSmoke
       ),
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
       ...securityScanItems(artifacts.securityScanPlan),
@@ -1321,6 +1387,9 @@ function markdownFor(queue) {
       `- Evidence needed: ${entry.evidenceNeeded}`,
       `- Next command: ${entry.nextCommand}`
     );
+    for (const diagnostic of entry.diagnostics.slice(0, 6)) {
+      lines.push(`- Diagnostic ${diagnostic.id}: ${diagnostic.value}`);
+    }
     if (entry.missingRequiredTools.length > 0) {
       lines.push(`- Missing required tools: ${entry.missingRequiredTools.join(", ")}`);
     }
@@ -1422,6 +1491,15 @@ function ownerPacketMarkdown(queue, packet) {
       `- Blocked by: ${entry.blockedBy.length ? entry.blockedBy.join("; ") : "none"}`,
       ""
     );
+    if (entry.diagnostics.length > 0) {
+      lines.splice(
+        lines.length - 1,
+        0,
+        ...entry.diagnostics
+          .slice(0, 6)
+          .map((diagnostic) => `- Diagnostic ${diagnostic.id}: ${diagnostic.value}`)
+      );
+    }
   }
 
   lines.push(
@@ -1450,6 +1528,7 @@ async function main() {
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
     aiopsIncidentPipeline: loadJson(options.aiopsIncidentPipeline, "AI Ops incident pipeline", false),
     lightspeedReadiness: loadJson(options.lightspeedReadiness, "Lightspeed readiness", false),
+    ocpLiveReaderSmoke: loadJson(options.ocpLiveReaderSmoke, "OCP live reader smoke", false),
     checkpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint", true),
     certificationReadiness: loadJson(options.certificationReadiness, "certification readiness", false),
     securityScanPlan: loadJson(options.securityScanPlan, "security scan plan", false),
@@ -1465,6 +1544,7 @@ async function main() {
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
     sourceSummary("aiopsIncidentPipeline", "AI Ops incident pipeline", options.aiopsIncidentPipeline, artifacts.aiopsIncidentPipeline, headSha),
     sourceSummary("lightspeedReadiness", "Lightspeed readiness", options.lightspeedReadiness, artifacts.lightspeedReadiness, headSha),
+    sourceSummary("ocpLiveReaderSmoke", "OCP live reader smoke", options.ocpLiveReaderSmoke, artifacts.ocpLiveReaderSmoke, headSha),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.checkpoint, headSha, true),
     sourceSummary("certificationReadiness", "certification readiness", options.certificationReadiness, artifacts.certificationReadiness, headSha),
     sourceSummary("securityScanPlan", "security scan plan", options.securityScanPlan, artifacts.securityScanPlan, headSha),
