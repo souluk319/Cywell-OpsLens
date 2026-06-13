@@ -219,6 +219,12 @@ export function OpsLensAdminDashboard() {
         entry.source.includes("aiopsIncidentPipeline") ||
         entry.id.includes("monitoring-proxy")
     ) ?? [];
+  const releaseLightspeedReadinessActions =
+    releaseActionQueue?.items.filter(
+      (entry) =>
+        entry.id.includes("lightspeed-readiness") ||
+        entry.source.includes("lightspeedReadiness")
+    ) ?? [];
   const releaseActionQueuePacketName =
     releaseActionQueue?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const checkpoint = overview?.installReadiness.checkpoint;
@@ -1925,6 +1931,28 @@ export function OpsLensAdminDashboard() {
                   ))
                 ) : (
                   <span>monitoring proxy actions clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-lightspeed-readiness-actions"
+              >
+                {releaseLightspeedReadinessActions.length > 0 ? (
+                  releaseLightspeedReadinessActions.map((entry) => (
+                    <span key={entry.id}>
+                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
+                      :readOnly=
+                      {entry.readOnlyCommands
+                        .map((command) => command.id)
+                        .join(", ")}
+                      :approval=
+                      {entry.approvalGatedCommands
+                        .map((command) => command.id)
+                        .join(", ")}
+                    </span>
+                  ))
+                ) : (
+                  <span>lightspeed readiness actions clear</span>
                 )}
               </div>
               <div className="remediation-notes">

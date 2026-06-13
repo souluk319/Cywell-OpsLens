@@ -15,6 +15,7 @@ const defaults = {
   releaseBundleEvidence: "test-results/cywell-opslens-release-evidence-bundle.json",
   aiopsIncidentPipeline:
     "test-results/cywell-opslens-aiops-incident-pipeline.json",
+  lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   certificationReadiness:
     "test-results/cywell-opslens-certification-readiness.json",
@@ -57,6 +58,9 @@ const options = {
   aiopsIncidentPipeline:
     parsed.get("aiops-incident-pipeline-evidence") ??
     defaults.aiopsIncidentPipeline,
+  lightspeedReadiness:
+    parsed.get("lightspeed-readiness-evidence") ??
+    defaults.lightspeedReadiness,
   evidenceCheckpoint: parsed.get("evidence-checkpoint") ?? defaults.evidenceCheckpoint,
   certificationReadiness:
     parsed.get("certification-readiness-evidence") ??
@@ -485,7 +489,93 @@ function networkHandoffId(classification) {
   return "network-sre-review-network-handoff";
 }
 
-function checkpointItems(checkpoint, networkHandoff, certificationReadiness, authRbacPlan) {
+function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan) {
+  const gap = lightspeedReadiness?.currentGap ?? {};
+  const classification = gap.classification ?? "unknown";
+  const readOnlyCommands = [
+    ...(authLikeOcpClassification(classification)
+      ? authRbacPlan?.readOnlyCommands ?? []
+      : []),
+    {
+      id: "lightspeed-readiness-live",
+      phase: "lightspeed-readiness",
+      command: "npm run verify:lightspeed -- --timeout-ms 30000",
+      mutation: false,
+      requiresNetwork: true,
+      writesLocalEvidence: true
+    }
+  ];
+
+  if (authLikeOcpClassification(classification)) {
+    return {
+      id: "cluster-admin-fix-lightspeed-readiness-auth-rbac",
+      owner: "cluster-admin",
+      priority: "blocker",
+      request:
+        "Refresh the OCP credential or approve read-only RBAC so Lightspeed readiness can read the OLSConfig CRD and target OLSConfig before MCP registration.",
+      evidenceNeeded:
+        `Lightspeed readiness classification=${classification} becomes CRD/OLSConfig readable; oc auth can-i get crd olsconfigs.ols.openshift.io and oc get olsconfig cluster both pass.`,
+      nextCommand: gap.nextCommand ?? "npm run evidence:ocp-auth-rbac-plan",
+      handoffNextCommands: [
+        ...authRbacHandoffCommands(authRbacPlan),
+        "npm run verify:lightspeed -- --timeout-ms 30000"
+      ],
+      readOnlyCommands,
+      approvalGatedCommands: authRbacPlan?.approvalGatedCommands ?? [],
+      blockedBy: [
+        ...(lightspeedReadiness?.missingEvidence ?? []),
+        gap.evidence ?? ""
+      ],
+      acceptance: ["AC-LS-002", "AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
+    };
+  }
+
+  if (classification === "tls-handshake-failed") {
+    return {
+      id: "cluster-sre-fix-lightspeed-readiness-tls",
+      owner: "cluster-sre",
+      priority: "blocker",
+      request:
+        "Fix TLS trust or proxy TLS behavior so Lightspeed readiness can read OLSConfig resources.",
+      evidenceNeeded:
+        "Lightspeed readiness can read the OLSConfig CRD and OLSConfig with TLS verification policy documented.",
+      nextCommand: "npm run verify:lightspeed -- --timeout-ms 30000",
+      readOnlyCommands,
+      blockedBy: lightspeedReadiness?.missingEvidence ?? [],
+      acceptance: ["AC-LS-002", "AC-LIVE-HANDOFF-001"]
+    };
+  }
+
+  if (["tcp-timeout", "tcp-unreachable", "dns-unresolved"].includes(classification)) {
+    return {
+      id: "network-sre-unblock-lightspeed-readiness-ocp-api",
+      owner: "network-sre",
+      priority: "blocker",
+      request:
+        "Restore network reachability from the verifier workstation or approved bastion so Lightspeed readiness can read OLSConfig resources.",
+      evidenceNeeded:
+        `Lightspeed readiness classification=${classification} changes to CRD/OLSConfig readable or NEEDS_CONFIGURATION.`,
+      nextCommand: "npm run verify:lightspeed -- --timeout-ms 30000",
+      readOnlyCommands,
+      blockedBy: lightspeedReadiness?.missingEvidence ?? [],
+      acceptance: ["AC-LS-002", "AC-LIVE-HANDOFF-001"]
+    };
+  }
+
+  return {
+    id: "cluster-sre-rerun-lightspeed-readiness",
+    owner: gap.owner ?? "cluster-sre",
+    priority: "blocker",
+    request: "Rerun live Lightspeed MCP readiness after OCP API reachability and OLSConfig readability are restored.",
+    evidenceNeeded: "Lightspeed readiness artifact reaches PASS or a non-network NEEDS_CONFIGURATION classification.",
+    nextCommand: gap.nextCommand ?? "npm run verify:lightspeed -- --timeout-ms 30000",
+    readOnlyCommands,
+    blockedBy: lightspeedReadiness?.missingEvidence ?? [],
+    acceptance: ["AC-LS-001", "AC-LS-002"]
+  };
+}
+
+function checkpointItems(checkpoint, networkHandoff, certificationReadiness, authRbacPlan, lightspeedReadiness) {
   const lanes = checkpoint?.lanes ?? [];
   const byId = new Map(lanes.map((lane) => [lane.id, lane]));
   const items = [];
@@ -495,20 +585,19 @@ function checkpointItems(checkpoint, networkHandoff, certificationReadiness, aut
     items.push(item({
       ...payload,
       source: `checkpoint:${laneId}`,
-      blockedBy: [...(lane.missingEvidence ?? []), ...(lane.blockers ?? [])]
+      blockedBy: uniqueStrings([
+        ...(payload.blockedBy ?? []),
+        ...(lane.missingEvidence ?? []),
+        ...(lane.blockers ?? [])
+      ])
     }));
   };
 
   addIfOpen("ocpConnectivity", ocpConnectivityAction(networkHandoff, authRbacPlan));
-  addIfOpen("lightspeedReadiness", {
-    id: "cluster-sre-rerun-lightspeed-readiness",
-    owner: "cluster-sre",
-    priority: "blocker",
-    request: "Rerun live Lightspeed MCP readiness after OCP API reachability is restored.",
-    evidenceNeeded: "Lightspeed readiness artifact reaches PASS or a non-network NEEDS_CONFIGURATION classification.",
-    nextCommand: "npm run verify:lightspeed -- --timeout-ms 30000",
-    acceptance: ["AC-LS-001"]
-  });
+  addIfOpen(
+    "lightspeedReadiness",
+    lightspeedReadinessAction(lightspeedReadiness, authRbacPlan)
+  );
   addIfOpen("externalRuntime", {
     id: "release-manager-complete-external-runtime-final-evidence",
     owner: "release-manager",
@@ -1071,7 +1160,8 @@ function buildItems(artifacts) {
         artifacts.checkpoint,
         artifacts.ocpNetworkHandoff,
         artifacts.certificationReadiness,
-        artifacts.ocpAuthRbacPlan
+        artifacts.ocpAuthRbacPlan,
+        artifacts.lightspeedReadiness
       ),
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
       ...securityScanItems(artifacts.securityScanPlan),
@@ -1359,6 +1449,7 @@ async function main() {
     releaseRefresh: loadJson(options.releaseRefreshEvidence, "release evidence refresh", false),
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
     aiopsIncidentPipeline: loadJson(options.aiopsIncidentPipeline, "AI Ops incident pipeline", false),
+    lightspeedReadiness: loadJson(options.lightspeedReadiness, "Lightspeed readiness", false),
     checkpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint", true),
     certificationReadiness: loadJson(options.certificationReadiness, "certification readiness", false),
     securityScanPlan: loadJson(options.securityScanPlan, "security scan plan", false),
@@ -1373,6 +1464,7 @@ async function main() {
     sourceSummary("releaseRefresh", "release evidence refresh", options.releaseRefreshEvidence, artifacts.releaseRefresh, headSha),
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
     sourceSummary("aiopsIncidentPipeline", "AI Ops incident pipeline", options.aiopsIncidentPipeline, artifacts.aiopsIncidentPipeline, headSha),
+    sourceSummary("lightspeedReadiness", "Lightspeed readiness", options.lightspeedReadiness, artifacts.lightspeedReadiness, headSha),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.checkpoint, headSha, true),
     sourceSummary("certificationReadiness", "certification readiness", options.certificationReadiness, artifacts.certificationReadiness, headSha),
     sourceSummary("securityScanPlan", "security scan plan", options.securityScanPlan, artifacts.securityScanPlan, headSha),

@@ -2712,7 +2712,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toBe(true);
     expect(
       body.installReadiness?.actionQueue?.sourceArtifacts?.map((source) => source.id)
-    ).toEqual(expect.arrayContaining(["aiopsIncidentPipeline"]));
+    ).toEqual(expect.arrayContaining(["aiopsIncidentPipeline", "lightspeedReadiness"]));
     const candidateMatrixItems =
       body.installReadiness?.actionQueue?.items?.filter((item) =>
         item.id?.includes("candidate-matrix")
@@ -2812,6 +2812,35 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             command.mutation === true && command.requiresExplicitApproval === true
         )
       ).toBe(true);
+    }
+    const lightspeedAuthAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) =>
+          item.id === "cluster-admin-fix-lightspeed-readiness-auth-rbac"
+      );
+    if (
+      body.installReadiness?.actionQueue?.sourceArtifacts?.some(
+        (source) =>
+          source.id === "lightspeedReadiness" && source.status === "FAIL"
+      )
+    ) {
+      expect(lightspeedAuthAction?.owner).toBe("cluster-admin");
+      expect(lightspeedAuthAction?.nextCommand).toContain(
+        "evidence:ocp-auth-rbac-plan"
+      );
+      expect(lightspeedAuthAction?.evidenceNeeded).toContain("OLSConfig");
+      expect(lightspeedAuthAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
+        expect.arrayContaining(["lightspeed-readiness-live"])
+      );
+      expect(lightspeedAuthAction?.approvalGatedCommands?.map((command) => command.id)).toEqual(
+        expect.arrayContaining([
+          "apply-live-evidence-reader-rbac",
+          "create-short-lived-live-reader-token"
+        ])
+      );
+      expect(lightspeedAuthAction?.blockedBy?.join(" ")).toMatch(
+        /auth-or-rbac|OLSConfig|credentials/
+      );
     }
     const ocpNetworkHandoffAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -3770,6 +3799,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-monitoring-proxy-actions")
     ).toContainText(/aiops-monitoring-proxy-smoke|monitoring proxy actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
+    ).toContainText(/cluster-admin-fix-lightspeed-readiness-auth-rbac|lightspeed readiness actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
+    ).toContainText(/lightspeed-readiness-live|lightspeed readiness actions clear/);
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "localEvidenceRefresh"
     );
