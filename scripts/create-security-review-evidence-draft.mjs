@@ -158,14 +158,16 @@ function readOptionalJson(path, label) {
   }
 }
 
-function criticalFindingsFromTrivy(report) {
-  if (!Array.isArray(report?.Results)) return undefined;
+function findingsFromTrivy(report, severity) {
+  if (!Array.isArray(report?.Results)) {
+    return report?.SchemaVersion && report?.Trivy ? 0 : undefined;
+  }
   return report.Results.reduce((total, result) => {
     const vulnerabilities = Array.isArray(result?.Vulnerabilities)
       ? result.Vulnerabilities
       : [];
     return total + vulnerabilities.filter((vulnerability) =>
-      String(vulnerability?.Severity ?? "").toUpperCase() === "CRITICAL"
+      String(vulnerability?.Severity ?? "").toUpperCase() === severity
     ).length;
   }, 0);
 }
@@ -184,9 +186,13 @@ function vulnerabilitySummary(path) {
   const criticalFindings = numberField(
     report?.criticalFindings,
     report?.summary?.criticalFindings,
-    criticalFindingsFromTrivy(report)
+    findingsFromTrivy(report, "CRITICAL")
   );
-  const highFindings = numberField(report?.highFindings, report?.summary?.highFindings);
+  const highFindings = numberField(
+    report?.highFindings,
+    report?.summary?.highFindings,
+    findingsFromTrivy(report, "HIGH")
+  );
   const missingEvidence = [...loaded.missingEvidence];
   if (loaded.exists && criticalFindings === undefined) {
     missingEvidence.push(`${options.name} vulnerability report must expose criticalFindings or Trivy Results`);
