@@ -1,4 +1,13 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: cywell-opslens
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: live-evidence-reader
+    opslens.cywell.io/purpose: read-only-live-evidence
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: cywell-opslens-live-evidence-reader

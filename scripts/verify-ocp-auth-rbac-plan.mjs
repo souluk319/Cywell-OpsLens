@@ -202,10 +202,15 @@ function flattenRuleValues(rules, key) {
 }
 
 function validateManifest(documents, manifestPath) {
+  const namespace = findResource(documents, "Namespace", expected.namespace);
   const serviceAccount = findResource(documents, "ServiceAccount", expected.serviceAccount);
   const clusterRole = findResource(documents, "ClusterRole", expected.clusterRole);
   const clusterRoleBinding = findResource(documents, "ClusterRoleBinding", expected.clusterRoleBinding);
   const violations = [];
+
+  if (!namespace) {
+    violations.push("namespaceMissing");
+  }
 
   if (!serviceAccount) {
     violations.push("serviceAccountMissing");
@@ -279,6 +284,9 @@ function validateManifest(documents, manifestPath) {
 
   return {
     path: manifestPath,
+    namespace: {
+      name: namespace?.metadata?.name ?? "missing"
+    },
     serviceAccount: {
       name: serviceAccount?.metadata?.name ?? "missing",
       namespace: serviceAccount?.metadata?.namespace ?? "missing"
@@ -393,7 +401,7 @@ function approvalGatedCommands(manifestPath) {
       mutation: true,
       requiresExplicitApproval: true,
       rationale:
-        "Creates the fallback read-only ServiceAccount, ClusterRole, and ClusterRoleBinding for live evidence when user-token RBAC is unavailable.",
+        "Creates the fallback Namespace, read-only ServiceAccount, ClusterRole, and ClusterRoleBinding for live evidence when user-token RBAC is unavailable.",
       rollback:
         "oc delete clusterrolebinding/cywell-opslens-live-evidence-reader clusterrole/cywell-opslens-live-evidence-reader serviceaccount/cywell-opslens-live-evidence-reader -n cywell-opslens"
     },
@@ -447,6 +455,7 @@ function markdownFor(packet) {
     `- OCP classification: ${packet.diagnostics.classification}`,
     `- Target: ${target.redactedBaseUrl ?? `${target.host}:${target.port}`}`,
     `- Manifest: ${packet.rbac.path}`,
+    `- Namespace: ${packet.rbac.namespace.name}`,
     `- ServiceAccount: ${packet.rbac.serviceAccount.namespace}/${packet.rbac.serviceAccount.name}`,
     `- ClusterRole: ${packet.rbac.clusterRole.name}`,
     `- Rule count: ${packet.rbac.clusterRole.ruleCount}`,
@@ -594,6 +603,7 @@ async function main() {
     rollbackPath: [
       "No rollback is required for this verifier because it writes only local evidence.",
       "If the RBAC is approved and later revoked, delete the ClusterRoleBinding, ClusterRole, and ServiceAccount named cywell-opslens-live-evidence-reader.",
+      "Do not delete the cywell-opslens namespace as rollback unless it was created only for this fallback reader and contains no product resources.",
       "Remove the local short-lived credential and rerun npm run verify:ocp:connectivity to prove the current auth/RBAC state."
     ],
     markdownOut: resolve(options.markdownOut),

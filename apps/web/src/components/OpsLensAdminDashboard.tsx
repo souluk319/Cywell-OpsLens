@@ -1243,6 +1243,10 @@ export function OpsLensAdminDashboard() {
               </div>
               <div className="approval-summary-grid">
                 <div>
+                  <span>Namespace</span>
+                  <strong>{authRbacPlan.rbac.namespace}</strong>
+                </div>
+                <div>
                   <span>Reader</span>
                   <strong>{authRbacPlan.rbac.serviceAccount}</strong>
                 </div>

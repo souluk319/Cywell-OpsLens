@@ -2027,6 +2027,9 @@ type OcpAuthRbacPlanArtifact = {
   };
   requiredApprovals?: string[];
   rbac?: {
+    namespace?: {
+      name?: string;
+    };
     serviceAccount?: {
       name?: string;
       namespace?: string;
@@ -5223,6 +5226,7 @@ function missingOcpAuthRbacPlanSummary(
     markdownPath: "missing",
     requiredApprovals: ["cluster-admin", "security-reviewer"],
     rbac: {
+      namespace: "cywell-opslens",
       serviceAccount: "cywell-opslens/cywell-opslens-live-evidence-reader",
       clusterRole: "cywell-opslens-live-evidence-reader",
       ruleCount: 0,
@@ -5482,6 +5486,7 @@ function getOcpAuthRbacPlanReadiness(): {
     const status = mapOcpAuthRbacPlanStatus(artifact);
     const target = artifact.target ?? {};
     const rbac = artifact.rbac ?? {};
+    const namespace = rbac.namespace ?? {};
     const serviceAccount = rbac.serviceAccount ?? {};
     const clusterRole = rbac.clusterRole ?? {};
     const readOnlyCommands = (artifact.readOnlyCommands ?? []).map((command) => ({
@@ -5532,6 +5537,7 @@ function getOcpAuthRbacPlanReadiness(): {
           "security-reviewer"
         ],
         rbac: {
+          namespace: namespace.name ?? serviceAccount.namespace ?? "unknown",
           serviceAccount:
             `${serviceAccount.namespace ?? "unknown"}/${serviceAccount.name ?? "unknown"}`,
           clusterRole: clusterRole.name ?? "unknown",

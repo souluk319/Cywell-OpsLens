@@ -1242,6 +1242,7 @@ export interface OpsLensOcpAuthRbacPlanSummary {
   markdownPath: string;
   requiredApprovals: string[];
   rbac: {
+    namespace: string;
     serviceAccount: string;
     clusterRole: string;
     ruleCount: number;
