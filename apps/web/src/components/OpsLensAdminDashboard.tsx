@@ -1100,6 +1100,21 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-ocp-connectivity-rbac"
+              >
+                {ocpConnectivity.diagnostics.rbacAccessReviews.length ? (
+                  ocpConnectivity.diagnostics.rbacAccessReviews.map((review) => (
+                    <span key={review.id}>
+                      {review.id}={review.status} required=
+                      {String(review.required)}
+                    </span>
+                  ))
+                ) : (
+                  <span>rbacAccessReviews=missing</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-ocp-connectivity-actions"
               >
                 {ocpConnectivity.actionHints.slice(0, 2).map((hint) => (

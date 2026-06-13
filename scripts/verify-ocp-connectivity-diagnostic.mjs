@@ -488,6 +488,131 @@ async function diagnoseOc(config) {
   };
 }
 
+function rbacAccessReviewSpecs() {
+  return [
+    {
+      id: "can-i-list-pods",
+      verb: "list",
+      resource: "pods",
+      scope: "all-namespaces",
+      args: ["auth", "can-i", "list", "pods", "-A"],
+      required: true
+    },
+    {
+      id: "can-i-get-pod-logs",
+      verb: "get",
+      resource: "pods/log",
+      scope: "all-namespaces",
+      args: ["auth", "can-i", "get", "pods/log", "-A"],
+      required: true
+    },
+    {
+      id: "can-i-list-events",
+      verb: "list",
+      resource: "events",
+      scope: "all-namespaces",
+      args: ["auth", "can-i", "list", "events", "-A"],
+      required: true
+    },
+    {
+      id: "can-i-get-olsconfigs",
+      verb: "get",
+      resource: "olsconfigs.ols.openshift.io",
+      scope: "cluster",
+      args: ["auth", "can-i", "get", "olsconfigs.ols.openshift.io", "-A"],
+      required: true
+    },
+    {
+      id: "can-i-get-crds",
+      verb: "get",
+      resource: "customresourcedefinitions.apiextensions.k8s.io",
+      scope: "cluster",
+      args: [
+        "auth",
+        "can-i",
+        "get",
+        "customresourcedefinitions.apiextensions.k8s.io",
+        "-A"
+      ],
+      required: true
+    },
+    {
+      id: "can-i-get-consoleplugins",
+      verb: "get",
+      resource: "consoleplugins.console.openshift.io",
+      scope: "cluster",
+      args: ["auth", "can-i", "get", "consoleplugins.console.openshift.io", "-A"],
+      required: false
+    }
+  ];
+}
+
+function statusFromCanI(result) {
+  const stdout = result.stdout.trim().toLowerCase();
+  const combined = `${result.stdout}\n${result.stderr}`.toLowerCase();
+  if (result.ok && /^yes\b/.test(stdout)) return "allowed";
+  if (/^no\b/.test(stdout) || combined.includes("forbidden")) return "denied";
+  return "unknown";
+}
+
+function evidenceFromCanI(status, result) {
+  if (status === "allowed") return "oc auth can-i returned yes";
+  if (status === "denied") return "oc auth can-i returned no or forbidden";
+
+  const combined = sanitize(`${result.stdout}\n${result.stderr}`);
+  const lower = combined.toLowerCase();
+  if (
+    lower.includes("unauthorized") ||
+    lower.includes("provide credentials") ||
+    lower.includes("you must be logged in")
+  ) {
+    return "oc auth can-i could not authenticate with the configured credential";
+  }
+  if (lower.includes("timed out") || lower.includes("timeout")) {
+    return "oc auth can-i timed out before returning yes/no";
+  }
+  if (lower.includes("certificate") || lower.includes("tls")) {
+    return "oc auth can-i could not complete because TLS validation failed";
+  }
+  return combined.split(/\r?\n/).filter(Boolean).slice(0, 2).join("; ") ||
+    "oc auth can-i did not return yes/no";
+}
+
+async function diagnoseRbacAccess(config) {
+  const reviews = [];
+  for (const spec of rbacAccessReviewSpecs()) {
+    const result = await runCapture("oc", [...ocBaseArgs(config), ...spec.args], config.timeoutMs);
+    const status = statusFromCanI(result);
+    const evidence = evidenceFromCanI(status, result);
+    const review = {
+      id: spec.id,
+      verb: spec.verb,
+      resource: spec.resource,
+      scope: spec.scope,
+      status,
+      required: spec.required,
+      evidence,
+      command: `oc ${spec.args.join(" ")}`
+    };
+    reviews.push(review);
+
+    if (status === "allowed") {
+      pass(`RBAC access ${spec.id}`, `${spec.verb} ${spec.resource} ${spec.scope}=allowed`);
+    } else {
+      warn(
+        `RBAC access ${spec.id}`,
+        `${spec.verb} ${spec.resource} ${spec.scope}=${status}; ${evidence}`
+      );
+    }
+  }
+  return {
+    status: reviews.every((review) => !review.required || review.status === "allowed")
+      ? "pass"
+      : "needs-evidence",
+    reviews
+  };
+}
+
 function classify({ config, endpoint, dnsResult, tcpResult, tlsResult, httpResult, ocResult }) {
   if (!config.baseUrl) return "not-configured";
   if (!endpoint) return "invalid-api-url";
@@ -718,6 +843,7 @@ async function main() {
   const tlsResult = await diagnoseTls(endpoint, config, tcpResult, config.timeoutMs);
   const httpResult = await diagnoseHttpVersion(endpoint, config, tcpResult, tlsResult, config.timeoutMs);
   const ocResult = await diagnoseOc(config);
+  const rbacAccessResult = await diagnoseRbacAccess(config);
   const classification = classify({
     config,
     endpoint,
@@ -732,6 +858,13 @@ async function main() {
   const missingEvidence = [];
   if (classification !== "api-ready") {
     missingEvidence.push(`OCP API connectivity classification=${classification}`);
+  }
+  for (const review of rbacAccessResult.reviews) {
+    if (review.required && review.status !== "allowed") {
+      missingEvidence.push(
+        `rbac/${review.id}: ${review.verb} ${review.resource} ${review.scope}=${review.status}`
+      );
+    }
   }
   if (worktreeDirty) {
     missingEvidence.push(`current git worktree dirty=true currentHead=${headSha}`);
@@ -788,13 +921,15 @@ async function main() {
       tcp: tcpResult,
       tls: tlsResult,
       kubernetesVersion: httpResult,
-      oc: ocResult
+      oc: ocResult,
+      rbacAccessReviews: rbacAccessResult.reviews
     },
     actionHints,
     readOnlyTroubleshootingCommands: troubleshootingCommands,
     missingEvidence,
     evidence: [
       "diagnostic performs DNS lookup, TCP connect, TLS handshake, Kubernetes /version GET, and oc get --raw=/version only",
+      "RBAC access reviews use oc auth can-i and do not apply, patch, delete, or create cluster resources",
       "no apply, patch, delete, scale, image push, signing, mirroring, or cluster mutation is attempted",
       "token values are redacted from console output and evidence artifacts"
     ],

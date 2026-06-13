@@ -1065,6 +1065,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             tls?: string;
             kubernetesVersion?: string;
             oc?: string;
+            rbacAccessReviews?: Array<{
+              id?: string;
+              verb?: string;
+              resource?: string;
+              status?: string;
+              required?: boolean;
+              command?: string;
+            }>;
           };
           actionHints?: Array<{
             id?: string;
@@ -1894,6 +1902,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       tokenConfigured: expect.any(Boolean),
       tlsVerify: expect.any(Boolean)
     });
+    expect(
+      body.installReadiness?.connectivity?.diagnostics?.rbacAccessReviews?.length
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.connectivity?.diagnostics?.rbacAccessReviews?.map(
+        (review) => review.id
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        "can-i-list-pods",
+        "can-i-get-pod-logs",
+        "can-i-get-olsconfigs"
+      ])
+    );
+    expect(
+      body.installReadiness?.connectivity?.diagnostics?.rbacAccessReviews?.every(
+        (review) =>
+          ["allowed", "denied", "unknown"].includes(review.status ?? "") &&
+          review.command?.startsWith("oc auth can-i")
+      )
+    ).toBe(true);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /OCP connectivity classification/i
     );
@@ -2969,6 +2998,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-ocp-connectivity")).toContainText(
       /dns=|tcp=/
     );
+    await expect(
+      page.getByTestId("opslens-ocp-connectivity-rbac")
+    ).toContainText("can-i-list-pods");
+    await expect(
+      page.getByTestId("opslens-ocp-connectivity-rbac")
+    ).toContainText("can-i-get-olsconfigs");
+    await expect(
+      page.getByTestId("opslens-ocp-connectivity-rbac")
+    ).toContainText("required=true");
     await expect(
       page.getByTestId("opslens-ocp-connectivity-actions")
     ).toContainText(/next=/);

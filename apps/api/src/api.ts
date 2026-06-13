@@ -2070,6 +2070,16 @@ type OcpConnectivityDiagnosticArtifact = {
       clientAvailable?: boolean;
       versionGet?: string;
     };
+    rbacAccessReviews?: Array<{
+      id?: string;
+      verb?: string;
+      resource?: string;
+      scope?: string;
+      status?: string;
+      required?: boolean;
+      evidence?: string;
+      command?: string;
+    }>;
   };
   actionHints?: Array<{
     id?: string;
@@ -3347,7 +3357,8 @@ function getOcpConnectivityDiagnosticReadiness(): {
           tcp: "missing",
           tls: "missing",
           kubernetesVersion: "missing",
-          oc: "missing"
+          oc: "missing",
+          rbacAccessReviews: []
         },
         actionHints: defaultOcpConnectivityActionHints("missing"),
         readOnlyTroubleshootingCommands: defaultOcpTroubleshootingCommands(),
@@ -3383,7 +3394,21 @@ function getOcpConnectivityDiagnosticReadiness(): {
       tls: artifact.diagnostics?.tls?.status ?? "unknown",
       kubernetesVersion:
         artifact.diagnostics?.kubernetesVersion?.status ?? "unknown",
-      oc: artifact.diagnostics?.oc?.versionGet ?? "unknown"
+      oc: artifact.diagnostics?.oc?.versionGet ?? "unknown",
+      rbacAccessReviews: (artifact.diagnostics?.rbacAccessReviews ?? []).map(
+        (review) => ({
+          id: review.id ?? "unknown",
+          verb: review.verb ?? "unknown",
+          resource: review.resource ?? "unknown",
+          scope: review.scope ?? "unknown",
+          status: ["allowed", "denied", "unknown"].includes(review.status ?? "")
+            ? (review.status as "allowed" | "denied" | "unknown")
+            : "unknown",
+          required: review.required === true,
+          evidence: review.evidence ?? "unknown",
+          command: review.command ?? "oc auth can-i"
+        })
+      )
     };
     const actionHints = mapOcpConnectivityActionHints(
       artifact,
@@ -3420,6 +3445,9 @@ function getOcpConnectivityDiagnosticReadiness(): {
         `OCP connectivity diagnostic ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `OCP connectivity classification=${classification} target=${target.host ?? "unknown"}:${target.port ?? "unknown"}`,
         `diagnostics dns=${diagnostics.dns} tcp=${diagnostics.tcp} tls=${diagnostics.tls} /version=${diagnostics.kubernetesVersion} oc=${diagnostics.oc}`,
+        diagnostics.rbacAccessReviews.length
+          ? `rbacAccessReviews=${diagnostics.rbacAccessReviews.map((review) => `${review.id}:${review.status}`).join(",")}`
+          : "rbacAccessReviews=missing",
         `actionMode=${artifact.actionMode ?? "unknown"} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads OCP connectivity evidence only; it does not apply, patch, delete, scale, or mutate cluster resources"
@@ -3447,7 +3475,8 @@ function getOcpConnectivityDiagnosticReadiness(): {
           tcp: "unknown",
           tls: "unknown",
           kubernetesVersion: "unknown",
-          oc: "unknown"
+          oc: "unknown",
+          rbacAccessReviews: []
         },
         actionHints: defaultOcpConnectivityActionHints("invalid-evidence"),
         readOnlyTroubleshootingCommands: defaultOcpTroubleshootingCommands(),

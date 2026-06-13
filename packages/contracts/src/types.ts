@@ -1292,6 +1292,16 @@ export interface OpsLensOcpConnectivityDiagnosticSummary {
     tls: string;
     kubernetesVersion: string;
     oc: string;
+    rbacAccessReviews: Array<{
+      id: string;
+      verb: string;
+      resource: string;
+      scope: string;
+      status: "allowed" | "denied" | "unknown";
+      required: boolean;
+      evidence: string;
+      command: string;
+    }>;
   };
   actionHints: Array<{
     id: string;
