@@ -189,6 +189,12 @@ function loadJson(path, label) {
   }
 }
 
+function artifactIsFreshForRun(artifact) {
+  const artifactTime = Date.parse(artifact?.startedAt ?? artifact?.generatedAt ?? "");
+  const runTime = Date.parse(startedAt);
+  return Number.isFinite(artifactTime) && Number.isFinite(runTime) && artifactTime >= runTime - 1000;
+}
+
 function validateInput() {
   if (!defaults.names.includes(options.name)) {
     fail("candidate name", `--name must be one of ${defaults.names.join(", ")}`);
@@ -287,13 +293,20 @@ async function main() {
   if (!checks.some((check) => check.status === "FAIL")) {
     const args = securityScanArgs();
     pass("candidate scan command", `node ${args.map((arg) => (arg.includes(" ") ? JSON.stringify(arg) : arg)).join(" ")}`);
-    scanResult = await runCapture(process.execPath, args);
+    scanResult = await runCapture(process.execPath, args, options.timeoutMs + 120000);
     if (scanResult.ok) {
       pass("candidate scan runner", `exit=0 evidence=${options.runnerEvidenceOut}`);
     } else {
       fail("candidate scan runner", scanResult.stderr || scanResult.stdout || "candidate scan command failed");
     }
     runnerArtifact = loadJson(options.runnerEvidenceOut, "candidate scan runner artifact");
+    if (runnerArtifact && !artifactIsFreshForRun(runnerArtifact)) {
+      fail(
+        "candidate scan runner artifact freshness",
+        `stale artifact ignored; artifactStartedAt=${runnerArtifact.startedAt ?? "missing"} wrapperStartedAt=${startedAt}`
+      );
+      runnerArtifact = undefined;
+    }
     matrixResult = await maybeRefreshMatrix(scanResult);
   }
 

@@ -110,9 +110,39 @@ async function runCapture(command, args, timeoutMs = options.timeoutMs) {
       ok: false,
       stdout: sanitize(error.stdout ?? ""),
       stderr: sanitize(error.stderr ?? error.message),
-      exitCode: typeof error.code === "number" ? error.code : 1
+      exitCode: typeof error.code === "number" ? error.code : 1,
+      signal: error.signal ?? undefined,
+      timedOut: Boolean(error.killed || error.signal)
     };
   }
+}
+
+function dockerSafeName(value) {
+  return String(value ?? "scanner")
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100) || "scanner";
+}
+
+function scannerContainerName(target, scanner) {
+  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return dockerSafeName(`cywell-opslens-${target.name}-${scanner}-${suffix}`);
+}
+
+async function cleanupDockerContainer(containerName, label) {
+  const cleanup = await runCapture("docker", ["rm", "-f", containerName], 30000);
+  if (cleanup.ok) {
+    warn(`${label} scanner cleanup`, `removed stale scanner container ${containerName}`);
+  }
+}
+
+async function runDockerScanner(containerName, args, label) {
+  const result = await runCapture("docker", args);
+  if (!result.ok) {
+    await cleanupDockerContainer(containerName, label);
+  }
+  return result;
 }
 
 async function gitValue(args, fallback) {
@@ -216,6 +246,22 @@ function pathsFor(target) {
     sbom: resolve(options.securityEvidenceDir, `${target.name}-sbom.spdx.json`),
     reviewDraft: resolve(options.securityEvidenceDir, `${target.name}-security-review.draft.json`)
   };
+}
+
+function failedResultEvidence() {
+  return results.flatMap((result) => {
+    const evidence = [];
+    if (result.vulnerabilityReport?.status && result.vulnerabilityReport.status !== "PASS") {
+      evidence.push(`${result.name} vulnerability scan failed exit=${result.vulnerabilityReport.exitCode}`);
+    }
+    if (result.sbom?.status && result.sbom.status !== "PASS") {
+      evidence.push(`${result.name} SBOM generation failed exit=${result.sbom.exitCode}`);
+    }
+    if (result.reviewDraft?.status && result.reviewDraft.status !== "PASS") {
+      evidence.push(`${result.name} security review draft failed exit=${result.reviewDraft.exitCode}`);
+    }
+    return evidence;
+  });
 }
 
 function workspacePath(absolutePath) {
@@ -389,10 +435,20 @@ async function executeDockerFallbackForTarget(plan, scannerImages) {
   const sbomWorkspacePath = workspacePath(plan.paths.sbom);
   const trivyImage = scannerImages.trivy.immutableRef;
   const syftImage = scannerImages.syft.immutableRef;
+  const trivyContainer = scannerContainerName(plan.target, "trivy");
+  const syftContainer = scannerContainerName(plan.target, "syft");
 
-  const trivy = await runCapture("docker", [
+  const trivy = await runDockerScanner(trivyContainer, [
     "run",
     "--rm",
+    "--name",
+    trivyContainer,
+    "--label",
+    "cywell.opslens.scanner=true",
+    "--label",
+    `cywell.opslens.target=${plan.target.name}`,
+    "--label",
+    "cywell.opslens.scanner.kind=trivy",
     "-v",
     workspaceMount,
     "-v",
@@ -404,10 +460,18 @@ async function executeDockerFallbackForTarget(plan, scannerImages) {
     "--output",
     vulnerabilityWorkspacePath,
     plan.target.scanRef
-  ]);
-  const syft = await runCapture("docker", [
+  ], `${plan.target.name} trivy`);
+  const syft = await runDockerScanner(syftContainer, [
     "run",
     "--rm",
+    "--name",
+    syftContainer,
+    "--label",
+    "cywell.opslens.scanner=true",
+    "--label",
+    `cywell.opslens.target=${plan.target.name}`,
+    "--label",
+    "cywell.opslens.scanner.kind=syft",
     "-v",
     workspaceMount,
     "-v",
@@ -416,7 +480,7 @@ async function executeDockerFallbackForTarget(plan, scannerImages) {
     plan.target.scanRef,
     "-o",
     `spdx-json=${sbomWorkspacePath}`
-  ]);
+  ], `${plan.target.name} syft`);
   const reviewDraft = trivy.ok && syft.ok
     ? await runCapture("node", [
         "scripts/create-security-review-evidence-draft.mjs",
@@ -585,7 +649,8 @@ async function main() {
       ...(!syftAvailable && !options.executeDockerFallback ? ["syft CLI unavailable for --execute mode"] : []),
       ...(options.executeDockerFallback && !scannerImages.trivy.digestResolved ? ["trivy Docker scanner image digest was not resolved"] : []),
       ...(options.executeDockerFallback && !scannerImages.syft.digestResolved ? ["syft Docker scanner image digest was not resolved"] : []),
-      ...(plans.length === 0 ? [`no scan targets matched ${options.name}`] : [])
+      ...(plans.length === 0 ? [`no scan targets matched ${options.name}`] : []),
+      ...failedResultEvidence()
     ],
     risk: [
       "This runner is local evidence generation only; it does not sign, push, mirror, apply, delete, scale, or patch cluster resources.",
