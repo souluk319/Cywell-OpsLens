@@ -52,11 +52,13 @@ function usage() {
   return [
     "Usage:",
     "  npm run evidence:external-runtime:draft -- --all --force",
+    "  npm run evidence:external-runtime:draft -- --all --collect-source-digests --force",
     "  npm run evidence:external-runtime:draft -- --name vllm --source-digest quay.io/cywell/opslens-vllm@sha256:<digest> --mirrored-image <internal>/cywell/opslens-vllm:0.1.0 --mirrored-digest <internal>/cywell/opslens-vllm@sha256:<digest> --ticket CHG-123 --force",
     "",
     "For --all, image-specific overrides may be passed as --vllm-source-digest, --qdrant-source-digest, and so on.",
     "Supported names: vllm, qdrant",
-    "This script writes only *.draft.json files. It never creates final vllm.json/qdrant.json evidence."
+    "This script writes only *.draft.json files. It never creates final vllm.json/qdrant.json evidence.",
+    "--collect-source-digests performs read-only docker manifest inspection and never pulls, pushes, mirrors, or signs images."
   ].join("\n");
 }
 
@@ -72,7 +74,8 @@ const options = {
     parsed.get("external-evidence-dir") ?? defaults.externalEvidenceDir,
   evidenceOut: parsed.get("evidence-out"),
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs),
-  force: parsed.get("force") === "true"
+  force: parsed.get("force") === "true",
+  collectSourceDigests: parsed.get("collect-source-digests") === "true"
 };
 
 if (allRequested && options.evidenceOut) {
@@ -180,6 +183,91 @@ function commaList(value, fallback) {
     .filter(Boolean);
 }
 
+function digestReference(image, digest) {
+  if (!digest || !/^sha256:[a-f0-9]{64}$/i.test(digest)) {
+    return undefined;
+  }
+  if (image.includes("@sha256:")) return image;
+  const slashIndex = image.lastIndexOf("/");
+  const colonIndex = image.lastIndexOf(":");
+  const withoutTag = colonIndex > slashIndex ? image.slice(0, colonIndex) : image;
+  return `${withoutTag}@${digest}`;
+}
+
+function parseImagetoolsDigest(output) {
+  const match = /^Digest:\s+(sha256:[a-f0-9]{64})\s*$/im.exec(output);
+  return match?.[1];
+}
+
+function parseManifestIndexDigest(output) {
+  try {
+    const manifest = JSON.parse(output);
+    const manifests = Array.isArray(manifest?.manifests) ? manifest.manifests : [];
+    const linuxAmd64 = manifests.find(
+      (item) =>
+        item?.platform?.os === "linux" &&
+        item?.platform?.architecture === "amd64" &&
+        typeof item?.digest === "string"
+    );
+    return linuxAmd64?.digest;
+  } catch {
+    return undefined;
+  }
+}
+
+async function collectSourceDigest(name, example) {
+  const sourceImage = example.sourceImage ?? example.image;
+  if (!options.collectSourceDigests) {
+    return {
+      status: "skipped",
+      sourceImage,
+      detail: "source digest collection was not requested"
+    };
+  }
+
+  const buildx = await runCapture("docker", ["buildx", "imagetools", "inspect", sourceImage]);
+  if (buildx.ok) {
+    const digest = parseImagetoolsDigest(buildx.stdout);
+    const sourceDigest = digestReference(sourceImage, digest);
+    if (sourceDigest) {
+      return {
+        status: "pass",
+        sourceImage,
+        sourceDigest,
+        method: "docker buildx imagetools inspect",
+        detail: `collected ${sourceDigest}`
+      };
+    }
+  }
+
+  const manifest = await runCapture("docker", ["manifest", "inspect", sourceImage]);
+  if (manifest.ok) {
+    const digest = parseManifestIndexDigest(manifest.stdout);
+    const sourceDigest = digestReference(sourceImage, digest);
+    if (sourceDigest) {
+      return {
+        status: "pass",
+        sourceImage,
+        sourceDigest,
+        method: "docker manifest inspect linux/amd64",
+        detail: `collected ${sourceDigest}`
+      };
+    }
+  }
+
+  return {
+    status: "needs-evidence",
+    sourceImage,
+    method: "docker buildx imagetools inspect; docker manifest inspect",
+    detail:
+      buildx.stderr ||
+      buildx.stdout ||
+      manifest.stderr ||
+      manifest.stdout ||
+      `${name} source digest could not be collected`
+  };
+}
+
 function evidenceRequirements(draft) {
   return [
     {
@@ -241,7 +329,7 @@ function evidenceRequirements(draft) {
   ];
 }
 
-function applyInputs(example, name) {
+function applyInputs(example, name, sourceDigestInspection) {
   const now = new Date().toISOString();
   const approvers = commaList(
     cliValue("approvers", name),
@@ -269,7 +357,11 @@ function applyInputs(example, name) {
       imageDefaults[name].final
     ),
     name,
-    sourceDigest: cliValue("source-digest", name) ?? example.sourceDigest,
+    sourceDigest:
+      cliValue("source-digest", name) ??
+      sourceDigestInspection.sourceDigest ??
+      example.sourceDigest,
+    sourceDigestInspection,
     mirroredImage: cliValue("mirrored-image", name) ?? example.mirroredImage,
     mirroredDigest: cliValue("mirrored-digest", name) ?? example.mirroredDigest,
     certification: {
@@ -321,7 +413,8 @@ function applyInputs(example, name) {
 
 async function buildDraft(name) {
   const example = loadExample(name);
-  const draft = applyInputs(example, name);
+  const sourceDigestInspection = await collectSourceDigest(name, example);
+  const draft = applyInputs(example, name, sourceDigestInspection);
   const requirements = evidenceRequirements(draft);
   const unmet = requirements.filter((requirement) => !requirement.pass);
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
@@ -352,6 +445,9 @@ async function buildDraft(name) {
     evidence: [
       "This artifact is draft-only intake evidence.",
       "It is safe to share with release reviewers because secret-like values are rejected before export.",
+      sourceDigestInspection.status === "pass"
+        ? `Source digest was collected by ${sourceDigestInspection.method}.`
+        : `Source digest inspection status=${sourceDigestInspection.status}: ${sourceDigestInspection.detail}`,
       "The external runtime verifier may surface this draft, but final release readiness still requires the reviewed vllm.json/qdrant.json file."
     ],
     risk: [
