@@ -96,16 +96,18 @@ A human reviewer must still create the final `vllm.json` or `qdrant.json` after 
 Generate the candidate comparison packet after scanning one or more external runtime alternatives into `test-results/security-candidates/<name>-<candidate-label>`:
 
 ```sh
+npm run evidence:external-runtime:candidate-scan -- --name qdrant --candidate-image docker.io/qdrant/qdrant:<candidate-tag> --candidate-label <candidate-tag> --execute-docker-fallback
 npm run evidence:external-runtime:candidates
 ```
 
-The matrix writes `test-results/cywell-opslens-external-runtime-candidate-matrix.json` and `.md`. It compares current vulnerability/SBOM evidence with candidate scan directories, records the best scanned candidate, zero-critical candidates, remaining critical findings, missing evidence, risk, and rollback path. This packet is reviewer evidence only. It does not change CSV/FBC/runtime manifests, mirror images, sign images, push images, or promote a candidate to final release evidence.
+The candidate scan wrapper writes local candidate vulnerability/SBOM/review-draft evidence and refreshes the matrix after executed scans. The matrix writes `test-results/cywell-opslens-external-runtime-candidate-matrix.json` and `.md`. It compares current vulnerability/SBOM evidence with candidate scan directories, records the best scanned candidate, zero-critical candidates, remaining critical findings, missing evidence, risk, and rollback path. This packet is reviewer evidence only. It does not change CSV/FBC/runtime manifests, mirror images, sign images, push images, or promote a candidate to final release evidence.
 
 ## Review Packet
 
 Generate a reviewer-ready JSON and Markdown packet after draft intake:
 
 ```sh
+npm run evidence:external-runtime:candidate-scan -- --name qdrant --candidate-image docker.io/qdrant/qdrant:<candidate-tag> --candidate-label <candidate-tag> --execute-docker-fallback
 npm run evidence:external-runtime:candidates
 npm run evidence:external-runtime:review-packet
 ```

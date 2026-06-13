@@ -377,7 +377,7 @@ function readOnlyCommands(images) {
     {
       id: `scan-${image.name}-candidate`,
       phase: "candidate-scan",
-      command: `npm run evidence:security-scan -- --name ${image.name} --include-external --scan-ref <candidate-image> --image <candidate-image> --security-evidence-dir test-results/security-candidates/${image.name}-<candidate-label> --evidence-out test-results/cywell-opslens-security-scan-${image.name}-<candidate-label>.json --execute-docker-fallback`,
+      command: `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback`,
       mutation: false,
       writesLocalEvidence: true,
       purpose: `Generate candidate vulnerability/SBOM evidence for ${image.name} without changing release manifests.`

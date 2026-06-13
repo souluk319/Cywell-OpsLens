@@ -51,10 +51,10 @@ npm run verify:release-refresh -- --security-scan-docker
 For external runtime remediation research, scan a candidate image into a separate evidence directory instead of overwriting the release evidence:
 
 ```bash
-npm run evidence:security-scan -- --name qdrant --include-external --scan-ref docker.io/qdrant/qdrant:<candidate-tag> --image docker.io/qdrant/qdrant:<candidate-tag> --security-evidence-dir test-results/security-candidates/qdrant-<candidate-tag> --evidence-out test-results/cywell-opslens-security-scan-qdrant-<candidate-tag>.json --execute-docker-fallback
+npm run evidence:external-runtime:candidate-scan -- --name qdrant --candidate-image docker.io/qdrant/qdrant:<candidate-tag> --candidate-label <candidate-tag> --execute-docker-fallback
 ```
 
-`--scan-ref` and `--image` are allowed only for a single selected target. The runner records the original image reference, writes candidate scan/SBOM/review-draft files under the supplied evidence directory, and leaves the Operator CSV/FBC/runtime manifests unchanged. A candidate only becomes release evidence after explicit product/security approval and the normal external runtime final evidence flow.
+The candidate wrapper delegates to the security scan runner, writes candidate scan/SBOM/review-draft files under `test-results/security-candidates/<name>-<candidate-label>`, refreshes the candidate matrix after executed scans, and leaves the Operator CSV/FBC/runtime manifests unchanged. A candidate only becomes release evidence after explicit product/security approval and the normal external runtime final evidence flow.
 
 Summarize scanned external runtime alternatives before the review packet:
 

@@ -412,8 +412,22 @@ function imagePackets(externalRuntime, candidateMatrix) {
   });
 }
 
-function readOnlyCommands(images) {
+function readOnlyCommands(images, candidateMatrix) {
+  const candidateScanCommands = (candidateMatrix?.readOnlyCommands ?? [])
+    .filter((command) => String(command?.id ?? "").startsWith("scan-"))
+    .map((command) => ({
+      id: command.id ?? "scan-external-runtime-candidate",
+      phase: command.phase ?? "candidate-scan",
+      command: command.command ?? "npm run evidence:external-runtime:candidate-scan",
+      purpose:
+        command.purpose ??
+        "Generate external runtime candidate vulnerability/SBOM evidence without changing release manifests.",
+      mutation: command.mutation === true,
+      writesLocalEvidence: command.writesLocalEvidence === true
+    }));
+
   return [
+    ...candidateScanCommands,
     {
       id: "refresh-external-runtime-drafts",
       phase: "local-evidence-refresh",
@@ -635,7 +649,7 @@ async function main() {
   ];
 
   const images = imagePackets(artifacts.externalRuntime, artifacts.candidateMatrix);
-  const readOnly = readOnlyCommands(images);
+  const readOnly = readOnlyCommands(images, artifacts.candidateMatrix);
   const approvalGated = approvalGatedCommands(artifacts.externalRuntime);
   const unsafeReadOnly = readOnly
     .filter((command) => command.mutation === true || commandLooksMutating(command.command))
