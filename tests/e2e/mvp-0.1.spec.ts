@@ -1216,6 +1216,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             missingEvidence?: string[];
           }>;
           triggerEvidenceRequired?: string[];
+          alertmanagerIntake?: {
+            artifactType?: string;
+            actionMode?: string;
+            alertCount?: number;
+            acceptedCount?: number;
+            rawAlertReturned?: boolean;
+            mutationAllowed?: boolean;
+            clusterMutationAttempted?: boolean;
+            incidentRequestIds?: string[];
+            evidence?: string[];
+            missingEvidence?: string[];
+          };
           acceptance?: string[];
           evidence?: string[];
           missingEvidence?: string[];
@@ -2058,6 +2070,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining(["logs", "events", "metrics", "runbookCitations"])
     );
+    expect(body.aiops?.incidentPipeline?.alertmanagerIntake).toMatchObject({
+      artifactType: "opslens.alertmanager-incident-intake.v0.1",
+      rawAlertReturned: false,
+      mutationAllowed: false,
+      clusterMutationAttempted: false
+    });
+    expect(
+      body.aiops?.incidentPipeline?.alertmanagerIntake?.evidence?.join(" ")
+    ).toContain("/api/opslens/incidents/alertmanager");
     expect(body.aiops?.incidentPipeline?.evidence?.join(" ")).toMatch(
       /verify:aiops|AI Ops incident pipeline/i
     );
@@ -3321,6 +3342,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-aiops-pipeline-evidence")
     ).toContainText("triggerEvidence=");
+    await expect(page.getByTestId("opslens-alertmanager-intake")).toContainText(
+      "Alertmanager"
+    );
+    await expect(page.getByTestId("opslens-alertmanager-intake")).toContainText(
+      "opslens.alertmanager-incident-intake.v0.1"
+    );
+    await expect(page.getByTestId("opslens-alertmanager-intake")).toContainText(
+      "accepted="
+    );
+    await expect(page.getByTestId("opslens-alertmanager-intake")).toContainText(
+      "rawAlertReturned=false"
+    );
+    await expect(page.getByTestId("opslens-alertmanager-intake")).toContainText(
+      "clusterMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-alertmanager-intake")).toContainText(
+      "mutationAllowed=false"
+    );
     await expect(page.getByTestId("opslens-aiops-pipeline")).toContainText(
       "pod-memory"
     );

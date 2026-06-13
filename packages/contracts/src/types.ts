@@ -1080,6 +1080,18 @@ export interface OpsLensAiopsIncidentPipelineSummary {
   requiredMetricQueries: string[];
   metricQueries: OpsLensAdminMetricQueryStatus[];
   triggerEvidenceRequired: string[];
+  alertmanagerIntake: {
+    artifactType: string;
+    actionMode: "planOnly" | "missing" | "unknown";
+    alertCount: number;
+    acceptedCount: number;
+    rawAlertReturned: boolean;
+    mutationAllowed: boolean;
+    clusterMutationAttempted: boolean;
+    incidentRequestIds: string[];
+    evidence: string[];
+    missingEvidence: string[];
+  };
   acceptance: string[];
   evidence: string[];
   missingEvidence: string[];

@@ -1911,6 +1911,8 @@ type AiopsIncidentPipelineArtifact = {
   };
   acceptance?: string[];
   pipeline?: {
+    alertmanagerWebhookPath?: string;
+    alertmanagerArtifactType?: string;
     requiredMetricQueries?: string[];
     triggerEvidenceRequired?: string[];
   };
@@ -1931,6 +1933,17 @@ type AiopsIncidentPipelineArtifact = {
         error?: string;
       }>;
       remediationProposal?: OpsLensRemediationProposal;
+    };
+    alertmanagerIntake?: {
+      artifactType?: string;
+      actionMode?: string;
+      alertCount?: number;
+      acceptedCount?: number;
+      rawAlertReturned?: boolean;
+      mutationAllowed?: boolean;
+      clusterMutationAttempted?: boolean;
+      incidentRequestIds?: string[];
+      missingEvidence?: string[];
     };
     missingEvidence?: string[];
   };
@@ -5781,6 +5794,59 @@ function mapAiopsMetricQueries(
   });
 }
 
+function mapAiopsAlertmanagerIntake(
+  artifact?: AiopsIncidentPipelineArtifact
+): OpsLensAiopsIncidentPipelineSummary["alertmanagerIntake"] {
+  const intake = artifact?.liveSmoke?.alertmanagerIntake;
+  if (!intake) {
+    return {
+      artifactType:
+        artifact?.pipeline?.alertmanagerArtifactType ??
+        "opslens.alertmanager-incident-intake.v0.1",
+      actionMode: artifact ? "unknown" : "missing",
+      alertCount: 0,
+      acceptedCount: 0,
+      rawAlertReturned: false,
+      mutationAllowed: false,
+      clusterMutationAttempted: false,
+      incidentRequestIds: [],
+      evidence: [
+        "Alertmanager webhook path=/api/opslens/incidents/alertmanager",
+        "Alertmanager webhook intake is verified by npm run verify:aiops",
+        "dashboard keeps raw alert payload return blocked by contract"
+      ],
+      missingEvidence: [
+        artifact
+          ? "AI Ops evidence artifact does not include liveSmoke.alertmanagerIntake"
+          : "AI Ops evidence artifact is missing"
+      ]
+    };
+  }
+
+  return {
+    artifactType:
+      intake.artifactType ??
+      artifact?.pipeline?.alertmanagerArtifactType ??
+      "opslens.alertmanager-incident-intake.v0.1",
+    actionMode: intake.actionMode === "planOnly" ? "planOnly" : "unknown",
+    alertCount:
+      typeof intake.alertCount === "number" ? intake.alertCount : 0,
+    acceptedCount:
+      typeof intake.acceptedCount === "number" ? intake.acceptedCount : 0,
+    rawAlertReturned: intake.rawAlertReturned === true,
+    mutationAllowed: intake.mutationAllowed === true,
+    clusterMutationAttempted: intake.clusterMutationAttempted === true,
+    incidentRequestIds: intake.incidentRequestIds ?? [],
+    evidence: [
+      `Alertmanager webhook path=${artifact?.pipeline?.alertmanagerWebhookPath ?? "/api/opslens/incidents/alertmanager"}`,
+      `Alertmanager intake artifact=${intake.artifactType ?? "unknown"}`,
+      `Alertmanager accepted=${String(intake.acceptedCount ?? 0)}/${String(intake.alertCount ?? 0)}`,
+      "rawAlertReturned=false is required for dashboard evidence"
+    ],
+    missingEvidence: intake.missingEvidence ?? []
+  };
+}
+
 function getAiopsIncidentPipelineReadiness(): {
   status: OpsLensAiopsIncidentPipelineReadiness;
   evidence: string[];
@@ -5823,6 +5889,7 @@ function getAiopsIncidentPipelineReadiness(): {
           missingEvidence: [`metrics/${name}: evidence artifact is missing`]
         })),
         triggerEvidenceRequired: aiopsTriggerEvidenceRequired,
+        alertmanagerIntake: mapAiopsAlertmanagerIntake(),
         acceptance: ["AC-AIOPS-001", "AC-AIOPS-002", "AC-DASH-001"],
         evidence,
         missingEvidence,
@@ -5855,9 +5922,11 @@ function getAiopsIncidentPipelineReadiness(): {
         : undefined;
     const liveMissingEvidence = [
       ...(artifact.liveSmoke?.missingEvidence ?? []),
-      ...(artifact.liveSmoke?.incident?.missingEvidence ?? [])
+      ...(artifact.liveSmoke?.incident?.missingEvidence ?? []),
+      ...(artifact.liveSmoke?.alertmanagerIntake?.missingEvidence ?? [])
     ];
     const metricQueries = mapAiopsMetricQueries(artifact);
+    const alertmanagerIntake = mapAiopsAlertmanagerIntake(artifact);
     const evidence = [
       `AI Ops incident pipeline ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
       `verify:aiops generated ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
@@ -5887,6 +5956,7 @@ function getAiopsIncidentPipelineReadiness(): {
         requiredMetricQueries,
         metricQueries,
         triggerEvidenceRequired,
+        alertmanagerIntake,
         acceptance: artifact.acceptance ?? [
           "AC-AIOPS-001",
           "AC-AIOPS-002",
@@ -5929,6 +5999,11 @@ function getAiopsIncidentPipelineReadiness(): {
         requiredMetricQueries: aiopsRequiredMetricQueries,
         metricQueries: [],
         triggerEvidenceRequired: aiopsTriggerEvidenceRequired,
+        alertmanagerIntake: {
+          ...mapAiopsAlertmanagerIntake(),
+          actionMode: "unknown",
+          missingEvidence: [message]
+        },
         acceptance: ["AC-AIOPS-001", "AC-AIOPS-002", "AC-DASH-001"],
         evidence,
         missingEvidence: [message],

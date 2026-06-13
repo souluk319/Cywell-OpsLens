@@ -177,6 +177,7 @@ export function OpsLensAdminDashboard() {
         : []
     ) ?? [];
   const aiopsPipeline = overview?.aiops.incidentPipeline;
+  const alertmanagerIntake = aiopsPipeline?.alertmanagerIntake;
   const approvalPlan = overview?.installReadiness.approvalPlan;
   const certificationPlan = overview?.installReadiness.certificationPlan;
   const catalogToolchainPlan =
@@ -973,6 +974,32 @@ export function OpsLensAdminDashboard() {
             <span>
               triggerEvidence=
               {(aiopsPipeline?.triggerEvidenceRequired ?? []).join("/")}
+            </span>
+          </div>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-alertmanager-intake"
+          >
+            <span>Alertmanager</span>
+            <span>
+              {alertmanagerIntake?.artifactType ??
+                "opslens.alertmanager-incident-intake.v0.1"}
+            </span>
+            <span>
+              accepted={alertmanagerIntake?.acceptedCount ?? 0}/
+              {alertmanagerIntake?.alertCount ?? 0}
+            </span>
+            <span>
+              rawAlertReturned=
+              {String(alertmanagerIntake?.rawAlertReturned ?? false)}
+            </span>
+            <span>
+              clusterMutationAttempted=
+              {String(alertmanagerIntake?.clusterMutationAttempted ?? false)}
+            </span>
+            <span>
+              mutationAllowed=
+              {String(alertmanagerIntake?.mutationAllowed ?? false)}
             </span>
           </div>
           <div className="metric-query-list">
