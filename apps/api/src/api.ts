@@ -1626,6 +1626,7 @@ type ReleaseActionQueueArtifact = {
   status?: string;
   generatedAt?: string;
   actionMode?: string;
+  markdownOut?: string;
   registryMutationAttempted?: boolean;
   clusterMutationAttempted?: boolean;
   mutationAllowedByThisVerifier?: boolean;
@@ -4133,6 +4134,7 @@ function missingReleaseActionQueueSummary(
     status,
     artifactStatus: status === "blocked" ? "invalid" : "missing",
     actionMode: "actionQueueOnly",
+    markdownPath: "missing",
     registryMutationAttempted: false,
     clusterMutationAttempted: false,
     mutationAllowedByThisVerifier: false,
@@ -4222,6 +4224,8 @@ function getReleaseActionQueueReadiness(): {
       .slice(0, 6)
       .map((owner) => `${owner.owner}:open=${owner.open}:blocker=${owner.blocker}:high=${owner.high}`)
       .join(", ");
+    const markdownPath =
+      artifact.markdownOut ?? evidencePath.replace(/\.json$/i, ".md");
 
     return {
       status,
@@ -4229,6 +4233,7 @@ function getReleaseActionQueueReadiness(): {
         status,
         artifactStatus: artifact.status ?? "unknown",
         actionMode: "actionQueueOnly",
+        markdownPath,
         registryMutationAttempted: artifact.registryMutationAttempted === true,
         clusterMutationAttempted: artifact.clusterMutationAttempted === true,
         mutationAllowedByThisVerifier:
@@ -4247,6 +4252,7 @@ function getReleaseActionQueueReadiness(): {
       evidence: [
         `Release action queue ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `release action queue generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `release action queue markdown packet=${markdownPath}`,
         `release action queue owners=${owners.length} items=${items.length}`,
         ownerSummary ? `release action queue owner summary=${ownerSummary}` : "release action queue owners are not listed",
         `release action queue command counts readOnly=${commandCounts.readOnly} approvalGated=${commandCounts.approvalGated}`,

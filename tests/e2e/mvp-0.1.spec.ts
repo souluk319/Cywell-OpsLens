@@ -1096,6 +1096,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           status?: string;
           artifactStatus?: string;
           actionMode?: string;
+          markdownPath?: string;
           registryMutationAttempted?: boolean;
           clusterMutationAttempted?: boolean;
           mutationAllowedByThisVerifier?: boolean;
@@ -1956,6 +1957,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       mutationAllowedByThisVerifier: false,
       mutationBoundaryPassed: true
     });
+    expect(body.installReadiness?.actionQueue?.markdownPath).toContain(
+      "cywell-opslens-release-action-queue.md"
+    );
     expect(
       body.installReadiness?.actionQueue?.owners?.map((owner) => owner.owner)
     ).toEqual(expect.arrayContaining(["network-sre", "release-manager"]));
@@ -2509,6 +2513,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
       "actionQueueOnly"
+    );
+    await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
+      "cywell-opslens-release-action-queue.md"
     );
     await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
       "mutationBoundaryPassed=true"

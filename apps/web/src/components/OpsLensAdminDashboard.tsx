@@ -191,6 +191,8 @@ export function OpsLensAdminDashboard() {
   const releaseBundlePacketName =
     releaseBundle?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const releaseActionQueue = overview?.installReadiness.actionQueue;
+  const releaseActionQueuePacketName =
+    releaseActionQueue?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const checkpoint = overview?.installReadiness.checkpoint;
   const liveHandoff = overview?.installReadiness.handoff;
   const networkHandoff = overview?.installReadiness.networkHandoff;
@@ -1315,6 +1317,7 @@ export function OpsLensAdminDashboard() {
                 <span>{releaseActionQueue.artifactStatus}</span>
                 <span>head={releaseActionQueue.headSha}</span>
                 <span>dirty={String(releaseActionQueue.worktreeDirty)}</span>
+                <span>packet={releaseActionQueuePacketName}</span>
                 <span>
                   mutationBoundaryPassed=
                   {String(releaseActionQueue.mutationBoundaryPassed)}

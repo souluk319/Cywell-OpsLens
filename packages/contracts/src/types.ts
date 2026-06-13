@@ -1393,6 +1393,7 @@ export interface OpsLensReleaseActionQueueSummary {
   status: OpsLensReleaseActionQueueReadiness;
   artifactStatus: string;
   actionMode: "actionQueueOnly";
+  markdownPath: string;
   registryMutationAttempted: boolean;
   clusterMutationAttempted: boolean;
   mutationAllowedByThisVerifier: boolean;
