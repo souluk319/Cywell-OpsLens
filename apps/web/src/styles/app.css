@@ -1916,6 +1916,7 @@ button {
   .knowledge-card,
   .rag-admin-card,
   .metric-admin-card,
+  .mcp-admin-card,
   .readiness-admin-card {
     grid-column: span 1;
   }
