@@ -1184,6 +1184,43 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           risk?: string[];
           rollbackPath?: string[];
         };
+        releaseActionQueue?: string;
+        actionQueue?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          registryMutationAttempted?: boolean;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          headSha?: string;
+          worktreeDirty?: boolean;
+          owners?: Array<{
+            owner?: string;
+            open?: number;
+            blocker?: number;
+            high?: number;
+          }>;
+          items?: Array<{
+            id?: string;
+            owner?: string;
+            priority?: string;
+            nextCommand?: string;
+          }>;
+          sourceArtifacts?: Array<{
+            id?: string;
+            status?: string;
+            fresh?: boolean;
+            mutationViolation?: boolean;
+          }>;
+          commandCounts?: {
+            readOnly?: number;
+            approvalGated?: number;
+          };
+          mutationBoundaryPassed?: boolean;
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         liveHandoff?: string;
         handoff?: {
           status?: string;
@@ -1825,6 +1862,33 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       /release evidence bundle/i
     );
     expect(["ready", "needs-evidence", "blocked"]).toContain(
+      body.installReadiness?.releaseActionQueue
+    );
+    expect(body.installReadiness?.actionQueue).toMatchObject({
+      actionMode: "actionQueueOnly",
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      mutationBoundaryPassed: true
+    });
+    expect(
+      body.installReadiness?.actionQueue?.owners?.map((owner) => owner.owner)
+    ).toEqual(expect.arrayContaining(["network-sre", "release-manager"]));
+    expect(
+      body.installReadiness?.actionQueue?.items?.some((item) =>
+        item.nextCommand?.startsWith("npm run")
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.actionQueue?.commandCounts?.readOnly ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.actionQueue?.commandCounts?.approvalGated ?? 0
+    ).toBeGreaterThan(0);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /release action queue/i
+    );
+    expect(["ready", "needs-evidence", "blocked"]).toContain(
       body.installReadiness?.liveHandoff
     );
     expect(body.installReadiness?.handoff).toMatchObject({
@@ -2333,6 +2397,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
       "readOnly="
+    );
+    await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
+      "actionQueueOnly"
+    );
+    await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
+      "mutationBoundaryPassed=true"
+    );
+    await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
+      "registryMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
+      /network-sre|release-manager/
     );
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "localEvidenceRefresh"

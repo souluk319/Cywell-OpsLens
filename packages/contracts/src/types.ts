@@ -1039,6 +1039,11 @@ export type OpsLensReleaseEvidenceBundleReadiness =
   | "needs-evidence"
   | "blocked";
 
+export type OpsLensReleaseActionQueueReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "blocked";
+
 export type OpsLensEvidenceCheckpointReadiness =
   | "ready"
   | "needs-evidence"
@@ -1336,6 +1341,48 @@ export interface OpsLensReleaseEvidenceBundleSummary {
   rollbackPath: string[];
 }
 
+export interface OpsLensReleaseActionQueueSummary {
+  status: OpsLensReleaseActionQueueReadiness;
+  artifactStatus: string;
+  actionMode: "actionQueueOnly";
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  headSha: string;
+  worktreeDirty: boolean;
+  owners: Array<{
+    owner: string;
+    open: number;
+    blocker: number;
+    high: number;
+    normal: number;
+  }>;
+  items: Array<{
+    id: string;
+    owner: string;
+    priority: "blocker" | "high" | "normal";
+    source: string;
+    request: string;
+    evidenceNeeded: string;
+    nextCommand: string;
+  }>;
+  sourceArtifacts: Array<{
+    id: string;
+    status: string;
+    fresh: boolean;
+    required: boolean;
+    mutationViolation: boolean;
+  }>;
+  commandCounts: {
+    readOnly: number;
+    approvalGated: number;
+  };
+  mutationBoundaryPassed: boolean;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface OpsLensRagIngestionApprovalPlanSummary {
   actionMode: "ingestionPlanOnly";
   status: "ready-for-ingestion-job" | "needs-evidence" | "failed";
@@ -1542,6 +1589,8 @@ export interface OpsLensAdminOverviewResponse {
     refresh: OpsLensReleaseEvidenceRefreshSummary;
     releaseEvidenceBundle: OpsLensReleaseEvidenceBundleReadiness;
     bundle: OpsLensReleaseEvidenceBundleSummary;
+    releaseActionQueue: OpsLensReleaseActionQueueReadiness;
+    actionQueue: OpsLensReleaseActionQueueSummary;
     evidenceCheckpoint: OpsLensEvidenceCheckpointReadiness;
     checkpoint: OpsLensEvidenceCheckpointSummary;
     liveHandoff: OpsLensLiveEvidenceHandoffReadiness;

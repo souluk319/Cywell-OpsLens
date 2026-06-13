@@ -50,6 +50,7 @@
     "evidence:security-review:draft": "node ./scripts/create-security-review-evidence-draft.mjs",
     "verify:release-plan": "node ./scripts/verify-release-publish-plan.mjs",
     "verify:release-evidence-bundle": "node ./scripts/verify-release-evidence-bundle.mjs",
+    "evidence:release-action-queue": "node ./scripts/create-release-action-queue.mjs",
     "verify:release-refresh": "node ./scripts/refresh-release-evidence-chain.mjs",
     "verify:lightspeed": "node ./scripts/verify-lightspeed-mcp.mjs",
     "verify:lightspeed:patch-preview": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-lightspeed-mcp.mjs --patch-preview --skip-mcp",

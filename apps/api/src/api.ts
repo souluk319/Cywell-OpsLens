@@ -52,6 +52,8 @@ import type {
   OpsLensOwnedImageProvenanceSummary,
   OpsLensReleasePublishPlanSummary,
   OpsLensReleasePublishReadiness,
+  OpsLensReleaseActionQueueReadiness,
+  OpsLensReleaseActionQueueSummary,
   OpsLensReleaseEvidenceRefreshReadiness,
   OpsLensReleaseEvidenceRefreshSummary,
   OpsLensReleaseEvidenceBundleReadiness,
@@ -1573,6 +1575,53 @@ type ReleaseEvidenceBundleArtifact = {
   rollbackPath?: string[];
 };
 
+type ReleaseActionQueueArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  owners?: Array<{
+    owner?: string;
+    open?: number;
+    blocker?: number;
+    high?: number;
+    normal?: number;
+  }>;
+  items?: Array<{
+    id?: string;
+    owner?: string;
+    priority?: string;
+    source?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+  }>;
+  sourceArtifacts?: Array<{
+    id?: string;
+    status?: string;
+    fresh?: boolean;
+    required?: boolean;
+    mutationViolation?: boolean;
+  }>;
+  readOnlyCommands?: unknown[];
+  approvalGatedCommands?: unknown[];
+  mutationBoundary?: {
+    passed?: boolean;
+  };
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type EvidenceCheckpointArtifact = {
   artifactType?: string;
   status?: string;
@@ -1802,6 +1851,13 @@ function releaseEvidenceBundlePath() {
   return (
     process.env.CYWELL_OPSLENS_RELEASE_EVIDENCE_BUNDLE ??
     join(repoRoot, "test-results", "cywell-opslens-release-evidence-bundle.json")
+  );
+}
+
+function releaseActionQueuePath() {
+  return (
+    process.env.CYWELL_OPSLENS_RELEASE_ACTION_QUEUE ??
+    join(repoRoot, "test-results", "cywell-opslens-release-action-queue.json")
   );
 }
 
@@ -2081,6 +2137,24 @@ function mapReleaseEvidenceBundleStatus(
     return "approval-ready";
   }
   return "needs-evidence";
+}
+
+function mapReleaseActionQueueStatus(
+  artifact: ReleaseActionQueueArtifact
+): OpsLensReleaseActionQueueReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier ||
+    artifact.mutationBoundary?.passed === false
+  ) {
+    return "blocked";
+  }
+  if (artifact.ref?.worktreeDirty || artifact.status !== "ACTION_QUEUE_READY") {
+    return "needs-evidence";
+  }
+  return "ready";
 }
 
 function mapEvidenceCheckpointStatus(
@@ -3824,6 +3898,152 @@ function getReleaseEvidenceBundleReadiness(): {
   }
 }
 
+function missingReleaseActionQueueSummary(
+  reason: string,
+  status: OpsLensReleaseActionQueueReadiness = "needs-evidence"
+): OpsLensReleaseActionQueueSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "actionQueueOnly",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    headSha: "missing",
+    worktreeDirty: false,
+    owners: [],
+    items: [],
+    sourceArtifacts: [],
+    commandCounts: {
+      readOnly: 0,
+      approvalGated: 0
+    },
+    mutationBoundaryPassed: false,
+    missingEvidence: [reason],
+    risk: [
+      "Without the release action queue, release and install evidence gaps are not assigned to operational owners."
+    ],
+    rollbackPath: [
+      "Run npm run evidence:release-action-queue after refreshing the release evidence bundle."
+    ]
+  };
+}
+
+function normalizeActionQueuePriority(
+  priority?: string
+): "blocker" | "high" | "normal" {
+  if (priority === "blocker" || priority === "high") {
+    return priority;
+  }
+  return "normal";
+}
+
+function getReleaseActionQueueReadiness(): {
+  status: OpsLensReleaseActionQueueReadiness;
+  evidence: string[];
+  actionQueue: OpsLensReleaseActionQueueSummary;
+} {
+  const evidencePath = releaseActionQueuePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      actionQueue: missingReleaseActionQueueSummary(
+        `release action queue is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run evidence:release-action-queue to create owner-scoped release action evidence",
+        "dashboard keeps release action queue as needs-evidence until owner actions exist",
+        "release action queue must keep registryMutationAttempted=false and clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as ReleaseActionQueueArtifact;
+    const status = mapReleaseActionQueueStatus(artifact);
+    const owners = (artifact.owners ?? []).map((owner) => ({
+      owner: owner.owner ?? "unknown",
+      open: owner.open ?? 0,
+      blocker: owner.blocker ?? 0,
+      high: owner.high ?? 0,
+      normal: owner.normal ?? 0
+    }));
+    const items = (artifact.items ?? []).map((entry) => ({
+      id: entry.id ?? "unknown",
+      owner: entry.owner ?? "unknown",
+      priority: normalizeActionQueuePriority(entry.priority),
+      source: entry.source ?? "unknown",
+      request: entry.request ?? "missing request",
+      evidenceNeeded: entry.evidenceNeeded ?? "missing evidence",
+      nextCommand: entry.nextCommand ?? "not listed"
+    }));
+    const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
+      id: source.id ?? "unknown",
+      status: source.status ?? "unknown",
+      fresh: source.fresh === true,
+      required: source.required === true,
+      mutationViolation: source.mutationViolation === true
+    }));
+    const commandCounts = {
+      readOnly: artifact.readOnlyCommands?.length ?? 0,
+      approvalGated: artifact.approvalGatedCommands?.length ?? 0
+    };
+    const ownerSummary = owners
+      .slice(0, 6)
+      .map((owner) => `${owner.owner}:open=${owner.open}:blocker=${owner.blocker}:high=${owner.high}`)
+      .join(", ");
+
+    return {
+      status,
+      actionQueue: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "actionQueueOnly",
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        headSha: artifact.ref?.headSha ?? "unknown",
+        worktreeDirty: artifact.ref?.worktreeDirty === true,
+        owners,
+        items,
+        sourceArtifacts,
+        commandCounts,
+        mutationBoundaryPassed: artifact.mutationBoundary?.passed === true,
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `Release action queue ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `release action queue generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `release action queue owners=${owners.length} items=${items.length}`,
+        ownerSummary ? `release action queue owner summary=${ownerSummary}` : "release action queue owners are not listed",
+        `release action queue command counts readOnly=${commandCounts.readOnly} approvalGated=${commandCounts.approvalGated}`,
+        `release action queue mutationBoundaryPassed=${String(artifact.mutationBoundary?.passed ?? false)}`,
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads release action queue evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "blocked",
+      actionQueue: missingReleaseActionQueueSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "blocked"
+      ),
+      evidence: [
+        `Release action queue could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid release action queue evidence blocks owner action routing"
+      ]
+    };
+  }
+}
+
 function normalizeCheckpointLaneStatus(
   status?: string
 ): "pass" | "needs-evidence" | "blocked" {
@@ -4265,6 +4485,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const releasePublishReadiness = getReleasePublishPlanReadiness();
   const releaseEvidenceRefreshReadiness = getReleaseEvidenceRefreshReadiness();
   const releaseEvidenceBundleReadiness = getReleaseEvidenceBundleReadiness();
+  const releaseActionQueueReadiness = getReleaseActionQueueReadiness();
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
   const liveHandoffReadiness = getLiveEvidenceHandoffReadiness();
   const ocpNetworkHandoffReadiness = getOcpNetworkHandoffReadiness();
@@ -4285,6 +4506,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     securityScanReadiness.evidence[0],
     releasePublishReadiness.evidence[0],
     releaseEvidenceBundleReadiness.evidence[0],
+    releaseActionQueueReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
@@ -4298,6 +4520,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...releasePublishReadiness.evidence.slice(1),
     ...releaseEvidenceRefreshReadiness.evidence.slice(1),
     ...releaseEvidenceBundleReadiness.evidence.slice(1),
+    ...releaseActionQueueReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
     ...ocpNetworkHandoffReadiness.evidence.slice(1),
     ...evidenceCheckpointReadiness.evidence.slice(1)
@@ -4461,6 +4684,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       refresh: releaseEvidenceRefreshReadiness.refresh,
       releaseEvidenceBundle: releaseEvidenceBundleReadiness.status,
       bundle: releaseEvidenceBundleReadiness.bundle,
+      releaseActionQueue: releaseActionQueueReadiness.status,
+      actionQueue: releaseActionQueueReadiness.actionQueue,
       evidenceCheckpoint: evidenceCheckpointReadiness.status,
       checkpoint: evidenceCheckpointReadiness.checkpoint,
       liveHandoff: liveHandoffReadiness.status,
@@ -4490,6 +4715,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 5 release publish approval plan is generated by npm run verify:release-plan",
         "Stage 5 release evidence refresh chain is generated by npm run verify:release-refresh",
         "Stage 5 release evidence bundle is generated by npm run verify:release-evidence-bundle",
+        "Stage 5 release action queue is generated by npm run evidence:release-action-queue",
         "Current-head release/install evidence is summarized by npm run verify:evidence-checkpoint"
       ]
     },

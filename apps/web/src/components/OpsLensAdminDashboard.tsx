@@ -17,6 +17,7 @@ import {
   Download,
   FileDiff,
   Gauge,
+  ListChecks,
   ShieldCheck,
   UploadCloud,
   XCircle
@@ -185,6 +186,7 @@ export function OpsLensAdminDashboard() {
   const releasePlan = overview?.installReadiness.releasePlan;
   const releaseRefresh = overview?.installReadiness.refresh;
   const releaseBundle = overview?.installReadiness.bundle;
+  const releaseActionQueue = overview?.installReadiness.actionQueue;
   const checkpoint = overview?.installReadiness.checkpoint;
   const liveHandoff = overview?.installReadiness.handoff;
   const networkHandoff = overview?.installReadiness.networkHandoff;
@@ -897,6 +899,7 @@ export function OpsLensAdminDashboard() {
                   "Release Refresh": overview.installReadiness.releaseRefresh,
                   "Release Bundle":
                     overview.installReadiness.releaseEvidenceBundle,
+                  "Release Action": overview.installReadiness.releaseActionQueue,
                   "Evidence Checkpoint":
                     overview.installReadiness.evidenceCheckpoint,
                   "Live Handoff": overview.installReadiness.liveHandoff,
@@ -1285,6 +1288,104 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {releaseBundle.rollbackPath[0] ??
                     "Regenerate the release bundle after evidence changes."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {releaseActionQueue ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-release-action-queue"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Release Action Queue</h4>
+                  <small>{releaseActionQueue.actionMode}</small>
+                </div>
+                <ListChecks size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{releaseActionQueue.artifactStatus}</span>
+                <span>head={releaseActionQueue.headSha}</span>
+                <span>dirty={String(releaseActionQueue.worktreeDirty)}</span>
+                <span>
+                  mutationBoundaryPassed=
+                  {String(releaseActionQueue.mutationBoundaryPassed)}
+                </span>
+              </div>
+              <div className="admin-evidence-line">
+                <span>
+                  registryMutationAttempted=
+                  {String(releaseActionQueue.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(releaseActionQueue.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(releaseActionQueue.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Owners</span>
+                  <strong>{releaseActionQueue.owners.length}</strong>
+                </div>
+                <div>
+                  <span>Open Actions</span>
+                  <strong>{releaseActionQueue.items.length}</strong>
+                </div>
+                <div>
+                  <span>Commands</span>
+                  <strong>
+                    readOnly={releaseActionQueue.commandCounts.readOnly},
+                    gated={releaseActionQueue.commandCounts.approvalGated}
+                  </strong>
+                </div>
+                <div>
+                  <span>Sources</span>
+                  <strong>
+                    {
+                      releaseActionQueue.sourceArtifacts.filter(
+                        (source) => source.fresh && !source.mutationViolation
+                      ).length
+                    }
+                    /{releaseActionQueue.sourceArtifacts.length}
+                  </strong>
+                </div>
+              </div>
+              <div className="mcp-tool-list">
+                {releaseActionQueue.owners.slice(0, 7).map((owner) => (
+                  <div className="mcp-tool-row" key={owner.owner}>
+                    <span
+                      className={`freshness ${
+                        owner.blocker > 0 ? "missing" : "stale"
+                      }`}
+                    >
+                      {owner.blocker > 0 ? "blocker" : "open"}
+                    </span>
+                    <strong>{owner.owner}</strong>
+                    <small>open={owner.open}</small>
+                    <small>high={owner.high}</small>
+                  </div>
+                ))}
+              </div>
+              <div className="admin-evidence-line">
+                {releaseActionQueue.items.slice(0, 4).map((entry) => (
+                  <span key={entry.id}>
+                    {entry.owner}:{entry.priority}
+                  </span>
+                ))}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {releaseActionQueue.risk[0] ??
+                    "Release action queue assigns evidence gaps without approving mutation."}
+                </p>
+                <p>
+                  {releaseActionQueue.rollbackPath[0] ??
+                    "Regenerate the queue after upstream evidence changes."}
                 </p>
               </div>
             </div>

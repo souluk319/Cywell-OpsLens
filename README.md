@@ -24,6 +24,7 @@ npm run verify:roadmap-plan
 npm run verify:catalog-toolchain
 npm run verify:security-scan-plan
 npm run verify:release-refresh
+npm run evidence:release-action-queue
 npm run verify:ocp:connectivity
 npm run verify:runtime-rag
 npm run verify:runtime-rag:fixture
@@ -46,6 +47,8 @@ npm run verify:lightspeed:fixture
 `npm run evidence:security-scan -- --all` writes a plan-only scan/SBOM evidence runner artifact for the current image inventory. Add `-- --name operator --execute` only when local `trivy` and `syft` are installed and you intentionally want to generate local vulnerability/SBOM files; it never signs, pushes, mirrors, or mutates a cluster.
 
 `npm run verify:release-refresh` regenerates the release evidence chain in dependency order for the current Git HEAD, then writes `test-results/cywell-opslens-release-evidence-refresh.json`. By default it runs local image build evidence and live read-only OCP/Lightspeed diagnostics; use `-- --skip-image-build` for a faster static refresh or `-- --skip-live` when the target cluster network is known to be unavailable.
+
+`npm run evidence:release-action-queue` reads the refreshed checkpoint, release bundle, external runtime review packet, OCP network handoff, release publish plan, and install plan, then writes `test-results/cywell-opslens-release-action-queue.json` plus Markdown. It is an owner-scoped queue only: it assigns blocker/high evidence gaps to Network/SRE, Cluster SRE/Admin, Registry, Security, Product, and Release Manager roles without running push, mirror, sign, apply, delete, scale, or install commands.
 
 `npm run evidence:external-runtime:draft -- --all` creates ignored `*.draft.json` reviewer packets for external runtime digest, scan, SBOM, provenance, license, and approval inputs. Use `--name vllm|qdrant` for a single packet or image-prefixed inputs such as `--vllm-source-digest` and `--qdrant-source-digest` for bulk intake. `npm run evidence:external-runtime:draft:digests` additionally performs read-only Docker manifest inspection to fill source digests when registries expose them. Drafts are surfaced by `npm run verify:external-runtime-plan`, but they never replace the final reviewed `docs/release/evidence/external-runtime/vllm.json` and `qdrant.json` release evidence files.
 

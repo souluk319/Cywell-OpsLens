@@ -38,7 +38,8 @@ const evidencePaths = {
   ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
-  releaseEvidenceBundle: "test-results/cywell-opslens-release-evidence-bundle.json"
+  releaseEvidenceBundle: "test-results/cywell-opslens-release-evidence-bundle.json",
+  releaseActionQueue: "test-results/cywell-opslens-release-action-queue.json"
 };
 
 function parseArgs(argv) {
@@ -227,7 +228,8 @@ function buildChain() {
     npmScript("ocp-network-handoff", "approval", "evidence:ocp-network-handoff"),
     npmScript("evidence-checkpoint", "approval", "verify:evidence-checkpoint"),
     npmScript("roadmap-plan", "approval", "verify:roadmap-plan", [], { expectedNonZero: true }),
-    npmScript("release-evidence-bundle", "approval", "verify:release-evidence-bundle")
+    npmScript("release-evidence-bundle", "approval", "verify:release-evidence-bundle"),
+    npmScript("release-action-queue", "approval", "evidence:release-action-queue")
   );
 
   return commands;
