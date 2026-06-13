@@ -55,7 +55,9 @@ const options = {
   executeDockerFallback: parsed.flags.has("execute-docker-fallback"),
   trivyImage: parsed.values.get("trivy-image") ?? "aquasec/trivy:latest",
   syftImage: parsed.values.get("syft-image") ?? "anchore/syft:latest",
-  includeExternal: parsed.flags.has("include-external")
+  includeExternal: parsed.flags.has("include-external"),
+  imageOverride: parsed.values.get("image"),
+  scanRefOverride: parsed.values.get("scan-ref")
 };
 
 const startedAt = new Date().toISOString();
@@ -190,6 +192,24 @@ function selectTargets(targets) {
   return targets.filter((target) => target.name === options.name);
 }
 
+function targetSpecificOverride(target, key) {
+  return parsed.values.get(`${target.name}-${key}`) ?? parsed.values.get(key);
+}
+
+function applyTargetOverrides(target) {
+  const scanRef = targetSpecificOverride(target, "scan-ref");
+  const image = targetSpecificOverride(target, "image") ?? scanRef;
+  if (!scanRef && !image) return target;
+  return {
+    ...target,
+    image: image ?? target.image,
+    scanRef: scanRef ?? image ?? target.scanRef,
+    originalImage: target.image,
+    originalScanRef: target.scanRef,
+    candidateOverride: true
+  };
+}
+
 function pathsFor(target) {
   return {
     vulnerabilityReport: resolve(options.securityEvidenceDir, `${target.name}-vulnerability.json`),
@@ -224,7 +244,7 @@ function commandPlan(target) {
       },
       {
         id: `review-draft-${target.name}`,
-        command: `npm run evidence:security-review:draft -- --name ${target.name} --force`,
+        command: `npm run evidence:security-review:draft -- --name ${target.name} --image ${target.image} --evidence-dir ${options.securityEvidenceDir} --vulnerability-report ${paths.vulnerabilityReport} --sbom ${paths.sbom} --force`,
         writesLocalEvidence: true
       }
     ],
@@ -404,6 +424,12 @@ async function executeDockerFallbackForTarget(plan, scannerImages) {
         plan.target.name,
         "--image",
         plan.target.image,
+        "--evidence-dir",
+        options.securityEvidenceDir,
+        "--vulnerability-report",
+        plan.paths.vulnerabilityReport,
+        "--sbom",
+        plan.paths.sbom,
         "--force"
       ], 60000)
     : { ok: false, exitCode: 1, stdout: "", stderr: "scan/SBOM evidence was not complete" };
@@ -461,11 +487,24 @@ async function main() {
     ...ownedTargets(provenance),
     ...(options.includeExternal || options.name === "all" ? externalTargets(externalPlan) : [])
   ];
-  const selectedTargets = selectTargets(targets);
+  const selectedBaseTargets = selectTargets(targets);
+  if (selectedBaseTargets.length > 1 && (options.imageOverride || options.scanRefOverride)) {
+    fail("scan target override", "--image/--scan-ref can only be used when a single target is selected; use --<name>-image or --<name>-scan-ref for multi-target runs");
+  }
+  const selectedTargets = selectedBaseTargets.map(applyTargetOverrides);
   if (selectedTargets.length === 0) {
     fail("scan target selection", `no targets matched name=${options.name}`);
   } else {
-    pass("scan target selection", `${selectedTargets.map((target) => target.name).join(", ")}`);
+    pass(
+      "scan target selection",
+      selectedTargets
+        .map((target) =>
+          target.candidateOverride
+            ? `${target.name}=${target.scanRef} (override from ${target.originalScanRef})`
+            : target.name
+        )
+        .join(", ")
+    );
   }
 
   const trivyAvailable = await cliAvailable("trivy", ["--version"]);
@@ -529,6 +568,8 @@ async function main() {
       execute: options.execute,
       executeDockerFallback: options.executeDockerFallback,
       includeExternal: options.includeExternal,
+      imageOverride: options.imageOverride,
+      scanRefOverride: options.scanRefOverride,
       securityEvidenceDir: resolve(options.securityEvidenceDir)
     },
     scannerImages,

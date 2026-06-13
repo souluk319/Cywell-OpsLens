@@ -48,6 +48,14 @@ To include that Docker fallback lane inside the same release evidence refresh:
 npm run verify:release-refresh -- --security-scan-docker
 ```
 
+For external runtime remediation research, scan a candidate image into a separate evidence directory instead of overwriting the release evidence:
+
+```bash
+npm run evidence:security-scan -- --name qdrant --include-external --scan-ref docker.io/qdrant/qdrant:<candidate-tag> --image docker.io/qdrant/qdrant:<candidate-tag> --security-evidence-dir test-results/security-candidates/qdrant-<candidate-tag> --evidence-out test-results/cywell-opslens-security-scan-qdrant-<candidate-tag>.json --execute-docker-fallback
+```
+
+`--scan-ref` and `--image` are allowed only for a single selected target. The runner records the original image reference, writes candidate scan/SBOM/review-draft files under the supplied evidence directory, and leaves the Operator CSV/FBC/runtime manifests unchanged. A candidate only becomes release evidence after explicit product/security approval and the normal external runtime final evidence flow.
+
 ## Suggested Artifact Names
 
 - `operator-vulnerability.json`
