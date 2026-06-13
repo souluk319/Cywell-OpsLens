@@ -1844,6 +1844,7 @@ type OcpAuthRbacPlanArtifact = {
 type OcpConnectivityDiagnosticArtifact = {
   artifactType?: string;
   status?: string;
+  classification?: string;
   actionMode?: string;
   clusterMutationAttempted?: boolean;
   registryMutationAttempted?: boolean;
@@ -3132,7 +3133,8 @@ function getOcpConnectivityDiagnosticReadiness(): {
       readFileSync(evidencePath, "utf8")
     ) as OcpConnectivityDiagnosticArtifact;
     const status = mapOcpConnectivityReadinessStatus(artifact);
-    const classification = artifact.diagnostics?.classification ?? "unknown";
+    const classification =
+      artifact.classification ?? artifact.diagnostics?.classification ?? "unknown";
     const target = artifact.target ?? {};
     const diagnostics = {
       dns: artifact.diagnostics?.dns?.status ?? "unknown",

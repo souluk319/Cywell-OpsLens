@@ -1643,6 +1643,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /OCP connectivity classification/i
     );
+    expect(body.installReadiness?.evidence?.join(" ")).toContain(
+      `classification=${body.installReadiness?.connectivity?.classification}`
+    );
     expect(["ready", "partial", "needs-evidence", "failed"]).toContain(
       body.installReadiness?.operatorDryRun
     );

@@ -745,6 +745,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     startedAt,
     status,
+    classification,
     actionMode: "readOnly",
     clusterMutationAttempted: false,
     registryMutationAttempted: false,
