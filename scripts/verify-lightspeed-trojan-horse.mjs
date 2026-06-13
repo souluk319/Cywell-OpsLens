@@ -254,6 +254,7 @@ async function main() {
   let structured;
   let redactionProbe;
   let toolCatalog = [];
+  let playbookToolDescription = "";
 
   try {
     await waitForHealth(apiUrl, apiProcess);
@@ -279,6 +280,18 @@ async function main() {
       "MCP production endpoint tools/list",
       listed.response.ok && names.includes(scenario.expectedTool),
       "/mcp tools/list returns generate_playbook"
+    );
+    const playbookTool = toolCatalog.find(
+      (tool) => tool.name === scenario.expectedTool
+    );
+    playbookToolDescription = playbookTool?.description ?? "";
+    expectCheck(
+      "MCP Trojan Horse routing hint",
+      playbookToolDescription.includes(scenario.userQuestion) &&
+        playbookToolDescription.includes("missingEvidence") &&
+        playbookToolDescription.includes("rollbackPath"),
+      "generate_playbook description contains the exact Korean custom question plus evidence contract",
+      "generate_playbook description is missing the exact Trojan Horse routing hint"
     );
     expectCheck(
       "MCP mutating tool exclusion",
@@ -448,7 +461,9 @@ async function main() {
         (tool) =>
           tool.annotations?.readOnlyHint === true &&
           tool.annotations?.destructiveHint === false
-      )
+      ),
+      trojanHorseRoutingHint:
+        playbookToolDescription.includes(scenario.userQuestion)
     },
     primaryCall: {
       passed:

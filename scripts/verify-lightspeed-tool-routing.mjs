@@ -166,6 +166,31 @@ const routeFixtures = [
   }
 ];
 
+const toolDescriptionContracts = {
+  get_cluster_signal: ["Use when", "RBAC-visible", "missingEvidence"],
+  retrieve_customer_knowledge: [
+    "Use when",
+    "Cywell private RAG",
+    "redacted snippets",
+    "never return raw documents"
+  ],
+  generate_playbook: [
+    "Use for",
+    "우리 회사 결제 시스템 Pod 장애 대응 매뉴얼 알려줘",
+    "citations",
+    "rollbackPath",
+    "Read-only"
+  ],
+  open_console_deep_link: ["Use when", "OpenShift Console", "Build links only"],
+  run_preflight: ["Use for", "OLSConfig MCP registration", "patch preview"],
+  propose_remediation: [
+    "Use when",
+    "YAML",
+    "plan-only",
+    "never apply, delete, scale, patch, or mutate"
+  ]
+};
+
 function sanitize(value) {
   return String(value)
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
@@ -455,6 +480,18 @@ async function main() {
       ),
       "all listed tools are read-only and non-destructive"
     );
+    for (const [toolName, requiredTokens] of Object.entries(toolDescriptionContracts)) {
+      const tool = tools.find((candidate) => candidate.name === toolName);
+      const description = tool?.description ?? "";
+      expectCheck(
+        `MCP tool routing description ${toolName}`,
+        requiredTokens.every((token) => description.includes(token)),
+        `${toolName} description contains Lightspeed routing hints`,
+        `${toolName} description missing routing hints: ${requiredTokens
+          .filter((token) => !description.includes(token))
+          .join(", ")}`
+      );
+    }
 
     for (const fixture of routeFixtures) {
       const selectedTool = routeQuestionToTool(fixture.question);
@@ -583,6 +620,7 @@ async function main() {
     },
     cases: caseResults,
     checks,
+    toolDescriptionContracts,
     missingEvidence:
       status === "PASS"
         ? []

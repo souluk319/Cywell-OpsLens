@@ -309,7 +309,7 @@ export const opsLensMcpTools: OpsLensToolDefinition[] = [
     name: "get_cluster_signal",
     title: "Get cluster signal",
     description:
-      "Read-only summary of alerts, namespace health, workload status, events, and relevant console links.",
+      "Use when a Lightspeed user asks for read-only live cluster, namespace, workload, Pod, restart, readiness, event, RBAC-visible resource, or ClusterOperator signals. Return evidence and missingEvidence instead of guessing.",
     readOnly: true,
     approvalRequired: false,
     inputSchema: {
@@ -329,7 +329,7 @@ export const opsLensMcpTools: OpsLensToolDefinition[] = [
     name: "retrieve_customer_knowledge",
     title: "Retrieve customer knowledge",
     description:
-      "Search Cywell private RAG for approved customer runbooks without returning raw documents.",
+      "Use when a Lightspeed user asks for company/customer runbooks, internal policies, Secret checklists, or citation-only knowledge from Cywell private RAG. Return redacted snippets and citation ids only; never return raw documents.",
     readOnly: true,
     approvalRequired: false,
     inputSchema: {
@@ -356,7 +356,7 @@ export const opsLensMcpTools: OpsLensToolDefinition[] = [
     name: "generate_playbook",
     title: "Generate playbook",
     description:
-      "Generate a read-only incident playbook grounded in cluster evidence and approved customer runbooks.",
+      "Use for incident playbooks and the Trojan Horse custom question: '우리 회사 결제 시스템 Pod 장애 대응 매뉴얼 알려줘'. Combine cluster evidence with approved customer runbooks, citations, missingEvidence, risks, and rollbackPath. Read-only only.",
     readOnly: true,
     approvalRequired: false,
     inputSchema: {
@@ -377,7 +377,7 @@ export const opsLensMcpTools: OpsLensToolDefinition[] = [
     name: "open_console_deep_link",
     title: "Open console deep link",
     description:
-      "Build OpenShift console links for the namespace, workload, events, logs, and OpsLens dashboard.",
+      "Use when a Lightspeed user asks to open, navigate, or link to OpenShift Console pages for namespaces, workloads, pods, events, logs, or the OpsLens dashboard. Build links only; do not mutate resources.",
     readOnly: true,
     approvalRequired: false,
     inputSchema: {
@@ -396,7 +396,7 @@ export const opsLensMcpTools: OpsLensToolDefinition[] = [
     name: "run_preflight",
     title: "Run installation preflight",
     description:
-      "Read-only preflight checks for OpsLens MCP, private RAG, ConsolePlugin, and Operator packaging.",
+      "Use for read-only preflight, install readiness, OLSConfig MCP registration, patch preview, rollback path, private RAG, ConsolePlugin, Operator packaging, and certification readiness questions.",
     readOnly: true,
     approvalRequired: false,
     inputSchema: {
@@ -413,7 +413,7 @@ export const opsLensMcpTools: OpsLensToolDefinition[] = [
     name: "propose_remediation",
     title: "Propose remediation",
     description:
-      "Generate a plan-only remediation proposal. It does not apply, delete, scale, or mutate resources.",
+      "Use when a Lightspeed user asks for YAML, memory limit, config, or remediation code suggestions. Generate a plan-only proposal with evidence, risk, and rollbackPath; never apply, delete, scale, patch, or mutate resources.",
     readOnly: true,
     approvalRequired: false,
     inputSchema: {

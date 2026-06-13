@@ -275,6 +275,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       mcpTechnologyPreview?: boolean;
       tools?: Array<{
         name?: string;
+        description?: string;
         readOnly?: boolean;
         approvalRequired?: boolean;
       }>;
@@ -294,6 +295,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(toolNames).toContain(toolName);
     }
     expect(toolsBody.tools?.every((tool) => tool.readOnly === true)).toBe(true);
+    const playbookTool = toolsBody.tools?.find(
+      (tool) => tool.name === "generate_playbook"
+    );
+    expect(playbookTool?.description).toContain(
+      "우리 회사 결제 시스템 Pod 장애 대응 매뉴얼 알려줘"
+    );
+    expect(playbookTool?.description).toContain("missingEvidence");
     expect(
       toolsBody.tools?.some((tool) => tool.name === "apply_remediation")
     ).toBe(false);
@@ -406,6 +414,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       result?: {
         tools?: Array<{
           name?: string;
+          description?: string;
           annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
         }>;
       };
@@ -428,6 +437,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(listedTool?.annotations?.readOnlyHint).toBe(true);
       expect(listedTool?.annotations?.destructiveHint).toBe(false);
     }
+    expect(
+      mcpToolsBody.result?.tools?.find((tool) => tool.name === "run_preflight")
+        ?.description
+    ).toContain("OLSConfig MCP registration");
+    expect(
+      mcpToolsBody.result?.tools?.find(
+        (tool) => tool.name === "propose_remediation"
+      )?.description
+    ).toContain("never apply, delete, scale, patch, or mutate");
     expect(mcpToolNames).not.toContain("apply_remediation");
 
     const mcpCall = await request.post("/api/opslens/mcp", {
