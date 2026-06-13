@@ -1497,6 +1497,24 @@ export interface OpsLensReleaseActionQueueSummary {
     high: number;
     normal: number;
   }>;
+  ownerPackets: Array<{
+    owner: string;
+    status: "blocker" | "open" | "clear";
+    markdownPath: string;
+    open: number;
+    blocker: number;
+    high: number;
+    normal: number;
+    itemIds: string[];
+    nextCommands: string[];
+    setupCommandIds: string[];
+    readOnlyCommandIds: string[];
+    approvalGatedCommandIds: string[];
+    missingRequiredTools: string[];
+    blockedBy: string[];
+    acceptance: string[];
+    mutationAllowedByThisVerifier: boolean;
+  }>;
   items: Array<{
     id: string;
     owner: string;

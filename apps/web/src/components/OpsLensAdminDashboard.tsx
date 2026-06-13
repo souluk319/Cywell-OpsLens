@@ -1472,6 +1472,20 @@ export function OpsLensAdminDashboard() {
                   </div>
                 ))}
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-owner-packets"
+              >
+                {releaseActionQueue.ownerPackets.slice(0, 7).map((packet) => (
+                  <span key={packet.owner}>
+                    {packet.owner}:
+                    {packet.markdownPath.split(/[\\/]/).pop() ??
+                      packet.markdownPath}
+                    :open={packet.open}:approval=
+                    {packet.approvalGatedCommandIds.length}
+                  </span>
+                ))}
+              </div>
               <div className="admin-evidence-line">
                 {releaseActionQueue.items.slice(0, 4).map((entry) => (
                   <span key={entry.id}>

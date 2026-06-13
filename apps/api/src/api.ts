@@ -1729,6 +1729,24 @@ type ReleaseActionQueueArtifact = {
     high?: number;
     normal?: number;
   }>;
+  ownerPackets?: Array<{
+    owner?: string;
+    status?: string;
+    markdownPath?: string;
+    open?: number;
+    blocker?: number;
+    high?: number;
+    normal?: number;
+    itemIds?: string[];
+    nextCommands?: string[];
+    setupCommandIds?: string[];
+    readOnlyCommandIds?: string[];
+    approvalGatedCommandIds?: string[];
+    missingRequiredTools?: string[];
+    blockedBy?: string[];
+    acceptance?: string[];
+    mutationAllowedByThisVerifier?: boolean;
+  }>;
   items?: Array<{
     id?: string;
     owner?: string;
@@ -4572,6 +4590,7 @@ function missingReleaseActionQueueSummary(
     headSha: "missing",
     worktreeDirty: false,
     owners: [],
+    ownerPackets: [],
     items: [],
     sourceArtifacts: [],
     commandCounts: {
@@ -4596,6 +4615,13 @@ function normalizeActionQueuePriority(
     return priority;
   }
   return "normal";
+}
+
+function normalizeOwnerPacketStatus(status?: string): "blocker" | "open" | "clear" {
+  if (status === "blocker" || status === "open") {
+    return status;
+  }
+  return "clear";
 }
 
 function getReleaseActionQueueReadiness(): {
@@ -4630,6 +4656,25 @@ function getReleaseActionQueueReadiness(): {
       blocker: owner.blocker ?? 0,
       high: owner.high ?? 0,
       normal: owner.normal ?? 0
+    }));
+    const ownerPackets = (artifact.ownerPackets ?? []).map((packet) => ({
+      owner: packet.owner ?? "unknown",
+      status: normalizeOwnerPacketStatus(packet.status),
+      markdownPath: packet.markdownPath ?? "missing",
+      open: packet.open ?? 0,
+      blocker: packet.blocker ?? 0,
+      high: packet.high ?? 0,
+      normal: packet.normal ?? 0,
+      itemIds: packet.itemIds ?? [],
+      nextCommands: packet.nextCommands ?? [],
+      setupCommandIds: packet.setupCommandIds ?? [],
+      readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
+      approvalGatedCommandIds: packet.approvalGatedCommandIds ?? [],
+      missingRequiredTools: packet.missingRequiredTools ?? [],
+      blockedBy: packet.blockedBy ?? [],
+      acceptance: packet.acceptance ?? [],
+      mutationAllowedByThisVerifier:
+        packet.mutationAllowedByThisVerifier === true
     }));
     const items = (artifact.items ?? []).map((entry) => ({
       id: entry.id ?? "unknown",
@@ -4697,6 +4742,7 @@ function getReleaseActionQueueReadiness(): {
         headSha: artifact.ref?.headSha ?? "unknown",
         worktreeDirty: artifact.ref?.worktreeDirty === true,
         owners,
+        ownerPackets,
         items,
         sourceArtifacts,
         commandCounts,
@@ -4709,6 +4755,7 @@ function getReleaseActionQueueReadiness(): {
         `Release action queue ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `release action queue generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `release action queue markdown packet=${markdownPath}`,
+        `release action queue owner packets=${ownerPackets.length}`,
         `release action queue owners=${owners.length} items=${items.length}`,
         ownerSummary ? `release action queue owner summary=${ownerSummary}` : "release action queue owners are not listed",
         `release action queue command counts readOnly=${commandCounts.readOnly} approvalGated=${commandCounts.approvalGated}`,

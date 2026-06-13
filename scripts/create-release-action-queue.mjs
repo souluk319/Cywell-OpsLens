@@ -10,6 +10,7 @@ const execFileAsync = promisify(execFile);
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-release-action-queue.json",
   markdownOut: "test-results/cywell-opslens-release-action-queue.md",
+  ownerPacketsDir: "test-results/release-action-queue-owners",
   releaseBundleEvidence: "test-results/cywell-opslens-release-evidence-bundle.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   certificationReadiness:
@@ -44,6 +45,7 @@ const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
+  ownerPacketsDir: parsed.get("owner-packets-dir") ?? defaults.ownerPacketsDir,
   releaseBundleEvidence:
     parsed.get("release-bundle-evidence") ?? defaults.releaseBundleEvidence,
   evidenceCheckpoint: parsed.get("evidence-checkpoint") ?? defaults.evidenceCheckpoint,
@@ -200,6 +202,17 @@ function uniqueByKey(items, keyFn) {
     seen.add(key);
     return true;
   });
+}
+
+function uniqueStrings(values) {
+  return [...new Set(values.map(sanitize).filter(Boolean))];
+}
+
+function ownerSlug(owner) {
+  return sanitize(owner)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "unknown";
 }
 
 function fixedReadOnlyCommands() {
@@ -708,6 +721,43 @@ function ownerSummary(items) {
   });
 }
 
+function buildOwnerPackets(owners, items) {
+  return owners.map((owner) => {
+    const entries = items.filter((entry) => entry.owner === owner.owner);
+    return {
+      owner: owner.owner,
+      status: owner.blocker > 0 ? "blocker" : owner.open > 0 ? "open" : "clear",
+      markdownPath: resolve(options.ownerPacketsDir, `${ownerSlug(owner.owner)}.md`),
+      open: owner.open,
+      blocker: owner.blocker,
+      high: owner.high,
+      normal: owner.normal,
+      itemIds: entries.map((entry) => entry.id),
+      nextCommands: uniqueStrings(
+        entries.flatMap((entry) => [
+          entry.nextCommand,
+          ...entry.handoffNextCommands
+        ])
+      ),
+      setupCommandIds: uniqueStrings(
+        entries.flatMap((entry) => entry.setupCommands.map((command) => command.id))
+      ),
+      readOnlyCommandIds: uniqueStrings(
+        entries.flatMap((entry) => entry.readOnlyCommands.map((command) => command.id))
+      ),
+      approvalGatedCommandIds: uniqueStrings(
+        entries.flatMap((entry) => entry.approvalGatedCommands.map((command) => command.id))
+      ),
+      missingRequiredTools: uniqueStrings(
+        entries.flatMap((entry) => entry.missingRequiredTools)
+      ),
+      blockedBy: uniqueStrings(entries.flatMap((entry) => entry.blockedBy ?? [])),
+      acceptance: uniqueStrings(entries.flatMap((entry) => entry.acceptance ?? [])),
+      mutationAllowedByThisVerifier: false
+    };
+  });
+}
+
 function markdownFor(queue) {
   const lines = [
     "# Cywell OpsLens Release Action Queue",
@@ -726,6 +776,12 @@ function markdownFor(queue) {
     "",
     ...queue.owners.map((owner) =>
       `- ${owner.owner}: open=${owner.open}, blocker=${owner.blocker}, high=${owner.high}`
+    ),
+    "",
+    "## Owner Packets",
+    "",
+    ...queue.ownerPackets.map((packet) =>
+      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}`
     ),
     "",
     "## Open Actions",
@@ -780,6 +836,84 @@ function markdownFor(queue) {
   return lines.join("\n");
 }
 
+function ownerPacketMarkdown(queue, packet) {
+  const entries = queue.items.filter((entry) => entry.owner === packet.owner);
+  const approvalCommands = uniqueByKey(
+    entries.flatMap((entry) => entry.approvalGatedCommands),
+    (command) => `${command.id}:${command.command}`
+  );
+  const readOnlyHandoffCommands = uniqueByKey(
+    entries.flatMap((entry) => entry.readOnlyCommands),
+    (command) => `${command.id}:${command.command}`
+  );
+  const lines = [
+    `# Cywell OpsLens Action Packet: ${packet.owner}`,
+    "",
+    `Generated: ${queue.generatedAt}`,
+    `Git: ${queue.ref.branch} ${queue.ref.headSha} dirty=${queue.ref.worktreeDirty}`,
+    `Queue status: ${queue.status}`,
+    `Owner status: ${packet.status}`,
+    "",
+    "## Summary",
+    "",
+    `- Open: ${packet.open}`,
+    `- Blocker: ${packet.blocker}`,
+    `- High: ${packet.high}`,
+    `- Missing tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
+    `- Acceptance: ${packet.acceptance.join(", ") || "none"}`,
+    "",
+    "## Next Commands",
+    "",
+    ...(packet.nextCommands.length
+      ? packet.nextCommands.slice(0, 12).map((command) => `- ${command}`)
+      : ["- none"]),
+    "",
+    "## Approval-Gated Commands Not Run",
+    "",
+    ...(approvalCommands.length
+      ? approvalCommands.map((command) =>
+          `- ${command.id}: ${command.command} (requiresExplicitApproval=${String(command.requiresExplicitApproval)})`
+        )
+      : ["- none"]),
+    "",
+    "## Read-Only Handoff Commands",
+    "",
+    ...(readOnlyHandoffCommands.length
+      ? readOnlyHandoffCommands.slice(0, 20).map((command) =>
+          `- ${command.id}: ${command.command}`
+        )
+      : ["- none"]),
+    "",
+    "## Actions",
+    ""
+  ];
+
+  for (const entry of entries) {
+    lines.push(
+      `### ${entry.id}`,
+      "",
+      `- Priority: ${entry.priority}`,
+      `- Source: ${entry.source}`,
+      `- Request: ${entry.request}`,
+      `- Evidence needed: ${entry.evidenceNeeded}`,
+      `- Next command: ${entry.nextCommand}`,
+      `- Blocked by: ${entry.blockedBy.length ? entry.blockedBy.join("; ") : "none"}`,
+      ""
+    );
+  }
+
+  lines.push(
+    "## Mutation Boundary",
+    "",
+    "- This packet is a handoff artifact only.",
+    "- It does not apply, delete, patch, scale, push, mirror, copy, sign, approve, promote, or create tokens.",
+    "- Approval-gated commands remain not-run until the named owner approves and executes them outside this verifier.",
+    ""
+  );
+
+  return lines.join("\n");
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -812,6 +946,8 @@ async function main() {
   ];
 
   const items = buildItems(artifacts);
+  const owners = ownerSummary(items);
+  const ownerPackets = buildOwnerPackets(owners, items);
   const readOnly = readOnlyCommands(artifacts);
   const approvalGated = approvalGatedCommands(artifacts);
   const unsafeReadOnly = readOnly
@@ -831,7 +967,7 @@ async function main() {
     pass("release action queue approval boundary", `${approvalGated.length} approval-gated command(s) remain not-run`);
   }
   if (items.length > 0) {
-    pass("release action queue items", `${items.length} open item(s) grouped across ${ownerSummary(items).length} owner(s)`);
+    pass("release action queue items", `${items.length} open item(s) grouped across ${owners.length} owner(s)`);
   } else {
     warn("release action queue items", "no open items were generated");
   }
@@ -884,7 +1020,9 @@ async function main() {
       "AC-LIVE-HANDOFF-001"
     ],
     sourceArtifacts,
-    owners: ownerSummary(items),
+    owners,
+    ownerPackets,
+    ownerPacketsDir: resolve(options.ownerPacketsDir),
     items,
     readOnlyCommands: readOnly,
     approvalGatedCommands: approvalGated,
@@ -910,15 +1048,27 @@ async function main() {
 
   const serialized = `${JSON.stringify(queue, null, 2)}\n`;
   const markdown = markdownFor(queue);
-  if (secretLike(serialized) || secretLike(markdown)) {
+  const ownerPacketMarkdowns = queue.ownerPackets.map((packet) => ({
+    path: packet.markdownPath,
+    markdown: ownerPacketMarkdown(queue, packet)
+  }));
+  if (
+    secretLike(serialized) ||
+    secretLike(markdown) ||
+    ownerPacketMarkdowns.some((packet) => secretLike(packet.markdown))
+  ) {
     throw new Error("release action queue would include secret-like material");
   }
 
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
   await mkdir(dirname(resolve(options.markdownOut)), { recursive: true });
+  await mkdir(resolve(options.ownerPacketsDir), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");
   await writeFile(resolve(options.markdownOut), markdown, "utf8");
-  pass("release action queue export", `${resolve(options.evidenceOut)} and ${resolve(options.markdownOut)} written without secret material`);
+  for (const packet of ownerPacketMarkdowns) {
+    await writeFile(packet.path, packet.markdown, "utf8");
+  }
+  pass("release action queue export", `${resolve(options.evidenceOut)}, ${resolve(options.markdownOut)}, and ${ownerPacketMarkdowns.length} owner packet(s) written without secret material`);
 
   console.log("");
   for (const check of checks) {

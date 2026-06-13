@@ -1280,6 +1280,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             blocker?: number;
             high?: number;
           }>;
+          ownerPackets?: Array<{
+            owner?: string;
+            status?: string;
+            markdownPath?: string;
+            open?: number;
+            blocker?: number;
+            high?: number;
+            itemIds?: string[];
+            nextCommands?: string[];
+            readOnlyCommandIds?: string[];
+            approvalGatedCommandIds?: string[];
+            missingRequiredTools?: string[];
+            mutationAllowedByThisVerifier?: boolean;
+          }>;
           items?: Array<{
             id?: string;
             owner?: string;
@@ -2138,6 +2152,28 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         ["network-sre", "cluster-admin", "cluster-sre"].includes(owner)
       )
     ).toBe(true);
+    const clusterAdminOwnerPacket =
+      body.installReadiness?.actionQueue?.ownerPackets?.find(
+        (packet) => packet.owner === "cluster-admin"
+      );
+    expect(clusterAdminOwnerPacket?.markdownPath).toContain("cluster-admin.md");
+    expect(clusterAdminOwnerPacket?.nextCommands?.join(" ")).toContain(
+      "evidence:ocp-auth-rbac-plan"
+    );
+    expect(clusterAdminOwnerPacket?.approvalGatedCommandIds).toEqual(
+      expect.arrayContaining([
+        "apply-live-evidence-reader-rbac",
+        "create-short-lived-live-reader-token"
+      ])
+    );
+    expect(clusterAdminOwnerPacket?.mutationAllowedByThisVerifier).toBe(false);
+    const releaseManagerOwnerPacket =
+      body.installReadiness?.actionQueue?.ownerPackets?.find(
+        (packet) => packet.owner === "release-manager"
+      );
+    expect(releaseManagerOwnerPacket?.markdownPath).toContain(
+      "release-manager.md"
+    );
     expect(
       body.installReadiness?.actionQueue?.items?.some((item) =>
         item.nextCommand?.startsWith("npm run")
@@ -2855,6 +2891,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
       /network-sre|cluster-admin|cluster-sre|release-manager/
     );
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packets")
+    ).toContainText("cluster-admin.md");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packets")
+    ).toContainText("release-manager.md");
     await expect(
       page.getByTestId("opslens-release-action-queue-items")
     ).toContainText("npm run evidence:ocp-auth-rbac-plan");
