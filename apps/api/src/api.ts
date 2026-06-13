@@ -43,6 +43,8 @@ import type {
   OpsLensMcpToolSurfaceItem,
   OpsLensOcpConnectivityDiagnosticSummary,
   OpsLensOcpConnectivityReadiness,
+  OpsLensOcpNetworkHandoffReadiness,
+  OpsLensOcpNetworkHandoffSummary,
   OpsLensOperatorDryRunReadiness,
   OpsLensOwnedImageProvenanceReadiness,
   OpsLensOwnedImageProvenanceSummary,
@@ -1523,6 +1525,48 @@ type LiveEvidenceHandoffArtifact = {
   rollbackPath?: string[];
 };
 
+type OcpNetworkHandoffArtifact = {
+  artifactType?: string;
+  status?: string;
+  actionMode?: string;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  target?: {
+    host?: string;
+    port?: number | string;
+    redactedBaseUrl?: string;
+    tokenConfigured?: boolean;
+    tlsVerify?: boolean;
+  };
+  diagnostics?: {
+    classification?: string;
+  };
+  adminRequests?: string[];
+  readOnlyCommands?: Array<{
+    id?: string;
+    command?: string;
+    purpose?: string;
+    phase?: string;
+    requiresNetwork?: boolean;
+    mutation?: boolean;
+    writesEvidence?: boolean;
+  }>;
+  sourceArtifacts?: Array<{
+    id?: string;
+    label?: string;
+    status?: string;
+    fresh?: boolean;
+    required?: boolean;
+    headSha?: string;
+    worktreeDirty?: boolean | string;
+  }>;
+  markdownOut?: string;
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type OcpConnectivityDiagnosticArtifact = {
   artifactType?: string;
   status?: string;
@@ -1657,6 +1701,13 @@ function liveEvidenceHandoffPath() {
   return (
     process.env.CYWELL_OPSLENS_LIVE_EVIDENCE_HANDOFF ??
     join(repoRoot, "test-results", "cywell-opslens-live-evidence-handoff.json")
+  );
+}
+
+function ocpNetworkHandoffPath() {
+  return (
+    process.env.CYWELL_OPSLENS_OCP_NETWORK_HANDOFF ??
+    join(repoRoot, "test-results", "cywell-opslens-ocp-network-handoff.json")
   );
 }
 
@@ -3360,6 +3411,16 @@ function mapLiveEvidenceHandoffStatus(
   return "needs-evidence";
 }
 
+function mapOcpNetworkHandoffStatus(
+  artifact: OcpNetworkHandoffArtifact
+): OpsLensOcpNetworkHandoffReadiness {
+  if (artifact.status === "READY_FOR_LIVE_RECHECK" || artifact.status === "PASS") {
+    return "ready";
+  }
+  if (artifact.status === "BLOCKED") return "blocked";
+  return "needs-evidence";
+}
+
 function missingLiveEvidenceHandoffSummary(
   reason: string,
   status: OpsLensLiveEvidenceHandoffReadiness = "needs-evidence"
@@ -3398,6 +3459,51 @@ function missingLiveEvidenceHandoffSummary(
     ],
     rollbackPath: [
       "Run npm run verify:live-handoff after refreshing OCP and install evidence."
+    ]
+  };
+}
+
+function missingOcpNetworkHandoffSummary(
+  reason: string,
+  status: OpsLensOcpNetworkHandoffReadiness = "needs-evidence"
+): OpsLensOcpNetworkHandoffSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "handoffOnly",
+    classification: "missing",
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    target: {
+      host: "missing",
+      port: "missing",
+      redactedBaseUrl: "missing",
+      tokenConfigured: false,
+      tlsVerify: false
+    },
+    markdownPath: "missing",
+    adminRequests: [
+      "Generate the OCP network handoff before opening a network or SRE review ticket."
+    ],
+    readOnlyCommands: [
+      {
+        id: "generate-ocp-network-handoff",
+        command: "npm run evidence:ocp-network-handoff",
+        purpose: "Generate the non-mutating OCP network handoff packet.",
+        phase: "local-contract",
+        requiresNetwork: false,
+        mutation: false,
+        writesEvidence: true
+      }
+    ],
+    sourceArtifacts: [],
+    missingEvidence: [reason],
+    risk: [
+      "Without a network handoff packet, tcp-timeout and route/firewall evidence can be lost between operators."
+    ],
+    rollbackPath: [
+      "Run npm run evidence:ocp-network-handoff after refreshing OCP connectivity evidence."
     ]
   };
 }
@@ -3497,6 +3603,104 @@ function getLiveEvidenceHandoffReadiness(): {
         `Live evidence handoff could not be parsed from ${evidencePath}`,
         error instanceof Error ? error.message : "unknown evidence parse error",
         "invalid live handoff evidence blocks overclaiming live readiness"
+      ]
+    };
+  }
+}
+
+function getOcpNetworkHandoffReadiness(): {
+  status: OpsLensOcpNetworkHandoffReadiness;
+  evidence: string[];
+  networkHandoff: OpsLensOcpNetworkHandoffSummary;
+} {
+  const evidencePath = ocpNetworkHandoffPath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      networkHandoff: missingOcpNetworkHandoffSummary(
+        `OCP network handoff is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run evidence:ocp-network-handoff to create the network/SRE handoff packet",
+        "dashboard keeps OCP network handoff as needs-evidence until the artifact exists",
+        "network handoff evidence lists read-only commands only and performs no cluster or registry mutation"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as OcpNetworkHandoffArtifact;
+    const status = mapOcpNetworkHandoffStatus(artifact);
+    const target = artifact.target ?? {};
+    const readOnlyCommands = (artifact.readOnlyCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      purpose: command.purpose ?? "unknown",
+      phase: command.phase ?? "unknown",
+      requiresNetwork: command.requiresNetwork === true,
+      mutation: command.mutation === true,
+      writesEvidence: command.writesEvidence === true
+    }));
+    const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
+      id: source.id ?? "unknown",
+      label: source.label ?? "unknown",
+      status: source.status ?? "unknown",
+      fresh: source.fresh === true,
+      required: source.required === true,
+      headSha: source.headSha ?? "unknown",
+      worktreeDirty: source.worktreeDirty ?? "unknown"
+    }));
+
+    return {
+      status,
+      networkHandoff: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "handoffOnly",
+        classification: artifact.diagnostics?.classification ?? "unknown",
+        clusterMutationAttempted:
+          artifact.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          artifact.registryMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        target: {
+          host: target.host ?? "unknown",
+          port: target.port ?? "unknown",
+          redactedBaseUrl: target.redactedBaseUrl ?? "unknown",
+          tokenConfigured: target.tokenConfigured === true,
+          tlsVerify: target.tlsVerify === true
+        },
+        markdownPath: artifact.markdownOut ?? "unknown",
+        adminRequests: artifact.adminRequests ?? [],
+        readOnlyCommands,
+        sourceArtifacts,
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `OCP network handoff ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `network classification=${artifact.diagnostics?.classification ?? "unknown"} commands=${readOnlyCommands.length}`,
+        `network handoff markdown=${artifact.markdownOut ?? "unknown"}`,
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads OCP network handoff evidence only; it does not run live checks or mutating commands"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "blocked",
+      networkHandoff: missingOcpNetworkHandoffSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "blocked"
+      ),
+      evidence: [
+        `OCP network handoff could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid OCP network handoff evidence blocks overclaiming network readiness"
       ]
     };
   }
@@ -3630,10 +3834,12 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const releaseEvidenceRefreshReadiness = getReleaseEvidenceRefreshReadiness();
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
   const liveHandoffReadiness = getLiveEvidenceHandoffReadiness();
+  const ocpNetworkHandoffReadiness = getOcpNetworkHandoffReadiness();
   const installReadinessEvidence = [
     releaseEvidenceRefreshReadiness.evidence[0],
     evidenceCheckpointReadiness.evidence[0],
     liveHandoffReadiness.evidence[0],
+    ocpNetworkHandoffReadiness.evidence[0],
     ocpConnectivityReadiness.evidence[0],
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
@@ -3656,6 +3862,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...releasePublishReadiness.evidence.slice(1),
     ...releaseEvidenceRefreshReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
+    ...ocpNetworkHandoffReadiness.evidence.slice(1),
     ...evidenceCheckpointReadiness.evidence.slice(1)
   ].filter((item): item is string => Boolean(item));
 
@@ -3817,6 +4024,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       checkpoint: evidenceCheckpointReadiness.checkpoint,
       liveHandoff: liveHandoffReadiness.status,
       handoff: liveHandoffReadiness.handoff,
+      ocpNetworkHandoff: ocpNetworkHandoffReadiness.status,
+      networkHandoff: ocpNetworkHandoffReadiness.networkHandoff,
       certification: "draft",
       evidence: [
         ...installReadinessEvidence,
@@ -3826,6 +4035,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 4 Operator package skeleton is validated by npm run verify:operator",
         "Stage 4 live API preflight is validated by npm run verify:operator:dry-run",
         "Live OCP connectivity is classified by npm run verify:ocp:connectivity",
+        "Stage 4 OCP network/SRE handoff is generated by npm run evidence:ocp-network-handoff",
         "Stage 4 mutating install approval plan is generated by npm run verify:install-plan",
         "Stage 4 live evidence handoff is generated by npm run verify:live-handoff",
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",

@@ -19,6 +19,7 @@ const defaults = {
   releasePlan: "test-results/cywell-opslens-release-publish-plan.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
+  ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   timeoutMs: 10000
@@ -57,6 +58,8 @@ const options = {
   releasePlan: parsed.get("release-plan-evidence") ?? defaults.releasePlan,
   installPlan: parsed.get("install-plan-evidence") ?? defaults.installPlan,
   liveHandoff: parsed.get("live-handoff-evidence") ?? defaults.liveHandoff,
+  ocpNetworkHandoff:
+    parsed.get("ocp-network-handoff-evidence") ?? defaults.ocpNetworkHandoff,
   evidenceCheckpoint:
     parsed.get("evidence-checkpoint") ?? defaults.evidenceCheckpoint,
   roadmapPlan: parsed.get("roadmap-plan-evidence") ?? defaults.roadmapPlan,
@@ -212,6 +215,13 @@ function commandSummary(artifacts) {
     mutation: command.mutation === true,
     requiresExplicitApproval: false
   }));
+  const networkHandoffCommands = (artifacts.ocpNetworkHandoff?.readOnlyCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "unknown",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: false
+  }));
   const catalogCommands = [
     ...(artifacts.catalogToolchain?.commands?.readOnly ?? []),
     ...(artifacts.catalogToolchain?.commands?.localArtifact ?? [])
@@ -240,7 +250,7 @@ function commandSummary(artifacts) {
       writesLocalEvidence: command.writesLocalEvidence === true
     }));
   return {
-    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...catalogCommands, ...securityCommands, ...securityRunnerCommands]
+    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...networkHandoffCommands, ...catalogCommands, ...securityCommands, ...securityRunnerCommands]
       .filter((command) => command.mutation === false),
     mutatingApprovalRequired: [...releaseCommands, ...installCommands]
       .filter((command) => command.mutation === true),
@@ -316,7 +326,10 @@ function mutationBoundary(artifacts) {
     ["securityScanRunner.clusterMutationAttempted", artifacts.securityScanRunner?.clusterMutationAttempted],
     ["securityScanRunner.mutationAllowedByThisVerifier", artifacts.securityScanRunner?.mutationAllowedByThisVerifier],
     ["liveHandoff.clusterMutationAttempted", artifacts.liveHandoff?.clusterMutationAttempted],
-    ["liveHandoff.registryMutationAttempted", artifacts.liveHandoff?.registryMutationAttempted]
+    ["liveHandoff.registryMutationAttempted", artifacts.liveHandoff?.registryMutationAttempted],
+    ["ocpNetworkHandoff.clusterMutationAttempted", artifacts.ocpNetworkHandoff?.clusterMutationAttempted],
+    ["ocpNetworkHandoff.registryMutationAttempted", artifacts.ocpNetworkHandoff?.registryMutationAttempted],
+    ["ocpNetworkHandoff.mutationAllowedByThisVerifier", artifacts.ocpNetworkHandoff?.mutationAllowedByThisVerifier]
   ];
   return {
     passed: flags.every(([, value]) => value !== true),
@@ -355,7 +368,8 @@ function evidenceGaps(artifacts, sources) {
     ...(artifacts.externalRuntime?.missingEvidence ?? []),
     ...(artifacts.securityScan?.missingEvidence ?? []),
     ...(artifacts.securityScanRunner?.missingEvidence ?? []),
-    ...(artifacts.liveHandoff?.missingEvidence ?? [])
+    ...(artifacts.liveHandoff?.missingEvidence ?? []),
+    ...(artifacts.ocpNetworkHandoff?.missingEvidence ?? [])
   ]);
 }
 
@@ -382,6 +396,7 @@ async function main() {
     releasePlan: loadJson(options.releasePlan, "release publish plan"),
     installPlan: loadJson(options.installPlan, "install approval plan"),
     liveHandoff: loadJson(options.liveHandoff, "live evidence handoff"),
+    ocpNetworkHandoff: loadJson(options.ocpNetworkHandoff, "OCP network handoff"),
     evidenceCheckpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint"),
     roadmapPlan: loadJson(options.roadmapPlan, "roadmap plan alignment")
   };
@@ -397,6 +412,7 @@ async function main() {
     sourceSummary("releasePlan", "release publish plan", options.releasePlan, artifacts.releasePlan, headSha, ["PUBLISH_APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("installPlan", "install approval plan", options.installPlan, artifacts.installPlan, headSha, ["APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("liveHandoff", "live evidence handoff", options.liveHandoff, artifacts.liveHandoff, headSha, ["PASS"]),
+    sourceSummary("ocpNetworkHandoff", "OCP network handoff", options.ocpNetworkHandoff, artifacts.ocpNetworkHandoff, headSha, ["READY_FOR_NETWORK_REVIEW", "READY_FOR_LIVE_RECHECK", "PASS"]),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.evidenceCheckpoint, headSha, ["PASS", "NEEDS_EVIDENCE"]),
     sourceSummary("roadmapPlan", "roadmap plan alignment", options.roadmapPlan, artifacts.roadmapPlan, headSha, ["PASS", "NEEDS_EVIDENCE"])
   ];
@@ -409,7 +425,11 @@ async function main() {
   }
 
   const commands = commandSummary(artifacts);
-  const unsafeCommands = commands.readOnly.filter((command) => command.mutation);
+  const mutatingCommandPattern =
+    /\b(oc|kubectl)\s+(apply|create|delete|patch|replace|scale|rollout|adm)|\b(docker|podman|skopeo)\s+(push|copy)|\b(cosign)\s+sign|\b(operator-sdk|opm)\s+.*\b(push|publish)\b/i;
+  const unsafeCommands = commands.readOnly.filter(
+    (command) => command.mutation || mutatingCommandPattern.test(command.command)
+  );
   if (unsafeCommands.length > 0) {
     fail("bundle command boundary", `read-only command list contains mutation commands: ${unsafeCommands.map((command) => command.id).join(", ")}`);
   } else {
@@ -533,6 +553,33 @@ async function main() {
       missingEvidence: artifacts.securityScanRunner?.missingEvidence ?? [],
       results: artifacts.securityScanRunner?.results ?? []
     },
+    ocpNetworkHandoff: {
+      status: artifacts.ocpNetworkHandoff?.status ?? "missing",
+      actionMode: artifacts.ocpNetworkHandoff?.actionMode ?? "missing",
+      classification:
+        artifacts.ocpNetworkHandoff?.diagnostics?.classification ?? "missing",
+      target: {
+        host: artifacts.ocpNetworkHandoff?.target?.host ?? "missing",
+        port: artifacts.ocpNetworkHandoff?.target?.port ?? "missing",
+        redactedBaseUrl:
+          artifacts.ocpNetworkHandoff?.target?.redactedBaseUrl ?? "missing"
+      },
+      markdownOut: artifacts.ocpNetworkHandoff?.markdownOut ?? "missing",
+      adminRequests: artifacts.ocpNetworkHandoff?.adminRequests ?? [],
+      readOnlyCommands: (artifacts.ocpNetworkHandoff?.readOnlyCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        phase: command.phase ?? "unknown",
+        requiresNetwork: command.requiresNetwork === true,
+        mutation: command.mutation === true
+      })),
+      sourceArtifacts: (artifacts.ocpNetworkHandoff?.sourceArtifacts ?? []).map((source) => ({
+        id: source.id ?? "unknown",
+        status: source.status ?? "unknown",
+        fresh: source.fresh === true,
+        required: source.required === true
+      })),
+      missingEvidence: artifacts.ocpNetworkHandoff?.missingEvidence ?? []
+    },
     commands,
     mutationBoundary: mutations,
     missingEvidence,
@@ -547,6 +594,7 @@ async function main() {
       ...(artifacts.securityScan?.risk ?? []),
       ...(artifacts.securityScanRunner?.risk ?? []),
       ...(artifacts.liveHandoff?.risk ?? []),
+      ...(artifacts.ocpNetworkHandoff?.risk ?? []),
       "This bundle is a read-only release packet. It does not publish images, install Operators, patch OLSConfig, or approve RAG ingestion."
     ]),
     rollbackPath: unique([
@@ -555,6 +603,7 @@ async function main() {
       ...(artifacts.securityScan?.rollbackPath ?? []),
       ...(artifacts.securityScanRunner?.rollbackPath ?? []),
       ...(artifacts.liveHandoff?.rollbackPath ?? []),
+      ...(artifacts.ocpNetworkHandoff?.rollbackPath ?? []),
       "Regenerate this bundle after any source evidence artifact changes."
     ]),
     evidence: [

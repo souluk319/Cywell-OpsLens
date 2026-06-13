@@ -184,6 +184,7 @@ export function OpsLensAdminDashboard() {
   const releaseRefresh = overview?.installReadiness.refresh;
   const checkpoint = overview?.installReadiness.checkpoint;
   const liveHandoff = overview?.installReadiness.handoff;
+  const networkHandoff = overview?.installReadiness.networkHandoff;
   const ocpConnectivity = overview?.installReadiness.connectivity;
   const lightspeedMcp = overview?.lightspeed.mcp;
   const validationFailed = validation?.issues.some(
@@ -892,6 +893,8 @@ export function OpsLensAdminDashboard() {
                   "Evidence Checkpoint":
                     overview.installReadiness.evidenceCheckpoint,
                   "Live Handoff": overview.installReadiness.liveHandoff,
+                  "Network Handoff":
+                    overview.installReadiness.ocpNetworkHandoff,
                   Certification: overview.installReadiness.certification
                 }).map(([label, value]) => (
                   <div key={label}>
@@ -989,6 +992,76 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {ocpConnectivity.rollbackPath[0] ??
                     "Refresh OCP connectivity evidence before live install checks."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {networkHandoff ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-ocp-network-handoff"
+            >
+              <div className="admin-evidence-line">
+                <span>{networkHandoff.artifactStatus}</span>
+                <span>{networkHandoff.actionMode}</span>
+                <span>classification={networkHandoff.classification}</span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(networkHandoff.clusterMutationAttempted)}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(networkHandoff.registryMutationAttempted)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Target</span>
+                  <strong>
+                    {networkHandoff.target.host}:{networkHandoff.target.port}
+                  </strong>
+                </div>
+                <div>
+                  <span>Packet</span>
+                  <strong>
+                    {networkHandoff.markdownPath.split(/[\\/]/).pop() ??
+                      networkHandoff.markdownPath}
+                  </strong>
+                </div>
+                <div>
+                  <span>Admin Ask</span>
+                  <strong>
+                    {networkHandoff.adminRequests.length
+                      ? networkHandoff.adminRequests.slice(0, 2).join(" ")
+                      : "generate handoff packet"}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-ocp-network-handoff-commands"
+              >
+                {networkHandoff.readOnlyCommands.slice(0, 4).map((command) => (
+                  <span key={command.id}>
+                    {command.id} mutation={String(command.mutation)}
+                  </span>
+                ))}
+              </div>
+              <div className="admin-evidence-line">
+                {networkHandoff.sourceArtifacts.slice(0, 3).map((source) => (
+                  <span key={source.id}>
+                    {source.id} fresh={String(source.fresh)}
+                  </span>
+                ))}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {networkHandoff.risk[0] ??
+                    "Network handoff is a ticket packet only and does not approve mutation."}
+                </p>
+                <p>
+                  {networkHandoff.rollbackPath[0] ??
+                    "Regenerate the handoff after OCP network evidence changes."}
                 </p>
               </div>
             </div>

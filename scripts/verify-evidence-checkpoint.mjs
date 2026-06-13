@@ -32,7 +32,8 @@ const evidenceDefaults = {
   securityScanRunner: "test-results/cywell-opslens-security-scan-evidence-runner.json",
   releasePublish: "test-results/cywell-opslens-release-publish-plan.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
-  liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json"
+  liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
+  ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json"
 };
 
 function parseArgs(argv) {
@@ -593,6 +594,43 @@ function checkOcpConnectivityDiagnostic(connectivityArtifact) {
   );
 }
 
+function checkOcpNetworkHandoff(networkHandoffArtifact) {
+  if (!networkHandoffArtifact) return;
+  const commands = networkHandoffArtifact.readOnlyCommands ?? [];
+  const mutatingPattern =
+    /\b(oc|kubectl)\s+(apply|create|delete|patch|replace|scale|rollout|adm)|\b(docker|podman|skopeo)\s+(push|copy)|\b(cosign)\s+sign|\b(operator-sdk|opm)\s+.*\b(push|publish)\b/i;
+  const violations = [];
+
+  if (networkHandoffArtifact.actionMode !== "handoffOnly") {
+    violations.push(`actionMode=${networkHandoffArtifact.actionMode ?? "missing"}`);
+  }
+  if (artifactClusterMutationAttempted(networkHandoffArtifact)) {
+    violations.push("clusterMutationAttempted");
+  }
+  if (artifactRegistryMutationAttempted(networkHandoffArtifact)) {
+    violations.push("registryMutationAttempted");
+  }
+  if (artifactMutationAllowedByVerifier(networkHandoffArtifact)) {
+    violations.push("mutationAllowedByThisVerifier");
+  }
+  const unsafeCommands = commands
+    .filter((command) => command.mutation === true || mutatingPattern.test(command.command ?? ""))
+    .map((command) => command.id ?? "unknown");
+  if (unsafeCommands.length > 0) {
+    violations.push(`unsafeCommands=${unsafeCommands.join(",")}`);
+  }
+
+  if (violations.length > 0) {
+    fail("OCP network handoff boundary", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "OCP network handoff boundary",
+    `status=${networkHandoffArtifact.status ?? "missing"} classification=${networkHandoffArtifact.diagnostics?.classification ?? "unknown"} commands=${commands.length}`
+  );
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -753,6 +791,13 @@ async function main() {
     desiredStatuses: ["PASS"],
     currentHeadSha: headSha
   });
+  laneResult({
+    id: "ocpNetworkHandoff",
+    label: "OCP network handoff",
+    artifact: artifacts.ocpNetworkHandoff,
+    desiredStatuses: ["READY_FOR_NETWORK_REVIEW", "READY_FOR_LIVE_RECHECK", "PASS"],
+    currentHeadSha: headSha
+  });
 
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
   checkLightspeedTrojanHorse(artifacts.lightspeedTrojanHorse);
@@ -761,6 +806,7 @@ async function main() {
   checkImageActualBuilds(artifacts.imageBuild);
   checkOwnedImageProvenance(artifacts.ownedImageProvenance);
   checkOcpConnectivityDiagnostic(artifacts.ocpConnectivity);
+  checkOcpNetworkHandoff(artifacts.ocpNetworkHandoff);
   checkPatchPreview(artifacts.lightspeedPatchPreview);
   checkSecurityScanRunnerPolicy(artifacts.securityScanRunner);
 

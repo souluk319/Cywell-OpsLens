@@ -260,6 +260,7 @@ async function main() {
       laneRequirement(checkpoint, "ocpConnectivity", "Live OCP connectivity diagnostic", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "lightspeedReadiness", "Live Lightspeed/OCP readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "liveHandoff", "Read-only live evidence handoff"),
+      laneRequirement(checkpoint, "ocpNetworkHandoff", "Network/SRE handoff packet"),
       mvpRequirement(mvpGate, "LIGHTSPEED-ROUTING", "MVP Lightspeed routing verifier"),
       mvpRequirement(mvpGate, "LIGHTSPEED-TROJAN-HORSE", "MVP exact Trojan Horse verifier")
     ]),
@@ -295,6 +296,7 @@ async function main() {
       laneRequirement(checkpoint, "operatorDryRun", "Live Operator server dry-run", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "installPlan", "Human install approval plan", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "liveHandoff", "SRE-safe live evidence handoff"),
+      laneRequirement(checkpoint, "ocpNetworkHandoff", "Network/SRE handoff packet"),
       imageActualBuildRequirement(imageBuild)
     ]),
     stage("stage-5-redhat-gtm", "Red Hat certification and catalog GTM", [

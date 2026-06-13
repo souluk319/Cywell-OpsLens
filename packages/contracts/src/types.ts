@@ -1039,6 +1039,11 @@ export type OpsLensLiveEvidenceHandoffReadiness =
   | "needs-evidence"
   | "blocked";
 
+export type OpsLensOcpNetworkHandoffReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "blocked";
+
 export interface OpsLensEvidenceCheckpointSummary {
   status: OpsLensEvidenceCheckpointReadiness;
   artifactStatus: string;
@@ -1080,6 +1085,46 @@ export interface OpsLensLiveEvidenceHandoffSummary {
     nextCheck: string;
   }>;
   forbiddenCommands: string[];
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensOcpNetworkHandoffSummary {
+  status: OpsLensOcpNetworkHandoffReadiness;
+  artifactStatus: string;
+  actionMode: "handoffOnly";
+  classification: string;
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  target: {
+    host: string;
+    port: number | string;
+    redactedBaseUrl: string;
+    tokenConfigured: boolean;
+    tlsVerify: boolean;
+  };
+  markdownPath: string;
+  adminRequests: string[];
+  readOnlyCommands: Array<{
+    id: string;
+    command: string;
+    purpose: string;
+    phase: string;
+    requiresNetwork: boolean;
+    mutation: boolean;
+    writesEvidence: boolean;
+  }>;
+  sourceArtifacts: Array<{
+    id: string;
+    label: string;
+    status: string;
+    fresh: boolean;
+    required: boolean;
+    headSha: string;
+    worktreeDirty: boolean | string;
+  }>;
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
@@ -1410,6 +1455,8 @@ export interface OpsLensAdminOverviewResponse {
     checkpoint: OpsLensEvidenceCheckpointSummary;
     liveHandoff: OpsLensLiveEvidenceHandoffReadiness;
     handoff: OpsLensLiveEvidenceHandoffSummary;
+    ocpNetworkHandoff: OpsLensOcpNetworkHandoffReadiness;
+    networkHandoff: OpsLensOcpNetworkHandoffSummary;
     certification: "not-started" | "draft" | "ready";
     evidence: string[];
   };

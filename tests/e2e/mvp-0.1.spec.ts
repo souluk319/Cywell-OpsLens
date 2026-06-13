@@ -2029,6 +2029,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Live Handoff"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Network Handoff"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Operator Dry-run"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
@@ -2055,6 +2058,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-live-handoff")).toContainText(
       "registryMutationAttempted=false"
     );
+    await expect(page.getByTestId("opslens-ocp-network-handoff")).toContainText(
+      "handoffOnly"
+    );
+    await expect(page.getByTestId("opslens-ocp-network-handoff")).toContainText(
+      /classification=/
+    );
+    await expect(page.getByTestId("opslens-ocp-network-handoff")).toContainText(
+      "clusterMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-ocp-network-handoff")).toContainText(
+      "registryMutationAttempted=false"
+    );
+    await expect(
+      page.getByTestId("opslens-ocp-network-handoff-commands")
+    ).toContainText("mutation=false");
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Install Plan"
     );
