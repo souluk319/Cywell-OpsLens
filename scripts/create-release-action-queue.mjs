@@ -601,6 +601,7 @@ function networkItems(networkHandoff) {
   }
   const classification = ocpClassification(networkHandoff);
   const owner = networkHandoffOwner(classification);
+  const handoffCommands = networkHandoff.readOnlyCommands ?? [];
   return [
     item({
       id: networkHandoffId(classification),
@@ -611,6 +612,10 @@ function networkItems(networkHandoff) {
         "Review OCP handoff and restore API readiness.",
       evidenceNeeded: `OCP network handoff classification=${classification} changes to api-ready.`,
       nextCommand: "npm run evidence:ocp-network-handoff",
+      handoffNextCommands: handoffCommands
+        .map((command) => command.command)
+        .filter(Boolean),
+      readOnlyCommands: handoffCommands,
       blockedBy: networkHandoff.missingEvidence ?? [],
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
     })

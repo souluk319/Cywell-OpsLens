@@ -2173,6 +2173,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         )
       ).toBe(true);
     }
+    const ocpNetworkHandoffAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "cluster-admin-review-ocp-auth-rbac-handoff"
+      );
+    if (ocpNetworkHandoffAction) {
+      expect(
+        ocpNetworkHandoffAction.readOnlyCommands?.map((command) => command.id)
+      ).toEqual(expect.arrayContaining(["ocp-connectivity"]));
+      expect(
+        ocpNetworkHandoffAction.readOnlyCommands?.every(
+          (command) => command.mutation === false
+        )
+      ).toBe(true);
+    }
     const certificationToolingAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) => item.id === "release-manager-complete-certification-tooling"
@@ -2850,6 +2864,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-approval-handoff")
     ).toContainText("create-short-lived-live-reader-token");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-readonly-handoff")
+    ).toContainText("ocp-connectivity");
     await expect(
       page.getByTestId("opslens-release-action-queue-tooling-handoff")
     ).toContainText("opm");

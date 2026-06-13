@@ -1544,6 +1544,23 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-readonly-handoff"
+              >
+                {releaseActionQueue.items
+                  .filter((entry) => entry.readOnlyCommands.length > 0)
+                  .slice(0, 4)
+                  .map((entry) => (
+                    <span key={entry.id}>
+                      {entry.owner}:
+                      {entry.readOnlyCommands
+                        .slice(0, 4)
+                        .map((command) => command.id)
+                        .join(", ")}
+                    </span>
+                  ))}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-release-action-queue-tooling-handoff"
               >
                 {releaseActionQueue.items
