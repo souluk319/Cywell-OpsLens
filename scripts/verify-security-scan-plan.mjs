@@ -195,7 +195,8 @@ function evidencePaths(image) {
   return {
     vulnerabilityReport: resolve(options.securityEvidenceDir, `${image.name}-vulnerability.json`),
     sbom: resolve(options.securityEvidenceDir, `${image.name}-sbom.spdx.json`),
-    review: resolve(options.securityEvidenceDir, `${image.name}-security-review.json`)
+    review: resolve(options.securityEvidenceDir, `${image.name}-security-review.json`),
+    reviewDraft: resolve(options.securityEvidenceDir, `${image.name}-security-review.draft.json`)
   };
 }
 
@@ -426,15 +427,84 @@ function validateSecurityReview(path, image) {
   };
 }
 
-function existingEvidenceState(image) {
+function validateSecurityReviewDraft(path, image, currentHeadSha) {
+  const loaded = optionalJson(path, `${image.name} security review draft`);
+  if (!loaded.exists) {
+    return {
+      exists: false,
+      valid: false,
+      evidenceState: "missing",
+      draftPath: path,
+      finalEvidenceFile: evidencePaths(image).review,
+      sameHead: false,
+      worktreeClean: false,
+      reviewerProvided: false,
+      ticketProvided: false,
+      readyForFinalReview: false,
+      missingEvidence: [`${image.name} security review draft missing at ${path}`]
+    };
+  }
+
+  const draft = loaded.artifact;
+  const requirements = Array.isArray(draft?.requirements) ? draft.requirements : [];
+  const missingEvidence = [...loaded.missingEvidence, ...(draft?.missingEvidence ?? [])].map(sanitize);
+  const sameHead = artifactHeadSha(draft) === currentHeadSha;
+  const worktreeClean = artifactDirty(draft) === false;
+  const reviewerProvided = !placeholderValue(draft?.reviewer);
+  const ticketProvided = !placeholderValue(draft?.ticket);
+  const requirementsPassed =
+    requirements.length > 0 && requirements.every((requirement) => requirement.pass === true);
+
+  if (draft?.artifactType !== "opslens.security-review-draft.v0.1") {
+    missingEvidence.push(`${image.name} security review draft must use opslens.security-review-draft.v0.1`);
+  }
+  if (draft?.imageName !== image.name) {
+    missingEvidence.push(`${image.name} security review draft imageName must equal ${image.name}`);
+  }
+  if (!sameHead) {
+    missingEvidence.push(`${image.name} security review draft head=${artifactHeadSha(draft) ?? "missing"} currentHead=${currentHeadSha}`);
+  }
+  if (!worktreeClean) {
+    missingEvidence.push(`${image.name} security review draft worktree must be clean`);
+  }
+  if (!reviewerProvided) {
+    missingEvidence.push(`${image.name} security review draft reviewer is still a placeholder`);
+  }
+  if (!ticketProvided) {
+    missingEvidence.push(`${image.name} security review draft ticket is still a placeholder`);
+  }
+
+  const valid = missingEvidence.length === 0 && requirementsPassed;
+  return {
+    exists: true,
+    valid,
+    evidenceState: draft?.evidenceState ?? "unknown",
+    draftPath: path,
+    finalEvidenceFile: draft?.finalEvidenceFile ?? evidencePaths(image).review,
+    sameHead,
+    worktreeClean,
+    reviewerProvided,
+    ticketProvided,
+    requirementsPassed,
+    readyForFinalReview:
+      valid &&
+      draft?.evidenceState === "DRAFT_REVIEW_READY" &&
+      String(draft?.decision ?? "").toLowerCase() === "approved",
+    missingEvidence
+  };
+}
+
+function existingEvidenceState(image, currentHeadSha) {
   const paths = evidencePaths(image);
   const vulnerability = validateVulnerabilityEvidence(paths.vulnerabilityReport, image);
   const sbom = validateSbomEvidence(paths.sbom, image);
   const review = validateSecurityReview(paths.review, image);
+  const reviewDraft = validateSecurityReviewDraft(paths.reviewDraft, image, currentHeadSha);
   for (const [label, state] of [
     ["vulnerability evidence", vulnerability],
     ["SBOM evidence", sbom],
-    ["security review", review]
+    ["security review", review],
+    ["security review draft", reviewDraft]
   ]) {
     if (state.exists && state.valid) {
       pass(`${image.name} ${label}`, "existing evidence is parseable and release-review compatible");
@@ -455,6 +525,7 @@ function existingEvidenceState(image) {
     reviewApproved: review.approved,
     reviewDecision: review.decision,
     reviewCriticalFindings: review.criticalFindings,
+    reviewDraft,
     validationMissingEvidence: [
       ...vulnerability.missingEvidence,
       ...sbom.missingEvidence,
@@ -588,7 +659,7 @@ async function main() {
   const externalImages = externalImagesFrom(externalRuntime);
   const allImages = [...ownedImages, ...externalImages].map((image) => ({
     ...image,
-    securityEvidence: existingEvidenceState(image)
+    securityEvidence: existingEvidenceState(image, headSha)
   }));
 
   const missingEvidence = [];

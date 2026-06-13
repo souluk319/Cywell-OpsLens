@@ -1603,6 +1603,17 @@ type SecurityScanPlanEvidenceArtifact = {
       vulnerabilityReportExists?: boolean;
       sbomExists?: boolean;
       reviewExists?: boolean;
+      reviewDraft?: {
+        exists?: boolean;
+        evidenceState?: string;
+        sameHead?: boolean;
+        reviewerProvided?: boolean;
+        ticketProvided?: boolean;
+        readyForFinalReview?: boolean;
+        draftPath?: string;
+        finalEvidenceFile?: string;
+        missingEvidence?: string[];
+      };
     };
   }>;
   commands?: {
@@ -4268,7 +4279,25 @@ function getSecurityScanPlanReadiness(): {
       vulnerabilityReportExists:
         image.securityEvidence?.vulnerabilityReportExists === true,
       sbomExists: image.securityEvidence?.sbomExists === true,
-      reviewExists: image.securityEvidence?.reviewExists === true
+      reviewExists: image.securityEvidence?.reviewExists === true,
+      reviewDraft: {
+        exists: image.securityEvidence?.reviewDraft?.exists === true,
+        evidenceState:
+          image.securityEvidence?.reviewDraft?.evidenceState ?? "missing",
+        sameHead: image.securityEvidence?.reviewDraft?.sameHead === true,
+        reviewerProvided:
+          image.securityEvidence?.reviewDraft?.reviewerProvided === true,
+        ticketProvided:
+          image.securityEvidence?.reviewDraft?.ticketProvided === true,
+        readyForFinalReview:
+          image.securityEvidence?.reviewDraft?.readyForFinalReview === true,
+        draftPath:
+          image.securityEvidence?.reviewDraft?.draftPath ?? "missing",
+        finalEvidenceFile:
+          image.securityEvidence?.reviewDraft?.finalEvidenceFile ?? "missing",
+        missingEvidence:
+          image.securityEvidence?.reviewDraft?.missingEvidence ?? []
+      }
     }));
     const readOnlyCommands = (artifact.commands?.readOnly ?? []).map((command) => ({
       id: command.id ?? "unknown",
@@ -4328,6 +4357,7 @@ function getSecurityScanPlanReadiness(): {
         `scanReadOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length} approvalGatedCommands=${approvalGatedCommands.length}`,
         missingTools ? `missing local scan/sign CLIs=${missingTools}` : "all reported scan/sign CLIs are available",
         `required images missing scan/SBOM/review evidence=${requiredMissingEvidence}`,
+        `security review drafts=${images.map((image) => `${image.name}:${image.reviewDraft.evidenceState}:sameHead=${String(image.reviewDraft.sameHead)}:ready=${String(image.reviewDraft.readyForFinalReview)}`).join(", ")}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads security scan evidence only; it does not sign, push, mirror, or mutate cluster resources"
       ]

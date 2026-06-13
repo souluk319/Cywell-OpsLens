@@ -2353,6 +2353,20 @@ export function OpsLensAdminDashboard() {
                   </strong>
                 </div>
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-security-review-drafts"
+              >
+                {securityScanPlan.images.slice(0, 7).map((image) => (
+                  <span key={image.name}>
+                    {image.name}:draft={image.reviewDraft.evidenceState}
+                    :sameHead={String(image.reviewDraft.sameHead)}
+                    :reviewer={String(image.reviewDraft.reviewerProvided)}
+                    :ticket={String(image.reviewDraft.ticketProvided)}
+                    :ready={String(image.reviewDraft.readyForFinalReview)}
+                  </span>
+                ))}
+              </div>
               <div className="remediation-notes">
                 <p>
                   {securityScanPlan.risk[0] ??

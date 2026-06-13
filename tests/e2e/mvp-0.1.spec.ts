@@ -1180,6 +1180,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             vulnerabilityReportExists?: boolean;
             sbomExists?: boolean;
             reviewExists?: boolean;
+            reviewDraft?: {
+              exists?: boolean;
+              evidenceState?: string;
+              sameHead?: boolean;
+              reviewerProvided?: boolean;
+              ticketProvided?: boolean;
+              readyForFinalReview?: boolean;
+            };
           }>;
           readOnlyCommands?: Array<{
             id?: string;
@@ -2055,6 +2063,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining(["operator", "api", "dashboard", "bundle", "vllm", "qdrant"])
     );
+    const operatorSecurityReviewDraft =
+      body.installReadiness?.securityScanPlan?.images?.find(
+        (image) => image.name === "operator"
+      )?.reviewDraft;
+    expect(operatorSecurityReviewDraft).toMatchObject({
+      exists: true,
+      evidenceState: expect.stringMatching(/^DRAFT_/),
+      readyForFinalReview: false
+    });
     expect(
       body.installReadiness?.securityScanPlan?.readOnlyCommands?.every(
         (command) => command.mutation === false
@@ -2895,6 +2912,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-security-scan-plan")).toContainText(
       "sign-owned"
+    );
+    await expect(page.getByTestId("opslens-security-review-drafts")).toContainText(
+      "operator:draft="
+    );
+    await expect(page.getByTestId("opslens-security-review-drafts")).toContainText(
+      "ready=false"
     );
     await expect(page.getByTestId("opslens-owned-image-provenance")).toContainText(
       "readOnlyEvidenceOnly"

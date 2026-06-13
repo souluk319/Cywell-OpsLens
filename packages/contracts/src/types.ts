@@ -1308,6 +1308,17 @@ export interface OpsLensSecurityScanPlanSummary {
     vulnerabilityReportExists: boolean;
     sbomExists: boolean;
     reviewExists: boolean;
+    reviewDraft: {
+      exists: boolean;
+      evidenceState: string;
+      sameHead: boolean;
+      reviewerProvided: boolean;
+      ticketProvided: boolean;
+      readyForFinalReview: boolean;
+      draftPath: string;
+      finalEvidenceFile: string;
+      missingEvidence: string[];
+    };
   }>;
   readOnlyCommands: Array<{
     id: string;
