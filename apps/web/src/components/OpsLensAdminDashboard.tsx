@@ -1378,6 +1378,25 @@ export function OpsLensAdminDashboard() {
                   </span>
                 ))}
               </div>
+              <div
+                className="mcp-tool-list"
+                data-testid="opslens-release-action-queue-items"
+              >
+                {releaseActionQueue.items.slice(0, 5).map((entry) => (
+                  <div className="mcp-tool-row" key={entry.id}>
+                    <span
+                      className={`freshness ${
+                        entry.priority === "blocker" ? "missing" : "stale"
+                      }`}
+                    >
+                      {entry.priority}
+                    </span>
+                    <strong>{entry.request}</strong>
+                    <small>{entry.owner}</small>
+                    <small>{entry.nextCommand}</small>
+                  </div>
+                ))}
+              </div>
               <div className="remediation-notes">
                 <p>
                   {releaseActionQueue.risk[0] ??

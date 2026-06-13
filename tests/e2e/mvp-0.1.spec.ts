@@ -2410,6 +2410,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
       /network-sre|release-manager/
     );
+    await expect(
+      page.getByTestId("opslens-release-action-queue-items")
+    ).toContainText("npm run verify:ocp:connectivity");
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "localEvidenceRefresh"
     );
