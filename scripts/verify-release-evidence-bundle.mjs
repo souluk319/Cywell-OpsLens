@@ -11,6 +11,7 @@ const defaults = {
   evidenceOut: "test-results/cywell-opslens-release-evidence-bundle.json",
   markdownOut: "test-results/cywell-opslens-release-evidence-bundle.md",
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
+  consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
@@ -51,6 +52,8 @@ const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
   mvpGate: parsed.get("mvp-gate-evidence") ?? defaults.mvpGate,
+  consolePluginAssets:
+    parsed.get("console-plugin-assets-evidence") ?? defaults.consolePluginAssets,
   imageBuild: parsed.get("image-build-evidence") ?? defaults.imageBuild,
   ownedImageProvenance:
     parsed.get("owned-image-provenance-evidence") ?? defaults.ownedImageProvenance,
@@ -622,6 +625,7 @@ async function main() {
 
   const artifacts = {
     mvpGate: loadJson(options.mvpGate, "MVP gate"),
+    consolePluginAssets: loadJson(options.consolePluginAssets, "ConsolePlugin assets"),
     imageBuild: loadJson(options.imageBuild, "image build readiness"),
     ownedImageProvenance: loadJson(options.ownedImageProvenance, "owned image provenance"),
     certificationReadiness: loadJson(options.certificationReadiness, "certification readiness"),
@@ -641,6 +645,7 @@ async function main() {
 
   const sources = [
     sourceSummary("mvpGate", "MVP gate", options.mvpGate, artifacts.mvpGate, headSha, ["PASS"]),
+    sourceSummary("consolePluginAssets", "ConsolePlugin assets", options.consolePluginAssets, artifacts.consolePluginAssets, headSha, ["PASS"]),
     sourceSummary("imageBuild", "image build readiness", options.imageBuild, artifacts.imageBuild, headSha, ["PASS"]),
     sourceSummary("ownedImageProvenance", "owned image provenance", options.ownedImageProvenance, artifacts.ownedImageProvenance, headSha, ["PASS"]),
     sourceSummary("certificationReadiness", "certification readiness", options.certificationReadiness, artifacts.certificationReadiness, headSha, ["READY_FOR_REVIEW", "NEEDS_TOOLING"]),

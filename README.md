@@ -19,6 +19,7 @@ npm install
 npm run dev
 npm run build
 npm run verify:mvp
+npm run verify:console-plugin
 npm run verify:evidence-checkpoint
 npm run verify:roadmap-plan
 npm run verify:certification
@@ -37,9 +38,11 @@ npm run verify:lightspeed:fixture
 
 `npm run verify:mvp` runs the MVP 0.1 release gate and writes local evidence to `test-results/cywell-opslens-mvp-0.1-gate.json`. Use `npm run verify:mvp -- --skip-e2e` for a faster static/API gate when UI evidence is not required.
 
-`npm run verify:evidence-checkpoint` reads the current local evidence artifacts, including the RAG approval queue bridge and Lightspeed routing score, checks that they are stamped with the current git head, keeps live OCP/Lightspeed and external runtime gaps visible, and writes `test-results/cywell-opslens-evidence-checkpoint.json`. It does not build, push, patch, apply, delete, scale, or contact the cluster.
+`npm run verify:console-plugin` validates the OpenShift Console dynamic plugin assets emitted by the dashboard build: `plugin-manifest.json`, `plugin-entry.js`, the exposed `/opslens` route chunk, navigation extensions, iframe dashboard URL, UserToken proxy base, and asset MIME types. It writes `test-results/cywell-opslens-console-plugin-assets.json`.
 
-`npm run verify:roadmap-plan` maps `kugnus-idea/CywellOpsLens_plan.md` to current evidence for the five launch stages: Lightspeed MCP PoC, AI Ops pipeline, dedicated dashboard, Operator/internal catalog packaging, and Red Hat certification/GTM. It writes `test-results/cywell-opslens-roadmap-plan-alignment.json` and treats live OCP/Lightspeed reachability, external runtime certification inputs, release approval, and install approval as explicit `NEEDS_EVIDENCE` gaps rather than hidden completion.
+`npm run verify:evidence-checkpoint` reads the current local evidence artifacts, including the RAG approval queue bridge, ConsolePlugin asset evidence, and Lightspeed routing score, checks that they are stamped with the current git head, keeps live OCP/Lightspeed and external runtime gaps visible, and writes `test-results/cywell-opslens-evidence-checkpoint.json`. It does not build, push, patch, apply, delete, scale, or contact the cluster.
+
+`npm run verify:roadmap-plan` maps `kugnus-idea/CywellOpsLens_plan.md` to current evidence for the five launch stages: Lightspeed MCP PoC, AI Ops pipeline, dedicated dashboard, Operator/internal catalog packaging, and Red Hat certification/GTM. It now treats ConsolePlugin assets as direct Stage 3/4 evidence rather than relying on MVP gate indirection. It writes `test-results/cywell-opslens-roadmap-plan-alignment.json` and treats live OCP/Lightspeed reachability, external runtime certification inputs, release approval, and install approval as explicit `NEEDS_EVIDENCE` gaps rather than hidden completion.
 
 `npm run verify:certification` validates the Community/Certified Operator packaging shape, FBC/catalog/subscription parity, scorecard config, Red Hat-oriented CSV annotations, support/security/release docs, and local certification tooling availability. It writes `test-results/cywell-opslens-certification-readiness.json` with ref stamps, missing tooling evidence, mutation flags, risk, and rollback path; it does not submit to Partner Connect, push images, or mutate the cluster.
 

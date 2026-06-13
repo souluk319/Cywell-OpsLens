@@ -13,6 +13,7 @@ const paths = {
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
+  consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   roadmapOut: "test-results/cywell-opslens-roadmap-plan-alignment.json"
 };
 
@@ -241,11 +242,13 @@ async function main() {
   const mvpGate = loadJson(paths.mvpGate, "MVP gate");
   const imageBuild = loadJson(paths.imageBuild, "image build readiness");
   const ownedImageProvenance = loadJson(paths.ownedImageProvenance, "owned image provenance");
+  const consolePluginAssets = loadJson(paths.consolePluginAssets, "ConsolePlugin assets");
   const globalRequirements = [
     artifactFreshnessRequirement(checkpoint, "checkpoint-fresh", "Evidence checkpoint", headSha),
     artifactFreshnessRequirement(mvpGate, "mvp-gate-fresh", "MVP gate", headSha),
     artifactFreshnessRequirement(imageBuild, "image-build-fresh", "Image build readiness", headSha),
-    artifactFreshnessRequirement(ownedImageProvenance, "owned-image-provenance-fresh", "Owned image provenance", headSha)
+    artifactFreshnessRequirement(ownedImageProvenance, "owned-image-provenance-fresh", "Owned image provenance", headSha),
+    artifactFreshnessRequirement(consolePluginAssets, "console-plugin-assets-fresh", "ConsolePlugin assets", headSha)
   ];
 
   const stages = [
@@ -282,6 +285,7 @@ async function main() {
         /토큰|GPU|RAG 문서/i
       ]),
       laneRequirement(checkpoint, "ragApprovalQueue", "RAG approval queue dashboard evidence"),
+      laneRequirement(checkpoint, "consolePluginAssets", "ConsolePlugin dynamic plugin asset evidence"),
       mvpRequirement(mvpGate, "CONSOLE-PLUGIN", "Console dynamic plugin assets"),
       mvpRequirement(mvpGate, "RAG-APPROVAL-QUEUE", "RAG approval queue verifier")
     ]),
@@ -294,6 +298,7 @@ async function main() {
       mvpRequirement(mvpGate, "OPERATOR-PACKAGE", "Operator package verifier"),
       mvpRequirement(mvpGate, "OPERATOR-RECONCILE", "Operator reconcile safety verifier"),
       mvpRequirement(mvpGate, "OPERATOR-RUNTIME", "Operator runtime parity verifier"),
+      laneRequirement(checkpoint, "consolePluginAssets", "ConsolePlugin dynamic plugin asset evidence"),
       laneRequirement(checkpoint, "operatorDryRun", "Live Operator server dry-run", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "installPlan", "Human install approval plan", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "liveHandoff", "SRE-safe live evidence handoff"),

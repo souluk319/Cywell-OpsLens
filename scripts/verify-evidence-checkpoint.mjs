@@ -18,6 +18,7 @@ const evidenceDefaults = {
   runtimeRag: "test-results/cywell-opslens-runtime-rag-contract.json",
   runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
   ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
+  consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
   certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
@@ -904,6 +905,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "consolePluginAssets",
+    label: "ConsolePlugin dynamic plugin assets",
+    artifact: artifacts.consolePluginAssets,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "releasePublish",
     label: "release publish plan",
     artifact: artifacts.releasePublish,
@@ -972,6 +980,7 @@ async function main() {
       "AC-DASH-001",
       "AC-RAG-001",
       "AC-RAG-002",
+      "AC-OP-003",
       "AC-LS-001",
       "AC-LS-002",
       "AC-OP-004",

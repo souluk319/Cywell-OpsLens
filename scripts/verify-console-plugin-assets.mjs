@@ -166,14 +166,24 @@ expectCheck(
   "dashboard web server serves JavaScript and JSON with explicit MIME types for Console nosniff"
 );
 
+const failCount = checks.filter((check) => check.status === "FAIL").length;
 const evidence = {
+  schema: "cywell.opslens.console-plugin-assets.v0.1",
   artifactType: "opslens.console-plugin-assets.v0.1",
   generatedAt: new Date().toISOString(),
-  refs: {
+  status: failCount > 0 ? "BLOCKED" : "PASS",
+  failCount,
+  checkCount: checks.length,
+  actionMode: "consolePluginAssetsOnly",
+  registryMutationAttempted: false,
+  clusterMutationAttempted: false,
+  mutationAllowedByThisVerifier: false,
+  acceptance: ["AC-OP-003", "AC-DASH-001"],
+  ref: {
     branch: gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown"),
     headSha: gitValue(["rev-parse", "--short", "HEAD"], "unknown"),
     baseRef: gitValue(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], "origin/main"),
-    dirty: gitDirty()
+    worktreeDirty: gitDirty()
   },
   plugin: {
     name: manifest?.name,

@@ -1995,6 +1995,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         "mvpGate",
+        "consolePluginAssets",
         "certificationReadiness",
         "externalRuntimeReviewPacket",
         "releasePlan",
@@ -2114,6 +2115,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.checkpoint?.lanes?.length
     ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.checkpoint?.lanes?.map((lane) => lane.id)
+    ).toEqual(expect.arrayContaining(["consolePluginAssets"]));
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /evidence checkpoint/i
     );
