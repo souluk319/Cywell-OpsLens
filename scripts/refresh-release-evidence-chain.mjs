@@ -29,6 +29,7 @@ const evidencePaths = {
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
   lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
+  externalRuntimeReviewPacket: "test-results/cywell-opslens-external-runtime-review-packet.json",
   securityScan: "test-results/cywell-opslens-security-scan-plan.json",
   securityScanRunner: "test-results/cywell-opslens-security-scan-evidence-runner.json",
   releasePublish: "test-results/cywell-opslens-release-publish-plan.json",
@@ -220,6 +221,7 @@ function buildChain() {
   commands.push(
     npmScript("lightspeed-patch-preview-fixture", "live", "verify:lightspeed:patch-preview:fixture"),
     npmScript("release-plan", "approval", "verify:release-plan"),
+    npmScript("external-runtime-review-packet", "approval", "evidence:external-runtime:review-packet"),
     npmScript("install-plan", "approval", "verify:install-plan"),
     npmScript("live-handoff", "approval", "verify:live-handoff"),
     npmScript("ocp-network-handoff", "approval", "evidence:ocp-network-handoff"),

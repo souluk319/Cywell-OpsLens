@@ -45,6 +45,7 @@
     "verify:external-runtime-plan": "node ./scripts/verify-external-runtime-images-plan.mjs",
     "evidence:external-runtime:draft": "node ./scripts/create-external-runtime-evidence-draft.mjs",
     "evidence:external-runtime:draft:digests": "node ./scripts/create-external-runtime-evidence-draft.mjs --all --collect-source-digests --force",
+    "evidence:external-runtime:review-packet": "node ./scripts/create-external-runtime-review-packet.mjs",
     "evidence:external-runtime:promote": "node ./scripts/promote-external-runtime-evidence.mjs",
     "evidence:security-review:draft": "node ./scripts/create-security-review-evidence-draft.mjs",
     "verify:release-plan": "node ./scripts/verify-release-publish-plan.mjs",

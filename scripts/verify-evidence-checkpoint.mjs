@@ -28,6 +28,7 @@ const evidenceDefaults = {
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
   lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
+  externalRuntimeReviewPacket: "test-results/cywell-opslens-external-runtime-review-packet.json",
   securityScan: "test-results/cywell-opslens-security-scan-plan.json",
   securityScanRunner: "test-results/cywell-opslens-security-scan-evidence-runner.json",
   releasePublish: "test-results/cywell-opslens-release-publish-plan.json",
@@ -573,6 +574,55 @@ function checkSecurityScanRunnerPolicy(runnerArtifact) {
   );
 }
 
+function checkExternalRuntimeReviewPacket(packetArtifact) {
+  if (!packetArtifact) return;
+  const commands = packetArtifact.readOnlyCommands ?? [];
+  const approvalGatedCommands = packetArtifact.approvalGatedCommands ?? [];
+  const mutatingPattern =
+    /\b(oc|kubectl)\s+(apply|create|delete|patch|replace|scale|rollout|adm)|\b(docker|podman|skopeo)\s+(push|copy)|\b(cosign)\s+sign|\b(operator-sdk|opm)\s+.*\b(push|publish)\b/i;
+  const violations = [];
+
+  if (packetArtifact.actionMode !== "reviewPacketOnly") {
+    violations.push(`actionMode=${packetArtifact.actionMode ?? "missing"}`);
+  }
+  if (artifactClusterMutationAttempted(packetArtifact)) {
+    violations.push("clusterMutationAttempted");
+  }
+  if (artifactRegistryMutationAttempted(packetArtifact)) {
+    violations.push("registryMutationAttempted");
+  }
+  if (artifactMutationAllowedByVerifier(packetArtifact)) {
+    violations.push("mutationAllowedByThisVerifier");
+  }
+  if (!Array.isArray(packetArtifact.images) || packetArtifact.images.length === 0) {
+    violations.push("images");
+  }
+
+  const unsafeReadOnly = commands
+    .filter((command) => command.mutation === true || mutatingPattern.test(command.command ?? ""))
+    .map((command) => command.id ?? "unknown");
+  if (unsafeReadOnly.length > 0) {
+    violations.push(`unsafeReadOnlyCommands=${unsafeReadOnly.join(",")}`);
+  }
+
+  const unguardedApprovalCommands = approvalGatedCommands
+    .filter((command) => command.mutation !== true || command.requiresExplicitApproval !== true)
+    .map((command) => command.id ?? "unknown");
+  if (unguardedApprovalCommands.length > 0) {
+    violations.push(`unguardedApprovalCommands=${unguardedApprovalCommands.join(",")}`);
+  }
+
+  if (violations.length > 0) {
+    fail("external runtime review packet boundary", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "external runtime review packet boundary",
+    `status=${packetArtifact.status ?? "missing"} images=${packetArtifact.images.length} readOnlyCommands=${commands.length} approvalGated=${approvalGatedCommands.length}`
+  );
+}
+
 function checkOcpConnectivityDiagnostic(connectivityArtifact) {
   if (!connectivityArtifact) return;
   const classification = connectivityArtifact.diagnostics?.classification ?? "unknown";
@@ -757,6 +807,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "externalRuntimeReviewPacket",
+    label: "external runtime review packet",
+    artifact: artifacts.externalRuntimeReviewPacket,
+    desiredStatuses: ["REVIEW_PACKET_READY"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "securityScan",
     label: "security scan and SBOM plan",
     artifact: artifacts.securityScan,
@@ -806,6 +863,7 @@ async function main() {
   checkImageActualBuilds(artifacts.imageBuild);
   checkOwnedImageProvenance(artifacts.ownedImageProvenance);
   checkOcpConnectivityDiagnostic(artifacts.ocpConnectivity);
+  checkExternalRuntimeReviewPacket(artifacts.externalRuntimeReviewPacket);
   checkOcpNetworkHandoff(artifacts.ocpNetworkHandoff);
   checkPatchPreview(artifacts.lightspeedPatchPreview);
   checkSecurityScanRunnerPolicy(artifacts.securityScanRunner);

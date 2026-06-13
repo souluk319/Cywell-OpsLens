@@ -308,6 +308,7 @@ async function main() {
       mvpRequirement(mvpGate, "CERTIFICATION", "Certification readiness verifier"),
       laneRequirement(checkpoint, "catalogToolchain", "Catalog toolchain readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "externalRuntime", "External runtime image evidence", ["pass", "needs-evidence"]),
+      laneRequirement(checkpoint, "externalRuntimeReviewPacket", "External runtime reviewer packet", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "securityScan", "Security scan and SBOM evidence plan", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "securityScanRunner", "Security scan evidence runner", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "releasePublish", "Release publish approval plan", ["pass", "needs-evidence"]),

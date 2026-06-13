@@ -55,6 +55,16 @@ npm run evidence:external-runtime:draft -- --name qdrant --source-digest docker.
 
 For bulk intake, pass image-specific overrides such as `--vllm-source-digest`, `--vllm-mirrored-digest`, `--qdrant-source-digest`, and `--qdrant-mirrored-digest`. The helper rejects secret-like values, writes only `*.draft.json`, records branch/head/base/dirty state, and keeps `registryMutationAttempted=false` and `clusterMutationAttempted=false`. `--collect-source-digests` and `evidence:external-runtime:draft:digests` only inspect registry manifests; they do not pull, push, mirror, sign, or promote images. A human reviewer must still create the final `vllm.json` or `qdrant.json` after validating the referenced digest, scan, SBOM, provenance, license, and approval evidence.
 
+## Review Packet
+
+Generate a reviewer-ready JSON and Markdown packet after draft intake:
+
+```sh
+npm run evidence:external-runtime:review-packet
+```
+
+The packet writes `test-results/cywell-opslens-external-runtime-review-packet.json` and `.md`. It consolidates vLLM/Qdrant draft status, source digest inspection, final evidence file presence, security scan/SBOM plan state, reviewer requests, missing evidence, read-only refresh commands, and approval-gated mirror/sign commands that were not run. It remains local evidence only and does not replace final reviewed `vllm.json` or `qdrant.json`.
+
 ## Reviewed Promotion
 
 After the referenced artifacts are complete and reviewed, use the promotion helper instead of renaming a draft by hand:

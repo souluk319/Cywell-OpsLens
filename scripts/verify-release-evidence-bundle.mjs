@@ -14,6 +14,7 @@ const defaults = {
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
+  externalRuntimeReviewPacket: "test-results/cywell-opslens-external-runtime-review-packet.json",
   securityScan: "test-results/cywell-opslens-security-scan-plan.json",
   securityScanRunner: "test-results/cywell-opslens-security-scan-evidence-runner.json",
   releasePlan: "test-results/cywell-opslens-release-publish-plan.json",
@@ -52,6 +53,8 @@ const options = {
   catalogToolchain:
     parsed.get("catalog-toolchain-evidence") ?? defaults.catalogToolchain,
   externalRuntime: parsed.get("external-runtime-evidence") ?? defaults.externalRuntime,
+  externalRuntimeReviewPacket:
+    parsed.get("external-runtime-review-packet-evidence") ?? defaults.externalRuntimeReviewPacket,
   securityScan: parsed.get("security-scan-evidence") ?? defaults.securityScan,
   securityScanRunner:
     parsed.get("security-scan-runner-evidence") ?? defaults.securityScanRunner,
@@ -222,6 +225,21 @@ function commandSummary(artifacts) {
     mutation: command.mutation === true,
     requiresExplicitApproval: false
   }));
+  const externalRuntimeReviewCommands = (artifacts.externalRuntimeReviewPacket?.readOnlyCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "unknown",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: false,
+    writesLocalEvidence: command.writesLocalEvidence === true
+  }));
+  const externalRuntimeApprovalCommands = (artifacts.externalRuntimeReviewPacket?.approvalGatedCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "unknown",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: command.requiresExplicitApproval === true
+  }));
   const catalogCommands = [
     ...(artifacts.catalogToolchain?.commands?.readOnly ?? []),
     ...(artifacts.catalogToolchain?.commands?.localArtifact ?? [])
@@ -250,9 +268,9 @@ function commandSummary(artifacts) {
       writesLocalEvidence: command.writesLocalEvidence === true
     }));
   return {
-    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...networkHandoffCommands, ...catalogCommands, ...securityCommands, ...securityRunnerCommands]
+    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...networkHandoffCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...securityCommands, ...securityRunnerCommands]
       .filter((command) => command.mutation === false),
-    mutatingApprovalRequired: [...releaseCommands, ...installCommands]
+    mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...externalRuntimeApprovalCommands]
       .filter((command) => command.mutation === true),
     forbiddenWithoutApproval: [
       "oc apply",
@@ -297,6 +315,12 @@ function approvalSummary(artifacts) {
       "release-manager",
       "product-owner"
     ],
+    externalRuntimeReviewPacket: artifacts.externalRuntimeReviewPacket?.requiredApprovals ?? [
+      "registry-admin",
+      "security-reviewer",
+      "release-manager",
+      "product-owner"
+    ],
     ragIngestion: artifacts.installPlan?.ragIngestion?.requiredApprovals ?? [
       "rag-owner",
       "cluster-sre"
@@ -314,6 +338,9 @@ function mutationBoundary(artifacts) {
     ["externalRuntime.registryMutationAttempted", artifacts.externalRuntime?.registryMutationAttempted],
     ["externalRuntime.clusterMutationAttempted", artifacts.externalRuntime?.clusterMutationAttempted],
     ["externalRuntime.mutationAllowedByThisVerifier", artifacts.externalRuntime?.mutationAllowedByThisVerifier],
+    ["externalRuntimeReviewPacket.registryMutationAttempted", artifacts.externalRuntimeReviewPacket?.registryMutationAttempted],
+    ["externalRuntimeReviewPacket.clusterMutationAttempted", artifacts.externalRuntimeReviewPacket?.clusterMutationAttempted],
+    ["externalRuntimeReviewPacket.mutationAllowedByThisVerifier", artifacts.externalRuntimeReviewPacket?.mutationAllowedByThisVerifier],
     ["ownedImageProvenance.registryMutationAttempted", artifacts.ownedImageProvenance?.registryMutationAttempted],
     ["ownedImageProvenance.clusterMutationAttempted", artifacts.ownedImageProvenance?.clusterMutationAttempted],
     ["catalogToolchain.registryMutationAttempted", artifacts.catalogToolchain?.registryMutationAttempted],
@@ -376,6 +403,7 @@ function evidenceGaps(artifacts, sources) {
     ...(artifacts.installPlan?.missingEvidence ?? []),
     ...(artifacts.catalogToolchain?.missingEvidence ?? []),
     ...(artifacts.externalRuntime?.missingEvidence ?? []),
+    ...(artifacts.externalRuntimeReviewPacket?.missingEvidence ?? []),
     ...(artifacts.securityScan?.missingEvidence ?? []),
     ...(artifacts.securityScanRunner?.missingEvidence ?? []),
     ...(artifacts.liveHandoff?.missingEvidence ?? []),
@@ -401,6 +429,7 @@ async function main() {
     ownedImageProvenance: loadJson(options.ownedImageProvenance, "owned image provenance"),
     catalogToolchain: loadJson(options.catalogToolchain, "catalog toolchain plan"),
     externalRuntime: loadJson(options.externalRuntime, "external runtime plan"),
+    externalRuntimeReviewPacket: loadJson(options.externalRuntimeReviewPacket, "external runtime review packet"),
     securityScan: loadJson(options.securityScan, "security scan plan"),
     securityScanRunner: loadJson(options.securityScanRunner, "security scan evidence runner"),
     releasePlan: loadJson(options.releasePlan, "release publish plan"),
@@ -417,6 +446,7 @@ async function main() {
     sourceSummary("ownedImageProvenance", "owned image provenance", options.ownedImageProvenance, artifacts.ownedImageProvenance, headSha, ["PASS"]),
     sourceSummary("catalogToolchain", "catalog toolchain plan", options.catalogToolchain, artifacts.catalogToolchain, headSha, ["READY_FOR_DRY_RUN", "NEEDS_TOOLING"]),
     sourceSummary("externalRuntime", "external runtime plan", options.externalRuntime, artifacts.externalRuntime, headSha, ["APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
+    sourceSummary("externalRuntimeReviewPacket", "external runtime review packet", options.externalRuntimeReviewPacket, artifacts.externalRuntimeReviewPacket, headSha, ["REVIEW_PACKET_READY"]),
     sourceSummary("securityScan", "security scan plan", options.securityScan, artifacts.securityScan, headSha, ["READY_FOR_SCAN", "NEEDS_TOOLING"]),
     sourceSummary("securityScanRunner", "security scan evidence runner", options.securityScanRunner, artifacts.securityScanRunner, headSha, ["PLAN_READY", "EVIDENCE_WRITTEN"]),
     sourceSummary("releasePlan", "release publish plan", options.releasePlan, artifacts.releasePlan, headSha, ["PUBLISH_APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
@@ -523,6 +553,36 @@ async function main() {
         missingEvidence: draft.missingEvidence ?? []
       }))
     },
+    externalRuntimeReviewPacket: {
+      status: artifacts.externalRuntimeReviewPacket?.status ?? "missing",
+      actionMode: artifacts.externalRuntimeReviewPacket?.actionMode ?? "missing",
+      markdownOut: artifacts.externalRuntimeReviewPacket?.markdownOut ?? "missing",
+      images: (artifacts.externalRuntimeReviewPacket?.images ?? []).map((image) => ({
+        name: image.name ?? "unknown",
+        image: image.image ?? "unknown",
+        sourceDigest: image.sourceDigest ?? "missing",
+        sourceDigestInspectionStatus:
+          image.sourceDigestInspection?.status ?? "missing",
+        draftStatus: image.draftStatus ?? "missing",
+        evidenceState: image.evidenceState ?? "missing",
+        finalEvidenceExists: image.finalEvidence?.exists === true,
+        reviewerRequests: image.reviewerRequests ?? [],
+        missingEvidence: image.missingEvidence ?? []
+      })),
+      readOnlyCommands: (artifacts.externalRuntimeReviewPacket?.readOnlyCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        phase: command.phase ?? "unknown",
+        mutation: command.mutation === true,
+        writesLocalEvidence: command.writesLocalEvidence === true
+      })),
+      approvalGatedCommands: (artifacts.externalRuntimeReviewPacket?.approvalGatedCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        phase: command.phase ?? "unknown",
+        mutation: command.mutation === true,
+        requiresExplicitApproval: command.requiresExplicitApproval === true
+      })),
+      missingEvidence: artifacts.externalRuntimeReviewPacket?.missingEvidence ?? []
+    },
     securityScan: {
       status: artifacts.securityScan?.status ?? "missing",
       actionMode: artifacts.securityScan?.actionMode ?? "missing",
@@ -599,6 +659,7 @@ async function main() {
       ...(artifacts.releasePlan?.risk ?? []),
       ...(artifacts.installPlan?.risk ?? []),
       ...(artifacts.externalRuntime?.risk ?? []),
+      ...(artifacts.externalRuntimeReviewPacket?.risk ?? []),
       ...(artifacts.securityScan?.risk ?? []),
       ...(artifacts.securityScanRunner?.risk ?? []),
       ...(artifacts.liveHandoff?.risk ?? []),
@@ -608,6 +669,7 @@ async function main() {
     rollbackPath: unique([
       ...(artifacts.releasePlan?.rollbackPath ?? []),
       ...(artifacts.installPlan?.rollbackPath ?? []),
+      ...(artifacts.externalRuntimeReviewPacket?.rollbackPath ?? []),
       ...(artifacts.securityScan?.rollbackPath ?? []),
       ...(artifacts.securityScanRunner?.rollbackPath ?? []),
       ...(artifacts.liveHandoff?.rollbackPath ?? []),
