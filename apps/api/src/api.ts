@@ -1913,6 +1913,8 @@ type SecurityScanPlanEvidenceArtifact = {
         sameHead?: boolean;
         reviewerProvided?: boolean;
         ticketProvided?: boolean;
+        decision?: string;
+        explicitDecisionProvided?: boolean;
         readyForFinalReview?: boolean;
         draftPath?: string;
         finalEvidenceFile?: string;
@@ -4885,6 +4887,10 @@ function getSecurityScanPlanReadiness(): {
           image.securityEvidence?.reviewDraft?.reviewerProvided === true,
         ticketProvided:
           image.securityEvidence?.reviewDraft?.ticketProvided === true,
+        decision:
+          image.securityEvidence?.reviewDraft?.decision ?? "missing",
+        explicitDecisionProvided:
+          image.securityEvidence?.reviewDraft?.explicitDecisionProvided === true,
         readyForFinalReview:
           image.securityEvidence?.reviewDraft?.readyForFinalReview === true,
         draftPath:
@@ -4953,7 +4959,7 @@ function getSecurityScanPlanReadiness(): {
         `scanReadOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length} approvalGatedCommands=${approvalGatedCommands.length}`,
         missingTools ? `missing local scan/sign CLIs=${missingTools}` : "all reported scan/sign CLIs are available",
         `required images missing scan/SBOM/review evidence=${requiredMissingEvidence}`,
-        `security review drafts=${images.map((image) => `${image.name}:${image.reviewDraft.evidenceState}:sameHead=${String(image.reviewDraft.sameHead)}:ready=${String(image.reviewDraft.readyForFinalReview)}`).join(", ")}`,
+        `security review drafts=${images.map((image) => `${image.name}:${image.reviewDraft.evidenceState}:sameHead=${String(image.reviewDraft.sameHead)}:decision=${image.reviewDraft.decision}:explicit=${String(image.reviewDraft.explicitDecisionProvided)}:ready=${String(image.reviewDraft.readyForFinalReview)}`).join(", ")}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads security scan evidence only; it does not sign, push, mirror, or mutate cluster resources"
       ]

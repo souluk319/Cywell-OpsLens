@@ -1560,6 +1560,8 @@ export interface OpsLensSecurityScanPlanSummary {
       sameHead: boolean;
       reviewerProvided: boolean;
       ticketProvided: boolean;
+      decision: string;
+      explicitDecisionProvided: boolean;
       readyForFinalReview: boolean;
       draftPath: string;
       finalEvidenceFile: string;

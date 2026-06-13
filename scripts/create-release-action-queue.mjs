@@ -977,6 +977,8 @@ function securityScanItems(plan) {
       value:
         `state=${reviewDraft.evidenceState ?? "missing"} ` +
         `sameHead=${String(reviewDraft.sameHead === true)} ` +
+        `decision=${reviewDraft.decision ?? "missing"} ` +
+        `explicitDecision=${String(reviewDraft.explicitDecisionProvided === true)} ` +
         `ready=${String(reviewDraft.readyForFinalReview === true)}`
     },
     {
@@ -1045,7 +1047,7 @@ function securityScanItems(plan) {
       );
       const nextCommand =
         reviewDraft.exists === true && reviewDraft.sameHead === true
-          ? `npm run evidence:security-review:draft -- --name ${imageName} --reviewer <security-reviewer> --ticket <security-ticket> --force`
+          ? `npm run evidence:security-review:draft -- --name ${imageName} --reviewer <security-reviewer> --ticket <security-ticket> --decision approved --force`
           : `npm run evidence:security-review:draft -- --name ${imageName} --force`;
       return item({
         id: `security-review-${imageName}-final-evidence`,
@@ -1062,6 +1064,8 @@ function securityScanItems(plan) {
           `reviewDecision=${securityEvidence.reviewDecision ?? "missing"}`,
           `reviewDraft=${reviewDraft.evidenceState ?? "missing"}`,
           `sameHead=${String(reviewDraft.sameHead === true)}`,
+          `decision=${reviewDraft.decision ?? "missing"}`,
+          `explicitDecision=${String(reviewDraft.explicitDecisionProvided === true)}`,
           `readyForFinalReview=${String(reviewDraft.readyForFinalReview === true)}`,
           `scan=${String(securityEvidence.vulnerabilityReportExists === true)}`,
           `sbom=${String(securityEvidence.sbomExists === true)}`,

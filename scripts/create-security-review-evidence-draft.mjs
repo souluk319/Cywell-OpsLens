@@ -76,6 +76,7 @@ const options = {
   reviewer: parsed.get("reviewer") ?? "<security-reviewer>",
   ticket: parsed.get("ticket") ?? "<release-or-security-ticket>",
   decision: parsed.get("decision"),
+  explicitDecisionProvided: parsed.has("decision"),
   evidenceOut: parsed.get("evidence-out"),
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs),
   force: parsed.get("force") === "true"
@@ -246,12 +247,9 @@ async function buildDraft() {
   const sbom = resolve(options.sbom ?? `${options.evidenceDir}/${options.name}-sbom.spdx.json`);
   const vulnerability = vulnerabilitySummary(vulnerabilityReport);
   const sbomEvidence = sbomSummary(sbom);
-  const decision = cliValue(
-    options.decision ?? (vulnerability.valid && sbomEvidence.valid && vulnerability.criticalFindings === 0 ? "approved" : "needs-remediation"),
-    "decision"
-  );
   const reviewer = cliValue(options.reviewer, "reviewer");
   const ticket = cliValue(options.ticket, "ticket");
+  const decision = cliValue(options.decision ?? "pending-review", "decision");
   const reviewedAt = new Date().toISOString();
   const requirements = [
     requirement("worktree-clean", worktreeDirty === false, "draft should be generated from a clean Git worktree before final review"),
@@ -260,7 +258,11 @@ async function buildDraft() {
     requirement("vulnerability-report", vulnerability.valid, "vulnerability report must parse and expose criticalFindings"),
     requirement("sbom", sbomEvidence.valid, "SBOM must parse and list packages/artifacts"),
     requirement("critical-findings", vulnerability.criticalFindings === 0, "Critical findings must be zero before approval"),
-    requirement("decision-approved", decision === "approved", "final release review requires decision=approved")
+    requirement(
+      "decision-approved",
+      decision === "approved" && options.explicitDecisionProvided,
+      "security reviewer must explicitly pass --decision approved after review"
+    )
   ];
   const missingEvidence = [
     ...requirements.filter((item) => !item.pass).map((item) => `${item.id}: ${item.evidence}`),
@@ -278,6 +280,13 @@ async function buildDraft() {
     clusterMutationAttempted: false,
     mutationAllowedByThisVerifier: false,
     finalEvidenceFile: resolve(options.evidenceDir, `${options.name}-security-review.json`),
+    approvalBoundary: {
+      draftCanApproveRelease: false,
+      finalEvidenceRequired: true,
+      explicitDecisionProvided: options.explicitDecisionProvided,
+      defaultDecision: options.explicitDecisionProvided ? "cli" : "pending-review",
+      finalApprovedDecision: "approved"
+    },
     ref: {
       branch,
       headSha,
@@ -299,11 +308,13 @@ async function buildDraft() {
     missingEvidence,
     nextSteps: [
       "Review the vulnerability report, SBOM, and release/security ticket.",
+      `If review passes, rerun this draft with --name ${options.name} --reviewer <security-reviewer> --ticket <security-ticket> --decision approved --force.`,
       `Only after review, create ${options.name}-security-review.json with artifactType=opslens.security-review.v0.1.`,
       "Regenerate npm run verify:security-scan-plan, verify:evidence-checkpoint, and verify:release-evidence-bundle from the same clean Git HEAD."
     ],
     risk: [
-      "This artifact is draft-only intake evidence and does not approve signing, pushing, mirroring, or cluster mutation.",
+      "This artifact is draft-only intake evidence and does not approve release, signing, pushing, mirroring, or cluster mutation.",
+      "The default decision is pending-review; approved must be passed explicitly and still does not replace the final security-review.json evidence file.",
       "A complete draft can still be rejected if the image digest, scan, SBOM, reviewer, or ticket is wrong."
     ],
     rollbackPath: [

@@ -2676,6 +2676,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(operatorSecurityReviewDraft).toMatchObject({
       exists: true,
       evidenceState: expect.stringMatching(/^DRAFT_/),
+      decision: expect.stringMatching(
+        /^(pending-review|approved|needs-remediation|accepted-risk|rejected|missing)$/
+      ),
+      explicitDecisionProvided: expect.any(Boolean),
       readyForFinalReview: false
     });
     expect(
@@ -4080,6 +4084,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-security-review-drafts")).toContainText(
       "operator:draft="
+    );
+    await expect(page.getByTestId("opslens-security-review-drafts")).toContainText(
+      "explicitDecision="
     );
     await expect(page.getByTestId("opslens-security-review-drafts")).toContainText(
       "ready=false"

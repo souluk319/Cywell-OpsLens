@@ -2946,6 +2946,10 @@ export function OpsLensAdminDashboard() {
                   <span key={image.name}>
                     {image.name}:draft={image.reviewDraft.evidenceState}
                     :sameHead={String(image.reviewDraft.sameHead)}
+                    :decision={image.reviewDraft.decision}
+                    :explicitDecision={String(
+                      image.reviewDraft.explicitDecisionProvided
+                    )}
                     :reviewer={String(image.reviewDraft.reviewerProvided)}
                     :ticket={String(image.reviewDraft.ticketProvided)}
                     :ready={String(image.reviewDraft.readyForFinalReview)}

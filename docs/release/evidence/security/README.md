@@ -28,6 +28,12 @@ Use the draft helper after local scan and SBOM files exist. It writes ignored `*
 npm run evidence:security-review:draft -- --name operator --reviewer <security-reviewer> --ticket <change-ticket> --force
 ```
 
+Drafts default to `decision=pending-review`. A passing scan/SBOM never becomes an approval by default; after a human security review passes, rerun the helper with an explicit decision:
+
+```bash
+npm run evidence:security-review:draft -- --name operator --reviewer <security-reviewer> --ticket <change-ticket> --decision approved --force
+```
+
 To refresh every image-specific draft packet for the current Git head in one pass:
 
 ```bash

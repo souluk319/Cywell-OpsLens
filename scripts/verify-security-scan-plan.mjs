@@ -440,6 +440,8 @@ function validateSecurityReviewDraft(path, image, currentHeadSha) {
       worktreeClean: false,
       reviewerProvided: false,
       ticketProvided: false,
+      decision: "missing",
+      explicitDecisionProvided: false,
       readyForFinalReview: false,
       missingEvidence: [`${image.name} security review draft missing at ${path}`]
     };
@@ -452,6 +454,10 @@ function validateSecurityReviewDraft(path, image, currentHeadSha) {
   const worktreeClean = artifactDirty(draft) === false;
   const reviewerProvided = !placeholderValue(draft?.reviewer);
   const ticketProvided = !placeholderValue(draft?.ticket);
+  const decision = String(draft?.decision ?? "missing").toLowerCase();
+  const explicitDecisionProvided =
+    draft?.approvalBoundary?.explicitDecisionProvided === true ||
+    draft?.explicitDecisionProvided === true;
   const requirementsPassed =
     requirements.length > 0 && requirements.every((requirement) => requirement.pass === true);
 
@@ -473,6 +479,11 @@ function validateSecurityReviewDraft(path, image, currentHeadSha) {
   if (!ticketProvided) {
     missingEvidence.push(`${image.name} security review draft ticket is still a placeholder`);
   }
+  if (decision !== "approved") {
+    missingEvidence.push(`${image.name} security review draft decision must be explicitly approved before final evidence handoff`);
+  } else if (!explicitDecisionProvided) {
+    missingEvidence.push(`${image.name} security review draft decision=approved must prove explicit --decision approved input`);
+  }
 
   const valid = missingEvidence.length === 0 && requirementsPassed;
   return {
@@ -485,11 +496,14 @@ function validateSecurityReviewDraft(path, image, currentHeadSha) {
     worktreeClean,
     reviewerProvided,
     ticketProvided,
+    decision,
+    explicitDecisionProvided,
     requirementsPassed,
     readyForFinalReview:
       valid &&
       draft?.evidenceState === "DRAFT_REVIEW_READY" &&
-      String(draft?.decision ?? "").toLowerCase() === "approved",
+      decision === "approved" &&
+      explicitDecisionProvided,
     missingEvidence
   };
 }
