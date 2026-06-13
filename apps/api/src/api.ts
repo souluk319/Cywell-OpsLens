@@ -33,6 +33,8 @@ import type {
   OpsLensEvidenceCheckpointSummary,
   OpsLensExternalRuntimeImagesPlanSummary,
   OpsLensExternalRuntimeReadiness,
+  OpsLensExternalRuntimeReviewPacketReadiness,
+  OpsLensExternalRuntimeReviewPacketSummary,
   OpsLensImageBuildReadiness,
   OpsLensInstallApprovalPlanSummary,
   OpsLensInstallPlanReadiness,
@@ -1229,6 +1231,60 @@ type ExternalRuntimeImagesPlanEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type ExternalRuntimeReviewPacketEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  markdownOut?: string;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  requiredApprovals?: string[];
+  images?: Array<{
+    name?: string;
+    image?: string;
+    sourceDigest?: string;
+    sourceDigestInspection?: {
+      status?: string;
+      detail?: string;
+    };
+    draftStatus?: string;
+    evidenceState?: string;
+    finalEvidence?: {
+      exists?: boolean;
+      status?: string;
+    };
+    reviewerRequests?: Array<{
+      role?: string;
+      request?: string;
+      evidenceNeeded?: string;
+    }>;
+    missingEvidence?: string[];
+  }>;
+  readOnlyCommands?: Array<{
+    id?: string;
+    phase?: string;
+    mutation?: boolean;
+    writesLocalEvidence?: boolean;
+  }>;
+  approvalGatedCommands?: Array<{
+    id?: string;
+    phase?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+  }>;
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type OperatorDryRunEvidenceArtifact = {
   artifactType?: string;
   status?: string;
@@ -1641,6 +1697,13 @@ function externalRuntimeImagesPlanEvidencePath() {
   );
 }
 
+function externalRuntimeReviewPacketEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_EXTERNAL_RUNTIME_REVIEW_PACKET_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-external-runtime-review-packet.json")
+  );
+}
+
 function operatorDryRunEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_OPERATOR_DRY_RUN_EVIDENCE ??
@@ -1779,6 +1842,26 @@ function mapExternalRuntimeImagesPlanReadinessStatus(
   }
   if (artifact.status === "APPROVAL_REQUIRED") {
     return "approval-required";
+  }
+  return "needs-evidence";
+}
+
+function mapExternalRuntimeReviewPacketReadinessStatus(
+  artifact: ExternalRuntimeReviewPacketEvidenceArtifact
+): OpsLensExternalRuntimeReviewPacketReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "blocked";
+  }
+  if (artifact.ref?.worktreeDirty) {
+    return "needs-evidence";
+  }
+  if (artifact.status === "REVIEW_PACKET_READY") {
+    return "ready";
   }
   return "needs-evidence";
 }
@@ -2444,6 +2527,141 @@ function getExternalRuntimeImagesPlanReadiness(): {
         `External runtime images plan evidence could not be parsed from ${evidencePath}`,
         error instanceof Error ? error.message : "unknown evidence parse error",
         "invalid external runtime evidence blocks overclaiming runtime image readiness"
+      ]
+    };
+  }
+}
+
+function missingExternalRuntimeReviewPacketSummary(
+  detail: string,
+  status: OpsLensExternalRuntimeReviewPacketReadiness = "needs-evidence"
+): OpsLensExternalRuntimeReviewPacketSummary {
+  return {
+    status,
+    artifactStatus: "missing",
+    actionMode: "reviewPacketOnly",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    requiredApprovals: [
+      "registry-admin",
+      "security-reviewer",
+      "release-manager",
+      "product-owner"
+    ],
+    markdownPath: "missing",
+    images: [],
+    readOnlyCommands: [],
+    approvalGatedCommands: [],
+    missingEvidence: [detail],
+    risk: [
+      "External runtime reviewer packet is missing, so vLLM/Qdrant evidence asks are not dashboard-visible yet."
+    ],
+    rollbackPath: [
+      "Generate the external runtime review packet before release-manager review."
+    ]
+  };
+}
+
+function getExternalRuntimeReviewPacketReadiness(): {
+  status: OpsLensExternalRuntimeReviewPacketReadiness;
+  evidence: string[];
+  review: OpsLensExternalRuntimeReviewPacketSummary;
+} {
+  const evidencePath = externalRuntimeReviewPacketEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      review: missingExternalRuntimeReviewPacketSummary(
+        `external runtime review packet evidence is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run evidence:external-runtime:review-packet to create the vLLM/Qdrant reviewer packet",
+        "dashboard keeps runtime review as needs-evidence until the packet exists",
+        "the packet must keep registryMutationAttempted=false and clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as ExternalRuntimeReviewPacketEvidenceArtifact;
+    const status = mapExternalRuntimeReviewPacketReadinessStatus(artifact);
+    const images = (artifact.images ?? []).map((image) => ({
+      name: image.name ?? "unknown",
+      image: image.image ?? "unknown",
+      sourceDigest: image.sourceDigest ?? "missing",
+      sourceDigestInspectionStatus:
+        image.sourceDigestInspection?.status ?? "missing",
+      draftStatus: image.draftStatus ?? "missing",
+      evidenceState: image.evidenceState ?? "missing",
+      finalEvidenceExists: image.finalEvidence?.exists === true,
+      reviewerRequests: (image.reviewerRequests ?? []).map((request) => ({
+        role: request.role ?? "unknown",
+        request: request.request ?? "unknown",
+        evidenceNeeded: request.evidenceNeeded ?? "unknown"
+      })),
+      missingEvidenceCount: image.missingEvidence?.length ?? 0
+    }));
+    const readOnlyCommands = (artifact.readOnlyCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      phase: command.phase ?? "unknown",
+      mutation: command.mutation === true,
+      writesLocalEvidence: command.writesLocalEvidence === true
+    }));
+    const approvalGatedCommands = (artifact.approvalGatedCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      phase: command.phase ?? "unknown",
+      mutation: command.mutation === true,
+      requiresExplicitApproval: command.requiresExplicitApproval === true
+    }));
+    const imageSummary = images
+      .map((image) => `${image.name}:${image.sourceDigestInspectionStatus} requests=${image.reviewerRequests.length}`)
+      .join(", ");
+
+    return {
+      status,
+      review: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "reviewPacketOnly",
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        requiredApprovals: artifact.requiredApprovals ?? [],
+        markdownPath: artifact.markdownOut ?? "missing",
+        images,
+        readOnlyCommands,
+        approvalGatedCommands,
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `External runtime review packet ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `external runtime review packet generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `actionMode=${artifact.actionMode ?? "unknown"} registryMutationAttempted=${String(artifact.registryMutationAttempted ?? "unknown")} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")}`,
+        imageSummary
+          ? `external runtime review images=${imageSummary}`
+          : "external runtime review images are not listed",
+        `external runtime reviewer missingEvidence=${(artifact.missingEvidence ?? []).length}`,
+        "admin overview reads external runtime review packet only; it does not promote drafts, mirror, sign, push, or patch resources"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "blocked",
+      review: missingExternalRuntimeReviewPacketSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "blocked"
+      ),
+      evidence: [
+        `External runtime review packet could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid external runtime review packet blocks dashboard readiness"
       ]
     };
   }
@@ -3825,6 +4043,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const imageBuildReadiness = getImageBuildReadiness();
   const ownedImageProvenanceReadiness = getOwnedImageProvenanceReadiness();
   const externalRuntimeImagesReadiness = getExternalRuntimeImagesPlanReadiness();
+  const externalRuntimeReviewPacketReadiness =
+    getExternalRuntimeReviewPacketReadiness();
   const ocpConnectivityReadiness = getOcpConnectivityDiagnosticReadiness();
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
   const installPlanReadiness = getInstallApprovalPlanReadiness();
@@ -3848,6 +4068,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     imageBuildReadiness.evidence[0],
     ownedImageProvenanceReadiness.evidence[0],
     externalRuntimeImagesReadiness.evidence[0],
+    externalRuntimeReviewPacketReadiness.evidence[0],
     securityScanReadiness.evidence[0],
     releasePublishReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
@@ -3858,6 +4079,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...imageBuildReadiness.evidence.slice(1),
     ...ownedImageProvenanceReadiness.evidence.slice(1),
     ...externalRuntimeImagesReadiness.evidence.slice(1),
+    ...externalRuntimeReviewPacketReadiness.evidence.slice(1),
     ...securityScanReadiness.evidence.slice(1),
     ...releasePublishReadiness.evidence.slice(1),
     ...releaseEvidenceRefreshReadiness.evidence.slice(1),
@@ -4014,6 +4236,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       ownedImageProvenancePlan: ownedImageProvenanceReadiness.plan,
       externalRuntimeImages: externalRuntimeImagesReadiness.status,
       externalRuntimePlan: externalRuntimeImagesReadiness.plan,
+      externalRuntimeReviewPacket: externalRuntimeReviewPacketReadiness.status,
+      externalRuntimeReview: externalRuntimeReviewPacketReadiness.review,
       securityScan: securityScanReadiness.status,
       securityScanPlan: securityScanReadiness.plan,
       releasePublish: releasePublishReadiness.status,
@@ -4044,6 +4268,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 5 image build readiness is validated by npm run verify:images",
         "Stage 5 owned image provenance is validated by npm run verify:owned-image-provenance",
         "Stage 5 external runtime evidence plan is generated by npm run verify:external-runtime-plan",
+        "Stage 5 external runtime review packet is generated by npm run evidence:external-runtime:review-packet",
         "Stage 5 security scan and SBOM plan is generated by npm run verify:security-scan-plan",
         "Stage 5 release publish approval plan is generated by npm run verify:release-plan",
         "Stage 5 release evidence refresh chain is generated by npm run verify:release-refresh",

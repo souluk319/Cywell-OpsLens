@@ -177,6 +177,8 @@ export function OpsLensAdminDashboard() {
   const catalogToolchainPlan =
     overview?.installReadiness.catalogToolchainPlan;
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
+  const externalRuntimeReview =
+    overview?.installReadiness.externalRuntimeReview;
   const securityScanPlan = overview?.installReadiness.securityScanPlan;
   const ownedImageProvenancePlan =
     overview?.installReadiness.ownedImageProvenancePlan;
@@ -887,6 +889,8 @@ export function OpsLensAdminDashboard() {
                     overview.installReadiness.ownedImageProvenance,
                   "External Runtime":
                     overview.installReadiness.externalRuntimeImages,
+                  "Runtime Review":
+                    overview.installReadiness.externalRuntimeReviewPacket,
                   "Security Scan": overview.installReadiness.securityScan,
                   "Release Publish": overview.installReadiness.releasePublish,
                   "Release Refresh": overview.installReadiness.releaseRefresh,
@@ -1460,6 +1464,101 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {externalRuntimePlan.rollbackPath[0] ??
                     "Rollback path must be reviewed before mirroring runtime images."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {externalRuntimeReview ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-external-runtime-review-packet"
+            >
+              <div className="admin-evidence-line">
+                <span>{externalRuntimeReview.artifactStatus}</span>
+                <span>{externalRuntimeReview.actionMode}</span>
+                <span>
+                  registryMutationAttempted=
+                  {String(externalRuntimeReview.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(externalRuntimeReview.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(externalRuntimeReview.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Packet</span>
+                  <strong>
+                    {externalRuntimeReview.markdownPath.split(/[\\/]/).pop() ??
+                      externalRuntimeReview.markdownPath}
+                  </strong>
+                </div>
+                <div>
+                  <span>Reviewer Requests</span>
+                  <strong>
+                    {externalRuntimeReview.images
+                      .map(
+                        (image) =>
+                          `${image.name}:${image.reviewerRequests.length}`
+                      )
+                      .join(", ") || "none"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Source Digest</span>
+                  <strong>
+                    {externalRuntimeReview.images
+                      .map(
+                        (image) =>
+                          `${image.name}:${image.sourceDigestInspectionStatus}`
+                      )
+                      .join(", ") || "missing"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Final Evidence</span>
+                  <strong>
+                    {externalRuntimeReview.images
+                      .map(
+                        (image) =>
+                          `${image.name}:${String(image.finalEvidenceExists)}`
+                      )
+                      .join(", ") || "missing"}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-external-runtime-review-commands"
+              >
+                {externalRuntimeReview.readOnlyCommands
+                  .slice(0, 3)
+                  .map((command) => (
+                    <span key={command.id}>
+                      {command.id} mutation={String(command.mutation)}
+                    </span>
+                  ))}
+                {externalRuntimeReview.approvalGatedCommands
+                  .slice(0, 3)
+                  .map((command) => (
+                    <span key={command.id}>
+                      not-run {command.id} approval=
+                      {String(command.requiresExplicitApproval)}
+                    </span>
+                  ))}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {externalRuntimeReview.risk[0] ??
+                    "External runtime review packet is local evidence only."}
+                </p>
+                <p>
+                  {externalRuntimeReview.rollbackPath[0] ??
+                    "Regenerate the review packet after draft evidence changes."}
                 </p>
               </div>
             </div>

@@ -991,6 +991,11 @@ export type OpsLensExternalRuntimeReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensExternalRuntimeReviewPacketReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "blocked";
+
 export type OpsLensOperatorDryRunReadiness =
   | "ready"
   | "partial"
@@ -1410,6 +1415,47 @@ export interface OpsLensExternalRuntimeImagesPlanSummary {
   missingEvidence: string[];
 }
 
+export interface OpsLensExternalRuntimeReviewPacketSummary {
+  status: OpsLensExternalRuntimeReviewPacketReadiness;
+  artifactStatus: string;
+  actionMode: "reviewPacketOnly";
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  requiredApprovals: string[];
+  markdownPath: string;
+  images: Array<{
+    name: string;
+    image: string;
+    sourceDigest: string;
+    sourceDigestInspectionStatus: string;
+    draftStatus: string;
+    evidenceState: string;
+    finalEvidenceExists: boolean;
+    reviewerRequests: Array<{
+      role: string;
+      request: string;
+      evidenceNeeded: string;
+    }>;
+    missingEvidenceCount: number;
+  }>;
+  readOnlyCommands: Array<{
+    id: string;
+    phase: string;
+    mutation: boolean;
+    writesLocalEvidence: boolean;
+  }>;
+  approvalGatedCommands: Array<{
+    id: string;
+    phase: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  }>;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
@@ -1445,6 +1491,8 @@ export interface OpsLensAdminOverviewResponse {
     ownedImageProvenancePlan: OpsLensOwnedImageProvenanceSummary;
     externalRuntimeImages: OpsLensExternalRuntimeReadiness;
     externalRuntimePlan: OpsLensExternalRuntimeImagesPlanSummary;
+    externalRuntimeReviewPacket: OpsLensExternalRuntimeReviewPacketReadiness;
+    externalRuntimeReview: OpsLensExternalRuntimeReviewPacketSummary;
     securityScan: OpsLensSecurityScanReadiness;
     securityScanPlan: OpsLensSecurityScanPlanSummary;
     releasePublish: OpsLensReleasePublishReadiness;

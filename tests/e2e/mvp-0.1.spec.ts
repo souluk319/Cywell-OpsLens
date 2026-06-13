@@ -1050,6 +1050,41 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
           missingEvidence?: string[];
         };
+        externalRuntimeReviewPacket?: string;
+        externalRuntimeReview?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          registryMutationAttempted?: boolean;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          requiredApprovals?: string[];
+          markdownPath?: string;
+          images?: Array<{
+            name?: string;
+            sourceDigestInspectionStatus?: string;
+            finalEvidenceExists?: boolean;
+            reviewerRequests?: Array<{
+              role?: string;
+              request?: string;
+              evidenceNeeded?: string;
+            }>;
+            missingEvidenceCount?: number;
+          }>;
+          readOnlyCommands?: Array<{
+            id?: string;
+            mutation?: boolean;
+            writesLocalEvidence?: boolean;
+          }>;
+          approvalGatedCommands?: Array<{
+            id?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+          }>;
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         securityScan?: string;
         securityScanPlan?: {
           status?: string;
@@ -1592,6 +1627,55 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /external runtime evidence templates/i
     );
+    expect(["ready", "needs-evidence", "blocked"]).toContain(
+      body.installReadiness?.externalRuntimeReviewPacket
+    );
+    expect(body.installReadiness?.externalRuntimeReview).toMatchObject({
+      actionMode: "reviewPacketOnly",
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.externalRuntimeReview?.requiredApprovals
+    ).toEqual(
+      expect.arrayContaining([
+        "registry-admin",
+        "security-reviewer",
+        "release-manager",
+        "product-owner"
+      ])
+    );
+    expect(
+      body.installReadiness?.externalRuntimeReview?.images?.map(
+        (image) => image.name
+      )
+    ).toEqual(expect.arrayContaining(["vllm", "qdrant"]));
+    expect(
+      body.installReadiness?.externalRuntimeReview?.images?.map(
+        (image) => `${image.name}:${image.sourceDigestInspectionStatus}`
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^vllm:(pass|needs-evidence|missing)$/),
+        expect.stringMatching(/^qdrant:(pass|needs-evidence|missing)$/)
+      ])
+    );
+    expect(
+      body.installReadiness?.externalRuntimeReview?.readOnlyCommands?.every(
+        (command) => command.mutation === false
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.externalRuntimeReview?.approvalGatedCommands?.every(
+        (command) =>
+          command.mutation === true &&
+          command.requiresExplicitApproval === true
+      )
+    ).toBe(true);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /external runtime review packet/i
+    );
     expect([
       "ready-for-scan",
       "needs-tooling",
@@ -2086,6 +2170,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Security Scan"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Runtime Review"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Release Refresh"
     );
     await expect(page.getByTestId("opslens-install-approval-plan")).toContainText(
@@ -2124,6 +2211,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
       "vllm"
     );
+    await expect(
+      page.getByTestId("opslens-external-runtime-review-packet")
+    ).toContainText("reviewPacketOnly");
+    await expect(
+      page.getByTestId("opslens-external-runtime-review-packet")
+    ).toContainText("registryMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-external-runtime-review-packet")
+    ).toContainText("vllm");
+    await expect(
+      page.getByTestId("opslens-external-runtime-review-commands")
+    ).toContainText("mutation=false");
+    await expect(
+      page.getByTestId("opslens-external-runtime-review-commands")
+    ).toContainText("not-run");
     await expect(page.getByTestId("opslens-security-scan-plan")).toContainText(
       "scanPlanOnly"
     );
