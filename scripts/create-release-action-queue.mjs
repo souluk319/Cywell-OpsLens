@@ -449,8 +449,8 @@ function checkpointItems(checkpoint, networkHandoff) {
 }
 
 function externalRuntimeItems(packet) {
-  return (packet?.images ?? []).flatMap((image) =>
-    (image.reviewerRequests ?? []).map((request, index) =>
+  return (packet?.images ?? []).flatMap((image) => {
+    const reviewerItems = (image.reviewerRequests ?? []).map((request, index) =>
       item({
         id: `external-runtime-${image.name}-${request.role ?? "reviewer"}-${index + 1}`,
         owner: request.role ?? "release-manager",
@@ -464,8 +464,36 @@ function externalRuntimeItems(packet) {
         blockedBy: image.missingEvidence ?? [],
         acceptance: ["AC-CERT-001"]
       })
-    )
-  );
+    );
+    const candidate = image.candidateMatrix;
+    const candidateStatus = candidate?.status ?? "missing";
+    const candidateReady = ["candidate-ready-for-review", "current-evidence-release-eligible"].includes(candidateStatus);
+    const candidateItem = candidateReady
+      ? []
+      : [
+          item({
+            id: `external-runtime-${image.name}-candidate-matrix`,
+            owner: "security-reviewer",
+            priority: "high",
+            source: `externalRuntimeReviewPacket:${image.name}:candidateMatrix`,
+            request:
+              candidateStatus === "candidate-reduces-risk-but-remediation-required"
+                ? `Find or approve a zero-critical ${image.name} replacement candidate before external runtime promotion.`
+                : `Scan at least one ${image.name} replacement candidate before external runtime promotion review.`,
+            evidenceNeeded: [
+              `candidateMatrix status=${candidateStatus}`,
+              candidate?.bestCandidate
+                ? `best=${candidate.bestCandidate.image} criticalFindings=${candidate.bestCandidate.criticalFindings} highFindings=${candidate.bestCandidate.highFindings}`
+                : "best=missing",
+              candidate?.recommendation ?? "candidate recommendation missing"
+            ].join("; "),
+            nextCommand: "npm run evidence:external-runtime:candidates",
+            blockedBy: candidate?.missingEvidence ?? image.missingEvidence ?? [],
+            acceptance: ["AC-CERT-001"]
+          })
+        ];
+    return [...reviewerItems, ...candidateItem];
+  });
 }
 
 function bundleDecisionItems(bundle) {
