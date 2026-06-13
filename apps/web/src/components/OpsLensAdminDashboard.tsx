@@ -188,6 +188,8 @@ export function OpsLensAdminDashboard() {
   const releasePlan = overview?.installReadiness.releasePlan;
   const releaseRefresh = overview?.installReadiness.refresh;
   const releaseBundle = overview?.installReadiness.bundle;
+  const releaseBundlePacketName =
+    releaseBundle?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const releaseActionQueue = overview?.installReadiness.actionQueue;
   const checkpoint = overview?.installReadiness.checkpoint;
   const liveHandoff = overview?.installReadiness.handoff;
@@ -1222,6 +1224,7 @@ export function OpsLensAdminDashboard() {
                 <span>{releaseBundle.actionMode}</span>
                 <span>head={releaseBundle.headSha}</span>
                 <span>dirty={String(releaseBundle.worktreeDirty)}</span>
+                <span>packet={releaseBundlePacketName}</span>
                 <span>
                   mutationBoundaryPassed=
                   {String(releaseBundle.mutationBoundaryPassed)}

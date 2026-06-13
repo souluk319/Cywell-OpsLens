@@ -9,6 +9,7 @@ const execFileAsync = promisify(execFile);
 
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-release-evidence-bundle.json",
+  markdownOut: "test-results/cywell-opslens-release-evidence-bundle.md",
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
@@ -47,6 +48,7 @@ function parseArgs(argv) {
 const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
   mvpGate: parsed.get("mvp-gate-evidence") ?? defaults.mvpGate,
   imageBuild: parsed.get("image-build-evidence") ?? defaults.imageBuild,
   ownedImageProvenance:
@@ -428,6 +430,162 @@ function evidenceGaps(artifacts, sources) {
   ]);
 }
 
+function markdownText(value) {
+  return sanitize(value).replace(/\r?\n/g, " ").trim();
+}
+
+function markdownCell(value) {
+  return markdownText(value).replace(/\|/g, "\\|");
+}
+
+function markdownTable(headers, rows, emptyLabel) {
+  const header = `| ${headers.map(markdownCell).join(" | ")} |`;
+  const separator = `| ${headers.map(() => "---").join(" | ")} |`;
+  const body =
+    rows.length > 0
+      ? rows.map((row) => `| ${row.map(markdownCell).join(" | ")} |`)
+      : [
+          `| ${[emptyLabel, ...headers.slice(1).map(() => "")]
+            .map(markdownCell)
+            .join(" | ")} |`
+        ];
+  return [header, separator, ...body].join("\n");
+}
+
+function markdownList(values, fallback) {
+  const entries = unique(values).map(markdownText).filter(Boolean);
+  if (entries.length === 0) return `- ${fallback}`;
+  return entries.map((entry) => `- ${entry}`).join("\n");
+}
+
+function commandRows(commands, limit) {
+  return commands.slice(0, limit).map((command) => [
+    command.id ?? "unknown",
+    command.phase ?? "unknown",
+    String(command.mutation === true),
+    String(command.requiresExplicitApproval === true),
+    command.command ?? "unknown"
+  ]);
+}
+
+function buildMarkdownBundle(artifact) {
+  const readOnlyCommands = artifact.commands?.readOnly ?? [];
+  const approvalCommands = artifact.commands?.mutatingApprovalRequired ?? [];
+  const sourceRows = (artifact.sources ?? []).map((source) => [
+    source.id ?? "unknown",
+    source.status ?? "unknown",
+    String(source.fresh === true),
+    String(source.acceptable === true),
+    String(source.mutationViolation === true)
+  ]);
+  const approvalRows = Object.entries(artifact.approvals ?? {}).map(
+    ([scope, approvers]) => [scope, Array.isArray(approvers) ? approvers.join(", ") : "unknown"]
+  );
+  const stageRows = (artifact.stages ?? []).map((stage) => [
+    stage.id ?? "unknown",
+    stage.status ?? "unknown",
+    (stage.missingEvidence ?? []).length,
+    (stage.blockers ?? []).length
+  ]);
+
+  return sanitize(
+    [
+      "# Cywell OpsLens Release Evidence Bundle",
+      "",
+      "## Current Decision",
+      `- Status: ${artifact.status ?? "unknown"}`,
+      `- Action mode: ${artifact.actionMode ?? "unknown"}`,
+      `- Generated at: ${artifact.generatedAt ?? "unknown"}`,
+      `- Ref: ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+      `- Publish ready: ${String(artifact.decision?.publishReady ?? false)}`,
+      `- Install ready: ${String(artifact.decision?.installReady ?? false)}`,
+      `- Roadmap complete: ${String(artifact.decision?.roadmapComplete ?? false)}`,
+      `- Checkpoint status: ${artifact.decision?.checkpointStatus ?? "unknown"}`,
+      `- Release status: ${artifact.decision?.releaseStatus ?? "unknown"}`,
+      `- Install status: ${artifact.decision?.installStatus ?? "unknown"}`,
+      `- Roadmap status: ${artifact.decision?.roadmapStatus ?? "unknown"}`,
+      "",
+      "## Evidence Outputs",
+      `- JSON: ${artifact.evidenceOut ?? "missing"}`,
+      `- Markdown: ${artifact.markdownOut ?? "missing"}`,
+      "",
+      "## Source Artifacts",
+      markdownTable(
+        ["Source", "Status", "Fresh", "Acceptable", "Mutation Violation"],
+        sourceRows,
+        "no source artifacts"
+      ),
+      "",
+      "## Approvals",
+      markdownTable(["Scope", "Required Approvers"], approvalRows, "no approvals listed"),
+      "",
+      "## Roadmap Stages",
+      markdownTable(
+        ["Stage", "Status", "Missing Evidence", "Blockers"],
+        stageRows,
+        "no stage summary"
+      ),
+      "",
+      "## Command Boundary",
+      `- Read-only/local evidence commands: ${readOnlyCommands.length}`,
+      `- Approval-gated mutating commands not run: ${approvalCommands.length}`,
+      `- Registry mutation attempted: ${String(artifact.registryMutationAttempted ?? false)}`,
+      `- Cluster mutation attempted: ${String(artifact.clusterMutationAttempted ?? false)}`,
+      `- Mutation allowed by this verifier: ${String(artifact.mutationAllowedByThisVerifier ?? false)}`,
+      `- Mutation boundary passed: ${String(artifact.mutationBoundary?.passed ?? false)}`,
+      `- Forbidden without approval: ${(artifact.commands?.forbiddenWithoutApproval ?? []).join(", ")}`,
+      "",
+      "### Read-Only Commands (Sample)",
+      markdownTable(
+        ["ID", "Phase", "Mutation", "Approval Required", "Command"],
+        commandRows(readOnlyCommands, 12),
+        "no read-only commands"
+      ),
+      readOnlyCommands.length > 12
+        ? `\nShowing 12 of ${readOnlyCommands.length} read-only commands. See JSON for the full list.`
+        : "",
+      "",
+      "### Approval-Gated Commands (Not Run)",
+      markdownTable(
+        ["ID", "Phase", "Mutation", "Approval Required", "Command"],
+        commandRows(approvalCommands, 12),
+        "no approval-gated commands"
+      ),
+      approvalCommands.length > 12
+        ? `\nShowing 12 of ${approvalCommands.length} approval-gated commands. See JSON for the full list.`
+        : "",
+      "",
+      "## Missing Evidence",
+      `- Count: ${(artifact.missingEvidence ?? []).length}`,
+      markdownList(artifact.missingEvidence ?? [], "none"),
+      "",
+      "## Blockers",
+      markdownList(artifact.blockers ?? [], "none"),
+      "",
+      "## Risk",
+      markdownList(artifact.risk ?? [], "none"),
+      "",
+      "## Rollback Path",
+      markdownList(artifact.rollbackPath ?? [], "none"),
+      "",
+      "## Next Evidence Refresh",
+      "- npm run verify:release-refresh -- --live-timeout-ms 30000",
+      "- npm run verify:evidence-checkpoint",
+      "- npm run verify:release-evidence-bundle",
+      "- npm run evidence:release-action-queue",
+      "",
+      "## Mutation Boundary",
+      "- This packet is read-only release evidence.",
+      "- It does not publish images, mirror or sign runtime images, install Operators, patch OLSConfig, apply, delete, or scale cluster resources.",
+      "- Approval-gated commands are recorded for human review only and were not run by this verifier.",
+      ""
+    ]
+      .filter((line) => line !== undefined && line !== null)
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n") + "\n"
+  );
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -508,6 +666,8 @@ async function main() {
     startedAt,
     status,
     actionMode: "bundleOnly",
+    evidenceOut: resolve(options.evidenceOut),
+    markdownOut: resolve(options.markdownOut),
     registryMutationAttempted: false,
     clusterMutationAttempted: false,
     mutationAllowedByThisVerifier: false,
@@ -718,12 +878,20 @@ async function main() {
   };
 
   const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
-  if (/--token\s+(?!<redacted>)\S+/i.test(serialized) || /Bearer\s+(?!<redacted>)[A-Za-z0-9._~+/=-]+/i.test(serialized)) {
+  const markdown = buildMarkdownBundle(artifact);
+  const secretPattern =
+    /--token\s+(?!<redacted>)\S+|Bearer\s+(?!<redacted>)[A-Za-z0-9._~+/=-]+/i;
+  if (secretPattern.test(serialized) || secretPattern.test(markdown)) {
     throw new Error("release evidence bundle would include unredacted secret material");
   }
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
+  await mkdir(dirname(resolve(options.markdownOut)), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");
-  pass("release evidence bundle export", `${resolve(options.evidenceOut)} written without secret material`);
+  await writeFile(resolve(options.markdownOut), markdown, "utf8");
+  pass(
+    "release evidence bundle export",
+    `${resolve(options.evidenceOut)} and ${resolve(options.markdownOut)} written without secret material`
+  );
 
   const totals = {
     fail: checks.filter((check) => check.status === "FAIL").length,
@@ -736,7 +904,7 @@ async function main() {
     console.log(`[${check.status}] ${check.name}: ${check.detail}`);
   }
   console.log("");
-  console.log(`Cywell OpsLens release evidence bundle: status=${status}, ${totals.fail} fail, ${totals.warn} warn, ${checks.length} checks`);
+  console.log(`Cywell OpsLens release evidence bundle: status=${status}, ${totals.fail} fail, ${totals.warn} warn, ${checks.length} checks, markdown=${resolve(options.markdownOut)}`);
 
   if (status === "BLOCKED") {
     process.exitCode = 1;

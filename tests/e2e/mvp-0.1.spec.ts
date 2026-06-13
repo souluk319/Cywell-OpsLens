@@ -1024,6 +1024,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           status?: string;
           artifactStatus?: string;
           actionMode?: string;
+          markdownPath?: string;
           registryMutationAttempted?: boolean;
           clusterMutationAttempted?: boolean;
           mutationAllowedByThisVerifier?: boolean;
@@ -1920,6 +1921,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       worktreeDirty: false,
       mutationBoundaryPassed: true
     });
+    expect(body.installReadiness?.bundle?.markdownPath).toContain(
+      "cywell-opslens-release-evidence-bundle.md"
+    );
     expect(
       body.installReadiness?.bundle?.sourceArtifacts?.map(
         (source) => source.id
@@ -2490,6 +2494,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
       "bundleOnly"
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      "cywell-opslens-release-evidence-bundle.md"
     );
     await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
       "mutationBoundaryPassed=true"

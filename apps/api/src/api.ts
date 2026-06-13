@@ -1582,6 +1582,7 @@ type ReleaseEvidenceBundleArtifact = {
   status?: string;
   generatedAt?: string;
   actionMode?: string;
+  markdownOut?: string;
   registryMutationAttempted?: boolean;
   clusterMutationAttempted?: boolean;
   mutationAllowedByThisVerifier?: boolean;
@@ -3988,6 +3989,7 @@ function missingReleaseEvidenceBundleSummary(
     status,
     artifactStatus: status === "blocked" ? "invalid" : "missing",
     actionMode: "bundleOnly",
+    markdownPath: "missing",
     registryMutationAttempted: false,
     clusterMutationAttempted: false,
     mutationAllowedByThisVerifier: false,
@@ -4070,6 +4072,8 @@ function getReleaseEvidenceBundleReadiness(): {
       .slice(0, 6)
       .map((source) => `${source.id}:${source.status}:fresh=${String(source.fresh)}`)
       .join(", ");
+    const markdownPath =
+      artifact.markdownOut ?? evidencePath.replace(/\.json$/i, ".md");
 
     return {
       status,
@@ -4077,6 +4081,7 @@ function getReleaseEvidenceBundleReadiness(): {
         status,
         artifactStatus: artifact.status ?? "unknown",
         actionMode: "bundleOnly",
+        markdownPath,
         registryMutationAttempted: artifact.registryMutationAttempted === true,
         clusterMutationAttempted: artifact.clusterMutationAttempted === true,
         mutationAllowedByThisVerifier:
@@ -4096,6 +4101,7 @@ function getReleaseEvidenceBundleReadiness(): {
         `Release evidence bundle ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `release bundle generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `bundle decision publishReady=${String(decision.publishReady)} installReady=${String(decision.installReady)} roadmapComplete=${String(decision.roadmapComplete)}`,
+        `bundle markdown packet=${markdownPath}`,
         `bundle command counts readOnly=${commandCounts.readOnly} mutatingApprovalRequired=${commandCounts.mutatingApprovalRequired}`,
         sourceSummary ? `bundle sources=${sourceSummary}` : "bundle sources are not listed",
         `bundle mutationBoundaryPassed=${String(artifact.mutationBoundary?.passed ?? false)}`,

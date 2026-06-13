@@ -1356,6 +1356,7 @@ export interface OpsLensReleaseEvidenceBundleSummary {
   status: OpsLensReleaseEvidenceBundleReadiness;
   artifactStatus: string;
   actionMode: "bundleOnly";
+  markdownPath: string;
   registryMutationAttempted: boolean;
   clusterMutationAttempted: boolean;
   mutationAllowedByThisVerifier: boolean;
