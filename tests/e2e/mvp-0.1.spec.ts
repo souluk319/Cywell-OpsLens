@@ -2767,10 +2767,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.actionQueue?.items?.find(
         (item) => item.id === "external-runtime-vllm-candidate-matrix"
       );
+    expect(vllmCandidateAction?.diagnostics?.map((item) => item.id)).toEqual(
+      expect.arrayContaining(["candidate-status", "candidate-best"])
+    );
     if (vllmCandidateAction?.nextCommand?.includes("candidate-scan")) {
       expect(vllmCandidateAction.nextCommand).toContain(
         "--timeout-ms 7200000"
       );
+      expect(
+        vllmCandidateAction.diagnostics
+          ?.find((item) => item.id === "candidate-best")
+          ?.value
+      ).toContain("missing");
     }
     const qdrantCandidateAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -2785,6 +2793,25 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(qdrantCandidateAction?.evidenceNeeded).toContain(
       "criticalFindings=0"
     );
+    expect(qdrantCandidateAction?.diagnostics?.map((item) => item.id)).toEqual(
+      expect.arrayContaining([
+        "candidate-status",
+        "candidate-best",
+        "candidate-findings",
+        "candidate-delta",
+        "candidate-review"
+      ])
+    );
+    expect(
+      qdrantCandidateAction?.diagnostics
+        ?.find((item) => item.id === "candidate-findings")
+        ?.value
+    ).toMatch(/critical=0.*high=0/);
+    expect(
+      qdrantCandidateAction?.diagnostics
+        ?.find((item) => item.id === "candidate-review")
+        ?.value
+    ).toContain("promotionApproved=false");
     const securityReviewAction = body.installReadiness?.actionQueue?.items?.find(
       (item) => item.id === "security-review-operator-final-evidence"
     );
@@ -3869,7 +3896,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("sign-owned-operator");
     await expect(
       page.getByTestId("opslens-release-action-queue-diagnostics")
-    ).toContainText(/security-final-review|post-approval-rbac/);
+    ).toContainText(/candidate-status|security-final-review|post-approval-rbac/);
     await expect(
       page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
     ).toContainText(/registry-admin-fix-catalog-base-image-auth|catalog registry actions clear/);

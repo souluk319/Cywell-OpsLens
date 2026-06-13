@@ -749,6 +749,44 @@ function externalRuntimeItems(packet) {
     const candidate = image.candidateMatrix;
     const candidateStatus = candidate?.status ?? "missing";
     const candidateReady = ["candidate-ready-for-review", "current-evidence-release-eligible"].includes(candidateStatus);
+    const candidateDiagnostics = [
+      {
+        id: "candidate-status",
+        label: "Candidate matrix",
+        value:
+          `status=${candidateStatus} ` +
+          `matrix=${candidate?.matrixStatus ?? "missing"} ` +
+          `zeroCritical=${candidate?.zeroCriticalCandidates?.length ?? 0}`
+      },
+      {
+        id: "candidate-best",
+        label: "Best candidate",
+        value: candidate?.bestCandidate
+          ? `${candidate.bestCandidate.image} label=${candidate.bestCandidate.label ?? "unknown"} releaseEligible=${String(candidate.bestCandidate.releaseEligible === true)}`
+          : "missing"
+      },
+      {
+        id: "candidate-findings",
+        label: "Findings",
+        value: candidate?.bestCandidate
+          ? `critical=${candidate.bestCandidate.criticalFindings} high=${candidate.bestCandidate.highFindings} medium=${candidate.bestCandidate.mediumFindings} low=${candidate.bestCandidate.lowFindings}`
+          : "missing"
+      },
+      {
+        id: "candidate-delta",
+        label: "Delta from current",
+        value: candidate?.bestCandidate?.deltaFromCurrent
+          ? `critical=${candidate.bestCandidate.deltaFromCurrent.critical} high=${candidate.bestCandidate.deltaFromCurrent.high} medium=${candidate.bestCandidate.deltaFromCurrent.medium} low=${candidate.bestCandidate.deltaFromCurrent.low}`
+          : "missing"
+      },
+      {
+        id: "candidate-review",
+        label: "Review boundary",
+        value: candidate?.bestCandidate
+          ? `reviewDecision=${candidate.bestCandidate.reviewDecision ?? "unknown"} sbomPackages=${candidate.bestCandidate.sbomPackageCount ?? "unknown"} promotionApproved=false`
+          : "missing"
+      }
+    ];
     const candidateTimeout = image.name === "vllm" ? " --timeout-ms 7200000" : "";
     const candidateScanCommand =
       `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${candidateTimeout}`;
@@ -785,6 +823,7 @@ function externalRuntimeItems(packet) {
       blockedBy: candidateReady
         ? image.missingEvidence ?? []
         : candidate?.missingEvidence ?? image.missingEvidence ?? [],
+      diagnostics: candidateDiagnostics,
       acceptance: ["AC-CERT-001"]
     });
     return [...reviewerItems, candidateItem];
