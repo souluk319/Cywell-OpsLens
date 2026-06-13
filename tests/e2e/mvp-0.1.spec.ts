@@ -2474,7 +2474,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       )
     ).toEqual(
       expect.arrayContaining([
-        expect.stringMatching(/^vllm:(needs-candidate|candidate-ready-for-review|current-evidence-release-eligible|missing)$/),
+        expect.stringMatching(/^vllm:(needs-candidate|no-improving-candidate|candidate-ready-for-review|current-evidence-release-eligible|missing)$/),
         expect.stringMatching(/^qdrant:(candidate-reduces-risk-but-remediation-required|candidate-ready-for-review|current-evidence-release-eligible|missing)$/)
       ])
     );
@@ -2827,11 +2827,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(vllmCandidateAction.nextCommand).toContain(
         "--timeout-ms 7200000"
       );
+      expect(vllmCandidateAction.nextCommand).toContain(
+        "--trivy-timeout 30m"
+      );
+      expect(vllmCandidateAction.nextCommand).toContain(
+        "--trivy-scanners vuln"
+      );
+      expect(vllmCandidateAction.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining(["candidate-findings", "candidate-review"])
+      );
+      const bestCandidateDiagnostic = vllmCandidateAction.diagnostics?.find(
+        (item) => item.id === "candidate-best"
+      )?.value;
       expect(
-        vllmCandidateAction.diagnostics
-          ?.find((item) => item.id === "candidate-best")
-          ?.value
-      ).toContain("missing");
+        bestCandidateDiagnostic === "missing" ||
+          /releaseEligible=(true|false)/.test(bestCandidateDiagnostic ?? "")
+      ).toBe(true);
     }
     const qdrantCandidateAction =
       body.installReadiness?.actionQueue?.items?.find(

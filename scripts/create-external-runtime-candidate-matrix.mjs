@@ -380,7 +380,8 @@ function matrixStatus(images) {
 
 function candidateScanCommand(name) {
   const timeout = name === "vllm" ? " --timeout-ms 7200000" : "";
-  return `npm run evidence:external-runtime:candidate-scan -- --name ${name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${timeout}`;
+  const scannerOptions = name === "vllm" ? " --trivy-timeout 30m --trivy-scanners vuln" : "";
+  return `npm run evidence:external-runtime:candidate-scan -- --name ${name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${timeout}${scannerOptions}`;
 }
 
 function readOnlyCommands(images) {

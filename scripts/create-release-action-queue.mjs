@@ -859,8 +859,11 @@ function externalRuntimeItems(packet) {
       }
     ];
     const candidateTimeout = image.name === "vllm" ? " --timeout-ms 7200000" : "";
+    const candidateScannerOptions = image.name === "vllm"
+      ? " --trivy-timeout 30m --trivy-scanners vuln"
+      : "";
     const candidateScanCommand =
-      `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${candidateTimeout}`;
+      `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${candidateTimeout}${candidateScannerOptions}`;
     const candidateApprovalCommand =
       `npm run evidence:external-runtime:draft -- --name ${image.name} --scan-status approved --scan-evidence <zero-critical-scan-report> --scan-critical-findings 0 --ticket <change-ticket> --force`;
     const candidateNextCommand = candidateReady
