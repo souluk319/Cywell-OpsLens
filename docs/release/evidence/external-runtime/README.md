@@ -91,15 +91,26 @@ The draft helper also reads generated security evidence from `docs/release/evide
 
 A human reviewer must still create the final `vllm.json` or `qdrant.json` after validating the referenced digest, scan, SBOM, provenance, license, and approval evidence.
 
+## Candidate Matrix
+
+Generate the candidate comparison packet after scanning one or more external runtime alternatives into `test-results/security-candidates/<name>-<candidate-label>`:
+
+```sh
+npm run evidence:external-runtime:candidates
+```
+
+The matrix writes `test-results/cywell-opslens-external-runtime-candidate-matrix.json` and `.md`. It compares current vulnerability/SBOM evidence with candidate scan directories, records the best scanned candidate, zero-critical candidates, remaining critical findings, missing evidence, risk, and rollback path. This packet is reviewer evidence only. It does not change CSV/FBC/runtime manifests, mirror images, sign images, push images, or promote a candidate to final release evidence.
+
 ## Review Packet
 
 Generate a reviewer-ready JSON and Markdown packet after draft intake:
 
 ```sh
+npm run evidence:external-runtime:candidates
 npm run evidence:external-runtime:review-packet
 ```
 
-The packet writes `test-results/cywell-opslens-external-runtime-review-packet.json` and `.md`. It consolidates vLLM/Qdrant draft status, source digest inspection, final evidence file presence, security scan/SBOM plan state, reviewer requests, missing evidence, read-only refresh commands, and approval-gated mirror/sign commands that were not run. It remains local evidence only and does not replace final reviewed `vllm.json` or `qdrant.json`.
+The packet writes `test-results/cywell-opslens-external-runtime-review-packet.json` and `.md`. It consolidates vLLM/Qdrant draft status, source digest inspection, final evidence file presence, security scan/SBOM plan state, candidate matrix state, reviewer requests, missing evidence, read-only refresh commands, and approval-gated mirror/sign commands that were not run. It remains local evidence only and does not replace final reviewed `vllm.json` or `qdrant.json`.
 
 ## Reviewed Promotion
 

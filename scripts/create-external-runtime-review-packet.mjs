@@ -15,6 +15,7 @@ const defaults = {
   securityScanEvidence: "test-results/cywell-opslens-security-scan-plan.json",
   securityScanRunnerEvidence: "test-results/cywell-opslens-security-scan-evidence-runner.json",
   ownedImageProvenanceEvidence: "test-results/cywell-opslens-owned-image-provenance.json",
+  externalRuntimeCandidateMatrix: "test-results/cywell-opslens-external-runtime-candidate-matrix.json",
   externalEvidenceDir: "docs/release/evidence/external-runtime",
   timeoutMs: 10000
 };
@@ -48,6 +49,8 @@ const options = {
     parsed.get("security-scan-runner-evidence") ?? defaults.securityScanRunnerEvidence,
   ownedImageProvenanceEvidence:
     parsed.get("owned-image-provenance-evidence") ?? defaults.ownedImageProvenanceEvidence,
+  externalRuntimeCandidateMatrix:
+    parsed.get("external-runtime-candidate-matrix-evidence") ?? defaults.externalRuntimeCandidateMatrix,
   externalEvidenceDir: parsed.get("external-evidence-dir") ?? defaults.externalEvidenceDir,
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
 };
@@ -208,7 +211,53 @@ function finalEvidenceStatus(path) {
   }
 }
 
-function reviewerRequests(name, image, draftMissingEvidence, draft) {
+function summarizeCandidate(candidate) {
+  if (!candidate) return undefined;
+  const counts = candidate.vulnerability?.severityCounts ?? {};
+  return {
+    label: candidate.label ?? "unknown",
+    image: candidate.image ?? "unknown",
+    status: candidate.status ?? "unknown",
+    releaseEligible: candidate.releaseEligible === true,
+    criticalFindings: counts.CRITICAL ?? "unknown",
+    highFindings: counts.HIGH ?? "unknown",
+    mediumFindings: counts.MEDIUM ?? "unknown",
+    lowFindings: counts.LOW ?? "unknown",
+    deltaFromCurrent: candidate.deltaFromCurrent ?? {},
+    sbomPackageCount: candidate.sbom?.packageCount ?? "unknown",
+    reviewDecision: candidate.reviewDraft?.decision ?? "unknown"
+  };
+}
+
+function candidateMatrixSummary(name, candidateMatrix) {
+  const image = (candidateMatrix?.images ?? []).find((entry) => entry.name === name);
+  if (!image) {
+    return {
+      status: "missing",
+      matrixStatus: candidateMatrix?.status ?? "missing",
+      bestCandidate: undefined,
+      zeroCriticalCandidates: [],
+      recommendation: "candidate matrix is missing",
+      missingEvidence: ["candidate matrix evidence is missing or has no image entry"]
+    };
+  }
+  return {
+    status: image.status ?? "unknown",
+    matrixStatus: candidateMatrix?.status ?? "unknown",
+    bestCandidate: summarizeCandidate(image.bestCandidate),
+    zeroCriticalCandidates: (image.zeroCriticalCandidates ?? []).map(summarizeCandidate),
+    recommendation: image.recommendation ?? "missing",
+    missingEvidence: image.missingEvidence ?? []
+  };
+}
+
+function candidateEvidenceLine(candidateMatrix) {
+  const best = candidateMatrix?.bestCandidate;
+  if (!best) return "";
+  return `Best scanned candidate ${best.image} reports criticalFindings=${best.criticalFindings} highFindings=${best.highFindings}; it reduces risk but still needs remediation or security exception before promotion`;
+}
+
+function reviewerRequests(name, image, draftMissingEvidence, draft, candidateMatrix) {
   const missing = draftMissingEvidence.join("\n");
   const requests = [];
   const add = (role, request, evidenceNeeded) => {
@@ -243,11 +292,15 @@ function reviewerRequests(name, image, draftMissingEvidence, draft) {
   }
   if (missing.includes(`${name}-vulnerability-scan`)) {
     const scan = draft?.vulnerabilityScan;
+    const candidateLine = candidateEvidenceLine(candidateMatrix);
     add(
       "security-reviewer",
       `Attach vulnerability scan evidence for ${name}.`,
       scan?.status === "needs-remediation"
-        ? `current ${scan.evidencePath ?? "scan evidence"} reports criticalFindings=${scan.criticalFindings ?? "unknown"} highFindings=${scan.highFindings ?? "unknown"}; replace or patch the image, then attach a reviewed zero-critical scan`
+        ? unique([
+            `current ${scan.evidencePath ?? "scan evidence"} reports criticalFindings=${scan.criticalFindings ?? "unknown"} highFindings=${scan.highFindings ?? "unknown"}; replace or patch the image, then attach a reviewed zero-critical scan`,
+            candidateLine
+          ]).join("; ")
         : "trivy/grype report with criticalFindings=0 and reviewed high findings"
     );
   }
@@ -286,7 +339,7 @@ function reviewerRequests(name, image, draftMissingEvidence, draft) {
   return requests;
 }
 
-function imagePackets(externalRuntime) {
+function imagePackets(externalRuntime, candidateMatrix) {
   const images = Array.isArray(externalRuntime?.externalImages)
     ? externalRuntime.externalImages
     : [];
@@ -295,6 +348,7 @@ function imagePackets(externalRuntime) {
   }
 
   return images.map((image) => {
+    const candidateSummary = candidateMatrixSummary(image.name, candidateMatrix);
     const draftPath = image.draftFile ?? resolve(options.externalEvidenceDir, `${image.name}.draft.json`);
     const draft = loadJson(draftPath, `${image.name} external runtime draft`, { required: false });
     const finalPath = image.evidenceFile ?? draft?.finalEvidenceFile ?? resolve(options.externalEvidenceDir, `${image.name}.json`);
@@ -348,7 +402,8 @@ function imagePackets(externalRuntime) {
         }
       },
       missingEvidence: draftMissingEvidence,
-      reviewerRequests: reviewerRequests(image.name, image, draftMissingEvidence, draft),
+      candidateMatrix: candidateSummary,
+      reviewerRequests: reviewerRequests(image.name, image, draftMissingEvidence, draft, candidateSummary),
       promotionRequirements: draft?.promotionRequirements ?? [
         `Complete and review ${image.name}.draft.json before creating ${image.name}.json.`,
         "Regenerate verify:external-runtime-plan, verify:release-plan, verify:evidence-checkpoint, and verify:release-evidence-bundle from the same clean Git HEAD."
@@ -380,6 +435,14 @@ function readOnlyCommands(images) {
       phase: "local-evidence-refresh",
       command: "npm run verify:security-scan-plan",
       purpose: "Regenerate vulnerability/SBOM/signature evidence plan.",
+      mutation: false,
+      writesLocalEvidence: true
+    },
+    {
+      id: "refresh-external-runtime-candidate-matrix",
+      phase: "candidate-review",
+      command: "npm run evidence:external-runtime:candidates",
+      purpose: "Refresh external runtime candidate vulnerability/SBOM comparison evidence without changing release manifests.",
       mutation: false,
       writesLocalEvidence: true
     },
@@ -483,6 +546,7 @@ function markdownFor(packet) {
       `- Source inspection: ${image.sourceDigestInspection.status ?? "missing"} ${image.sourceDigestInspection.detail ? `- ${image.sourceDigestInspection.detail}` : ""}`,
       `- Vulnerability scan: status=${image.vulnerabilityScan.status ?? "missing"}, critical=${image.vulnerabilityScan.criticalFindings ?? "unknown"}, high=${image.vulnerabilityScan.highFindings ?? "unknown"}, evidence=${image.vulnerabilityScan.evidencePath ?? "missing"}`,
       `- SBOM: status=${image.sbom.status ?? "missing"}, packages=${image.sbom.packageCount ?? "unknown"}, evidence=${image.sbom.evidencePath ?? "missing"}`,
+      `- Candidate matrix: status=${image.candidateMatrix?.status ?? "missing"}, best=${image.candidateMatrix?.bestCandidate?.image ?? "missing"}, critical=${image.candidateMatrix?.bestCandidate?.criticalFindings ?? "unknown"}, high=${image.candidateMatrix?.bestCandidate?.highFindings ?? "unknown"}, zeroCritical=${image.candidateMatrix?.zeroCriticalCandidates?.length ?? 0}`,
       ""
     );
     if (image.reviewerRequests.length === 0) {
@@ -531,6 +595,7 @@ function markdownFor(packet) {
     "",
     "```powershell",
     "npm run evidence:external-runtime:draft:digests",
+    "npm run evidence:external-runtime:candidates",
     "npm run evidence:external-runtime:review-packet",
     "npm run verify:evidence-checkpoint",
     "npm run verify:roadmap-plan",
@@ -556,7 +621,8 @@ async function main() {
     releasePlan: loadJson(options.releasePlanEvidence, "release publish plan", { required: false }),
     securityScan: loadJson(options.securityScanEvidence, "security scan plan", { required: false }),
     securityScanRunner: loadJson(options.securityScanRunnerEvidence, "security scan evidence runner", { required: false }),
-    ownedImageProvenance: loadJson(options.ownedImageProvenanceEvidence, "owned image provenance", { required: false })
+    ownedImageProvenance: loadJson(options.ownedImageProvenanceEvidence, "owned image provenance", { required: false }),
+    candidateMatrix: loadJson(options.externalRuntimeCandidateMatrix, "external runtime candidate matrix", { required: false })
   };
 
   const sourceArtifacts = [
@@ -564,10 +630,11 @@ async function main() {
     sourceSummary("releasePlan", "release publish plan", options.releasePlanEvidence, artifacts.releasePlan, headSha, ["PUBLISH_APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("securityScan", "security scan plan", options.securityScanEvidence, artifacts.securityScan, headSha, ["READY_FOR_SCAN", "NEEDS_TOOLING"]),
     sourceSummary("securityScanRunner", "security scan evidence runner", options.securityScanRunnerEvidence, artifacts.securityScanRunner, headSha, ["PLAN_READY", "EVIDENCE_WRITTEN"]),
-    sourceSummary("ownedImageProvenance", "owned image provenance", options.ownedImageProvenanceEvidence, artifacts.ownedImageProvenance, headSha, ["PASS"])
+    sourceSummary("ownedImageProvenance", "owned image provenance", options.ownedImageProvenanceEvidence, artifacts.ownedImageProvenance, headSha, ["PASS"]),
+    sourceSummary("externalRuntimeCandidateMatrix", "external runtime candidate matrix", options.externalRuntimeCandidateMatrix, artifacts.candidateMatrix, headSha, ["CANDIDATE_REVIEW_READY", "NEEDS_ZERO_CRITICAL", "NEEDS_CANDIDATES"])
   ];
 
-  const images = imagePackets(artifacts.externalRuntime);
+  const images = imagePackets(artifacts.externalRuntime, artifacts.candidateMatrix);
   const readOnly = readOnlyCommands(images);
   const approvalGated = approvalGatedCommands(artifacts.externalRuntime);
   const unsafeReadOnly = readOnly
@@ -590,7 +657,10 @@ async function main() {
     ["securityScanRunner.registryMutationAttempted", artifacts.securityScanRunner?.registryMutationAttempted],
     ["securityScanRunner.clusterMutationAttempted", artifacts.securityScanRunner?.clusterMutationAttempted],
     ["ownedImageProvenance.registryMutationAttempted", artifacts.ownedImageProvenance?.registryMutationAttempted],
-    ["ownedImageProvenance.clusterMutationAttempted", artifacts.ownedImageProvenance?.clusterMutationAttempted]
+    ["ownedImageProvenance.clusterMutationAttempted", artifacts.ownedImageProvenance?.clusterMutationAttempted],
+    ["candidateMatrix.registryMutationAttempted", artifacts.candidateMatrix?.registryMutationAttempted],
+    ["candidateMatrix.clusterMutationAttempted", artifacts.candidateMatrix?.clusterMutationAttempted],
+    ["candidateMatrix.mutationAllowedByThisVerifier", artifacts.candidateMatrix?.mutationAllowedByThisVerifier]
   ].filter(([, value]) => value === true);
   if (mutationViolations.length > 0) {
     fail("external runtime review mutation boundary", mutationViolations.map(([name]) => name).join(", "));
@@ -604,6 +674,9 @@ async function main() {
       .map((source) => `${source.label} is not fresh for current head`),
     ...images.flatMap((image) =>
       image.missingEvidence.map((item) => `${image.name}: ${item}`)
+    ),
+    ...images.flatMap((image) =>
+      (image.candidateMatrix?.missingEvidence ?? []).map((item) => `${image.name}: ${item}`)
     ),
     ...images
       .filter((image) => !image.finalEvidence.exists)
@@ -644,7 +717,7 @@ async function main() {
     approvalGatedCommands: approvalGated,
     missingEvidence,
     evidence: [
-      "This packet consolidates external runtime draft intake, source digest inspection state, scan/SBOM plan state, and approval-gated mirror/sign commands.",
+      "This packet consolidates external runtime draft intake, source digest inspection state, scan/SBOM plan state, candidate comparison evidence, and approval-gated mirror/sign commands.",
       "It is a reviewer packet only; it does not promote drafts, mirror images, sign images, push images, install Operators, patch OLSConfig, or mutate the cluster.",
       "Final release readiness still requires reviewed docs/release/evidence/external-runtime/vllm.json and qdrant.json files."
     ],
@@ -652,6 +725,7 @@ async function main() {
       ...(artifacts.externalRuntime?.risk ?? []),
       ...(artifacts.releasePlan?.risk ?? []),
       "A review packet can be attached to an internal ticket, but it does not approve external runtime images by itself.",
+      "Candidate scans reduce reviewer search cost but do not prove runtime compatibility, supportability, or final security approval.",
       "vLLM source digest is still blocked if the registry manifest remains private or unauthenticated."
     ]),
     rollbackPath: unique([

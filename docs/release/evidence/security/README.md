@@ -56,6 +56,14 @@ npm run evidence:security-scan -- --name qdrant --include-external --scan-ref do
 
 `--scan-ref` and `--image` are allowed only for a single selected target. The runner records the original image reference, writes candidate scan/SBOM/review-draft files under the supplied evidence directory, and leaves the Operator CSV/FBC/runtime manifests unchanged. A candidate only becomes release evidence after explicit product/security approval and the normal external runtime final evidence flow.
 
+Summarize scanned external runtime alternatives before the review packet:
+
+```bash
+npm run evidence:external-runtime:candidates
+```
+
+This writes `test-results/cywell-opslens-external-runtime-candidate-matrix.json` and `.md`, compares each candidate against current release scan evidence, and remains non-mutating reviewer evidence.
+
 ## Suggested Artifact Names
 
 - `operator-vulnerability.json`

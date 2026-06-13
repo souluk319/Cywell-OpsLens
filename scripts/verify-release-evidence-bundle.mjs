@@ -783,6 +783,13 @@ async function main() {
         draftStatus: image.draftStatus ?? "missing",
         evidenceState: image.evidenceState ?? "missing",
         finalEvidenceExists: image.finalEvidence?.exists === true,
+        candidateMatrix: {
+          status: image.candidateMatrix?.status ?? "missing",
+          matrixStatus: image.candidateMatrix?.matrixStatus ?? "missing",
+          bestCandidate: image.candidateMatrix?.bestCandidate ?? null,
+          zeroCriticalCandidates: image.candidateMatrix?.zeroCriticalCandidates ?? [],
+          recommendation: image.candidateMatrix?.recommendation ?? "missing"
+        },
         reviewerRequests: image.reviewerRequests ?? [],
         missingEvidence: image.missingEvidence ?? []
       })),
