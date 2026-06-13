@@ -53,3 +53,14 @@ npm run evidence:external-runtime:draft -- --name qdrant --source-digest docker.
 ```
 
 For bulk intake, pass image-specific overrides such as `--vllm-source-digest`, `--vllm-mirrored-digest`, `--qdrant-source-digest`, and `--qdrant-mirrored-digest`. The helper rejects secret-like values, writes only `*.draft.json`, records branch/head/base/dirty state, and keeps `registryMutationAttempted=false` and `clusterMutationAttempted=false`. A human reviewer must still create the final `vllm.json` or `qdrant.json` after validating the referenced digest, scan, SBOM, provenance, license, and approval evidence.
+
+## Reviewed Promotion
+
+After the referenced artifacts are complete and reviewed, use the promotion helper instead of renaming a draft by hand:
+
+```sh
+npm run evidence:external-runtime:promote -- --name vllm --promote-reviewed --reviewer <reviewer> --review-ticket <change-ticket> --force
+npm run evidence:external-runtime:promote -- --name qdrant --promote-reviewed --reviewer <reviewer> --review-ticket <change-ticket> --force
+```
+
+Promotion refuses incomplete drafts, placeholder digests, unresolved critical findings, missing approvers, missing reviewer identity, output paths ending in `.draft.json`, and any registry or cluster mutation flags. It writes a promotion review report under `test-results/` and, only after all checks pass, writes the final reviewed evidence file.
