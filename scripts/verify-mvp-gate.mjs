@@ -113,6 +113,13 @@ const steps = [
     purpose: "Verify the exact Stage 1 Korean Lightspeed custom question returns a private-RAG grounded read-only playbook through /mcp."
   },
   {
+    id: "LIGHTSPEED-INTEGRATION-HANDOFF",
+    command: "npm",
+    args: ["run", "verify:lightspeed:integration-handoff"],
+    acceptance: ["AC-LS-001", "AC-LS-002", "AC-LIVE-HANDOFF-001"],
+    purpose: "Verify the pre-registration Lightspeed handoff packet separates read-only live checks from approval-gated OLSConfig registration."
+  },
+  {
     id: "OPERATOR-PACKAGE",
     command: "npm",
     args: ["run", "verify:operator"],

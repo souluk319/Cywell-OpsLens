@@ -450,13 +450,15 @@ async function main() {
       ]),
       laneRequirement(checkpoint, "lightspeedRouting", "10-question Lightspeed tool routing score"),
       laneRequirement(checkpoint, "lightspeedTrojanHorse", "Exact Korean Trojan Horse custom question"),
+      laneRequirement(checkpoint, "lightspeedIntegrationHandoff", "Lightspeed integration handoff packet", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "ocpConnectivity", "Live OCP connectivity diagnostic", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "lightspeedReadiness", "Live Lightspeed/OCP readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "liveHandoff", "Read-only live evidence handoff"),
       laneRequirement(checkpoint, "ocpNetworkHandoff", "Network/SRE handoff packet"),
       laneRequirement(checkpoint, "ocpAuthRbacPlan", "OCP auth/RBAC approval packet"),
       mvpRequirement(mvpGate, "LIGHTSPEED-ROUTING", "MVP Lightspeed routing verifier"),
-      mvpRequirement(mvpGate, "LIGHTSPEED-TROJAN-HORSE", "MVP exact Trojan Horse verifier")
+      mvpRequirement(mvpGate, "LIGHTSPEED-TROJAN-HORSE", "MVP exact Trojan Horse verifier"),
+      mvpRequirement(mvpGate, "LIGHTSPEED-INTEGRATION-HANDOFF", "MVP Lightspeed integration handoff verifier")
     ]),
     stage("stage-2-aiops-pipeline", "Cywell AI Ops incident pipeline", [
       planTextRequirement(planText, "plan-aiops", "Plan names logs, metrics, and YAML remediation recommendation", [

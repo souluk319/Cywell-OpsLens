@@ -24,6 +24,8 @@ const evidencePaths = {
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
+  lightspeedIntegrationHandoff:
+    "test-results/cywell-opslens-lightspeed-integration-handoff.json",
   certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
   catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
@@ -258,6 +260,7 @@ function buildChain() {
     npmScript("install-plan", "approval", "verify:install-plan"),
     npmScript("live-handoff", "approval", "verify:live-handoff"),
     npmScript("ocp-network-handoff", "approval", "evidence:ocp-network-handoff"),
+    npmScript("lightspeed-integration-handoff", "approval", "verify:lightspeed:integration-handoff"),
     npmScript("evidence-checkpoint", "approval", "verify:evidence-checkpoint"),
     npmScript("roadmap-plan", "approval", "verify:roadmap-plan", [], { expectedNonZero: true }),
     npmScript("release-evidence-bundle", "approval", "verify:release-evidence-bundle"),

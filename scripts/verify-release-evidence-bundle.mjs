@@ -22,6 +22,8 @@ const defaults = {
   securityScanRunner: "test-results/cywell-opslens-security-scan-evidence-runner.json",
   releasePlan: "test-results/cywell-opslens-release-publish-plan.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
+  lightspeedIntegrationHandoff:
+    "test-results/cywell-opslens-lightspeed-integration-handoff.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
   ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
   ocpAuthRbacPlan: "test-results/cywell-opslens-ocp-auth-rbac-plan.json",
@@ -71,6 +73,9 @@ const options = {
     parsed.get("security-scan-runner-evidence") ?? defaults.securityScanRunner,
   releasePlan: parsed.get("release-plan-evidence") ?? defaults.releasePlan,
   installPlan: parsed.get("install-plan-evidence") ?? defaults.installPlan,
+  lightspeedIntegrationHandoff:
+    parsed.get("lightspeed-integration-handoff-evidence") ??
+    defaults.lightspeedIntegrationHandoff,
   liveHandoff: parsed.get("live-handoff-evidence") ?? defaults.liveHandoff,
   ocpNetworkHandoff:
     parsed.get("ocp-network-handoff-evidence") ?? defaults.ocpNetworkHandoff,
@@ -235,6 +240,21 @@ function commandSummary(artifacts) {
     mutation: command.mutation === true,
     requiresExplicitApproval: false
   }));
+  const lightspeedIntegrationCommands = (artifacts.lightspeedIntegrationHandoff?.readOnlyCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "lightspeed-integration-handoff",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: false,
+    writesLocalEvidence: command.writesLocalEvidence === true
+  }));
+  const lightspeedIntegrationApprovalCommands = (artifacts.lightspeedIntegrationHandoff?.approvalGatedCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "lightspeed-integration-handoff",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: command.requiresExplicitApproval === true
+  }));
   const networkHandoffCommands = (artifacts.ocpNetworkHandoff?.readOnlyCommands ?? []).map((command) => ({
     id: command.id ?? "unknown",
     phase: command.phase ?? "unknown",
@@ -325,9 +345,9 @@ function commandSummary(artifacts) {
       writesLocalEvidence: command.writesLocalEvidence === true
     }));
   return {
-    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...networkHandoffCommands, ...ocpAuthRbacCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...securityCommands, ...securityRunnerCommands]
+    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...lightspeedIntegrationCommands, ...networkHandoffCommands, ...ocpAuthRbacCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...securityCommands, ...securityRunnerCommands]
       .filter((command) => command.mutation === false),
-    mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...ocpAuthRbacApprovalCommands, ...externalRuntimeApprovalCommands, ...certificationApprovalCommands]
+    mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...lightspeedIntegrationApprovalCommands, ...ocpAuthRbacApprovalCommands, ...externalRuntimeApprovalCommands, ...certificationApprovalCommands]
       .filter((command) => command.mutation === true),
     forbiddenWithoutApproval: [
       "oc apply",
@@ -412,6 +432,11 @@ function mutationBoundary(artifacts) {
     ["securityScanRunner.registryMutationAttempted", artifacts.securityScanRunner?.registryMutationAttempted],
     ["securityScanRunner.clusterMutationAttempted", artifacts.securityScanRunner?.clusterMutationAttempted],
     ["securityScanRunner.mutationAllowedByThisVerifier", artifacts.securityScanRunner?.mutationAllowedByThisVerifier],
+    ["lightspeedIntegrationHandoff.clusterMutationAttempted", artifacts.lightspeedIntegrationHandoff?.clusterMutationAttempted],
+    ["lightspeedIntegrationHandoff.registryMutationAttempted", artifacts.lightspeedIntegrationHandoff?.registryMutationAttempted],
+    ["lightspeedIntegrationHandoff.vectorWriteAttempted", artifacts.lightspeedIntegrationHandoff?.vectorWriteAttempted],
+    ["lightspeedIntegrationHandoff.ingestionJobCreated", artifacts.lightspeedIntegrationHandoff?.ingestionJobCreated],
+    ["lightspeedIntegrationHandoff.mutationAllowedByThisVerifier", artifacts.lightspeedIntegrationHandoff?.mutationAllowedByThisVerifier],
     ["liveHandoff.clusterMutationAttempted", artifacts.liveHandoff?.clusterMutationAttempted],
     ["liveHandoff.registryMutationAttempted", artifacts.liveHandoff?.registryMutationAttempted],
     ["ocpNetworkHandoff.clusterMutationAttempted", artifacts.ocpNetworkHandoff?.clusterMutationAttempted],
@@ -470,6 +495,7 @@ function evidenceGaps(artifacts, sources) {
     ...(artifacts.externalRuntimeReviewPacket?.missingEvidence ?? []),
     ...(artifacts.securityScan?.missingEvidence ?? []),
     ...(artifacts.securityScanRunner?.missingEvidence ?? []),
+    ...(artifacts.lightspeedIntegrationHandoff?.missingEvidence ?? []),
     ...(artifacts.liveHandoff?.missingEvidence ?? []),
     ...(artifacts.ocpNetworkHandoff?.missingEvidence ?? []),
     ...(artifacts.ocpAuthRbacPlan?.missingEvidence ?? [])
@@ -657,6 +683,10 @@ async function main() {
     securityScanRunner: loadJson(options.securityScanRunner, "security scan evidence runner"),
     releasePlan: loadJson(options.releasePlan, "release publish plan"),
     installPlan: loadJson(options.installPlan, "install approval plan"),
+    lightspeedIntegrationHandoff: loadJson(
+      options.lightspeedIntegrationHandoff,
+      "Lightspeed integration handoff"
+    ),
     liveHandoff: loadJson(options.liveHandoff, "live evidence handoff"),
     ocpNetworkHandoff: loadJson(options.ocpNetworkHandoff, "OCP network handoff"),
     ocpAuthRbacPlan: loadJson(options.ocpAuthRbacPlan, "OCP auth/RBAC plan"),
@@ -679,6 +709,7 @@ async function main() {
     sourceSummary("securityScanRunner", "security scan evidence runner", options.securityScanRunner, artifacts.securityScanRunner, headSha, ["PLAN_READY", "EVIDENCE_WRITTEN"]),
     sourceSummary("releasePlan", "release publish plan", options.releasePlan, artifacts.releasePlan, headSha, ["PUBLISH_APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("installPlan", "install approval plan", options.installPlan, artifacts.installPlan, headSha, ["APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
+    sourceSummary("lightspeedIntegrationHandoff", "Lightspeed integration handoff", options.lightspeedIntegrationHandoff, artifacts.lightspeedIntegrationHandoff, headSha, ["READY_FOR_LIVE_REGISTRATION_REVIEW", "LIVE_READY", "NEEDS_EVIDENCE"]),
     sourceSummary("liveHandoff", "live evidence handoff", options.liveHandoff, artifacts.liveHandoff, headSha, ["PASS"]),
     sourceSummary("ocpNetworkHandoff", "OCP network handoff", options.ocpNetworkHandoff, artifacts.ocpNetworkHandoff, headSha, ["READY_FOR_NETWORK_REVIEW", "READY_FOR_LIVE_RECHECK", "PASS"]),
     sourceSummary("ocpAuthRbacPlan", "OCP auth/RBAC plan", options.ocpAuthRbacPlan, artifacts.ocpAuthRbacPlan, headSha, ["READY_FOR_LIVE_CHECK", "AUTH_RBAC_APPROVAL_REQUIRED", "WAITING_FOR_CONNECTIVITY"]),
@@ -906,6 +937,28 @@ async function main() {
       missingEvidence: artifacts.securityScanRunner?.missingEvidence ?? [],
       results: artifacts.securityScanRunner?.results ?? []
     },
+    lightspeedIntegrationHandoff: {
+      status: artifacts.lightspeedIntegrationHandoff?.status ?? "missing",
+      actionMode:
+        artifacts.lightspeedIntegrationHandoff?.actionMode ?? "missing",
+      acceptance: artifacts.lightspeedIntegrationHandoff?.acceptance ?? [],
+      localProof:
+        artifacts.lightspeedIntegrationHandoff?.localProof ?? {},
+      liveReadiness:
+        artifacts.lightspeedIntegrationHandoff?.liveReadiness ?? {},
+      olsconfig: {
+        templateReady:
+          artifacts.lightspeedIntegrationHandoff?.olsconfig?.templateReady === true,
+        desiredServer:
+          artifacts.lightspeedIntegrationHandoff?.olsconfig?.desiredServer ?? {}
+      },
+      readOnlyCommands:
+        artifacts.lightspeedIntegrationHandoff?.readOnlyCommands ?? [],
+      approvalGatedCommands:
+        artifacts.lightspeedIntegrationHandoff?.approvalGatedCommands ?? [],
+      missingEvidence:
+        artifacts.lightspeedIntegrationHandoff?.missingEvidence ?? []
+    },
     ocpNetworkHandoff: {
       status: artifacts.ocpNetworkHandoff?.status ?? "missing",
       actionMode: artifacts.ocpNetworkHandoff?.actionMode ?? "missing",
@@ -989,6 +1042,7 @@ async function main() {
       ...(artifacts.externalRuntimeReviewPacket?.risk ?? []),
       ...(artifacts.securityScan?.risk ?? []),
       ...(artifacts.securityScanRunner?.risk ?? []),
+      ...(artifacts.lightspeedIntegrationHandoff?.risk ?? []),
       ...(artifacts.liveHandoff?.risk ?? []),
       ...(artifacts.ocpNetworkHandoff?.risk ?? []),
       ...(artifacts.ocpAuthRbacPlan?.risk ?? []),
@@ -1000,6 +1054,7 @@ async function main() {
       ...(artifacts.externalRuntimeReviewPacket?.rollbackPath ?? []),
       ...(artifacts.securityScan?.rollbackPath ?? []),
       ...(artifacts.securityScanRunner?.rollbackPath ?? []),
+      ...(artifacts.lightspeedIntegrationHandoff?.rollbackPath ?? []),
       ...(artifacts.liveHandoff?.rollbackPath ?? []),
       ...(artifacts.ocpNetworkHandoff?.rollbackPath ?? []),
       ...(artifacts.ocpAuthRbacPlan?.rollbackPath ?? []),

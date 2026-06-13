@@ -23,6 +23,8 @@ const evidenceDefaults = {
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
+  lightspeedIntegrationHandoff:
+    "test-results/cywell-opslens-lightspeed-integration-handoff.json",
   certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
   catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
@@ -415,6 +417,90 @@ function checkLightspeedTrojanHorse(trojanArtifact) {
   pass(
     "Lightspeed Trojan Horse exact question",
     "exact Korean custom question returns generate_playbook with customer-runbook citations, redaction, and no mutation"
+  );
+}
+
+function checkLightspeedIntegrationHandoff(handoffArtifact) {
+  if (!handoffArtifact) return;
+  const readOnlyCommands = handoffArtifact.readOnlyCommands ?? [];
+  const approvalGatedCommands = handoffArtifact.approvalGatedCommands ?? [];
+  const mutatingPattern =
+    /\b(oc|kubectl)\s+(apply|create|delete|patch|replace|scale|rollout|adm)|\b(docker|podman|skopeo)\s+(push|copy)|\b(cosign)\s+sign|\b(operator-sdk|opm)\s+.*\b(push|publish)\b/i;
+  const violations = [];
+
+  if (handoffArtifact.actionMode !== "handoffOnly") {
+    violations.push(`actionMode=${handoffArtifact.actionMode ?? "missing"}`);
+  }
+  if (
+    ![
+      "READY_FOR_LIVE_REGISTRATION_REVIEW",
+      "LIVE_READY",
+      "NEEDS_EVIDENCE"
+    ].includes(handoffArtifact.status)
+  ) {
+    violations.push(`status=${handoffArtifact.status ?? "missing"}`);
+  }
+  if (artifactClusterMutationAttempted(handoffArtifact)) {
+    violations.push("clusterMutationAttempted");
+  }
+  if (artifactRegistryMutationAttempted(handoffArtifact)) {
+    violations.push("registryMutationAttempted");
+  }
+  if (handoffArtifact.vectorWriteAttempted === true) {
+    violations.push("vectorWriteAttempted");
+  }
+  if (handoffArtifact.ingestionJobCreated === true) {
+    violations.push("ingestionJobCreated");
+  }
+  if (artifactMutationAllowedByVerifier(handoffArtifact)) {
+    violations.push("mutationAllowedByThisVerifier");
+  }
+  if (handoffArtifact.localProof?.trojanHorse?.selectedTool !== "generate_playbook") {
+    violations.push("localProof.trojanHorse.selectedTool");
+  }
+  if (handoffArtifact.localProof?.trojanHorse?.redactionPassed !== true) {
+    violations.push("localProof.trojanHorse.redactionPassed");
+  }
+  if (handoffArtifact.localProof?.routing?.selectedPasses < handoffArtifact.localProof?.routing?.threshold) {
+    violations.push("localProof.routing.selectedPasses");
+  }
+  if (handoffArtifact.localProof?.routing?.responsePasses < handoffArtifact.localProof?.routing?.threshold) {
+    violations.push("localProof.routing.responsePasses");
+  }
+  if (handoffArtifact.olsconfig?.templateReady !== true) {
+    violations.push("olsconfig.templateReady");
+  }
+  if (handoffArtifact.olsconfig?.desiredServer?.url?.endsWith("/mcp") !== true) {
+    violations.push("olsconfig.desiredServer.url");
+  }
+
+  const unsafeReadOnly = readOnlyCommands
+    .filter((command) => {
+      const text = command.command ?? "";
+      if (/\b(oc|kubectl)\s+apply\b/i.test(text) && /--dry-run=(server|client)\b/i.test(text)) {
+        return false;
+      }
+      return command.mutation === true || mutatingPattern.test(text);
+    })
+    .map((command) => command.id ?? "unknown");
+  if (unsafeReadOnly.length > 0) {
+    violations.push(`unsafeReadOnlyCommands=${unsafeReadOnly.join(",")}`);
+  }
+  const unguardedApproval = approvalGatedCommands
+    .filter((command) => command.mutation !== true || command.requiresExplicitApproval !== true)
+    .map((command) => command.id ?? "unknown");
+  if (unguardedApproval.length > 0) {
+    violations.push(`unguardedApprovalCommands=${unguardedApproval.join(",")}`);
+  }
+
+  if (violations.length > 0) {
+    fail("Lightspeed integration handoff boundary", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "Lightspeed integration handoff boundary",
+    `status=${handoffArtifact.status ?? "missing"} live=${handoffArtifact.liveReadiness?.classification ?? "missing"} readOnlyCommands=${readOnlyCommands.length} approvalGated=${approvalGatedCommands.length}`
   );
 }
 
@@ -1031,6 +1117,17 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "lightspeedIntegrationHandoff",
+    label: "Lightspeed integration handoff",
+    artifact: artifacts.lightspeedIntegrationHandoff,
+    desiredStatuses: [
+      "READY_FOR_LIVE_REGISTRATION_REVIEW",
+      "LIVE_READY",
+      "NEEDS_EVIDENCE"
+    ],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "certificationReadiness",
     label: "certification readiness",
     artifact: artifacts.certificationReadiness,
@@ -1177,6 +1274,7 @@ async function main() {
 
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
   checkLightspeedTrojanHorse(artifacts.lightspeedTrojanHorse);
+  checkLightspeedIntegrationHandoff(artifacts.lightspeedIntegrationHandoff);
   checkAiopsIncidentPipeline(artifacts.aiopsIncidentPipeline);
   checkRagApprovalQueuePolicy(artifacts.ragApprovalQueue);
   checkRagProductionReadinessPolicy(artifacts.ragProductionReadiness);
