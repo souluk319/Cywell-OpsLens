@@ -337,6 +337,16 @@ function mutationBoundary(artifacts) {
   };
 }
 
+function commandLooksMutating(command) {
+  const text = String(command ?? "");
+  if (/\b(oc|kubectl)\s+apply\b/i.test(text) && /--dry-run=(server|client)\b/i.test(text)) {
+    return false;
+  }
+  const mutatingCommandPattern =
+    /\b(oc|kubectl)\s+(apply|create|delete|patch|replace|scale|rollout|adm)|\b(docker|podman|skopeo)\s+(push|copy)|\b(cosign)\s+sign|\b(operator-sdk|opm)\s+.*\b(push|publish)\b/i;
+  return mutatingCommandPattern.test(text);
+}
+
 function releaseDecision(artifacts) {
   const checkpointStatus = artifacts.evidenceCheckpoint?.status ?? "missing";
   const releaseStatus = artifacts.releasePlan?.status ?? "missing";
@@ -425,10 +435,8 @@ async function main() {
   }
 
   const commands = commandSummary(artifacts);
-  const mutatingCommandPattern =
-    /\b(oc|kubectl)\s+(apply|create|delete|patch|replace|scale|rollout|adm)|\b(docker|podman|skopeo)\s+(push|copy)|\b(cosign)\s+sign|\b(operator-sdk|opm)\s+.*\b(push|publish)\b/i;
   const unsafeCommands = commands.readOnly.filter(
-    (command) => command.mutation || mutatingCommandPattern.test(command.command)
+    (command) => command.mutation || commandLooksMutating(command.command)
   );
   if (unsafeCommands.length > 0) {
     fail("bundle command boundary", `read-only command list contains mutation commands: ${unsafeCommands.map((command) => command.id).join(", ")}`);
