@@ -1229,12 +1229,12 @@ async function main() {
     readOnlyCommands: readOnly,
     approvalGatedCommands: approvalGated,
     mutationBoundary,
-    missingEvidence: [
+    missingEvidence: uniqueStrings([
       ...(artifacts.releaseBundle?.missingEvidence ?? []),
       ...(artifacts.checkpoint?.missingEvidence ?? []),
       ...(artifacts.securityScanPlan?.missingEvidence ?? []),
       ...items.flatMap((entry) => entry.blockedBy ?? [])
-    ].map(sanitize),
+    ]),
     risk: [
       "This queue is an operational review artifact, not an approval record.",
       "Executing any listed approval-gated command without the named human approvals bypasses the release gates.",
