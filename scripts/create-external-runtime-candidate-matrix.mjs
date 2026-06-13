@@ -320,17 +320,18 @@ function imageMatrix(name) {
       }
       return left.label.localeCompare(right.label);
     });
-  const bestCandidate = candidates.reduce((best, candidate) => betterCandidate(best, candidate), undefined);
-  const zeroCriticalCandidates = candidates.filter((candidate) => candidate.releaseEligible);
+  const evidenceCompleteCandidates = candidates.filter((candidate) => candidate.vulnerability.valid && candidate.sbom.valid);
+  const bestCandidate = evidenceCompleteCandidates.reduce((best, candidate) => betterCandidate(best, candidate), undefined);
+  const zeroCriticalCandidates = evidenceCompleteCandidates.filter((candidate) => candidate.releaseEligible);
   const currentReleaseEligible = currentVulnerability.valid && currentSbom.valid && currentCounts.CRITICAL === 0;
-  const improvingCandidates = candidates.filter(
+  const improvingCandidates = evidenceCompleteCandidates.filter(
     (candidate) => candidate.vulnerability.severityCounts.CRITICAL < currentCounts.CRITICAL
   );
   const status = currentReleaseEligible
     ? "current-evidence-release-eligible"
     : zeroCriticalCandidates.length > 0
     ? "candidate-ready-for-review"
-    : candidates.length === 0
+    : evidenceCompleteCandidates.length === 0
       ? "needs-candidate"
       : improvingCandidates.length > 0
         ? "candidate-reduces-risk-but-remediation-required"
@@ -350,8 +351,11 @@ function imageMatrix(name) {
     missingEvidence: [
       ...currentVulnerability.missingEvidence,
       ...currentSbom.missingEvidence,
-      ...(!currentReleaseEligible && candidates.length === 0 ? [`${name} has no candidate scan evidence under ${resolve(options.candidateRoot)}`] : []),
-      ...(!currentReleaseEligible && zeroCriticalCandidates.length === 0 ? [`${name} has no zero-critical candidate scan evidence`] : [])
+      ...(!currentReleaseEligible && evidenceCompleteCandidates.length === 0 ? [`${name} has no complete candidate vulnerability/SBOM evidence under ${resolve(options.candidateRoot)}`] : []),
+      ...(!currentReleaseEligible && zeroCriticalCandidates.length === 0 ? [`${name} has no zero-critical candidate scan evidence`] : []),
+      ...candidates
+        .filter((candidate) => !candidate.vulnerability.valid || !candidate.sbom.valid)
+        .flatMap((candidate) => candidate.missingEvidence.map((item) => `${candidate.label}: ${item}`))
     ],
     recommendation: currentReleaseEligible
       ? `Current ${name} security evidence is zero-critical; candidate promotion is optional and still approval-gated.`
@@ -359,7 +363,9 @@ function imageMatrix(name) {
       ? `Promote ${zeroCriticalCandidates[0].image} only after product/security approval and final external runtime evidence.`
       : bestCandidate
         ? `Best scanned candidate ${bestCandidate.image} reduces current critical/high counts to ${bestCandidate.vulnerability.severityCounts.CRITICAL}/${bestCandidate.vulnerability.severityCounts.HIGH}, but still requires remediation or security exception before promotion.`
-        : `Scan at least one ${name} candidate image into ${resolve(options.candidateRoot)} before promotion review.`
+        : candidates.length > 0
+          ? `Complete vulnerability and SBOM evidence for at least one ${name} candidate before promotion review.`
+          : `Scan at least one ${name} candidate image into ${resolve(options.candidateRoot)} before promotion review.`
   };
 }
 
@@ -460,6 +466,11 @@ async function main() {
   for (const image of images) {
     if (image.candidates.length === 0) {
       warn(`${image.name} candidates`, `no candidate scan evidence under ${resolve(options.candidateRoot)}`);
+    } else if (!image.bestCandidate) {
+      warn(
+        `${image.name} candidates`,
+        `${image.candidates.length} candidate(s), but no complete vulnerability/SBOM candidate evidence`
+      );
     } else {
       pass(
         `${image.name} candidates`,
