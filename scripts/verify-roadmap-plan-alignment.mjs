@@ -15,7 +15,8 @@ const paths = {
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
-  roadmapOut: "test-results/cywell-opslens-roadmap-plan-alignment.json"
+  roadmapOut: "test-results/cywell-opslens-roadmap-plan-alignment.json",
+  roadmapMarkdownOut: "test-results/cywell-opslens-roadmap-plan-alignment.md"
 };
 
 const checks = [];
@@ -147,6 +148,22 @@ function planTextRequirement(planText, id, label, patterns) {
     status: missing.length === 0 ? "pass" : "blocked",
     evidence: missing.length === 0 ? [`plan mentions ${patterns.length} required signal(s)`] : [],
     missingEvidence: missing.map((pattern) => `plan text does not match ${pattern}`)
+  };
+}
+
+function planForbiddenTextRequirement(planText, id, label, patterns) {
+  const matches = patterns.filter((pattern) => pattern.test(planText));
+  return {
+    id,
+    label,
+    status: matches.length === 0 ? "pass" : "blocked",
+    evidence: matches.length === 0 ? ["plan avoids forbidden legacy mutation language"] : [],
+    missingEvidence: matches.map((pattern) =>
+      `plan text still matches forbidden legacy mutation pattern ${pattern}`
+    ),
+    blockers: matches.map((pattern) =>
+      `remove or rewrite forbidden legacy mutation pattern ${pattern}`
+    )
   };
 }
 
@@ -283,6 +300,73 @@ function stage(id, title, requirements) {
   };
 }
 
+function markdownFor(artifact) {
+  const lines = [
+    "# Cywell OpsLens Roadmap Plan Alignment",
+    "",
+    `Generated: ${artifact.generatedAt}`,
+    `Git: ${artifact.ref.branch} ${artifact.ref.headSha} dirty=${artifact.ref.worktreeDirty}`,
+    `Status: ${artifact.status}`,
+    `Plan source: ${artifact.planSource.path}`,
+    "",
+    "## Current Decision",
+    "",
+    "- Lightspeed is the first validation channel, but the product path is Operator + Console Plugin + Cywell-controlled private RAG.",
+    "- Stage 1 uses a custom MCP server registered through OLSConfig, with REST kept only for local smoke tests and demos.",
+    "- Stage 4 registration is an explicit PatchOLSConfig approval path with preview and rollback evidence.",
+    "- Legacy Lightspeed ConfigMap mutation is not a product contract and must remain absent from implementation evidence.",
+    "",
+    "## Global Freshness",
+    "",
+    ...artifact.globalRequirements.map((item) =>
+      `- ${item.status}: ${item.label}${item.headSha ? ` head=${item.headSha}` : ""}${item.artifactStatus ? ` artifact=${item.artifactStatus}` : ""}`
+    ),
+    "",
+    "## Stage Status",
+    ""
+  ];
+
+  for (const stage of artifact.stages) {
+    lines.push(
+      `### ${stage.title}`,
+      "",
+      `- Status: ${stage.status}`,
+      `- Missing evidence: ${stage.missingEvidence.length ? stage.missingEvidence.join("; ") : "none"}`,
+      `- Blockers: ${stage.blockers.length ? stage.blockers.join("; ") : "none"}`,
+      "",
+      "Requirements:",
+      ""
+    );
+    for (const requirement of stage.requirements) {
+      lines.push(
+        `- ${requirement.status}: ${requirement.label}`,
+        requirement.evidence?.length ? `  - Evidence: ${requirement.evidence.join("; ")}` : "",
+        requirement.missingEvidence?.length
+          ? `  - Missing: ${requirement.missingEvidence.join("; ")}`
+          : ""
+      );
+    }
+    lines.push("");
+  }
+
+  lines.push(
+    "## Overall Missing Evidence",
+    "",
+    ...(artifact.missingEvidence.length
+      ? artifact.missingEvidence.map((item) => `- ${item}`)
+      : ["- none"]),
+    "",
+    "## Mutation Boundary",
+    "",
+    "- This verifier reads local files only.",
+    "- It does not patch OLSConfig, mutate ConfigMaps, install Operators, push images, sign, mirror, apply, delete, or scale.",
+    "- If roadmap language changes, regenerate this artifact before using release or install evidence.",
+    ""
+  );
+
+  return lines.join("\n");
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -358,7 +442,11 @@ async function main() {
       planTextRequirement(planText, "plan-operator", "Plan names Operator, bundle/catalog, and Lightspeed registration automation", [
         /Operator/i,
         /CatalogSource|FBC|카탈로그/i,
-        /OLSConfig|ConfigMap/i
+        /OLSConfig/i
+      ]),
+      planForbiddenTextRequirement(planText, "plan-no-legacy-lightspeed-configmap-mutation", "Plan avoids legacy Lightspeed ConfigMap mutation as an install contract", [
+        /Lightspeed[^.\n]{0,120}ConfigMap[^.\n]{0,120}(자동|auto|modify|patch|수정)/i,
+        /ConfigMap[^.\n]{0,120}(자동|auto)[^.\n]{0,120}(수정|modify|patch)[^.\n]{0,120}Lightspeed/i
       ]),
       mvpRequirement(mvpGate, "OPERATOR-PACKAGE", "Operator package verifier"),
       mvpRequirement(mvpGate, "OPERATOR-RECONCILE", "Operator reconcile safety verifier"),
@@ -458,12 +546,15 @@ async function main() {
       "Regenerate the underlying evidence with the verifier named by each stage requirement.",
       "Do not run mutating install, OLSConfig patch, image push, signing, or mirroring commands from this artifact."
     ],
+    markdownOut: resolve(paths.roadmapMarkdownOut),
     checks
   };
 
   await mkdir(dirname(resolve(paths.roadmapOut)), { recursive: true });
+  await mkdir(dirname(resolve(paths.roadmapMarkdownOut)), { recursive: true });
   await writeFile(resolve(paths.roadmapOut), `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
-  pass("roadmap plan alignment export", `${resolve(paths.roadmapOut)} written without secret material`);
+  await writeFile(resolve(paths.roadmapMarkdownOut), markdownFor(artifact), "utf8");
+  pass("roadmap plan alignment export", `${resolve(paths.roadmapOut)} and ${resolve(paths.roadmapMarkdownOut)} written without secret material`);
 
   const totals = {
     fail: checks.filter((check) => check.status === "FAIL").length,
