@@ -2794,6 +2794,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(securityReviewAction?.evidenceNeeded).toContain(
       "reviewApproved=false"
     );
+    expect(securityReviewAction?.diagnostics?.map((item) => item.id)).toEqual(
+      expect.arrayContaining([
+        "security-final-review",
+        "security-review-draft",
+        "security-scan-sbom",
+        "security-reviewer-ticket"
+      ])
+    );
+    expect(
+      securityReviewAction?.diagnostics
+        ?.find((item) => item.id === "security-scan-sbom")
+        ?.value
+    ).toMatch(/scan=(true|false).*sbom=(true|false)/);
+    expect(
+      securityReviewAction?.diagnostics
+        ?.find((item) => item.id === "security-reviewer-ticket")
+        ?.value
+    ).toMatch(/reviewer=(true|false).*ticket=(true|false)/);
     expect(securityReviewAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
       expect.arrayContaining(["security-review-drafts-all"])
     );
@@ -3849,6 +3867,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-security-review-actions")
     ).toContainText("sign-owned-operator");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-diagnostics")
+    ).toContainText(/security-final-review|post-approval-rbac/);
     await expect(
       page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
     ).toContainText(/registry-admin-fix-catalog-base-image-auth|catalog registry actions clear/);

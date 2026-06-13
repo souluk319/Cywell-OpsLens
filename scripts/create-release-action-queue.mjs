@@ -825,6 +825,50 @@ function externalRuntimeApprovalCommandsForRole(commands, imageName, role) {
 function securityScanItems(plan) {
   const readOnlyCommands = plan?.commands?.readOnly ?? [];
   const approvalGatedCommands = plan?.commands?.approvalGated ?? [];
+  const securityReviewDiagnostics = (imageName, securityEvidence, reviewDraft) => [
+    {
+      id: "security-final-review",
+      label: "Final security review",
+      value:
+        `exists=${String(securityEvidence.reviewExists === true)} ` +
+        `valid=${String(securityEvidence.reviewValid === true)} ` +
+        `approved=${String(securityEvidence.reviewApproved === true)} ` +
+        `decision=${securityEvidence.reviewDecision ?? "missing"}`
+    },
+    {
+      id: "security-review-draft",
+      label: "Security review draft",
+      value:
+        `state=${reviewDraft.evidenceState ?? "missing"} ` +
+        `sameHead=${String(reviewDraft.sameHead === true)} ` +
+        `ready=${String(reviewDraft.readyForFinalReview === true)}`
+    },
+    {
+      id: "security-scan-sbom",
+      label: "Scan and SBOM",
+      value:
+        `scan=${String(securityEvidence.vulnerabilityReportExists === true)} ` +
+        `scanValid=${String(securityEvidence.vulnerabilityReportValid === true)} ` +
+        `critical=${securityEvidence.vulnerabilityCriticalFindings ?? "unknown"} ` +
+        `sbom=${String(securityEvidence.sbomExists === true)} ` +
+        `sbomValid=${String(securityEvidence.sbomValid === true)} ` +
+        `packages=${securityEvidence.sbomPackageCount ?? 0}`
+    },
+    {
+      id: "security-reviewer-ticket",
+      label: "Reviewer and ticket",
+      value:
+        `reviewer=${String(reviewDraft.reviewerProvided === true)} ` +
+        `ticket=${String(reviewDraft.ticketProvided === true)}`
+    },
+    {
+      id: "security-final-evidence-file",
+      label: "Final evidence file",
+      value:
+        reviewDraft.finalEvidenceFile ??
+        `docs/release/evidence/security/${imageName}-security-review.json`
+    }
+  ];
   return (plan?.images ?? [])
     .filter((image) => image.required === true)
     .filter((image) => {
@@ -896,6 +940,11 @@ function securityScanItems(plan) {
           ...validationMissingEvidence,
           ...draftMissingEvidence
         ],
+        diagnostics: securityReviewDiagnostics(
+          imageName,
+          securityEvidence,
+          reviewDraft
+        ),
         acceptance: ["AC-CERT-001"]
       });
     });
