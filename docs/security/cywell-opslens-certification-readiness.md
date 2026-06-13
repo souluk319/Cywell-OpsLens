@@ -46,7 +46,7 @@ Cywell OpsLens packages the API, private RAG/vector store, dashboard, model runt
 
 - Certify the operator image and each runtime image referenced by `relatedImages`.
 - Confirm `opslens-support@cywell.com` is monitored by Cywell support and accepted for external Operator publication.
-- Run `npm run verify:catalog-toolchain` on a clean Git HEAD and clear required `opm`, `operator-sdk`, and registry.redhat.io auth gaps before catalog image build/release review.
+- Follow `docs/release/cywell-opslens-certification-tooling.md`, run `npm run verify:catalog-toolchain` on a clean Git HEAD, and clear required `opm`, `operator-sdk`, and registry.redhat.io auth gaps before catalog image build/release review.
 - Run `npm run verify:security-scan-plan` on a clean Git HEAD, clear required `trivy`, `syft`, and `cosign` gaps, and attach reviewed vulnerability scan, SBOM, and security review evidence for every required image before release-manager review.
 - Run `operator-sdk bundle validate` and `operator-sdk scorecard` with the target OpenShift versions.
 - Run vulnerability scans for all referenced images and attach remediation evidence.

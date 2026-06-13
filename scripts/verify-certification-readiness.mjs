@@ -23,6 +23,7 @@ const paths = {
   scorecard: "deploy/operator/bundle/tests/scorecard/config.yaml",
   securityDoc: "docs/security/cywell-opslens-certification-readiness.md",
   supportDoc: "docs/support/cywell-opslens-support-matrix.md",
+  certificationToolingDoc: "docs/release/cywell-opslens-certification-tooling.md",
   releaseGates: "docs/release/cywell-opslens-release-gates.md",
   ragApprovalQueueDoc: "docs/rag/cywell-opslens-rag-approval-queue.md"
 };
@@ -335,6 +336,16 @@ async function validateDocs() {
       sections: ["## Supported Platform Targets", "## Upgrade Policy", "## Support Boundaries"]
     },
     {
+      path: paths.certificationToolingDoc,
+      sections: [
+        "## Required Local Tools",
+        "## Read-Only Validation Commands",
+        "## Human Setup Boundary",
+        "## Approval-Gated Commands Not Run",
+        "## Evidence Refresh"
+      ]
+    },
+    {
       path: paths.releaseGates,
       sections: ["## Internal Catalog Gate", "## Community Operator Gate", "## Certified Operator Gate"]
     },
@@ -508,6 +519,7 @@ async function writeEvidence() {
     documents: {
       security: paths.securityDoc,
       support: paths.supportDoc,
+      certificationTooling: paths.certificationToolingDoc,
       releaseGates: paths.releaseGates,
       ragApprovalQueue: paths.ragApprovalQueueDoc
     },

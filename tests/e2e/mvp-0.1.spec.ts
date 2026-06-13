@@ -1696,7 +1696,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       Object.keys(body.installReadiness?.certificationPlan?.documents ?? {})
     ).toEqual(
-      expect.arrayContaining(["security", "support", "releaseGates"])
+      expect.arrayContaining([
+        "security",
+        "support",
+        "certificationTooling",
+        "releaseGates"
+      ])
     );
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /certification readiness/i

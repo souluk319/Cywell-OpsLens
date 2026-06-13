@@ -12,6 +12,7 @@ Status: draft release checklist for internal catalog, Community Operator, and Ce
 - `npm run verify:operator:runtime` passes with no failures.
 - `npm run verify:rag` passes with no failures.
 - `npm run verify:certification` writes `test-results/cywell-opslens-certification-readiness.json`, validates Community/Certified Operator packaging shape and documentation, records `opm`/`operator-sdk`/`podman` tooling gaps, and keeps Partner Connect submission, image push, and cluster mutation out of scope.
+- `docs/release/cywell-opslens-certification-tooling.md` defines the local `opm`/`operator-sdk` setup boundary, read-only validation commands, and approval-gated commands not run by certification verifiers.
 - `npm run verify:catalog-toolchain` writes `test-results/cywell-opslens-catalog-toolchain-plan.json`, validates CSV/FBC/CatalogSource/Subscription/scorecard parity, records required CLI and registry.redhat.io auth gaps, and keeps catalog validation/publish commands non-mutating or approval-gated.
 - `npm run verify:images` passes and writes `test-results/cywell-opslens-image-build-readiness.json`.
 - `npm run verify:images:build` passes on the same Git HEAD before publishing release images; it builds Operator, API, dashboard, and bundle images locally without pushing, and records catalog build as an explicit warning until `registry.redhat.io` credentials are available.
