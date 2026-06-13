@@ -2008,6 +2008,66 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
   rollbackPath: string[];
 }
 
+export type OpsLensRagProductionReadiness =
+  | "approval-required"
+  | "needs-evidence"
+  | "blocked";
+
+export interface OpsLensRagProductionReadinessSummary {
+  status: OpsLensRagProductionReadiness;
+  artifactStatus: string;
+  actionMode: "productionReadinessOnly";
+  contractReady: boolean;
+  approvalRequired: boolean;
+  productionQueueLive: boolean;
+  ingestionWorkerLive: boolean;
+  vectorWriteAuditSinkLive: boolean;
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  vectorWriteAttempted: boolean;
+  ingestionJobCreated: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  headSha: string;
+  worktreeDirty: boolean;
+  requiredApprovals: string[];
+  components: {
+    queue: {
+      backendClass: string;
+      contractReady: boolean;
+      liveReady: boolean;
+      storesRawMarkdown: boolean;
+    };
+    ingestionWorker: {
+      mode: string;
+      contractReady: boolean;
+      liveReady: boolean;
+      createsKubernetesJobByThisVerifier: boolean;
+    };
+    vectorWriteAuditSink: {
+      contractReady: boolean;
+      liveReady: boolean;
+      appendOnly: boolean;
+      recordsRollbackChunkIds: boolean;
+    };
+  };
+  readOnlyCommands: Array<{
+    id: string;
+    phase: string;
+    mutation: boolean;
+    writesLocalEvidence: boolean;
+  }>;
+  approvalGatedCommands: Array<{
+    id: string;
+    phase: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  }>;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+  evidence: string[];
+}
+
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
@@ -2023,6 +2083,7 @@ export interface OpsLensAdminOverviewResponse {
       rejected: number;
       evidence: string[];
     };
+    productionReadiness: OpsLensRagProductionReadinessSummary;
   };
   tokenUsage: OpsLensTokenUsageSummary;
   runtime: OpsLensRuntimeHealth;

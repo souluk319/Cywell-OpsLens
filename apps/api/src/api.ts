@@ -82,6 +82,8 @@ import type {
   OpsLensRagApprovalQueueSubmissionResponse,
   OpsLensRagEvidenceExportRequest,
   OpsLensRagEvidenceExportResponse,
+  OpsLensRagProductionReadiness,
+  OpsLensRagProductionReadinessSummary,
   OpsLensRagValidationRequest,
   OpsLensRagValidationResponse,
   OpsLensToolName,
@@ -1876,6 +1878,68 @@ type ReleaseActionQueueArtifact = {
   rollbackPath?: string[];
 };
 
+type RagProductionReadinessArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  vectorWriteAttempted?: boolean;
+  ingestionJobCreated?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  readiness?: {
+    contractReady?: boolean;
+    approvalRequired?: boolean;
+    productionQueueLive?: boolean;
+    ingestionWorkerLive?: boolean;
+    vectorWriteAuditSinkLive?: boolean;
+    missingLiveComponents?: string[];
+  };
+  components?: {
+    queue?: {
+      backendClass?: string;
+      contractReady?: boolean;
+      liveReady?: boolean;
+      storesRawMarkdown?: boolean;
+    };
+    ingestionWorker?: {
+      mode?: string;
+      contractReady?: boolean;
+      liveReady?: boolean;
+      createsKubernetesJobByThisVerifier?: boolean;
+    };
+    vectorWriteAuditSink?: {
+      contractReady?: boolean;
+      liveReady?: boolean;
+      appendOnly?: boolean;
+      recordsRollbackChunkIds?: boolean;
+    };
+  };
+  requiredApprovals?: string[];
+  readOnlyCommands?: Array<{
+    id?: string;
+    phase?: string;
+    mutation?: boolean;
+    writesLocalEvidence?: boolean;
+  }>;
+  approvalGatedCommands?: Array<{
+    id?: string;
+    phase?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+  }>;
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type EvidenceCheckpointArtifact = {
   artifactType?: string;
   status?: string;
@@ -2281,6 +2345,13 @@ function releaseActionQueuePath() {
   );
 }
 
+function ragProductionReadinessPath() {
+  return (
+    process.env.CYWELL_OPSLENS_RAG_PRODUCTION_READINESS_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-rag-production-readiness.json")
+  );
+}
+
 function evidenceCheckpointPath() {
   return (
     process.env.CYWELL_OPSLENS_EVIDENCE_CHECKPOINT ??
@@ -2613,6 +2684,28 @@ function mapReleaseActionQueueStatus(
     return "needs-evidence";
   }
   return "ready";
+}
+
+function mapRagProductionReadinessStatus(
+  artifact: RagProductionReadinessArtifact
+): OpsLensRagProductionReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.vectorWriteAttempted ||
+    artifact.ingestionJobCreated ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "blocked";
+  }
+  if (artifact.ref?.worktreeDirty) {
+    return "needs-evidence";
+  }
+  if (artifact.status === "APPROVAL_REQUIRED") {
+    return "approval-required";
+  }
+  return "needs-evidence";
 }
 
 function mapEvidenceCheckpointStatus(
@@ -5139,6 +5232,188 @@ function getReleaseActionQueueReadiness(): {
   }
 }
 
+function missingRagProductionReadinessSummary(
+  reason: string,
+  status: OpsLensRagProductionReadiness = "needs-evidence"
+): OpsLensRagProductionReadinessSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "productionReadinessOnly",
+    contractReady: false,
+    approvalRequired: true,
+    productionQueueLive: false,
+    ingestionWorkerLive: false,
+    vectorWriteAuditSinkLive: false,
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    vectorWriteAttempted: false,
+    ingestionJobCreated: false,
+    mutationAllowedByThisVerifier: false,
+    headSha: "missing",
+    worktreeDirty: false,
+    requiredApprovals: ["rag-owner", "cluster-sre", "security-reviewer"],
+    components: {
+      queue: {
+        backendClass: "missing",
+        contractReady: false,
+        liveReady: false,
+        storesRawMarkdown: false
+      },
+      ingestionWorker: {
+        mode: "missing",
+        contractReady: false,
+        liveReady: false,
+        createsKubernetesJobByThisVerifier: false
+      },
+      vectorWriteAuditSink: {
+        contractReady: false,
+        liveReady: false,
+        appendOnly: false,
+        recordsRollbackChunkIds: false
+      }
+    },
+    readOnlyCommands: [
+      {
+        id: "verify-rag-production-readiness",
+        phase: "rag-production-readiness",
+        mutation: false,
+        writesLocalEvidence: true
+      }
+    ],
+    approvalGatedCommands: [],
+    missingEvidence: [reason],
+    risk: [
+      "Production RAG ingestion must remain blocked until queue, worker, audit sink, source-ref, and rollback evidence are present."
+    ],
+    rollbackPath: [
+      "Run npm run verify:rag:production-readiness after refreshing RAG approval queue evidence."
+    ],
+    evidence: [
+      "RAG production readiness evidence is missing; dashboard must not claim live ingestion readiness"
+    ]
+  };
+}
+
+function getRagProductionReadiness(): {
+  status: OpsLensRagProductionReadiness;
+  evidence: string[];
+  productionReadiness: OpsLensRagProductionReadinessSummary;
+} {
+  const evidencePath = ragProductionReadinessPath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      productionReadiness: missingRagProductionReadinessSummary(
+        `RAG production readiness evidence is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run verify:rag:production-readiness to create the RAG production handoff artifact",
+        "dashboard keeps production RAG ingestion as approval-required or needs-evidence until queue, worker, and audit sink evidence exist",
+        "RAG production readiness must keep clusterMutationAttempted=false, vectorWriteAttempted=false, and ingestionJobCreated=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as RagProductionReadinessArtifact;
+    const status = mapRagProductionReadinessStatus(artifact);
+    const readiness = artifact.readiness ?? {};
+    const components = artifact.components ?? {};
+    const productionReadiness: OpsLensRagProductionReadinessSummary = {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode: "productionReadinessOnly",
+      contractReady: readiness.contractReady === true,
+      approvalRequired: readiness.approvalRequired !== false,
+      productionQueueLive: readiness.productionQueueLive === true,
+      ingestionWorkerLive: readiness.ingestionWorkerLive === true,
+      vectorWriteAuditSinkLive: readiness.vectorWriteAuditSinkLive === true,
+      clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+      registryMutationAttempted: artifact.registryMutationAttempted === true,
+      vectorWriteAttempted: artifact.vectorWriteAttempted === true,
+      ingestionJobCreated: artifact.ingestionJobCreated === true,
+      mutationAllowedByThisVerifier:
+        artifact.mutationAllowedByThisVerifier === true,
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      requiredApprovals: artifact.requiredApprovals ?? [],
+      components: {
+        queue: {
+          backendClass: components.queue?.backendClass ?? "missing",
+          contractReady: components.queue?.contractReady === true,
+          liveReady: components.queue?.liveReady === true,
+          storesRawMarkdown: components.queue?.storesRawMarkdown === true
+        },
+        ingestionWorker: {
+          mode: components.ingestionWorker?.mode ?? "missing",
+          contractReady: components.ingestionWorker?.contractReady === true,
+          liveReady: components.ingestionWorker?.liveReady === true,
+          createsKubernetesJobByThisVerifier:
+            components.ingestionWorker?.createsKubernetesJobByThisVerifier === true
+        },
+        vectorWriteAuditSink: {
+          contractReady: components.vectorWriteAuditSink?.contractReady === true,
+          liveReady: components.vectorWriteAuditSink?.liveReady === true,
+          appendOnly: components.vectorWriteAuditSink?.appendOnly === true,
+          recordsRollbackChunkIds:
+            components.vectorWriteAuditSink?.recordsRollbackChunkIds === true
+        }
+      },
+      readOnlyCommands: (artifact.readOnlyCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        phase: command.phase ?? "rag-production-readiness",
+        mutation: command.mutation === true,
+        writesLocalEvidence: command.writesLocalEvidence === true
+      })),
+      approvalGatedCommands: (artifact.approvalGatedCommands ?? []).map(
+        (command) => ({
+          id: command.id ?? "unknown",
+          phase: command.phase ?? "approval-gated",
+          mutation: command.mutation === true,
+          requiresExplicitApproval: command.requiresExplicitApproval === true
+        })
+      ),
+      missingEvidence: artifact.missingEvidence ?? [],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? [],
+      evidence: [
+        `RAG production readiness ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `RAG production readiness generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `contractReady=${String(readiness.contractReady === true)} approvalRequired=${String(readiness.approvalRequired !== false)}`,
+        `queue backend=${components.queue?.backendClass ?? "missing"} liveReady=${String(components.queue?.liveReady === true)} storesRawMarkdown=${String(components.queue?.storesRawMarkdown === true)}`,
+        `ingestionWorker liveReady=${String(components.ingestionWorker?.liveReady === true)} createsJobByVerifier=${String(components.ingestionWorker?.createsKubernetesJobByThisVerifier === true)}`,
+        `vectorAudit appendOnly=${String(components.vectorWriteAuditSink?.appendOnly === true)} rollbackChunkIds=${String(components.vectorWriteAuditSink?.recordsRollbackChunkIds === true)}`,
+        `mutation boundary cluster=${String(artifact.clusterMutationAttempted === true)} vectorWrite=${String(artifact.vectorWriteAttempted === true)} ingestionJob=${String(artifact.ingestionJobCreated === true)}`,
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads RAG production readiness evidence only; it does not enable DB persistence, create ingestion jobs, or write vectors"
+      ]
+    };
+
+    return {
+      status,
+      productionReadiness,
+      evidence: productionReadiness.evidence
+    };
+  } catch (error) {
+    return {
+      status: "blocked",
+      productionReadiness: missingRagProductionReadinessSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "blocked"
+      ),
+      evidence: [
+        `RAG production readiness evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid RAG production readiness evidence blocks overclaiming ingestion readiness"
+      ]
+    };
+  }
+}
+
 function normalizeCheckpointLaneStatus(
   status?: string
 ): "pass" | "needs-evidence" | "blocked" {
@@ -6107,6 +6382,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const releaseEvidenceRefreshReadiness = getReleaseEvidenceRefreshReadiness();
   const releaseEvidenceBundleReadiness = getReleaseEvidenceBundleReadiness();
   const releaseActionQueueReadiness = getReleaseActionQueueReadiness();
+  const ragProductionReadiness = getRagProductionReadiness();
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
   const aiopsIncidentPipelineReadiness = getAiopsIncidentPipelineReadiness();
   const liveHandoffReadiness = getLiveEvidenceHandoffReadiness();
@@ -6133,6 +6409,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     releasePublishReadiness.evidence[0],
     releaseEvidenceBundleReadiness.evidence[0],
     releaseActionQueueReadiness.evidence[0],
+    ragProductionReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
@@ -6148,6 +6425,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...releaseEvidenceRefreshReadiness.evidence.slice(1),
     ...releaseEvidenceBundleReadiness.evidence.slice(1),
     ...releaseActionQueueReadiness.evidence.slice(1),
+    ...ragProductionReadiness.evidence.slice(1),
     ...aiopsIncidentPipelineReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
     ...ocpNetworkHandoffReadiness.evidence.slice(1),
@@ -6172,7 +6450,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
           "RAG corpus source of truth is data/runbooks/<tenant>",
           `local vector index ${localRagIndex.version} has ${localRagIndex.chunks.length} chunks`
         ]
-      }
+      },
+      productionReadiness: ragProductionReadiness.productionReadiness
     },
     tokenUsage: {
       window: "24h",
@@ -6394,6 +6673,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 5 release evidence refresh chain is generated by npm run verify:release-refresh",
         "Stage 5 release evidence bundle is generated by npm run verify:release-evidence-bundle",
         "Stage 5 release action queue is generated by npm run evidence:release-action-queue",
+        "RAG production ingestion handoff is generated by npm run verify:rag:production-readiness",
         "Current-head release/install evidence is summarized by npm run verify:evidence-checkpoint"
       ]
     },

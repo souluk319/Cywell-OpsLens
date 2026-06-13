@@ -1143,6 +1143,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           evidence?: string[];
         }>;
         uploadIntake?: { mode?: string; evidence?: string[] };
+        productionReadiness?: {
+          status?: string;
+          actionMode?: string;
+          contractReady?: boolean;
+          approvalRequired?: boolean;
+          productionQueueLive?: boolean;
+          ingestionWorkerLive?: boolean;
+          vectorWriteAuditSinkLive?: boolean;
+          vectorWriteAttempted?: boolean;
+          ingestionJobCreated?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          components?: {
+            queue?: { backendClass?: string; storesRawMarkdown?: boolean };
+            vectorWriteAuditSink?: { appendOnly?: boolean };
+          };
+          requiredApprovals?: string[];
+          missingEvidence?: string[];
+        };
       };
       tokenUsage?: {
         budgetTokens?: number;
@@ -1857,6 +1875,28 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.rag?.uploadIntake?.mode).toBe("validate-only");
     expect(body.rag?.uploadIntake?.evidence?.join(" ")).toContain(
       "local vector index"
+    );
+    expect(body.rag?.productionReadiness).toMatchObject({
+      status: "approval-required",
+      actionMode: "productionReadinessOnly",
+      contractReady: true,
+      approvalRequired: true,
+      productionQueueLive: false,
+      ingestionWorkerLive: false,
+      vectorWriteAuditSinkLive: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(body.rag?.productionReadiness?.components?.queue).toMatchObject({
+      backendClass: "database-backed",
+      storesRawMarkdown: false
+    });
+    expect(
+      body.rag?.productionReadiness?.components?.vectorWriteAuditSink?.appendOnly
+    ).toBe(true);
+    expect(body.rag?.productionReadiness?.requiredApprovals).toEqual(
+      expect.arrayContaining(["rag-owner", "cluster-sre", "security-reviewer"])
     );
     expect(body.tokenUsage?.budgetTokens).toBeGreaterThan(
       body.tokenUsage?.usedTokens ?? 0
@@ -3523,6 +3563,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-rag-health")).toContainText(
       "Payments API"
     );
+    await expect(
+      page.getByTestId("opslens-rag-production-readiness")
+    ).toContainText("productionReadinessOnly");
+    await expect(
+      page.getByTestId("opslens-rag-production-readiness")
+    ).toContainText("approval-required");
+    await expect(
+      page.getByTestId("opslens-rag-production-readiness")
+    ).toContainText("contractReady=true");
+    await expect(
+      page.getByTestId("opslens-rag-production-readiness")
+    ).toContainText("queueLive=false");
+    await expect(
+      page.getByTestId("opslens-rag-production-readiness")
+    ).toContainText("vectorWrite=false");
+    await expect(
+      page.getByTestId("opslens-rag-production-readiness")
+    ).toContainText("ingestionJobCreated=false");
     await expect(page.getByTestId("opslens-token-usage")).toContainText(
       "lightspeed-mcp"
     );

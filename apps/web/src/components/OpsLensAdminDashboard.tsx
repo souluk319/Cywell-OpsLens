@@ -162,6 +162,7 @@ export function OpsLensAdminDashboard() {
   }, [overview]);
 
   const latestGpu = overview?.runtime.gpu.samples.at(-1);
+  const ragProductionReadiness = overview?.rag.productionReadiness;
   const metricQueries = overview?.incidents.flatMap(
     (incident) => incident.metricQueries
   );
@@ -496,6 +497,51 @@ export function OpsLensAdminDashboard() {
             <span>{numberText(overview?.rag.uploadIntake.pending)} pending</span>
             <span>{numberText(overview?.rag.uploadIntake.rejected)} rejected</span>
           </div>
+          {ragProductionReadiness ? (
+            <div
+              className="rag-export-summary"
+              data-testid="opslens-rag-production-readiness"
+            >
+              <div className="admin-evidence-line">
+                <span>{ragProductionReadiness.actionMode}</span>
+                <span>{ragProductionReadiness.status}</span>
+                <span>
+                  contractReady={String(ragProductionReadiness.contractReady)}
+                </span>
+                <span>
+                  queueLive={String(ragProductionReadiness.productionQueueLive)}
+                </span>
+                <span>
+                  workerLive={String(ragProductionReadiness.ingestionWorkerLive)}
+                </span>
+                <span>
+                  vectorAudit=
+                  {String(ragProductionReadiness.vectorWriteAuditSinkLive)}
+                </span>
+                <span>
+                  vectorWrite={String(ragProductionReadiness.vectorWriteAttempted)}
+                </span>
+                <span>
+                  ingestionJobCreated=
+                  {String(ragProductionReadiness.ingestionJobCreated)}
+                </span>
+              </div>
+              <div className="admin-evidence-line">
+                <span>{ragProductionReadiness.components.queue.backendClass}</span>
+                <span>
+                  rawMarkdown=
+                  {String(ragProductionReadiness.components.queue.storesRawMarkdown)}
+                </span>
+                <span>
+                  auditAppendOnly=
+                  {String(ragProductionReadiness.components.vectorWriteAuditSink.appendOnly)}
+                </span>
+                <span>
+                  approvals={ragProductionReadiness.requiredApprovals.join(",")}
+                </span>
+              </div>
+            </div>
+          ) : null}
           <div
             className="rag-export-summary"
             data-testid="opslens-rag-approval-queue-inventory"
