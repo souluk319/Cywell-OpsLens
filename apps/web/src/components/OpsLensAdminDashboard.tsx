@@ -62,7 +62,9 @@ function statusClass(status: string) {
     status === "ready-for-ingestion-job" ||
     status === "ready-for-dry-run" ||
     status === "ready-for-review" ||
-    status === "ready-for-scan"
+    status === "ready-for-scan" ||
+    status === "ready-for-live-registration-review" ||
+    status === "live-ready"
   ) {
     return "fresh";
   }
@@ -837,6 +839,64 @@ export function OpsLensAdminDashboard() {
               {String(lightspeedMcp?.trojanHorse.mutationAllowed)}
             </span>
           </div>
+          {lightspeedMcp?.integrationHandoff ? (
+            <div
+              className="rag-export-summary"
+              data-testid="opslens-lightspeed-integration-handoff"
+            >
+              <div className="admin-evidence-line">
+                <span>{lightspeedMcp.integrationHandoff.actionMode}</span>
+                <span>{lightspeedMcp.integrationHandoff.status}</span>
+                <span>
+                  artifact={lightspeedMcp.integrationHandoff.artifactStatus}
+                </span>
+                <span>
+                  live={lightspeedMcp.integrationHandoff.liveReadiness.classification}
+                </span>
+                <span>
+                  network=
+                  {lightspeedMcp.integrationHandoff.liveReadiness.networkClassification}
+                </span>
+                <span>
+                  templateReady=
+                  {String(lightspeedMcp.integrationHandoff.olsconfig.templateReady)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(
+                    lightspeedMcp.integrationHandoff.clusterMutationAttempted
+                  )}
+                </span>
+                <span>
+                  approvalGated=
+                  {numberText(
+                    lightspeedMcp.integrationHandoff.approvalGatedCommands.length
+                  )}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-lightspeed-integration-handoff-commands"
+              >
+                <span>
+                  readOnly=
+                  {numberText(
+                    lightspeedMcp.integrationHandoff.readOnlyCommands.length
+                  )}
+                </span>
+                <span>
+                  gated=
+                  {numberText(
+                    lightspeedMcp.integrationHandoff.approvalGatedCommands.length
+                  )}
+                </span>
+                <span>
+                  next=
+                  {lightspeedMcp.integrationHandoff.liveReadiness.nextCommand}
+                </span>
+              </div>
+            </div>
+          ) : null}
           <div className="mcp-tool-list">
             {lightspeedMcp?.tools.map((tool) => (
               <div

@@ -43,6 +43,7 @@ import type {
   OpsLensInstallApprovalPlanSummary,
   OpsLensInstallPlanReadiness,
   OpsLensLightspeedRegistrationApprovalPlanSummary,
+  OpsLensLightspeedIntegrationHandoffSummary,
   OpsLensLiveEvidenceHandoffReadiness,
   OpsLensLiveEvidenceHandoffSummary,
   OpsLensLightspeedMcpReadiness,
@@ -404,6 +405,33 @@ type LightspeedTrojanHorseEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type LightspeedIntegrationHandoffEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  actionMode?: "handoffOnly";
+  generatedAt?: string;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  vectorWriteAttempted?: boolean;
+  ingestionJobCreated?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  localProof?: OpsLensLightspeedIntegrationHandoffSummary["localProof"];
+  liveReadiness?: OpsLensLightspeedIntegrationHandoffSummary["liveReadiness"];
+  olsconfig?: OpsLensLightspeedIntegrationHandoffSummary["olsconfig"];
+  readOnlyCommands?: OpsLensLightspeedIntegrationHandoffSummary["readOnlyCommands"];
+  approvalGatedCommands?: OpsLensLightspeedIntegrationHandoffSummary["approvalGatedCommands"];
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+  evidence?: string[];
+};
+
 function lightspeedRoutingEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_ROUTING_EVIDENCE ??
@@ -415,6 +443,17 @@ function lightspeedTrojanHorseEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_TROJAN_HORSE_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-lightspeed-trojan-horse.json")
+  );
+}
+
+function lightspeedIntegrationHandoffEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_LIGHTSPEED_INTEGRATION_HANDOFF_EVIDENCE ??
+    join(
+      repoRoot,
+      "test-results",
+      "cywell-opslens-lightspeed-integration-handoff.json"
+    )
   );
 }
 
@@ -615,6 +654,241 @@ function getLightspeedTrojanHorseProof(): OpsLensAdminOverviewResponse["lightspe
   }
 }
 
+function mapLightspeedIntegrationHandoffStatus(
+  status?: string
+): OpsLensLightspeedIntegrationHandoffSummary["status"] {
+  switch (status) {
+    case "READY_FOR_LIVE_REGISTRATION_REVIEW":
+      return "ready-for-live-registration-review";
+    case "LIVE_READY":
+      return "live-ready";
+    case "BLOCKED":
+      return "blocked";
+    case "FAIL":
+    case "FAILED":
+      return "failed";
+    case "NEEDS_EVIDENCE":
+    case "NEEDS_LIVE_EVIDENCE":
+    default:
+      return "needs-evidence";
+  }
+}
+
+function missingLightspeedIntegrationHandoffSummary(
+  reason: string,
+  artifactStatus = "missing"
+): OpsLensLightspeedIntegrationHandoffSummary {
+  return {
+    status: artifactStatus === "invalid" ? "failed" : "needs-evidence",
+    artifactStatus,
+    actionMode: "handoffOnly",
+    headSha: "missing",
+    worktreeDirty: false,
+    localProof: {
+      trojanHorse: {
+        selectedTool: "missing",
+        citationCount: 0,
+        customerRunbookCitationFound: false,
+        redactionPassed: false
+      },
+      routing: {
+        selectedPasses: 0,
+        responsePasses: 0,
+        total: 10,
+        threshold: 8
+      }
+    },
+    liveReadiness: {
+      status: "missing",
+      classification: "missing",
+      networkClassification: "missing",
+      nextCommand: "npm run verify:lightspeed:integration-handoff"
+    },
+    olsconfig: {
+      templateReady: false,
+      templatePath: "missing",
+      target: {
+        namespace: "openshift-lightspeed",
+        name: "cluster",
+        kind: "OLSConfig"
+      },
+      desiredServer: {
+        name: "cywell-opslens",
+        url: "missing",
+        authHeaderMode: "missing",
+        apiKeyHeaderMode: "missing"
+      }
+    },
+    readOnlyCommands: [
+      {
+        id: "refresh-lightspeed-integration-handoff",
+        command: "npm run verify:lightspeed:integration-handoff",
+        purpose: "Regenerate the dashboard-facing Lightspeed integration handoff evidence.",
+        phase: "handoff-refresh",
+        mutation: false,
+        writesLocalEvidence: true
+      }
+    ],
+    approvalGatedCommands: [],
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    vectorWriteAttempted: false,
+    ingestionJobCreated: false,
+    mutationAllowedByThisVerifier: false,
+    missingEvidence: [reason],
+    risk: [
+      "Lightspeed registration must not be claimed until the integration handoff artifact is current and reviewable."
+    ],
+    rollbackPath: [
+      "Keep OLSConfig unchanged and regenerate the handoff evidence before approval."
+    ],
+    evidence: [
+      reason,
+      "regenerate with npm run verify:lightspeed:integration-handoff",
+      "dashboard reports missing handoff evidence instead of assuming live Lightspeed registration readiness"
+    ]
+  };
+}
+
+function getLightspeedIntegrationHandoff(): OpsLensLightspeedIntegrationHandoffSummary {
+  const evidencePath = lightspeedIntegrationHandoffEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return missingLightspeedIntegrationHandoffSummary(
+      `Lightspeed integration handoff evidence is missing at ${evidencePath}`
+    );
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as LightspeedIntegrationHandoffEvidenceArtifact;
+    const trojanHorse = artifact.localProof?.trojanHorse;
+    const routing = artifact.localProof?.routing;
+    const olsconfig = artifact.olsconfig;
+    const desiredServer = olsconfig?.desiredServer;
+    const readOnlyCommands = artifact.readOnlyCommands ?? [];
+    const approvalGatedCommands = artifact.approvalGatedCommands ?? [];
+    const clusterMutationAttempted = artifact.clusterMutationAttempted === true;
+    const registryMutationAttempted = artifact.registryMutationAttempted === true;
+    const vectorWriteAttempted = artifact.vectorWriteAttempted === true;
+    const ingestionJobCreated = artifact.ingestionJobCreated === true;
+    const mutationAllowedByThisVerifier =
+      artifact.mutationAllowedByThisVerifier === true;
+    const threshold = Number(routing?.threshold ?? 8);
+    const selectedPasses = Number(routing?.selectedPasses ?? 0);
+    const responsePasses = Number(routing?.responsePasses ?? 0);
+    const unsafe =
+      artifact.actionMode !== "handoffOnly" ||
+      clusterMutationAttempted ||
+      registryMutationAttempted ||
+      vectorWriteAttempted ||
+      ingestionJobCreated ||
+      mutationAllowedByThisVerifier ||
+      !trojanHorse ||
+      trojanHorse.selectedTool !== "generate_playbook" ||
+      Number(trojanHorse.citationCount ?? 0) <= 0 ||
+      trojanHorse.customerRunbookCitationFound !== true ||
+      trojanHorse.redactionPassed !== true ||
+      !routing ||
+      selectedPasses < threshold ||
+      responsePasses < threshold ||
+      !olsconfig ||
+      olsconfig.templateReady !== true ||
+      !desiredServer?.url?.endsWith("/mcp") ||
+      readOnlyCommands.length === 0 ||
+      readOnlyCommands.some((command) => command.mutation !== false) ||
+      approvalGatedCommands.some(
+        (command) =>
+          command.mutation !== true || command.requiresExplicitApproval !== true
+      );
+    const mappedStatus = mapLightspeedIntegrationHandoffStatus(artifact.status);
+    const status = unsafe
+      ? "failed"
+      : artifact.ref?.worktreeDirty === true
+        ? "needs-evidence"
+        : mappedStatus;
+
+    return {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode: "handoffOnly",
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      localProof: {
+        trojanHorse: {
+          selectedTool: trojanHorse?.selectedTool ?? "missing",
+          citationCount: Number(trojanHorse?.citationCount ?? 0),
+          customerRunbookCitationFound:
+            trojanHorse?.customerRunbookCitationFound === true,
+          redactionPassed: trojanHorse?.redactionPassed === true
+        },
+        routing: {
+          selectedPasses,
+          responsePasses,
+          total: Number(routing?.total ?? 0),
+          threshold
+        }
+      },
+      liveReadiness: {
+        status: artifact.liveReadiness?.status ?? "missing",
+        classification: artifact.liveReadiness?.classification ?? "missing",
+        networkClassification:
+          artifact.liveReadiness?.networkClassification ?? "missing",
+        nextCommand:
+          artifact.liveReadiness?.nextCommand ??
+          "npm run verify:lightspeed -- --timeout-ms 30000"
+      },
+      olsconfig: {
+        templateReady: olsconfig?.templateReady === true,
+        templatePath: olsconfig?.templatePath ?? "missing",
+        target: {
+          namespace: olsconfig?.target?.namespace ?? "openshift-lightspeed",
+          name: olsconfig?.target?.name ?? "cluster",
+          kind: olsconfig?.target?.kind ?? "OLSConfig"
+        },
+        desiredServer: {
+          name: desiredServer?.name ?? "cywell-opslens",
+          url: desiredServer?.url ?? "missing",
+          authHeaderMode: desiredServer?.authHeaderMode ?? "missing",
+          apiKeyHeaderMode: desiredServer?.apiKeyHeaderMode ?? "missing"
+        }
+      },
+      readOnlyCommands,
+      approvalGatedCommands,
+      clusterMutationAttempted,
+      registryMutationAttempted,
+      vectorWriteAttempted,
+      ingestionJobCreated,
+      mutationAllowedByThisVerifier,
+      missingEvidence: [
+        ...(artifact.missingEvidence ?? []),
+        ...(unsafe
+          ? [
+              "Lightspeed integration handoff artifact has an unsafe or incomplete local proof/template/command boundary"
+            ]
+          : [])
+      ],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? [],
+      evidence: [
+        `Lightspeed integration handoff evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        "regenerate with npm run verify:lightspeed:integration-handoff",
+        `live classification=${artifact.liveReadiness?.classification ?? "missing"} network=${artifact.liveReadiness?.networkClassification ?? "missing"}`,
+        `read-only commands=${readOnlyCommands.length} approval-gated commands=${approvalGatedCommands.length}`,
+        ...(artifact.evidence ?? [])
+      ]
+    };
+  } catch (error) {
+    return missingLightspeedIntegrationHandoffSummary(
+      `Lightspeed integration handoff evidence could not be parsed from ${evidencePath}: ${
+        error instanceof Error ? error.message : "unknown evidence parse error"
+      }`,
+      "invalid"
+    );
+  }
+}
+
 function getLightspeedToolSurface(): OpsLensAdminOverviewResponse["lightspeed"] {
   const tools: OpsLensMcpToolSurfaceItem[] = opsLensMcpTools.map((tool) => ({
     name: tool.name,
@@ -644,12 +918,14 @@ function getLightspeedToolSurface(): OpsLensAdminOverviewResponse["lightspeed"] 
       excludedTools: ["apply_remediation"],
       routing: getLightspeedRoutingScore(),
       trojanHorse: getLightspeedTrojanHorseProof(),
+      integrationHandoff: getLightspeedIntegrationHandoff(),
       tools,
       evidence: [
         "OpenShift Lightspeed custom MCP server is the supported extension point for tool calls",
         "AC-LS-001 verifies tools/list and tools/call for the MVP read-only tool surface",
         "exact Trojan Horse question proof comes from npm run verify:lightspeed:trojan-horse",
         "routing score comes from npm run verify:lightspeed:routing and the 10-question / 8-pass fixture",
+        "integration handoff comes from npm run verify:lightspeed:integration-handoff",
         "all MVP tools keep approvalRequired=false and destructive=false",
         "apply_remediation is deliberately excluded from the MVP tool catalog",
         "tool responses include citations, missingEvidence, risks, rollbackPath, and audit.runtimeRag"

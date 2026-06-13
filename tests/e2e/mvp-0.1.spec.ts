@@ -1842,6 +1842,59 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             evidence?: string[];
             missingEvidence?: string[];
           };
+          integrationHandoff?: {
+            status?: string;
+            artifactStatus?: string;
+            actionMode?: string;
+            headSha?: string;
+            worktreeDirty?: boolean;
+            localProof?: {
+              trojanHorse?: {
+                selectedTool?: string;
+                citationCount?: number;
+                customerRunbookCitationFound?: boolean;
+                redactionPassed?: boolean;
+              };
+              routing?: {
+                selectedPasses?: number;
+                responsePasses?: number;
+                total?: number;
+                threshold?: number;
+              };
+            };
+            liveReadiness?: {
+              status?: string;
+              classification?: string;
+              networkClassification?: string;
+              nextCommand?: string;
+            };
+            olsconfig?: {
+              templateReady?: boolean;
+              desiredServer?: { url?: string };
+            };
+            readOnlyCommands?: Array<{
+              id?: string;
+              command?: string;
+              mutation?: boolean;
+              writesLocalEvidence?: boolean;
+            }>;
+            approvalGatedCommands?: Array<{
+              id?: string;
+              command?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+              owner?: string;
+            }>;
+            clusterMutationAttempted?: boolean;
+            registryMutationAttempted?: boolean;
+            vectorWriteAttempted?: boolean;
+            ingestionJobCreated?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+            evidence?: string[];
+            missingEvidence?: string[];
+            risk?: string[];
+            rollbackPath?: string[];
+          };
           excludedTools?: string[];
           tools?: Array<{
             name?: string;
@@ -1949,6 +2002,51 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         body.lightspeed.mcp.routing.threshold ?? 8
       );
       expect(body.lightspeed.mcp.routing.worktreeDirty).toBe(false);
+    }
+    expect([
+      "ready-for-live-registration-review",
+      "live-ready",
+      "needs-evidence",
+      "blocked",
+      "failed"
+    ]).toContain(body.lightspeed?.mcp?.integrationHandoff?.status);
+    expect(body.lightspeed?.mcp?.integrationHandoff).toMatchObject({
+      actionMode: "handoffOnly",
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.lightspeed?.mcp?.integrationHandoff?.readOnlyCommands?.length
+    ).toBeGreaterThan(0);
+    expect(
+      body.lightspeed?.mcp?.integrationHandoff?.readOnlyCommands?.every(
+        (command) => command.mutation === false
+      )
+    ).toBe(true);
+    expect(
+      body.lightspeed?.mcp?.integrationHandoff?.approvalGatedCommands?.every(
+        (command) =>
+          command.mutation === true && command.requiresExplicitApproval === true
+      )
+    ).toBe(true);
+    expect(
+      body.lightspeed?.mcp?.integrationHandoff?.olsconfig?.desiredServer?.url
+    ).toContain("/mcp");
+    expect(
+      body.lightspeed?.mcp?.integrationHandoff?.evidence?.join(" ")
+    ).toContain("verify:lightspeed:integration-handoff");
+    if (
+      body.lightspeed?.mcp?.integrationHandoff?.status ===
+        "ready-for-live-registration-review" ||
+      body.lightspeed?.mcp?.integrationHandoff?.status === "live-ready"
+    ) {
+      expect(body.lightspeed.mcp.integrationHandoff.worktreeDirty).toBe(false);
+      expect(
+        body.lightspeed.mcp.integrationHandoff.olsconfig?.templateReady
+      ).toBe(true);
     }
     expect(body.lightspeed?.mcp?.excludedTools).toContain("apply_remediation");
     expect(adminMcpToolNames).toEqual(
@@ -3611,6 +3709,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-lightspeed-trojan-horse")
     ).toContainText("mutationAllowed=false");
+    await expect(
+      page.getByTestId("opslens-lightspeed-integration-handoff")
+    ).toContainText("handoffOnly");
+    await expect(
+      page.getByTestId("opslens-lightspeed-integration-handoff")
+    ).toContainText("templateReady=true");
+    await expect(
+      page.getByTestId("opslens-lightspeed-integration-handoff")
+    ).toContainText("clusterMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-lightspeed-integration-handoff-commands")
+    ).toContainText("readOnly=");
+    await expect(
+      page.getByTestId("opslens-lightspeed-integration-handoff-commands")
+    ).toContainText("gated=");
     await expect(page.getByTestId("opslens-gpu-runtime")).toContainText(
       "Gemma 4"
     );

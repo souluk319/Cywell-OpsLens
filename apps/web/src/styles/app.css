@@ -613,6 +613,7 @@ button {
   color: #4f5255;
   font-size: 0.74rem;
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .rag-validation-form {

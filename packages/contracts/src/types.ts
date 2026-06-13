@@ -215,6 +215,82 @@ export interface OpsLensMcpToolSurfaceItem {
   evidence: string[];
 }
 
+export type OpsLensLightspeedIntegrationHandoffReadiness =
+  | "ready-for-live-registration-review"
+  | "live-ready"
+  | "needs-evidence"
+  | "blocked"
+  | "failed";
+
+export interface OpsLensLightspeedIntegrationHandoffSummary {
+  status: OpsLensLightspeedIntegrationHandoffReadiness;
+  artifactStatus: string;
+  actionMode: "handoffOnly";
+  headSha: string;
+  worktreeDirty: boolean;
+  localProof: {
+    trojanHorse: {
+      selectedTool: string;
+      citationCount: number;
+      customerRunbookCitationFound: boolean;
+      redactionPassed: boolean;
+    };
+    routing: {
+      selectedPasses: number;
+      responsePasses: number;
+      total: number;
+      threshold: number;
+    };
+  };
+  liveReadiness: {
+    status: string;
+    classification: string;
+    networkClassification: string;
+    nextCommand: string;
+  };
+  olsconfig: {
+    templateReady: boolean;
+    templatePath: string;
+    target: {
+      namespace: string;
+      name: string;
+      kind: string;
+    };
+    desiredServer: {
+      name: string;
+      url: string;
+      authHeaderMode: string;
+      apiKeyHeaderMode: string;
+    };
+  };
+  readOnlyCommands: Array<{
+    id: string;
+    command: string;
+    purpose: string;
+    phase: string;
+    mutation: boolean;
+    writesLocalEvidence: boolean;
+  }>;
+  approvalGatedCommands: Array<{
+    id: string;
+    command: string;
+    purpose: string;
+    phase: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+    owner: string;
+  }>;
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  vectorWriteAttempted: boolean;
+  ingestionJobCreated: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+  evidence: string[];
+}
+
 export interface OpsLensLightspeedToolSurface {
   mcpTechnologyPreview: true;
   endpoint: "/mcp";
@@ -251,6 +327,7 @@ export interface OpsLensLightspeedToolSurface {
     evidence: string[];
     missingEvidence: string[];
   };
+  integrationHandoff: OpsLensLightspeedIntegrationHandoffSummary;
   tools: OpsLensMcpToolSurfaceItem[];
   evidence: string[];
 }
