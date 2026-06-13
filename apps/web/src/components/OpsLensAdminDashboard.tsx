@@ -1505,8 +1505,42 @@ export function OpsLensAdminDashboard() {
                         handoff={entry.handoffNextCommands.slice(0, 2).join(" | ")}
                       </small>
                     ) : null}
+                    {entry.readOnlyCommands.length ? (
+                      <small>
+                        readOnly=
+                        {entry.readOnlyCommands
+                          .slice(0, 2)
+                          .map((command) => command.id)
+                          .join(", ")}
+                      </small>
+                    ) : null}
+                    {entry.approvalGatedCommands.length ? (
+                      <small>
+                        approval=
+                        {entry.approvalGatedCommands
+                          .slice(0, 2)
+                          .map((command) => command.id)
+                          .join(", ")}
+                      </small>
+                    ) : null}
                   </div>
                 ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-approval-handoff"
+              >
+                {releaseActionQueue.items
+                  .filter((entry) => entry.approvalGatedCommands.length > 0)
+                  .slice(0, 3)
+                  .map((entry) => (
+                    <span key={entry.id}>
+                      {entry.owner}:
+                      {entry.approvalGatedCommands
+                        .map((command) => command.id)
+                        .join(", ")}
+                    </span>
+                  ))}
               </div>
               <div
                 className="admin-evidence-line"

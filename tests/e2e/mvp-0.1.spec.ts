@@ -1287,6 +1287,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             nextCommand?: string;
             handoffNextCommands?: string[];
             setupCommands?: Array<{ id?: string; mutation?: boolean }>;
+            readOnlyCommands?: Array<{
+              id?: string;
+              command?: string;
+              mutation?: boolean;
+            }>;
+            approvalGatedCommands?: Array<{
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            }>;
             missingRequiredTools?: string[];
           }>;
           sourceArtifacts?: Array<{
@@ -2145,6 +2155,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     if (ocpAuthAction) {
       expect(ocpAuthAction.nextCommand).toContain("evidence:ocp-auth-rbac-plan");
+      expect(
+        ocpAuthAction.readOnlyCommands?.some((command) =>
+          command.command?.includes("oc apply --dry-run=server")
+        )
+      ).toBe(true);
+      expect(ocpAuthAction.approvalGatedCommands?.map((command) => command.id)).toEqual(
+        expect.arrayContaining([
+          "apply-live-evidence-reader-rbac",
+          "create-short-lived-live-reader-token"
+        ])
+      );
+      expect(
+        ocpAuthAction.approvalGatedCommands?.every(
+          (command) =>
+            command.mutation === true && command.requiresExplicitApproval === true
+        )
+      ).toBe(true);
     }
     const certificationToolingAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -2817,6 +2844,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-items")
     ).toContainText("npm run evidence:ocp-auth-rbac-plan");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-approval-handoff")
+    ).toContainText("apply-live-evidence-reader-rbac");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-approval-handoff")
+    ).toContainText("create-short-lived-live-reader-token");
     await expect(
       page.getByTestId("opslens-release-action-queue-tooling-handoff")
     ).toContainText("opm");

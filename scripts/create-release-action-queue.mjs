@@ -326,6 +326,8 @@ function item({
   nextCommand,
   handoffNextCommands = [],
   setupCommands = [],
+  readOnlyCommands = [],
+  approvalGatedCommands = [],
   missingRequiredTools = [],
   blockedBy = [],
   acceptance = []
@@ -348,6 +350,22 @@ function item({
       requiresNetwork: command.requiresNetwork === true,
       requiresHumanApproval: command.requiresHumanApproval === true
     })),
+    readOnlyCommands: readOnlyCommands.map((command) => ({
+      id: sanitize(command.id ?? "unknown"),
+      command: sanitize(command.command ?? "unknown"),
+      phase: sanitize(command.phase ?? "read-only"),
+      mutation: command.mutation === true,
+      requiresNetwork: command.requiresNetwork === true,
+      writesLocalEvidence:
+        command.writesLocalEvidence === true || command.writesEvidence === true
+    })),
+    approvalGatedCommands: approvalGatedCommands.map((command) => ({
+      id: sanitize(command.id ?? "unknown"),
+      command: sanitize(command.command ?? "unknown"),
+      phase: sanitize(command.phase ?? "approval-gated"),
+      mutation: command.mutation === true,
+      requiresExplicitApproval: command.requiresExplicitApproval === true
+    })),
     missingRequiredTools: missingRequiredTools.map(sanitize),
     blockedBy: blockedBy.map(sanitize),
     acceptance
@@ -362,7 +380,14 @@ function authLikeOcpClassification(classification) {
   return ["auth-or-rbac", "auth-failed", "token-missing"].includes(classification);
 }
 
-function ocpConnectivityAction(networkHandoff) {
+function authRbacHandoffCommands(authRbacPlan) {
+  const readOnlyCommands = authRbacPlan?.readOnlyCommands ?? [];
+  return readOnlyCommands
+    .map((command) => command.command)
+    .filter(Boolean);
+}
+
+function ocpConnectivityAction(networkHandoff, authRbacPlan) {
   const classification = ocpClassification(networkHandoff);
   if (authLikeOcpClassification(classification)) {
     return {
@@ -373,6 +398,9 @@ function ocpConnectivityAction(networkHandoff) {
         "Refresh the configured OCP API credential or grant the read-only RBAC needed for /version and OLSConfig CRD discovery.",
       evidenceNeeded: `OCP connectivity diagnostic classification=${classification} becomes api-ready; oc whoami and oc auth can-i get crd olsconfigs.ols.openshift.io succeed.`,
       nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+      handoffNextCommands: authRbacHandoffCommands(authRbacPlan),
+      readOnlyCommands: authRbacPlan?.readOnlyCommands ?? [],
+      approvalGatedCommands: authRbacPlan?.approvalGatedCommands ?? [],
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
     };
   }
@@ -411,7 +439,7 @@ function networkHandoffId(classification) {
   return "network-sre-review-network-handoff";
 }
 
-function checkpointItems(checkpoint, networkHandoff, certificationReadiness) {
+function checkpointItems(checkpoint, networkHandoff, certificationReadiness, authRbacPlan) {
   const lanes = checkpoint?.lanes ?? [];
   const byId = new Map(lanes.map((lane) => [lane.id, lane]));
   const items = [];
@@ -425,7 +453,7 @@ function checkpointItems(checkpoint, networkHandoff, certificationReadiness) {
     }));
   };
 
-  addIfOpen("ocpConnectivity", ocpConnectivityAction(networkHandoff));
+  addIfOpen("ocpConnectivity", ocpConnectivityAction(networkHandoff, authRbacPlan));
   addIfOpen("lightspeedReadiness", {
     id: "cluster-sre-rerun-lightspeed-readiness",
     owner: "cluster-sre",
@@ -607,6 +635,9 @@ function ocpAuthRbacItems(authRbacPlan) {
         evidenceNeeded:
           `OCP auth/RBAC plan classification=${classification}; manifest excludes secrets, grants only get/list/watch, dry-run/can-i evidence passes, and connectivity becomes api-ready.`,
         nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+        handoffNextCommands: authRbacHandoffCommands(authRbacPlan),
+        readOnlyCommands: authRbacPlan.readOnlyCommands ?? [],
+        approvalGatedCommands: authRbacPlan.approvalGatedCommands ?? [],
         blockedBy: authRbacPlan.missingEvidence ?? [],
         acceptance: ["AC-OCP-001", "AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
       })
@@ -622,6 +653,9 @@ function ocpAuthRbacItems(authRbacPlan) {
       evidenceNeeded:
         "OCP auth/RBAC plan reaches READY_FOR_LIVE_CHECK or AUTH_RBAC_APPROVAL_REQUIRED with clean read-only RBAC validation.",
       nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+      handoffNextCommands: authRbacHandoffCommands(authRbacPlan),
+      readOnlyCommands: authRbacPlan.readOnlyCommands ?? [],
+      approvalGatedCommands: authRbacPlan.approvalGatedCommands ?? [],
       blockedBy: authRbacPlan.missingEvidence ?? [],
       acceptance: ["AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
     })
@@ -631,7 +665,12 @@ function ocpAuthRbacItems(authRbacPlan) {
 function buildItems(artifacts) {
   return uniqueByKey(
     [
-      ...checkpointItems(artifacts.checkpoint, artifacts.ocpNetworkHandoff, artifacts.certificationReadiness),
+      ...checkpointItems(
+        artifacts.checkpoint,
+        artifacts.ocpNetworkHandoff,
+        artifacts.certificationReadiness,
+        artifacts.ocpAuthRbacPlan
+      ),
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
       ...bundleDecisionItems(artifacts.releaseBundle),
       ...networkItems(artifacts.ocpNetworkHandoff),
@@ -707,6 +746,12 @@ function markdownFor(queue) {
     }
     for (const command of entry.setupCommands.slice(0, 4)) {
       lines.push(`- Setup: ${command.id}: ${command.command}`);
+    }
+    for (const command of entry.readOnlyCommands.slice(0, 4)) {
+      lines.push(`- Read-only handoff: ${command.id}: ${command.command}`);
+    }
+    for (const command of entry.approvalGatedCommands.slice(0, 4)) {
+      lines.push(`- Approval-gated handoff: ${command.id}: ${command.command}`);
     }
     lines.push("");
   }

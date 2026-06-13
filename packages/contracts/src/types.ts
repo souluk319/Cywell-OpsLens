@@ -1514,6 +1514,21 @@ export interface OpsLensReleaseActionQueueSummary {
       requiresNetwork: boolean;
       requiresHumanApproval: boolean;
     }>;
+    readOnlyCommands: Array<{
+      id: string;
+      command: string;
+      phase: string;
+      mutation: boolean;
+      requiresNetwork: boolean;
+      writesLocalEvidence: boolean;
+    }>;
+    approvalGatedCommands: Array<{
+      id: string;
+      command: string;
+      phase: string;
+      mutation: boolean;
+      requiresExplicitApproval: boolean;
+    }>;
     missingRequiredTools: string[];
   }>;
   sourceArtifacts: Array<{

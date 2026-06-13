@@ -1746,6 +1746,21 @@ type ReleaseActionQueueArtifact = {
       requiresNetwork?: boolean;
       requiresHumanApproval?: boolean;
     }>;
+    readOnlyCommands?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      mutation?: boolean;
+      requiresNetwork?: boolean;
+      writesLocalEvidence?: boolean;
+    }>;
+    approvalGatedCommands?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      mutation?: boolean;
+      requiresExplicitApproval?: boolean;
+    }>;
     missingRequiredTools?: string[];
   }>;
   sourceArtifacts?: Array<{
@@ -4632,6 +4647,21 @@ function getReleaseActionQueueReadiness(): {
         mutation: command.mutation === true,
         requiresNetwork: command.requiresNetwork === true,
         requiresHumanApproval: command.requiresHumanApproval === true
+      })),
+      readOnlyCommands: (entry.readOnlyCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        command: command.command ?? "unknown",
+        phase: command.phase ?? "read-only",
+        mutation: command.mutation === true,
+        requiresNetwork: command.requiresNetwork === true,
+        writesLocalEvidence: command.writesLocalEvidence === true
+      })),
+      approvalGatedCommands: (entry.approvalGatedCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        command: command.command ?? "unknown",
+        phase: command.phase ?? "approval-gated",
+        mutation: command.mutation === true,
+        requiresExplicitApproval: command.requiresExplicitApproval === true
       })),
       missingRequiredTools: entry.missingRequiredTools ?? []
     }));
