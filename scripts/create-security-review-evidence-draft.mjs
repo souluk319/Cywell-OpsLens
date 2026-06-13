@@ -43,26 +43,34 @@ function parseArgs(argv) {
 
 const parsed = parseArgs(process.argv.slice(2));
 const imageName = parsed.get("name");
+const allMode = parsed.get("all") === "true";
 
 function usage() {
   return [
     "Usage:",
     "  npm run evidence:security-review:draft -- --name operator --reviewer <security-reviewer> --ticket <change-ticket> --force",
+    "  npm run evidence:security-review:draft -- --all --force",
     "",
     `Supported names: ${Object.keys(imageDefaults).join(", ")}`,
     "This script writes only *-security-review.draft.json files. It never creates final release evidence."
   ].join("\n");
 }
 
-if (!imageName || !Object.hasOwn(imageDefaults, imageName)) {
+if ((!allMode && !imageName) || (imageName && !Object.hasOwn(imageDefaults, imageName))) {
   console.error(usage());
   process.exit(1);
 }
 
+if (allMode && (parsed.get("image") || parsed.get("evidence-out"))) {
+  console.error("--all cannot be combined with --image or --evidence-out because each image writes its own draft");
+  process.exit(1);
+}
+
 const options = {
-  name: imageName,
+  name: imageName ?? "all",
+  targetNames: allMode ? Object.keys(imageDefaults) : [imageName],
   evidenceDir: parsed.get("evidence-dir") ?? defaults.evidenceDir,
-  image: parsed.get("image") ?? imageDefaults[imageName],
+  image: parsed.get("image") ?? (imageName ? imageDefaults[imageName] : undefined),
   vulnerabilityReport: parsed.get("vulnerability-report"),
   sbom: parsed.get("sbom"),
   reviewer: parsed.get("reviewer") ?? "<security-reviewer>",
@@ -300,6 +308,20 @@ async function buildDraft() {
 }
 
 async function main() {
+  const drafts = [];
+  for (const targetName of options.targetNames) {
+    options.name = targetName;
+    options.image = parsed.get("image") ?? imageDefaults[targetName];
+    options.vulnerabilityReport = allMode ? undefined : parsed.get("vulnerability-report");
+    options.sbom = allMode ? undefined : parsed.get("sbom");
+
+    drafts.push(await writeDraft());
+  }
+  const ready = drafts.filter((draft) => draft.evidenceState === "DRAFT_REVIEW_READY").length;
+  console.log(`Cywell OpsLens security review drafts: count=${drafts.length} ready=${ready} needsEvidence=${drafts.length - ready}`);
+}
+
+async function writeDraft() {
   const outputPath = resolve(
     options.evidenceOut ?? `${options.evidenceDir}/${options.name}-security-review.draft.json`
   );
@@ -318,6 +340,7 @@ async function main() {
   await writeFile(outputPath, serialized, "utf8");
   console.log(`Cywell OpsLens security review draft written: ${outputPath}`);
   console.log(`name=${draft.imageName} state=${draft.evidenceState} missingEvidence=${draft.missingEvidence.length}`);
+  return draft;
 }
 
 main().catch((error) => {

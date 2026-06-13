@@ -2078,6 +2078,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       )
     ).toBe(true);
     expect(
+      body.installReadiness?.securityScanPlan?.readOnlyCommands?.map(
+        (command) => command.id
+      )
+    ).toEqual(expect.arrayContaining(["security-review-drafts-all"]));
+    expect(
       body.installReadiness?.securityScanPlan?.approvalGatedCommands?.every(
         (command) =>
           command.mutation === true &&
@@ -2909,6 +2914,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-security-scan-plan")).toContainText(
       "trivy:"
+    );
+    await expect(page.getByTestId("opslens-security-scan-plan")).toContainText(
+      "security-review-drafts-all"
     );
     await expect(page.getByTestId("opslens-security-scan-plan")).toContainText(
       "sign-owned"

@@ -28,6 +28,12 @@ Use the draft helper after local scan and SBOM files exist. It writes ignored `*
 npm run evidence:security-review:draft -- --name operator --reviewer <security-reviewer> --ticket <change-ticket> --force
 ```
 
+To refresh every image-specific draft packet for the current Git head in one pass:
+
+```bash
+npm run evidence:security-review:draft -- --all --force
+```
+
 A human reviewer must still create the final `operator-security-review.json`, `api-security-review.json`, or matching image-specific final file after validating the scan/SBOM inputs.
 
 ## Docker Fallback Runner

@@ -542,6 +542,7 @@ function buildCommands({ ownedImages, externalImages }) {
     command("owned-provenance", "static-readiness", "npm run verify:owned-image-provenance", "Refresh owned image provenance before scan review."),
     command("external-runtime-plan", "static-readiness", "npm run verify:external-runtime-plan", "Refresh external runtime certification/mirroring plan before scan review."),
     command("security-scan-evidence-runner", "local-evidence-plan", "npm run evidence:security-scan -- --all", "Generate the local scan/SBOM evidence command packet before human security review.", { writesLocalEvidence: true }),
+    command("security-review-drafts-all", "local-review-draft", "npm run evidence:security-review:draft -- --all --force", "Regenerate security review draft intake packets for every owned and external runtime image without creating final approval evidence.", { writesLocalEvidence: true }),
     command("security-scan-evidence-runner-docker", "local-evidence-generation", "npm run evidence:security-scan:docker", "Generate owned-image vulnerability/SBOM evidence through digest-resolved Docker scanner containers when local trivy/syft CLIs are unavailable.", { writesLocalEvidence: true }),
     ...ownedImages.flatMap((image) => [
       command(`trivy-owned-${image.name}`, "local-scan", `trivy image --format json --output docs/release/evidence/security/${image.name}-vulnerability.json ${scanTarget(image)}`, `Generate vulnerability scan evidence for owned image ${image.name}.`, { writesLocalEvidence: true }),
