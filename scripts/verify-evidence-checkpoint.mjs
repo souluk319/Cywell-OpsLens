@@ -174,12 +174,25 @@ function missingEvidenceFrom(artifact) {
 
 function liveConnectionBlocked(artifact) {
   const evidence = missingEvidenceFrom(artifact).join(" ");
+  const classification = sanitize(artifact?.currentGap?.classification ?? "");
+  const liveBlockedClassifications = new Set([
+    "auth-or-rbac",
+    "auth-failed",
+    "token-missing",
+    "not-configured",
+    "tls-handshake-failed",
+    "tcp-timeout",
+    "tcp-unreachable",
+    "dns-unresolved",
+    "api-unreachable"
+  ]);
   return (
     artifact?.readiness?.mode === "live" &&
     artifact?.status === "FAIL" &&
-    /Unable to connect|ETIMEDOUT|ECONNREFUSED|EHOSTUNREACH|ENOTFOUND|server\/auth unavailable|oc failed/i.test(
-      evidence
-    )
+    (liveBlockedClassifications.has(classification) ||
+      /Unable to connect|ETIMEDOUT|ECONNREFUSED|EHOSTUNREACH|ENOTFOUND|server\/auth unavailable|oc failed|auth-or-rbac|token-missing|not-configured|tls-handshake-failed|api-unreachable/i.test(
+        evidence
+      ))
   );
 }
 
@@ -214,7 +227,9 @@ function laneResult({ id, label, artifact, desiredStatuses, currentHeadSha, requ
       if (status === "NEEDS_EVIDENCE" || status === "NEEDS_TOOLING") {
         missingEvidence.push(`${label} status=${status}`);
       } else if (id === "lightspeedReadiness" && liveConnectionBlocked(artifact)) {
-        missingEvidence.push(`${label} live OCP/Lightspeed endpoint is unreachable`);
+        missingEvidence.push(
+          `${label} live OCP/Lightspeed endpoint is blocked by ${artifact.currentGap?.classification ?? "external-connectivity"}`
+        );
       } else {
         blockers.push(`${label} status=${status}`);
       }
