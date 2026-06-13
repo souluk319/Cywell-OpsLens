@@ -758,15 +758,37 @@ async function validateControllerRuntimeSkeleton() {
     fail("Go OLSConfig patch source", "controller-runtime OLSConfig patch source path is incomplete");
   }
 
+  const builderVersion = dockerfile?.match(/^FROM golang:(\d+\.\d+\.\d+) AS builder$/m)?.[1];
+  const runtimeVersion = dockerfile?.match(/^FROM registry\.access\.redhat\.com\/ubi9\/ubi-minimal:(\d+\.\d+)$/m)?.[1];
+  const versionAtLeast = (actual, minimum) => {
+    if (!actual) return false;
+    const actualParts = actual.split(".").map((part) => Number(part));
+    const minimumParts = minimum.split(".").map((part) => Number(part));
+    for (let index = 0; index < Math.max(actualParts.length, minimumParts.length); index += 1) {
+      const actualPart = actualParts[index] ?? 0;
+      const minimumPart = minimumParts[index] ?? 0;
+      if (actualPart > minimumPart) return true;
+      if (actualPart < minimumPart) return false;
+    }
+    return true;
+  };
+
   if (
-    dockerfile?.includes("FROM golang:1.22 AS builder") &&
-    dockerfile.includes("go build -o manager ./main.go") &&
-    dockerfile.includes("ubi-minimal") &&
+    versionAtLeast(builderVersion, "1.25.11") &&
+    dockerfile?.includes("go build -o manager ./main.go") &&
+    versionAtLeast(runtimeVersion, "9.8") &&
+    dockerfile.includes("microdnf update -y") &&
     dockerfile.includes('ENTRYPOINT ["/manager"]')
   ) {
-    pass("Go manager Dockerfile", "multi-stage manager image build is scaffolded");
+    pass(
+      "Go manager Dockerfile",
+      `multi-stage manager image build is scaffolded with patched Go ${builderVersion} and UBI ${runtimeVersion}`
+    );
   } else {
-    fail("Go manager Dockerfile", "controller-runtime Dockerfile is missing expected build/runtime stages");
+    fail(
+      "Go manager Dockerfile",
+      `controller-runtime Dockerfile must use Go >=1.25.11, UBI >=9.8, runtime package update, go build, and /manager entrypoint; got go=${builderVersion ?? "missing"} ubi=${runtimeVersion ?? "missing"}`
+    );
   }
 
   if (
