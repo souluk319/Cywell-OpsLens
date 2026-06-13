@@ -1960,9 +1960,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.actionQueue?.markdownPath).toContain(
       "cywell-opslens-release-action-queue.md"
     );
+    const actionQueueOwners =
+      body.installReadiness?.actionQueue?.owners?.map((owner) => owner.owner) ?? [];
+    expect(actionQueueOwners).toContain("release-manager");
     expect(
-      body.installReadiness?.actionQueue?.owners?.map((owner) => owner.owner)
-    ).toEqual(expect.arrayContaining(["network-sre", "release-manager"]));
+      actionQueueOwners.some((owner) =>
+        ["network-sre", "cluster-admin", "cluster-sre"].includes(owner)
+      )
+    ).toBe(true);
     expect(
       body.installReadiness?.actionQueue?.items?.some((item) =>
         item.nextCommand?.startsWith("npm run")
@@ -2524,7 +2529,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "registryMutationAttempted=false"
     );
     await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
-      /network-sre|release-manager/
+      /network-sre|cluster-admin|cluster-sre|release-manager/
     );
     await expect(
       page.getByTestId("opslens-release-action-queue-items")

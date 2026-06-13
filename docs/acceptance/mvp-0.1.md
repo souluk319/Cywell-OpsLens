@@ -43,6 +43,7 @@ Prove that a dashboard-first, context-aware OpenShift operations assistant can s
 - `npm run evidence:external-runtime:review-packet` writes `opslens.external-runtime-review-packet.v0.1`, consolidates vLLM/Qdrant reviewer requests and approval-gated runtime commands, and feeds checkpoint, roadmap Stage 5, and release bundle evidence without promoting drafts or running mirror/sign/push commands.
 - `npm run verify:release-evidence-bundle` writes `test-results/cywell-opslens-release-evidence-bundle.json` plus `test-results/cywell-opslens-release-evidence-bundle.md`; API/UI must surface the Markdown packet path as `bundle.markdownPath` while preserving `bundleOnly`, no-mutation flags, missing evidence, risk, rollback, and approval-gated command boundaries.
 - `npm run evidence:release-action-queue` writes `opslens.release-action-queue.v0.1` JSON plus Markdown, groups checkpoint/release/network/external-runtime gaps by operational owner, lists read-only refresh commands and approval-gated commands not run, and feeds the dashboard as `actionQueueOnly` evidence with `actionQueue.markdownPath` without approving push, mirror, sign, install, patch, apply, delete, or scale.
+- OCP handoff/action queue routing is classification-aware: `tcp-timeout`, `tcp-unreachable`, and DNS gaps route to Network/SRE; `tls-handshake-failed` routes to Cluster SRE/Security; `auth-or-rbac`, `auth-failed`, and `token-missing` route to Cluster Admin/SRE for credential or read-only RBAC evidence.
 
 ## Explicit Non-Goals
 

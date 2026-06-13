@@ -188,15 +188,61 @@ function commandBoundary(commands) {
   return commands.filter((command) => command.mutation === true || mutatingPattern.test(command.command));
 }
 
+function authLikeClassification(classification) {
+  return ["auth-or-rbac", "auth-failed", "token-missing"].includes(classification);
+}
+
+function handoffAudience(classification) {
+  if (authLikeClassification(classification)) return "Cluster Admin/SRE";
+  if (classification === "tls-handshake-failed") return "Cluster SRE/Security";
+  return "Network/SRE";
+}
+
 function adminRequests(target, classification, addresses) {
   const host = target.host ?? "unknown";
   const port = target.port ?? "unknown";
   const addressText = addresses.length > 0 ? addresses.join(", ") : "unresolved";
+  if (authLikeClassification(classification)) {
+    return [
+      `Confirm the configured OCP credential is current for ${host}:${port}; DNS/TCP/TLS already passed from this verifier.`,
+      "Grant or bind the read-only RBAC needed for /version and OLSConfig CRD discovery, then verify with oc whoami and oc auth can-i get crd olsconfigs.ols.openshift.io.",
+      "Do not route this as a firewall issue unless DNS/TCP/TLS evidence regresses.",
+      `After classification changes from ${classification} to api-ready, rerun npm run verify:lightspeed and npm run verify:operator:dry-run.`
+    ];
+  }
+  if (classification === "tls-handshake-failed") {
+    return [
+      `Confirm enterprise CA trust, proxy TLS interception, and OCP_TLS_VERIFY settings for ${host}:${port}.`,
+      `DNS and TCP reached ${addressText}; fix TLS trust before Kubernetes authentication is investigated.`,
+      "After classification changes from tls-handshake-failed to api-ready, rerun npm run verify:lightspeed and npm run verify:operator:dry-run."
+    ];
+  }
   return [
     `Confirm VPN/firewall/security-group routing from this workstation or approved bastion to ${host}:${port}.`,
     `Confirm ${host} resolves to the expected API address (${addressText}) for the company network.`,
     `Confirm TCP ${port} on ${addressText} is allowed before TLS or Kubernetes authentication is investigated.`,
     `After classification changes from ${classification} to api-ready, rerun npm run verify:lightspeed and npm run verify:operator:dry-run.`
+  ];
+}
+
+function riskForClassification(classification) {
+  if (authLikeClassification(classification)) {
+    return [
+      "auth-or-rbac means DNS, TCP, and TLS reached the API, but the configured credential or RBAC was rejected.",
+      "Do not keep routing this as a firewall issue unless network evidence regresses.",
+      "This handoff is a ticket packet only and does not approve cluster or registry mutation."
+    ];
+  }
+  if (classification === "tls-handshake-failed") {
+    return [
+      "TLS failed after TCP succeeded, so CA trust or proxy TLS handling must be checked before auth or Lightspeed readiness.",
+      "This handoff is a ticket packet only and does not approve cluster or registry mutation."
+    ];
+  }
+  return [
+    "A tcp-timeout classification means DNS resolved but the API port did not accept a TCP session from this workstation.",
+    "Do not debug this as a token, TLS, Lightspeed, or OpsLens API defect until TCP reachability is restored.",
+    "This handoff is a ticket packet only and does not approve cluster or registry mutation."
   ];
 }
 
@@ -220,7 +266,7 @@ function markdownFor(packet) {
     `- Kubernetes /version: ${diagnostics.kubernetesVersion?.status ?? "missing"}`,
     `- oc read: ${diagnostics.oc?.versionGet ?? "missing"}`,
     "",
-    "## Ask For Network/SRE",
+    `## Ask For ${packet.ownerHint ?? "Network/SRE"}`,
     "",
     ...packet.adminRequests.map((item) => `- ${item}`),
     "",
@@ -326,15 +372,12 @@ async function main() {
     },
     target,
     diagnostics,
+    ownerHint: handoffAudience(classification),
     adminRequests: adminRequests(target, classification, diagnostics.dns?.addresses ?? []),
     readOnlyCommands: commands,
     sourceArtifacts: sources,
     missingEvidence,
-    risk: [
-      "A tcp-timeout classification means DNS resolved but the API port did not accept a TCP session from this workstation.",
-      "Do not debug this as a token, TLS, Lightspeed, or OpsLens API defect until TCP reachability is restored.",
-      "This handoff is a ticket packet only and does not approve cluster or registry mutation."
-    ],
+    risk: riskForClassification(classification),
     rollbackPath: [
       "No rollback is required because this packet writes only local evidence.",
       "After network changes, rerun the listed read-only verifiers and regenerate the release evidence chain."

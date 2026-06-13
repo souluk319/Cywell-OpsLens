@@ -315,7 +315,64 @@ function item({
   };
 }
 
-function checkpointItems(checkpoint) {
+function ocpClassification(networkHandoff) {
+  return networkHandoff?.diagnostics?.classification ?? "unknown";
+}
+
+function authLikeOcpClassification(classification) {
+  return ["auth-or-rbac", "auth-failed", "token-missing"].includes(classification);
+}
+
+function ocpConnectivityAction(networkHandoff) {
+  const classification = ocpClassification(networkHandoff);
+  if (authLikeOcpClassification(classification)) {
+    return {
+      id: "cluster-admin-fix-ocp-auth-rbac",
+      owner: "cluster-admin",
+      priority: "blocker",
+      request:
+        "Refresh the configured OCP API credential or grant the read-only RBAC needed for /version and OLSConfig CRD discovery.",
+      evidenceNeeded: `OCP connectivity diagnostic classification=${classification} becomes api-ready; oc whoami and oc auth can-i get crd olsconfigs.ols.openshift.io succeed.`,
+      nextCommand: "npm run verify:ocp:connectivity",
+      acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
+    };
+  }
+  if (classification === "tls-handshake-failed") {
+    return {
+      id: "cluster-sre-fix-ocp-tls",
+      owner: "cluster-sre",
+      priority: "blocker",
+      request:
+        "Fix OCP API TLS trust, proxy TLS interception, or OCP_TLS_VERIFY settings after DNS/TCP evidence has passed.",
+      evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
+      nextCommand: "npm run verify:ocp:connectivity",
+      acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
+    };
+  }
+  return {
+    id: "network-sre-unblock-ocp-api",
+    owner: "network-sre",
+    priority: "blocker",
+    request: "Restore TCP reachability from the verifier workstation or approved bastion to the company OCP API.",
+    evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
+    nextCommand: "npm run verify:ocp:connectivity",
+    acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
+  };
+}
+
+function networkHandoffOwner(classification) {
+  if (authLikeOcpClassification(classification)) return "cluster-admin";
+  if (classification === "tls-handshake-failed") return "cluster-sre";
+  return "network-sre";
+}
+
+function networkHandoffId(classification) {
+  if (authLikeOcpClassification(classification)) return "cluster-admin-review-ocp-auth-rbac-handoff";
+  if (classification === "tls-handshake-failed") return "cluster-sre-review-ocp-tls-handoff";
+  return "network-sre-review-network-handoff";
+}
+
+function checkpointItems(checkpoint, networkHandoff) {
   const lanes = checkpoint?.lanes ?? [];
   const byId = new Map(lanes.map((lane) => [lane.id, lane]));
   const items = [];
@@ -329,15 +386,7 @@ function checkpointItems(checkpoint) {
     }));
   };
 
-  addIfOpen("ocpConnectivity", {
-    id: "network-sre-unblock-ocp-api",
-    owner: "network-sre",
-    priority: "blocker",
-    request: "Restore TCP reachability from the verifier workstation or approved bastion to the company OCP API.",
-    evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
-    nextCommand: "npm run verify:ocp:connectivity",
-    acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
-  });
+  addIfOpen("ocpConnectivity", ocpConnectivityAction(networkHandoff));
   addIfOpen("lightspeedReadiness", {
     id: "cluster-sre-rerun-lightspeed-readiness",
     owner: "cluster-sre",
@@ -443,15 +492,17 @@ function networkItems(networkHandoff) {
   if (!networkHandoff || ["READY_FOR_LIVE_RECHECK", "PASS"].includes(networkHandoff.status)) {
     return [];
   }
+  const classification = ocpClassification(networkHandoff);
+  const owner = networkHandoffOwner(classification);
   return [
     item({
-      id: "network-sre-review-network-handoff",
-      owner: "network-sre",
+      id: networkHandoffId(classification),
+      owner,
       priority: "blocker",
       source: "ocpNetworkHandoff",
       request: (networkHandoff.adminRequests ?? []).join(" ") ||
-        "Review OCP network handoff and restore API reachability.",
-      evidenceNeeded: `OCP network handoff classification=${networkHandoff.diagnostics?.classification ?? "unknown"} changes to api-ready.`,
+        "Review OCP handoff and restore API readiness.",
+      evidenceNeeded: `OCP network handoff classification=${classification} changes to api-ready.`,
       nextCommand: "npm run evidence:ocp-network-handoff",
       blockedBy: networkHandoff.missingEvidence ?? [],
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
@@ -462,7 +513,7 @@ function networkItems(networkHandoff) {
 function buildItems(artifacts) {
   return uniqueByKey(
     [
-      ...checkpointItems(artifacts.checkpoint),
+      ...checkpointItems(artifacts.checkpoint, artifacts.ocpNetworkHandoff),
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
       ...bundleDecisionItems(artifacts.releaseBundle),
       ...networkItems(artifacts.ocpNetworkHandoff)

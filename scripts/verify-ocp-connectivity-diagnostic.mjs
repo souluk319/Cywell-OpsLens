@@ -650,6 +650,15 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         nextCheck: "oc whoami && npm run verify:ocp:connectivity"
       }
     ],
+    "auth-or-rbac": [
+      {
+        id: "refresh-ocp-token-or-rbac",
+        severity: "blocked",
+        summary: "Refresh the OCP API credential or grant the read-only RBAC needed for discovery.",
+        evidence: "DNS, TCP, and TLS reached the API, but Kubernetes returned 401 or 403.",
+        nextCheck: "oc whoami && oc auth can-i get crd olsconfigs.ols.openshift.io && npm run verify:ocp:connectivity"
+      }
+    ],
     "api-unreachable": [
       {
         id: "check-api-health",
