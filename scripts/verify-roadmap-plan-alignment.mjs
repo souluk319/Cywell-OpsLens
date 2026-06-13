@@ -11,6 +11,7 @@ const paths = {
   plan: "kugnus-idea/CywellOpsLens_plan.md",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
+  aiopsIncidentPipeline: "test-results/cywell-opslens-aiops-incident-pipeline.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
@@ -284,6 +285,38 @@ function artifactFreshnessRequirement(artifact, id, label, currentHeadSha) {
   };
 }
 
+function artifactStatusRequirement(artifact, id, label, desiredStatuses) {
+  if (!artifact) {
+    return {
+      id,
+      label,
+      status: "needs-evidence",
+      evidence: [],
+      missingEvidence: [`${label} artifact is missing`]
+    };
+  }
+  const artifactStatus = artifact.status ?? "unknown";
+  const missingEvidence = desiredStatuses.includes(artifactStatus)
+    ? []
+    : [
+        `${label} status=${artifactStatus}; expected ${desiredStatuses.join(" or ")}`
+      ];
+  return {
+    id,
+    label,
+    status: missingEvidence.length === 0 ? "pass" : "needs-evidence",
+    artifactType: artifact.artifactType ?? artifact.schema ?? "unknown",
+    artifactStatus,
+    evidence: missingEvidence.length === 0
+      ? [`${label} artifact status=${artifactStatus}`]
+      : [],
+    missingEvidence: [
+      ...missingEvidence,
+      ...(artifact.missingEvidence ?? []).map((item) => `${label}: ${item}`)
+    ]
+  };
+}
+
 function stage(id, title, requirements) {
   const status = stageStatus(requirements);
   return {
@@ -387,6 +420,7 @@ async function main() {
 
   const checkpoint = loadJson(paths.evidenceCheckpoint, "evidence checkpoint");
   const mvpGate = loadJson(paths.mvpGate, "MVP gate");
+  const aiopsIncidentPipeline = loadJson(paths.aiopsIncidentPipeline, "AI Ops incident pipeline");
   const imageBuild = loadJson(paths.imageBuild, "image build readiness");
   const ownedImageProvenance = loadJson(paths.ownedImageProvenance, "owned image provenance");
   const consolePluginAssets = loadJson(paths.consolePluginAssets, "ConsolePlugin assets");
@@ -394,6 +428,7 @@ async function main() {
   const globalRequirements = [
     artifactFreshnessRequirement(checkpoint, "checkpoint-fresh", "Evidence checkpoint", headSha),
     artifactFreshnessRequirement(mvpGate, "mvp-gate-fresh", "MVP gate", headSha),
+    artifactFreshnessRequirement(aiopsIncidentPipeline, "aiops-incident-pipeline-fresh", "AI Ops incident pipeline", headSha),
     artifactFreshnessRequirement(imageBuild, "image-build-fresh", "Image build readiness", headSha),
     artifactFreshnessRequirement(ownedImageProvenance, "owned-image-provenance-fresh", "Owned image provenance", headSha),
     artifactFreshnessRequirement(consolePluginAssets, "console-plugin-assets-fresh", "ConsolePlugin assets", headSha),
@@ -425,6 +460,14 @@ async function main() {
       ]),
       mvpRequirement(mvpGate, "RUNTIME-RAG", "Runtime RAG adapter contract"),
       mvpRequirement(mvpGate, "RUNTIME-RAG-FIXTURE", "Runtime RAG fixture success path"),
+      mvpRequirement(mvpGate, "AIOPS-INCIDENT-PIPELINE", "AI Ops incident pipeline verifier"),
+      artifactStatusRequirement(
+        aiopsIncidentPipeline,
+        "aiops-incident-pipeline-live-proof",
+        "AI Ops live incident packet proof",
+        ["PASS"]
+      ),
+      laneRequirement(checkpoint, "aiopsIncidentPipeline", "AI Ops incident pipeline checkpoint", ["pass", "needs-evidence"]),
       mvpRequirement(mvpGate, "BUILD", "Plan-only incident API build coverage")
     ]),
     stage("stage-3-dashboard", "Dedicated OpsLens dashboard", [

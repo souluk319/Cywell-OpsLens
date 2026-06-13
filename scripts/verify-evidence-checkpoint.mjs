@@ -17,6 +17,7 @@ const evidenceDefaults = {
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
   runtimeRag: "test-results/cywell-opslens-runtime-rag-contract.json",
   runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
+  aiopsIncidentPipeline: "test-results/cywell-opslens-aiops-incident-pipeline.json",
   ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
@@ -414,6 +415,90 @@ function checkLightspeedTrojanHorse(trojanArtifact) {
   );
 }
 
+function checkAiopsIncidentPipeline(aiopsArtifact) {
+  if (!aiopsArtifact) return;
+  const pipeline = aiopsArtifact.pipeline ?? {};
+  const liveSmoke = aiopsArtifact.liveSmoke ?? {};
+  const liveIncident = liveSmoke.incident ?? {};
+  const proposal = liveIncident.remediationProposal ?? {};
+  const triggerEvidence = proposal.triggerEvidence ?? {};
+  const metricQueryNames = new Set((pipeline.requiredMetricQueries ?? []).filter(Boolean));
+  const liveMetricQueryNames = new Set(
+    (liveIncident.metricQueries ?? []).map((query) => query.name).filter(Boolean)
+  );
+  const requiredMetricQueries = ["firing-alert", "pod-restarts", "pod-cpu", "pod-memory"];
+  const missingRequiredMetricQueries = requiredMetricQueries.filter((query) => !metricQueryNames.has(query));
+  const missingLiveMetricQueries =
+    aiopsArtifact.status === "PASS"
+      ? requiredMetricQueries.filter((query) => !liveMetricQueryNames.has(query))
+      : [];
+  const triggerInputs = new Set((pipeline.triggerEvidenceRequired ?? []).filter(Boolean));
+  const violations = [];
+
+  if (aiopsArtifact.actionMode !== "readOnlyEvidenceOnly") {
+    violations.push(`actionMode=${aiopsArtifact.actionMode ?? "missing"}`);
+  }
+  if (artifactClusterMutationAttempted(aiopsArtifact)) {
+    violations.push("clusterMutationAttempted");
+  }
+  if (artifactRegistryMutationAttempted(aiopsArtifact)) {
+    violations.push("registryMutationAttempted");
+  }
+  if (aiopsArtifact.vectorWriteAttempted === true) {
+    violations.push("vectorWriteAttempted");
+  }
+  if (aiopsArtifact.ingestionJobCreated === true) {
+    violations.push("ingestionJobCreated");
+  }
+  if (artifactMutationAllowedByVerifier(aiopsArtifact)) {
+    violations.push("mutationAllowedByThisVerifier");
+  }
+  if (pipeline.remediationArtifactType !== "opslens.remediation.proposal.v0.1") {
+    violations.push("remediationArtifactType");
+  }
+  if (pipeline.sinceSeconds !== 600 || pipeline.logWindowMinutes !== 10) {
+    violations.push(`logWindow=${pipeline.logWindowMinutes ?? "missing"} sinceSeconds=${pipeline.sinceSeconds ?? "missing"}`);
+  }
+  if (missingRequiredMetricQueries.length > 0) {
+    violations.push(`requiredMetricQueries=${missingRequiredMetricQueries.join(",")}`);
+  }
+  for (const input of ["alert", "logs", "events", "metrics", "runbookCitations"]) {
+    if (!triggerInputs.has(input)) {
+      violations.push(`triggerEvidenceRequired.${input}`);
+    }
+  }
+  if ((pipeline.forbiddenActions ?? []).join(",") !== "apply,delete,scale") {
+    violations.push("forbiddenActions");
+  }
+  if (aiopsArtifact.status === "PASS") {
+    if (proposal.artifactType !== "opslens.remediation.proposal.v0.1") {
+      violations.push("liveProposalArtifactType");
+    }
+    if (proposal.mutationAllowed !== false || proposal.actionMode !== "planOnly") {
+      violations.push("liveProposalSafety");
+    }
+    if (triggerEvidence.logs?.currentRead !== true || triggerEvidence.events?.read !== true) {
+      violations.push("liveTriggerEvidenceLogsEvents");
+    }
+    if (missingLiveMetricQueries.length > 0) {
+      violations.push(`liveMetricQueries=${missingLiveMetricQueries.join(",")}`);
+    }
+    if ((triggerEvidence.runbookCitations?.length ?? 0) < 1) {
+      violations.push("liveRunbookCitations");
+    }
+  }
+
+  if (violations.length > 0) {
+    fail("AI Ops incident pipeline boundary", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "AI Ops incident pipeline boundary",
+    `status=${aiopsArtifact.status ?? "missing"} liveSmoke=${liveSmoke.status ?? "missing"} mutation=false triggerEvidence=logs/events/metrics/runbooks`
+  );
+}
+
 function checkRagApprovalQueuePolicy(queueArtifact) {
   if (!queueArtifact) return;
   const policy = queueArtifact.policy ?? {};
@@ -804,6 +889,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "aiopsIncidentPipeline",
+    label: "AI Ops incident pipeline",
+    artifact: artifacts.aiopsIncidentPipeline,
+    desiredStatuses: ["PASS", "NEEDS_LIVE_EVIDENCE"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "ragApprovalQueue",
     label: "RAG approval queue",
     artifact: artifacts.ragApprovalQueue,
@@ -957,6 +1049,7 @@ async function main() {
 
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
   checkLightspeedTrojanHorse(artifacts.lightspeedTrojanHorse);
+  checkAiopsIncidentPipeline(artifacts.aiopsIncidentPipeline);
   checkRagApprovalQueuePolicy(artifacts.ragApprovalQueue);
   checkInstallPlanRagIngestion(artifacts.installPlan);
   checkImageActualBuilds(artifacts.imageBuild);
@@ -996,6 +1089,8 @@ async function main() {
       "AC-RAG-001",
       "AC-RAG-002",
       "AC-OP-003",
+      "AC-AIOPS-001",
+      "AC-AIOPS-002",
       "AC-LS-001",
       "AC-LS-002",
       "AC-OP-004",

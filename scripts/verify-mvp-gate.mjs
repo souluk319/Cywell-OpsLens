@@ -85,6 +85,13 @@ const steps = [
     purpose: "Verify the hybrid runtime RAG success path against mock vLLM embeddings and Qdrant redacted snippet search."
   },
   {
+    id: "AIOPS-INCIDENT-PIPELINE",
+    command: "npm",
+    args: ["run", "verify:aiops"],
+    acceptance: ["AC-AIOPS-001", "AC-AIOPS-002", "AC-DASH-001"],
+    purpose: "Verify the alert-triggered incident pipeline links read-only OCP evidence, metric gaps, runbook citations, and plan-only YAML trigger evidence."
+  },
+  {
     id: "LIGHTSPEED",
     command: "npm",
     args: ["run", "verify:lightspeed:fixture"],

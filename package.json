@@ -38,6 +38,7 @@
     "verify:runtime": "node ./scripts/verify-runtime-readiness.mjs",
     "verify:runtime-rag": "node ./scripts/verify-runtime-rag-contract.mjs",
     "verify:runtime-rag:fixture": "node ./scripts/verify-runtime-rag-fixture.mjs",
+    "verify:aiops": "node ./scripts/verify-aiops-incident-pipeline.mjs",
     "verify:lightspeed:routing": "node ./scripts/verify-lightspeed-tool-routing.mjs",
     "verify:lightspeed:trojan-horse": "node ./scripts/verify-lightspeed-trojan-horse.mjs",
     "verify:evidence-checkpoint": "node ./scripts/verify-evidence-checkpoint.mjs",
