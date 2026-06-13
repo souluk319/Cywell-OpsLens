@@ -2521,6 +2521,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (command) => command.id
       )
     ).toEqual(expect.arrayContaining(["mirror-vllm"]));
+    const vllmCandidateAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "external-runtime-vllm-candidate-matrix"
+      );
+    if (vllmCandidateAction?.nextCommand?.includes("candidate-scan")) {
+      expect(vllmCandidateAction.nextCommand).toContain(
+        "--timeout-ms 7200000"
+      );
+    }
     const qdrantCandidateAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) => item.id === "external-runtime-qdrant-candidate-matrix"

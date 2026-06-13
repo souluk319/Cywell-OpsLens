@@ -257,6 +257,11 @@ function candidateEvidenceLine(candidateMatrix) {
   return `Best scanned candidate ${best.image} reports criticalFindings=${best.criticalFindings} highFindings=${best.highFindings}; it reduces risk but still needs remediation or security exception before promotion`;
 }
 
+function candidateScanCommand(name) {
+  const timeout = name === "vllm" ? " --timeout-ms 7200000" : "";
+  return `npm run evidence:external-runtime:candidate-scan -- --name ${name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${timeout}`;
+}
+
 function digestReferenceBase(imageRef, fallbackName) {
   const value = String(imageRef ?? `<internal-registry>/cywell/${fallbackName}:<tag>`);
   const lastSlash = value.lastIndexOf("/");
@@ -336,7 +341,7 @@ function reviewerRequests(name, image, draftMissingEvidence, draft, candidateMat
             "--scan-critical-findings 0",
             "--ticket <change-ticket>"
           ])
-        : `npm run evidence:external-runtime:candidate-scan -- --name ${name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback`
+        : candidateScanCommand(name)
     );
   }
   if (missing.includes(`${name}-sbom`)) {

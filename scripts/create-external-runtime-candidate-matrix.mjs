@@ -378,12 +378,17 @@ function matrixStatus(images) {
   return "NEEDS_CANDIDATES";
 }
 
+function candidateScanCommand(name) {
+  const timeout = name === "vllm" ? " --timeout-ms 7200000" : "";
+  return `npm run evidence:external-runtime:candidate-scan -- --name ${name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${timeout}`;
+}
+
 function readOnlyCommands(images) {
   return images.flatMap((image) => [
     {
       id: `scan-${image.name}-candidate`,
       phase: "candidate-scan",
-      command: `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback`,
+      command: candidateScanCommand(image.name),
       mutation: false,
       writesLocalEvidence: true,
       purpose: `Generate candidate vulnerability/SBOM evidence for ${image.name} without changing release manifests.`

@@ -102,6 +102,15 @@ npm run evidence:external-runtime:candidates
 
 The candidate scan wrapper writes local candidate vulnerability/SBOM/review-draft evidence and refreshes the matrix after executed scans. The matrix writes `test-results/cywell-opslens-external-runtime-candidate-matrix.json` and `.md`. It compares current vulnerability/SBOM evidence with candidate scan directories, records the best scanned candidate, zero-critical candidates, remaining critical findings, missing evidence, risk, and rollback path. This packet is reviewer evidence only. It does not change CSV/FBC/runtime manifests, mirror images, sign images, push images, or promote a candidate to final release evidence.
 
+For vLLM, use an approved long-running runner and an immutable digest because the official OpenAI-compatible vLLM images are large:
+
+```sh
+npm run evidence:external-runtime:candidate-scan -- --name vllm --candidate-image docker.io/vllm/vllm-openai@sha256:ddcd4ffe817ab0ac1c2e3f9c59330cab3c1b316fc70271d399bdba62cdc1be53 --candidate-label v0.23.0-x86_64-ubuntu2404-sha256-ddcd4ffe --execute-docker-fallback --timeout-ms 7200000
+npm run evidence:external-runtime:candidates
+```
+
+Partial vLLM artifacts, timed-out scans, or zero-byte SBOM files remain missing evidence. They must not move the candidate matrix out of `needs-candidate`.
+
 ## Review Packet
 
 Generate a reviewer-ready JSON and Markdown packet after draft intake:

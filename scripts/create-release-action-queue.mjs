@@ -587,8 +587,9 @@ function externalRuntimeItems(packet) {
     const candidate = image.candidateMatrix;
     const candidateStatus = candidate?.status ?? "missing";
     const candidateReady = ["candidate-ready-for-review", "current-evidence-release-eligible"].includes(candidateStatus);
+    const candidateTimeout = image.name === "vllm" ? " --timeout-ms 7200000" : "";
     const candidateScanCommand =
-      `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback`;
+      `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${candidateTimeout}`;
     const candidateApprovalCommand =
       `npm run evidence:external-runtime:draft -- --name ${image.name} --scan-status approved --scan-evidence <zero-critical-scan-report> --scan-critical-findings 0 --ticket <change-ticket> --force`;
     const candidateNextCommand = candidateReady
