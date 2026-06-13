@@ -2492,12 +2492,17 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         item.nextCommand?.startsWith("npm run")
       )
     ).toBe(true);
+    const candidateMatrixItems =
+      body.installReadiness?.actionQueue?.items?.filter((item) =>
+        item.id?.includes("candidate-matrix")
+      ) ?? [];
+    expect(candidateMatrixItems.length).toBeGreaterThan(0);
     expect(
-      body.installReadiness?.actionQueue?.items
-        ?.filter((item) => item.id?.includes("candidate-matrix"))
-        .every((item) =>
-          item.nextCommand?.includes("evidence:external-runtime:candidate-scan")
-        )
+      candidateMatrixItems.every(
+        (item) =>
+          item.nextCommand?.includes("evidence:external-runtime:candidate-scan") ||
+          item.nextCommand?.includes("evidence:external-runtime:draft")
+      )
     ).toBe(true);
     const vllmRegistryDigestAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -2523,6 +2528,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       qdrantCandidateAction?.readOnlyCommands?.map((command) => command.id)
     ).toEqual(expect.arrayContaining(["scan-qdrant-candidate"]));
+    expect(qdrantCandidateAction?.nextCommand).toContain(
+      "evidence:external-runtime:draft"
+    );
+    expect(qdrantCandidateAction?.evidenceNeeded).toContain(
+      "criticalFindings=0"
+    );
     const securityReviewAction = body.installReadiness?.actionQueue?.items?.find(
       (item) => item.id === "security-review-operator-final-evidence"
     );
@@ -3240,7 +3251,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("evidence:external-runtime:draft");
     await expect(
       page.getByTestId("opslens-external-runtime-reviewer-actions")
-    ).toContainText("evidence:external-runtime:candidate-scan");
+    ).toContainText("scan-status approved");
     await expect(
       page.getByTestId("opslens-external-runtime-review-commands")
     ).toContainText("mutation=false");

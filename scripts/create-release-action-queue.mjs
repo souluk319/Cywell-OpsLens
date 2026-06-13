@@ -589,32 +589,42 @@ function externalRuntimeItems(packet) {
     const candidateReady = ["candidate-ready-for-review", "current-evidence-release-eligible"].includes(candidateStatus);
     const candidateScanCommand =
       `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback`;
-    const candidateItem = candidateReady
-      ? []
-      : [
-          item({
-            id: `external-runtime-${image.name}-candidate-matrix`,
-            owner: "security-reviewer",
-            priority: "high",
-            source: `externalRuntimeReviewPacket:${image.name}:candidateMatrix`,
-            request:
-              candidateStatus === "candidate-reduces-risk-but-remediation-required"
-                ? `Find or approve a zero-critical ${image.name} replacement candidate before external runtime promotion.`
-                : `Scan at least one ${image.name} replacement candidate before external runtime promotion review.`,
-            evidenceNeeded: [
-              `candidateMatrix status=${candidateStatus}`,
-              candidate?.bestCandidate
-                ? `best=${candidate.bestCandidate.image} criticalFindings=${candidate.bestCandidate.criticalFindings} highFindings=${candidate.bestCandidate.highFindings}`
-                : "best=missing",
-              candidate?.recommendation ?? "candidate recommendation missing"
-            ].join("; "),
-            nextCommand: candidateScanCommand,
-            readOnlyCommands: readOnlyFor(candidateScanCommand),
-            blockedBy: candidate?.missingEvidence ?? image.missingEvidence ?? [],
-            acceptance: ["AC-CERT-001"]
-          })
-        ];
-    return [...reviewerItems, ...candidateItem];
+    const candidateApprovalCommand =
+      `npm run evidence:external-runtime:draft -- --name ${image.name} --scan-status approved --scan-evidence <zero-critical-scan-report> --scan-critical-findings 0 --ticket <change-ticket> --force`;
+    const candidateNextCommand = candidateReady
+      ? candidateApprovalCommand
+      : candidateScanCommand;
+    const candidateItem = item({
+      id: `external-runtime-${image.name}-candidate-matrix`,
+      owner: "security-reviewer",
+      priority: "high",
+      source: `externalRuntimeReviewPacket:${image.name}:candidateMatrix`,
+      request: candidateReady
+        ? `Review the zero-critical ${image.name} candidate and attach approved scan evidence before external runtime promotion.`
+        : candidateStatus === "candidate-reduces-risk-but-remediation-required"
+          ? `Find or approve a zero-critical ${image.name} replacement candidate before external runtime promotion.`
+          : `Scan at least one ${image.name} replacement candidate before external runtime promotion review.`,
+      evidenceNeeded: [
+        `candidateMatrix status=${candidateStatus}`,
+        candidate?.bestCandidate
+          ? `best=${candidate.bestCandidate.image} criticalFindings=${candidate.bestCandidate.criticalFindings} highFindings=${candidate.bestCandidate.highFindings}`
+          : "best=missing",
+        candidate?.recommendation ?? "candidate recommendation missing"
+      ].join("; "),
+      nextCommand: candidateNextCommand,
+      readOnlyCommands: uniqueByKey(
+        [
+          ...readOnlyFor(candidateScanCommand),
+          ...readOnlyFor(candidateApprovalCommand)
+        ],
+        (command) => command.id ?? command.command ?? "unknown"
+      ),
+      blockedBy: candidateReady
+        ? image.missingEvidence ?? []
+        : candidate?.missingEvidence ?? image.missingEvidence ?? [],
+      acceptance: ["AC-CERT-001"]
+    });
+    return [...reviewerItems, candidateItem];
   });
 }
 
