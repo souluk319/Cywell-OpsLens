@@ -812,6 +812,16 @@ function checkOcpAuthRbacPlan(authRbacPlanArtifact) {
   if (authRbacPlanArtifact.rbac?.clusterRole?.secretsIncluded === true) {
     violations.push("rbac.secretsIncluded");
   }
+  if (
+    !readOnlyCommands.some(
+      (command) =>
+        command.id === "verify-post-approval-live-reader-smoke" &&
+        String(command.command ?? "").includes("verify:ocp:live-reader-smoke") &&
+        command.mutation === false
+    )
+  ) {
+    violations.push("postApprovalSmokeCommandMissing");
+  }
   const unsafeReadOnly = readOnlyCommands
     .filter((command) => {
       const text = command.command ?? "";
@@ -838,7 +848,7 @@ function checkOcpAuthRbacPlan(authRbacPlanArtifact) {
 
   pass(
     "OCP auth/RBAC plan boundary",
-    `status=${authRbacPlanArtifact.status ?? "missing"} readOnlyCommands=${readOnlyCommands.length} approvalGated=${approvalGatedCommands.length} secrets=false`
+    `status=${authRbacPlanArtifact.status ?? "missing"} readOnlyCommands=${readOnlyCommands.length} approvalGated=${approvalGatedCommands.length} postApprovalSmoke=true secrets=false`
   );
 }
 

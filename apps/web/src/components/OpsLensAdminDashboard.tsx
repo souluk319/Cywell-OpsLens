@@ -1315,6 +1315,9 @@ export function OpsLensAdminDashboard() {
                 <span>{liveHandoff.actionMode}</span>
                 <span>gap={liveHandoff.currentGapClassification}</span>
                 <span>
+                  smoke={liveHandoff.postApprovalSmoke.artifactStatus}
+                </span>
+                <span>
                   clusterMutationAttempted=
                   {String(liveHandoff.clusterMutationAttempted)}
                 </span>
@@ -1344,6 +1347,16 @@ export function OpsLensAdminDashboard() {
                           .map((hint) => hint.id)
                           .join(", ")
                       : "none"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Post-approval Smoke</span>
+                  <strong>
+                    {liveHandoff.postApprovalSmoke.requiredAfterAuthRbacApproval
+                      ? `${liveHandoff.postApprovalSmoke.artifactStatus} rbac=${String(
+                          liveHandoff.postApprovalSmoke.requiredRbacAllowed
+                        )}`
+                      : "verify:ocp:live-reader-smoke"}
                   </strong>
                 </div>
                 <div>

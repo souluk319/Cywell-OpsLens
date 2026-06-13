@@ -1161,6 +1161,14 @@ export interface OpsLensLiveEvidenceHandoffSummary {
   clusterMutationAttempted: boolean;
   registryMutationAttempted: boolean;
   mutationAllowedByThisVerifier: boolean;
+  postApprovalSmoke: {
+    artifactStatus: string;
+    requiredAfterAuthRbacApproval: boolean;
+    command: string;
+    ocpClassification: string;
+    requiredRbacAllowed: boolean;
+    lightspeedAuthReady: boolean;
+  };
   readOnlyCommands: Array<{
     id: string;
     command: string;

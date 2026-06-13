@@ -221,6 +221,10 @@ function buildChain() {
       npmScript("lightspeed-readiness", "live", "verify:lightspeed", [], {
         skipped: true,
         skipReason: "--skip-live"
+      }),
+      npmScript("ocp-live-reader-smoke", "live", "verify:ocp:live-reader-smoke", [], {
+        skipped: true,
+        skipReason: "--skip-live"
       })
     );
   } else {
@@ -236,6 +240,9 @@ function buildChain() {
       npmScript("lightspeed-readiness", "live", "verify:lightspeed", ["--timeout-ms", String(options.liveTimeoutMs)], {
         expectedNonZero: true,
         timeoutMs: Math.max(options.liveTimeoutMs + 30000, 60000)
+      }),
+      npmScript("ocp-live-reader-smoke", "live", "verify:ocp:live-reader-smoke", ["--timeout-ms", String(options.liveTimeoutMs)], {
+        timeoutMs: Math.max(options.liveTimeoutMs * 2 + 60000, 120000)
       })
     );
   }

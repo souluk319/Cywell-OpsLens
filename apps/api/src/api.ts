@@ -1949,6 +1949,14 @@ type LiveEvidenceHandoffArtifact = {
       nextCheck?: string;
     }>;
   };
+  postApprovalSmoke?: {
+    artifactStatus?: string;
+    requiredAfterAuthRbacApproval?: boolean;
+    command?: string;
+    ocpClassification?: string;
+    requiredRbacAllowed?: boolean;
+    lightspeedAuthReady?: boolean;
+  };
   readOnlyCommands?: Array<{
     id?: string;
     command?: string;
@@ -5127,6 +5135,14 @@ function missingLiveEvidenceHandoffSummary(
     clusterMutationAttempted: false,
     registryMutationAttempted: false,
     mutationAllowedByThisVerifier: false,
+    postApprovalSmoke: {
+      artifactStatus: "missing",
+      requiredAfterAuthRbacApproval: false,
+      command: "npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000",
+      ocpClassification: "missing",
+      requiredRbacAllowed: false,
+      lightspeedAuthReady: false
+    },
     readOnlyCommands: [
       {
         id: "generate-live-handoff",
@@ -5329,6 +5345,20 @@ function getLiveEvidenceHandoffReadiness(): {
           artifact.registryMutationAttempted === true,
         mutationAllowedByThisVerifier:
           artifact.mutationAllowedByThisVerifier === true,
+        postApprovalSmoke: {
+          artifactStatus: artifact.postApprovalSmoke?.artifactStatus ?? "missing",
+          requiredAfterAuthRbacApproval:
+            artifact.postApprovalSmoke?.requiredAfterAuthRbacApproval === true,
+          command:
+            artifact.postApprovalSmoke?.command ??
+            "npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000",
+          ocpClassification:
+            artifact.postApprovalSmoke?.ocpClassification ?? "missing",
+          requiredRbacAllowed:
+            artifact.postApprovalSmoke?.requiredRbacAllowed === true,
+          lightspeedAuthReady:
+            artifact.postApprovalSmoke?.lightspeedAuthReady === true
+        },
         readOnlyCommands,
         actionHints,
         forbiddenCommands: artifact.forbiddenCommands ?? [],
@@ -5339,6 +5369,7 @@ function getLiveEvidenceHandoffReadiness(): {
       evidence: [
         `Live evidence handoff ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `handoff currentGap=${artifact.currentGap?.classification ?? "unknown"} commands=${readOnlyCommands.length}`,
+        `post-approval smoke=${artifact.postApprovalSmoke?.artifactStatus ?? "missing"} required=${String(artifact.postApprovalSmoke?.requiredAfterAuthRbacApproval ?? false)}`,
         `actionMode=${artifact.actionMode ?? "unknown"} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")} registryMutationAttempted=${String(artifact.registryMutationAttempted ?? "unknown")}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads live handoff evidence only; it does not run live checks or mutating commands"

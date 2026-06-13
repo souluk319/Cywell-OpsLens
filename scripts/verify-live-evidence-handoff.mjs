@@ -10,6 +10,8 @@ const execFileAsync = promisify(execFile);
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-live-evidence-handoff.json",
   ocpConnectivityEvidence: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
+  ocpAuthRbacPlanEvidence: "test-results/cywell-opslens-ocp-auth-rbac-plan.json",
+  ocpLiveReaderSmokeEvidence: "test-results/cywell-opslens-ocp-live-reader-smoke.json",
   operatorDryRunEvidence: "test-results/cywell-opslens-operator-dry-run.json",
   lightspeedReadinessEvidence: "test-results/cywell-opslens-lightspeed-readiness.json",
   lightspeedPatchPreviewEvidence: "test-results/cywell-opslens-lightspeed-patch-preview.json",
@@ -39,6 +41,10 @@ const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   ocpConnectivityEvidence:
     parsed.get("ocp-connectivity-evidence") ?? defaults.ocpConnectivityEvidence,
+  ocpAuthRbacPlanEvidence:
+    parsed.get("ocp-auth-rbac-plan-evidence") ?? defaults.ocpAuthRbacPlanEvidence,
+  ocpLiveReaderSmokeEvidence:
+    parsed.get("ocp-live-reader-smoke-evidence") ?? defaults.ocpLiveReaderSmokeEvidence,
   operatorDryRunEvidence:
     parsed.get("operator-dry-run-evidence") ?? defaults.operatorDryRunEvidence,
   lightspeedReadinessEvidence:
@@ -140,6 +146,17 @@ function commandPlan(mcpUrlConfigured, troubleshootingCommands = []) {
       mutation: false,
       writesEvidence: true,
       evidenceOut: defaults.ocpConnectivityEvidence
+    },
+    {
+      id: "ocp-live-reader-smoke",
+      command: "npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000",
+      purpose:
+        "After fallback reader RBAC approval and short-lived token injection, prove OCP /version, required read-only RBAC, and Lightspeed discovery as a single no-secret smoke artifact.",
+      phase: "post-approval-live-smoke",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: true,
+      evidenceOut: defaults.ocpLiveReaderSmokeEvidence
     },
     ...troubleshootingCommands.map((command) => ({
       id: command.id ?? "ocp-network-read-only",
@@ -273,6 +290,8 @@ async function main() {
 
   const artifacts = {
     ocpConnectivity: loadJson(options.ocpConnectivityEvidence, "OCP connectivity diagnostic"),
+    ocpAuthRbacPlan: loadJson(options.ocpAuthRbacPlanEvidence, "OCP auth/RBAC plan"),
+    ocpLiveReaderSmoke: loadJson(options.ocpLiveReaderSmokeEvidence, "OCP live reader smoke"),
     operatorDryRun: loadJson(options.operatorDryRunEvidence, "Operator dry-run"),
     lightspeedReadiness: loadJson(options.lightspeedReadinessEvidence, "Lightspeed readiness"),
     lightspeedPatchPreview: loadJson(options.lightspeedPatchPreviewEvidence, "Lightspeed patch preview"),
@@ -302,6 +321,8 @@ async function main() {
 
   const sourceArtifacts = [
     sourceSummary(artifacts.ocpConnectivity, "OCP connectivity diagnostic", headSha),
+    sourceSummary(artifacts.ocpAuthRbacPlan, "OCP auth/RBAC plan", headSha),
+    sourceSummary(artifacts.ocpLiveReaderSmoke, "OCP live reader smoke", headSha, false),
     sourceSummary(artifacts.operatorDryRun, "Operator server dry-run", headSha),
     sourceSummary(artifacts.lightspeedReadiness, "Lightspeed live readiness", headSha),
     sourceSummary(artifacts.lightspeedPatchPreview, "Lightspeed patch preview", headSha),
@@ -320,6 +341,12 @@ async function main() {
     ...(ocpClassification === "api-ready"
       ? []
       : [`OCP API connectivity classification=${ocpClassification}`]),
+    ...(artifacts.ocpAuthRbacPlan?.status === "AUTH_RBAC_APPROVAL_REQUIRED" &&
+    artifacts.ocpLiveReaderSmoke?.status !== "PASS"
+      ? [
+          "post-approval live reader smoke is not PASS after auth/RBAC approval path"
+        ]
+      : []),
     ...(mcpUrlConfigured
       ? []
       : ["CYWELL_OPSLENS_MCP_URL must point at a reachable /mcp endpoint before requiring MCP live call"])
@@ -359,6 +386,19 @@ async function main() {
       target: artifacts.ocpConnectivity?.target ?? {},
       actionHints: actionHints.slice(0, 4),
       readOnlyTroubleshootingCommands: troubleshootingCommands
+    },
+    postApprovalSmoke: {
+      artifactPath: resolve(options.ocpLiveReaderSmokeEvidence),
+      artifactStatus: artifacts.ocpLiveReaderSmoke?.status ?? "missing",
+      command: "npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000",
+      requiredAfterAuthRbacApproval:
+        artifacts.ocpAuthRbacPlan?.status === "AUTH_RBAC_APPROVAL_REQUIRED",
+      ocpClassification:
+        artifacts.ocpLiveReaderSmoke?.diagnostics?.ocpClassification ?? "missing",
+      requiredRbacAllowed:
+        artifacts.ocpLiveReaderSmoke?.diagnostics?.requiredRbacAllowed === true,
+      lightspeedAuthReady:
+        artifacts.ocpLiveReaderSmoke?.diagnostics?.lightspeedAuthReady === true
     },
     sourceArtifacts,
     readOnlyCommands: commands,

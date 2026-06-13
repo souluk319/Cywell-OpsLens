@@ -345,6 +345,16 @@ function readOnlyCommands(manifestPath) {
       writesEvidence: true
     },
     {
+      id: "verify-post-approval-live-reader-smoke",
+      phase: "post-approval-live-smoke",
+      command: "npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000",
+      purpose:
+        "After cluster-admin applies the RBAC and provides the short-lived token through approved secret handling, prove OCP connectivity, required read-only RBAC, and Lightspeed discovery without printing the token.",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: true
+    },
+    {
       id: "server-dry-run-live-reader-rbac",
       phase: "cluster-admin-review",
       command: `oc apply --dry-run=server --validate=true -f ${manifestPath}`,
@@ -425,7 +435,7 @@ function adminRequests(classification) {
       `Review ${options.manifest} as the fallback read-only live evidence reader for the current OCP auth/RBAC gap.`,
       "Prefer user-token passthrough for normal ConsolePlugin/API reads; use this ServiceAccount only when shared diagnostic evidence is explicitly approved.",
       "Apply the manifest only after confirming it excludes Secrets and only grants get/list/watch.",
-      "Create a short-lived token through approved secret handling, then rerun npm run verify:ocp:connectivity and npm run verify:lightspeed -- --timeout-ms 30000."
+      "Create a short-lived token through approved secret handling, then run npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000 to refresh OCP connectivity and Lightspeed readiness evidence."
     ];
   }
   if (classification === "api-ready") {

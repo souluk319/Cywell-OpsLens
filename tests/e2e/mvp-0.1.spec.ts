@@ -1534,6 +1534,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           clusterMutationAttempted?: boolean;
           registryMutationAttempted?: boolean;
           mutationAllowedByThisVerifier?: boolean;
+          postApprovalSmoke?: {
+            artifactStatus?: string;
+            requiredAfterAuthRbacApproval?: boolean;
+            command?: string;
+            ocpClassification?: string;
+            requiredRbacAllowed?: boolean;
+            lightspeedAuthReady?: boolean;
+          };
           readOnlyCommands?: Array<{
             id?: string;
             command?: string;
@@ -2468,6 +2476,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "create-short-lived-live-reader-token"
       ])
     );
+    expect(clusterAdminOwnerPacket?.readOnlyCommandIds).toEqual(
+      expect.arrayContaining(["verify-post-approval-live-reader-smoke"])
+    );
     expect(clusterAdminOwnerPacket?.mutationAllowedByThisVerifier).toBe(false);
     expect(
       body.installReadiness?.actionQueue?.ownerPacketCleanup?.deletionAllowed
@@ -2575,6 +2586,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           command.command?.includes("oc apply --dry-run=server")
         )
       ).toBe(true);
+      expect(
+        ocpAuthAction.readOnlyCommands?.map((command) => command.id)
+      ).toEqual(
+        expect.arrayContaining(["verify-post-approval-live-reader-smoke"])
+      );
       expect(ocpAuthAction.approvalGatedCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining([
           "apply-live-evidence-reader-rbac",
@@ -2665,6 +2681,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       )
     ).toBe(true);
     expect(
+      body.installReadiness?.authRbacPlan?.readOnlyCommands?.map(
+        (command) => command.id
+      )
+    ).toEqual(
+      expect.arrayContaining(["verify-post-approval-live-reader-smoke"])
+    );
+    expect(
       body.installReadiness?.authRbacPlan?.approvalGatedCommands?.every(
         (command) =>
           command.mutation === true &&
@@ -2691,6 +2714,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (command) => command.mutation === false
       )
     ).toBe(true);
+    expect(body.installReadiness?.handoff?.postApprovalSmoke).toMatchObject({
+      command: "npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000"
+    });
+    expect(
+      body.installReadiness?.handoff?.readOnlyCommands?.map(
+        (command) => command.id
+      )
+    ).toEqual(expect.arrayContaining(["ocp-live-reader-smoke"]));
     expect(
       body.installReadiness?.handoff?.forbiddenCommands?.join(" ")
     ).toContain("oc apply");
@@ -3097,6 +3128,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-live-handoff")).toContainText(
       "registryMutationAttempted=false"
     );
+    await expect(page.getByTestId("opslens-live-handoff")).toContainText(
+      "smoke="
+    );
+    await expect(page.getByTestId("opslens-live-handoff")).toContainText(
+      "ocp-live-reader-smoke"
+    );
     await expect(page.getByTestId("opslens-ocp-network-handoff")).toContainText(
       "handoffOnly"
     );
@@ -3130,6 +3167,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-ocp-auth-rbac-plan-commands")
     ).toContainText("mutation=false");
+    await expect(
+      page.getByTestId("opslens-ocp-auth-rbac-plan-commands")
+    ).toContainText("verify-post-approval-live-reader-smoke");
     await expect(
       page.getByTestId("opslens-ocp-auth-rbac-plan-approval")
     ).toContainText("approval=true");
