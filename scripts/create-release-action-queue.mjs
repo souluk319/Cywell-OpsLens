@@ -15,6 +15,9 @@ const defaults = {
   releaseBundleEvidence: "test-results/cywell-opslens-release-evidence-bundle.json",
   aiopsIncidentPipeline:
     "test-results/cywell-opslens-aiops-incident-pipeline.json",
+  runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
+  runtimeRagContract: "test-results/cywell-opslens-runtime-rag-contract.json",
+  runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
   ocpLiveReaderSmoke: "test-results/cywell-opslens-ocp-live-reader-smoke.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
@@ -59,6 +62,12 @@ const options = {
   aiopsIncidentPipeline:
     parsed.get("aiops-incident-pipeline-evidence") ??
     defaults.aiopsIncidentPipeline,
+  runtimeReadiness:
+    parsed.get("runtime-readiness-evidence") ?? defaults.runtimeReadiness,
+  runtimeRagContract:
+    parsed.get("runtime-rag-contract-evidence") ?? defaults.runtimeRagContract,
+  runtimeRagFixture:
+    parsed.get("runtime-rag-fixture-evidence") ?? defaults.runtimeRagFixture,
   lightspeedReadiness:
     parsed.get("lightspeed-readiness-evidence") ??
     defaults.lightspeedReadiness,
@@ -1071,7 +1080,66 @@ function catalogToolchainItems(bundle) {
   ];
 }
 
-function runtimeLiveItems(releaseRefresh) {
+function artifactStatusLine(artifact) {
+  return `status=${artifact?.status ?? artifact?.evidenceState ?? "missing"} head=${artifactRef(artifact).headSha ?? "missing"} dirty=${String(artifactRef(artifact).worktreeDirty ?? "unknown")}`;
+}
+
+function runtimeReadinessDiagnostics(runtimeReadiness) {
+  const vector = runtimeReadiness?.runtime?.vectorStore ?? {};
+  const model = runtimeReadiness?.runtime?.modelRuntime ?? {};
+  return [
+    {
+      id: "runtime-readiness-status",
+      label: "Runtime readiness",
+      value:
+        `${artifactStatusLine(runtimeReadiness)} liveProbe=${String(runtimeReadiness?.liveProbeEnabled === true)}`
+    },
+    {
+      id: "runtime-readiness-qdrant",
+      label: "Qdrant",
+      value:
+        `status=${vector.status ?? "missing"} liveProbe=${String(vector.liveProbeEnabled === true)} url=${vector.url ?? "missing"}`
+    },
+    {
+      id: "runtime-readiness-vllm",
+      label: "vLLM",
+      value:
+        `status=${model.status ?? "missing"} liveProbe=${String(model.liveProbeEnabled === true)} url=${model.url ?? "missing"}`
+    }
+  ];
+}
+
+function runtimeRagDiagnostics(runtimeRagContract, runtimeRagFixture) {
+  const contractMissing = runtimeRagContract?.missingEvidence ?? [];
+  const fixtureMissing = runtimeRagFixture?.missingEvidence ?? [];
+  return [
+    {
+      id: "runtime-rag-contract",
+      label: "Runtime RAG contract",
+      value:
+        `${artifactStatusLine(runtimeRagContract)} defaultMode=${runtimeRagContract?.runtimeRag?.defaultMode ?? "missing"} liveMissing=${contractMissing.length}`
+    },
+    {
+      id: "runtime-rag-fixture",
+      label: "Runtime RAG fixture",
+      value:
+        `${artifactStatusLine(runtimeRagFixture)} evidence=${runtimeRagFixture?.evidence?.length ?? 0} liveStillRequired=${fixtureMissing.length}`
+    },
+    {
+      id: "runtime-rag-live-gap",
+      label: "Live RAG gap",
+      value: contractMissing.slice(0, 3).join(" | ") || "none"
+    },
+    {
+      id: "runtime-rag-boundary",
+      label: "Runtime RAG boundary",
+      value:
+        `mutationAllowed=${String(runtimeRagFixture?.mutationAllowed === true)} rawDocumentReturned=${String(runtimeRagFixture?.rawDocumentReturned === true)} localFallbackAllowed=true`
+    }
+  ];
+}
+
+function runtimeLiveItems(releaseRefresh, runtimeReadiness, runtimeRagContract, runtimeRagFixture) {
   const missingEvidence = releaseRefresh?.missingEvidence ?? [];
   const runtimeProbeGaps = missingEvidence.filter((entry) =>
     /runtimeReadiness:.*(?:qdrant|vllm).*live probe/i.test(entry)
@@ -1110,6 +1178,7 @@ function runtimeLiveItems(releaseRefresh) {
         }
       ],
       blockedBy: runtimeProbeGaps,
+      diagnostics: runtimeReadinessDiagnostics(runtimeReadiness),
       acceptance: ["AC-LS-001", "AC-RAG-001"]
     }));
   }
@@ -1149,6 +1218,7 @@ function runtimeLiveItems(releaseRefresh) {
         }
       ],
       blockedBy: runtimeRagGaps,
+      diagnostics: runtimeRagDiagnostics(runtimeRagContract, runtimeRagFixture),
       acceptance: ["AC-LS-001", "AC-RAG-001", "AC-AIOPS-001"]
     }));
   }
@@ -1321,7 +1391,12 @@ function buildItems(artifacts) {
       ...securityScanItems(artifacts.securityScanPlan),
       ...bundleDecisionItems(artifacts.releaseBundle),
       ...catalogToolchainItems(artifacts.releaseBundle),
-      ...runtimeLiveItems(artifacts.releaseRefresh),
+      ...runtimeLiveItems(
+        artifacts.releaseRefresh,
+        artifacts.runtimeReadiness,
+        artifacts.runtimeRagContract,
+        artifacts.runtimeRagFixture
+      ),
       ...aiopsMonitoringItems(artifacts.aiopsIncidentPipeline),
       ...networkItems(artifacts.ocpNetworkHandoff),
       ...ocpAuthRbacItems(artifacts.ocpAuthRbacPlan)
@@ -1615,6 +1690,9 @@ async function main() {
     releaseRefresh: loadJson(options.releaseRefreshEvidence, "release evidence refresh", false),
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
     aiopsIncidentPipeline: loadJson(options.aiopsIncidentPipeline, "AI Ops incident pipeline", false),
+    runtimeReadiness: loadJson(options.runtimeReadiness, "runtime readiness", false),
+    runtimeRagContract: loadJson(options.runtimeRagContract, "runtime RAG contract", false),
+    runtimeRagFixture: loadJson(options.runtimeRagFixture, "runtime RAG fixture", false),
     lightspeedReadiness: loadJson(options.lightspeedReadiness, "Lightspeed readiness", false),
     ocpLiveReaderSmoke: loadJson(options.ocpLiveReaderSmoke, "OCP live reader smoke", false),
     checkpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint", true),
@@ -1631,6 +1709,9 @@ async function main() {
     sourceSummary("releaseRefresh", "release evidence refresh", options.releaseRefreshEvidence, artifacts.releaseRefresh, headSha),
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
     sourceSummary("aiopsIncidentPipeline", "AI Ops incident pipeline", options.aiopsIncidentPipeline, artifacts.aiopsIncidentPipeline, headSha),
+    sourceSummary("runtimeReadiness", "runtime readiness", options.runtimeReadiness, artifacts.runtimeReadiness, headSha),
+    sourceSummary("runtimeRagContract", "runtime RAG contract", options.runtimeRagContract, artifacts.runtimeRagContract, headSha),
+    sourceSummary("runtimeRagFixture", "runtime RAG fixture", options.runtimeRagFixture, artifacts.runtimeRagFixture, headSha),
     sourceSummary("lightspeedReadiness", "Lightspeed readiness", options.lightspeedReadiness, artifacts.lightspeedReadiness, headSha),
     sourceSummary("ocpLiveReaderSmoke", "OCP live reader smoke", options.ocpLiveReaderSmoke, artifacts.ocpLiveReaderSmoke, headSha),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.checkpoint, headSha, true),

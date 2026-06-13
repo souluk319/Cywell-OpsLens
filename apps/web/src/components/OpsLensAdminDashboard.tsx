@@ -1967,6 +1967,14 @@ export function OpsLensAdminDashboard() {
                       {entry.readOnlyCommands
                         .map((command) => command.id)
                         .join(", ")}
+                      :diagnostics=
+                      {entry.diagnostics
+                        .slice(0, 2)
+                        .map(
+                          (diagnostic) =>
+                            `${diagnostic.id}=${diagnostic.value}`
+                        )
+                        .join(" | ")}
                     </span>
                   ))
                 ) : (

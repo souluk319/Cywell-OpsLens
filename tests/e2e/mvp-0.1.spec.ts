@@ -3002,6 +3002,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(runtimeLiveAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining(["runtime-readiness-live"])
       );
+      expect(runtimeLiveAction?.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining([
+          "runtime-readiness-status",
+          "runtime-readiness-qdrant",
+          "runtime-readiness-vllm"
+        ])
+      );
+      expect(
+        runtimeLiveAction?.diagnostics
+          ?.find((item) => item.id === "runtime-readiness-status")
+          ?.value
+      ).toContain("liveProbe=false");
     }
     const runtimeRagAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -3017,6 +3029,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         expect.arrayContaining(["runtime-rag-contract", "runtime-rag-fixture"])
       );
       expect(runtimeRagAction?.evidenceNeeded).toContain("vLLM /v1/embeddings");
+      expect(runtimeRagAction?.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining([
+          "runtime-rag-contract",
+          "runtime-rag-fixture",
+          "runtime-rag-live-gap",
+          "runtime-rag-boundary"
+        ])
+      );
+      expect(
+        runtimeRagAction?.diagnostics
+          ?.find((item) => item.id === "runtime-rag-fixture")
+          ?.value
+      ).toContain("status=PASS");
+      expect(
+        runtimeRagAction?.diagnostics
+          ?.find((item) => item.id === "runtime-rag-contract")
+          ?.value
+      ).toContain("status=NEEDS_LIVE_EVIDENCE");
     }
     const ragOwnerQueueAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -3909,6 +3939,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-runtime-live-actions")
     ).toContainText(/runtime-readiness-live|runtime live actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-runtime-live-actions")
+    ).toContainText(/runtime-rag-fixture|runtime live actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-monitoring-proxy-actions")
     ).toContainText(/cluster-sre-enable-monitoring-proxy-evidence|monitoring proxy actions clear/);
