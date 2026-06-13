@@ -43,6 +43,8 @@ npm run verify:lightspeed:fixture
 
 `npm run verify:security-scan-plan` builds the read-only vulnerability/SBOM/signature evidence plan for owned Operator/API/dashboard/bundle/catalog images plus external vLLM/Qdrant runtime images. It records local `trivy`/`syft`/`grype`/`cosign`/`docker` readiness, required scan/SBOM/review files under `docs/release/evidence/security`, approval-gated signing commands, risk, rollback, and writes `test-results/cywell-opslens-security-scan-plan.json` without signing, pushing, or mutating the cluster.
 
+`npm run evidence:security-scan -- --all` writes a plan-only scan/SBOM evidence runner artifact for the current image inventory. Add `-- --name operator --execute` only when local `trivy` and `syft` are installed and you intentionally want to generate local vulnerability/SBOM files; it never signs, pushes, mirrors, or mutates a cluster.
+
 `npm run verify:release-refresh` regenerates the release evidence chain in dependency order for the current Git HEAD, then writes `test-results/cywell-opslens-release-evidence-refresh.json`. By default it runs local image build evidence and live read-only OCP/Lightspeed diagnostics; use `-- --skip-image-build` for a faster static refresh or `-- --skip-live` when the target cluster network is known to be unavailable.
 
 `npm run evidence:external-runtime:draft -- --name vllm|qdrant` creates ignored `*.draft.json` reviewer packets for external runtime digest, scan, SBOM, provenance, license, and approval inputs. Drafts are surfaced by `npm run verify:external-runtime-plan`, but they never replace the final reviewed `docs/release/evidence/external-runtime/vllm.json` and `qdrant.json` release evidence files.

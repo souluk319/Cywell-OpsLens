@@ -424,6 +424,7 @@ function buildCommands({ ownedImages, externalImages }) {
     command("certification-static", "static-readiness", "npm run verify:certification", "Run static catalog/certification checks before scan evidence review."),
     command("owned-provenance", "static-readiness", "npm run verify:owned-image-provenance", "Refresh owned image provenance before scan review."),
     command("external-runtime-plan", "static-readiness", "npm run verify:external-runtime-plan", "Refresh external runtime certification/mirroring plan before scan review."),
+    command("security-scan-evidence-runner", "local-evidence-plan", "npm run evidence:security-scan -- --all", "Generate the local scan/SBOM evidence command packet before human security review.", { writesLocalEvidence: true }),
     ...ownedImages.flatMap((image) => [
       command(`trivy-owned-${image.name}`, "local-scan", `trivy image --format json --output docs/release/evidence/security/${image.name}-vulnerability.json ${scanTarget(image)}`, `Generate vulnerability scan evidence for owned image ${image.name}.`, { writesLocalEvidence: true }),
       command(`syft-owned-${image.name}`, "local-sbom", `syft ${scanTarget(image)} -o spdx-json > docs/release/evidence/security/${image.name}-sbom.spdx.json`, `Generate SBOM evidence for owned image ${image.name}.`, { writesLocalEvidence: true }),
