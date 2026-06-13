@@ -11,6 +11,7 @@ const execFileAsync = promisify(execFile);
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-aiops-incident-pipeline.json",
   incidentsSource: "apps/api/src/incidents.ts",
+  serverSource: "apps/api/src/server.ts",
   apiSource: "apps/api/src/api.ts",
   contractSource: "packages/contracts/src/types.ts",
   e2eSource: "tests/e2e/mvp-0.1.spec.ts",
@@ -46,6 +47,7 @@ const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.values.get("evidence-out") ?? defaults.evidenceOut,
   incidentsSource: parsed.values.get("incidents-source") ?? defaults.incidentsSource,
+  serverSource: parsed.values.get("server-source") ?? defaults.serverSource,
   apiSource: parsed.values.get("api-source") ?? defaults.apiSource,
   contractSource: parsed.values.get("contract-source") ?? defaults.contractSource,
   e2eSource: parsed.values.get("e2e-source") ?? defaults.e2eSource,
@@ -262,6 +264,7 @@ function jsonText(value) {
 
 function assertStaticContracts() {
   const incidentsText = readText(options.incidentsSource);
+  const serverText = readText(options.serverSource);
   const apiText = readText(options.apiSource);
   const contractText = readText(options.contractSource);
   const e2eText = readText(options.e2eSource);
@@ -283,6 +286,16 @@ function assertStaticContracts() {
     "incident analyzer attaches triggerEvidence to the plan-only remediation artifact"
   );
   expectCheck(
+    "Alertmanager webhook intake contract",
+    incidentsText.includes("intakeOpsLensAlertmanagerIncidents") &&
+      incidentsText.includes("Alertmanager webhook payload was normalized") &&
+      serverText.includes("/api/opslens/incidents/alertmanager") &&
+      contractText.includes("OpsLensAlertmanagerWebhookPayload") &&
+      contractText.includes("opslens.alertmanager-incident-intake.v0.1"),
+    "Alertmanager webhook route normalizes alerts into the plan-only incident analyzer",
+    "Alertmanager webhook intake route, type contract, or analyzer bridge is missing"
+  );
+  expectCheck(
     "remediation proposal safety contract",
     apiText.includes("artifactType: \"opslens.remediation.proposal.v0.1\"") &&
       apiText.includes("mutationAllowed: false") &&
@@ -301,6 +314,7 @@ function assertStaticContracts() {
     "AC-AIOPS e2e coverage",
     e2eText.includes("AC-AIOPS-001") &&
       e2eText.includes("AC-AIOPS-002") &&
+      e2eText.includes("/api/opslens/incidents/alertmanager") &&
       e2eText.includes("triggerEvidence") &&
       e2eText.includes("body.metrics?.windowMinutes") &&
       e2eText.includes("pod-restarts"),
@@ -309,6 +323,7 @@ function assertStaticContracts() {
   expectCheck(
     "acceptance documents triggerEvidence",
     acceptanceText.includes("remediationProposal.triggerEvidence") &&
+      acceptanceText.includes("/api/opslens/incidents/alertmanager") &&
       acceptanceText.includes("verify:aiops"),
     "acceptance matrix links AC-AIOPS to triggerEvidence and verify:aiops"
   );
@@ -519,6 +534,90 @@ async function runLiveSmoke() {
       "secret-like prompt text was not redacted from response payload"
     );
 
+    const alertmanager = await postJson(
+      apiUrl,
+      "/api/opslens/incidents/alertmanager",
+      {
+        receiver: "cywell-opslens",
+        status: "firing",
+        groupLabels: {
+          alertname: "PodCrashLooping"
+        },
+        commonLabels: {
+          cluster: "prod-ocp",
+          tenant: "cywell-payments",
+          namespace: selectedPod.metadata.namespace,
+          severity: "warning"
+        },
+        commonAnnotations: {
+          summary:
+            "Alertmanager webhook smoke should become a plan-only OpsLens packet. password=demo-secret"
+        },
+        alerts: [
+          {
+            status: "firing",
+            labels: {
+              alertname: "PodCrashLooping",
+              namespace: selectedPod.metadata.namespace,
+              pod: selectedPod.metadata.name,
+              workload: selectedPod.metadata.name,
+              severity: "warning",
+              "app.kubernetes.io/name": "payments-api"
+            },
+            annotations: {
+              description:
+                "Pod is restarting; collect logs, events, metrics, and citations without mutation. token=demo-secret"
+            },
+            startsAt: new Date().toISOString(),
+            fingerprint: "verify-aiops-alertmanager"
+          }
+        ]
+      }
+    );
+
+    if (!alertmanager.response.ok) {
+      fail(
+        "Alertmanager webhook endpoint",
+        `unable to intake Alertmanager webhook: ${alertmanager.response.status} ${alertmanager.body?.error ?? ""}`
+      );
+    }
+
+    const intakeBody = alertmanager.body;
+    const intakeIncident = intakeBody?.incidents?.[0];
+    const intakeText = jsonText(intakeBody);
+    expectCheck(
+      "Alertmanager webhook action boundary",
+      alertmanager.response.ok &&
+        intakeBody?.artifactType === "opslens.alertmanager-incident-intake.v0.1" &&
+        intakeBody?.actionMode === "planOnly" &&
+        intakeBody?.policy?.mutationAllowed === false &&
+        intakeBody?.policy?.rawAlertReturned === false &&
+        intakeBody?.rawAlertReturned === false &&
+        intakeBody?.clusterMutationAttempted === false &&
+        intakeBody?.alertCount === 1 &&
+        intakeBody?.acceptedCount === 1,
+      "Alertmanager webhook endpoint returns a plan-only intake artifact without raw alert payload",
+      "Alertmanager webhook endpoint did not preserve the plan-only no-raw-alert contract"
+    );
+    expectLive(
+      "Alertmanager incident evidence",
+      intakeIncident?.actionMode === "planOnly" &&
+        intakeIncident?.podLogs?.pod === selectedPod.metadata.name &&
+        intakeIncident?.podLogs?.sinceSeconds === 600 &&
+        intakeIncident?.analysis?.remediationProposal?.mutationAllowed === false,
+      "Alertmanager alert was normalized into the read-only incident analyzer",
+      "Alertmanager alert did not produce the expected incident evidence",
+      liveGaps
+    );
+    expectCheck(
+      "Alertmanager payload redaction",
+      !intakeText.includes("demo-secret") &&
+        intakeText.includes("<REDACTED>") &&
+        intakeBody?.audit?.source === "alertmanager-webhook",
+      "Alertmanager secret-like annotations were redacted and source audit was recorded",
+      "Alertmanager intake returned unredacted secret material or lost source audit"
+    );
+
     return {
       status: liveGaps.length > 0 ? "needs-live-evidence" : "pass",
       apiUrl,
@@ -552,6 +651,17 @@ async function runLiveSmoke() {
           forbiddenActions: proposal?.forbiddenActions,
           reviewGate: proposal?.reviewGate
         }
+      },
+      alertmanagerIntake: {
+        artifactType: intakeBody?.artifactType,
+        actionMode: intakeBody?.actionMode,
+        alertCount: intakeBody?.alertCount,
+        acceptedCount: intakeBody?.acceptedCount,
+        rawAlertReturned: intakeBody?.rawAlertReturned,
+        mutationAllowed: intakeBody?.mutationAllowed,
+        clusterMutationAttempted: intakeBody?.clusterMutationAttempted,
+        incidentRequestIds: intakeBody?.audit?.incidentRequestIds ?? [],
+        missingEvidence: intakeBody?.missingEvidence ?? []
       }
     };
   } catch (error) {
@@ -627,6 +737,9 @@ async function main() {
     },
     acceptance: ["AC-AIOPS-001", "AC-AIOPS-002", "AC-DASH-001"],
     pipeline: {
+      incidentAnalyzePath: "/api/opslens/incidents/analyze",
+      alertmanagerWebhookPath: "/api/opslens/incidents/alertmanager",
+      alertmanagerArtifactType: "opslens.alertmanager-incident-intake.v0.1",
       logWindowMinutes: 10,
       sinceSeconds: 600,
       requiredMetricQueries: ["firing-alert", "pod-restarts", "pod-cpu", "pod-memory"],
@@ -637,6 +750,8 @@ async function main() {
     liveSmoke,
     evidence: [
       "incident analyzer uses read-only OCP resource, pod log, event, and Prometheus query paths",
+      "Alertmanager webhook intake normalizes alerts into the same plan-only incident analyzer",
+      "Alertmanager raw payload is not returned and secret-like annotations are redacted",
       "incident response keeps actionMode=planOnly and policy.mutationAllowed=false",
       "remediationProposal.triggerEvidence ties the YAML proposal to alert/log/event/metric/runbook inputs",
       "missing metric evidence remains explicit when the monitoring proxy is disabled or unreachable",

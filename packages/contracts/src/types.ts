@@ -457,6 +457,57 @@ export interface OpsLensIncidentAnalysisRequest {
   caller?: OpsLensToolRequest["caller"];
 }
 
+export interface OpsLensAlertmanagerWebhookAlert {
+  status?: string;
+  labels?: Record<string, string>;
+  annotations?: Record<string, string>;
+  startsAt?: string;
+  endsAt?: string;
+  generatorURL?: string;
+  fingerprint?: string;
+}
+
+export interface OpsLensAlertmanagerWebhookPayload {
+  receiver?: string;
+  status?: string;
+  groupLabels?: Record<string, string>;
+  commonLabels?: Record<string, string>;
+  commonAnnotations?: Record<string, string>;
+  externalURL?: string;
+  alerts: OpsLensAlertmanagerWebhookAlert[];
+}
+
+export interface OpsLensAlertmanagerIncidentIntakeResponse {
+  artifactType: "opslens.alertmanager-incident-intake.v0.1";
+  generatedAt: string;
+  actionMode: "planOnly";
+  receiver: string;
+  status: string;
+  alertCount: number;
+  acceptedCount: number;
+  rawAlertReturned: false;
+  clusterMutationAttempted: false;
+  mutationAllowed: false;
+  incidents: OpsLensIncidentAnalysisResponse[];
+  policy: {
+    readOnly: true;
+    planOnly: true;
+    mutationAllowed: false;
+    clusterMutationAllowed: false;
+    serverSideRedaction: true;
+    rawAlertReturned: false;
+  };
+  audit: {
+    source: "alertmanager-webhook";
+    incidentRequestIds: string[];
+    redactionCount: number;
+  };
+  evidence: string[];
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface OpsLensIncidentResourceEvidence {
   resource: OcpApiResource;
   item: OcpResourceSummary;

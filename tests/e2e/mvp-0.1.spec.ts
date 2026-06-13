@@ -843,6 +843,187 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(JSON.stringify(body)).not.toContain("password=demo-secret");
   });
 
+  test("AC-AIOPS-001 accepts Alertmanager webhook alerts as plan-only incident intake", async ({
+    request
+  }) => {
+    test.setTimeout(45_000);
+
+    const pods = await request.get(
+      "/api/ocp/resources?apiVersion=v1&resource=pods&limit=10"
+    );
+    expect(pods.ok()).toBe(true);
+    const podsBody = (await pods.json()) as {
+      items?: Array<{
+        metadata: {
+          name: string;
+          namespace?: string;
+        };
+      }>;
+    };
+    const firstPod = podsBody.items?.find(
+      (item) => item.metadata.name && item.metadata.namespace
+    );
+    expect(firstPod?.metadata.name).toBeTruthy();
+    expect(firstPod?.metadata.namespace).toBeTruthy();
+
+    const intake = await request.post("/api/opslens/incidents/alertmanager", {
+      data: {
+        receiver: "cywell-opslens",
+        status: "firing",
+        groupLabels: {
+          alertname: "PodCrashLooping"
+        },
+        commonLabels: {
+          cluster: "prod-ocp",
+          tenant: "cywell-payments",
+          namespace: firstPod?.metadata.namespace,
+          severity: "warning"
+        },
+        commonAnnotations: {
+          summary:
+            "Alertmanager webhook should become a plan-only incident packet. secret=demo-secret"
+        },
+        alerts: [
+          {
+            status: "firing",
+            labels: {
+              alertname: "PodCrashLooping",
+              namespace: firstPod?.metadata.namespace,
+              pod: firstPod?.metadata.name,
+              workload: firstPod?.metadata.name,
+              severity: "warning",
+              "app.kubernetes.io/name": "payments-api"
+            },
+            annotations: {
+              description:
+                "Collect logs, events, metrics, and runbook citations only. token=demo-secret"
+            },
+            startsAt: new Date().toISOString(),
+            fingerprint: "playwright-alertmanager-intake"
+          }
+        ]
+      }
+    });
+
+    expect(intake.ok()).toBe(true);
+    const body = (await intake.json()) as {
+      artifactType?: string;
+      actionMode?: string;
+      alertCount?: number;
+      acceptedCount?: number;
+      rawAlertReturned?: boolean;
+      clusterMutationAttempted?: boolean;
+      mutationAllowed?: boolean;
+      policy?: {
+        planOnly?: boolean;
+        mutationAllowed?: boolean;
+        rawAlertReturned?: boolean;
+        serverSideRedaction?: boolean;
+      };
+      audit?: {
+        source?: string;
+        incidentRequestIds?: string[];
+        redactionCount?: number;
+      };
+      incidents?: Array<{
+        actionMode?: string;
+        podLogs?: {
+          pod?: string;
+          namespace?: string;
+          sinceSeconds?: number;
+          redacted?: boolean;
+        };
+        analysis?: {
+          remediationProposal?: {
+            artifactType?: string;
+            actionMode?: string;
+            mutationAllowed?: boolean;
+            yamlPatch?: string;
+            triggerEvidence?: {
+              metrics?: {
+                queries?: Array<{ name?: string }>;
+              };
+              runbookCitations?: string[];
+            };
+          };
+          policy?: {
+            rawDocumentReturned?: boolean;
+            mutationAllowed?: boolean;
+          };
+        };
+        policy?: {
+          mutationAllowed?: boolean;
+          rawDocumentReturned?: boolean;
+        };
+      }>;
+      evidence?: string[];
+      missingEvidence?: string[];
+    };
+    const firstIncident = body.incidents?.[0];
+
+    expect(body).toMatchObject({
+      artifactType: "opslens.alertmanager-incident-intake.v0.1",
+      actionMode: "planOnly",
+      alertCount: 1,
+      acceptedCount: 1,
+      rawAlertReturned: false,
+      clusterMutationAttempted: false,
+      mutationAllowed: false
+    });
+    expect(body.policy).toMatchObject({
+      planOnly: true,
+      mutationAllowed: false,
+      rawAlertReturned: false,
+      serverSideRedaction: true
+    });
+    expect(body.audit?.source).toBe("alertmanager-webhook");
+    expect(body.audit?.incidentRequestIds?.length).toBe(1);
+    expect(body.audit?.redactionCount).toBeGreaterThan(0);
+    expect(firstIncident?.actionMode).toBe("planOnly");
+    expect(firstIncident?.policy).toMatchObject({
+      mutationAllowed: false,
+      rawDocumentReturned: false
+    });
+    expect(firstIncident?.podLogs).toMatchObject({
+      pod: firstPod?.metadata.name,
+      namespace: firstPod?.metadata.namespace,
+      sinceSeconds: 600,
+      redacted: true
+    });
+    expect(firstIncident?.analysis?.policy).toMatchObject({
+      rawDocumentReturned: false,
+      mutationAllowed: false
+    });
+    expect(firstIncident?.analysis?.remediationProposal).toMatchObject({
+      artifactType: "opslens.remediation.proposal.v0.1",
+      actionMode: "planOnly",
+      mutationAllowed: false
+    });
+    expect(firstIncident?.analysis?.remediationProposal?.yamlPatch).toContain(
+      "memory: 4Gi"
+    );
+    expect(
+      firstIncident?.analysis?.remediationProposal?.triggerEvidence?.metrics?.queries?.map(
+        (query) => query.name
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        "firing-alert",
+        "pod-restarts",
+        "pod-cpu",
+        "pod-memory"
+      ])
+    );
+    expect(
+      firstIncident?.analysis?.remediationProposal?.triggerEvidence?.runbookCitations
+        ?.length
+    ).toBeGreaterThan(0);
+    expect(body.evidence?.join(" ")).toContain("Alertmanager webhook payload");
+    expect(body.missingEvidence).toBeDefined();
+    expect(JSON.stringify(body)).not.toContain("demo-secret");
+    expect(JSON.stringify(body)).toContain("<REDACTED>");
+  });
+
   test("AC-AIOPS-002 correlates incident analysis with Prometheus metric evidence or explicit metric gaps", async ({
     request
   }) => {

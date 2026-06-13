@@ -18,7 +18,10 @@ import {
   validateOpsLensRagDocument
 } from "./api";
 import { loadEnvFile } from "./env";
-import { analyzeOpsLensIncident } from "./incidents";
+import {
+  analyzeOpsLensIncident,
+  intakeOpsLensAlertmanagerIncidents
+} from "./incidents";
 import {
   discoverOcpResources,
   getOcpCoverageMatrix,
@@ -225,6 +228,18 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
         response,
         200,
         await analyzeOpsLensIncident((await readJson(request)) as never)
+      );
+      return;
+    }
+
+    if (
+      request.method === "POST" &&
+      url.pathname === "/api/opslens/incidents/alertmanager"
+    ) {
+      sendJson(
+        response,
+        200,
+        await intakeOpsLensAlertmanagerIncidents((await readJson(request)) as never)
       );
       return;
     }

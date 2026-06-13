@@ -1,12 +1,16 @@
 import type {
   OcpEventSummary,
   OcpResourceSummary,
+  OpsLensAlertmanagerIncidentIntakeResponse,
+  OpsLensAlertmanagerWebhookAlert,
+  OpsLensAlertmanagerWebhookPayload,
   OpsLensIncidentAnalysisRequest,
   OpsLensIncidentAnalysisResponse,
   OpsLensIncidentEventEvidence,
   OpsLensIncidentLogEvidence,
   OpsLensIncidentMetricEvidence,
-  OpsLensIncidentResourceEvidence
+  OpsLensIncidentResourceEvidence,
+  Severity
 } from "@kugnus/contracts";
 import { randomUUID } from "node:crypto";
 import {
@@ -23,6 +27,7 @@ import {
 
 const sensitivePattern =
   /(bearer\s+[a-z0-9._-]+|(?:token|password|passwd|secret|api[_-]?key)\s*[:=]\s*[^,\s;]+)/gi;
+const sensitiveKeyPattern = /(?:token|password|passwd|secret|api[_-]?key)/i;
 
 function assertIncidentRequest(
   request: OpsLensIncidentAnalysisRequest
@@ -77,6 +82,242 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeWorkload(workload?: string) {
   return workload?.replace(/^(deployment|statefulset|daemonset|pod)\//i, "");
+}
+
+function scalarToString(value: unknown) {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return String(value);
+  }
+  return undefined;
+}
+
+function toStringRecord(value: unknown): Record<string, string> {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, item]) => [key, scalarToString(item)])
+      .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+  );
+}
+
+function redactStringRecord(values: Record<string, string>) {
+  let redactionCount = 0;
+  const redacted = Object.fromEntries(
+    Object.entries(values).map(([key, value]) => {
+      if (sensitiveKeyPattern.test(key)) {
+        redactionCount += 1;
+        return [key, "<REDACTED>"];
+      }
+
+      const next = redactText(value, 1000);
+      redactionCount += next.redactionCount;
+      return [key, next.text];
+    })
+  );
+  return { values: redacted, redactionCount };
+}
+
+function pickString(
+  values: Record<string, string>,
+  keys: string[]
+): string | undefined {
+  for (const key of keys) {
+    const value = values[key]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function normalizeSeverity(value?: string): Severity | undefined {
+  const severity = value?.trim().toLowerCase();
+  if (
+    severity === "critical" ||
+    severity === "warning" ||
+    severity === "info" ||
+    severity === "success"
+  ) {
+    return severity;
+  }
+  if (severity === "warn" || severity === "error" || severity === "page") {
+    return "warning";
+  }
+  return undefined;
+}
+
+function resourceNameForKind(kind?: string) {
+  const normalized = kind?.toLowerCase();
+  if (normalized === "pod") return "pods";
+  if (normalized === "deployment") return "deployments";
+  if (normalized === "statefulset") return "statefulsets";
+  if (normalized === "daemonset") return "daemonsets";
+  return undefined;
+}
+
+function assertAlertmanagerWebhookPayload(
+  payload: OpsLensAlertmanagerWebhookPayload
+): asserts payload is OpsLensAlertmanagerWebhookPayload {
+  if (!isRecord(payload) || !Array.isArray(payload.alerts)) {
+    throw new Error("invalid Alertmanager webhook payload");
+  }
+}
+
+function normalizeAlertmanagerAlert(
+  alert: OpsLensAlertmanagerWebhookAlert | unknown
+): OpsLensAlertmanagerWebhookAlert {
+  if (!isRecord(alert)) {
+    return {};
+  }
+
+  return {
+    status: scalarToString(alert.status),
+    labels: toStringRecord(alert.labels),
+    annotations: toStringRecord(alert.annotations),
+    startsAt: scalarToString(alert.startsAt),
+    endsAt: scalarToString(alert.endsAt),
+    generatorURL: scalarToString(alert.generatorURL),
+    fingerprint: scalarToString(alert.fingerprint)
+  };
+}
+
+function buildAlertmanagerIncidentRequest(params: {
+  payload: OpsLensAlertmanagerWebhookPayload;
+  alert: OpsLensAlertmanagerWebhookAlert;
+  index: number;
+}) {
+  const groupLabels = toStringRecord(params.payload.groupLabels);
+  const commonLabels = toStringRecord(params.payload.commonLabels);
+  const commonAnnotations = toStringRecord(params.payload.commonAnnotations);
+  const alertLabels = toStringRecord(params.alert.labels);
+  const alertAnnotations = toStringRecord(params.alert.annotations);
+  const labelsResult = redactStringRecord({
+    ...groupLabels,
+    ...commonLabels,
+    ...alertLabels
+  });
+  const annotationsResult = redactStringRecord({
+    ...commonAnnotations,
+    ...alertAnnotations
+  });
+  const labels = labelsResult.values;
+  const annotations = annotationsResult.values;
+  const namespace = pickString(labels, [
+    "namespace",
+    "kubernetes_namespace",
+    "project"
+  ]);
+  const podName = pickString(labels, ["pod", "pod_name", "podName"]);
+  const appLabel = pickString(labels, [
+    "app",
+    "app.kubernetes.io/name",
+    "k8s_app"
+  ]);
+  const workload = normalizeWorkload(
+    pickString(labels, [
+      "workload",
+      "workload_name",
+      "deployment",
+      "deploymentconfig",
+      "statefulset",
+      "daemonset",
+      "job"
+    ]) ??
+      appLabel ??
+      (podName ? stripReplicaSetHash(podName) : undefined)
+  );
+  const resourceKind = pickString(labels, [
+    "resource_kind",
+    "resourceKind",
+    "kind"
+  ]) ?? (podName ? "Pod" : workload ? "Deployment" : undefined);
+  const resourceName =
+    (resourceKind?.toLowerCase() === "pod" ? podName : undefined) ??
+    pickString(labels, [
+      "resource_name",
+      "resourceName",
+      "deployment",
+      "statefulset",
+      "daemonset",
+      "workload",
+      "workload_name"
+    ]) ??
+    podName ??
+    workload;
+  const resourceNamePlural = resourceNameForKind(resourceKind);
+  const labelSelector =
+    pickString(labels, ["label_selector", "labelSelector"]) ??
+    (appLabel ? `app=${appLabel}` : undefined);
+  const status = params.alert.status ?? params.payload.status ?? "firing";
+  const receiver = redactText(params.payload.receiver ?? "unknown", 200).text;
+  const alertName =
+    pickString(labels, ["alertname", "alert_name", "name"]) ??
+    `AlertmanagerAlert${params.index + 1}`;
+  const summary = pickString(annotations, ["summary", "message", "description"]);
+  const description = pickString(annotations, ["description", "runbook_url"]);
+
+  return {
+    request: {
+      clusterId:
+        pickString(labels, ["cluster_id", "cluster", "clusterId"]) ??
+        process.env.CYWELL_OPSLENS_DEFAULT_CLUSTER_ID ??
+        "prod-ocp",
+      tenantId:
+        pickString(labels, ["tenant_id", "tenant", "tenantId"]) ??
+        process.env.CYWELL_OPSLENS_DEFAULT_TENANT_ID ??
+        "cywell-payments",
+      windowMinutes: 10,
+      question: [
+        "Alertmanager webhook alert intake for plan-only OpenShift incident analysis.",
+        `receiver=${receiver}`,
+        `webhookStatus=${status}`,
+        summary ? `summary=${summary}` : undefined,
+        description && description !== summary ? `description=${description}` : undefined
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      alert: {
+        name: alertName,
+        severity: normalizeSeverity(pickString(labels, ["severity", "priority"])),
+        namespace,
+        workload,
+        startsAt: params.alert.startsAt,
+        labels,
+        annotations,
+        resource:
+          resourceKind && resourceName
+            ? {
+                apiVersion:
+                  resourceKind.toLowerCase() === "pod" ? "v1" : "apps/v1",
+                kind: resourceKind,
+                resource: resourceNamePlural,
+                namespace,
+                name: resourceName
+              }
+            : undefined
+      },
+      evidenceHints: {
+        podName,
+        container: pickString(labels, ["container", "container_name"]),
+        labelSelector,
+        fieldSelector: podName ? `metadata.name=${podName}` : undefined,
+        tailLines: 200
+      },
+      caller: {
+        source: "api" as const,
+        user: "alertmanager-webhook"
+      }
+    } satisfies OpsLensIncidentAnalysisRequest,
+    redactionCount:
+      labelsResult.redactionCount + annotationsResult.redactionCount
+  };
 }
 
 function promqlString(value: string) {
@@ -707,5 +948,85 @@ export async function analyzeOpsLensIncident(
       redactionCount,
       latencyMs: Math.max(1, Date.now() - startedAt)
     }
+  };
+}
+
+export async function intakeOpsLensAlertmanagerIncidents(
+  payload: OpsLensAlertmanagerWebhookPayload
+): Promise<OpsLensAlertmanagerIncidentIntakeResponse> {
+  assertAlertmanagerWebhookPayload(payload);
+
+  const normalizedAlerts = payload.alerts.map(normalizeAlertmanagerAlert);
+  const incidents: OpsLensIncidentAnalysisResponse[] = [];
+  let redactionCount = 0;
+
+  for (const [index, alert] of normalizedAlerts.entries()) {
+    const mapped = buildAlertmanagerIncidentRequest({
+      payload,
+      alert,
+      index
+    });
+    redactionCount += mapped.redactionCount;
+    incidents.push(await analyzeOpsLensIncident(mapped.request));
+  }
+
+  const missingEvidence = unique([
+    ...(normalizedAlerts.length === 0
+      ? ["Alertmanager webhook payload did not include any alerts"]
+      : []),
+    ...incidents.flatMap((incident) => incident.missingEvidence),
+    ...incidents.flatMap((incident) => incident.analysis.missingEvidence)
+  ]);
+  const incidentRequestIds = incidents.map((incident) => incident.requestId);
+  const receiver = redactText(payload.receiver ?? "unknown", 200).text;
+  const status = redactText(payload.status ?? "unknown", 200).text;
+
+  return {
+    artifactType: "opslens.alertmanager-incident-intake.v0.1",
+    generatedAt: new Date().toISOString(),
+    actionMode: "planOnly",
+    receiver,
+    status,
+    alertCount: normalizedAlerts.length,
+    acceptedCount: incidents.length,
+    rawAlertReturned: false,
+    clusterMutationAttempted: false,
+    mutationAllowed: false,
+    incidents,
+    policy: {
+      readOnly: true,
+      planOnly: true,
+      mutationAllowed: false,
+      clusterMutationAllowed: false,
+      serverSideRedaction: true,
+      rawAlertReturned: false
+    },
+    audit: {
+      source: "alertmanager-webhook",
+      incidentRequestIds,
+      redactionCount:
+        redactionCount +
+        incidents.reduce(
+          (total, incident) => total + incident.audit.redactionCount,
+          0
+        )
+    },
+    evidence: unique([
+      "Alertmanager webhook payload was normalized into OpsLens incident analysis requests",
+      "raw Alertmanager payload is not returned to the caller",
+      "each accepted alert reuses the plan-only incident analyzer and read-only OCP evidence path",
+      ...incidents.flatMap((incident) => incident.evidence)
+    ]),
+    missingEvidence,
+    risk: [
+      "Alertmanager labels can be incomplete or noisy; unresolved identity gaps must remain visible as missingEvidence.",
+      "This intake creates analysis packets only and must not be connected to automatic apply/delete/scale execution.",
+      "Batch-level success does not mean every OCP evidence source was reachable; inspect each incident missingEvidence block."
+    ],
+    rollbackPath: [
+      "Disable the Alertmanager webhook route or remove the webhook receiver; no cluster state rollback is required.",
+      "Continue using POST /api/opslens/incidents/analyze for manual plan-only incident analysis.",
+      "If alert label mapping is incorrect, adjust label normalization and rerun verify:aiops plus AC-AIOPS Playwright tests."
+    ]
   };
 }
