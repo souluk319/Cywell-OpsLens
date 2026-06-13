@@ -1134,6 +1134,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           artifactStatus?: string;
           actionMode?: string;
           registryAuthConfigured?: boolean;
+          registryBaseReadable?: boolean;
           registryMutationAttempted?: boolean;
           clusterMutationAttempted?: boolean;
           mutationAllowedByThisVerifier?: boolean;
@@ -2037,6 +2038,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       clusterMutationAttempted: false,
       mutationAllowedByThisVerifier: false
     });
+    expect(
+      typeof body.installReadiness?.catalogToolchainPlan?.registryBaseReadable
+    ).toBe("boolean");
     expect(
       body.installReadiness?.catalogToolchainPlan?.cli?.map((tool) => tool.name)
     ).toEqual(expect.arrayContaining(["docker", "opm", "operator-sdk", "oc"]));
@@ -3235,6 +3239,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-catalog-toolchain")).toContainText(
       "registryMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-catalog-toolchain")).toContainText(
+      "registryBaseReadable="
     );
     await expect(page.getByTestId("opslens-catalog-toolchain")).toContainText(
       "opm:"

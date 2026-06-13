@@ -803,6 +803,8 @@ async function main() {
       actionMode: artifacts.catalogToolchain?.actionMode ?? "missing",
       registryAuthConfigured:
         artifacts.catalogToolchain?.registryAuth?.configured === true,
+      registryBaseReadable:
+        artifacts.catalogToolchain?.registryAuth?.baseImageReadable === true,
       cli: (artifacts.catalogToolchain?.cli ?? []).map((tool) => ({
         name: tool.name ?? "unknown",
         available: tool.available === true,

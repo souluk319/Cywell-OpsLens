@@ -1341,6 +1341,7 @@ export interface OpsLensCatalogToolchainSummary {
   clusterMutationAttempted: boolean;
   mutationAllowedByThisVerifier: boolean;
   registryAuthConfigured: boolean;
+  registryBaseReadable: boolean;
   cli: Array<{
     name: string;
     available: boolean;

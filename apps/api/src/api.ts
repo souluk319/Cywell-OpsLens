@@ -1564,6 +1564,13 @@ type CatalogToolchainEvidenceArtifact = {
   }>;
   registryAuth?: {
     configured?: boolean;
+    baseImageReadable?: boolean;
+    baseImageProbe?: {
+      image?: string;
+      readable?: boolean;
+      method?: string;
+      detail?: string;
+    };
   };
   commands?: {
     readOnly?: Array<{
@@ -4260,6 +4267,7 @@ function missingCatalogToolchainSummary(
     clusterMutationAttempted: false,
     mutationAllowedByThisVerifier: false,
     registryAuthConfigured: false,
+    registryBaseReadable: false,
     cli: [],
     readOnlyCommands: [
       {
@@ -4351,6 +4359,8 @@ function getCatalogToolchainReadiness(): {
         mutationAllowedByThisVerifier:
           artifact.mutationAllowedByThisVerifier === true,
         registryAuthConfigured: artifact.registryAuth?.configured === true,
+        registryBaseReadable:
+          artifact.registryAuth?.baseImageReadable === true,
         cli,
         readOnlyCommands,
         setupCommands,
@@ -4362,7 +4372,7 @@ function getCatalogToolchainReadiness(): {
       evidence: [
         `Catalog toolchain evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `catalog toolchain generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
-        `registryAuthConfigured=${String(artifact.registryAuth?.configured ?? false)} readOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length}`,
+        `registryAuthConfigured=${String(artifact.registryAuth?.configured ?? false)} registryBaseReadable=${String(artifact.registryAuth?.baseImageReadable ?? false)} readOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length}`,
         missingTools ? `missing local catalog CLIs=${missingTools}` : "all reported catalog CLIs are available",
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads catalog toolchain evidence only; it does not publish catalog images or apply cluster resources"

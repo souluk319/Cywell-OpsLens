@@ -20,6 +20,9 @@ const defaults = {
   timeoutMs: 10000
 };
 
+const catalogBaseImage =
+  "registry.redhat.io/openshift4/ose-operator-registry-rhel9:v4.18";
+
 function parseArgs(argv) {
   const values = new Map();
   for (let index = 0; index < argv.length; index += 1) {
@@ -215,6 +218,29 @@ function inspectRegistryAuth() {
   };
 }
 
+async function inspectRegistryBaseImage() {
+  const result = await runCapture("docker", ["manifest", "inspect", catalogBaseImage]);
+  const detail = (result.ok ? result.stdout : result.stderr || result.stdout)
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .slice(0, 3)
+    .join("; ");
+  if (result.ok) {
+    pass("registry.redhat.io base image read", `${catalogBaseImage} manifest is readable`);
+  } else {
+    warn(
+      "registry.redhat.io base image read",
+      `${catalogBaseImage} manifest is not readable: ${detail || "no detail"}`
+    );
+  }
+  return {
+    image: catalogBaseImage,
+    readable: result.ok,
+    method: "docker manifest inspect",
+    detail: detail || (result.ok ? "manifest readable" : "manifest read failed")
+  };
+}
+
 function fbcSummary(documents) {
   return {
     package: documents.find((document) => document.schema === "olm.package"),
@@ -313,7 +339,7 @@ function buildCommands() {
       command("fbc-validate", "toolchain-readiness", "opm validate deploy/catalog/fbc", "Validate the file-based catalog locally when opm is available."),
       command("bundle-validate", "toolchain-readiness", "operator-sdk bundle validate ./deploy/operator/bundle --select-optional suite=operatorframework", "Validate the Operator bundle when operator-sdk is available."),
       command("scorecard", "toolchain-readiness", "operator-sdk scorecard ./deploy/operator/bundle", "Run Operator SDK scorecard when operator-sdk is available."),
-      command("registry-base-inspect", "registry-read-only", "docker manifest inspect registry.redhat.io/openshift4/ose-operator-registry-rhel9:v4.18", "Confirm registry.redhat.io auth can read the catalog base image manifest.", { requiresNetwork: true })
+      command("registry-base-inspect", "registry-read-only", `docker manifest inspect ${catalogBaseImage}`, "Confirm registry.redhat.io auth can read the catalog base image manifest.", { requiresNetwork: true })
     ],
     setup: [
       command("registry-login", "human-setup", "docker login registry.redhat.io", "Authenticate to registry.redhat.io before local catalog image build.", {
@@ -398,7 +424,13 @@ async function main() {
     scorecard
   });
 
-  const registryAuth = inspectRegistryAuth();
+  const registryAuthConfig = inspectRegistryAuth();
+  const registryBaseImageProbe = await inspectRegistryBaseImage();
+  const registryAuth = {
+    ...registryAuthConfig,
+    baseImageReadable: registryBaseImageProbe.readable,
+    baseImageProbe: registryBaseImageProbe
+  };
   const cliByName = new Map(cli.map((entry) => [entry.name, entry]));
   const missingEvidence = [];
   for (const name of ["opm", "operator-sdk"]) {
@@ -409,8 +441,11 @@ async function main() {
   if (!cliByName.get("docker")?.available && !cliByName.get("podman")?.available) {
     missingEvidence.push("docker or podman CLI is required for local catalog image build evidence");
   }
-  if (!registryAuth.configured) {
-    missingEvidence.push("registry.redhat.io auth evidence is required before catalog image build can read the Red Hat base image");
+  if (!registryAuthConfig.configured) {
+    missingEvidence.push("registry.redhat.io auth config is required before catalog image build can read the Red Hat base image");
+  }
+  if (!registryBaseImageProbe.readable) {
+    missingEvidence.push("registry.redhat.io base image manifest read must pass before catalog local build/provenance can be trusted");
   }
   if (worktreeStatus.length > 0) {
     missingEvidence.push(`current git worktree dirty=true currentHead=${headSha}`);

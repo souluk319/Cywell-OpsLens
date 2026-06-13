@@ -2005,6 +2005,10 @@ export function OpsLensAdminDashboard() {
                   {String(catalogToolchainPlan.registryAuthConfigured)}
                 </span>
                 <span>
+                  registryBaseReadable=
+                  {String(catalogToolchainPlan.registryBaseReadable)}
+                </span>
+                <span>
                   registryMutationAttempted=
                   {String(catalogToolchainPlan.registryMutationAttempted)}
                 </span>
