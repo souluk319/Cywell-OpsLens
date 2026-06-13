@@ -551,7 +551,13 @@ function checkpointItems(checkpoint, networkHandoff, certificationReadiness, aut
 }
 
 function externalRuntimeItems(packet) {
+  const readOnlyCommands = packet?.readOnlyCommands ?? [];
+  const approvalGatedCommands = packet?.approvalGatedCommands ?? [];
   return (packet?.images ?? []).flatMap((image) => {
+    const readOnlyFor = (nextCommand) =>
+      externalRuntimeReadOnlyCommandsFor(readOnlyCommands, image.name, nextCommand);
+    const approvalFor = (role) =>
+      externalRuntimeApprovalCommandsForRole(approvalGatedCommands, image.name, role);
     const reviewerItems = (image.reviewerRequests ?? []).map((request, index) =>
       item({
         id: `external-runtime-${image.name}-${request.role ?? "reviewer"}-${index + 1}`,
@@ -564,6 +570,8 @@ function externalRuntimeItems(packet) {
         evidenceNeeded: request.evidenceNeeded ?? `${image.name} reviewer evidence`,
         nextCommand:
           request.nextCommand ?? "npm run evidence:external-runtime:review-packet",
+        readOnlyCommands: readOnlyFor(request.nextCommand ?? ""),
+        approvalGatedCommands: approvalFor(request.role ?? ""),
         blockedBy: image.missingEvidence ?? [],
         acceptance: ["AC-CERT-001"]
       })
@@ -593,11 +601,43 @@ function externalRuntimeItems(packet) {
               candidate?.recommendation ?? "candidate recommendation missing"
             ].join("; "),
             nextCommand: candidateScanCommand,
+            readOnlyCommands: readOnlyFor(candidateScanCommand),
             blockedBy: candidate?.missingEvidence ?? image.missingEvidence ?? [],
             acceptance: ["AC-CERT-001"]
           })
         ];
     return [...reviewerItems, ...candidateItem];
+  });
+}
+
+function externalRuntimeReadOnlyCommandsFor(commands, imageName, nextCommand) {
+  const ids = new Set(["verify-external-runtime-plan"]);
+  const commandText = String(nextCommand ?? "");
+  if (/external-runtime:draft:digests/i.test(commandText)) {
+    ids.add("refresh-external-runtime-drafts");
+    ids.add(`inspect-source-${imageName}`);
+  }
+  if (/external-runtime:draft\b/i.test(commandText)) {
+    ids.add("refresh-external-runtime-drafts");
+  }
+  if (/external-runtime:candidate-scan/i.test(commandText)) {
+    ids.add(`scan-${imageName}-candidate`);
+    ids.add("refresh-external-runtime-candidate-matrix");
+    ids.add("verify-security-scan-plan");
+    ids.add("plan-security-scan-evidence");
+  }
+  return commands.filter((command) => {
+    const id = command.id ?? "";
+    return ids.has(id) || sanitize(command.command ?? "") === sanitize(commandText);
+  });
+}
+
+function externalRuntimeApprovalCommandsForRole(commands, imageName, role) {
+  return commands.filter((command) => {
+    const id = command.id ?? "";
+    if (role === "registry-admin") return id === `mirror-${imageName}`;
+    if (role === "security-reviewer") return id === `sign-${imageName}`;
+    return false;
   });
 }
 

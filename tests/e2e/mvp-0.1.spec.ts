@@ -2263,6 +2263,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           item.nextCommand?.includes("evidence:external-runtime:candidate-scan")
         )
     ).toBe(true);
+    const vllmRegistryDigestAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "external-runtime-vllm-registry-admin-1"
+      );
+    expect(
+      vllmRegistryDigestAction?.readOnlyCommands?.map((command) => command.id)
+    ).toEqual(
+      expect.arrayContaining([
+        "refresh-external-runtime-drafts",
+        "inspect-source-vllm"
+      ])
+    );
+    expect(
+      vllmRegistryDigestAction?.approvalGatedCommands?.map(
+        (command) => command.id
+      )
+    ).toEqual(expect.arrayContaining(["mirror-vllm"]));
+    const qdrantCandidateAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "external-runtime-qdrant-candidate-matrix"
+      );
+    expect(
+      qdrantCandidateAction?.readOnlyCommands?.map((command) => command.id)
+    ).toEqual(expect.arrayContaining(["scan-qdrant-candidate"]));
     const securityReviewAction = body.installReadiness?.actionQueue?.items?.find(
       (item) => item.id === "security-review-operator-final-evidence"
     );
