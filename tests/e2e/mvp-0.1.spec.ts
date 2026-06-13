@@ -1019,6 +1019,46 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
           missingEvidence?: string[];
         };
+        certificationReadiness?: string;
+        certificationPlan?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          registryMutationAttempted?: boolean;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          headSha?: string;
+          worktreeDirty?: boolean;
+          cli?: Array<{
+            name?: string;
+            available?: boolean;
+            requiredForExternalSubmission?: boolean;
+          }>;
+          documents?: Record<string, string>;
+          gateCounts?: {
+            internalCatalog?: {
+              pass?: number;
+              warn?: number;
+              fail?: number;
+              total?: number;
+            };
+            communityOperator?: {
+              pass?: number;
+              warn?: number;
+              fail?: number;
+              total?: number;
+            };
+            certifiedOperator?: {
+              pass?: number;
+              warn?: number;
+              fail?: number;
+              total?: number;
+            };
+          };
+          risk?: string[];
+          rollbackPath?: string[];
+          missingEvidence?: string[];
+        };
         imageBuilds?: string;
         ownedImageProvenance?: string;
         ownedImageProvenancePlan?: {
@@ -1627,6 +1667,40 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /catalog toolchain/i
     );
+    expect([
+      "ready-for-review",
+      "needs-tooling",
+      "needs-evidence",
+      "failed"
+    ]).toContain(body.installReadiness?.certificationReadiness);
+    expect(body.installReadiness?.certificationPlan).toMatchObject({
+      actionMode: "certificationReadinessOnly",
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.certificationPlan?.cli?.map((tool) => tool.name)
+    ).toEqual(
+      expect.arrayContaining(["oc", "docker", "opm", "operator-sdk"])
+    );
+    expect(
+      body.installReadiness?.certificationPlan?.cli?.filter(
+        (tool) => tool.requiredForExternalSubmission
+      ).length ?? 0
+    ).toBeGreaterThanOrEqual(4);
+    expect(
+      body.installReadiness?.certificationPlan?.gateCounts?.internalCatalog?.total ??
+        0
+    ).toBeGreaterThan(0);
+    expect(
+      Object.keys(body.installReadiness?.certificationPlan?.documents ?? {})
+    ).toEqual(
+      expect.arrayContaining(["security", "support", "releaseGates"])
+    );
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /certification readiness/i
+    );
     expect(["ready", "needs-evidence", "failed"]).toContain(
       body.installReadiness?.imageBuilds
     );
@@ -1818,6 +1892,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         "mvp-gate",
+        "certification-readiness",
         "catalog-toolchain",
         "security-scan-plan",
         "release-evidence-bundle"
@@ -1847,6 +1922,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         "mvpGate",
+        "certificationReadiness",
         "externalRuntimeReviewPacket",
         "releasePlan",
         "evidenceCheckpoint"
@@ -2331,6 +2407,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-catalog-toolchain")).toContainText(
       "opm:"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Certification Evidence"
+    );
+    await expect(page.getByTestId("opslens-certification-readiness")).toContainText(
+      "certificationReadinessOnly"
+    );
+    await expect(page.getByTestId("opslens-certification-readiness")).toContainText(
+      "clusterMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-certification-readiness")).toContainText(
+      "mutationAllowedByThisVerifier=false"
+    );
+    await expect(page.getByTestId("opslens-certification-cli")).toContainText(
+      "opm:"
+    );
+    await expect(page.getByTestId("opslens-certification-cli")).toContainText(
+      "operator-sdk:"
+    );
+    await expect(page.getByTestId("opslens-certification-gates")).toContainText(
+      "certifiedOperator"
     );
     await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
       "approvalPlanOnly"

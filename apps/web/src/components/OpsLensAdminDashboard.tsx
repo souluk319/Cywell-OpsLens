@@ -61,6 +61,7 @@ function statusClass(status: string) {
     status === "ready" ||
     status === "ready-for-ingestion-job" ||
     status === "ready-for-dry-run" ||
+    status === "ready-for-review" ||
     status === "ready-for-scan"
   ) {
     return "fresh";
@@ -175,6 +176,7 @@ export function OpsLensAdminDashboard() {
         : []
     ) ?? [];
   const approvalPlan = overview?.installReadiness.approvalPlan;
+  const certificationPlan = overview?.installReadiness.certificationPlan;
   const catalogToolchainPlan =
     overview?.installReadiness.catalogToolchainPlan;
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
@@ -885,6 +887,8 @@ export function OpsLensAdminDashboard() {
                   "Install Plan": overview.installReadiness.installPlan,
                   "RAG Ingestion":
                     overview.installReadiness.approvalPlan.ragIngestion.status,
+                  "Certification Evidence":
+                    overview.installReadiness.certificationReadiness,
                   "Catalog Toolchain":
                     overview.installReadiness.catalogToolchain,
                   "Image Builds": overview.installReadiness.imageBuilds,
@@ -1594,6 +1598,119 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {catalogToolchainPlan.rollbackPath[0] ??
                     "Regenerate catalog toolchain evidence from a clean worktree."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {certificationPlan ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-certification-readiness"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Certification Readiness</h4>
+                  <small>{certificationPlan.actionMode}</small>
+                </div>
+                <ShieldCheck size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{certificationPlan.artifactStatus}</span>
+                <span>head={certificationPlan.headSha}</span>
+                <span>dirty={String(certificationPlan.worktreeDirty)}</span>
+                <span>
+                  registryMutationAttempted=
+                  {String(certificationPlan.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(certificationPlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(certificationPlan.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Submission CLI</span>
+                  <strong>
+                    {certificationPlan.cli.length
+                      ? certificationPlan.cli
+                          .map(
+                            (tool) =>
+                              `${tool.name}:${tool.available ? "ready" : "missing"} external=${String(tool.requiredForExternalSubmission)}`
+                          )
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Gate Counts</span>
+                  <strong>
+                    internal={certificationPlan.gateCounts.internalCatalog.pass}/
+                    {certificationPlan.gateCounts.internalCatalog.total},
+                    community={certificationPlan.gateCounts.communityOperator.pass}/
+                    {certificationPlan.gateCounts.communityOperator.total},
+                    certified={certificationPlan.gateCounts.certifiedOperator.pass}/
+                    {certificationPlan.gateCounts.certifiedOperator.total}
+                  </strong>
+                </div>
+                <div>
+                  <span>Documents</span>
+                  <strong>
+                    {Object.entries(certificationPlan.documents).length
+                      ? Object.entries(certificationPlan.documents)
+                          .slice(0, 4)
+                          .map(
+                            ([key, value]) =>
+                              `${key}:${value.split(/[\\/]/).pop() ?? value}`
+                          )
+                          .join(", ")
+                      : "documents missing"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Open Items</span>
+                  <strong>
+                    {certificationPlan.missingEvidence.length
+                      ? `${certificationPlan.missingEvidence.length} missing evidence`
+                      : "none"}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-certification-cli"
+              >
+                {certificationPlan.cli.slice(0, 5).map((tool) => (
+                  <span key={tool.name}>
+                    {tool.name}:{tool.available ? "ready" : "missing"} required=
+                    {String(tool.requiredForExternalSubmission)}
+                  </span>
+                ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-certification-gates"
+              >
+                {Object.entries(certificationPlan.gateCounts).map(
+                  ([gate, counts]) => (
+                    <span key={gate}>
+                      {gate} pass={counts.pass} warn={counts.warn} fail=
+                      {counts.fail}
+                    </span>
+                  )
+                )}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {certificationPlan.risk[0] ??
+                    "Certification readiness is local evidence only and does not submit externally."}
+                </p>
+                <p>
+                  {certificationPlan.rollbackPath[0] ??
+                    "Regenerate certification evidence from a clean worktree."}
                 </p>
               </div>
             </div>

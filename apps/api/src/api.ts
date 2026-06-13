@@ -28,6 +28,8 @@ import type {
   OpsLensAdminOverviewResponse,
   OpsLensCatalogToolchainReadiness,
   OpsLensCatalogToolchainSummary,
+  OpsLensCertificationReadiness,
+  OpsLensCertificationReadinessSummary,
   OpsLensCitation,
   OpsLensEvidenceCheckpointReadiness,
   OpsLensEvidenceCheckpointSummary,
@@ -1387,6 +1389,49 @@ type ReleasePublishPlanEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type CertificationReadinessEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  gates?: {
+    internalCatalog?: Array<{
+      status?: string;
+      name?: string;
+      detail?: string;
+    }>;
+    communityOperator?: Array<{
+      status?: string;
+      name?: string;
+      detail?: string;
+    }>;
+    certifiedOperator?: Array<{
+      status?: string;
+      name?: string;
+      detail?: string;
+    }>;
+  };
+  cli?: Array<{
+    name?: string;
+    available?: boolean;
+    version?: string;
+    requiredForExternalSubmission?: boolean;
+  }>;
+  documents?: Record<string, string>;
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type CatalogToolchainEvidenceArtifact = {
   artifactType?: string;
   status?: string;
@@ -1826,6 +1871,13 @@ function releasePublishPlanEvidencePath() {
   );
 }
 
+function certificationReadinessEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_CERTIFICATION_READINESS_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-certification-readiness.json")
+  );
+}
+
 function catalogToolchainEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_CATALOG_TOOLCHAIN_EVIDENCE ??
@@ -2046,6 +2098,30 @@ function mapReleasePublishPlanReadinessStatus(
   }
   if (artifact.status === "PUBLISH_APPROVAL_REQUIRED") {
     return "approval-required";
+  }
+  return "needs-evidence";
+}
+
+function mapCertificationReadinessStatus(
+  artifact: CertificationReadinessEvidenceArtifact
+): OpsLensCertificationReadiness {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.status === "FAIL" ||
+    artifact.registryMutationAttempted ||
+    artifact.clusterMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "failed";
+  }
+  if (artifact.ref?.worktreeDirty) {
+    return "needs-evidence";
+  }
+  if (artifact.status === "READY_FOR_REVIEW" || artifact.status === "PASS") {
+    return "ready-for-review";
+  }
+  if (artifact.status === "NEEDS_TOOLING") {
+    return "needs-tooling";
   }
   return "needs-evidence";
 }
@@ -3346,6 +3422,151 @@ function getReleasePublishPlanReadiness(): {
   }
 }
 
+function countCertificationGateStatuses(
+  checks: Array<{ status?: string }> | undefined
+): OpsLensCertificationReadinessSummary["gateCounts"]["internalCatalog"] {
+  const counts = { pass: 0, warn: 0, fail: 0, total: 0 };
+  for (const check of checks ?? []) {
+    counts.total += 1;
+    if (check.status === "PASS") counts.pass += 1;
+    else if (check.status === "WARN") counts.warn += 1;
+    else if (check.status === "FAIL") counts.fail += 1;
+  }
+  return counts;
+}
+
+function missingCertificationReadinessSummary(
+  reason: string,
+  status: OpsLensCertificationReadiness = "needs-evidence"
+): OpsLensCertificationReadinessSummary {
+  return {
+    status,
+    artifactStatus: status === "failed" ? "invalid" : "missing",
+    actionMode: "certificationReadinessOnly",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    headSha: "missing",
+    worktreeDirty: false,
+    cli: [],
+    documents: {},
+    gateCounts: {
+      internalCatalog: { pass: 0, warn: 0, fail: 0, total: 0 },
+      communityOperator: { pass: 0, warn: 0, fail: 0, total: 0 },
+      certifiedOperator: { pass: 0, warn: 0, fail: 0, total: 0 }
+    },
+    missingEvidence: [reason],
+    risk: [
+      "Without certification readiness evidence, release review cannot separate internal catalog readiness from external Red Hat submission gaps."
+    ],
+    rollbackPath: [
+      "Run npm run verify:certification from a clean Git HEAD before Community or Certified Operator review."
+    ]
+  };
+}
+
+function getCertificationReadiness(): {
+  status: OpsLensCertificationReadiness;
+  evidence: string[];
+  plan: OpsLensCertificationReadinessSummary;
+} {
+  const evidencePath = certificationReadinessEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      plan: missingCertificationReadinessSummary(
+        `certification readiness evidence is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run verify:certification to create Community/Certified Operator readiness evidence",
+        "dashboard keeps certification readiness as needs-evidence until packaging, docs, and CLI gaps are recorded",
+        "certification readiness evidence must keep registryMutationAttempted=false and clusterMutationAttempted=false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as CertificationReadinessEvidenceArtifact;
+    const status = mapCertificationReadinessStatus(artifact);
+    const cli = (artifact.cli ?? []).map((tool) => ({
+      name: tool.name ?? "unknown",
+      available: tool.available === true,
+      version: tool.version ?? "missing",
+      requiredForExternalSubmission:
+        tool.requiredForExternalSubmission === true
+    }));
+    const gateCounts = {
+      internalCatalog: countCertificationGateStatuses(
+        artifact.gates?.internalCatalog
+      ),
+      communityOperator: countCertificationGateStatuses(
+        artifact.gates?.communityOperator
+      ),
+      certifiedOperator: countCertificationGateStatuses(
+        artifact.gates?.certifiedOperator
+      )
+    };
+    const missingExternalTools = cli
+      .filter((tool) => tool.requiredForExternalSubmission && !tool.available)
+      .map((tool) => tool.name)
+      .join(", ");
+    const documents = artifact.documents ?? {};
+    const documentSummary = Object.entries(documents)
+      .map(([key, value]) => `${key}=${value}`)
+      .join(", ");
+
+    return {
+      status,
+      plan: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "certificationReadinessOnly",
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        headSha: artifact.ref?.headSha ?? "unknown",
+        worktreeDirty: artifact.ref?.worktreeDirty === true,
+        cli,
+        documents,
+        gateCounts,
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `Certification readiness evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `certification readiness generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `certification gates internal=${gateCounts.internalCatalog.pass}/${gateCounts.internalCatalog.total} community=${gateCounts.communityOperator.pass}/${gateCounts.communityOperator.total} certified=${gateCounts.certifiedOperator.pass}/${gateCounts.certifiedOperator.total}`,
+        missingExternalTools
+          ? `missing external submission CLIs=${missingExternalTools}`
+          : "all reported external submission CLIs are available",
+        documentSummary
+          ? `certification documents=${documentSummary}`
+          : "certification documents are not listed",
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads certification readiness evidence only; it does not submit to Partner Connect, push images, mirror images, sign images, apply resources, delete resources, or scale workloads"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      plan: missingCertificationReadinessSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "failed"
+      ),
+      evidence: [
+        `Certification readiness evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid certification readiness evidence blocks overclaiming Community or Certified Operator readiness"
+      ]
+    };
+  }
+}
+
 function missingCatalogToolchainSummary(
   reason: string,
   status: OpsLensCatalogToolchainReadiness = "needs-evidence"
@@ -4480,6 +4701,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const ocpConnectivityReadiness = getOcpConnectivityDiagnosticReadiness();
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
   const installPlanReadiness = getInstallApprovalPlanReadiness();
+  const certificationReadiness = getCertificationReadiness();
   const catalogToolchainReadiness = getCatalogToolchainReadiness();
   const securityScanReadiness = getSecurityScanPlanReadiness();
   const releasePublishReadiness = getReleasePublishPlanReadiness();
@@ -4498,6 +4720,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
     installPlanReadiness.evidence[0],
+    certificationReadiness.evidence[0],
     catalogToolchainReadiness.evidence[0],
     imageBuildReadiness.evidence[0],
     ownedImageProvenanceReadiness.evidence[0],
@@ -4511,6 +4734,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
     ...installPlanReadiness.evidence.slice(1),
+    ...certificationReadiness.evidence.slice(1),
     ...catalogToolchainReadiness.evidence.slice(1),
     ...imageBuildReadiness.evidence.slice(1),
     ...ownedImageProvenanceReadiness.evidence.slice(1),
@@ -4667,6 +4891,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       operatorDryRun: operatorDryRunReadiness.status,
       installPlan: installPlanReadiness.status,
       approvalPlan: installPlanReadiness.plan,
+      certificationReadiness: certificationReadiness.status,
+      certificationPlan: certificationReadiness.plan,
       catalogToolchain: catalogToolchainReadiness.status,
       catalogToolchainPlan: catalogToolchainReadiness.plan,
       imageBuilds: imageBuildReadiness.status,
@@ -4692,7 +4918,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       handoff: liveHandoffReadiness.handoff,
       ocpNetworkHandoff: ocpNetworkHandoffReadiness.status,
       networkHandoff: ocpNetworkHandoffReadiness.networkHandoff,
-      certification: "draft",
+      certification:
+        certificationReadiness.status === "ready-for-review" ? "ready" : "draft",
       evidence: [
         ...installReadinessEvidence,
         "Stage 1 MCP contract has verifier coverage",

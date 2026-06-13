@@ -1029,6 +1029,12 @@ export type OpsLensSecurityScanReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensCertificationReadiness =
+  | "ready-for-review"
+  | "needs-tooling"
+  | "needs-evidence"
+  | "failed";
+
 export type OpsLensReleaseEvidenceRefreshReadiness =
   | "ready"
   | "needs-evidence"
@@ -1271,6 +1277,47 @@ export interface OpsLensSecurityScanPlanSummary {
     mutation: boolean;
     requiresExplicitApproval: boolean;
   }>;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensCertificationReadinessSummary {
+  status: OpsLensCertificationReadiness;
+  artifactStatus: string;
+  actionMode: "certificationReadinessOnly";
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  headSha: string;
+  worktreeDirty: boolean;
+  cli: Array<{
+    name: string;
+    available: boolean;
+    version: string;
+    requiredForExternalSubmission: boolean;
+  }>;
+  documents: Record<string, string>;
+  gateCounts: {
+    internalCatalog: {
+      pass: number;
+      warn: number;
+      fail: number;
+      total: number;
+    };
+    communityOperator: {
+      pass: number;
+      warn: number;
+      fail: number;
+      total: number;
+    };
+    certifiedOperator: {
+      pass: number;
+      warn: number;
+      fail: number;
+      total: number;
+    };
+  };
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
@@ -1583,6 +1630,8 @@ export interface OpsLensAdminOverviewResponse {
     externalRuntimeReview: OpsLensExternalRuntimeReviewPacketSummary;
     securityScan: OpsLensSecurityScanReadiness;
     securityScanPlan: OpsLensSecurityScanPlanSummary;
+    certificationReadiness: OpsLensCertificationReadiness;
+    certificationPlan: OpsLensCertificationReadinessSummary;
     releasePublish: OpsLensReleasePublishReadiness;
     releasePlan: OpsLensReleasePublishPlanSummary;
     releaseRefresh: OpsLensReleaseEvidenceRefreshReadiness;
