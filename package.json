@@ -22,6 +22,7 @@
     "verify:operator": "node ./scripts/verify-operator-package.mjs",
     "verify:operator:dry-run": "node ./scripts/verify-operator-dry-run.mjs",
     "verify:ocp:connectivity": "node ./scripts/verify-ocp-connectivity-diagnostic.mjs",
+    "evidence:ocp-auth-rbac-plan": "node ./scripts/verify-ocp-auth-rbac-plan.mjs",
     "verify:install-plan": "node ./scripts/verify-install-approval-plan.mjs",
     "verify:operator:reconcile": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-operator-reconcile.mjs",
     "verify:operator:runtime": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-operator-runtime-parity.mjs",

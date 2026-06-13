@@ -47,6 +47,8 @@ import type {
   OpsLensMcpToolSurfaceItem,
   OpsLensOcpConnectivityDiagnosticSummary,
   OpsLensOcpConnectivityReadiness,
+  OpsLensOcpAuthRbacPlanReadiness,
+  OpsLensOcpAuthRbacPlanSummary,
   OpsLensOcpNetworkHandoffReadiness,
   OpsLensOcpNetworkHandoffSummary,
   OpsLensOperatorDryRunReadiness,
@@ -1764,6 +1766,63 @@ type OcpNetworkHandoffArtifact = {
   rollbackPath?: string[];
 };
 
+type OcpAuthRbacPlanArtifact = {
+  artifactType?: string;
+  status?: string;
+  actionMode?: string;
+  preferredCredentialMode?: string;
+  fallbackCredentialMode?: string;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  target?: {
+    host?: string;
+    port?: number | string;
+    redactedBaseUrl?: string;
+    tokenConfigured?: boolean;
+    tlsVerify?: boolean;
+  };
+  diagnostics?: {
+    classification?: string;
+  };
+  requiredApprovals?: string[];
+  rbac?: {
+    serviceAccount?: {
+      name?: string;
+      namespace?: string;
+    };
+    clusterRole?: {
+      name?: string;
+      ruleCount?: number;
+      resources?: string[];
+      verbs?: string[];
+      readOnlyOnly?: boolean;
+      secretsIncluded?: boolean;
+    };
+  };
+  adminRequests?: string[];
+  readOnlyCommands?: Array<{
+    id?: string;
+    command?: string;
+    purpose?: string;
+    phase?: string;
+    requiresNetwork?: boolean;
+    mutation?: boolean;
+    writesEvidence?: boolean;
+  }>;
+  approvalGatedCommands?: Array<{
+    id?: string;
+    command?: string;
+    phase?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+  }>;
+  markdownOut?: string;
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type OcpConnectivityDiagnosticArtifact = {
   artifactType?: string;
   status?: string;
@@ -1933,6 +1992,13 @@ function ocpNetworkHandoffPath() {
   return (
     process.env.CYWELL_OPSLENS_OCP_NETWORK_HANDOFF ??
     join(repoRoot, "test-results", "cywell-opslens-ocp-network-handoff.json")
+  );
+}
+
+function ocpAuthRbacPlanPath() {
+  return (
+    process.env.CYWELL_OPSLENS_OCP_AUTH_RBAC_PLAN ??
+    join(repoRoot, "test-results", "cywell-opslens-ocp-auth-rbac-plan.json")
   );
 }
 
@@ -4304,6 +4370,16 @@ function mapOcpNetworkHandoffStatus(
   return "needs-evidence";
 }
 
+function mapOcpAuthRbacPlanStatus(
+  artifact: OcpAuthRbacPlanArtifact
+): OpsLensOcpAuthRbacPlanReadiness {
+  if (artifact.status === "READY_FOR_LIVE_CHECK" || artifact.status === "PASS") {
+    return "ready";
+  }
+  if (artifact.status === "BLOCKED") return "blocked";
+  return "needs-evidence";
+}
+
 function missingLiveEvidenceHandoffSummary(
   reason: string,
   status: OpsLensLiveEvidenceHandoffReadiness = "needs-evidence"
@@ -4387,6 +4463,63 @@ function missingOcpNetworkHandoffSummary(
     ],
     rollbackPath: [
       "Run npm run evidence:ocp-network-handoff after refreshing OCP connectivity evidence."
+    ]
+  };
+}
+
+function missingOcpAuthRbacPlanSummary(
+  reason: string,
+  status: OpsLensOcpAuthRbacPlanReadiness = "needs-evidence"
+): OpsLensOcpAuthRbacPlanSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "approvalPlanOnly",
+    classification: "missing",
+    preferredCredentialMode: "user-token-passthrough",
+    fallbackCredentialMode: "short-lived-read-only-serviceaccount-token",
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    target: {
+      host: "missing",
+      port: "missing",
+      redactedBaseUrl: "missing",
+      tokenConfigured: false,
+      tlsVerify: false
+    },
+    markdownPath: "missing",
+    requiredApprovals: ["cluster-admin", "security-reviewer"],
+    rbac: {
+      serviceAccount: "cywell-opslens/cywell-opslens-live-evidence-reader",
+      clusterRole: "cywell-opslens-live-evidence-reader",
+      ruleCount: 0,
+      verbs: [],
+      resources: [],
+      readOnlyOnly: false,
+      secretsIncluded: false
+    },
+    readOnlyCommands: [
+      {
+        id: "generate-ocp-auth-rbac-plan",
+        command: "npm run evidence:ocp-auth-rbac-plan",
+        purpose: "Generate the non-mutating OCP auth/RBAC approval packet.",
+        phase: "local-contract",
+        requiresNetwork: false,
+        mutation: false,
+        writesEvidence: true
+      }
+    ],
+    approvalGatedCommands: [],
+    adminRequests: [
+      "Generate the OCP auth/RBAC approval packet before asking cluster-admin to approve fallback reader access."
+    ],
+    missingEvidence: [reason],
+    risk: [
+      "Without an auth/RBAC plan, credential and least-privilege reader approval can drift into manual notes."
+    ],
+    rollbackPath: [
+      "Run npm run evidence:ocp-auth-rbac-plan after refreshing OCP connectivity evidence."
     ]
   };
 }
@@ -4589,6 +4722,124 @@ function getOcpNetworkHandoffReadiness(): {
   }
 }
 
+function getOcpAuthRbacPlanReadiness(): {
+  status: OpsLensOcpAuthRbacPlanReadiness;
+  evidence: string[];
+  authRbacPlan: OpsLensOcpAuthRbacPlanSummary;
+} {
+  const evidencePath = ocpAuthRbacPlanPath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      authRbacPlan: missingOcpAuthRbacPlanSummary(
+        `OCP auth/RBAC plan is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run evidence:ocp-auth-rbac-plan to create the cluster-admin approval packet",
+        "dashboard keeps OCP auth/RBAC plan as needs-evidence until the artifact exists",
+        "auth/RBAC plan evidence lists approval-gated commands only and performs no cluster or registry mutation"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as OcpAuthRbacPlanArtifact;
+    const status = mapOcpAuthRbacPlanStatus(artifact);
+    const target = artifact.target ?? {};
+    const rbac = artifact.rbac ?? {};
+    const serviceAccount = rbac.serviceAccount ?? {};
+    const clusterRole = rbac.clusterRole ?? {};
+    const readOnlyCommands = (artifact.readOnlyCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      purpose: command.purpose ?? "unknown",
+      phase: command.phase ?? "unknown",
+      requiresNetwork: command.requiresNetwork === true,
+      mutation: command.mutation === true,
+      writesEvidence: command.writesEvidence === true
+    }));
+    const approvalGatedCommands = (artifact.approvalGatedCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      phase: command.phase ?? "unknown",
+      mutation: command.mutation === true,
+      requiresExplicitApproval: command.requiresExplicitApproval === true
+    }));
+
+    return {
+      status,
+      authRbacPlan: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "approvalPlanOnly",
+        classification: artifact.diagnostics?.classification ?? "unknown",
+        preferredCredentialMode:
+          artifact.preferredCredentialMode ?? "user-token-passthrough",
+        fallbackCredentialMode:
+          artifact.fallbackCredentialMode ??
+          "short-lived-read-only-serviceaccount-token",
+        clusterMutationAttempted:
+          artifact.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          artifact.registryMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        target: {
+          host: target.host ?? "unknown",
+          port: target.port ?? "unknown",
+          redactedBaseUrl: target.redactedBaseUrl ?? "unknown",
+          tokenConfigured: target.tokenConfigured === true,
+          tlsVerify: target.tlsVerify === true
+        },
+        markdownPath: artifact.markdownOut ?? "unknown",
+        requiredApprovals: artifact.requiredApprovals ?? [
+          "cluster-admin",
+          "security-reviewer"
+        ],
+        rbac: {
+          serviceAccount:
+            `${serviceAccount.namespace ?? "unknown"}/${serviceAccount.name ?? "unknown"}`,
+          clusterRole: clusterRole.name ?? "unknown",
+          ruleCount: clusterRole.ruleCount ?? 0,
+          verbs: clusterRole.verbs ?? [],
+          resources: clusterRole.resources ?? [],
+          readOnlyOnly: clusterRole.readOnlyOnly === true,
+          secretsIncluded: clusterRole.secretsIncluded === true
+        },
+        readOnlyCommands,
+        approvalGatedCommands,
+        adminRequests: artifact.adminRequests ?? [],
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      },
+      evidence: [
+        `OCP auth/RBAC plan ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `auth/RBAC classification=${artifact.diagnostics?.classification ?? "unknown"} serviceAccount=${serviceAccount.namespace ?? "unknown"}/${serviceAccount.name ?? "unknown"} readOnlyCommands=${readOnlyCommands.length} approvalGated=${approvalGatedCommands.length}`,
+        `auth/RBAC markdown=${artifact.markdownOut ?? "unknown"} secretsIncluded=${String(clusterRole.secretsIncluded ?? "unknown")} readOnlyOnly=${String(clusterRole.readOnlyOnly ?? "unknown")}`,
+        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        "admin overview reads OCP auth/RBAC plan evidence only; it does not apply RBAC or create tokens"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "blocked",
+      authRbacPlan: missingOcpAuthRbacPlanSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "blocked"
+      ),
+      evidence: [
+        `OCP auth/RBAC plan could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid OCP auth/RBAC evidence blocks overclaiming fallback reader readiness"
+      ]
+    };
+  }
+}
+
 function getEvidenceCheckpointReadiness(): {
   status: OpsLensEvidenceCheckpointReadiness;
   evidence: string[];
@@ -4723,11 +4974,13 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
   const liveHandoffReadiness = getLiveEvidenceHandoffReadiness();
   const ocpNetworkHandoffReadiness = getOcpNetworkHandoffReadiness();
+  const ocpAuthRbacPlanReadiness = getOcpAuthRbacPlanReadiness();
   const installReadinessEvidence = [
     releaseEvidenceRefreshReadiness.evidence[0],
     evidenceCheckpointReadiness.evidence[0],
     liveHandoffReadiness.evidence[0],
     ocpNetworkHandoffReadiness.evidence[0],
+    ocpAuthRbacPlanReadiness.evidence[0],
     ocpConnectivityReadiness.evidence[0],
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
@@ -4759,6 +5012,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...releaseActionQueueReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
     ...ocpNetworkHandoffReadiness.evidence.slice(1),
+    ...ocpAuthRbacPlanReadiness.evidence.slice(1),
     ...evidenceCheckpointReadiness.evidence.slice(1)
   ].filter((item): item is string => Boolean(item));
 
@@ -4930,6 +5184,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       handoff: liveHandoffReadiness.handoff,
       ocpNetworkHandoff: ocpNetworkHandoffReadiness.status,
       networkHandoff: ocpNetworkHandoffReadiness.networkHandoff,
+      ocpAuthRbacPlan: ocpAuthRbacPlanReadiness.status,
+      authRbacPlan: ocpAuthRbacPlanReadiness.authRbacPlan,
       certification:
         certificationReadiness.status === "ready-for-review" ? "ready" : "draft",
       evidence: [
@@ -4941,6 +5197,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 4 live API preflight is validated by npm run verify:operator:dry-run",
         "Live OCP connectivity is classified by npm run verify:ocp:connectivity",
         "Stage 4 OCP network/SRE handoff is generated by npm run evidence:ocp-network-handoff",
+        "Stage 4 OCP auth/RBAC approval packet is generated by npm run evidence:ocp-auth-rbac-plan",
         "Stage 4 mutating install approval plan is generated by npm run verify:install-plan",
         "Stage 4 live evidence handoff is generated by npm run verify:live-handoff",
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",

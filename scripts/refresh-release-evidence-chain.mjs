@@ -26,6 +26,7 @@ const evidencePaths = {
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   ocpConnectivity: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
+  ocpAuthRbacPlan: "test-results/cywell-opslens-ocp-auth-rbac-plan.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
   lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
@@ -222,6 +223,7 @@ function buildChain() {
   }
 
   commands.push(
+    npmScript("ocp-auth-rbac-plan", "approval", "evidence:ocp-auth-rbac-plan"),
     npmScript("lightspeed-patch-preview-fixture", "live", "verify:lightspeed:patch-preview:fixture"),
     npmScript("release-plan", "approval", "verify:release-plan"),
     npmScript("external-runtime-review-packet", "approval", "evidence:external-runtime:review-packet"),

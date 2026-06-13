@@ -1263,6 +1263,39 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           risk?: string[];
           rollbackPath?: string[];
         };
+        ocpAuthRbacPlan?: string;
+        authRbacPlan?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          classification?: string;
+          preferredCredentialMode?: string;
+          fallbackCredentialMode?: string;
+          clusterMutationAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          rbac?: {
+            serviceAccount?: string;
+            clusterRole?: string;
+            ruleCount?: number;
+            verbs?: string[];
+            readOnlyOnly?: boolean;
+            secretsIncluded?: boolean;
+          };
+          readOnlyCommands?: Array<{
+            id?: string;
+            command?: string;
+            mutation?: boolean;
+          }>;
+          approvalGatedCommands?: Array<{
+            id?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+          }>;
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         liveHandoff?: string;
         handoff?: {
           status?: string;
@@ -1983,6 +2016,36 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       /release action queue/i
     );
     expect(["ready", "needs-evidence", "blocked"]).toContain(
+      body.installReadiness?.ocpAuthRbacPlan
+    );
+    expect(body.installReadiness?.authRbacPlan).toMatchObject({
+      actionMode: "approvalPlanOnly",
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(body.installReadiness?.authRbacPlan?.rbac).toMatchObject({
+      serviceAccount: "cywell-opslens/cywell-opslens-live-evidence-reader",
+      clusterRole: "cywell-opslens-live-evidence-reader",
+      readOnlyOnly: true,
+      secretsIncluded: false
+    });
+    expect(
+      body.installReadiness?.authRbacPlan?.readOnlyCommands?.every(
+        (command) => command.mutation === false
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.authRbacPlan?.approvalGatedCommands?.every(
+        (command) =>
+          command.mutation === true &&
+          command.requiresExplicitApproval === true
+      )
+    ).toBe(true);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /auth\/RBAC plan/i
+    );
+    expect(["ready", "needs-evidence", "blocked"]).toContain(
       body.installReadiness?.liveHandoff
     );
     expect(body.installReadiness?.handoff).toMatchObject({
@@ -2378,6 +2441,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-ocp-network-handoff-commands")
     ).toContainText("mutation=false");
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Auth/RBAC Plan"
+    );
+    await expect(page.getByTestId("opslens-ocp-auth-rbac-plan")).toContainText(
+      "approvalPlanOnly"
+    );
+    await expect(page.getByTestId("opslens-ocp-auth-rbac-plan")).toContainText(
+      "readOnly=true"
+    );
+    await expect(page.getByTestId("opslens-ocp-auth-rbac-plan")).toContainText(
+      "secrets=false"
+    );
+    await expect(
+      page.getByTestId("opslens-ocp-auth-rbac-plan-commands")
+    ).toContainText("mutation=false");
+    await expect(
+      page.getByTestId("opslens-ocp-auth-rbac-plan-approval")
+    ).toContainText("approval=true");
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Install Plan"
     );

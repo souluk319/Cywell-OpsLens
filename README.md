@@ -65,6 +65,8 @@ npm run verify:lightspeed:fixture
 
 `npm run evidence:ocp-network-handoff` turns the current OCP connectivity, Lightspeed, Operator dry-run, and live handoff evidence into a redacted JSON plus Markdown packet for Network/SRE review. It includes target host/port, DNS/TCP classification, read-only Windows/oc follow-up commands, mutation boundaries, and the verifier chain to rerun after VPN/firewall/routing changes. The admin dashboard and release evidence bundle surface this packet as the `ocpNetworkHandoff` evidence lane.
 
+`npm run evidence:ocp-auth-rbac-plan` turns the current OCP connectivity classification into a cluster-admin approval packet for the fallback live evidence reader. It validates `deploy/ocp-live-readonly/opslens-live-evidence-reader.yaml` with a structured YAML parser, requires only `get/list/watch`, excludes Secrets, emits read-only dry-run/`oc auth can-i` checks, and records approval-gated `oc apply`/short-lived token commands without running them. The dashboard, checkpoint, release bundle, and action queue surface this as the `ocpAuthRbacPlan` evidence lane.
+
 `npm run dev` starts both:
 
 - API: `http://127.0.0.1:4174`

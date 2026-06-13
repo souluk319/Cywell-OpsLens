@@ -25,6 +25,7 @@ const evidenceDefaults = {
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   ocpConnectivity: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
+  ocpAuthRbacPlan: "test-results/cywell-opslens-ocp-auth-rbac-plan.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
   lightspeedReadiness: "test-results/cywell-opslens-lightspeed-readiness.json",
   lightspeedPatchPreview: "test-results/cywell-opslens-lightspeed-patch-preview.json",
@@ -682,6 +683,62 @@ function checkOcpNetworkHandoff(networkHandoffArtifact) {
   );
 }
 
+function checkOcpAuthRbacPlan(authRbacPlanArtifact) {
+  if (!authRbacPlanArtifact) return;
+  const readOnlyCommands = authRbacPlanArtifact.readOnlyCommands ?? [];
+  const approvalGatedCommands = authRbacPlanArtifact.approvalGatedCommands ?? [];
+  const mutatingPattern =
+    /\b(oc|kubectl)\s+(apply|create|delete|patch|replace|scale|rollout|adm)|\b(docker|podman|skopeo)\s+(push|copy)|\b(cosign)\s+sign|\b(operator-sdk|opm)\s+.*\b(push|publish)\b/i;
+  const violations = [];
+
+  if (authRbacPlanArtifact.actionMode !== "approvalPlanOnly") {
+    violations.push(`actionMode=${authRbacPlanArtifact.actionMode ?? "missing"}`);
+  }
+  if (artifactClusterMutationAttempted(authRbacPlanArtifact)) {
+    violations.push("clusterMutationAttempted");
+  }
+  if (artifactRegistryMutationAttempted(authRbacPlanArtifact)) {
+    violations.push("registryMutationAttempted");
+  }
+  if (artifactMutationAllowedByVerifier(authRbacPlanArtifact)) {
+    violations.push("mutationAllowedByThisVerifier");
+  }
+  if (authRbacPlanArtifact.rbac?.clusterRole?.readOnlyOnly !== true) {
+    violations.push("rbac.readOnlyOnly");
+  }
+  if (authRbacPlanArtifact.rbac?.clusterRole?.secretsIncluded === true) {
+    violations.push("rbac.secretsIncluded");
+  }
+  const unsafeReadOnly = readOnlyCommands
+    .filter((command) => {
+      const text = command.command ?? "";
+      if (/\b(oc|kubectl)\s+apply\b/i.test(text) && /--dry-run=(server|client)\b/i.test(text)) {
+        return false;
+      }
+      return command.mutation === true || mutatingPattern.test(text);
+    })
+    .map((command) => command.id ?? "unknown");
+  if (unsafeReadOnly.length > 0) {
+    violations.push(`unsafeReadOnlyCommands=${unsafeReadOnly.join(",")}`);
+  }
+  const unguardedApproval = approvalGatedCommands
+    .filter((command) => command.mutation !== true || command.requiresExplicitApproval !== true)
+    .map((command) => command.id ?? "unknown");
+  if (unguardedApproval.length > 0) {
+    violations.push(`unguardedApprovalCommands=${unguardedApproval.join(",")}`);
+  }
+
+  if (violations.length > 0) {
+    fail("OCP auth/RBAC plan boundary", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "OCP auth/RBAC plan boundary",
+    `status=${authRbacPlanArtifact.status ?? "missing"} readOnlyCommands=${readOnlyCommands.length} approvalGated=${approvalGatedCommands.length} secrets=false`
+  );
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -787,6 +844,17 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "ocpAuthRbacPlan",
+    label: "OCP auth/RBAC approval plan",
+    artifact: artifacts.ocpAuthRbacPlan,
+    desiredStatuses: [
+      "READY_FOR_LIVE_CHECK",
+      "AUTH_RBAC_APPROVAL_REQUIRED",
+      "WAITING_FOR_CONNECTIVITY"
+    ],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "operatorDryRun",
     label: "operator server dry-run",
     artifact: artifacts.operatorDryRun,
@@ -871,6 +939,7 @@ async function main() {
   checkImageActualBuilds(artifacts.imageBuild);
   checkOwnedImageProvenance(artifacts.ownedImageProvenance);
   checkOcpConnectivityDiagnostic(artifacts.ocpConnectivity);
+  checkOcpAuthRbacPlan(artifacts.ocpAuthRbacPlan);
   checkExternalRuntimeReviewPacket(artifacts.externalRuntimeReviewPacket);
   checkOcpNetworkHandoff(artifacts.ocpNetworkHandoff);
   checkPatchPreview(artifacts.lightspeedPatchPreview);
@@ -908,6 +977,7 @@ async function main() {
       "AC-OP-004",
       "AC-OP-005",
       "AC-OCP-001",
+      "AC-OCP-RBAC-001",
       "AC-CERT-001",
       "AC-LIVE-HANDOFF-001"
     ],

@@ -1065,6 +1065,11 @@ export type OpsLensOcpNetworkHandoffReadiness =
   | "needs-evidence"
   | "blocked";
 
+export type OpsLensOcpAuthRbacPlanReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "blocked";
+
 export interface OpsLensEvidenceCheckpointSummary {
   status: OpsLensEvidenceCheckpointReadiness;
   artifactStatus: string;
@@ -1146,6 +1151,56 @@ export interface OpsLensOcpNetworkHandoffSummary {
     headSha: string;
     worktreeDirty: boolean | string;
   }>;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensOcpAuthRbacPlanSummary {
+  status: OpsLensOcpAuthRbacPlanReadiness;
+  artifactStatus: string;
+  actionMode: "approvalPlanOnly";
+  classification: string;
+  preferredCredentialMode: string;
+  fallbackCredentialMode: string;
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  target: {
+    host: string;
+    port: number | string;
+    redactedBaseUrl: string;
+    tokenConfigured: boolean;
+    tlsVerify: boolean;
+  };
+  markdownPath: string;
+  requiredApprovals: string[];
+  rbac: {
+    serviceAccount: string;
+    clusterRole: string;
+    ruleCount: number;
+    verbs: string[];
+    resources: string[];
+    readOnlyOnly: boolean;
+    secretsIncluded: boolean;
+  };
+  readOnlyCommands: Array<{
+    id: string;
+    command: string;
+    purpose: string;
+    phase: string;
+    requiresNetwork: boolean;
+    mutation: boolean;
+    writesEvidence: boolean;
+  }>;
+  approvalGatedCommands: Array<{
+    id: string;
+    command: string;
+    phase: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  }>;
+  adminRequests: string[];
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
@@ -1648,6 +1703,8 @@ export interface OpsLensAdminOverviewResponse {
     handoff: OpsLensLiveEvidenceHandoffSummary;
     ocpNetworkHandoff: OpsLensOcpNetworkHandoffReadiness;
     networkHandoff: OpsLensOcpNetworkHandoffSummary;
+    ocpAuthRbacPlan: OpsLensOcpAuthRbacPlanReadiness;
+    authRbacPlan: OpsLensOcpAuthRbacPlanSummary;
     certification: "not-started" | "draft" | "ready";
     evidence: string[];
   };

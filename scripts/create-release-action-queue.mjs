@@ -15,6 +15,7 @@ const defaults = {
   externalRuntimeReviewPacket:
     "test-results/cywell-opslens-external-runtime-review-packet.json",
   ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
+  ocpAuthRbacPlan: "test-results/cywell-opslens-ocp-auth-rbac-plan.json",
   releasePlanEvidence: "test-results/cywell-opslens-release-publish-plan.json",
   installPlanEvidence: "test-results/cywell-opslens-install-approval-plan.json",
   timeoutMs: 10000
@@ -49,6 +50,8 @@ const options = {
     defaults.externalRuntimeReviewPacket,
   ocpNetworkHandoff:
     parsed.get("ocp-network-handoff-evidence") ?? defaults.ocpNetworkHandoff,
+  ocpAuthRbacPlan:
+    parsed.get("ocp-auth-rbac-plan-evidence") ?? defaults.ocpAuthRbacPlan,
   releasePlanEvidence:
     parsed.get("release-plan-evidence") ?? defaults.releasePlanEvidence,
   installPlanEvidence:
@@ -264,8 +267,16 @@ function readOnlyCommands(artifacts) {
     mutation: command.mutation === true,
     writesLocalEvidence: command.writesEvidence === true || command.writesLocalEvidence === true
   }));
+  const ocpAuthRbacCommands = (artifacts.ocpAuthRbacPlan?.readOnlyCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "ocp-auth-rbac-plan",
+    command: sanitize(command.command ?? "unknown"),
+    purpose: sanitize(command.purpose ?? "OCP auth/RBAC approval evidence command"),
+    mutation: command.mutation === true,
+    writesLocalEvidence: command.writesEvidence === true || command.writesLocalEvidence === true
+  }));
   return uniqueByKey(
-    [...fixedReadOnlyCommands(), ...externalCommands, ...networkCommands, ...bundleCommands],
+    [...fixedReadOnlyCommands(), ...externalCommands, ...networkCommands, ...ocpAuthRbacCommands, ...bundleCommands],
     (command) => `${command.id}:${command.command}`
   );
 }
@@ -275,6 +286,7 @@ function approvalGatedCommands(artifacts) {
     [
       ...(artifacts.releaseBundle?.commands?.mutatingApprovalRequired ?? []),
       ...(artifacts.externalRuntimeReview?.approvalGatedCommands ?? []),
+      ...(artifacts.ocpAuthRbacPlan?.approvalGatedCommands ?? []),
       ...(artifacts.releasePlan?.commands ?? []).filter((command) => command.mutation === true),
       ...(artifacts.installPlan?.commands ?? []).filter((command) => command.mutation === true)
     ].map((command) => ({
@@ -510,13 +522,53 @@ function networkItems(networkHandoff) {
   ];
 }
 
+function ocpAuthRbacItems(authRbacPlan) {
+  if (!authRbacPlan || ["READY_FOR_LIVE_CHECK", "PASS"].includes(authRbacPlan.status)) {
+    return [];
+  }
+  const classification = authRbacPlan.diagnostics?.classification ?? "unknown";
+  if (authRbacPlan.status === "AUTH_RBAC_APPROVAL_REQUIRED") {
+    return [
+      item({
+        id: "cluster-admin-approve-ocp-live-reader-rbac",
+        owner: "cluster-admin",
+        priority: "blocker",
+        source: "ocpAuthRbacPlan",
+        request:
+          (authRbacPlan.adminRequests ?? []).join(" ") ||
+          "Review and approve the Cywell OpsLens live evidence reader RBAC manifest for the current OCP auth/RBAC gap.",
+        evidenceNeeded:
+          `OCP auth/RBAC plan classification=${classification}; manifest excludes secrets, grants only get/list/watch, dry-run/can-i evidence passes, and connectivity becomes api-ready.`,
+        nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+        blockedBy: authRbacPlan.missingEvidence ?? [],
+        acceptance: ["AC-OCP-001", "AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
+      })
+    ];
+  }
+  return [
+    item({
+      id: "cluster-admin-review-ocp-auth-rbac-plan-gap",
+      owner: authLikeOcpClassification(classification) ? "cluster-admin" : "cluster-sre",
+      priority: authLikeOcpClassification(classification) ? "blocker" : "high",
+      source: "ocpAuthRbacPlan",
+      request: `Review OCP auth/RBAC plan status=${authRbacPlan.status ?? "unknown"} classification=${classification}.`,
+      evidenceNeeded:
+        "OCP auth/RBAC plan reaches READY_FOR_LIVE_CHECK or AUTH_RBAC_APPROVAL_REQUIRED with clean read-only RBAC validation.",
+      nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+      blockedBy: authRbacPlan.missingEvidence ?? [],
+      acceptance: ["AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
+    })
+  ];
+}
+
 function buildItems(artifacts) {
   return uniqueByKey(
     [
       ...checkpointItems(artifacts.checkpoint, artifacts.ocpNetworkHandoff),
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
       ...bundleDecisionItems(artifacts.releaseBundle),
-      ...networkItems(artifacts.ocpNetworkHandoff)
+      ...networkItems(artifacts.ocpNetworkHandoff),
+      ...ocpAuthRbacItems(artifacts.ocpAuthRbacPlan)
     ],
     (entry) => `${entry.id}:${entry.owner}`
   );
@@ -616,6 +668,7 @@ async function main() {
     checkpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint", true),
     externalRuntimeReview: loadJson(options.externalRuntimeReviewPacket, "external runtime review packet", false),
     ocpNetworkHandoff: loadJson(options.ocpNetworkHandoff, "OCP network handoff", false),
+    ocpAuthRbacPlan: loadJson(options.ocpAuthRbacPlan, "OCP auth/RBAC plan", false),
     releasePlan: loadJson(options.releasePlanEvidence, "release publish plan", false),
     installPlan: loadJson(options.installPlanEvidence, "install approval plan", false)
   };
@@ -625,6 +678,7 @@ async function main() {
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.checkpoint, headSha, true),
     sourceSummary("externalRuntimeReviewPacket", "external runtime review packet", options.externalRuntimeReviewPacket, artifacts.externalRuntimeReview, headSha),
     sourceSummary("ocpNetworkHandoff", "OCP network handoff", options.ocpNetworkHandoff, artifacts.ocpNetworkHandoff, headSha),
+    sourceSummary("ocpAuthRbacPlan", "OCP auth/RBAC plan", options.ocpAuthRbacPlan, artifacts.ocpAuthRbacPlan, headSha),
     sourceSummary("releasePlan", "release publish plan", options.releasePlanEvidence, artifacts.releasePlan, headSha),
     sourceSummary("installPlan", "install approval plan", options.installPlanEvidence, artifacts.installPlan, headSha)
   ];
@@ -661,7 +715,10 @@ async function main() {
       artifacts.releaseBundle?.mutationAllowedByThisVerifier !== true &&
       artifacts.releaseBundle?.mutationBoundary?.passed !== false &&
       artifacts.checkpoint?.registryMutationAttempted !== true &&
-      artifacts.checkpoint?.clusterMutationAttempted !== true,
+      artifacts.checkpoint?.clusterMutationAttempted !== true &&
+      artifacts.ocpAuthRbacPlan?.registryMutationAttempted !== true &&
+      artifacts.ocpAuthRbacPlan?.clusterMutationAttempted !== true &&
+      artifacts.ocpAuthRbacPlan?.mutationAllowedByThisVerifier !== true,
     sourceMutationViolations: sourceArtifacts
       .filter((source) => source.mutationViolation)
       .map((source) => source.id)

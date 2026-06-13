@@ -196,6 +196,7 @@ export function OpsLensAdminDashboard() {
   const checkpoint = overview?.installReadiness.checkpoint;
   const liveHandoff = overview?.installReadiness.handoff;
   const networkHandoff = overview?.installReadiness.networkHandoff;
+  const authRbacPlan = overview?.installReadiness.authRbacPlan;
   const ocpConnectivity = overview?.installReadiness.connectivity;
   const lightspeedMcp = overview?.lightspeed.mcp;
   const validationFailed = validation?.issues.some(
@@ -913,6 +914,8 @@ export function OpsLensAdminDashboard() {
                   "Live Handoff": overview.installReadiness.liveHandoff,
                   "Network Handoff":
                     overview.installReadiness.ocpNetworkHandoff,
+                  "Auth/RBAC Plan":
+                    overview.installReadiness.ocpAuthRbacPlan,
                   Certification: overview.installReadiness.certification
                 }).map(([label, value]) => (
                   <div key={label}>
@@ -1080,6 +1083,90 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {networkHandoff.rollbackPath[0] ??
                     "Regenerate the handoff after OCP network evidence changes."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {authRbacPlan ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-ocp-auth-rbac-plan"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>OCP Auth/RBAC Plan</h4>
+                  <small>{authRbacPlan.actionMode}</small>
+                </div>
+                <ShieldCheck size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{authRbacPlan.artifactStatus}</span>
+                <span>classification={authRbacPlan.classification}</span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(authRbacPlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(authRbacPlan.registryMutationAttempted)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Reader</span>
+                  <strong>{authRbacPlan.rbac.serviceAccount}</strong>
+                </div>
+                <div>
+                  <span>ClusterRole</span>
+                  <strong>
+                    {authRbacPlan.rbac.clusterRole} rules=
+                    {authRbacPlan.rbac.ruleCount}
+                  </strong>
+                </div>
+                <div>
+                  <span>Policy</span>
+                  <strong>
+                    readOnly={String(authRbacPlan.rbac.readOnlyOnly)},
+                    secrets={String(authRbacPlan.rbac.secretsIncluded)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Commands</span>
+                  <strong>
+                    readOnly={authRbacPlan.readOnlyCommands.length}, gated=
+                    {authRbacPlan.approvalGatedCommands.length}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-ocp-auth-rbac-plan-commands"
+              >
+                {authRbacPlan.readOnlyCommands.slice(0, 4).map((command) => (
+                  <span key={command.id}>
+                    {command.id} mutation={String(command.mutation)}
+                  </span>
+                ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-ocp-auth-rbac-plan-approval"
+              >
+                {authRbacPlan.approvalGatedCommands.slice(0, 3).map((command) => (
+                  <span key={command.id}>
+                    {command.id} approval=
+                    {String(command.requiresExplicitApproval)}
+                  </span>
+                ))}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {authRbacPlan.risk[0] ??
+                    "Auth/RBAC plan separates fallback reader approval from Operator controller RBAC."}
+                </p>
+                <p>
+                  {authRbacPlan.rollbackPath[0] ??
+                    "Regenerate the auth/RBAC plan after OCP connectivity evidence changes."}
                 </p>
               </div>
             </div>

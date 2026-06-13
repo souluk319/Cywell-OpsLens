@@ -23,6 +23,7 @@ const defaults = {
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
   ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
+  ocpAuthRbacPlan: "test-results/cywell-opslens-ocp-auth-rbac-plan.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   timeoutMs: 10000
@@ -68,6 +69,8 @@ const options = {
   liveHandoff: parsed.get("live-handoff-evidence") ?? defaults.liveHandoff,
   ocpNetworkHandoff:
     parsed.get("ocp-network-handoff-evidence") ?? defaults.ocpNetworkHandoff,
+  ocpAuthRbacPlan:
+    parsed.get("ocp-auth-rbac-plan-evidence") ?? defaults.ocpAuthRbacPlan,
   evidenceCheckpoint:
     parsed.get("evidence-checkpoint") ?? defaults.evidenceCheckpoint,
   roadmapPlan: parsed.get("roadmap-plan-evidence") ?? defaults.roadmapPlan,
@@ -230,6 +233,21 @@ function commandSummary(artifacts) {
     mutation: command.mutation === true,
     requiresExplicitApproval: false
   }));
+  const ocpAuthRbacCommands = (artifacts.ocpAuthRbacPlan?.readOnlyCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "unknown",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: false,
+    writesLocalEvidence: command.writesEvidence === true
+  }));
+  const ocpAuthRbacApprovalCommands = (artifacts.ocpAuthRbacPlan?.approvalGatedCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "unknown",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: command.requiresExplicitApproval === true
+  }));
   const externalRuntimeReviewCommands = (artifacts.externalRuntimeReviewPacket?.readOnlyCommands ?? []).map((command) => ({
     id: command.id ?? "unknown",
     phase: command.phase ?? "unknown",
@@ -283,9 +301,9 @@ function commandSummary(artifacts) {
       writesLocalEvidence: command.writesLocalEvidence === true
     }));
   return {
-    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...networkHandoffCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...securityCommands, ...securityRunnerCommands]
+    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...networkHandoffCommands, ...ocpAuthRbacCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...securityCommands, ...securityRunnerCommands]
       .filter((command) => command.mutation === false),
-    mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...externalRuntimeApprovalCommands]
+    mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...ocpAuthRbacApprovalCommands, ...externalRuntimeApprovalCommands]
       .filter((command) => command.mutation === true),
     forbiddenWithoutApproval: [
       "oc apply",
@@ -374,7 +392,10 @@ function mutationBoundary(artifacts) {
     ["liveHandoff.registryMutationAttempted", artifacts.liveHandoff?.registryMutationAttempted],
     ["ocpNetworkHandoff.clusterMutationAttempted", artifacts.ocpNetworkHandoff?.clusterMutationAttempted],
     ["ocpNetworkHandoff.registryMutationAttempted", artifacts.ocpNetworkHandoff?.registryMutationAttempted],
-    ["ocpNetworkHandoff.mutationAllowedByThisVerifier", artifacts.ocpNetworkHandoff?.mutationAllowedByThisVerifier]
+    ["ocpNetworkHandoff.mutationAllowedByThisVerifier", artifacts.ocpNetworkHandoff?.mutationAllowedByThisVerifier],
+    ["ocpAuthRbacPlan.clusterMutationAttempted", artifacts.ocpAuthRbacPlan?.clusterMutationAttempted],
+    ["ocpAuthRbacPlan.registryMutationAttempted", artifacts.ocpAuthRbacPlan?.registryMutationAttempted],
+    ["ocpAuthRbacPlan.mutationAllowedByThisVerifier", artifacts.ocpAuthRbacPlan?.mutationAllowedByThisVerifier]
   ];
   return {
     passed: flags.every(([, value]) => value !== true),
@@ -426,7 +447,8 @@ function evidenceGaps(artifacts, sources) {
     ...(artifacts.securityScan?.missingEvidence ?? []),
     ...(artifacts.securityScanRunner?.missingEvidence ?? []),
     ...(artifacts.liveHandoff?.missingEvidence ?? []),
-    ...(artifacts.ocpNetworkHandoff?.missingEvidence ?? [])
+    ...(artifacts.ocpNetworkHandoff?.missingEvidence ?? []),
+    ...(artifacts.ocpAuthRbacPlan?.missingEvidence ?? [])
   ]);
 }
 
@@ -612,6 +634,7 @@ async function main() {
     installPlan: loadJson(options.installPlan, "install approval plan"),
     liveHandoff: loadJson(options.liveHandoff, "live evidence handoff"),
     ocpNetworkHandoff: loadJson(options.ocpNetworkHandoff, "OCP network handoff"),
+    ocpAuthRbacPlan: loadJson(options.ocpAuthRbacPlan, "OCP auth/RBAC plan"),
     evidenceCheckpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint"),
     roadmapPlan: loadJson(options.roadmapPlan, "roadmap plan alignment")
   };
@@ -630,6 +653,7 @@ async function main() {
     sourceSummary("installPlan", "install approval plan", options.installPlan, artifacts.installPlan, headSha, ["APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("liveHandoff", "live evidence handoff", options.liveHandoff, artifacts.liveHandoff, headSha, ["PASS"]),
     sourceSummary("ocpNetworkHandoff", "OCP network handoff", options.ocpNetworkHandoff, artifacts.ocpNetworkHandoff, headSha, ["READY_FOR_NETWORK_REVIEW", "READY_FOR_LIVE_RECHECK", "PASS"]),
+    sourceSummary("ocpAuthRbacPlan", "OCP auth/RBAC plan", options.ocpAuthRbacPlan, artifacts.ocpAuthRbacPlan, headSha, ["READY_FOR_LIVE_CHECK", "AUTH_RBAC_APPROVAL_REQUIRED", "WAITING_FOR_CONNECTIVITY"]),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.evidenceCheckpoint, headSha, ["PASS", "NEEDS_EVIDENCE"]),
     sourceSummary("roadmapPlan", "roadmap plan alignment", options.roadmapPlan, artifacts.roadmapPlan, headSha, ["PASS", "NEEDS_EVIDENCE"])
   ];
@@ -841,6 +865,48 @@ async function main() {
       })),
       missingEvidence: artifacts.ocpNetworkHandoff?.missingEvidence ?? []
     },
+    ocpAuthRbacPlan: {
+      status: artifacts.ocpAuthRbacPlan?.status ?? "missing",
+      actionMode: artifacts.ocpAuthRbacPlan?.actionMode ?? "missing",
+      classification:
+        artifacts.ocpAuthRbacPlan?.diagnostics?.classification ?? "missing",
+      target: {
+        host: artifacts.ocpAuthRbacPlan?.target?.host ?? "missing",
+        port: artifacts.ocpAuthRbacPlan?.target?.port ?? "missing",
+        redactedBaseUrl:
+          artifacts.ocpAuthRbacPlan?.target?.redactedBaseUrl ?? "missing"
+      },
+      markdownOut: artifacts.ocpAuthRbacPlan?.markdownOut ?? "missing",
+      preferredCredentialMode:
+        artifacts.ocpAuthRbacPlan?.preferredCredentialMode ?? "missing",
+      fallbackCredentialMode:
+        artifacts.ocpAuthRbacPlan?.fallbackCredentialMode ?? "missing",
+      rbac: {
+        serviceAccount:
+          `${artifacts.ocpAuthRbacPlan?.rbac?.serviceAccount?.namespace ?? "missing"}/${artifacts.ocpAuthRbacPlan?.rbac?.serviceAccount?.name ?? "missing"}`,
+        clusterRole:
+          artifacts.ocpAuthRbacPlan?.rbac?.clusterRole?.name ?? "missing",
+        ruleCount:
+          artifacts.ocpAuthRbacPlan?.rbac?.clusterRole?.ruleCount ?? 0,
+        readOnlyOnly:
+          artifacts.ocpAuthRbacPlan?.rbac?.clusterRole?.readOnlyOnly === true,
+        secretsIncluded:
+          artifacts.ocpAuthRbacPlan?.rbac?.clusterRole?.secretsIncluded === true
+      },
+      readOnlyCommands: (artifacts.ocpAuthRbacPlan?.readOnlyCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        phase: command.phase ?? "unknown",
+        requiresNetwork: command.requiresNetwork === true,
+        mutation: command.mutation === true
+      })),
+      approvalGatedCommands: (artifacts.ocpAuthRbacPlan?.approvalGatedCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        phase: command.phase ?? "unknown",
+        mutation: command.mutation === true,
+        requiresExplicitApproval: command.requiresExplicitApproval === true
+      })),
+      missingEvidence: artifacts.ocpAuthRbacPlan?.missingEvidence ?? []
+    },
     commands,
     mutationBoundary: mutations,
     missingEvidence,
@@ -857,6 +923,7 @@ async function main() {
       ...(artifacts.securityScanRunner?.risk ?? []),
       ...(artifacts.liveHandoff?.risk ?? []),
       ...(artifacts.ocpNetworkHandoff?.risk ?? []),
+      ...(artifacts.ocpAuthRbacPlan?.risk ?? []),
       "This bundle is a read-only release packet. It does not publish images, install Operators, patch OLSConfig, or approve RAG ingestion."
     ]),
     rollbackPath: unique([
@@ -867,6 +934,7 @@ async function main() {
       ...(artifacts.securityScanRunner?.rollbackPath ?? []),
       ...(artifacts.liveHandoff?.rollbackPath ?? []),
       ...(artifacts.ocpNetworkHandoff?.rollbackPath ?? []),
+      ...(artifacts.ocpAuthRbacPlan?.rollbackPath ?? []),
       "Regenerate this bundle after any source evidence artifact changes."
     ]),
     evidence: [
