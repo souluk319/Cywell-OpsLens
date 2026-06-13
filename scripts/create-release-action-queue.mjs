@@ -771,6 +771,56 @@ function bundleDecisionItems(bundle) {
   return items;
 }
 
+function catalogToolchainItems(bundle) {
+  const catalog = bundle?.catalogToolchain;
+  if (!catalog || catalog.registryBaseReadable === true) return [];
+
+  const catalogReadOnlyCommands = [
+    ...(catalog.readOnlyCommands ?? []),
+    ...(catalog.localArtifactCommands ?? []),
+    ...(bundle?.commands?.readOnly ?? [])
+  ];
+  const readOnlyCommands = uniqueByKey(
+    catalogReadOnlyCommands.filter((command) =>
+      [
+        "registry-base-inspect",
+        "refresh-catalog-toolchain-evidence",
+        "catalog-local-build"
+      ].includes(command.id)
+    ),
+    (command) => `${command.id}:${command.command}`
+  );
+  const setupCommands = (catalog.setupCommands ?? [])
+    .filter((command) => command.id === "registry-login")
+    .map((command) => ({
+      ...command,
+      requiresHumanApproval:
+        command.requiresHumanApproval === true ||
+        command.requiresHumanSecretInput === true
+    }));
+  const blockedBy = (bundle?.missingEvidence ?? []).filter((entry) =>
+    /registry\.redhat\.io|catalog actual image build|catalog local build|base image manifest/i.test(entry)
+  );
+
+  return [
+    item({
+      id: "registry-admin-fix-catalog-base-image-auth",
+      owner: "registry-admin",
+      priority: "high",
+      source: "releaseEvidenceBundle:catalogToolchain",
+      request:
+        "Refresh registry.redhat.io credentials so the catalog base image manifest is readable before local catalog build/provenance review.",
+      evidenceNeeded:
+        `registryAuthConfigured=${String(catalog.registryAuthConfigured === true)} registryBaseReadable=${String(catalog.registryBaseReadable === true)}; docker manifest inspect registry.redhat.io/openshift4/ose-operator-registry-rhel9:v4.18 must pass.`,
+      nextCommand: "npm run verify:catalog-toolchain",
+      setupCommands,
+      readOnlyCommands,
+      blockedBy,
+      acceptance: ["AC-CERT-001"]
+    })
+  ];
+}
+
 function networkItems(networkHandoff) {
   if (!networkHandoff || ["READY_FOR_LIVE_RECHECK", "PASS"].includes(networkHandoff.status)) {
     return [];
@@ -855,6 +905,7 @@ function buildItems(artifacts) {
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
       ...securityScanItems(artifacts.securityScanPlan),
       ...bundleDecisionItems(artifacts.releaseBundle),
+      ...catalogToolchainItems(artifacts.releaseBundle),
       ...networkItems(artifacts.ocpNetworkHandoff),
       ...ocpAuthRbacItems(artifacts.ocpAuthRbacPlan)
     ],

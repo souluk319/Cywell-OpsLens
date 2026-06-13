@@ -2649,6 +2649,33 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         )
       ).toBe(true);
     }
+    const catalogRegistryAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "registry-admin-fix-catalog-base-image-auth"
+      );
+    if (
+      body.installReadiness?.bundle?.missingEvidence?.some((entry) =>
+        entry.includes("registry.redhat.io base image manifest")
+      )
+    ) {
+      expect(catalogRegistryAction?.owner).toBe("registry-admin");
+      expect(catalogRegistryAction?.evidenceNeeded).toContain(
+        "registryBaseReadable=false"
+      );
+      expect(catalogRegistryAction?.nextCommand).toContain(
+        "verify:catalog-toolchain"
+      );
+      expect(catalogRegistryAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
+        expect.arrayContaining([
+          "registry-base-inspect",
+          "refresh-catalog-toolchain-evidence",
+          "catalog-local-build"
+        ])
+      );
+      expect(catalogRegistryAction?.setupCommands?.map((command) => command.id)).toEqual(
+        expect.arrayContaining(["registry-login"])
+      );
+    }
     expect(
       body.installReadiness?.actionQueue?.commandCounts?.readOnly ?? 0
     ).toBeGreaterThan(0);
@@ -3435,6 +3462,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-security-review-actions")
     ).toContainText("sign-owned-operator");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
+    ).toContainText(/registry-admin-fix-catalog-base-image-auth|catalog registry actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
+    ).toContainText(/registry-base-inspect|catalog registry actions clear/);
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "localEvidenceRefresh"
     );

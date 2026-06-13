@@ -201,6 +201,10 @@ export function OpsLensAdminDashboard() {
     releaseActionQueue?.items.filter((entry) =>
       entry.id.startsWith("security-review-")
     ) ?? [];
+  const releaseCatalogRegistryActions =
+    releaseActionQueue?.items.filter((entry) =>
+      entry.id.includes("catalog-base-image")
+    ) ?? [];
   const releaseActionQueuePacketName =
     releaseActionQueue?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const checkpoint = overview?.installReadiness.checkpoint;
@@ -1823,6 +1827,28 @@ export function OpsLensAdminDashboard() {
                   ))
                 ) : (
                   <span>security review actions clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-catalog-registry-actions"
+              >
+                {releaseCatalogRegistryActions.length > 0 ? (
+                  releaseCatalogRegistryActions.map((entry) => (
+                    <span key={entry.id}>
+                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
+                      :readOnly=
+                      {entry.readOnlyCommands
+                        .map((command) => command.id)
+                        .join(", ")}
+                      :setup=
+                      {entry.setupCommands
+                        .map((command) => command.id)
+                        .join(", ")}
+                    </span>
+                  ))
+                ) : (
+                  <span>catalog registry actions clear</span>
                 )}
               </div>
               <div className="remediation-notes">
