@@ -20,6 +20,16 @@ This directory holds human-reviewed vulnerability scan, SBOM, signature, and pro
 - Release approval must confirm unresolved Critical findings are zero before any external publication.
 - Signature and registry attachment commands remain approval-gated; local evidence generation does not sign, push, mirror, or mutate a cluster.
 
+## Draft Helper
+
+Use the draft helper after local scan and SBOM files exist. It writes ignored `*.draft.json` review packets and never creates final release evidence:
+
+```bash
+npm run evidence:security-review:draft -- --name operator --reviewer <security-reviewer> --ticket <change-ticket> --force
+```
+
+A human reviewer must still create the final `operator-security-review.json`, `api-security-review.json`, or matching image-specific final file after validating the scan/SBOM inputs.
+
 ## Suggested Artifact Names
 
 - `operator-vulnerability.json`

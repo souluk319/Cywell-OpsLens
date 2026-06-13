@@ -42,6 +42,7 @@
     "verify:live-handoff": "node ./scripts/verify-live-evidence-handoff.mjs",
     "verify:external-runtime-plan": "node ./scripts/verify-external-runtime-images-plan.mjs",
     "evidence:external-runtime:draft": "node ./scripts/create-external-runtime-evidence-draft.mjs",
+    "evidence:security-review:draft": "node ./scripts/create-security-review-evidence-draft.mjs",
     "verify:release-plan": "node ./scripts/verify-release-publish-plan.mjs",
     "verify:release-evidence-bundle": "node ./scripts/verify-release-evidence-bundle.mjs",
     "verify:release-refresh": "node ./scripts/refresh-release-evidence-chain.mjs",
