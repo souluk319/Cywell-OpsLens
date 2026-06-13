@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 
 const args = new Set(process.argv.slice(2));
 const skipE2E = args.has("--skip-e2e");
+const skipImages = args.has("--skip-images");
 const failFast = args.has("--fail-fast");
 
 const steps = [
@@ -139,7 +140,11 @@ const steps = [
     acceptance: ["AC-CERT-001"],
     purpose: "Verify Operator, API, dashboard, bundle, and catalog image build readiness without pushing images."
   }
-].filter((step) => !(skipE2E && step.id === "E2E"));
+].filter((step) => {
+  if (skipE2E && step.id === "E2E") return false;
+  if (skipImages && step.id === "IMAGES") return false;
+  return true;
+});
 
 function formatCommand(step) {
   return [step.command, ...step.args].join(" ");
@@ -270,6 +275,9 @@ async function main() {
   if (skipE2E) {
     console.log("[MVP-GATE] --skip-e2e enabled; UI/API acceptance lanes are not fully covered.");
   }
+  if (skipImages) {
+    console.log("[MVP-GATE] --skip-images enabled; release refresh will own image readiness evidence.");
+  }
 
   for (const step of steps) {
     const result = await runStep(step);
@@ -292,7 +300,8 @@ async function main() {
     startedAt,
     finishedAt: new Date().toISOString(),
     skipped: {
-      e2e: skipE2E
+      e2e: skipE2E,
+      images: skipImages
     },
     status: failed.length === 0 ? "PASS" : "FAIL",
     results: results.map((result) => ({

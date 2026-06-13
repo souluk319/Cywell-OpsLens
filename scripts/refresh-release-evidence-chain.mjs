@@ -172,8 +172,12 @@ function npmScript(id, phase, script, args = [], extra = {}) {
 }
 
 function buildChain() {
+  const mvpGateArgs = [
+    ...(options.withE2e ? [] : ["--skip-e2e"]),
+    "--skip-images"
+  ];
   const commands = [
-    npmScript("mvp-gate", "core", "verify:mvp", options.withE2e ? [] : ["--skip-e2e"]),
+    npmScript("mvp-gate", "core", "verify:mvp", mvpGateArgs),
     npmScript("runtime-readiness", "core", "verify:runtime"),
     npmScript("runtime-rag", "core", "verify:runtime-rag"),
     npmScript("runtime-rag-fixture", "core", "verify:runtime-rag:fixture"),
@@ -429,6 +433,7 @@ async function main() {
     localDockerBuildAllowed: !options.skipImageBuild,
     options: {
       withE2e: options.withE2e,
+      mvpGateSkipsImages: true,
       skipImageBuild: options.skipImageBuild,
       skipLive: options.skipLive,
       securityScanDocker: options.securityScanDocker,
