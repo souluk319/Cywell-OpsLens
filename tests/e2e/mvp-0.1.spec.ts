@@ -1285,6 +1285,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             owner?: string;
             priority?: string;
             nextCommand?: string;
+            handoffNextCommands?: string[];
+            setupCommands?: Array<{ id?: string; mutation?: boolean }>;
+            missingRequiredTools?: string[];
           }>;
           sourceArtifacts?: Array<{
             id?: string;
@@ -2143,6 +2146,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     if (ocpAuthAction) {
       expect(ocpAuthAction.nextCommand).toContain("evidence:ocp-auth-rbac-plan");
     }
+    const certificationToolingAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "release-manager-complete-certification-tooling"
+      );
+    if (certificationToolingAction) {
+      expect(certificationToolingAction.missingRequiredTools).toEqual(
+        expect.arrayContaining(["opm", "operator-sdk"])
+      );
+      expect(
+        certificationToolingAction.handoffNextCommands?.join(" ")
+      ).toContain("verify:certification");
+      expect(
+        certificationToolingAction.setupCommands?.every(
+          (command) => command.mutation === false
+        )
+      ).toBe(true);
+    }
     expect(
       body.installReadiness?.actionQueue?.commandCounts?.readOnly ?? 0
     ).toBeGreaterThan(0);
@@ -2797,6 +2817,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-items")
     ).toContainText("npm run evidence:ocp-auth-rbac-plan");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-tooling-handoff")
+    ).toContainText("opm");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-tooling-handoff")
+    ).toContainText("operator-sdk");
     await expect(
       page.getByTestId("opslens-release-action-queue-candidate-actions")
     ).toContainText("evidence:external-runtime:candidate-scan");

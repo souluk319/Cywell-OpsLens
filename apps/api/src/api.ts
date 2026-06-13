@@ -1737,6 +1737,16 @@ type ReleaseActionQueueArtifact = {
     request?: string;
     evidenceNeeded?: string;
     nextCommand?: string;
+    handoffNextCommands?: string[];
+    setupCommands?: Array<{
+      id?: string;
+      command?: string;
+      phase?: string;
+      mutation?: boolean;
+      requiresNetwork?: boolean;
+      requiresHumanApproval?: boolean;
+    }>;
+    missingRequiredTools?: string[];
   }>;
   sourceArtifacts?: Array<{
     id?: string;
@@ -4613,7 +4623,17 @@ function getReleaseActionQueueReadiness(): {
       source: entry.source ?? "unknown",
       request: entry.request ?? "missing request",
       evidenceNeeded: entry.evidenceNeeded ?? "missing evidence",
-      nextCommand: entry.nextCommand ?? "not listed"
+      nextCommand: entry.nextCommand ?? "not listed",
+      handoffNextCommands: entry.handoffNextCommands ?? [],
+      setupCommands: (entry.setupCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        command: command.command ?? "unknown",
+        phase: command.phase ?? "human-setup",
+        mutation: command.mutation === true,
+        requiresNetwork: command.requiresNetwork === true,
+        requiresHumanApproval: command.requiresHumanApproval === true
+      })),
+      missingRequiredTools: entry.missingRequiredTools ?? []
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
       id: source.id ?? "unknown",

@@ -1505,6 +1505,16 @@ export interface OpsLensReleaseActionQueueSummary {
     request: string;
     evidenceNeeded: string;
     nextCommand: string;
+    handoffNextCommands: string[];
+    setupCommands: Array<{
+      id: string;
+      command: string;
+      phase: string;
+      mutation: boolean;
+      requiresNetwork: boolean;
+      requiresHumanApproval: boolean;
+    }>;
+    missingRequiredTools: string[];
   }>;
   sourceArtifacts: Array<{
     id: string;

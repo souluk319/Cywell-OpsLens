@@ -12,6 +12,8 @@ const defaults = {
   markdownOut: "test-results/cywell-opslens-release-action-queue.md",
   releaseBundleEvidence: "test-results/cywell-opslens-release-evidence-bundle.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
+  certificationReadiness:
+    "test-results/cywell-opslens-certification-readiness.json",
   externalRuntimeReviewPacket:
     "test-results/cywell-opslens-external-runtime-review-packet.json",
   ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
@@ -45,6 +47,9 @@ const options = {
   releaseBundleEvidence:
     parsed.get("release-bundle-evidence") ?? defaults.releaseBundleEvidence,
   evidenceCheckpoint: parsed.get("evidence-checkpoint") ?? defaults.evidenceCheckpoint,
+  certificationReadiness:
+    parsed.get("certification-readiness-evidence") ??
+    defaults.certificationReadiness,
   externalRuntimeReviewPacket:
     parsed.get("external-runtime-review-packet-evidence") ??
     defaults.externalRuntimeReviewPacket,
@@ -275,8 +280,16 @@ function readOnlyCommands(artifacts) {
     mutation: command.mutation === true,
     writesLocalEvidence: command.writesEvidence === true || command.writesLocalEvidence === true
   }));
+  const certificationToolingCommands = (artifacts.certificationReadiness?.toolingHandoff?.readOnlyCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "certification-tooling",
+    command: sanitize(command.command ?? "unknown"),
+    purpose: "Certification tooling handoff read-only validation command",
+    mutation: command.mutation === true,
+    writesLocalEvidence: /verify:certification|verify:catalog-toolchain/i.test(command.command ?? "")
+  }));
   return uniqueByKey(
-    [...fixedReadOnlyCommands(), ...externalCommands, ...networkCommands, ...ocpAuthRbacCommands, ...bundleCommands],
+    [...fixedReadOnlyCommands(), ...externalCommands, ...networkCommands, ...ocpAuthRbacCommands, ...certificationToolingCommands, ...bundleCommands],
     (command) => `${command.id}:${command.command}`
   );
 }
@@ -287,6 +300,7 @@ function approvalGatedCommands(artifacts) {
       ...(artifacts.releaseBundle?.commands?.mutatingApprovalRequired ?? []),
       ...(artifacts.externalRuntimeReview?.approvalGatedCommands ?? []),
       ...(artifacts.ocpAuthRbacPlan?.approvalGatedCommands ?? []),
+      ...(artifacts.certificationReadiness?.toolingHandoff?.approvalGatedCommands ?? []),
       ...(artifacts.releasePlan?.commands ?? []).filter((command) => command.mutation === true),
       ...(artifacts.installPlan?.commands ?? []).filter((command) => command.mutation === true)
     ].map((command) => ({
@@ -310,6 +324,9 @@ function item({
   request,
   evidenceNeeded,
   nextCommand,
+  handoffNextCommands = [],
+  setupCommands = [],
+  missingRequiredTools = [],
   blockedBy = [],
   acceptance = []
 }) {
@@ -322,6 +339,16 @@ function item({
     request: sanitize(request),
     evidenceNeeded: sanitize(evidenceNeeded),
     nextCommand,
+    handoffNextCommands: handoffNextCommands.map(sanitize),
+    setupCommands: setupCommands.map((command) => ({
+      id: sanitize(command.id ?? "unknown"),
+      command: sanitize(command.command ?? "unknown"),
+      phase: sanitize(command.phase ?? "human-setup"),
+      mutation: command.mutation === true,
+      requiresNetwork: command.requiresNetwork === true,
+      requiresHumanApproval: command.requiresHumanApproval === true
+    })),
+    missingRequiredTools: missingRequiredTools.map(sanitize),
     blockedBy: blockedBy.map(sanitize),
     acceptance
   };
@@ -384,7 +411,7 @@ function networkHandoffId(classification) {
   return "network-sre-review-network-handoff";
 }
 
-function checkpointItems(checkpoint, networkHandoff) {
+function checkpointItems(checkpoint, networkHandoff, certificationReadiness) {
   const lanes = checkpoint?.lanes ?? [];
   const byId = new Map(lanes.map((lane) => [lane.id, lane]));
   const items = [];
@@ -421,9 +448,18 @@ function checkpointItems(checkpoint, networkHandoff) {
     id: "release-manager-complete-certification-tooling",
     owner: "release-manager",
     priority: "high",
-    request: "Install or provide approved opm/operator-sdk certification tooling and rerun certification readiness.",
+    request:
+      certificationReadiness?.toolingHandoff?.missingRequiredTools?.length
+        ? `Install or provide approved certification tooling: ${certificationReadiness.toolingHandoff.missingRequiredTools.join(", ")}.`
+        : "Install or provide approved opm/operator-sdk certification tooling and rerun certification readiness.",
     evidenceNeeded: "Certification readiness artifact reaches READY_FOR_REVIEW with current-head packaging/doc checks.",
     nextCommand: "npm run verify:certification",
+    handoffNextCommands:
+      certificationReadiness?.toolingHandoff?.nextCommands ?? [],
+    setupCommands:
+      certificationReadiness?.toolingHandoff?.setupCommands ?? [],
+    missingRequiredTools:
+      certificationReadiness?.toolingHandoff?.missingRequiredTools ?? [],
     acceptance: ["AC-CERT-001"]
   });
   addIfOpen("releasePublish", {
@@ -595,7 +631,7 @@ function ocpAuthRbacItems(authRbacPlan) {
 function buildItems(artifacts) {
   return uniqueByKey(
     [
-      ...checkpointItems(artifacts.checkpoint, artifacts.ocpNetworkHandoff),
+      ...checkpointItems(artifacts.checkpoint, artifacts.ocpNetworkHandoff, artifacts.certificationReadiness),
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
       ...bundleDecisionItems(artifacts.releaseBundle),
       ...networkItems(artifacts.ocpNetworkHandoff),
@@ -661,9 +697,18 @@ function markdownFor(queue) {
       `- Source: ${entry.source}`,
       `- Request: ${entry.request}`,
       `- Evidence needed: ${entry.evidenceNeeded}`,
-      `- Next command: ${entry.nextCommand}`,
-      ""
+      `- Next command: ${entry.nextCommand}`
     );
+    if (entry.missingRequiredTools.length > 0) {
+      lines.push(`- Missing required tools: ${entry.missingRequiredTools.join(", ")}`);
+    }
+    for (const command of entry.handoffNextCommands.slice(0, 4)) {
+      lines.push(`- Handoff next: ${command}`);
+    }
+    for (const command of entry.setupCommands.slice(0, 4)) {
+      lines.push(`- Setup: ${command.id}: ${command.command}`);
+    }
+    lines.push("");
   }
 
   lines.push(
@@ -697,6 +742,7 @@ async function main() {
   const artifacts = {
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
     checkpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint", true),
+    certificationReadiness: loadJson(options.certificationReadiness, "certification readiness", false),
     externalRuntimeReview: loadJson(options.externalRuntimeReviewPacket, "external runtime review packet", false),
     ocpNetworkHandoff: loadJson(options.ocpNetworkHandoff, "OCP network handoff", false),
     ocpAuthRbacPlan: loadJson(options.ocpAuthRbacPlan, "OCP auth/RBAC plan", false),
@@ -707,6 +753,7 @@ async function main() {
   const sourceArtifacts = [
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.checkpoint, headSha, true),
+    sourceSummary("certificationReadiness", "certification readiness", options.certificationReadiness, artifacts.certificationReadiness, headSha),
     sourceSummary("externalRuntimeReviewPacket", "external runtime review packet", options.externalRuntimeReviewPacket, artifacts.externalRuntimeReview, headSha),
     sourceSummary("ocpNetworkHandoff", "OCP network handoff", options.ocpNetworkHandoff, artifacts.ocpNetworkHandoff, headSha),
     sourceSummary("ocpAuthRbacPlan", "OCP auth/RBAC plan", options.ocpAuthRbacPlan, artifacts.ocpAuthRbacPlan, headSha),

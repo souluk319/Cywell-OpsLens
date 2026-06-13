@@ -1495,8 +1495,32 @@ export function OpsLensAdminDashboard() {
                     <strong>{entry.request}</strong>
                     <small>{entry.owner}</small>
                     <small>{entry.nextCommand}</small>
+                    {entry.missingRequiredTools.length ? (
+                      <small>
+                        missing={entry.missingRequiredTools.join(", ")}
+                      </small>
+                    ) : null}
+                    {entry.handoffNextCommands.length ? (
+                      <small>
+                        handoff={entry.handoffNextCommands.slice(0, 2).join(" | ")}
+                      </small>
+                    ) : null}
                   </div>
                 ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-tooling-handoff"
+              >
+                {releaseActionQueue.items
+                  .filter((entry) => entry.missingRequiredTools.length > 0)
+                  .slice(0, 3)
+                  .map((entry) => (
+                    <span key={entry.id}>
+                      {entry.owner}:{entry.missingRequiredTools.join(", ")}:
+                      {entry.setupCommands.map((command) => command.id).join(", ")}
+                    </span>
+                  ))}
               </div>
               <div
                 className="admin-evidence-line"

@@ -284,8 +284,23 @@ function commandSummary(artifacts) {
       mutation: false,
       requiresExplicitApproval: false,
       writesLocalEvidence: true
-    }
+    },
+    ...(artifacts.certificationReadiness?.toolingHandoff?.readOnlyCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      phase: command.phase ?? "certification-tooling",
+      command: command.command ?? "unknown",
+      mutation: command.mutation === true,
+      requiresExplicitApproval: false,
+      writesLocalEvidence: /verify:certification|verify:catalog-toolchain/i.test(command.command ?? "")
+    }))
   ];
+  const certificationApprovalCommands = (artifacts.certificationReadiness?.toolingHandoff?.approvalGatedCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "certification-external-submission",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: command.requiresExplicitApproval === true
+  }));
   const securityCommands = (artifacts.securityScan?.commands?.readOnly ?? []).map((command) => ({
     id: command.id ?? "unknown",
     phase: command.phase ?? "unknown",
@@ -306,7 +321,7 @@ function commandSummary(artifacts) {
   return {
     readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...networkHandoffCommands, ...ocpAuthRbacCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...securityCommands, ...securityRunnerCommands]
       .filter((command) => command.mutation === false),
-    mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...ocpAuthRbacApprovalCommands, ...externalRuntimeApprovalCommands]
+    mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...ocpAuthRbacApprovalCommands, ...externalRuntimeApprovalCommands, ...certificationApprovalCommands]
       .filter((command) => command.mutation === true),
     forbiddenWithoutApproval: [
       "oc apply",
@@ -740,6 +755,29 @@ async function main() {
           tool.requiredForExternalSubmission === true,
         version: tool.version ?? "missing"
       })),
+      toolingHandoff: {
+        actionMode:
+          artifacts.certificationReadiness?.toolingHandoff?.actionMode ??
+          "missing",
+        status:
+          artifacts.certificationReadiness?.toolingHandoff?.status ??
+          "missing",
+        missingRequiredTools:
+          artifacts.certificationReadiness?.toolingHandoff
+            ?.missingRequiredTools ?? [],
+        readOnlyCommands:
+          artifacts.certificationReadiness?.toolingHandoff
+            ?.readOnlyCommands ?? [],
+        setupCommands:
+          artifacts.certificationReadiness?.toolingHandoff?.setupCommands ??
+          [],
+        approvalGatedCommands:
+          artifacts.certificationReadiness?.toolingHandoff
+            ?.approvalGatedCommands ?? [],
+        nextCommands:
+          artifacts.certificationReadiness?.toolingHandoff?.nextCommands ??
+          []
+      },
       documents: artifacts.certificationReadiness?.documents ?? {},
       missingEvidence:
         artifacts.certificationReadiness?.missingEvidence ?? []
