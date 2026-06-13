@@ -1975,7 +1975,27 @@ type LiveEvidenceHandoffArtifact = {
     command?: string;
     ocpClassification?: string;
     requiredRbacAllowed?: boolean;
+    requiredRbacReviewCount?: number;
+    requiredRbacAllowedCount?: number;
+    requiredRbacDeniedCount?: number;
+    requiredRbacUnknownCount?: number;
+    lightspeedClassification?: string;
     lightspeedAuthReady?: boolean;
+    sourceArtifacts?: Array<{
+      id?: string;
+      label?: string;
+      status?: string;
+      fresh?: boolean;
+      required?: boolean;
+      headSha?: string;
+      worktreeDirty?: boolean | string;
+    }>;
+    verifierRuns?: Array<{
+      id?: string;
+      ok?: boolean;
+      skipped?: boolean;
+    }>;
+    missingEvidence?: string[];
   };
   readOnlyCommands?: Array<{
     id?: string;
@@ -5164,7 +5184,15 @@ function missingLiveEvidenceHandoffSummary(
       command: "npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000",
       ocpClassification: "missing",
       requiredRbacAllowed: false,
-      lightspeedAuthReady: false
+      requiredRbacReviewCount: 0,
+      requiredRbacAllowedCount: 0,
+      requiredRbacDeniedCount: 0,
+      requiredRbacUnknownCount: 0,
+      lightspeedClassification: "missing",
+      lightspeedAuthReady: false,
+      sourceArtifacts: [],
+      verifierRuns: [],
+      missingEvidence: [reason]
     },
     readOnlyCommands: [
       {
@@ -5379,8 +5407,37 @@ function getLiveEvidenceHandoffReadiness(): {
             artifact.postApprovalSmoke?.ocpClassification ?? "missing",
           requiredRbacAllowed:
             artifact.postApprovalSmoke?.requiredRbacAllowed === true,
+          requiredRbacReviewCount:
+            artifact.postApprovalSmoke?.requiredRbacReviewCount ?? 0,
+          requiredRbacAllowedCount:
+            artifact.postApprovalSmoke?.requiredRbacAllowedCount ?? 0,
+          requiredRbacDeniedCount:
+            artifact.postApprovalSmoke?.requiredRbacDeniedCount ?? 0,
+          requiredRbacUnknownCount:
+            artifact.postApprovalSmoke?.requiredRbacUnknownCount ?? 0,
+          lightspeedClassification:
+            artifact.postApprovalSmoke?.lightspeedClassification ?? "missing",
           lightspeedAuthReady:
-            artifact.postApprovalSmoke?.lightspeedAuthReady === true
+            artifact.postApprovalSmoke?.lightspeedAuthReady === true,
+          sourceArtifacts: (artifact.postApprovalSmoke?.sourceArtifacts ?? []).map(
+            (source) => ({
+              id: source.id ?? "unknown",
+              label: source.label ?? "unknown",
+              status: source.status ?? "unknown",
+              fresh: source.fresh === true,
+              required: source.required === true,
+              headSha: source.headSha ?? "missing",
+              worktreeDirty: source.worktreeDirty ?? "unknown"
+            })
+          ),
+          verifierRuns: (artifact.postApprovalSmoke?.verifierRuns ?? []).map(
+            (run) => ({
+              id: run.id ?? "unknown",
+              ok: run.ok === true,
+              skipped: run.skipped === true
+            })
+          ),
+          missingEvidence: artifact.postApprovalSmoke?.missingEvidence ?? []
         },
         readOnlyCommands,
         actionHints,
@@ -5393,6 +5450,7 @@ function getLiveEvidenceHandoffReadiness(): {
         `Live evidence handoff ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `handoff currentGap=${artifact.currentGap?.classification ?? "unknown"} commands=${readOnlyCommands.length}`,
         `post-approval smoke=${artifact.postApprovalSmoke?.artifactStatus ?? "missing"} required=${String(artifact.postApprovalSmoke?.requiredAfterAuthRbacApproval ?? false)}`,
+        `post-approval smoke rbac=${artifact.postApprovalSmoke?.requiredRbacAllowedCount ?? 0}/${artifact.postApprovalSmoke?.requiredRbacReviewCount ?? 0} unknown=${artifact.postApprovalSmoke?.requiredRbacUnknownCount ?? 0} lightspeedAuthReady=${String(artifact.postApprovalSmoke?.lightspeedAuthReady ?? false)}`,
         `actionMode=${artifact.actionMode ?? "unknown"} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")} registryMutationAttempted=${String(artifact.registryMutationAttempted ?? "unknown")}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads live handoff evidence only; it does not run live checks or mutating commands"

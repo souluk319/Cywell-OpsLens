@@ -1734,7 +1734,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             command?: string;
             ocpClassification?: string;
             requiredRbacAllowed?: boolean;
+            requiredRbacReviewCount?: number;
+            requiredRbacAllowedCount?: number;
+            requiredRbacDeniedCount?: number;
+            requiredRbacUnknownCount?: number;
+            lightspeedClassification?: string;
             lightspeedAuthReady?: boolean;
+            sourceArtifacts?: Array<{
+              id?: string;
+              status?: string;
+              fresh?: boolean;
+            }>;
+            verifierRuns?: Array<{
+              id?: string;
+              ok?: boolean;
+              skipped?: boolean;
+            }>;
+            missingEvidence?: string[];
           };
           readOnlyCommands?: Array<{
             id?: string;
@@ -3050,6 +3066,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       command: "npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000"
     });
     expect(
+      body.installReadiness?.handoff?.postApprovalSmoke?.requiredRbacReviewCount
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      body.installReadiness?.handoff?.postApprovalSmoke
+        ?.requiredRbacAllowedCount
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      body.installReadiness?.handoff?.postApprovalSmoke
+        ?.requiredRbacUnknownCount
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      body.installReadiness?.handoff?.postApprovalSmoke?.sourceArtifacts?.map(
+        (source) => source.id
+      )
+    ).toEqual(expect.arrayContaining(["ocpConnectivity"]));
+    expect(
+      body.installReadiness?.handoff?.postApprovalSmoke?.verifierRuns?.map(
+        (run) => run.id
+      )
+    ).toEqual(
+      expect.arrayContaining(["verify OCP connectivity with approved reader"])
+    );
+    expect(
       body.installReadiness?.handoff?.readOnlyCommands?.map(
         (command) => command.id
       )
@@ -3484,6 +3523,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-live-handoff")).toContainText(
       "ocp-live-reader-smoke"
     );
+    await expect(
+      page.getByTestId("opslens-live-handoff-post-approval-smoke")
+    ).toContainText("rbac=");
+    await expect(
+      page.getByTestId("opslens-live-handoff-post-approval-smoke")
+    ).toContainText("unknown=");
+    await expect(
+      page.getByTestId("opslens-live-handoff-post-approval-smoke")
+    ).toContainText("lightspeedAuthReady=");
+    await expect(
+      page.getByTestId("opslens-live-handoff-post-approval-smoke")
+    ).toContainText("ocpConnectivity");
     await expect(page.getByTestId("opslens-ocp-network-handoff")).toContainText(
       "handoffOnly"
     );

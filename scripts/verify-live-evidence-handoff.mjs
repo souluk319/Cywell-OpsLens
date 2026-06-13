@@ -273,6 +273,36 @@ function sourceSummary(artifact, label, currentHeadSha, required = true) {
   };
 }
 
+function postApprovalSmokeSummary(artifact) {
+  const reviews = artifact?.diagnostics?.requiredRbacReviews ?? [];
+  const allowedReviews = reviews.filter((review) => review.status === "allowed");
+  const deniedReviews = reviews.filter((review) => review.status === "denied");
+  const unknownReviews = reviews.filter((review) => review.status === "unknown");
+  return {
+    requiredRbacReviewCount: reviews.length,
+    requiredRbacAllowedCount: allowedReviews.length,
+    requiredRbacDeniedCount: deniedReviews.length,
+    requiredRbacUnknownCount: unknownReviews.length,
+    lightspeedClassification:
+      artifact?.diagnostics?.lightspeedClassification ?? "missing",
+    sourceArtifacts: (artifact?.sourceArtifacts ?? []).map((source) => ({
+      id: source.id ?? "unknown",
+      label: source.label ?? "unknown",
+      status: source.status ?? "unknown",
+      fresh: source.fresh === true,
+      required: source.required === true,
+      headSha: source.headSha ?? "missing",
+      worktreeDirty: source.worktreeDirty ?? "unknown"
+    })),
+    verifierRuns: (artifact?.verifierRuns ?? []).map((run) => ({
+      id: run.id ?? "unknown",
+      ok: run.ok === true,
+      skipped: run.skipped === true
+    })),
+    missingEvidence: artifact?.missingEvidence ?? []
+  };
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -356,6 +386,7 @@ async function main() {
     : worktreeDirty || staleSources.length > 0
       ? "NEEDS_EVIDENCE"
       : "PASS";
+  const postApprovalSmoke = postApprovalSmokeSummary(artifacts.ocpLiveReaderSmoke);
 
   const artifact = {
     schema: "cywell.opslens.live-evidence-handoff.v0.1",
@@ -398,7 +429,8 @@ async function main() {
       requiredRbacAllowed:
         artifacts.ocpLiveReaderSmoke?.diagnostics?.requiredRbacAllowed === true,
       lightspeedAuthReady:
-        artifacts.ocpLiveReaderSmoke?.diagnostics?.lightspeedAuthReady === true
+        artifacts.ocpLiveReaderSmoke?.diagnostics?.lightspeedAuthReady === true,
+      ...postApprovalSmoke
     },
     sourceArtifacts,
     readOnlyCommands: commands,

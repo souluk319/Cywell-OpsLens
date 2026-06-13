@@ -1230,7 +1230,27 @@ export interface OpsLensLiveEvidenceHandoffSummary {
     command: string;
     ocpClassification: string;
     requiredRbacAllowed: boolean;
+    requiredRbacReviewCount: number;
+    requiredRbacAllowedCount: number;
+    requiredRbacDeniedCount: number;
+    requiredRbacUnknownCount: number;
+    lightspeedClassification: string;
     lightspeedAuthReady: boolean;
+    sourceArtifacts: Array<{
+      id: string;
+      label: string;
+      status: string;
+      fresh: boolean;
+      required: boolean;
+      headSha: string;
+      worktreeDirty: boolean | string;
+    }>;
+    verifierRuns: Array<{
+      id: string;
+      ok: boolean;
+      skipped: boolean;
+    }>;
+    missingEvidence: string[];
   };
   readOnlyCommands: Array<{
     id: string;

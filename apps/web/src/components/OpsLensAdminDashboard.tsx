@@ -1376,6 +1376,46 @@ export function OpsLensAdminDashboard() {
                   {String(liveHandoff.registryMutationAttempted)}
                 </span>
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-live-handoff-post-approval-smoke"
+              >
+                <span>
+                  classification=
+                  {liveHandoff.postApprovalSmoke.ocpClassification}
+                </span>
+                <span>
+                  rbac=
+                  {liveHandoff.postApprovalSmoke.requiredRbacAllowedCount}/
+                  {liveHandoff.postApprovalSmoke.requiredRbacReviewCount}
+                </span>
+                <span>
+                  unknown=
+                  {liveHandoff.postApprovalSmoke.requiredRbacUnknownCount}
+                </span>
+                <span>
+                  lightspeedClassification=
+                  {liveHandoff.postApprovalSmoke.lightspeedClassification}
+                </span>
+                <span>
+                  lightspeedAuthReady=
+                  {String(liveHandoff.postApprovalSmoke.lightspeedAuthReady)}
+                </span>
+                <span>
+                  sources=
+                  {liveHandoff.postApprovalSmoke.sourceArtifacts.length
+                    ? liveHandoff.postApprovalSmoke.sourceArtifacts
+                        .slice(0, 2)
+                        .map(
+                          (source) =>
+                            `${source.id}:${source.status}:fresh=${String(
+                              source.fresh
+                            )}`
+                        )
+                        .join(", ")
+                    : "missing"}
+                </span>
+              </div>
               <div className="approval-summary-grid">
                 <div>
                   <span>Read-only Commands</span>
@@ -1403,9 +1443,7 @@ export function OpsLensAdminDashboard() {
                   <span>Post-approval Smoke</span>
                   <strong>
                     {liveHandoff.postApprovalSmoke.requiredAfterAuthRbacApproval
-                      ? `${liveHandoff.postApprovalSmoke.artifactStatus} rbac=${String(
-                          liveHandoff.postApprovalSmoke.requiredRbacAllowed
-                        )}`
+                      ? `${liveHandoff.postApprovalSmoke.artifactStatus} rbac=${liveHandoff.postApprovalSmoke.requiredRbacAllowedCount}/${liveHandoff.postApprovalSmoke.requiredRbacReviewCount} unknown=${liveHandoff.postApprovalSmoke.requiredRbacUnknownCount}`
                       : "verify:ocp:live-reader-smoke"}
                   </strong>
                 </div>
