@@ -2236,6 +2236,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
+    firstReleasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     nextCommands: string[];
     setupCommandIds: string[];
@@ -2266,6 +2267,7 @@ export interface OpsLensReleaseActionQueueSummary {
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
+    releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   ownerPacketCleanup: {
@@ -2316,6 +2318,7 @@ export interface OpsLensReleaseActionQueueSummary {
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
+    releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   sourceArtifacts: Array<{
@@ -2497,6 +2500,7 @@ export interface OpsLensReleasePublishPlanSummary {
     blockedBy: string[];
     rollbackPath: string;
   }>;
+  ticketPacket: OpsLensReleasePublishTicketPacket;
   mutatingCommands: Array<{
     id: string;
     phase: string;
@@ -2752,6 +2756,42 @@ export interface OpsLensSecurityReviewTicketPacket {
     registryMutationAttempted: boolean;
     mutationAllowedByThisVerifier: boolean;
     signingRequiresExplicitApproval: boolean;
+  };
+  risk: string;
+  rollbackPath: string;
+}
+
+export interface OpsLensReleasePublishTicketPacket {
+  id: string;
+  owner: "release-manager";
+  title: string;
+  severity: "high";
+  classification: string;
+  publishStatus: string;
+  requiredApprovals: string[];
+  publishImageCount: number;
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  approvalGatedAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    publishRequiresExplicitApproval: boolean;
   };
   risk: string;
   rollbackPath: string;

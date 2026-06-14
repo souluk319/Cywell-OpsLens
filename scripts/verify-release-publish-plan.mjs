@@ -464,6 +464,90 @@ function firstPublishActions(missingEvidence, commands) {
   return [...evidenceActions, ...preflightAction, ...gatedMutationAction];
 }
 
+function uniqueStrings(values) {
+  return [...new Set(values.filter(Boolean).map((value) => String(value)))];
+}
+
+function buildReleasePublishTicketPacket({ status, missingEvidence, commands, firstActions, publishImages }) {
+  const firstReadOnly =
+    firstActions.find((action) => action.id === "run-release-preflight") ??
+    firstActions.find((action) => action.mutation === false && action.owner === "release-manager") ??
+    firstActions.find((action) => action.mutation === false) ?? {
+      id: "run-release-preflight",
+      status: missingEvidence.length > 0 ? "needs-evidence" : "ready",
+      nextCommand: "npm run verify:release-plan",
+      mutation: false,
+      requiresExplicitApproval: false
+    };
+  const approvalAction =
+    firstActions.find((action) => action.mutation === true) ??
+    (() => {
+      const firstMutatingCommand = commands.find((command) => command.mutation === true);
+      return {
+        id: firstMutatingCommand ? `approval-gated-${firstMutatingCommand.id}` : "approval-gated-release-publish",
+        status: "approval-gated",
+        nextCommand: firstMutatingCommand?.command ?? "approval-gated release publish command",
+        mutation: true,
+        requiresExplicitApproval: true
+      };
+    })();
+
+  return {
+    id: "release-manager-release-publish-ticket",
+    owner: "release-manager",
+    title: "Release publish approval handoff",
+    severity: "high",
+    classification:
+      missingEvidence.length > 0 ? "publish-evidence-gaps" : "publish-approval-required",
+    publishStatus: status,
+    requiredApprovals: [
+      "release-manager",
+      "registry-admin",
+      "security-reviewer",
+      "product-owner"
+    ],
+    publishImageCount: publishImages.length,
+    evidenceChecklist: [
+      "Release publish plan is same-head and generated from a clean worktree",
+      "Owned image provenance, scan/SBOM, security review, and certification evidence are current",
+      "External runtime image certification and mirroring evidence are reviewed",
+      "Registry push, signature, mirror, and catalog publication commands remain approval-gated",
+      "Rollback path is reviewed before any registry mutation"
+    ],
+    firstReadOnlyAction: {
+      id: firstReadOnly.id,
+      status: firstReadOnly.status,
+      nextCommand: firstReadOnly.nextCommand,
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id: approvalAction.id,
+      status: approvalAction.status,
+      nextCommand: approvalAction.nextCommand,
+      mutation: true,
+      requiresExplicitApproval: true
+    },
+    nextCommands: uniqueStrings([
+      firstReadOnly.nextCommand,
+      approvalAction.nextCommand,
+      "npm run verify:release-evidence-bundle",
+      "npm run evidence:release-action-queue"
+    ]),
+    blockedBy: uniqueStrings(missingEvidence).slice(0, 8),
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      publishRequiresExplicitApproval: true
+    },
+    risk:
+      "Release publish approval handoff blocks image push, signing, mirroring, and catalog publication until human approvals and evidence are explicit.",
+    rollbackPath:
+      "Do not delete consumed tags; publish a corrected patch tag and update FBC/CatalogSource references after any approved release publish correction."
+  };
+}
+
 function secretValuesForLeakCheck() {
   return [
     "OCP_API_TOKEN",
@@ -537,13 +621,34 @@ async function buildPlan() {
 
   const commands = buildCommands(publishImages, catalogSource, subscription);
   const firstActions = firstPublishActions(missingEvidence, commands);
+  const status = planStatus(missingEvidence);
+  const ticketPacket = buildReleasePublishTicketPacket({
+    status,
+    missingEvidence,
+    commands,
+    firstActions,
+    publishImages
+  });
+  if (
+    ticketPacket.firstReadOnlyAction.mutation === false &&
+    ticketPacket.firstReadOnlyAction.requiresExplicitApproval === false &&
+    ticketPacket.approvalGatedAction.mutation === true &&
+    ticketPacket.approvalGatedAction.requiresExplicitApproval === true &&
+    ticketPacket.mutationBoundary.clusterMutationAttempted === false &&
+    ticketPacket.mutationBoundary.registryMutationAttempted === false &&
+    ticketPacket.mutationBoundary.mutationAllowedByThisVerifier === false
+  ) {
+    pass("release publish ticket boundary", "release publish handoff is read-only first and approval-gated for registry mutation");
+  } else {
+    fail("release publish ticket boundary", "release publish handoff must separate read-only preflight from approval-gated registry mutation");
+  }
 
   return {
     schema: "cywell.opslens.release-publish-plan.v0.1",
     artifactType: "opslens.release-publish-plan.v0.1",
     generatedAt: new Date().toISOString(),
     startedAt,
-    status: planStatus(missingEvidence),
+    status,
     actionMode: "approvalPlanOnly",
     registryMutationAttempted: false,
     clusterMutationAttempted: false,
@@ -571,6 +676,7 @@ async function buildPlan() {
       installPlanApproval: subscription?.spec?.installPlanApproval ?? "unknown"
     },
     firstPublishActions: firstActions,
+    ticketPacket,
     commands,
     missingEvidence,
     risk: [

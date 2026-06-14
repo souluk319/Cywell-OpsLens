@@ -273,6 +273,9 @@ function releaseActionQueueHandoffRequirement(actionQueue, id, label, lane, owne
         : ticketField === "security-review"
           ? criticalPath?.securityReviewTicketPacket ??
             ownerPacket?.firstSecurityReviewTicketPacket
+          : ticketField === "release-publish"
+            ? criticalPath?.releasePublishTicketPacket ??
+              ownerPacket?.firstReleasePublishTicketPacket
         : criticalPath?.externalRuntimeTicketPacket ??
           ownerPacket?.firstExternalRuntimeTicketPacket;
   const firstAction = ticket?.firstReadOnlyAction;
@@ -701,6 +704,14 @@ async function main() {
         "security-review",
         "security-reviewer",
         "security-review"
+      ),
+      releaseActionQueueHandoffRequirement(
+        releaseActionQueue,
+        "release-action-queue-release-publish-ticket",
+        "Release action queue release publish ticket handoff",
+        "release-publish",
+        "release-manager",
+        "release-publish"
       ),
       laneRequirement(checkpoint, "releasePublish", "Release publish approval plan", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "ownedImageProvenance", "Owned image provenance", ["pass", "needs-evidence"]),

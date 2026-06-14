@@ -72,6 +72,7 @@ import type {
   OpsLensOwnedImageProvenanceSummary,
   OpsLensReleasePublishPlanSummary,
   OpsLensReleasePublishReadiness,
+  OpsLensReleasePublishTicketPacket,
   OpsLensReleaseActionQueueReadiness,
   OpsLensReleaseActionQueueSummary,
   OpsLensReleaseEvidenceRefreshReadiness,
@@ -2118,6 +2119,7 @@ type ReleasePublishPlanEvidenceArtifact = {
     blockedBy?: string[];
     rollbackPath?: string;
   }>;
+  ticketPacket?: OpsLensReleasePublishTicketPacket;
   commands?: Array<{
     id?: string;
     phase?: string;
@@ -2624,6 +2626,7 @@ type ReleaseActionQueueArtifact = {
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
+    firstReleasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     nextCommands?: string[];
     setupCommandIds?: string[];
@@ -2654,6 +2657,7 @@ type ReleaseActionQueueArtifact = {
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
+    releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   ownerPacketCleanup?: {
@@ -2704,6 +2708,7 @@ type ReleaseActionQueueArtifact = {
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
+    releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   sourceArtifacts?: Array<{
@@ -5799,6 +5804,50 @@ function getReleasePublishPlanReadiness(): {
             rollbackPath: "No rollback is required because no registry mutation has run."
           }
         ],
+        ticketPacket: {
+          id: "release-manager-release-publish-ticket",
+          owner: "release-manager",
+          title: "Release publish approval handoff",
+          severity: "high",
+          classification: "publish-plan-missing",
+          publishStatus: "needs-evidence",
+          requiredApprovals: [
+            "release-manager",
+            "registry-admin",
+            "security-reviewer",
+            "product-owner"
+          ],
+          publishImageCount: 0,
+          evidenceChecklist: [
+            "Generate release publish evidence before registry or catalog mutation"
+          ],
+          firstReadOnlyAction: {
+            id: "generate-release-publish-plan",
+            status: "needs-evidence",
+            nextCommand: "npm run verify:release-plan",
+            mutation: false,
+            requiresExplicitApproval: false
+          },
+          approvalGatedAction: {
+            id: "approval-gated-release-publish",
+            status: "blocked",
+            nextCommand: "approval-gated release publish command",
+            mutation: true,
+            requiresExplicitApproval: true
+          },
+          nextCommands: ["npm run verify:release-plan"],
+          blockedBy: [`release publish plan evidence is missing at ${evidencePath}`],
+          mutationBoundary: {
+            clusterMutationAttempted: false,
+            registryMutationAttempted: false,
+            mutationAllowedByThisVerifier: false,
+            publishRequiresExplicitApproval: true
+          },
+          risk:
+            "No release publish plan evidence is available yet; image push, signing, mirroring, and catalog publication remain blocked.",
+          rollbackPath:
+            "Generate release publish evidence before attempting registry or catalog publication commands."
+        },
         mutatingCommands: [],
         risk: [
           "No release publish plan evidence is available yet; image push, signing, mirroring, and catalog publication remain blocked."
@@ -5852,6 +5901,57 @@ function getReleasePublishPlanReadiness(): {
       .map((command) => command.id)
       .join(", ");
     const imageNames = publishImages.map((image) => image.name).join(", ");
+    const firstReadOnlyPublishAction =
+      firstPublishActions.find((action) => action.id === "run-release-preflight") ??
+      firstPublishActions.find((action) => action.mutation === false);
+    const ticketPacket: OpsLensReleasePublishTicketPacket =
+      artifact.ticketPacket ?? {
+        id: "release-manager-release-publish-ticket",
+        owner: "release-manager",
+        title: "Release publish approval handoff",
+        severity: "high",
+        classification: "publish-evidence-gaps",
+        publishStatus: artifact.status ?? "unknown",
+        requiredApprovals: artifact.requiredApprovals ?? [],
+        publishImageCount: publishImages.length,
+        evidenceChecklist: [
+          "Release publish evidence is generated before registry or catalog mutation"
+        ],
+        firstReadOnlyAction: {
+          id: firstReadOnlyPublishAction?.id ?? "run-release-preflight",
+          status: firstReadOnlyPublishAction?.status ?? "needs-evidence",
+          nextCommand:
+            firstReadOnlyPublishAction?.nextCommand ??
+            "npm run verify:release-plan",
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        approvalGatedAction: {
+          id:
+            firstPublishActions.find((action) => action.mutation === true)?.id ??
+            "approval-gated-release-publish",
+          status:
+            firstPublishActions.find((action) => action.mutation === true)
+              ?.status ?? "approval-gated",
+          nextCommand:
+            firstPublishActions.find((action) => action.mutation === true)
+              ?.nextCommand ?? "approval-gated release publish command",
+          mutation: true,
+          requiresExplicitApproval: true
+        },
+        nextCommands: ["npm run verify:release-plan"],
+        blockedBy: artifact.missingEvidence ?? [],
+        mutationBoundary: {
+          clusterMutationAttempted: false,
+          registryMutationAttempted: false,
+          mutationAllowedByThisVerifier: false,
+          publishRequiresExplicitApproval: true
+        },
+        risk:
+          "Release publish remains blocked until registry and catalog mutations are explicitly approved.",
+        rollbackPath:
+          "Publish corrected tags and update FBC/CatalogSource references after any approved correction."
+      };
 
     return {
       status,
@@ -5865,6 +5965,7 @@ function getReleasePublishPlanReadiness(): {
         requiredApprovals: artifact.requiredApprovals ?? [],
         publishImages,
         firstPublishActions,
+        ticketPacket,
         mutatingCommands,
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? [],
@@ -5877,6 +5978,7 @@ function getReleasePublishPlanReadiness(): {
         `required approvals=${(artifact.requiredApprovals ?? []).join(", ") || "unknown"}`,
         imageNames ? `release publish image inventory=${imageNames}` : "release publish image inventory not listed",
         `release first publish actions=${firstPublishActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
+        `release publish ticket=${ticketPacket.id}:${ticketPacket.firstReadOnlyAction.id}:approval=${ticketPacket.approvalGatedAction.id}`,
         mutatingCommandNames
           ? `publish commands require explicit approval: ${mutatingCommandNames}`
           : "publish commands are not listed in latest release plan",
@@ -5896,6 +5998,47 @@ function getReleasePublishPlanReadiness(): {
         requiredApprovals: [],
         publishImages: [],
         firstPublishActions: [],
+        ticketPacket: {
+          id: "release-manager-release-publish-ticket",
+          owner: "release-manager",
+          title: "Release publish approval handoff",
+          severity: "high",
+          classification: "publish-plan-invalid",
+          publishStatus: "failed",
+          requiredApprovals: [],
+          publishImageCount: 0,
+          evidenceChecklist: [
+            "Regenerate valid release publish evidence before registry or catalog mutation"
+          ],
+          firstReadOnlyAction: {
+            id: "generate-release-publish-plan",
+            status: "failed",
+            nextCommand: "npm run verify:release-plan",
+            mutation: false,
+            requiresExplicitApproval: false
+          },
+          approvalGatedAction: {
+            id: "approval-gated-release-publish",
+            status: "blocked",
+            nextCommand: "approval-gated release publish command",
+            mutation: true,
+            requiresExplicitApproval: true
+          },
+          nextCommands: ["npm run verify:release-plan"],
+          blockedBy: [
+            error instanceof Error ? error.message : "unknown evidence parse error"
+          ],
+          mutationBoundary: {
+            clusterMutationAttempted: false,
+            registryMutationAttempted: false,
+            mutationAllowedByThisVerifier: false,
+            publishRequiresExplicitApproval: true
+          },
+          risk:
+            "Release publish plan evidence is invalid; registry and catalog publication commands remain blocked.",
+          rollbackPath:
+            "Regenerate release publish evidence before attempting registry or catalog publication commands."
+        },
         mutatingCommands: [],
         risk: [
           "Release publish plan evidence is invalid; registry and catalog publication commands remain blocked."
@@ -7889,6 +8032,8 @@ function getReleaseActionQueueReadiness(): {
       firstExternalRuntimeTicketPacket: packet.firstExternalRuntimeTicketPacket,
       firstSecurityReviewTicketPacket:
         packet.firstSecurityReviewTicketPacket,
+      firstReleasePublishTicketPacket:
+        packet.firstReleasePublishTicketPacket,
       firstCertificationToolingTicketPacket:
         packet.firstCertificationToolingTicketPacket,
       nextCommands: packet.nextCommands ?? [],
@@ -7927,6 +8072,7 @@ function getReleaseActionQueueReadiness(): {
       ticketPacket: entry.ticketPacket,
       externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
       securityReviewTicketPacket: entry.securityReviewTicketPacket,
+      releasePublishTicketPacket: entry.releasePublishTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket
     }));
     const items = (artifact.items ?? []).map((entry) => ({
@@ -7971,6 +8117,7 @@ function getReleaseActionQueueReadiness(): {
       ticketPacket: entry.ticketPacket,
       externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
       securityReviewTicketPacket: entry.securityReviewTicketPacket,
+      releasePublishTicketPacket: entry.releasePublishTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({

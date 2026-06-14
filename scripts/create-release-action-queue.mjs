@@ -534,6 +534,7 @@ function item({
   ticketPacket,
   externalRuntimeTicketPacket,
   securityReviewTicketPacket,
+  releasePublishTicketPacket,
   certificationToolingTicketPacket,
   acceptance = []
 }) {
@@ -584,6 +585,9 @@ function item({
       : undefined,
     securityReviewTicketPacket: securityReviewTicketPacket
       ? sanitizeSecurityReviewTicketPacket(securityReviewTicketPacket)
+      : undefined,
+    releasePublishTicketPacket: releasePublishTicketPacket
+      ? sanitizeReleasePublishTicketPacket(releasePublishTicketPacket)
       : undefined,
     certificationToolingTicketPacket: certificationToolingTicketPacket
       ? sanitizeCertificationToolingTicketPacket(certificationToolingTicketPacket)
@@ -748,6 +752,50 @@ function sanitizeSecurityReviewTicketPacket(packet = {}) {
     rollbackPath: sanitize(
       packet.rollbackPath ??
         "No cluster or registry rollback is required because the first action writes only local evidence."
+    )
+  };
+}
+
+function sanitizeReleasePublishTicketPacket(packet = {}) {
+  return {
+    id: sanitize(packet.id ?? "release-manager-release-publish-ticket"),
+    owner: "release-manager",
+    title: sanitize(packet.title ?? "Release publish approval handoff"),
+    severity: "high",
+    classification: sanitize(packet.classification ?? "publish-evidence-gaps"),
+    publishStatus: sanitize(packet.publishStatus ?? "needs-evidence"),
+    requiredApprovals: (packet.requiredApprovals ?? []).map(sanitize),
+    publishImageCount: Number.isFinite(Number(packet.publishImageCount))
+      ? Number(packet.publishImageCount)
+      : 0,
+    evidenceChecklist: (packet.evidenceChecklist ?? []).map(sanitize),
+    firstReadOnlyAction: sanitizeExternalRuntimeTicketAction(
+      packet.firstReadOnlyAction,
+      "run-release-preflight"
+    ),
+    approvalGatedAction: sanitizeExternalRuntimeTicketAction(
+      packet.approvalGatedAction,
+      "approval-gated-release-publish"
+    ),
+    nextCommands: (packet.nextCommands ?? []).map(sanitize),
+    blockedBy: (packet.blockedBy ?? []).map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      publishRequiresExplicitApproval:
+        packet.mutationBoundary?.publishRequiresExplicitApproval !== false
+    },
+    risk: sanitize(
+      packet.risk ??
+        "Release publish remains blocked until registry and catalog mutations are explicitly approved."
+    ),
+    rollbackPath: sanitize(
+      packet.rollbackPath ??
+        "Publish corrected tags and update FBC/CatalogSource references after any approved correction."
     )
   };
 }
@@ -1138,7 +1186,15 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
   };
 }
 
-function checkpointItems(checkpoint, networkHandoff, certificationReadiness, authRbacPlan, lightspeedReadiness, ocpLiveReaderSmoke) {
+function checkpointItems(
+  checkpoint,
+  networkHandoff,
+  certificationReadiness,
+  authRbacPlan,
+  lightspeedReadiness,
+  ocpLiveReaderSmoke,
+  releasePlan
+) {
   const lanes = checkpoint?.lanes ?? [];
   const byId = new Map(lanes.map((lane) => [lane.id, lane]));
   const items = [];
@@ -1205,6 +1261,16 @@ function checkpointItems(checkpoint, networkHandoff, certificationReadiness, aut
     request: "Refresh release publish approval plan after external runtime and scan evidence are complete.",
     evidenceNeeded: "Release publish plan status becomes PUBLISH_APPROVAL_REQUIRED with clean same-head evidence.",
     nextCommand: "npm run verify:release-plan",
+    handoffNextCommands:
+      releasePlan?.ticketPacket?.nextCommands ?? [],
+    readOnlyCommands: (releasePlan?.commands ?? []).filter(
+      (command) => command.mutation !== true
+    ),
+    approvalGatedCommands: (releasePlan?.commands ?? []).filter(
+      (command) => command.mutation === true
+    ),
+    blockedBy: releasePlan?.missingEvidence ?? [],
+    releasePublishTicketPacket: releasePlan?.ticketPacket,
     acceptance: ["AC-CERT-001"]
   });
   addIfOpen("installPlan", {
@@ -2109,7 +2175,8 @@ function buildItems(artifacts, currentHeadSha) {
         artifacts.certificationReadiness,
         artifacts.ocpAuthRbacPlan,
         artifacts.lightspeedReadiness,
-        artifacts.ocpLiveReaderSmoke
+        artifacts.ocpLiveReaderSmoke,
+        artifacts.releasePlan
       ),
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
       ...securityScanItems(artifacts.securityScanPlan),
@@ -2254,6 +2321,9 @@ function criticalPath(items) {
         securityReviewTicketPacket: entry.securityReviewTicketPacket
           ? sanitizeSecurityReviewTicketPacket(entry.securityReviewTicketPacket)
           : undefined,
+        releasePublishTicketPacket: entry.releasePublishTicketPacket
+          ? sanitizeReleasePublishTicketPacket(entry.releasePublishTicketPacket)
+          : undefined,
         certificationToolingTicketPacket: entry.certificationToolingTicketPacket
           ? sanitizeCertificationToolingTicketPacket(entry.certificationToolingTicketPacket)
           : undefined
@@ -2273,6 +2343,9 @@ function buildOwnerPackets(owners, items) {
     const firstSecurityReviewTicketPacket = entries.find(
       (entry) => entry.securityReviewTicketPacket
     )?.securityReviewTicketPacket;
+    const firstReleasePublishTicketPacket = entries.find(
+      (entry) => entry.releasePublishTicketPacket
+    )?.releasePublishTicketPacket;
     const firstCertificationToolingTicketPacket = entries.find(
       (entry) => entry.certificationToolingTicketPacket
     )?.certificationToolingTicketPacket;
@@ -2295,6 +2368,7 @@ function buildOwnerPackets(owners, items) {
       firstTicketPacket,
       firstExternalRuntimeTicketPacket,
       firstSecurityReviewTicketPacket,
+      firstReleasePublishTicketPacket,
       firstCertificationToolingTicketPacket,
       nextCommands: uniqueStrings(
         entries.flatMap((entry) => [
@@ -2375,7 +2449,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",
@@ -2387,7 +2461,7 @@ function markdownFor(queue) {
     "## Owner Packets",
     "",
     ...queue.ownerPackets.map((packet) =>
-      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}`
+      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Packet Cleanup",
@@ -2482,6 +2556,7 @@ function ownerPacketMarkdown(queue, packet) {
     `- First ticket: ${packet.firstTicketPacket?.id ?? "none"}`,
     `- First external runtime ticket: ${packet.firstExternalRuntimeTicketPacket?.id ?? "none"}`,
     `- First security review ticket: ${packet.firstSecurityReviewTicketPacket?.id ?? "none"}`,
+    `- First release publish ticket: ${packet.firstReleasePublishTicketPacket?.id ?? "none"}`,
     `- First certification tooling ticket: ${packet.firstCertificationToolingTicketPacket?.id ?? "none"}`,
     `- Missing tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
     `- Acceptance: ${packet.acceptance.join(", ") || "none"}`,
@@ -2534,6 +2609,23 @@ function ownerPacketMarkdown(queue, packet) {
           `- First read-only command: ${packet.firstSecurityReviewTicketPacket.firstReadOnlyAction.nextCommand}`,
           `- Approval-gated action: ${packet.firstSecurityReviewTicketPacket.approvalGatedAction.id}`,
           `- Approval required: ${String(packet.firstSecurityReviewTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          ""
+        ]
+      : []),
+    ...(packet.firstReleasePublishTicketPacket
+      ? [
+          "## Release Publish Ticket Packet",
+          "",
+          `- ID: ${packet.firstReleasePublishTicketPacket.id}`,
+          `- Title: ${packet.firstReleasePublishTicketPacket.title}`,
+          `- Severity: ${packet.firstReleasePublishTicketPacket.severity}`,
+          `- Classification: ${packet.firstReleasePublishTicketPacket.classification}`,
+          `- Publish status: ${packet.firstReleasePublishTicketPacket.publishStatus}`,
+          `- Required approvals: ${packet.firstReleasePublishTicketPacket.requiredApprovals.join(", ")}`,
+          `- First read-only action: ${packet.firstReleasePublishTicketPacket.firstReadOnlyAction.id}`,
+          `- First read-only command: ${packet.firstReleasePublishTicketPacket.firstReadOnlyAction.nextCommand}`,
+          `- Approval-gated action: ${packet.firstReleasePublishTicketPacket.approvalGatedAction.id}`,
+          `- Approval required: ${String(packet.firstReleasePublishTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
           ""
         ]
       : []),
@@ -2594,6 +2686,7 @@ function ownerPacketMarkdown(queue, packet) {
       `- Ticket: ${entry.ticketPacket?.id ?? "none"}`,
       `- External runtime ticket: ${entry.externalRuntimeTicketPacket?.id ?? "none"}`,
       `- Security review ticket: ${entry.securityReviewTicketPacket?.id ?? "none"}`,
+      `- Release publish ticket: ${entry.releasePublishTicketPacket?.id ?? "none"}`,
       `- Certification tooling ticket: ${entry.certificationToolingTicketPacket?.id ?? "none"}`,
       `- Blocked by: ${entry.blockedBy.length ? entry.blockedBy.join("; ") : "none"}`,
       ""

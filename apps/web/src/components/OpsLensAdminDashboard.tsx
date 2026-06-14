@@ -2528,6 +2528,11 @@ export function OpsLensAdminDashboard() {
                       :securityFirst=
                       {entry.securityReviewTicketPacket?.firstReadOnlyAction.id ??
                         "none"}
+                      :publishTicket=
+                      {entry.releasePublishTicketPacket?.id ?? "none"}
+                      :publishFirst=
+                      {entry.releasePublishTicketPacket?.firstReadOnlyAction.id ??
+                        "none"}
                       :tools={entry.missingRequiredTools.join(",") || "none"}
                       :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
                       {entry.readOnlyCommandIds.join(",") || "none"}:approval=
@@ -2578,6 +2583,11 @@ export function OpsLensAdminDashboard() {
                     {packet.firstSecurityReviewTicketPacket?.id ?? "none"}
                     :securityFirst=
                     {packet.firstSecurityReviewTicketPacket?.firstReadOnlyAction
+                      .id ?? "none"}
+                    :publishTicket=
+                    {packet.firstReleasePublishTicketPacket?.id ?? "none"}
+                    :publishFirst=
+                    {packet.firstReleasePublishTicketPacket?.firstReadOnlyAction
                       .id ?? "none"}
                   </span>
                 ))}
@@ -4105,6 +4115,27 @@ export function OpsLensAdminDashboard() {
                 ) : (
                   <span>first publish actions clear</span>
                 )}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-publish-ticket"
+              >
+                <span>
+                  {releasePlan.ticketPacket.id}:{releasePlan.ticketPacket.owner}:
+                  {releasePlan.ticketPacket.classification}:first=
+                  {releasePlan.ticketPacket.firstReadOnlyAction.id}:approval=
+                  {releasePlan.ticketPacket.approvalGatedAction.id}
+                  :requiresApproval=
+                  {String(
+                    releasePlan.ticketPacket.approvalGatedAction
+                      .requiresExplicitApproval
+                  )}
+                  :mutationAllowed=
+                  {String(
+                    releasePlan.ticketPacket.mutationBoundary
+                      .mutationAllowedByThisVerifier
+                  )}
+                </span>
               </div>
               <div className="remediation-notes">
                 <p>
