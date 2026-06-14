@@ -1558,6 +1558,7 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
       id: "cluster-admin-fix-ocp-auth-rbac",
       owner: "cluster-admin",
       priority: "blocker",
+      source: "ocpNetworkHandoff:ocpAuthRbacPlan",
       request:
         "Refresh the configured OCP API credential or grant the read-only RBAC needed for /version and OLSConfig CRD discovery.",
       evidenceNeeded: `OCP connectivity diagnostic classification=${classification} becomes api-ready; oc whoami and oc auth can-i get crd olsconfigs.ols.openshift.io succeed.`,
@@ -1575,6 +1576,7 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
       id: "cluster-sre-fix-ocp-tls",
       owner: "cluster-sre",
       priority: "blocker",
+      source: "ocpNetworkHandoff",
       request:
         "Fix OCP API TLS trust, proxy TLS interception, or OCP_TLS_VERIFY settings after DNS/TCP evidence has passed.",
       evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
@@ -1590,6 +1592,7 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
     id: "network-sre-unblock-ocp-api",
     owner: "network-sre",
     priority: "blocker",
+    source: "ocpNetworkHandoff",
     request: "Restore TCP reachability from the verifier workstation or approved bastion to the company OCP API.",
     evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
     nextCommand: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
@@ -1689,6 +1692,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
       id: "cluster-admin-fix-lightspeed-readiness-auth-rbac",
       owner: "cluster-admin",
       priority: "blocker",
+      source: "lightspeedReadiness:ocpLiveReaderSmoke",
       request:
         "Refresh the OCP credential or approve read-only RBAC so Lightspeed readiness can read the OLSConfig CRD and target OLSConfig before MCP registration.",
       evidenceNeeded:
@@ -1714,6 +1718,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
       id: "cluster-sre-fix-lightspeed-readiness-tls",
       owner: "cluster-sre",
       priority: "blocker",
+      source: "lightspeedReadiness:ocpNetworkHandoff",
       request:
         "Fix TLS trust or proxy TLS behavior so Lightspeed readiness can read OLSConfig resources.",
       evidenceNeeded:
@@ -1735,6 +1740,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
       id: "network-sre-unblock-lightspeed-readiness-ocp-api",
       owner: "network-sre",
       priority: "blocker",
+      source: "lightspeedReadiness:ocpNetworkHandoff",
       request:
         "Restore network reachability from the verifier workstation or approved bastion so Lightspeed readiness can read OLSConfig resources.",
       evidenceNeeded:
@@ -1755,6 +1761,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
     id: "cluster-sre-rerun-lightspeed-readiness",
     owner: gap.owner ?? "cluster-sre",
     priority: "blocker",
+    source: "lightspeedReadiness",
     request: "Rerun live Lightspeed MCP readiness after OCP API reachability and OLSConfig readability are restored.",
     evidenceNeeded: "Lightspeed readiness artifact reaches PASS or a non-network NEEDS_CONFIGURATION classification.",
     nextCommand: gap.nextCommand ?? "npm run verify:lightspeed -- --timeout-ms 30000",
@@ -1784,7 +1791,7 @@ function checkpointItems(
     if (!lane || lane.status === "pass") return;
     items.push(item({
       ...payload,
-      source: `checkpoint:${laneId}`,
+      source: payload.source ?? `checkpoint:${laneId}`,
       blockedBy: uniqueStrings([
         ...(payload.blockedBy ?? []),
         ...(lane.missingEvidence ?? []),

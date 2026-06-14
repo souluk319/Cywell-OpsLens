@@ -5689,6 +5689,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       (item) => item.id === "cluster-admin-fix-ocp-auth-rbac"
     );
     if (ocpAuthAction) {
+      expect(ocpAuthAction.source).toBe("ocpNetworkHandoff:ocpAuthRbacPlan");
       expect(ocpAuthAction.nextCommand).toContain("evidence:ocp-auth-rbac-plan");
       expect(
         ocpAuthAction.readOnlyCommands?.some((command) =>
@@ -5748,7 +5749,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     const lightspeedReadinessAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) =>
-          item.source === "checkpoint:lightspeedReadiness" ||
+          item.source?.includes("lightspeedReadiness") ||
           item.id?.includes("lightspeed-readiness")
       );
     if (
@@ -5764,6 +5765,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         /evidence:ocp-auth-rbac-plan|verify:ocp:connectivity|verify:lightspeed/
       );
       expect(lightspeedReadinessAction?.evidenceNeeded).toContain("OLSConfig");
+      expect(lightspeedReadinessAction?.source).toContain("lightspeedReadiness");
       expect(lightspeedReadinessAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining(["lightspeed-readiness-live"])
       );
