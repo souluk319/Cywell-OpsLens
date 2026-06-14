@@ -347,19 +347,20 @@ function classifyLiveReadFailure(ocError, apiError) {
     nextCommand = "npm run evidence:ocp-auth-rbac-plan";
     owner = "cluster-admin";
   } else if (
-    lower.includes("certificate") ||
-    lower.includes("tls") ||
-    lower.includes("self-signed")
-  ) {
-    classification = "tls-handshake-failed";
-    evidence = "OCP API TLS validation failed before Lightspeed readiness could read OLSConfig";
-  } else if (
     lower.includes("timed out") ||
     lower.includes("timeout") ||
     lower.includes("etimedout")
   ) {
     classification = "tcp-timeout";
     evidence = "OCP API request timed out before Lightspeed readiness could read OLSConfig";
+    owner = "network-sre";
+  } else if (
+    lower.includes("certificate") ||
+    lower.includes("tls") ||
+    lower.includes("self-signed")
+  ) {
+    classification = "tls-handshake-failed";
+    evidence = "OCP API TLS validation failed before Lightspeed readiness could read OLSConfig";
   } else if (
     lower.includes("enotfound") ||
     lower.includes("getaddrinfo")
