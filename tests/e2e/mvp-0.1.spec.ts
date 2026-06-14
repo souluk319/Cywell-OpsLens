@@ -2110,6 +2110,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             nextCommand?: string;
             blockedBy?: string[];
             diagnostics?: string[];
+            missingRequiredTools?: string[];
+            setupCommandIds?: string[];
+            readOnlyCommandIds?: string[];
+            approvalGatedCommandIds?: string[];
             acceptance?: string[];
             ticketPacket?: {
               id?: string;
@@ -3955,6 +3959,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         }
       });
     }
+    const certificationCriticalPath =
+      body.installReadiness?.actionQueue?.criticalPath?.find(
+        (entry) => entry.lane === "certification-toolchain"
+      );
+    expect(certificationCriticalPath?.missingRequiredTools).toEqual(
+      expect.arrayContaining(["opm", "operator-sdk"])
+    );
+    expect(certificationCriticalPath?.setupCommandIds).toEqual(
+      expect.arrayContaining(["install-opm", "install-operator-sdk"])
+    );
+    expect(certificationCriticalPath?.readOnlyCommandIds).toEqual(
+      expect.arrayContaining(["refresh-certification-evidence"])
+    );
+    expect(certificationCriticalPath?.approvalGatedCommandIds).toEqual(
+      expect.arrayContaining(["partner-connect-submit"])
+    );
     expect(body.installReadiness?.actionQueue?.markdownPath).toContain(
       "cywell-opslens-release-action-queue.md"
     );
@@ -5819,6 +5839,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("ticketFirst=network-sre-confirm-ocp-api-tcp-6443");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("tools=opm,operator-sdk");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("setup=install-opm,install-operator-sdk");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("refresh-certification-evidence");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("approval=partner-connect-submit");
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packets")
     ).toContainText("cluster-admin.md");

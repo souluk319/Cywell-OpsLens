@@ -2253,6 +2253,10 @@ export interface OpsLensReleaseActionQueueSummary {
     nextCommand: string;
     blockedBy: string[];
     diagnostics: string[];
+    missingRequiredTools: string[];
+    setupCommandIds: string[];
+    readOnlyCommandIds: string[];
+    approvalGatedCommandIds: string[];
     acceptance: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
   }>;

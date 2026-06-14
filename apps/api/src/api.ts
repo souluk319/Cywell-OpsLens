@@ -2637,6 +2637,10 @@ type ReleaseActionQueueArtifact = {
     nextCommand?: string;
     blockedBy?: string[];
     diagnostics?: string[];
+    missingRequiredTools?: string[];
+    setupCommandIds?: string[];
+    readOnlyCommandIds?: string[];
+    approvalGatedCommandIds?: string[];
     acceptance?: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
   }>;
@@ -7662,6 +7666,10 @@ function getReleaseActionQueueReadiness(): {
       nextCommand: entry.nextCommand ?? "not listed",
       blockedBy: entry.blockedBy ?? [],
       diagnostics: entry.diagnostics ?? [],
+      missingRequiredTools: entry.missingRequiredTools ?? [],
+      setupCommandIds: entry.setupCommandIds ?? [],
+      readOnlyCommandIds: entry.readOnlyCommandIds ?? [],
+      approvalGatedCommandIds: entry.approvalGatedCommandIds ?? [],
       acceptance: entry.acceptance ?? [],
       ticketPacket: entry.ticketPacket
     }));

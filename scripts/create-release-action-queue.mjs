@@ -2034,6 +2034,16 @@ function criticalPath(items) {
         nextCommand: entry.nextCommand,
         blockedBy: uniqueStrings(entry.blockedBy ?? []).slice(0, 6),
         diagnostics: entry.diagnostics.slice(0, 6).map((diagnostic) => diagnostic.id),
+        missingRequiredTools: uniqueStrings(entry.missingRequiredTools ?? []),
+        setupCommandIds: (entry.setupCommands ?? [])
+          .map((command) => command.id)
+          .filter(Boolean),
+        readOnlyCommandIds: (entry.readOnlyCommands ?? [])
+          .map((command) => command.id)
+          .filter(Boolean),
+        approvalGatedCommandIds: (entry.approvalGatedCommands ?? [])
+          .map((command) => command.id)
+          .filter(Boolean),
         acceptance: uniqueStrings(entry.acceptance ?? []),
         ticketPacket: entry.ticketPacket
           ? sanitizeTicketPacket(entry.ticketPacket)
@@ -2144,7 +2154,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, ticket=${entry.ticketPacket?.id ?? "none"}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",

@@ -2514,6 +2514,10 @@ export function OpsLensAdminDashboard() {
                       {entry.actionId}:next={entry.nextCommand}:ticket=
                       {entry.ticketPacket?.id ?? "none"}:ticketFirst=
                       {entry.ticketPacket?.firstReadOnlyAction.id ?? "none"}
+                      :tools={entry.missingRequiredTools.join(",") || "none"}
+                      :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
+                      {entry.readOnlyCommandIds.join(",") || "none"}:approval=
+                      {entry.approvalGatedCommandIds.join(",") || "none"}
                     </span>
                   ))
                 ) : (
