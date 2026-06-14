@@ -2766,6 +2766,14 @@ export interface OpsLensExternalRuntimeRegistryTicketPacket {
     mutationAllowedByThisVerifier: boolean;
     registryChangeRequiresExplicitApproval: boolean;
   };
+  registryAuthBoundary: {
+    authRequired: boolean;
+    humanCredentialInputRequired: boolean;
+    credentialStoredByVerifier: boolean;
+    pullSecretCreatedByVerifier: boolean;
+    registryLoginExecutedByVerifier: boolean;
+    firstHumanSetupAction: string;
+  };
   risk: string;
   rollbackPath: string;
 }

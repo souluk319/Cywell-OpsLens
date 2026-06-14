@@ -753,6 +753,10 @@ function buildRegistryTicketPackets(images, firstRegistryActions, approvalGated)
     const classification = registryAccessClassification(
       image.sourceDigestInspection?.detail ?? image.sourceDigestInspection?.status
     );
+    const authRequired = [
+      "registry-auth-required",
+      "registry-permission-denied"
+    ].includes(classification);
     const registryNextCommands = unique(
       (image.reviewerRequests ?? [])
         .filter((request) => request.role === "registry-admin")
@@ -817,6 +821,16 @@ function buildRegistryTicketPackets(images, firstRegistryActions, approvalGated)
         mutationAllowedByThisVerifier: false,
         registryChangeRequiresExplicitApproval: true
       },
+      registryAuthBoundary: {
+        authRequired,
+        humanCredentialInputRequired: authRequired,
+        credentialStoredByVerifier: false,
+        pullSecretCreatedByVerifier: false,
+        registryLoginExecutedByVerifier: false,
+        firstHumanSetupAction: authRequired
+          ? `registry-admin-authenticate-${image.name}-source-registry`
+          : "not-required"
+      },
       risk:
         "External runtime digest or mirror evidence can block release approval; this ticket does not mirror, sign, push, or promote images.",
       rollbackPath:
@@ -874,6 +888,11 @@ function markdownFor(packet) {
       `Image: ${ticket.sourceImage}`,
       `Mirror: ${ticket.desiredMirror}`,
       `Classification: ${ticket.classification}`,
+      `Registry auth required: ${String(ticket.registryAuthBoundary.authRequired)}`,
+      `Human credential input required: ${String(ticket.registryAuthBoundary.humanCredentialInputRequired)}`,
+      `Credential stored by verifier: ${String(ticket.registryAuthBoundary.credentialStoredByVerifier)}`,
+      `Registry login executed by verifier: ${String(ticket.registryAuthBoundary.registryLoginExecutedByVerifier)}`,
+      `First human setup action: ${ticket.registryAuthBoundary.firstHumanSetupAction}`,
       `First read-only action: ${ticket.firstReadOnlyAction.id}`,
       `Approval-gated action: ${ticket.approvalGatedAction.id}`,
       `Registry change requires explicit approval: ${String(ticket.mutationBoundary.registryChangeRequiresExplicitApproval)}`,
@@ -1058,6 +1077,20 @@ async function main() {
     pass("external runtime registry ticket boundary", `${ticketPackets.length} registry ticket packet(s) are read-only first and approval-gated for registry mutation`);
   } else {
     fail("external runtime registry ticket boundary", "registry ticket packets must keep read-only first action and approval-gated mutation boundary");
+  }
+  if (
+    ticketPackets.every(
+      (ticket) =>
+        ticket.registryAuthBoundary.credentialStoredByVerifier === false &&
+        ticket.registryAuthBoundary.pullSecretCreatedByVerifier === false &&
+        ticket.registryAuthBoundary.registryLoginExecutedByVerifier === false &&
+        (ticket.registryAuthBoundary.authRequired === false ||
+          ticket.registryAuthBoundary.humanCredentialInputRequired === true)
+    )
+  ) {
+    pass("external runtime registry auth boundary", "registry auth gaps require human credential input and verifier stores no credentials");
+  } else {
+    fail("external runtime registry auth boundary", "registry auth gaps must not store credentials, create pull secrets, or run registry login");
   }
   const readyCandidateHandoffs = candidateHandoff.filter(
     (handoff) => handoff.status === "ready-for-human-review"

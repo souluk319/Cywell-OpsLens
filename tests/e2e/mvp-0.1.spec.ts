@@ -1948,6 +1948,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               registryMutationAttempted?: boolean;
               registryChangeRequiresExplicitApproval?: boolean;
             };
+            registryAuthBoundary?: {
+              authRequired?: boolean;
+              humanCredentialInputRequired?: boolean;
+              credentialStoredByVerifier?: boolean;
+              pullSecretCreatedByVerifier?: boolean;
+              registryLoginExecutedByVerifier?: boolean;
+              firstHumanSetupAction?: string;
+            };
           }>;
           candidateHandoff?: Array<{
             imageName?: string;
@@ -2272,11 +2280,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             firstExternalRuntimeTicketPacket?: {
               id?: string;
               severity?: string;
+              classification?: string;
               firstReadOnlyAction?: { id?: string; mutation?: boolean };
               approvalGatedAction?: {
                 id?: string;
                 mutation?: boolean;
                 requiresExplicitApproval?: boolean;
+              };
+              registryAuthBoundary?: {
+                authRequired?: boolean;
+                humanCredentialInputRequired?: boolean;
+                credentialStoredByVerifier?: boolean;
+                pullSecretCreatedByVerifier?: boolean;
+                registryLoginExecutedByVerifier?: boolean;
+                firstHumanSetupAction?: string;
               };
             };
             firstSecurityReviewTicketPacket?: {
@@ -2436,6 +2453,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             externalRuntimeTicketPacket?: {
               id?: string;
               severity?: string;
+              classification?: string;
               firstReadOnlyAction?: {
                 id?: string;
                 mutation?: boolean;
@@ -2445,6 +2463,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 id?: string;
                 mutation?: boolean;
                 requiresExplicitApproval?: boolean;
+              };
+              registryAuthBoundary?: {
+                authRequired?: boolean;
+                humanCredentialInputRequired?: boolean;
+                credentialStoredByVerifier?: boolean;
+                pullSecretCreatedByVerifier?: boolean;
+                registryLoginExecutedByVerifier?: boolean;
+                firstHumanSetupAction?: string;
               };
             };
             securityReviewTicketPacket?: {
@@ -2632,6 +2658,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             externalRuntimeTicketPacket?: {
               id?: string;
               severity?: string;
+              classification?: string;
               firstReadOnlyAction?: {
                 id?: string;
                 mutation?: boolean;
@@ -2641,6 +2668,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 id?: string;
                 mutation?: boolean;
                 requiresExplicitApproval?: boolean;
+              };
+              registryAuthBoundary?: {
+                authRequired?: boolean;
+                humanCredentialInputRequired?: boolean;
+                credentialStoredByVerifier?: boolean;
+                pullSecretCreatedByVerifier?: boolean;
+                registryLoginExecutedByVerifier?: boolean;
+                firstHumanSetupAction?: string;
               };
             };
             securityReviewTicketPacket?: {
@@ -4290,6 +4325,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         registryChangeRequiresExplicitApproval: true
       }
     });
+    if (
+      ["registry-auth-required", "registry-permission-denied"].includes(
+        vllmRegistryTicket?.classification ?? ""
+      )
+    ) {
+      expect(vllmRegistryTicket?.registryAuthBoundary).toMatchObject({
+        authRequired: true,
+        humanCredentialInputRequired: true,
+        credentialStoredByVerifier: false,
+        pullSecretCreatedByVerifier: false,
+        registryLoginExecutedByVerifier: false,
+        firstHumanSetupAction:
+          "registry-admin-authenticate-vllm-source-registry"
+      });
+    } else {
+      expect(vllmRegistryTicket?.registryAuthBoundary).toMatchObject({
+        credentialStoredByVerifier: false,
+        pullSecretCreatedByVerifier: false,
+        registryLoginExecutedByVerifier: false
+      });
+    }
     expect(
       body.installReadiness?.externalRuntimeReview?.images?.map(
         (image) => `${image.name}:${image.sourceDigestInspectionStatus}`
@@ -5049,8 +5105,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         id: "mirror-vllm",
         mutation: true,
         requiresExplicitApproval: true
+      },
+      registryAuthBoundary: {
+        credentialStoredByVerifier: false,
+        pullSecretCreatedByVerifier: false,
+        registryLoginExecutedByVerifier: false
       }
     });
+    if (
+      ["registry-auth-required", "registry-permission-denied"].includes(
+        vllmRegistryDigestAction?.externalRuntimeTicketPacket?.classification ?? ""
+      )
+    ) {
+      expect(
+        vllmRegistryDigestAction?.externalRuntimeTicketPacket?.registryAuthBoundary
+      ).toMatchObject({
+        authRequired: true,
+        humanCredentialInputRequired: true,
+        firstHumanSetupAction:
+          "registry-admin-authenticate-vllm-source-registry"
+      });
+    }
     const externalRuntimeFinalEvidenceAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) =>
@@ -5101,7 +5176,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       );
     expect(externalRuntimeCriticalPath?.externalRuntimeTicketPacket).toMatchObject({
       id: "registry-admin-vllm-external-runtime-ticket",
-      severity: "blocker"
+      severity: "blocker",
+      registryAuthBoundary: {
+        credentialStoredByVerifier: false,
+        registryLoginExecutedByVerifier: false
+      }
     });
     const releasePublishCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
@@ -5145,6 +5224,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       approvalGatedAction: {
         id: "mirror-vllm",
         requiresExplicitApproval: true
+      },
+      registryAuthBoundary: {
+        credentialStoredByVerifier: false,
+        registryLoginExecutedByVerifier: false
       }
     });
     expect(registryOwnerPacket?.firstCatalogToolchainTicketPacket).toMatchObject({
@@ -6866,6 +6949,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-external-runtime-registry-tickets")
     ).toContainText("approval=mirror-vllm");
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-tickets")
+    ).toContainText(/authRequired=(true|false)/);
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-tickets")
+    ).toContainText("credentialStored=false");
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-tickets")
+    ).toContainText("registryLogin=false");
     await expect(
       page.getByTestId("opslens-external-runtime-registry-tickets")
     ).toContainText("requiresApproval=true");

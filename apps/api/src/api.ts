@@ -4655,6 +4655,19 @@ function getExternalRuntimeReviewPacketReadiness(): {
           ticket.mutationBoundary?.mutationAllowedByThisVerifier === true,
         registryChangeRequiresExplicitApproval:
           ticket.mutationBoundary?.registryChangeRequiresExplicitApproval !== false
+      },
+      registryAuthBoundary: {
+        authRequired: ticket.registryAuthBoundary?.authRequired === true,
+        humanCredentialInputRequired:
+          ticket.registryAuthBoundary?.humanCredentialInputRequired === true,
+        credentialStoredByVerifier:
+          ticket.registryAuthBoundary?.credentialStoredByVerifier === true,
+        pullSecretCreatedByVerifier:
+          ticket.registryAuthBoundary?.pullSecretCreatedByVerifier === true,
+        registryLoginExecutedByVerifier:
+          ticket.registryAuthBoundary?.registryLoginExecutedByVerifier === true,
+        firstHumanSetupAction:
+          ticket.registryAuthBoundary?.firstHumanSetupAction ?? "not-required"
       }
     }));
     const imageSummary = images

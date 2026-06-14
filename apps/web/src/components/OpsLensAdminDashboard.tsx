@@ -3932,6 +3932,18 @@ export function OpsLensAdminDashboard() {
                     <span key={ticket.id}>
                       {ticket.id}:{ticket.owner}:{ticket.severity}:image=
                       {ticket.imageName}:classification={ticket.classification}
+                      :authRequired=
+                      {String(ticket.registryAuthBoundary?.authRequired ?? false)}
+                      :credentialStored=
+                      {String(
+                        ticket.registryAuthBoundary?.credentialStoredByVerifier ??
+                          false
+                      )}
+                      :registryLogin=
+                      {String(
+                        ticket.registryAuthBoundary
+                          ?.registryLoginExecutedByVerifier ?? false
+                      )}
                       :first={ticket.firstReadOnlyAction.id}:approval=
                       {ticket.approvalGatedAction.id}:requiresApproval=
                       {String(ticket.approvalGatedAction.requiresExplicitApproval)}

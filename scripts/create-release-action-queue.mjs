@@ -848,6 +848,20 @@ function sanitizeExternalRuntimeTicketPacket(packet = {}) {
       registryChangeRequiresExplicitApproval:
         packet.mutationBoundary?.registryChangeRequiresExplicitApproval !== false
     },
+    registryAuthBoundary: {
+      authRequired: packet.registryAuthBoundary?.authRequired === true,
+      humanCredentialInputRequired:
+        packet.registryAuthBoundary?.humanCredentialInputRequired === true,
+      credentialStoredByVerifier:
+        packet.registryAuthBoundary?.credentialStoredByVerifier === true,
+      pullSecretCreatedByVerifier:
+        packet.registryAuthBoundary?.pullSecretCreatedByVerifier === true,
+      registryLoginExecutedByVerifier:
+        packet.registryAuthBoundary?.registryLoginExecutedByVerifier === true,
+      firstHumanSetupAction: sanitize(
+        packet.registryAuthBoundary?.firstHumanSetupAction ?? "not-required"
+      )
+    },
     risk: sanitize(
       packet.risk ??
         "External runtime registry evidence blocks release approval until reviewed."
@@ -3131,6 +3145,11 @@ function ownerPacketMarkdown(queue, packet) {
           `- Image: ${packet.firstExternalRuntimeTicketPacket.sourceImage}`,
           `- Desired mirror: ${packet.firstExternalRuntimeTicketPacket.desiredMirror}`,
           `- Classification: ${packet.firstExternalRuntimeTicketPacket.classification}`,
+          `- Registry auth required: ${String(packet.firstExternalRuntimeTicketPacket.registryAuthBoundary?.authRequired ?? false)}`,
+          `- Human credential input required: ${String(packet.firstExternalRuntimeTicketPacket.registryAuthBoundary?.humanCredentialInputRequired ?? false)}`,
+          `- Credential stored by verifier: ${String(packet.firstExternalRuntimeTicketPacket.registryAuthBoundary?.credentialStoredByVerifier ?? false)}`,
+          `- Registry login executed by verifier: ${String(packet.firstExternalRuntimeTicketPacket.registryAuthBoundary?.registryLoginExecutedByVerifier ?? false)}`,
+          `- First human setup action: ${packet.firstExternalRuntimeTicketPacket.registryAuthBoundary?.firstHumanSetupAction ?? "not-required"}`,
           `- First read-only action: ${packet.firstExternalRuntimeTicketPacket.firstReadOnlyAction.id}`,
           `- First read-only command: ${packet.firstExternalRuntimeTicketPacket.firstReadOnlyAction.nextCommand}`,
           `- Approval-gated action: ${packet.firstExternalRuntimeTicketPacket.approvalGatedAction.id}`,
