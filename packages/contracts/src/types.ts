@@ -1991,6 +1991,19 @@ export interface OpsLensInstallApprovalPlanSummary {
   clusterMutationAttempted: boolean;
   mutationAllowedByThisVerifier: boolean;
   requiredApprovals: string[];
+  firstApprovalActions: Array<{
+    id: string;
+    owner: string;
+    phase: string;
+    status: string;
+    request: string;
+    evidenceNeeded: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+    blockedBy: string[];
+    rollbackPath: string;
+  }>;
   mutatingCommands: Array<{
     id: string;
     phase: string;

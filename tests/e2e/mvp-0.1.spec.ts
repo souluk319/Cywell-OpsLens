@@ -1308,6 +1308,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           clusterMutationAttempted?: boolean;
           mutationAllowedByThisVerifier?: boolean;
           requiredApprovals?: string[];
+          firstApprovalActions?: Array<{
+            id?: string;
+            owner?: string;
+            phase?: string;
+            status?: string;
+            request?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+            blockedBy?: string[];
+            rollbackPath?: string;
+          }>;
           mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
           lightspeedRegistration?: {
             actionMode?: string;
@@ -2411,6 +2424,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "product-owner"
       ])
     );
+    expect(
+      body.installReadiness?.approvalPlan?.firstApprovalActions?.length ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.approvalPlan?.firstApprovalActions?.some(
+        (action) =>
+          action.mutation === false &&
+          action.nextCommand?.match(/verify:|git status|ocp:connectivity/)
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.approvalPlan?.firstApprovalActions?.some(
+        (action) =>
+          action.mutation === true &&
+          action.requiresExplicitApproval === true &&
+          action.id?.startsWith("approval-gated-")
+      )
+    ).toBe(true);
     expect(
       body.installReadiness?.approvalPlan?.lightspeedRegistration
     ).toMatchObject({
@@ -4154,6 +4185,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-lightspeed-registration-plan")
     ).toContainText("clusterMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-install-first-approval-actions")
+    ).toContainText(/verify:|ocp:connectivity|git status/);
+    await expect(
+      page.getByTestId("opslens-install-first-approval-actions")
+    ).toContainText("approval-gated-");
+    await expect(
+      page.getByTestId("opslens-install-first-approval-actions")
+    ).toContainText("approval=true");
     await expect(
       page.getByTestId("opslens-lightspeed-registration-commands")
     ).toContainText("verify:lightspeed:patch-preview");

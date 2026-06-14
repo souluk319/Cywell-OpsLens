@@ -489,6 +489,92 @@ function planStatus(checklist) {
   return "APPROVAL_REQUIRED";
 }
 
+const checklistActionMap = {
+  "current-worktree-clean": {
+    owner: "release-manager",
+    nextCommand: "git status --short",
+    request: "Regenerate install approval evidence from a clean Git worktree."
+  },
+  "mvp-gate-clean": {
+    owner: "release-manager",
+    nextCommand: "npm run verify:mvp -- --skip-images",
+    request: "Refresh the MVP gate evidence before install approval review."
+  },
+  "operator-server-dry-run": {
+    owner: "cluster-sre",
+    nextCommand: "npm run verify:operator:dry-run",
+    request: "Refresh the live server-side dry-run evidence without applying manifests."
+  },
+  "lightspeed-patch-preview": {
+    owner: "cluster-admin",
+    nextCommand: "npm run verify:lightspeed:patch-preview",
+    request: "Refresh the OLSConfig PatchOLSConfig preview without patching the cluster."
+  },
+  "lightspeed-readiness-gap-known": {
+    owner: "network-sre",
+    nextCommand: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
+    request: "Restore or re-check live OCP reachability before install approval can rely on Lightspeed readiness."
+  },
+  "image-build-evidence": {
+    owner: "release-manager",
+    nextCommand: "npm run verify:images:build",
+    request: "Refresh same-head owned image build evidence before install approval."
+  },
+  "rag-ingestion-plan-evidence": {
+    owner: "rag-owner",
+    nextCommand: "npm run verify:rag:approval-queue",
+    request: "Refresh the RAG ingestion approval plan without creating an ingestion job."
+  },
+  "human-approval": {
+    owner: "cluster-admin",
+    nextCommand: "review install approval plan and collect required approver decisions",
+    request: "Collect explicit human approval before running any mutating install command."
+  }
+};
+
+function firstApprovalActions(checklist, commands) {
+  const openChecklistItems = checklist.filter((item) => item.status !== "pass");
+  const checklistActions = openChecklistItems.slice(0, 3).map((item) => {
+    const mapped = checklistActionMap[item.id] ?? {
+      owner: "cluster-admin",
+      nextCommand: "npm run verify:install-plan",
+      request: `Refresh install approval evidence for ${item.id}.`
+    };
+    return {
+      id: item.id,
+      owner: mapped.owner,
+      phase: "approval-preflight",
+      status: item.status,
+      request: mapped.request,
+      evidenceNeeded: item.evidence,
+      nextCommand: mapped.nextCommand,
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy: item.status === "approval-required" ? [] : [item.evidence],
+      rollbackPath: "No rollback is required for read-only approval preflight."
+    };
+  });
+  const firstMutatingCommand = commands.find((entry) => entry.mutation === true);
+  const gatedMutationAction = firstMutatingCommand
+    ? [
+        {
+          id: `approval-gated-${firstMutatingCommand.id}`,
+          owner: "cluster-admin",
+          phase: firstMutatingCommand.phase,
+          status: "approval-gated",
+          request: `Do not run ${firstMutatingCommand.id} until every required approval is collected.`,
+          evidenceNeeded: "All install approval checklist items pass and cluster-admin, cluster-sre, security-reviewer, and product-owner approvals are recorded.",
+          nextCommand: firstMutatingCommand.command,
+          mutation: true,
+          requiresExplicitApproval: true,
+          blockedBy: openChecklistItems.map((item) => `${item.id}: ${item.evidence}`),
+          rollbackPath: firstMutatingCommand.rollback
+        }
+      ]
+    : [];
+  return [...checklistActions, ...gatedMutationAction];
+}
+
 function secretValuesForLeakCheck() {
   return [
     "OCP_API_TOKEN",
@@ -587,6 +673,7 @@ async function buildPlan() {
     "install approval plan must expose non-mutating OLSConfig PatchOLSConfig registration instead of a ConfigMap mutation"
   );
   const status = planStatus(checklist);
+  const firstActions = firstApprovalActions(checklist, commands);
   const approvedIngestionPlan = ragApprovalQueue?.ingestionPlan?.approved ?? {};
   const ragIngestionStatus =
     approvedIngestionPlan.status === "ready-for-ingestion-job"
@@ -674,6 +761,7 @@ async function buildPlan() {
             ]
     },
     checklist,
+    firstApprovalActions: firstActions,
     commands,
     risk: [
       "Applying the OpsLensInstallation sample allows the Operator to patch OLSConfig because mode=PatchOLSConfig is explicit.",

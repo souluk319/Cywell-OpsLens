@@ -1685,6 +1685,19 @@ type InstallApprovalPlanEvidenceArtifact = {
     rollbackPath?: string[];
     missingEvidence?: string[];
   };
+  firstApprovalActions?: Array<{
+    id?: string;
+    owner?: string;
+    phase?: string;
+    status?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
+  }>;
   commands?: Array<{
     id?: string;
     phase?: string;
@@ -4200,6 +4213,21 @@ function getInstallApprovalPlanReadiness(): {
           "security-reviewer",
           "product-owner"
         ],
+        firstApprovalActions: [
+          {
+            id: "generate-install-approval-plan",
+            owner: "cluster-admin",
+            phase: "approval-preflight",
+            status: "needs-evidence",
+            request: "Generate install approval evidence before reviewing mutating install commands.",
+            evidenceNeeded: `install approval plan evidence is missing at ${evidencePath}`,
+            nextCommand: "npm run verify:install-plan",
+            mutation: false,
+            requiresExplicitApproval: false,
+            blockedBy: [`install approval plan evidence is missing at ${evidencePath}`],
+            rollbackPath: "No rollback is required because no install command has run."
+          }
+        ],
         mutatingCommands: [],
         risk: [
           "No install approval plan evidence is available yet; mutating install commands remain blocked."
@@ -4240,6 +4268,19 @@ function getInstallApprovalPlanReadiness(): {
     const mutatingCommandNames = mutatingCommands
       .map((command) => command.id)
       .join(", ");
+    const firstApprovalActions = (artifact.firstApprovalActions ?? []).map((action) => ({
+      id: action.id ?? "unknown",
+      owner: action.owner ?? "cluster-admin",
+      phase: action.phase ?? "unknown",
+      status: action.status ?? "unknown",
+      request: action.request ?? "install approval action",
+      evidenceNeeded: action.evidenceNeeded ?? "missing evidence",
+      nextCommand: action.nextCommand ?? "npm run verify:install-plan",
+      mutation: action.mutation === true,
+      requiresExplicitApproval: action.requiresExplicitApproval === true,
+      blockedBy: action.blockedBy ?? [],
+      rollbackPath: action.rollbackPath ?? "Regenerate install approval evidence before proceeding."
+    }));
     const ragIngestion = mapRagIngestionApprovalPlan(
       artifact.ragIngestion
     );
@@ -4266,6 +4307,7 @@ function getInstallApprovalPlanReadiness(): {
         mutationAllowedByThisVerifier:
           artifact.mutationAllowedByThisVerifier === true,
         requiredApprovals: artifact.requiredApprovals ?? [],
+        firstApprovalActions,
         mutatingCommands,
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? [],
@@ -4278,6 +4320,7 @@ function getInstallApprovalPlanReadiness(): {
         `install approval plan generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `actionMode=${artifact.actionMode ?? "unknown"} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")} mutationAllowedByThisVerifier=${String(artifact.mutationAllowedByThisVerifier ?? "unknown")}`,
         `required approvals=${(artifact.requiredApprovals ?? []).join(", ") || "unknown"}`,
+        `install first approval actions=${firstApprovalActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         mutatingCommandNames
           ? `mutating commands require explicit approval: ${mutatingCommandNames}`
           : "mutating commands are not listed in latest approval plan",
@@ -4296,6 +4339,7 @@ function getInstallApprovalPlanReadiness(): {
         clusterMutationAttempted: false,
         mutationAllowedByThisVerifier: false,
         requiredApprovals: [],
+        firstApprovalActions: [],
         mutatingCommands: [],
         risk: [
           "Install approval plan evidence is invalid; mutating install commands remain blocked."

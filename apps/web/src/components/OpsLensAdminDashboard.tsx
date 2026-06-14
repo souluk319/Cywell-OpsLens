@@ -2351,6 +2351,22 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-install-first-approval-actions"
+              >
+                {approvalPlan.firstApprovalActions.length ? (
+                  approvalPlan.firstApprovalActions.map((action) => (
+                    <span key={action.id}>
+                      {action.id}:{action.owner}:{action.nextCommand}:mutation=
+                      {String(action.mutation)}:approval=
+                      {String(action.requiresExplicitApproval)}
+                    </span>
+                  ))
+                ) : (
+                  <span>first approval actions clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-lightspeed-registration-commands"
               >
                 {approvalPlan.lightspeedRegistration.readOnlyCommands.map(
