@@ -13,6 +13,7 @@ const defaults = {
   ownerPacketsDir: "test-results/release-action-queue-owners",
   releaseRefreshEvidence: "test-results/cywell-opslens-release-evidence-refresh.json",
   releaseBundleEvidence: "test-results/cywell-opslens-release-evidence-bundle.json",
+  envContract: "test-results/cywell-opslens-env-contract.json",
   aiopsIncidentPipeline:
     "test-results/cywell-opslens-aiops-incident-pipeline.json",
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
@@ -61,6 +62,8 @@ const options = {
     parsed.get("release-refresh-evidence") ?? defaults.releaseRefreshEvidence,
   releaseBundleEvidence:
     parsed.get("release-bundle-evidence") ?? defaults.releaseBundleEvidence,
+  envContract:
+    parsed.get("env-contract-evidence") ?? defaults.envContract,
   aiopsIncidentPipeline:
     parsed.get("aiops-incident-pipeline-evidence") ??
     defaults.aiopsIncidentPipeline,
@@ -211,8 +214,12 @@ function sourceSummary(id, label, path, artifact, currentHeadSha, required = fal
   const mutationViolation =
     artifact?.clusterMutationAttempted === true ||
     artifact?.registryMutationAttempted === true ||
+    artifact?.vectorWriteAttempted === true ||
+    artifact?.ingestionJobCreated === true ||
     artifact?.mutationAllowedByThisVerifier === true ||
-    artifact?.policy?.clusterMutationAttempted === true;
+    artifact?.policy?.clusterMutationAttempted === true ||
+    artifact?.policy?.registryMutationAttempted === true ||
+    artifact?.policy?.vectorWriteAttempted === true;
 
   if (!artifact && required) {
     fail(`${label} source`, `${label} is missing`);
@@ -367,6 +374,14 @@ function fixedReadOnlyCommands() {
       phase: "local-evidence-refresh",
       command: "npm run verify:release-refresh -- --live-timeout-ms 30000",
       purpose: "Refresh the current-head release evidence chain without approving mutation.",
+      mutation: false,
+      writesLocalEvidence: true
+    },
+    {
+      id: "env-contract",
+      phase: "environment-isolation",
+      command: "npm run verify:env",
+      purpose: "Refresh OCP/Lightspeed environment isolation evidence without reading or writing secret values.",
       mutation: false,
       writesLocalEvidence: true
     },
@@ -1518,6 +1533,146 @@ function runtimeLiveItems(
   return items;
 }
 
+function envContractMutationViolation(envContract) {
+  return envContract?.clusterMutationAttempted === true ||
+    envContract?.registryMutationAttempted === true ||
+    envContract?.vectorWriteAttempted === true ||
+    envContract?.ingestionJobCreated === true ||
+    envContract?.mutationAllowedByThisVerifier === true ||
+    envContract?.policy?.clusterMutationAttempted === true ||
+    envContract?.policy?.registryMutationAttempted === true ||
+    envContract?.policy?.vectorWriteAttempted === true;
+}
+
+function envContractDiagnostics(envContract, currentHeadSha) {
+  const audit = envContract?.envAudit ?? {};
+  const checks = Array.isArray(envContract?.checks) ? envContract.checks : [];
+  const failingChecks = checks
+    .filter((check) => check.status !== "PASS")
+    .map((check) => check.name ?? check.id ?? "unknown");
+  const duplicateActiveKeys = Array.isArray(audit.duplicateActiveKeys)
+    ? audit.duplicateActiveKeys
+    : [];
+  const activeMissingValues = Array.isArray(audit.activeMissingValues)
+    ? audit.activeMissingValues
+    : [];
+  const ref = artifactRef(envContract);
+  return [
+    {
+      id: "env-contract-status",
+      label: "Environment contract",
+      value:
+        `status=${envContract?.status ?? "missing"} ` +
+        `actionMode=${envContract?.actionMode ?? "missing"} ` +
+        `artifactHead=${ref.headSha ?? "missing"} ` +
+        `currentHead=${currentHeadSha} ` +
+        `fresh=${String(envContract ? artifactFresh(envContract, currentHeadSha) : false)}`
+    },
+    {
+      id: "env-contract-targets",
+      label: "Environment targets",
+      value:
+        `activeOcpTarget=${String(audit.activeOcpTarget === true)} ` +
+        `activeLightspeedTarget=${String(audit.activeLightspeedTarget === true)} ` +
+        `activeKeyCount=${audit.activeKeyCount ?? 0} ` +
+        `commentedTrackedCount=${audit.commentedTrackedCount ?? 0}`
+    },
+    {
+      id: "env-contract-key-gaps",
+      label: "Key gaps",
+      value:
+        `duplicateActiveKeys=${duplicateActiveKeys.length} ` +
+        `activeMissingValues=${activeMissingValues.length} ` +
+        `failingChecks=${failingChecks.length}`
+    },
+    {
+      id: "env-contract-boundary",
+      label: "Mutation boundary",
+      value:
+        `clusterMutationAttempted=${String(envContract?.clusterMutationAttempted === true)} ` +
+        `registryMutationAttempted=${String(envContract?.registryMutationAttempted === true)} ` +
+        `vectorWriteAttempted=${String(envContract?.vectorWriteAttempted === true)} ` +
+        `mutationAllowedByThisVerifier=${String(envContract?.mutationAllowedByThisVerifier === true)}`
+    }
+  ];
+}
+
+function envContractItems(envContract, currentHeadSha) {
+  const audit = envContract?.envAudit ?? {};
+  const checks = Array.isArray(envContract?.checks) ? envContract.checks : [];
+  const failingChecks = checks
+    .filter((check) => check.status !== "PASS")
+    .map((check) => `check:${check.name ?? check.id ?? "unknown"}:${check.status ?? "unknown"}`);
+  const duplicateActiveKeys = Array.isArray(audit.duplicateActiveKeys)
+    ? audit.duplicateActiveKeys
+    : [];
+  const activeMissingValues = Array.isArray(audit.activeMissingValues)
+    ? audit.activeMissingValues
+    : [];
+  const gaps = uniqueStrings([
+    ...(!envContract ? ["env contract artifact missing"] : []),
+    ...(envContract && !artifactFresh(envContract, currentHeadSha)
+      ? [`env contract stale head=${artifactRef(envContract).headSha ?? "missing"}`]
+      : []),
+    ...(envContract?.status !== "PASS"
+      ? [`env contract status=${envContract?.status ?? "missing"}`]
+      : []),
+    ...(envContract?.actionMode !== "localEnvAuditOnly"
+      ? [`env contract actionMode=${envContract?.actionMode ?? "missing"}`]
+      : []),
+    ...(audit.activeOcpTarget !== true ? ["active OCP target keys missing"] : []),
+    ...(audit.activeLightspeedTarget !== true ? ["active Lightspeed target keys missing"] : []),
+    ...duplicateActiveKeys.map((key) => `duplicate active key ${key}`),
+    ...activeMissingValues.map((key) => `active key has no value ${key}`),
+    ...failingChecks,
+    ...(envContractMutationViolation(envContract)
+      ? ["env contract mutation boundary violated"]
+      : [])
+  ]);
+
+  if (gaps.length === 0) return [];
+
+  const blocker =
+    !envContract ||
+    envContract.status !== "PASS" ||
+    audit.activeOcpTarget !== true ||
+    audit.activeLightspeedTarget !== true ||
+    duplicateActiveKeys.length > 0 ||
+    activeMissingValues.length > 0 ||
+    envContractMutationViolation(envContract);
+
+  return [
+    item({
+      id: "cluster-sre-fix-env-target-isolation",
+      owner: "cluster-sre",
+      priority: blocker ? "blocker" : "high",
+      source: "envContract",
+      request:
+        "Restore OCP/Lightspeed environment target isolation before live readiness or release review.",
+      evidenceNeeded:
+        "npm run verify:env writes PASS opslens.env-contract.v0.1 with active OCP and Lightspeed target keys, no duplicate active keys, no missing values, and mutation flags false.",
+      nextCommand: "npm run verify:env",
+      handoffNextCommands: [
+        "npm run verify:env",
+        "npm run verify:release-refresh -- --live-timeout-ms 8000"
+      ],
+      readOnlyCommands: [
+        {
+          id: "env-contract",
+          phase: "environment-isolation",
+          command: "npm run verify:env",
+          mutation: false,
+          requiresNetwork: false,
+          writesLocalEvidence: true
+        }
+      ],
+      blockedBy: gaps,
+      diagnostics: envContractDiagnostics(envContract, currentHeadSha),
+      acceptance: ["AC-ENV-001", "AC-DASH-001", "AC-LS-002", "AC-OCP-001"]
+    })
+  ];
+}
+
 function aiopsMonitoringItems(aiopsIncidentPipeline) {
   const missingEvidence = [
     ...(aiopsIncidentPipeline?.missingEvidence ?? []),
@@ -1639,9 +1794,10 @@ function ocpAuthRbacItems(authRbacPlan) {
   ];
 }
 
-function buildItems(artifacts) {
+function buildItems(artifacts, currentHeadSha) {
   return uniqueByKey(
     [
+      ...envContractItems(artifacts.envContract, currentHeadSha),
       ...checkpointItems(
         artifacts.checkpoint,
         artifacts.ocpNetworkHandoff,
@@ -2058,6 +2214,7 @@ async function main() {
   const artifacts = {
     releaseRefresh: loadJson(options.releaseRefreshEvidence, "release evidence refresh", false),
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
+    envContract: loadJson(options.envContract, "environment isolation contract", false),
     aiopsIncidentPipeline: loadJson(options.aiopsIncidentPipeline, "AI Ops incident pipeline", false),
     runtimeReadiness: loadJson(options.runtimeReadiness, "runtime readiness", false),
     runtimeRagContract: loadJson(options.runtimeRagContract, "runtime RAG contract", false),
@@ -2078,6 +2235,7 @@ async function main() {
   const sourceArtifacts = [
     sourceSummary("releaseRefresh", "release evidence refresh", options.releaseRefreshEvidence, artifacts.releaseRefresh, headSha),
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
+    sourceSummary("envContract", "environment isolation contract", options.envContract, artifacts.envContract, headSha, true),
     sourceSummary("aiopsIncidentPipeline", "AI Ops incident pipeline", options.aiopsIncidentPipeline, artifacts.aiopsIncidentPipeline, headSha),
     sourceSummary("runtimeReadiness", "runtime readiness", options.runtimeReadiness, artifacts.runtimeReadiness, headSha),
     sourceSummary("runtimeRagContract", "runtime RAG contract", options.runtimeRagContract, artifacts.runtimeRagContract, headSha),
@@ -2095,7 +2253,7 @@ async function main() {
     sourceSummary("installPlan", "install approval plan", options.installPlanEvidence, artifacts.installPlan, headSha)
   ];
 
-  const items = buildItems(artifacts);
+  const items = buildItems(artifacts, headSha);
   const owners = ownerSummary(items);
   const ownerPackets = buildOwnerPackets(owners, items);
   const releaseCriticalPath = criticalPath(items);
@@ -2129,6 +2287,7 @@ async function main() {
       artifacts.releaseBundle?.clusterMutationAttempted !== true &&
       artifacts.releaseBundle?.mutationAllowedByThisVerifier !== true &&
       artifacts.releaseBundle?.mutationBoundary?.passed !== false &&
+      envContractMutationViolation(artifacts.envContract) !== true &&
       artifacts.checkpoint?.registryMutationAttempted !== true &&
       artifacts.checkpoint?.clusterMutationAttempted !== true &&
       artifacts.securityScanPlan?.registryMutationAttempted !== true &&
@@ -2174,6 +2333,7 @@ async function main() {
     },
     acceptance: [
       "AC-DASH-001",
+      "AC-ENV-001",
       "AC-CERT-001",
       "AC-OP-005",
       "AC-LIVE-HANDOFF-001"
@@ -2189,6 +2349,7 @@ async function main() {
     mutationBoundary,
     missingEvidence: normalizedEvidence([
       ...(artifacts.releaseBundle?.missingEvidence ?? []),
+      ...(artifacts.envContract?.missingEvidence ?? []),
       // releaseRefresh summarizes a prior action queue run; feeding it back causes stale circular gaps.
       ...(artifacts.checkpoint?.missingEvidence ?? []),
       ...(artifacts.securityScanPlan?.missingEvidence ?? []),

@@ -2098,6 +2098,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             id?: string;
             status?: string;
             fresh?: boolean;
+            required?: boolean;
             mutationViolation?: boolean;
           }>;
           commandCounts?: {
@@ -3820,6 +3821,43 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.actionQueue?.markdownPath).toContain(
       "cywell-opslens-release-action-queue.md"
     );
+    expect(
+      body.installReadiness?.actionQueue?.sourceArtifacts?.map((source) => source.id)
+    ).toEqual(expect.arrayContaining(["envContract"]));
+    const actionQueueEnvSource =
+      body.installReadiness?.actionQueue?.sourceArtifacts?.find(
+        (source) => source.id === "envContract"
+      );
+    expect(actionQueueEnvSource).toMatchObject({
+      status: "PASS",
+      fresh: true,
+      required: true,
+      mutationViolation: false
+    });
+    const envTargetActions =
+      body.installReadiness?.actionQueue?.items?.filter(
+        (item) =>
+          item.source === "envContract" ||
+          item.id === "cluster-sre-fix-env-target-isolation"
+      ) ?? [];
+    if (
+      actionQueueEnvSource?.status !== "PASS" ||
+      actionQueueEnvSource?.fresh !== true ||
+      actionQueueEnvSource?.mutationViolation === true
+    ) {
+      expect(envTargetActions.length).toBeGreaterThan(0);
+      expect(envTargetActions[0]?.nextCommand).toBe("npm run verify:env");
+      expect(envTargetActions[0]?.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining([
+          "env-contract-status",
+          "env-contract-targets",
+          "env-contract-key-gaps",
+          "env-contract-boundary"
+        ])
+      );
+    } else {
+      expect(envTargetActions.length).toBe(0);
+    }
     const actionQueueOwners =
       body.installReadiness?.actionQueue?.owners?.map((owner) => owner.owner) ?? [];
     expect(actionQueueOwners).toContain("release-manager");
