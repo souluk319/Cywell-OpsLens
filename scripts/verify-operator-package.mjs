@@ -11,6 +11,7 @@ const paths = {
   clusterRoleBinding: "deploy/operator/config/rbac/cluster_role_binding.yaml",
   manager: "deploy/operator/config/manager/manager.yaml",
   apps: "deploy/operator/config/apps/opslens-stack.yaml",
+  olsconfigTemplate: "deploy/lightspeed/olsconfig-cywell-opslens-mcp.yaml",
   csv: "deploy/operator/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml",
   bundleCrd: "deploy/operator/bundle/manifests/opslens.cywell.io_opslensinstallations.yaml",
   annotations: "deploy/operator/bundle/metadata/annotations.yaml",
@@ -390,8 +391,7 @@ function validateApps(apps) {
     ["Service", "cywell-opslens-vector"],
     ["Deployment", "cywell-opslens-vllm"],
     ["Service", "cywell-opslens-vllm"],
-    ["ConsolePlugin", "cywell-opslens"],
-    ["OLSConfig", "cluster"]
+    ["ConsolePlugin", "cywell-opslens"]
   ];
 
   for (const [kind, name] of required) {
@@ -578,32 +578,51 @@ function validateApps(apps) {
     fail("RAG policy ConfigMap", "RAG policy ConfigMap is missing or unsafe");
   }
 
-  const ols = findDoc(apps, "OLSConfig", "cluster");
+  const olsResources = apps.filter(
+    (resource) => resource.kind === "OLSConfig" || resource.apiVersion?.startsWith("ols.openshift.io/")
+  );
+  if (olsResources.length === 0) {
+    pass("app manifest excludes OLSConfig", "Lightspeed registration stays outside the static app stack");
+  } else {
+    fail(
+      "app manifest excludes OLSConfig",
+      `static app stack must not include approval-gated Lightspeed resources: ${olsResources.map(label).join(", ")}`
+    );
+  }
+}
+
+function validateOlsconfigTemplate(ols) {
+  if (ols?.kind === "OLSConfig" && ols?.metadata?.name === "cluster") {
+    pass("OLSConfig template identity", label(ols));
+  } else {
+    fail("OLSConfig template identity", `expected OLSConfig/cluster, got ${label(ols)}`);
+  }
+
   const gates = ols?.spec?.featureGates ?? [];
   const mcp = (ols?.spec?.mcpServers ?? []).find((server) => server.name === "cywell-opslens");
   if (gates.includes("MCPServer")) {
-    pass("managed OLSConfig feature gate", "MCPServer");
+    pass("OLSConfig template feature gate", "MCPServer");
   } else {
-    fail("managed OLSConfig feature gate", "MCPServer is missing");
+    fail("OLSConfig template feature gate", "MCPServer is missing");
   }
 
   if (mcp?.url?.endsWith("/mcp")) {
-    pass("managed OLSConfig MCP URL", mcp.url);
+    pass("OLSConfig template MCP URL", mcp.url);
   } else {
-    fail("managed OLSConfig MCP URL", "cywell-opslens server URL must end with /mcp");
+    fail("OLSConfig template MCP URL", "cywell-opslens server URL must end with /mcp");
   }
 
   const headerTypes = (mcp?.headers ?? []).map((header) => header.valueFrom?.type);
   if (headerTypes.includes("kubernetes") && headerTypes.includes("secret")) {
-    pass("managed OLSConfig headers", "kubernetes user token and secret header are configured");
+    pass("OLSConfig template headers", "kubernetes user token and secret header are configured");
   } else {
-    fail("managed OLSConfig headers", "expected kubernetes and secret header types");
+    fail("OLSConfig template headers", "expected kubernetes and secret header types");
   }
 
   if (ols?.metadata?.annotations?.["opslens.cywell.io/reconcile-mode"] === "PatchOLSConfig") {
-    pass("managed OLSConfig reconcile annotation", "PatchOLSConfig");
+    pass("OLSConfig template reconcile annotation", "PatchOLSConfig");
   } else {
-    fail("managed OLSConfig reconcile annotation", "PatchOLSConfig annotation is missing");
+    fail("OLSConfig template reconcile annotation", "PatchOLSConfig annotation is missing");
   }
 }
 
@@ -831,6 +850,7 @@ try {
   await loadSingle(paths.clusterRoleBinding);
   await loadSingle(paths.manager);
   const apps = await loadYaml(paths.apps);
+  const olsconfigTemplate = await loadSingle(paths.olsconfigTemplate);
   const csv = await loadSingle(paths.csv);
   const bundleCrd = await loadSingle(paths.bundleCrd);
   const annotations = await loadSingle(paths.annotations);
@@ -841,6 +861,7 @@ try {
   validateCsv(csv);
   validateRbac(clusterRole, csv);
   validateApps(apps);
+  validateOlsconfigTemplate(olsconfigTemplate);
   validateAnnotations(annotations);
   await validateDockerfile();
   await validateBundleDirectory();

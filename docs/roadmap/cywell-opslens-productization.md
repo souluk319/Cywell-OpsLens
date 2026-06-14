@@ -82,7 +82,7 @@ Primary references:
 
 - Namespaced `OpsLensInstallation` CRD with API, dashboard, vector store, model runtime, validate-only RAG document intake, design-only RAG approval queue, ConsolePlugin, and Lightspeed registration settings.
 - Default `ValidateOnly` registration mode plus explicit `PatchOLSConfig` opt-in for sample installs.
-- Static manifests for API, dashboard, RAG policy ConfigMap, Qdrant vector store, vLLM runtime, ConsolePlugin, ingress NetworkPolicies, and managed OLSConfig registration.
+- Static manifests for API, dashboard, RAG policy ConfigMap, Qdrant vector store, vLLM runtime, ConsolePlugin, and ingress NetworkPolicies; OLSConfig registration stays outside the static app stack and only enters through the explicit `PatchOLSConfig` approval path or the standalone `deploy/lightspeed/` template.
 - OLM bundle skeleton with CSV, CRD, annotations, bundle Dockerfile, related images, and RBAC for `olsconfigs`, `consoleplugins`, and `networkpolicies`.
 - Go/controller-runtime manager source under `deploy/operator/controller-runtime/**` with scheme registration, health checks, `OpsLensInstallation` types, reconcile entrypoint, install resources, RAG policy rendering, and explicit `ValidateOnly`/`PatchOLSConfig` OLSConfig patch split.
 - `npm run verify:operator` as the local package contract verifier.

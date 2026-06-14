@@ -199,7 +199,7 @@ function ocEvidence() {
   return {
     authSource: config.baseUrl && config.token ? "env" : "oc-context",
     configured: Boolean(config.baseUrl && config.token),
-    host,
+    host: sanitize(host),
     tlsVerify: config.tlsVerify
   };
 }
@@ -217,12 +217,47 @@ function secretValuesForLeakCheck() {
     .filter((value) => value && value.length >= 8);
 }
 
+function sensitiveEndpointValues() {
+  const config = ocpConfig();
+  const values = [];
+  if (config.baseUrl) {
+    values.push(config.baseUrl);
+    try {
+      const url = new URL(config.baseUrl);
+      values.push(url.host, url.hostname);
+    } catch {
+      // Keep the raw configured value above if URL parsing fails.
+    }
+  }
+  return Array.from(new Set(values.filter((value) => value && value.length >= 4)));
+}
+
+function redactEndpointText(text) {
+  let result = text;
+  for (const endpoint of sensitiveEndpointValues()) {
+    result = result.split(endpoint).join("<redacted-ocp-api>");
+  }
+  return result
+    .replace(
+      /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/g,
+      "<redacted-private-ip>"
+    )
+    .replace(/\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/gi, "<redacted-ocp-api>");
+}
+
+function endpointLeakLike(text) {
+  return (
+    /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/.test(text) ||
+    /\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/i.test(text)
+  );
+}
+
 function sanitize(text) {
-  let result = text ?? "";
+  let result = String(text ?? "");
   for (const secret of secretValuesForLeakCheck()) {
     result = result.split(secret).join("<redacted>");
   }
-  return result;
+  return redactEndpointText(result);
 }
 
 async function runOc(args) {
@@ -538,6 +573,9 @@ async function writeEvidence(results) {
   const leakedSecret = secretValuesForLeakCheck().some((secret) => serialized.includes(secret));
   if (leakedSecret) {
     throw new Error("dry-run evidence would include a configured secret value");
+  }
+  if (endpointLeakLike(serialized)) {
+    throw new Error("dry-run evidence would include an unredacted OCP endpoint");
   }
 
   await mkdir(dirname(reportPath), { recursive: true });

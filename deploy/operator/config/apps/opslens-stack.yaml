@@ -389,32 +389,3 @@ spec:
           name: cywell-opslens-api
           namespace: cywell-opslens
           port: 443
----
-apiVersion: ols.openshift.io/v1alpha1
-kind: OLSConfig
-metadata:
-  name: cluster
-  namespace: openshift-lightspeed
-  labels:
-    app.kubernetes.io/name: cywell-opslens
-    app.kubernetes.io/component: lightspeed-registration
-    app.kubernetes.io/managed-by: cywell-opslens-operator
-  annotations:
-    opslens.cywell.io/reconcile-mode: PatchOLSConfig
-    opslens.cywell.io/rollback-path: restore the previous OLSConfig mcpServers entry from cluster backup or GitOps history
-spec:
-  featureGates:
-    - MCPServer
-  mcpServers:
-    - name: cywell-opslens
-      url: https://cywell-opslens-api.cywell-opslens.svc.cluster.local/mcp
-      timeout: 30
-      headers:
-        - name: Authorization
-          valueFrom:
-            type: kubernetes
-        - name: X-Cywell-Api-Key
-          valueFrom:
-            type: secret
-            secretRef:
-              name: cywell-opslens-mcp-header

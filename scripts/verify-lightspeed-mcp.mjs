@@ -133,14 +133,6 @@ function expectCheck(name, condition, detail, failureDetail = detail) {
   }
 }
 
-function sanitize(text) {
-  let result = text ?? "";
-  for (const secret of secretValuesForLeakCheck()) {
-    result = result.split(secret).join("<redacted>");
-  }
-  return result;
-}
-
 function ocBaseArgs() {
   const config = ocpApiConfig();
   const args = [];
@@ -310,7 +302,7 @@ function safeOcpApiEvidence() {
 
   return {
     configured: Boolean(config.baseUrl && config.token),
-    host,
+    host: sanitize(host),
     tlsVerify: config.tlsVerify
   };
 }
@@ -1016,6 +1008,9 @@ async function validatePatchPreview() {
     if (leakedSecret) {
       throw new Error("patch preview evidence would include a configured secret value");
     }
+    if (endpointLeakLike(serialized)) {
+      throw new Error("patch preview evidence would include an unredacted OCP endpoint");
+    }
 
     await mkdir(dirname(reportPath), { recursive: true });
     await writeFile(reportPath, serialized);
@@ -1037,6 +1032,50 @@ function secretValuesForLeakCheck() {
   ]
     .map((key) => process.env[key])
     .filter((value) => value && value.length >= 8);
+}
+
+function sensitiveEndpointValues() {
+  loadEnvFile();
+  const baseUrl = firstEnv("OCP_API_BASE_URL", "OPENSHIFT_API_BASE_URL", "KUBE_API_BASE_URL");
+  const values = [];
+  if (baseUrl) {
+    values.push(baseUrl);
+    try {
+      const url = new URL(baseUrl);
+      values.push(url.host, url.hostname);
+    } catch {
+      // Keep the raw configured value above if URL parsing fails.
+    }
+  }
+  return Array.from(new Set(values.filter((value) => value && value.length >= 4)));
+}
+
+function redactEndpointText(text) {
+  let result = text;
+  for (const endpoint of sensitiveEndpointValues()) {
+    result = result.split(endpoint).join("<redacted-ocp-api>");
+  }
+  return result
+    .replace(
+      /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/g,
+      "<redacted-private-ip>"
+    )
+    .replace(/\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/gi, "<redacted-ocp-api>");
+}
+
+function endpointLeakLike(text) {
+  return (
+    /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/.test(text) ||
+    /\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/i.test(text)
+  );
+}
+
+function sanitize(text) {
+  let result = String(text ?? "");
+  for (const secret of secretValuesForLeakCheck()) {
+    result = result.split(secret).join("<redacted>");
+  }
+  return redactEndpointText(result);
 }
 
 function readinessStatus(failures, warnings) {
@@ -1128,6 +1167,9 @@ async function writeEvidenceArtifact() {
   const leakedSecret = secretValuesForLeakCheck().some((secret) => serialized.includes(secret));
   if (leakedSecret) {
     throw new Error("readiness evidence would include a configured secret value");
+  }
+  if (endpointLeakLike(serialized)) {
+    throw new Error("readiness evidence would include an unredacted OCP endpoint");
   }
 
   await mkdir(dirname(reportPath), { recursive: true });

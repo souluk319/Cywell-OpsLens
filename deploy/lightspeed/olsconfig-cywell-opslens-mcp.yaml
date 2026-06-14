@@ -3,6 +3,9 @@ kind: OLSConfig
 metadata:
   name: cluster
   namespace: openshift-lightspeed
+  annotations:
+    opslens.cywell.io/reconcile-mode: PatchOLSConfig
+    opslens.cywell.io/rollback-path: restore the previous OLSConfig spec.featureGates and spec.mcpServers from GitOps or cluster backup
 spec:
   featureGates:
     - MCPServer
