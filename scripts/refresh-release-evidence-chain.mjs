@@ -213,6 +213,12 @@ function buildChain() {
           timeoutMs: Math.max(options.commandTimeoutMs, 900000)
         })
       : npmScript("security-scan-runner-plan", "release", "evidence:security-scan"),
+    npmScript(
+      "security-review-drafts-all",
+      "release",
+      "evidence:security-review:draft",
+      ["--all", "--force"]
+    ),
     npmScript("security-scan-plan", "release", "verify:security-scan-plan")
   ];
 

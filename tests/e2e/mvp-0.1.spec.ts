@@ -3285,6 +3285,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(operatorSecurityReviewDraft).toMatchObject({
       exists: true,
       evidenceState: expect.stringMatching(/^DRAFT_/),
+      sameHead: true,
       decision: expect.stringMatching(
         /^(pending-review|approved|needs-remediation|accepted-risk|rejected|missing)$/
       ),
@@ -3396,10 +3397,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "community-operator-submission",
         "certification-readiness",
         "catalog-toolchain",
+        "security-review-drafts-all",
         "security-scan-plan",
         "release-evidence-bundle"
       ])
     );
+    expect(
+      body.installReadiness?.refresh?.commands?.find(
+        (command) => command.id === "security-review-drafts-all"
+      )
+    ).toMatchObject({
+      status: "PASS",
+      expectedNonZero: false
+    });
     expect(
       body.installReadiness?.refresh?.artifacts?.length ?? 0
     ).toBeGreaterThan(0);
@@ -5002,6 +5012,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "operator:draft="
     );
     await expect(page.getByTestId("opslens-security-review-drafts")).toContainText(
+      "sameHead=true"
+    );
+    await expect(page.getByTestId("opslens-security-review-drafts")).toContainText(
       "explicitDecision="
     );
     await expect(page.getByTestId("opslens-security-review-drafts")).toContainText(
@@ -5034,6 +5047,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-first-publish-actions")
     ).toContainText("approval=true");
+    await expect(
+      page.getByTestId("opslens-release-refresh-security-review")
+    ).toContainText("securityReviewDrafts=PASS");
+    await expect(
+      page.getByTestId("opslens-release-refresh-security-review")
+    ).toContainText("id=security-review-drafts-all");
     await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
       "bundleOnly"
     );

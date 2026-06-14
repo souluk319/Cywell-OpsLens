@@ -197,6 +197,9 @@ export function OpsLensAdminDashboard() {
     overview?.installReadiness.ownedImageProvenancePlan;
   const releasePlan = overview?.installReadiness.releasePlan;
   const releaseRefresh = overview?.installReadiness.refresh;
+  const releaseRefreshSecurityReviewCommand = releaseRefresh?.commands.find(
+    (command) => command.id === "security-review-drafts-all"
+  );
   const releaseBundle = overview?.installReadiness.bundle;
   const releaseBundlePacketName =
     releaseBundle?.markdownPath.split(/[\\/]/).pop() ?? "missing";
@@ -1859,6 +1862,23 @@ export function OpsLensAdminDashboard() {
                   mutationAllowedByThisVerifier=
                   {String(releaseRefresh.mutationAllowedByThisVerifier)}
                 </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-refresh-security-review"
+              >
+                <span>
+                  securityReviewDrafts=
+                  {releaseRefreshSecurityReviewCommand?.status ?? "missing"}
+                </span>
+                <span>
+                  expectedNonZero=
+                  {String(
+                    releaseRefreshSecurityReviewCommand?.expectedNonZero ??
+                      false
+                  )}
+                </span>
+                <span>id=security-review-drafts-all</span>
               </div>
               <div className="approval-summary-grid">
                 <div>
