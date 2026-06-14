@@ -335,9 +335,27 @@ async function diagnoseTcp(endpoint, timeoutMs) {
     });
     socket.once("error", (error) => {
       warn("TCP connect", `${redactedEndpointLabel(endpoint)} failed: ${error.message}`);
-      settle({ status: "needs-evidence", error: error.message });
+      settle({
+        status: "needs-evidence",
+        error: tcpErrorClassification(error)
+      });
     });
   });
+}
+
+function tcpErrorClassification(error) {
+  const code = String(error?.code ?? "").toUpperCase();
+  const message = String(error?.message ?? error ?? "").toLowerCase();
+  if (
+    code === "ETIMEDOUT" ||
+    code === "ESOCKETTIMEDOUT" ||
+    message.includes("etimedout") ||
+    message.includes("timed out") ||
+    message.includes("timeout")
+  ) {
+    return "tcp-timeout";
+  }
+  return String(error?.message ?? error ?? "tcp-unreachable");
 }
 
 async function diagnoseTls(endpoint, config, tcpResult, timeoutMs) {
