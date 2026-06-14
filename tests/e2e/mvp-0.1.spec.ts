@@ -5976,6 +5976,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       )
     ) {
       expect(runtimeLiveAction?.owner).toBe("runtime-platform");
+      expect(runtimeLiveAction?.source).toBe("runtimeReadiness");
       expect(runtimeLiveAction?.nextCommand).toContain("verify:runtime");
       expect(runtimeLiveAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining(["runtime-readiness-live"])
@@ -6003,6 +6004,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       )
     ) {
       expect(runtimeRagAction?.owner).toBe("data-ml-engineer");
+      expect(runtimeRagAction?.source).toBe("runtimeRag:runtimeRagFixture");
       expect(runtimeRagAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining(["runtime-rag-contract", "runtime-rag-fixture"])
       );
@@ -6036,6 +6038,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       )
     ) {
       expect(ragOwnerQueueAction?.owner).toBe("rag-owner");
+      expect(ragOwnerQueueAction?.source).toBe("ragProductionReadiness");
       expect(ragOwnerQueueAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining(["rag-approval-queue-contract"])
       );

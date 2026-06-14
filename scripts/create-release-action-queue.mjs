@@ -2584,7 +2584,7 @@ function runtimeLiveItems(
       id: "runtime-platform-run-live-vllm-qdrant-probes",
       owner: "runtime-platform",
       priority: "high",
-      source: "releaseEvidenceRefresh:runtimeReadiness",
+      source: "runtimeReadiness",
       request:
         "Run read-only live probes against the deployed vLLM and Qdrant services before claiming runtime readiness.",
       evidenceNeeded:
@@ -2615,7 +2615,7 @@ function runtimeLiveItems(
       id: "data-ml-engineer-prove-runtime-rag-live-quality",
       owner: "data-ml-engineer",
       priority: "high",
-      source: "releaseEvidenceRefresh:runtimeRag",
+      source: "runtimeRag:runtimeRagFixture",
       request:
         "Prove that runtime RAG uses live vLLM embeddings and Qdrant tenant-scoped snippets, then record citation quality evidence.",
       evidenceNeeded:
@@ -2655,7 +2655,7 @@ function runtimeLiveItems(
       id: "rag-owner-enable-production-approval-queue",
       owner: "rag-owner",
       priority: "high",
-      source: "releaseEvidenceRefresh:ragProductionReadiness",
+      source: "ragProductionReadiness",
       request:
         "Review the production RAG approval queue contract, then approve database-backed persistence, ingestion worker, and vector-write audit evidence before any live ingestion.",
       evidenceNeeded:
