@@ -4848,6 +4848,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         "live-ocp-lightspeed",
+        "runtime-live",
         "external-runtime-review",
         "release-publish",
         "install-approval"
@@ -6001,6 +6002,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           ?.find((item) => item.id === "runtime-readiness-status")
           ?.value
       ).toContain("liveProbe=false");
+      const runtimeLiveCriticalPath =
+        body.installReadiness?.actionQueue?.criticalPath?.find(
+          (entry) => entry.lane === "runtime-live"
+        );
+      expect(runtimeLiveCriticalPath).toMatchObject({
+        owner: "runtime-platform",
+        actionId: "runtime-platform-run-live-vllm-qdrant-probes",
+        source: "runtimeReadiness"
+      });
+      expect(runtimeLiveCriticalPath?.readOnlyCommandIds).toEqual(
+        expect.arrayContaining(["runtime-readiness-live"])
+      );
+      expect(runtimeLiveCriticalPath?.diagnostics).toEqual(
+        expect.arrayContaining(["runtime-readiness-status"])
+      );
     }
     const runtimeRagAction =
       body.installReadiness?.actionQueue?.items?.find(
