@@ -17,6 +17,7 @@ const paths = {
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
+  operatorPackage: "test-results/cywell-opslens-operator-package.json",
   operatorReconcile: "test-results/cywell-opslens-operator-reconcile.json",
   operatorRuntimeParity: "test-results/cywell-opslens-operator-runtime-parity.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
@@ -433,6 +434,7 @@ async function main() {
   const imageBuild = loadJson(paths.imageBuild, "image build readiness");
   const ownedImageProvenance = loadJson(paths.ownedImageProvenance, "owned image provenance");
   const consolePluginAssets = loadJson(paths.consolePluginAssets, "ConsolePlugin assets");
+  const operatorPackage = loadJson(paths.operatorPackage, "Operator package");
   const operatorReconcile = loadJson(paths.operatorReconcile, "Operator reconcile");
   const operatorRuntimeParity = loadJson(paths.operatorRuntimeParity, "Operator runtime parity");
   const installPlan = loadJson(paths.installPlan, "install approval plan");
@@ -453,6 +455,7 @@ async function main() {
     artifactFreshnessRequirement(imageBuild, "image-build-fresh", "Image build readiness", headSha),
     artifactFreshnessRequirement(ownedImageProvenance, "owned-image-provenance-fresh", "Owned image provenance", headSha),
     artifactFreshnessRequirement(consolePluginAssets, "console-plugin-assets-fresh", "ConsolePlugin assets", headSha),
+    artifactFreshnessRequirement(operatorPackage, "operator-package-fresh", "Operator package", headSha),
     artifactFreshnessRequirement(operatorReconcile, "operator-reconcile-fresh", "Operator reconcile", headSha),
     artifactFreshnessRequirement(operatorRuntimeParity, "operator-runtime-parity-fresh", "Operator runtime parity", headSha),
     artifactFreshnessRequirement(installPlan, "install-plan-fresh", "Install approval plan", headSha),
@@ -537,6 +540,12 @@ async function main() {
       mvpRequirement(mvpGate, "OPERATOR-RECONCILE", "Operator reconcile safety verifier"),
       mvpRequirement(mvpGate, "OPERATOR-RUNTIME", "Operator runtime parity verifier"),
       artifactStatusRequirement(
+        operatorPackage,
+        "operator-package-static-proof",
+        "Operator package static proof",
+        ["PASS"]
+      ),
+      artifactStatusRequirement(
         operatorReconcile,
         "operator-reconcile-fixture-proof",
         "Operator reconcile fixture proof",
@@ -548,6 +557,7 @@ async function main() {
         "Operator runtime parity proof",
         ["PASS"]
       ),
+      laneRequirement(checkpoint, "operatorPackage", "Operator package checkpoint"),
       laneRequirement(checkpoint, "operatorReconcile", "Operator reconcile checkpoint"),
       laneRequirement(checkpoint, "operatorRuntimeParity", "Operator runtime parity checkpoint"),
       laneRequirement(checkpoint, "consolePluginAssets", "ConsolePlugin dynamic plugin asset evidence"),

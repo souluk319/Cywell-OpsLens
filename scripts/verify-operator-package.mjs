@@ -1,7 +1,11 @@
 #!/usr/bin/env node
-import { readFile, readdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { execFile } from "node:child_process";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { promisify } from "node:util";
 import { parseAllDocuments } from "yaml";
+
+const execFileAsync = promisify(execFile);
 
 const paths = {
   crd: "deploy/operator/config/crd/opslens.cywell.io_opslensinstallations.yaml",
@@ -26,8 +30,41 @@ const paths = {
   goReadme: "deploy/operator/controller-runtime/README.md"
 };
 
+const defaults = {
+  evidenceOut: "test-results/cywell-opslens-operator-package.json",
+  timeoutMs: 10000
+};
+
+function parseArgs(argv) {
+  const values = new Map();
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) continue;
+    const [key, inlineValue] = arg.slice(2).split("=", 2);
+    const next = argv[index + 1];
+    if (inlineValue !== undefined) {
+      values.set(key, inlineValue);
+    } else if (next && !next.startsWith("--")) {
+      values.set(key, next);
+      index += 1;
+    }
+  }
+  return values;
+}
+
+const parsed = parseArgs(process.argv.slice(2));
+const options = {
+  evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
+};
+
 const checks = [];
 const yamlCache = new Map();
+const startedAt = new Date().toISOString();
+const evidenceContext = {
+  appManifest: undefined,
+  olsconfigTemplate: undefined
+};
 
 function record(status, name, detail) {
   checks.push({ status, name, detail });
@@ -43,6 +80,38 @@ function warn(name, detail) {
 
 function fail(name, detail) {
   record("FAIL", name, detail);
+}
+
+async function runCapture(command, args) {
+  try {
+    const { stdout, stderr } = await execFileAsync(command, args, {
+      encoding: "utf8",
+      timeout: options.timeoutMs
+    });
+    return {
+      ok: true,
+      stdout: stdout.trim(),
+      stderr: stderr.trim()
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      stdout: error.stdout?.trim?.() ?? "",
+      stderr: error.stderr?.trim?.() ?? error.message
+    };
+  }
+}
+
+async function gitValue(args, fallback) {
+  const result = await runCapture("git", args);
+  if (!result.ok || !result.stdout) return fallback;
+  return result.stdout.split(/\r?\n/).at(-1)?.trim() || fallback;
+}
+
+async function gitStatusShort() {
+  const result = await runCapture("git", ["status", "--short"]);
+  if (!result.ok || !result.stdout) return [];
+  return result.stdout.split(/\r?\n/).filter(Boolean);
 }
 
 function label(doc) {
@@ -581,6 +650,13 @@ function validateApps(apps) {
   const olsResources = apps.filter(
     (resource) => resource.kind === "OLSConfig" || resource.apiVersion?.startsWith("ols.openshift.io/")
   );
+  evidenceContext.appManifest = {
+    path: paths.apps,
+    objectCount: apps.length,
+    containsOlsResources: olsResources.length > 0,
+    olsResources: olsResources.map(label),
+    staticStackAppliesLightspeedRegistration: olsResources.length > 0
+  };
   if (olsResources.length === 0) {
     pass("app manifest excludes OLSConfig", "Lightspeed registration stays outside the static app stack");
   } else {
@@ -592,6 +668,22 @@ function validateApps(apps) {
 }
 
 function validateOlsconfigTemplate(ols) {
+  const mcp = (ols?.spec?.mcpServers ?? []).find((server) => server.name === "cywell-opslens");
+  const headerTypes = (mcp?.headers ?? []).map((header) => header.valueFrom?.type);
+  evidenceContext.olsconfigTemplate = {
+    path: paths.olsconfigTemplate,
+    kind: ols?.kind ?? "missing",
+    name: ols?.metadata?.name ?? "missing",
+    namespace: ols?.metadata?.namespace ?? "missing",
+    approvalGatedOnly: true,
+    reconcileMode: ols?.metadata?.annotations?.["opslens.cywell.io/reconcile-mode"] ?? "missing",
+    rollbackPath: ols?.metadata?.annotations?.["opslens.cywell.io/rollback-path"] ?? "missing",
+    featureGates: ols?.spec?.featureGates ?? [],
+    mcpServerName: mcp?.name ?? "missing",
+    mcpUrl: mcp?.url ?? "missing",
+    headerTypes
+  };
+
   if (ols?.kind === "OLSConfig" && ols?.metadata?.name === "cluster") {
     pass("OLSConfig template identity", label(ols));
   } else {
@@ -599,7 +691,6 @@ function validateOlsconfigTemplate(ols) {
   }
 
   const gates = ols?.spec?.featureGates ?? [];
-  const mcp = (ols?.spec?.mcpServers ?? []).find((server) => server.name === "cywell-opslens");
   if (gates.includes("MCPServer")) {
     pass("OLSConfig template feature gate", "MCPServer");
   } else {
@@ -612,7 +703,6 @@ function validateOlsconfigTemplate(ols) {
     fail("OLSConfig template MCP URL", "cywell-opslens server URL must end with /mcp");
   }
 
-  const headerTypes = (mcp?.headers ?? []).map((header) => header.valueFrom?.type);
   if (headerTypes.includes("kubernetes") && headerTypes.includes("secret")) {
     pass("OLSConfig template headers", "kubernetes user token and secret header are configured");
   } else {
@@ -821,6 +911,84 @@ async function validateControllerRuntimeSkeleton() {
   }
 }
 
+function statusFromChecks() {
+  return checks.some((check) => check.status === "FAIL") ? "FAIL" : "PASS";
+}
+
+async function writeEvidence() {
+  const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
+  const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
+  const baseRef = await gitValue(
+    ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+    "origin/main"
+  );
+  const worktreeStatus = await gitStatusShort();
+  const failures = checks.filter((check) => check.status === "FAIL");
+  const warnings = checks.filter((check) => check.status === "WARN");
+  const artifact = {
+    schema: "cywell.opslens.operator-package.v0.1",
+    artifactType: "opslens.operator-package.v0.1",
+    generatedAt: new Date().toISOString(),
+    startedAt,
+    status: statusFromChecks(),
+    actionMode: "operatorPackageStaticOnly",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    secretMaterialPrinted: false,
+    ref: {
+      branch,
+      headSha,
+      baseRef,
+      worktreeDirty: worktreeStatus.length > 0,
+      worktreeStatus
+    },
+    acceptance: ["AC-OP-001", "AC-OP-005", "AC-CERT-001"],
+    paths,
+    packageBoundary: {
+      appManifest: evidenceContext.appManifest,
+      olsconfigTemplate: evidenceContext.olsconfigTemplate,
+      lightspeedRegistration: {
+        staticStackContainsOlsConfig:
+          evidenceContext.appManifest?.containsOlsResources === true,
+        approvalGatedTemplateExists:
+          evidenceContext.olsconfigTemplate?.kind === "OLSConfig",
+        allowedRegistrationPaths: [
+          "OpsLensInstallation.spec.lightspeedRegistration.mode=PatchOLSConfig",
+          "deploy/lightspeed/olsconfig-cywell-opslens-mcp.yaml after explicit approval"
+        ],
+        forbiddenRegistrationPaths: [
+          "static app stack OLSConfig apply",
+          "legacy Lightspeed ConfigMap mutation",
+          "assistant-triggered apply/delete/scale"
+        ]
+      }
+    },
+    evidence: [
+      "Operator package manifests are validated locally without cluster or registry mutation.",
+      "The static app stack excludes OLSConfig so Lightspeed registration is not applied by generic app manifest dry-runs.",
+      "The standalone OLSConfig template remains an approval-gated registration artifact with rollback annotation."
+    ],
+    missingEvidence: failures.map((check) => `${check.name}: ${check.detail}`),
+    warnings: warnings.map((check) => `${check.name}: ${check.detail}`),
+    risk: [
+      "Local package validation does not prove live OLM install, pod readiness, image pull, or live OLSConfig patch success.",
+      "PatchOLSConfig remains a mutating Operator path and requires separate human approval and rollback evidence."
+    ],
+    rollbackPath: [
+      "No rollback is required for this verifier because it reads local manifests only.",
+      "If future package changes reintroduce OLSConfig into the static app stack, revert that manifest change and rerun npm run verify:operator.",
+      "If a live PatchOLSConfig install is approved later, restore previous OLSConfig spec.featureGates and spec.mcpServers from GitOps or cluster backup."
+    ],
+    checks
+  };
+  const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
+  await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
+  await writeFile(resolve(options.evidenceOut), serialized, "utf8");
+  pass("operator package evidence export", `${resolve(options.evidenceOut)} written`);
+  return artifact;
+}
+
 function printSummary() {
   const statusWeight = {
     FAIL: 0,
@@ -875,5 +1043,10 @@ try {
 } catch (error) {
   fail("operator package verifier", error.message);
 } finally {
+  try {
+    await writeEvidence();
+  } catch (error) {
+    fail("operator package evidence export", error instanceof Error ? error.message : String(error));
+  }
   printSummary();
 }

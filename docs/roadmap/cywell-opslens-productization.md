@@ -91,7 +91,7 @@ Primary references:
 - `npm run verify:ocp:connectivity` as the read-only DNS/TCP/TLS/API/oc classifier for company OCP reachability gaps before live Lightspeed or Operator checks are trusted.
 - `npm run verify:install-plan` as the non-mutating human approval, risk, command, evidence, RAG ingestion plan-only, and rollback contract before mutating install or ingestion work.
 - `npm run verify:live-handoff` as the SRE-safe read-only command chain for collecting live OCP/Lightspeed/runtime evidence without approving install, OLSConfig patch, image push, mirroring, or ingestion.
-- `npm run verify:evidence-checkpoint` as the current-head evidence board for MVP, RAG approval queue, image, Operator dry-run, Lightspeed Trojan Horse/routing/readiness, external runtime, release, and install readiness.
+- `npm run verify:evidence-checkpoint` as the current-head evidence board for MVP, RAG approval queue, image, Operator package/dry-run, Lightspeed Trojan Horse/routing/readiness, external runtime, release, and install readiness.
 - `npm run verify:roadmap-plan` as the product-plan alignment board for `kugnus-idea/CywellOpsLens_plan.md` stages 1-5.
 - `packages/operator-controller` reconcile core with `ValidateOnly`, explicit `PatchOLSConfig`, evidence, missing evidence, risk, rollback path, assistant plan-only policy, and RAG approval queue mutation blocked.
 - `npm run verify:operator:reconcile` as the fixture-based reconcile verifier.

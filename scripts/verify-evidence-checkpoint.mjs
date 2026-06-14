@@ -34,6 +34,7 @@ const evidenceDefaults = {
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   ocpConnectivity: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
   ocpAuthRbacPlan: "test-results/cywell-opslens-ocp-auth-rbac-plan.json",
+  operatorPackage: "test-results/cywell-opslens-operator-package.json",
   operatorReconcile: "test-results/cywell-opslens-operator-reconcile.json",
   operatorRuntimeParity: "test-results/cywell-opslens-operator-runtime-parity.json",
   operatorDryRun: "test-results/cywell-opslens-operator-dry-run.json",
@@ -1100,6 +1101,50 @@ function checkOcpAuthRbacPlan(authRbacPlanArtifact) {
   );
 }
 
+function checkOperatorPackageBoundary(operatorPackageArtifact) {
+  if (!operatorPackageArtifact) return;
+  const packageBoundary = operatorPackageArtifact.packageBoundary ?? {};
+  const lightspeed = packageBoundary.lightspeedRegistration ?? {};
+  const appManifest = packageBoundary.appManifest ?? {};
+  const template = packageBoundary.olsconfigTemplate ?? {};
+  const violations = [];
+
+  if (operatorPackageArtifact.actionMode !== "operatorPackageStaticOnly") {
+    violations.push(`actionMode=${operatorPackageArtifact.actionMode ?? "missing"}`);
+  }
+  if (artifactClusterMutationAttempted(operatorPackageArtifact)) {
+    violations.push("clusterMutationAttempted");
+  }
+  if (artifactRegistryMutationAttempted(operatorPackageArtifact)) {
+    violations.push("registryMutationAttempted");
+  }
+  if (artifactMutationAllowedByVerifier(operatorPackageArtifact)) {
+    violations.push("mutationAllowedByThisVerifier");
+  }
+  if (appManifest.containsOlsResources === true) {
+    violations.push("staticAppStackContainsOlsConfig");
+  }
+  if (lightspeed.staticStackContainsOlsConfig === true) {
+    violations.push("lightspeedRegistration.staticStackContainsOlsConfig");
+  }
+  if (template.approvalGatedOnly !== true || template.reconcileMode !== "PatchOLSConfig") {
+    violations.push("olsconfigTemplateNotApprovalGated");
+  }
+  if (!String(template.mcpUrl ?? "").endsWith("/mcp")) {
+    violations.push("olsconfigTemplateMcpUrl");
+  }
+
+  if (violations.length > 0) {
+    fail("operator package static boundary", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "operator package static boundary",
+    `staticOlsConfig=false template=${template.kind ?? "missing"}/${template.name ?? "missing"} mode=${template.reconcileMode ?? "missing"}`
+  );
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -1255,6 +1300,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "operatorPackage",
+    label: "operator package static contract",
+    artifact: artifacts.operatorPackage,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "operatorReconcile",
     label: "operator reconcile fixture safety",
     artifact: artifacts.operatorReconcile,
@@ -1364,6 +1416,7 @@ async function main() {
   checkOwnedImageProvenance(artifacts.ownedImageProvenance);
   checkOcpConnectivityDiagnostic(artifacts.ocpConnectivity);
   checkOcpAuthRbacPlan(artifacts.ocpAuthRbacPlan);
+  checkOperatorPackageBoundary(artifacts.operatorPackage);
   checkCommunityOperatorSubmission(artifacts.communityOperatorSubmission);
   checkExternalRuntimeReviewPacket(artifacts.externalRuntimeReviewPacket);
   checkOcpNetworkHandoff(artifacts.ocpNetworkHandoff);
