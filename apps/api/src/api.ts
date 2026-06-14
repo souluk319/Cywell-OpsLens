@@ -2615,6 +2615,7 @@ type ReleaseActionQueueArtifact = {
     firstNextCommand?: string;
     firstEvidenceNeeded?: string;
     firstBlockedBy?: string[];
+    firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     nextCommands?: string[];
     setupCommandIds?: string[];
     readOnlyCommandIds?: string[];
@@ -2683,6 +2684,7 @@ type ReleaseActionQueueArtifact = {
       label?: string;
       value?: string;
     }>;
+    ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
   }>;
   sourceArtifacts?: Array<{
     id?: string;
@@ -7630,6 +7632,7 @@ function getReleaseActionQueueReadiness(): {
       firstNextCommand: packet.firstNextCommand ?? "none",
       firstEvidenceNeeded: packet.firstEvidenceNeeded ?? "none",
       firstBlockedBy: packet.firstBlockedBy ?? [],
+      firstTicketPacket: packet.firstTicketPacket,
       nextCommands: packet.nextCommands ?? [],
       setupCommandIds: packet.setupCommandIds ?? [],
       readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
@@ -7698,7 +7701,8 @@ function getReleaseActionQueueReadiness(): {
         id: diagnostic.id ?? "unknown",
         label: diagnostic.label ?? "Diagnostic",
         value: diagnostic.value ?? "unknown"
-      }))
+      })),
+      ticketPacket: entry.ticketPacket
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
       id: source.id ?? "unknown",

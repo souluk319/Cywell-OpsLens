@@ -531,6 +531,7 @@ function item({
   missingRequiredTools = [],
   blockedBy = [],
   diagnostics = [],
+  ticketPacket,
   acceptance = []
 }) {
   return {
@@ -574,7 +575,53 @@ function item({
       label: sanitize(diagnostic.label ?? "Diagnostic"),
       value: sanitize(diagnostic.value ?? "unknown")
     })),
+    ticketPacket: ticketPacket ? sanitizeTicketPacket(ticketPacket) : undefined,
     acceptance
+  };
+}
+
+function sanitizeTicketAction(action = {}, fallbackId = "none") {
+  return {
+    id: sanitize(action.id ?? fallbackId),
+    status: sanitize(action.status ?? "missing"),
+    nextCommand: sanitize(action.nextCommand ?? "none"),
+    mutation: action.mutation === true,
+    requiresExplicitApproval: action.requiresExplicitApproval === true
+  };
+}
+
+function sanitizeTicketPacket(packet = {}) {
+  return {
+    id: sanitize(packet.id ?? "network-sre-ocp-api-reachability-ticket"),
+    owner: sanitize(packet.owner ?? "network-sre"),
+    title: sanitize(packet.title ?? "Network/SRE reachability ticket"),
+    severity: sanitize(packet.severity ?? "needs-evidence"),
+    classification: sanitize(packet.classification ?? "unknown"),
+    redactedTarget: sanitize(packet.redactedTarget ?? "<redacted-ocp-api>"),
+    summary: sanitize(packet.summary ?? "Review network reachability evidence."),
+    evidenceChecklist: (packet.evidenceChecklist ?? []).map(sanitize),
+    firstReadOnlyAction: sanitizeTicketAction(
+      packet.firstReadOnlyAction,
+      "missing-read-only-action"
+    ),
+    approvalGatedAction: sanitizeTicketAction(packet.approvalGatedAction, "none"),
+    nextCommands: (packet.nextCommands ?? []).map(sanitize),
+    blockedBy: (packet.blockedBy ?? []).map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      networkChangeRequiresExplicitApproval:
+        packet.mutationBoundary?.networkChangeRequiresExplicitApproval === true
+    },
+    risk: sanitize(packet.risk ?? "Network reachability blocks live readiness."),
+    rollbackPath: sanitize(
+      packet.rollbackPath ??
+        "No rollback is required because this packet writes only local evidence."
+    )
   };
 }
 
@@ -585,6 +632,7 @@ function ocpClassification(networkHandoff) {
 function ocpNetworkDiagnostics(networkHandoff) {
   const diagnostics = networkHandoff?.diagnostics ?? {};
   const target = networkHandoff?.target ?? {};
+  const ticket = networkHandoff?.ticketPacket;
   const dnsAddresses = Array.isArray(diagnostics.dns?.addresses)
     ? diagnostics.dns.addresses.map(sanitize).join(",")
     : "";
@@ -596,7 +644,7 @@ function ocpNetworkDiagnostics(networkHandoff) {
     .map((command) => command.id)
     .filter(Boolean);
 
-  return [
+  const entries = [
     {
       id: "ocp-network-handoff-status",
       label: "OCP network handoff",
@@ -639,6 +687,51 @@ function ocpNetworkDiagnostics(networkHandoff) {
       value: readOnlyCommandIds.slice(0, 6).join(", ") || "missing"
     }
   ];
+  if (ticket) {
+    entries.push(
+      {
+        id: "ocp-network-ticket",
+        label: "Network ticket",
+        value:
+          `${ticket.id ?? "missing"} owner=${ticket.owner ?? "missing"} severity=${ticket.severity ?? "missing"} target=${ticket.redactedTarget ?? "missing"}`
+      },
+      {
+        id: "ocp-network-ticket-first-readonly",
+        label: "Ticket first read-only",
+        value:
+          `${ticket.firstReadOnlyAction?.id ?? "missing"} mutation=${String(ticket.firstReadOnlyAction?.mutation === true)} next=${ticket.firstReadOnlyAction?.nextCommand ?? "missing"}`
+      },
+      {
+        id: "ocp-network-ticket-approval",
+        label: "Ticket approval gate",
+        value:
+          `${ticket.approvalGatedAction?.id ?? "none"} mutation=${String(ticket.approvalGatedAction?.mutation === true)} approval=${String(ticket.approvalGatedAction?.requiresExplicitApproval === true)}`
+      }
+    );
+  }
+  return entries;
+}
+
+function networkTicketPacket(networkHandoff) {
+  return networkHandoff?.ticketPacket;
+}
+
+function networkTicketApprovalCommands(networkHandoff) {
+  const approval = networkHandoff?.ticketPacket?.approvalGatedAction;
+  if (!approval || approval.mutation !== true) return [];
+  return [
+    {
+      id: approval.id ?? "approval-gated-network-change",
+      phase: "network-change",
+      command: approval.nextCommand ?? "open approved Network/SRE change",
+      mutation: true,
+      requiresExplicitApproval: approval.requiresExplicitApproval === true
+    }
+  ];
+}
+
+function networkTicketNextCommands(networkHandoff) {
+  return networkHandoff?.ticketPacket?.nextCommands ?? [];
 }
 
 function authLikeOcpClassification(classification) {
@@ -667,6 +760,7 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
       readOnlyCommands: authRbacPlan?.readOnlyCommands ?? [],
       approvalGatedCommands: authRbacPlan?.approvalGatedCommands ?? [],
       diagnostics: ocpNetworkDiagnostics(networkHandoff),
+      ticketPacket: networkTicketPacket(networkHandoff),
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
     };
   }
@@ -679,7 +773,10 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
         "Fix OCP API TLS trust, proxy TLS interception, or OCP_TLS_VERIFY settings after DNS/TCP evidence has passed.",
       evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
       nextCommand: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
+      handoffNextCommands: networkTicketNextCommands(networkHandoff),
+      approvalGatedCommands: networkTicketApprovalCommands(networkHandoff),
       diagnostics: ocpNetworkDiagnostics(networkHandoff),
+      ticketPacket: networkTicketPacket(networkHandoff),
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
     };
   }
@@ -690,7 +787,10 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
     request: "Restore TCP reachability from the verifier workstation or approved bastion to the company OCP API.",
     evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
     nextCommand: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
+    handoffNextCommands: networkTicketNextCommands(networkHandoff),
+    approvalGatedCommands: networkTicketApprovalCommands(networkHandoff),
     diagnostics: ocpNetworkDiagnostics(networkHandoff),
+    ticketPacket: networkTicketPacket(networkHandoff),
     acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
   };
 }
@@ -1738,12 +1838,17 @@ function networkItems(networkHandoff) {
         "Review OCP handoff and restore API readiness.",
       evidenceNeeded: `OCP network handoff classification=${classification} changes to api-ready.`,
       nextCommand: "npm run evidence:ocp-network-handoff",
-      handoffNextCommands: handoffCommands
-        .map((command) => command.command)
-        .filter(Boolean),
+      handoffNextCommands: uniqueStrings([
+        ...networkTicketNextCommands(networkHandoff),
+        ...handoffCommands
+          .map((command) => command.command)
+          .filter(Boolean)
+      ]),
       readOnlyCommands: handoffCommands,
+      approvalGatedCommands: networkTicketApprovalCommands(networkHandoff),
       blockedBy: networkHandoff.missingEvidence ?? [],
       diagnostics: ocpNetworkDiagnostics(networkHandoff),
+      ticketPacket: networkTicketPacket(networkHandoff),
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
     })
   ];
@@ -1939,6 +2044,7 @@ function buildOwnerPackets(owners, items) {
   return owners.map((owner) => {
     const entries = items.filter((entry) => entry.owner === owner.owner);
     const firstAction = firstOwnerAction(entries);
+    const firstTicketPacket = entries.find((entry) => entry.ticketPacket)?.ticketPacket;
     return {
       owner: owner.owner,
       status: owner.blocker > 0 ? "blocker" : owner.open > 0 ? "open" : "clear",
@@ -1955,6 +2061,7 @@ function buildOwnerPackets(owners, items) {
       firstNextCommand: firstAction?.nextCommand ?? "none",
       firstEvidenceNeeded: firstAction?.evidenceNeeded ?? "none",
       firstBlockedBy: uniqueStrings(firstAction?.blockedBy ?? []).slice(0, 6),
+      firstTicketPacket,
       nextCommands: uniqueStrings(
         entries.flatMap((entry) => [
           entry.nextCommand,
@@ -2138,9 +2245,25 @@ function ownerPacketMarkdown(queue, packet) {
     `- First next command: ${packet.firstNextCommand}`,
     `- First evidence needed: ${packet.firstEvidenceNeeded}`,
     `- First blocked by: ${packet.firstBlockedBy.join("; ") || "none"}`,
+    `- First ticket: ${packet.firstTicketPacket?.id ?? "none"}`,
     `- Missing tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
     `- Acceptance: ${packet.acceptance.join(", ") || "none"}`,
     "",
+    ...(packet.firstTicketPacket
+      ? [
+          "## Ticket Packet",
+          "",
+          `- ID: ${packet.firstTicketPacket.id}`,
+          `- Title: ${packet.firstTicketPacket.title}`,
+          `- Severity: ${packet.firstTicketPacket.severity}`,
+          `- Target: ${packet.firstTicketPacket.redactedTarget}`,
+          `- First read-only action: ${packet.firstTicketPacket.firstReadOnlyAction.id}`,
+          `- First read-only command: ${packet.firstTicketPacket.firstReadOnlyAction.nextCommand}`,
+          `- Approval-gated action: ${packet.firstTicketPacket.approvalGatedAction.id}`,
+          `- Approval required: ${String(packet.firstTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          ""
+        ]
+      : []),
     "## Next Commands",
     "",
     ...(packet.nextCommands.length
@@ -2176,6 +2299,7 @@ function ownerPacketMarkdown(queue, packet) {
       `- Request: ${entry.request}`,
       `- Evidence needed: ${entry.evidenceNeeded}`,
       `- Next command: ${entry.nextCommand}`,
+      `- Ticket: ${entry.ticketPacket?.id ?? "none"}`,
       `- Blocked by: ${entry.blockedBy.length ? entry.blockedBy.join("; ") : "none"}`,
       ""
     );

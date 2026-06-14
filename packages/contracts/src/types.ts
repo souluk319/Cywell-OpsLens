@@ -2231,6 +2231,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstNextCommand: string;
     firstEvidenceNeeded: string;
     firstBlockedBy: string[];
+    firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     nextCommands: string[];
     setupCommandIds: string[];
     readOnlyCommandIds: string[];
@@ -2299,6 +2300,7 @@ export interface OpsLensReleaseActionQueueSummary {
       label: string;
       value: string;
     }>;
+    ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
   }>;
   sourceArtifacts: Array<{
     id: string;

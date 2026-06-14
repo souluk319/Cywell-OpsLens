@@ -2542,6 +2542,8 @@ export function OpsLensAdminDashboard() {
                     :open={packet.open}:approval=
                     {packet.approvalGatedCommandIds.length}:first=
                     {packet.firstActionId}:next={packet.firstNextCommand}
+                    :ticket={packet.firstTicketPacket?.id ?? "none"}:ticketFirst=
+                    {packet.firstTicketPacket?.firstReadOnlyAction.id ?? "none"}
                   </span>
                 ))}
               </div>

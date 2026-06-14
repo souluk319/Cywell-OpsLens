@@ -2075,6 +2075,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             firstNextCommand?: string;
             firstEvidenceNeeded?: string;
             firstBlockedBy?: string[];
+            firstTicketPacket?: {
+              id?: string;
+              title?: string;
+              severity?: string;
+              redactedTarget?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                nextCommand?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
             nextCommands?: string[];
             readOnlyCommandIds?: string[];
             approvalGatedCommandIds?: string[];
@@ -2127,6 +2144,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               label?: string;
               value?: string;
             }>;
+            ticketPacket?: {
+              id?: string;
+              severity?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
           }>;
           sourceArtifacts?: Array<{
             id?: string;
@@ -3986,6 +4017,28 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           (item) => item.id === "ocp-network-boundary"
         )?.value
       ).toContain("clusterMutationAttempted=false");
+      expect(networkDiagnosticAction?.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining([
+          "ocp-network-ticket",
+          "ocp-network-ticket-first-readonly",
+          "ocp-network-ticket-approval"
+        ])
+      );
+      const networkTicketAction = ocpNetworkActions.find(
+        (item) => item.ticketPacket?.id === "network-sre-ocp-api-reachability-ticket"
+      );
+      expect(networkTicketAction?.ticketPacket).toMatchObject({
+        id: "network-sre-ocp-api-reachability-ticket",
+        severity: "blocker",
+        firstReadOnlyAction: {
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        approvalGatedAction: {
+          mutation: true,
+          requiresExplicitApproval: true
+        }
+      });
     }
     const clusterAdminOwnerPacket =
       body.installReadiness?.actionQueue?.ownerPackets?.find(
@@ -4016,6 +4069,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       );
     if (networkOwnerPacket) {
       expect(networkOwnerPacket.firstNextCommand).toContain("--timeout-ms 30000");
+      expect(networkOwnerPacket.firstTicketPacket).toMatchObject({
+        id: "network-sre-ocp-api-reachability-ticket",
+        redactedTarget: expect.stringContaining("<redacted-ocp-api>"),
+        firstReadOnlyAction: {
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        approvalGatedAction: {
+          mutation: true,
+          requiresExplicitApproval: true
+        }
+      });
+      expect(networkOwnerPacket.approvalGatedCommandIds).toEqual(
+        expect.arrayContaining(["approval-gated-network-route-change"])
+      );
     }
     const liveReaderRbacOwnerPacket =
       body.installReadiness?.actionQueue?.ownerPackets?.find((packet) =>
@@ -5719,6 +5787,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packets")
     ).toContainText("release-manager.md");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packets")
+    ).toContainText("ticket=network-sre-ocp-api-reachability-ticket");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packets")
+    ).toContainText("ticketFirst=network-sre-confirm-ocp-api-tcp-6443");
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packet-cleanup")
     ).toContainText("deletionAllowed=true");
