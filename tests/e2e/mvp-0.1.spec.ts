@@ -5170,6 +5170,32 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (item) => item.id === "external-runtime-command-boundary"
       )?.value
     ).toContain("mutationAllowed=false");
+    const releasePublishAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) =>
+          item.id === "release-manager-refresh-publish-plan-after-evidence"
+      );
+    expect(
+      releasePublishAction?.diagnostics?.map((item) => item.id)
+    ).toEqual(
+      expect.arrayContaining([
+        "release-publish-status",
+        "release-publish-approvals",
+        "release-publish-commands",
+        "release-publish-boundary",
+        "release-publish-evidence"
+      ])
+    );
+    expect(
+      releasePublishAction?.diagnostics?.find(
+        (item) => item.id === "release-publish-boundary"
+      )?.value
+    ).toContain("mutationAllowed=false");
+    expect(
+      releasePublishAction?.diagnostics?.find(
+        (item) => item.id === "release-publish-commands"
+      )?.value
+    ).toContain("approvalGated=");
     const externalRuntimeCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "external-runtime-review"
@@ -5197,6 +5223,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         requiresExplicitApproval: true
       }
     });
+    expect(releasePublishCriticalPath?.diagnostics).toEqual(
+      expect.arrayContaining([
+        "release-publish-status",
+        "release-publish-approvals",
+        "release-publish-commands",
+        "release-publish-boundary",
+        "release-publish-evidence"
+      ])
+    );
     const installApprovalCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "install-approval"
@@ -7206,6 +7241,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("publishFirst=run-release-preflight");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("release-publish-boundary");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("installTicket=cluster-admin-install-approval-ticket");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
@@ -7287,6 +7325,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-approval-handoff")
     ).toContainText("create-short-lived-live-reader-token");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-approval-handoff")
+    ).toContainText("release-publish-boundary");
     await expect(
       page.getByTestId("opslens-release-action-queue-readonly-handoff")
     ).toContainText("ocp-connectivity");

@@ -544,6 +544,56 @@ function certificationToolingDiagnostics(certificationReadiness) {
   ];
 }
 
+function releasePublishDiagnostics(releasePlan) {
+  const ticket = releasePlan?.ticketPacket ?? {};
+  const boundary = ticket.mutationBoundary ?? {};
+  const commands = releasePlan?.commands ?? [];
+  const readOnly = commands.filter((command) => command.mutation !== true);
+  const approvalGated = commands.filter((command) => command.mutation === true);
+  const missingEvidence = releasePlan?.missingEvidence ?? [];
+  const requiredApprovals =
+    releasePlan?.requiredApprovals ?? ticket.requiredApprovals ?? [];
+  return [
+    {
+      id: "release-publish-status",
+      label: "Release publish",
+      value:
+        `status=${releasePlan?.status ?? "missing"} ` +
+        `actionMode=${releasePlan?.actionMode ?? "missing"} ` +
+        `ticket=${ticket.id ?? "missing"}`
+    },
+    {
+      id: "release-publish-approvals",
+      label: "Required approvals",
+      value:
+        `required=${requiredApprovals.join(",") || "none"} ` +
+        `missingEvidence=${missingEvidence.length}`
+    },
+    {
+      id: "release-publish-commands",
+      label: "Command boundary",
+      value:
+        `readOnly=${readOnly.length} ` +
+        `approvalGated=${approvalGated.length} ` +
+        `approval=${approvalGated.map((command) => command.id).slice(0, 6).join(",") || "none"}`
+    },
+    {
+      id: "release-publish-boundary",
+      label: "Mutation boundary",
+      value:
+        `clusterMutation=${String(boundary.clusterMutationAttempted === true)} ` +
+        `registryMutation=${String(boundary.registryMutationAttempted === true)} ` +
+        `mutationAllowed=${String(boundary.mutationAllowedByThisVerifier === true)} ` +
+        `publishApproval=${String(boundary.publishRequiresExplicitApproval !== false)}`
+    },
+    {
+      id: "release-publish-evidence",
+      label: "Evidence gaps",
+      value: missingEvidence.slice(0, 3).join(" | ") || "none"
+    }
+  ];
+}
+
 function stripReleaseActionQueueFeedback(value) {
   return sanitize(value).replace(/^(?:releaseActionQueue:\s*)+/i, "");
 }
@@ -1721,6 +1771,7 @@ function checkpointItems(
       (command) => command.mutation === true
     ),
     blockedBy: releasePlan?.missingEvidence ?? [],
+    diagnostics: releasePublishDiagnostics(releasePlan),
     releasePublishTicketPacket: releasePlan?.ticketPacket,
     acceptance: ["AC-CERT-001"]
   });

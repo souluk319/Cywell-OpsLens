@@ -2608,6 +2608,7 @@ export function OpsLensAdminDashboard() {
                       :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
                       {entry.readOnlyCommandIds.join(",") || "none"}:approval=
                       {entry.approvalGatedCommandIds.join(",") || "none"}
+                      :diagnostics={entry.diagnostics.join(",") || "none"}
                     </span>
                   ))
                 ) : (
@@ -2781,27 +2782,30 @@ export function OpsLensAdminDashboard() {
                 data-testid="opslens-release-action-queue-approval-handoff"
               >
                 {releaseApprovalHandoffActions.map((entry) => (
-                    <span key={entry.id}>
-                      {entry.owner}:
-                      {entry.approvalGatedCommands
-                        .map((command) => command.id)
-                        .join(", ")}
-                    </span>
-                  ))}
+                  <span key={entry.id}>
+                    {entry.owner}:
+                    {entry.approvalGatedCommands
+                      .map((command) => command.id)
+                      .join(", ")}
+                    :diagnostics=
+                    {entry.diagnostics.map((diagnostic) => diagnostic.id).join(",") ||
+                      "none"}
+                  </span>
+                ))}
               </div>
               <div
                 className="admin-evidence-line"
                 data-testid="opslens-release-action-queue-readonly-handoff"
               >
                 {releaseReadOnlyHandoffActions.map((entry) => (
-                    <span key={entry.id}>
-                      {entry.owner}:
-                      {entry.readOnlyCommands
-                        .slice(0, 4)
-                        .map((command) => command.id)
-                        .join(", ")}
-                    </span>
-                  ))}
+                  <span key={entry.id}>
+                    {entry.owner}:
+                    {entry.readOnlyCommands
+                      .slice(0, 4)
+                      .map((command) => command.id)
+                      .join(", ")}
+                  </span>
+                ))}
               </div>
               <div
                 className="admin-evidence-line"
