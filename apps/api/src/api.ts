@@ -1814,6 +1814,24 @@ type ExternalRuntimeReviewPacketEvidenceArtifact = {
     }>;
     missingEvidence?: string[];
   }>;
+  candidateHandoff?: Array<{
+    imageName?: string;
+    status?: string;
+    owner?: string;
+    candidateStatus?: string;
+    candidateLabel?: string;
+    candidateImage?: string;
+    releaseEligible?: boolean;
+    criticalFindings?: number | string;
+    highFindings?: number | string;
+    reviewDecision?: string;
+    approvalRequired?: boolean;
+    mutationAllowed?: boolean;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    blockedBy?: string[];
+    rollbackPath?: string;
+  }>;
   readOnlyCommands?: Array<{
     id?: string;
     phase?: string;
@@ -4010,6 +4028,7 @@ function missingExternalRuntimeReviewPacketSummary(
     firstReviewerActions: [],
     firstRegistryActions: [],
     images: [],
+    candidateHandoff: [],
     readOnlyCommands: [],
     approvalGatedCommands: [],
     missingEvidence: [detail],
@@ -4046,6 +4065,61 @@ function summarizeExternalRuntimeCandidate(
     criticalFindingPackages: candidate.criticalFindingPackages ?? [],
     criticalFindingIds: candidate.criticalFindingIds ?? []
   };
+}
+
+function fallbackExternalRuntimeCandidateHandoff(
+  images: OpsLensExternalRuntimeReviewPacketSummary["images"]
+): OpsLensExternalRuntimeReviewPacketSummary["candidateHandoff"] {
+  return images.map((image) => {
+    const best = image.candidateMatrix.bestCandidate;
+    const status =
+      image.candidateMatrix.status === "candidate-ready-for-review" &&
+      best?.releaseEligible === true
+        ? "ready-for-human-review"
+        : best
+          ? "blocked-by-remediation"
+          : "needs-candidate";
+    const vulnerabilityRequest = image.reviewerRequests.find(
+      (request) =>
+        request.role === "security-reviewer" &&
+        /vulnerability scan/i.test(request.request)
+    );
+    const blockedBy = [
+      status === "ready-for-human-review"
+        ? ""
+        : `${image.name}: candidate status is ${image.candidateMatrix.status}`,
+      best?.releaseEligible === true
+        ? ""
+        : `${image.name}: best candidate is not release eligible`,
+      image.finalEvidenceExists
+        ? ""
+        : `${image.name}: final reviewed runtime evidence is missing`
+    ].filter(Boolean);
+
+    return {
+      imageName: image.name,
+      status,
+      owner: "security-reviewer",
+      candidateStatus: image.candidateMatrix.status,
+      candidateLabel: best?.label ?? "missing",
+      candidateImage: best?.image ?? "missing",
+      releaseEligible: best?.releaseEligible === true,
+      criticalFindings: best?.criticalFindings ?? "unknown",
+      highFindings: best?.highFindings ?? "unknown",
+      reviewDecision: best?.reviewDecision ?? "unknown",
+      approvalRequired: true,
+      mutationAllowed: false,
+      evidenceNeeded:
+        vulnerabilityRequest?.evidenceNeeded ??
+        image.candidateMatrix.recommendation,
+      nextCommand:
+        vulnerabilityRequest?.nextCommand ??
+        "npm run evidence:external-runtime:candidate-scan",
+      blockedBy,
+      rollbackPath:
+        "No cluster or registry rollback is required from this handoff because it records review evidence only."
+    };
+  });
 }
 
 function fallbackExternalRuntimeFirstRegistryActions(
@@ -4161,6 +4235,31 @@ function getExternalRuntimeReviewPacketReadiness(): {
       })),
       missingEvidenceCount: image.missingEvidence?.length ?? 0
     }));
+    const candidateHandoff = (
+      artifact.candidateHandoff?.length
+        ? artifact.candidateHandoff.map((handoff) => ({
+            imageName: handoff.imageName ?? "unknown",
+            status: handoff.status ?? "unknown",
+            owner: handoff.owner ?? "security-reviewer",
+            candidateStatus: handoff.candidateStatus ?? "missing",
+            candidateLabel: handoff.candidateLabel ?? "missing",
+            candidateImage: handoff.candidateImage ?? "missing",
+            releaseEligible: handoff.releaseEligible === true,
+            criticalFindings: handoff.criticalFindings ?? "unknown",
+            highFindings: handoff.highFindings ?? "unknown",
+            reviewDecision: handoff.reviewDecision ?? "unknown",
+            approvalRequired: handoff.approvalRequired !== false,
+            mutationAllowed: handoff.mutationAllowed === true,
+            evidenceNeeded: handoff.evidenceNeeded ?? "candidate review evidence is missing",
+            nextCommand:
+              handoff.nextCommand ?? "npm run evidence:external-runtime:candidate-scan",
+            blockedBy: handoff.blockedBy ?? [],
+            rollbackPath:
+              handoff.rollbackPath ??
+              "No cluster or registry rollback is required from this handoff."
+          }))
+        : fallbackExternalRuntimeCandidateHandoff(images)
+    );
     const firstReviewerActions = images.flatMap((image) => {
       const request = image.reviewerRequests[0];
       if (!request) return [];
@@ -4234,6 +4333,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
         firstReviewerActions,
         firstRegistryActions,
         images,
+        candidateHandoff,
         readOnlyCommands,
         approvalGatedCommands,
         missingEvidence: artifact.missingEvidence ?? [],
@@ -4247,6 +4347,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
         imageSummary
           ? `external runtime review images=${imageSummary}`
           : "external runtime review images are not listed",
+        `external runtime candidate handoff=${candidateHandoff.map((handoff) => `${handoff.imageName}:${handoff.status}:eligible=${String(handoff.releaseEligible)}:mutationAllowed=${String(handoff.mutationAllowed)}`).join(", ") || "missing"}`,
         `external runtime first reviewer actions=${firstReviewerActions.map((action) => `${action.imageName}:${action.role}:${action.nextCommand}`).join(", ") || "missing"}`,
         `external runtime first registry actions=${firstRegistryActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         `external runtime reviewer missingEvidence=${(artifact.missingEvidence ?? []).length}`,

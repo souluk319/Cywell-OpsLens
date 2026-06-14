@@ -3238,6 +3238,27 @@ export function OpsLensAdminDashboard() {
                       .join(", ") || "missing"}
                   </strong>
                 </div>
+                <div>
+                  <span>Candidate Handoff</span>
+                  <strong>
+                    {externalRuntimeReview.candidateHandoff
+                      .map(
+                        (handoff) =>
+                          `${handoff.imageName}:${handoff.status} eligible=${String(handoff.releaseEligible)}`
+                      )
+                      .join(", ") || "missing"}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-external-runtime-candidate-handoff"
+              >
+                {externalRuntimeReview.candidateHandoff.map((handoff) => (
+                  <span key={`${handoff.imageName}-candidate-handoff`}>
+                    {`${handoff.imageName}:${handoff.status}:owner=${handoff.owner}:candidate=${handoff.candidateImage}:critical=${handoff.criticalFindings}:high=${handoff.highFindings}:releaseEligible=${String(handoff.releaseEligible)}:approvalRequired=${String(handoff.approvalRequired)}:mutationAllowed=${String(handoff.mutationAllowed)}:next=${handoff.nextCommand}`}
+                  </span>
+                ))}
               </div>
               <div
                 className="admin-evidence-line"

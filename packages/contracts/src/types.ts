@@ -2399,6 +2399,24 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
     }>;
     missingEvidenceCount: number;
   }>;
+  candidateHandoff: Array<{
+    imageName: string;
+    status: string;
+    owner: string;
+    candidateStatus: string;
+    candidateLabel: string;
+    candidateImage: string;
+    releaseEligible: boolean;
+    criticalFindings: number | string;
+    highFindings: number | string;
+    reviewDecision: string;
+    approvalRequired: boolean;
+    mutationAllowed: boolean;
+    evidenceNeeded: string;
+    nextCommand: string;
+    blockedBy: string[];
+    rollbackPath: string;
+  }>;
   readOnlyCommands: Array<{
     id: string;
     phase: string;

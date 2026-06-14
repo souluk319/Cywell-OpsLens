@@ -1711,6 +1711,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             blockedBy?: string[];
             rollbackPath?: string;
           }>;
+          candidateHandoff?: Array<{
+            imageName?: string;
+            status?: string;
+            owner?: string;
+            candidateStatus?: string;
+            candidateLabel?: string;
+            candidateImage?: string;
+            releaseEligible?: boolean;
+            criticalFindings?: number | string;
+            highFindings?: number | string;
+            reviewDecision?: string;
+            approvalRequired?: boolean;
+            mutationAllowed?: boolean;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            blockedBy?: string[];
+            rollbackPath?: string;
+          }>;
           images?: Array<{
             name?: string;
             sourceDigestInspectionStatus?: string;
@@ -3244,6 +3262,37 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(String(qdrantCandidate.criticalFindings)).toMatch(/^(\d+|unknown)$/);
       expect(String(qdrantCandidate.highFindings)).toMatch(/^(\d+|unknown)$/);
     }
+    const externalRuntimeCandidateHandoff =
+      body.installReadiness?.externalRuntimeReview?.candidateHandoff ?? [];
+    expect(externalRuntimeCandidateHandoff.map((handoff) => handoff.imageName)).toEqual(
+      expect.arrayContaining(["vllm", "qdrant"])
+    );
+    const qdrantCandidateHandoff = externalRuntimeCandidateHandoff.find(
+      (handoff) => handoff.imageName === "qdrant"
+    );
+    expect(qdrantCandidateHandoff).toMatchObject({
+      status: "ready-for-human-review",
+      owner: "security-reviewer",
+      candidateImage: "cywell/opslens-qdrant:candidate",
+      releaseEligible: true,
+      criticalFindings: 0,
+      highFindings: 0,
+      approvalRequired: true,
+      mutationAllowed: false
+    });
+    expect(qdrantCandidateHandoff?.nextCommand).toContain("--scan-status approved");
+    expect(qdrantCandidateHandoff?.blockedBy?.join(" ")).toMatch(
+      /final reviewed runtime evidence/
+    );
+    const vllmCandidateHandoff = externalRuntimeCandidateHandoff.find(
+      (handoff) => handoff.imageName === "vllm"
+    );
+    expect(vllmCandidateHandoff).toMatchObject({
+      status: "blocked-by-remediation",
+      releaseEligible: false,
+      approvalRequired: true,
+      mutationAllowed: false
+    });
     const externalRuntimeReviewerCommands =
       body.installReadiness?.externalRuntimeReview?.images
         ?.flatMap((image) => image.reviewerRequests ?? [])
@@ -4994,6 +5043,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-external-runtime-candidates")
     ).toContainText(/zeroCritical=/);
+    await expect(
+      page.getByTestId("opslens-external-runtime-candidate-handoff")
+    ).toContainText("qdrant:ready-for-human-review");
+    await expect(
+      page.getByTestId("opslens-external-runtime-candidate-handoff")
+    ).toContainText("candidate=cywell/opslens-qdrant:candidate");
+    await expect(
+      page.getByTestId("opslens-external-runtime-candidate-handoff")
+    ).toContainText("critical=0");
+    await expect(
+      page.getByTestId("opslens-external-runtime-candidate-handoff")
+    ).toContainText("high=0");
+    await expect(
+      page.getByTestId("opslens-external-runtime-candidate-handoff")
+    ).toContainText("approvalRequired=true");
+    await expect(
+      page.getByTestId("opslens-external-runtime-candidate-handoff")
+    ).toContainText("mutationAllowed=false");
+    await expect(
+      page.getByTestId("opslens-external-runtime-candidate-handoff")
+    ).toContainText("vllm:blocked-by-remediation");
     await expect(
       page.getByTestId("opslens-external-runtime-reviewer-actions")
     ).toContainText("evidence:external-runtime:draft");

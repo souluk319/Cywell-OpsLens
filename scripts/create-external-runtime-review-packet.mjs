@@ -422,6 +422,73 @@ function reviewerRequests(name, image, draftMissingEvidence, draft, candidateMat
   return requests;
 }
 
+function candidateHandoffStatus(candidateMatrix) {
+  const best = candidateMatrix?.bestCandidate;
+  if (!best) return "needs-candidate";
+  if (
+    candidateMatrix?.status === "candidate-ready-for-review" &&
+    best.releaseEligible === true
+  ) {
+    return "ready-for-human-review";
+  }
+  return "blocked-by-remediation";
+}
+
+function candidateHandoffItems(images) {
+  return images.map((image) => {
+    const candidateMatrix = image.candidateMatrix ?? {};
+    const best = candidateMatrix.bestCandidate;
+    const status = candidateHandoffStatus(candidateMatrix);
+    const vulnerabilityRequest = image.reviewerRequests.find(
+      (request) =>
+        request.role === "security-reviewer" &&
+        /vulnerability scan/i.test(request.request)
+    );
+    const blockedBy = unique([
+      status === "ready-for-human-review"
+        ? ""
+        : `${image.name}: candidate status is ${candidateMatrix.status ?? "missing"}`,
+      best?.releaseEligible === true
+        ? ""
+        : `${image.name}: best candidate is not release eligible`,
+      image.finalEvidence.exists
+        ? ""
+        : `${image.name}: final reviewed runtime evidence is missing at ${image.finalEvidenceFile}`,
+      ...image.missingEvidence
+        .filter((item) =>
+          /mirror-digest|certification|provenance|license-review|approval/.test(item)
+        )
+        .slice(0, 5)
+        .map((item) => `${image.name}: ${item}`)
+    ].filter(Boolean));
+
+    return {
+      imageName: image.name,
+      status,
+      owner: "security-reviewer",
+      candidateStatus: candidateMatrix.status ?? "missing",
+      candidateLabel: best?.label ?? "missing",
+      candidateImage: best?.image ?? "missing",
+      releaseEligible: best?.releaseEligible === true,
+      criticalFindings: best?.criticalFindings ?? "unknown",
+      highFindings: best?.highFindings ?? "unknown",
+      reviewDecision: best?.reviewDecision ?? "unknown",
+      approvalRequired: true,
+      mutationAllowed: false,
+      evidenceNeeded:
+        vulnerabilityRequest?.evidenceNeeded ??
+        candidateMatrix.recommendation ??
+        "candidate scan and reviewer evidence are missing",
+      nextCommand:
+        vulnerabilityRequest?.nextCommand ??
+        candidateScanCommand(image.name),
+      blockedBy,
+      rollbackPath:
+        "No cluster or registry rollback is required from this handoff because it records review evidence only; supersede the draft packet if reviewer evidence is rejected."
+    };
+  });
+}
+
 function imagePackets(externalRuntime, candidateMatrix) {
   const images = Array.isArray(externalRuntime?.externalImages)
     ? externalRuntime.externalImages
@@ -706,6 +773,27 @@ function markdownFor(packet) {
       `- ${source.label}: status=${source.status}, fresh=${source.fresh}, acceptable=${source.acceptable}`
     ),
     "",
+    "## Candidate Handoff",
+    "",
+    ...packet.candidateHandoff.map((handoff) => [
+      `### ${handoff.imageName}`,
+      "",
+      `- Status: ${handoff.status}`,
+      `- Owner: ${handoff.owner}`,
+      `- Candidate: ${handoff.candidateImage} (${handoff.candidateLabel})`,
+      `- Release eligible: ${String(handoff.releaseEligible)}`,
+      `- Critical/high: ${handoff.criticalFindings}/${handoff.highFindings}`,
+      `- Approval required: ${String(handoff.approvalRequired)}`,
+      `- Mutation allowed: ${String(handoff.mutationAllowed)}`,
+      `- Evidence needed: ${handoff.evidenceNeeded}`,
+      `- Blocked by: ${handoff.blockedBy.length ? handoff.blockedBy.join("; ") : "human approval boundary"}`,
+      "",
+      "```powershell",
+      handoff.nextCommand,
+      "```",
+      ""
+    ].join("\n")),
+    "",
     "## Per Image Review Requests",
     ""
   ];
@@ -812,6 +900,7 @@ async function main() {
   ];
 
   const images = imagePackets(artifacts.externalRuntime, artifacts.candidateMatrix);
+  const candidateHandoff = candidateHandoffItems(images);
   const readOnly = readOnlyCommands(images, artifacts.candidateMatrix);
   const approvalGated = approvalGatedCommands(artifacts.externalRuntime);
   const firstRegistryActions = buildFirstRegistryActions(images, approvalGated);
@@ -838,6 +927,17 @@ async function main() {
     pass("external runtime first registry mutation boundary", "mutating registry actions require explicit approval");
   } else {
     fail("external runtime first registry mutation boundary", "mutating registry actions must require explicit approval");
+  }
+  const readyCandidateHandoffs = candidateHandoff.filter(
+    (handoff) => handoff.status === "ready-for-human-review"
+  );
+  if (
+    readyCandidateHandoffs.length > 0 &&
+    readyCandidateHandoffs.every(
+      (handoff) => handoff.approvalRequired === true && handoff.mutationAllowed === false
+    )
+  ) {
+    pass("external runtime candidate handoff boundary", `${readyCandidateHandoffs.length} ready candidate handoff(s) remain approval-gated and non-mutating`);
   }
 
   const mutationViolations = [
@@ -907,6 +1007,7 @@ async function main() {
     ],
     sourceArtifacts,
     images,
+    candidateHandoff,
     readOnlyCommands: readOnly,
     approvalGatedCommands: approvalGated,
     firstRegistryActions,
