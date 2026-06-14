@@ -3132,6 +3132,7 @@ const criticalPathLaneOrder = [
   "runtime-live",
   "runtime-rag-quality",
   "external-runtime-review",
+  "catalog-registry-auth",
   "certification-toolchain",
   "release-publish",
   "install-approval",
@@ -3145,6 +3146,7 @@ const criticalPathLabels = {
   "runtime-live": "Runtime live probes",
   "runtime-rag-quality": "Runtime RAG live quality",
   "external-runtime-review": "External runtime evidence and mirroring",
+  "catalog-registry-auth": "Catalog registry auth and base-image evidence",
   "certification-toolchain": "Certification and catalog toolchain",
   "release-publish": "Release publish approval",
   "install-approval": "Install approval and OLSConfig registration",
@@ -3159,6 +3161,7 @@ function criticalPathLane(entry) {
   if (/data-ml-engineer|runtime-rag/.test(text)) return "runtime-rag-quality";
   if (/runtime-platform|runtime-readiness|runtimeprobe|runtime-readiness-live/.test(text)) return "runtime-live";
   if (/external-runtime|externalruntime/.test(text)) return "external-runtime-review";
+  if (/catalog-base-image|catalog-registry|catalogtoolchain/.test(text)) return "catalog-registry-auth";
   if (/certification|catalog-toolchain|tooling|opm|operator-sdk/.test(text)) return "certification-toolchain";
   if (/release-publish|publish-decision|refresh-publish/.test(text)) return "release-publish";
   if (/install-plan|install-decision|refresh-install/.test(text)) return "install-approval";

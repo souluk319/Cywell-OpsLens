@@ -4851,6 +4851,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "runtime-live",
         "runtime-rag-quality",
         "external-runtime-review",
+        "catalog-registry-auth",
         "release-publish",
         "install-approval"
       ])
@@ -5975,6 +5976,43 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           (item) => item.id === "catalog-mutation-boundary"
         )?.value
       ).toContain("mutationAllowed=false");
+      const catalogRegistryCriticalPath =
+        body.installReadiness?.actionQueue?.criticalPath?.find(
+          (entry) => entry.lane === "catalog-registry-auth"
+        );
+      expect(catalogRegistryCriticalPath).toMatchObject({
+        owner: "registry-admin",
+        actionId: "registry-admin-fix-catalog-base-image-auth",
+        source: "releaseEvidenceBundle:catalogToolchain"
+      });
+      expect(catalogRegistryCriticalPath?.readOnlyCommandIds).toEqual(
+        expect.arrayContaining([
+          "registry-base-inspect",
+          "catalog-local-build",
+          "refresh-catalog-toolchain-evidence"
+        ])
+      );
+      expect(catalogRegistryCriticalPath?.setupCommandIds).toEqual(
+        expect.arrayContaining(["registry-login"])
+      );
+      expect(catalogRegistryCriticalPath?.diagnostics).toEqual(
+        expect.arrayContaining(["catalog-registry-auth", "catalog-mutation-boundary"])
+      );
+      expect(catalogRegistryCriticalPath?.catalogToolchainTicketPacket).toMatchObject({
+        id: "registry-admin-catalog-toolchain-ticket",
+        firstReadOnlyAction: {
+          id: "registry-base-inspect",
+          mutation: false
+        },
+        setupAction: {
+          id: "registry-login",
+          requiresHumanSecretInput: true
+        },
+        mutationBoundary: {
+          registryMutationAttempted: false,
+          mutationAllowedByThisVerifier: false
+        }
+      });
     }
     const runtimeLiveAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -7565,6 +7603,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("extFirst=external-runtime-vllm-registry-1");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("catalog-registry-auth");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("catalogTicket=registry-admin-catalog-toolchain-ticket");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("catalogFirst=registry-base-inspect");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("setup=registry-login");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("certTicket=release-manager-certification-tooling-ticket");
