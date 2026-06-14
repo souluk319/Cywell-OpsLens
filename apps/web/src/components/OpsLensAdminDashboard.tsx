@@ -2826,7 +2826,7 @@ export function OpsLensAdminDashboard() {
                   <strong>
                     {checkpoint.lanes.length
                       ? checkpoint.lanes
-                          .map((lane) => `${lane.label}:${lane.status}`)
+                          .map((lane) => `${lane.id}:${lane.status}`)
                           .join(", ")
                       : "blocked until evidence exists"}
                   </strong>
