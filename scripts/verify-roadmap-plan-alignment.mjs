@@ -18,6 +18,7 @@ const paths = {
   operatorReconcile: "test-results/cywell-opslens-operator-reconcile.json",
   operatorRuntimeParity: "test-results/cywell-opslens-operator-runtime-parity.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
+  communityOperatorSubmission: "test-results/cywell-opslens-community-operator-submission.json",
   roadmapOut: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   roadmapMarkdownOut: "test-results/cywell-opslens-roadmap-plan-alignment.md"
 };
@@ -429,6 +430,10 @@ async function main() {
   const operatorReconcile = loadJson(paths.operatorReconcile, "Operator reconcile");
   const operatorRuntimeParity = loadJson(paths.operatorRuntimeParity, "Operator runtime parity");
   const installPlan = loadJson(paths.installPlan, "install approval plan");
+  const communityOperatorSubmission = loadJson(
+    paths.communityOperatorSubmission,
+    "Community Operator submission draft"
+  );
   const globalRequirements = [
     artifactFreshnessRequirement(checkpoint, "checkpoint-fresh", "Evidence checkpoint", headSha),
     artifactFreshnessRequirement(mvpGate, "mvp-gate-fresh", "MVP gate", headSha),
@@ -438,7 +443,13 @@ async function main() {
     artifactFreshnessRequirement(consolePluginAssets, "console-plugin-assets-fresh", "ConsolePlugin assets", headSha),
     artifactFreshnessRequirement(operatorReconcile, "operator-reconcile-fresh", "Operator reconcile", headSha),
     artifactFreshnessRequirement(operatorRuntimeParity, "operator-runtime-parity-fresh", "Operator runtime parity", headSha),
-    artifactFreshnessRequirement(installPlan, "install-plan-fresh", "Install approval plan", headSha)
+    artifactFreshnessRequirement(installPlan, "install-plan-fresh", "Install approval plan", headSha),
+    artifactFreshnessRequirement(
+      communityOperatorSubmission,
+      "community-operator-submission-fresh",
+      "Community Operator submission draft",
+      headSha
+    )
   ];
 
   const stages = [
@@ -533,6 +544,13 @@ async function main() {
       ]),
       mvpRequirement(mvpGate, "CERTIFICATION", "Certification readiness verifier"),
       laneRequirement(checkpoint, "certificationReadiness", "Certification readiness evidence", ["pass", "needs-evidence"]),
+      laneRequirement(checkpoint, "communityOperatorSubmission", "Community Operator submission draft"),
+      artifactStatusRequirement(
+        communityOperatorSubmission,
+        "community-operator-submission-draft",
+        "Community Operator submission draft",
+        ["PASS"]
+      ),
       laneRequirement(checkpoint, "catalogToolchain", "Catalog toolchain readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "externalRuntime", "External runtime image evidence", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "externalRuntimeReviewPacket", "External runtime reviewer packet", ["pass", "needs-evidence"]),

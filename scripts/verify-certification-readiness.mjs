@@ -22,6 +22,7 @@ const paths = {
   catalogSource: "deploy/catalog/openshift/catalogsource.yaml",
   subscription: "deploy/catalog/openshift/subscription.yaml",
   scorecard: "deploy/operator/bundle/tests/scorecard/config.yaml",
+  communitySubmissionEvidence: "test-results/cywell-opslens-community-operator-submission.json",
   securityDoc: "docs/security/cywell-opslens-certification-readiness.md",
   supportDoc: "docs/support/cywell-opslens-support-matrix.md",
   certificationToolingDoc: "docs/release/cywell-opslens-certification-tooling.md",
@@ -652,6 +653,145 @@ async function loadCiRunnerEvidence(headSha) {
   };
 }
 
+async function loadCommunitySubmissionEvidence(headSha) {
+  const base = {
+    path: paths.communitySubmissionEvidence,
+    requiredSchema: "cywell.opslens.community-operator-submission.v0.1",
+    status: "missing",
+    ready: false,
+    sameHead: false,
+    worktreeClean: false,
+    sourceBundleParityPassed: false,
+    externalSubmissionAttempted: false,
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    missingEvidence: [],
+    nextCommands: [
+      "npm run verify:community-submission",
+      "npm run verify:certification"
+    ]
+  };
+
+  let raw;
+  try {
+    raw = await readFile(resolve(paths.communitySubmissionEvidence), "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      warn(
+        "Community Operator submission draft",
+        `${paths.communitySubmissionEvidence} is not readable: ${error.message}`
+      );
+      return {
+        ...base,
+        status: "invalid",
+        missingEvidence: [
+          `${paths.communitySubmissionEvidence} is not readable: ${sanitize(error.message)}`
+        ]
+      };
+    }
+    warn(
+      "Community Operator submission draft",
+      `${paths.communitySubmissionEvidence} is missing; run npm run verify:community-submission`
+    );
+    return {
+      ...base,
+      missingEvidence: [
+        `Community Operator submission draft is missing at ${paths.communitySubmissionEvidence}`
+      ]
+    };
+  }
+
+  let artifact;
+  try {
+    artifact = sanitizeObject(JSON.parse(raw));
+  } catch (error) {
+    warn(
+      "Community Operator submission draft",
+      `${paths.communitySubmissionEvidence} is not valid JSON: ${error.message}`
+    );
+    return {
+      ...base,
+      status: "invalid",
+      missingEvidence: [
+        `${paths.communitySubmissionEvidence} is not valid JSON: ${sanitize(error.message)}`
+      ]
+    };
+  }
+
+  const ref = artifact.ref ?? {};
+  const sameHead = ref.headSha === headSha || artifact.headSha === headSha;
+  const worktreeClean = ref.worktreeDirty === false || artifact.worktreeDirty === false;
+  const sourceBundleParityPassed =
+    Array.isArray(artifact.sourceBundleParity) &&
+    artifact.sourceBundleParity.length > 0 &&
+    artifact.sourceBundleParity.every((entry) => entry.match === true);
+  const missingEvidence = [];
+
+  if (artifact.schema !== base.requiredSchema && artifact.artifactType !== "opslens.community-operator-submission.v0.1") {
+    missingEvidence.push(`schema must be ${base.requiredSchema}`);
+  }
+  if (artifact.status !== "PASS") {
+    missingEvidence.push(`Community Operator submission draft status=${artifact.status ?? "missing"}`);
+  }
+  if (!sameHead) {
+    missingEvidence.push(`Community Operator submission draft headSha must match current head ${headSha}`);
+  }
+  if (!worktreeClean) {
+    missingEvidence.push("Community Operator submission draft must be generated from a clean worktree");
+  }
+  if (!sourceBundleParityPassed) {
+    missingEvidence.push("Community Operator submission draft must prove source bundle parity");
+  }
+  for (const [field, value] of [
+    ["externalSubmissionAttempted", artifact.externalSubmissionAttempted],
+    ["registryMutationAttempted", artifact.registryMutationAttempted],
+    ["clusterMutationAttempted", artifact.clusterMutationAttempted],
+    ["mutationAllowedByThisVerifier", artifact.mutationAllowedByThisVerifier]
+  ]) {
+    if (value === true) {
+      missingEvidence.push(`${field} must remain false`);
+    }
+  }
+
+  if (missingEvidence.length > 0) {
+    warn(
+      "Community Operator submission draft",
+      `${paths.communitySubmissionEvidence} is present but not ready: ${missingEvidence.join("; ")}`
+    );
+  } else {
+    pass(
+      "Community Operator submission draft",
+      `${paths.communitySubmissionEvidence} is PASS and current-head`
+    );
+  }
+
+  return {
+    ...base,
+    status: artifact.status ?? "missing",
+    ready: missingEvidence.length === 0,
+    sameHead,
+    worktreeClean,
+    sourceBundleParityPassed,
+    externalSubmissionAttempted: artifact.externalSubmissionAttempted === true,
+    registryMutationAttempted: artifact.registryMutationAttempted === true,
+    clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+    mutationAllowedByThisVerifier: artifact.mutationAllowedByThisVerifier === true,
+    submissionLayout: artifact.submissionLayout ?? {},
+    firstSubmissionActions: artifact.firstSubmissionActions ?? [],
+    readOnlyCommands: artifact.readOnlyCommands ?? [],
+    approvalGatedCommands: artifact.approvalGatedCommands ?? [],
+    missingEvidence,
+    nextCommands:
+      missingEvidence.length === 0
+        ? [
+            "npm run verify:certification",
+            "npm run verify:release-refresh -- --live-timeout-ms 30000"
+          ]
+        : base.nextCommands
+  };
+}
+
 function statusFromChecks(toolingHandoff) {
   if (checks.some((check) => check.status === "FAIL")) return "FAILED";
   const ciRunnerReady = toolingHandoff.runnerEvidence?.status === "ready";
@@ -673,6 +813,9 @@ function statusFromChecks(toolingHandoff) {
 
 function firstSubmissionGapCommand(gap) {
   const normalized = gap.toLowerCase();
+  if (/community operator|operatorhub|submission draft|submission tree|source bundle parity/.test(normalized)) {
+    return "npm run verify:community-submission";
+  }
   if (
     /opm|operator-sdk|ci runner|runner evidence|tooling/.test(normalized)
   ) {
@@ -941,6 +1084,13 @@ function buildToolingHandoff(ciRunnerEvidence) {
         requiresNetwork: false
       },
       {
+        id: "refresh-community-submission-draft",
+        phase: "community-operator-preflight",
+        command: "npm run verify:community-submission",
+        mutation: false,
+        requiresNetwork: false
+      },
+      {
         id: "refresh-catalog-toolchain-evidence",
         phase: "evidence-refresh",
         command: "npm run verify:catalog-toolchain",
@@ -1021,6 +1171,7 @@ async function writeEvidence() {
   const worktreeStatus = await gitStatusShort();
   const worktreeDirty = worktreeStatus.length > 0;
   const ciRunnerEvidence = await loadCiRunnerEvidence(headSha);
+  const communitySubmission = await loadCommunitySubmissionEvidence(headSha);
   const toolingHandoff = buildToolingHandoff(ciRunnerEvidence);
   expectCheck(
     "certification tooling execution lanes",
@@ -1047,6 +1198,7 @@ async function writeEvidence() {
     ...(toolingHandoff.missingRequiredTools.length > 0 && ciRunnerEvidence.status !== "ready"
       ? ciRunnerEvidence.missingEvidence
       : []),
+    ...(communitySubmission.ready ? [] : communitySubmission.missingEvidence),
     ...checks
       .filter((check) => check.status === "WARN")
       .map((check) => `${check.name}: ${check.detail}`)
@@ -1116,6 +1268,7 @@ async function writeEvidence() {
     },
     cli,
     toolingHandoff,
+    communitySubmission,
     firstSubmissionActions,
     documents: {
       security: paths.securityDoc,

@@ -33,6 +33,8 @@ import type {
   OpsLensCertificationReadiness,
   OpsLensCertificationReadinessSummary,
   OpsLensCitation,
+  OpsLensCommunityOperatorSubmissionReadiness,
+  OpsLensCommunityOperatorSubmissionSummary,
   OpsLensEvidenceCheckpointReadiness,
   OpsLensEvidenceCheckpointSummary,
   OpsLensExternalRuntimeImagesPlanSummary,
@@ -1767,6 +1769,57 @@ type ReleasePublishPlanEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type CommunityOperatorSubmissionEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  externalSubmissionAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  submissionLayout?: Partial<OpsLensCommunityOperatorSubmissionSummary["submissionLayout"]>;
+  sourceBundleParity?: Array<Partial<OpsLensCommunityOperatorSubmissionSummary["sourceBundleParity"][number]>>;
+  readOnlyCommands?: Array<{
+    id?: string;
+    command?: string;
+    phase?: string;
+    mutation?: boolean;
+    requiresNetwork?: boolean;
+    writesLocalEvidence?: boolean;
+  }>;
+  approvalGatedCommands?: Array<{
+    id?: string;
+    command?: string;
+    phase?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+    requiresNetwork?: boolean;
+  }>;
+  firstSubmissionActions?: Array<{
+    id?: string;
+    owner?: string;
+    phase?: string;
+    status?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
+  }>;
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type CertificationReadinessEvidenceArtifact = {
   artifactType?: string;
   status?: string;
@@ -2741,6 +2794,13 @@ function certificationReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_CERTIFICATION_READINESS_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-certification-readiness.json")
+  );
+}
+
+function communityOperatorSubmissionEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_COMMUNITY_OPERATOR_SUBMISSION_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-community-operator-submission.json")
   );
 }
 
@@ -4697,6 +4757,219 @@ function countCertificationGateStatuses(
     else if (check.status === "FAIL") counts.fail += 1;
   }
   return counts;
+}
+
+function mapCommunityOperatorSubmissionStatus(
+  artifact: CommunityOperatorSubmissionEvidenceArtifact
+): OpsLensCommunityOperatorSubmissionReadiness {
+  if (artifact.status === "PASS") return "ready";
+  if (artifact.status === "FAILED") return "failed";
+  return "needs-evidence";
+}
+
+function missingCommunityOperatorSubmissionSummary(
+  reason: string,
+  status: OpsLensCommunityOperatorSubmissionReadiness = "needs-evidence"
+): OpsLensCommunityOperatorSubmissionSummary {
+  return {
+    status,
+    artifactStatus: status === "failed" ? "invalid" : "missing",
+    actionMode: "submissionDraftOnly",
+    externalSubmissionAttempted: false,
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    headSha: "missing",
+    worktreeDirty: false,
+    submissionLayout: {
+      root: "operators/cywell-opslens",
+      packageName: "cywell-opslens",
+      version: "0.1.0",
+      ci: "operators/cywell-opslens/ci.yaml",
+      catalogTemplate: "operators/cywell-opslens/catalog-templates/stable.yaml",
+      manifests: [],
+      metadata: "operators/cywell-opslens/0.1.0/metadata/annotations.yaml",
+      scorecard: "operators/cywell-opslens/0.1.0/tests/scorecard/config.yaml"
+    },
+    parityPassed: false,
+    sourceBundleParity: [],
+    readOnlyCommands: [
+      {
+        id: "verify-community-submission",
+        command: "npm run verify:community-submission",
+        phase: "community-operator-preflight",
+        mutation: false,
+        requiresNetwork: false,
+        writesLocalEvidence: true
+      }
+    ],
+    approvalGatedCommands: [],
+    firstSubmissionActions: [
+      {
+        id: "community-submission-draft-preflight",
+        owner: "release-manager",
+        phase: "community-operator-preflight",
+        status: "needs-evidence",
+        request:
+          "Generate Community Operator submission draft evidence before external OperatorHub review.",
+        evidenceNeeded: reason,
+        nextCommand: "npm run verify:community-submission",
+        mutation: false,
+        requiresExplicitApproval: false,
+        blockedBy: [reason],
+        rollbackPath:
+          "No rollback is required because no external submission command has run."
+      }
+    ],
+    missingEvidence: [reason],
+    risk: [
+      "Without Community Operator submission draft evidence, release review cannot prove source bundle parity before external PR approval."
+    ],
+    rollbackPath: [
+      "Run npm run verify:community-submission from a clean Git HEAD before opening any external OperatorHub pull request."
+    ]
+  };
+}
+
+function getCommunityOperatorSubmissionReadiness(): {
+  status: OpsLensCommunityOperatorSubmissionReadiness;
+  evidence: string[];
+  plan: OpsLensCommunityOperatorSubmissionSummary;
+} {
+  const evidencePath = communityOperatorSubmissionEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    return {
+      status: "needs-evidence",
+      plan: missingCommunityOperatorSubmissionSummary(
+        `Community Operator submission evidence is missing at ${evidencePath}`
+      ),
+      evidence: [
+        "run npm run verify:community-submission to create Community Operator submission draft evidence",
+        "dashboard keeps Community Operator submission as needs-evidence until source bundle parity is proven",
+        "Community Operator submission evidence must keep externalSubmissionAttempted=false and mutation flags false"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as CommunityOperatorSubmissionEvidenceArtifact;
+    const status = mapCommunityOperatorSubmissionStatus(artifact);
+    const sourceBundleParity = (artifact.sourceBundleParity ?? []).map(
+      (entry) => ({
+        id: entry.id ?? "unknown",
+        source: entry.source ?? "missing",
+        target: entry.target ?? "missing",
+        sourceSha256: entry.sourceSha256 ?? "missing",
+        targetSha256: entry.targetSha256 ?? "missing",
+        match: entry.match === true
+      })
+    );
+    const parityPassed =
+      sourceBundleParity.length > 0 &&
+      sourceBundleParity.every((entry) => entry.match);
+    const submissionLayout = artifact.submissionLayout ?? {};
+    const plan: OpsLensCommunityOperatorSubmissionSummary = {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode: "submissionDraftOnly",
+      externalSubmissionAttempted:
+        artifact.externalSubmissionAttempted === true,
+      registryMutationAttempted: artifact.registryMutationAttempted === true,
+      clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        artifact.mutationAllowedByThisVerifier === true,
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      submissionLayout: {
+        root: submissionLayout.root ?? "operators/cywell-opslens",
+        packageName: submissionLayout.packageName ?? "cywell-opslens",
+        version: submissionLayout.version ?? "0.1.0",
+        ci: submissionLayout.ci ?? "operators/cywell-opslens/ci.yaml",
+        catalogTemplate:
+          submissionLayout.catalogTemplate ??
+          "operators/cywell-opslens/catalog-templates/stable.yaml",
+        manifests: submissionLayout.manifests ?? [],
+        metadata:
+          submissionLayout.metadata ??
+          "operators/cywell-opslens/0.1.0/metadata/annotations.yaml",
+        scorecard:
+          submissionLayout.scorecard ??
+          "operators/cywell-opslens/0.1.0/tests/scorecard/config.yaml"
+      },
+      parityPassed,
+      sourceBundleParity,
+      readOnlyCommands: (artifact.readOnlyCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        command: command.command ?? "unknown",
+        phase: command.phase ?? "community-operator-preflight",
+        mutation: command.mutation === true,
+        requiresNetwork: command.requiresNetwork === true,
+        writesLocalEvidence: command.writesLocalEvidence === true
+      })),
+      approvalGatedCommands: (artifact.approvalGatedCommands ?? []).map(
+        (command) => ({
+          id: command.id ?? "unknown",
+          command: command.command ?? "unknown",
+          phase: command.phase ?? "community-operator-external-submission",
+          mutation: command.mutation === true,
+          requiresExplicitApproval:
+            command.requiresExplicitApproval === true,
+          requiresNetwork: command.requiresNetwork === true
+        })
+      ),
+      firstSubmissionActions: (artifact.firstSubmissionActions ?? []).map(
+        (action) => ({
+          id: action.id ?? "unknown",
+          owner: action.owner ?? "release-manager",
+          phase: action.phase ?? "community-operator-preflight",
+          status: action.status ?? "needs-evidence",
+          request: action.request ?? "Community Operator submission action",
+          evidenceNeeded: action.evidenceNeeded ?? "missing evidence",
+          nextCommand:
+            action.nextCommand ?? "npm run verify:community-submission",
+          mutation: action.mutation === true,
+          requiresExplicitApproval:
+            action.requiresExplicitApproval === true,
+          blockedBy: action.blockedBy ?? [],
+          rollbackPath:
+            action.rollbackPath ??
+            "Regenerate Community Operator submission evidence before proceeding."
+        })
+      ),
+      missingEvidence: artifact.missingEvidence ?? [],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? []
+    };
+
+    return {
+      status,
+      plan,
+      evidence: [
+        `Community Operator submission evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `community submission generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `community submission parity=${String(parityPassed)} entries=${sourceBundleParity.length}`,
+        `community submission first actions=${plan.firstSubmissionActions.map((action) => `${action.id}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
+        ...plan.missingEvidence.slice(0, 3),
+        "admin overview reads Community Operator submission draft evidence only; it does not open OperatorHub pull requests, submit to Partner Connect, push images, or mutate clusters"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      plan: missingCommunityOperatorSubmissionSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "failed"
+      ),
+      evidence: [
+        `Community Operator submission evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid Community Operator submission evidence blocks external submission readiness"
+      ]
+    };
+  }
 }
 
 function missingCertificationRunnerEvidence(
@@ -7624,6 +7897,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
   const installPlanReadiness = getInstallApprovalPlanReadiness();
   const certificationReadiness = getCertificationReadiness();
+  const communityOperatorSubmissionReadiness =
+    getCommunityOperatorSubmissionReadiness();
   const catalogToolchainReadiness = getCatalogToolchainReadiness();
   const securityScanReadiness = getSecurityScanPlanReadiness();
   const releasePublishReadiness = getReleasePublishPlanReadiness();
@@ -7648,6 +7923,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     operatorDryRunReadiness.evidence[0],
     installPlanReadiness.evidence[0],
     certificationReadiness.evidence[0],
+    communityOperatorSubmissionReadiness.evidence[0],
     catalogToolchainReadiness.evidence[0],
     imageBuildReadiness.evidence[0],
     ownedImageProvenanceReadiness.evidence[0],
@@ -7663,6 +7939,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...operatorDryRunReadiness.evidence.slice(1),
     ...installPlanReadiness.evidence.slice(1),
     ...certificationReadiness.evidence.slice(1),
+    ...communityOperatorSubmissionReadiness.evidence.slice(1),
     ...catalogToolchainReadiness.evidence.slice(1),
     ...imageBuildReadiness.evidence.slice(1),
     ...ownedImageProvenanceReadiness.evidence.slice(1),
@@ -7867,6 +8144,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       approvalPlan: installPlanReadiness.plan,
       certificationReadiness: certificationReadiness.status,
       certificationPlan: certificationReadiness.plan,
+      communityOperatorSubmission: communityOperatorSubmissionReadiness.status,
+      communitySubmissionPlan: communityOperatorSubmissionReadiness.plan,
       catalogToolchain: catalogToolchainReadiness.status,
       catalogToolchainPlan: catalogToolchainReadiness.plan,
       imageBuilds: imageBuildReadiness.status,
@@ -7911,6 +8190,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 4 live evidence handoff is generated by npm run verify:live-handoff",
         "Stage 4 reconcile core validates ValidateOnly and explicit PatchOLSConfig through npm run verify:operator:reconcile",
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
+        "Stage 5 Community Operator submission draft is validated by npm run verify:community-submission",
         "Stage 5 catalog toolchain readiness is validated by npm run verify:catalog-toolchain",
         "Stage 5 image build readiness is validated by npm run verify:images",
         "Stage 5 owned image provenance is validated by npm run verify:owned-image-provenance",

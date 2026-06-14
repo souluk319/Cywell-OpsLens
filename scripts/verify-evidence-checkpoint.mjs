@@ -26,6 +26,7 @@ const evidenceDefaults = {
   lightspeedIntegrationHandoff:
     "test-results/cywell-opslens-lightspeed-integration-handoff.json",
   certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
+  communityOperatorSubmission: "test-results/cywell-opslens-community-operator-submission.json",
   catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
@@ -827,6 +828,62 @@ function checkPatchPreview(patchArtifact) {
   pass("Lightspeed patch preview safety", "preview is PatchPlanned and non-mutating");
 }
 
+function checkCommunityOperatorSubmission(submissionArtifact) {
+  if (!submissionArtifact) return;
+  const readOnlyCommands = submissionArtifact.readOnlyCommands ?? [];
+  const approvalGatedCommands = submissionArtifact.approvalGatedCommands ?? [];
+  const mutatingPattern =
+    /\b(oc|kubectl)\s+(apply|create|delete|patch|replace|scale|rollout|adm)|\b(docker|podman|skopeo)\s+(push|copy)|\b(cosign)\s+sign|\b(operator-sdk|opm)\s+.*\b(push|publish)\b|pull request|partner connect|operatorhub/i;
+  const violations = [];
+
+  if (submissionArtifact.actionMode !== "submissionDraftOnly") {
+    violations.push(`actionMode=${submissionArtifact.actionMode ?? "missing"}`);
+  }
+  if (submissionArtifact.externalSubmissionAttempted === true) {
+    violations.push("externalSubmissionAttempted");
+  }
+  if (artifactClusterMutationAttempted(submissionArtifact)) {
+    violations.push("clusterMutationAttempted");
+  }
+  if (artifactRegistryMutationAttempted(submissionArtifact)) {
+    violations.push("registryMutationAttempted");
+  }
+  if (artifactMutationAllowedByVerifier(submissionArtifact)) {
+    violations.push("mutationAllowedByThisVerifier");
+  }
+  if (
+    !Array.isArray(submissionArtifact.sourceBundleParity) ||
+    submissionArtifact.sourceBundleParity.length === 0 ||
+    submissionArtifact.sourceBundleParity.some((entry) => entry.match !== true)
+  ) {
+    violations.push("sourceBundleParity");
+  }
+
+  const unsafeReadOnly = readOnlyCommands
+    .filter((command) => command.mutation === true || mutatingPattern.test(command.command ?? ""))
+    .map((command) => command.id ?? "unknown");
+  if (unsafeReadOnly.length > 0) {
+    violations.push(`unsafeReadOnlyCommands=${unsafeReadOnly.join(",")}`);
+  }
+
+  const unguardedApproval = approvalGatedCommands
+    .filter((command) => command.mutation !== true || command.requiresExplicitApproval !== true)
+    .map((command) => command.id ?? "unknown");
+  if (unguardedApproval.length > 0) {
+    violations.push(`unguardedApprovalCommands=${unguardedApproval.join(",")}`);
+  }
+
+  if (violations.length > 0) {
+    fail("Community Operator submission boundary", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "Community Operator submission boundary",
+    `status=${submissionArtifact.status ?? "missing"} parity=${submissionArtifact.sourceBundleParity.length} readOnlyCommands=${readOnlyCommands.length} approvalGated=${approvalGatedCommands.length}`
+  );
+}
+
 function checkSecurityScanRunnerPolicy(runnerArtifact) {
   if (!runnerArtifact) return;
   const violations = [];
@@ -1135,6 +1192,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "communityOperatorSubmission",
+    label: "Community Operator submission draft",
+    artifact: artifacts.communityOperatorSubmission,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "catalogToolchain",
     label: "catalog toolchain readiness",
     artifact: artifacts.catalogToolchain,
@@ -1283,6 +1347,7 @@ async function main() {
   checkOwnedImageProvenance(artifacts.ownedImageProvenance);
   checkOcpConnectivityDiagnostic(artifacts.ocpConnectivity);
   checkOcpAuthRbacPlan(artifacts.ocpAuthRbacPlan);
+  checkCommunityOperatorSubmission(artifacts.communityOperatorSubmission);
   checkExternalRuntimeReviewPacket(artifacts.externalRuntimeReviewPacket);
   checkOcpNetworkHandoff(artifacts.ocpNetworkHandoff);
   checkPatchPreview(artifacts.lightspeedPatchPreview);

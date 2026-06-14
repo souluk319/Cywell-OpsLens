@@ -1241,6 +1241,11 @@ export type OpsLensCertificationReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensCommunityOperatorSubmissionReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "failed";
+
 export type OpsLensReleaseEvidenceRefreshReadiness =
   | "ready"
   | "needs-evidence"
@@ -1759,6 +1764,69 @@ export interface OpsLensCertificationReadinessSummary {
       total: number;
     };
   };
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensCommunityOperatorSubmissionSummary {
+  status: OpsLensCommunityOperatorSubmissionReadiness;
+  artifactStatus: string;
+  actionMode: "submissionDraftOnly";
+  externalSubmissionAttempted: boolean;
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  headSha: string;
+  worktreeDirty: boolean;
+  submissionLayout: {
+    root: string;
+    packageName: string;
+    version: string;
+    ci: string;
+    catalogTemplate: string;
+    manifests: string[];
+    metadata: string;
+    scorecard: string;
+  };
+  parityPassed: boolean;
+  sourceBundleParity: Array<{
+    id: string;
+    source: string;
+    target: string;
+    sourceSha256: string;
+    targetSha256: string;
+    match: boolean;
+  }>;
+  readOnlyCommands: Array<{
+    id: string;
+    command: string;
+    phase: string;
+    mutation: boolean;
+    requiresNetwork: boolean;
+    writesLocalEvidence: boolean;
+  }>;
+  approvalGatedCommands: Array<{
+    id: string;
+    command: string;
+    phase: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+    requiresNetwork: boolean;
+  }>;
+  firstSubmissionActions: Array<{
+    id: string;
+    owner: string;
+    phase: string;
+    status: string;
+    request: string;
+    evidenceNeeded: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+    blockedBy: string[];
+    rollbackPath: string;
+  }>;
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
@@ -2354,6 +2422,8 @@ export interface OpsLensAdminOverviewResponse {
     securityScanPlan: OpsLensSecurityScanPlanSummary;
     certificationReadiness: OpsLensCertificationReadiness;
     certificationPlan: OpsLensCertificationReadinessSummary;
+    communityOperatorSubmission: OpsLensCommunityOperatorSubmissionReadiness;
+    communitySubmissionPlan: OpsLensCommunityOperatorSubmissionSummary;
     releasePublish: OpsLensReleasePublishReadiness;
     releasePlan: OpsLensReleasePublishPlanSummary;
     releaseRefresh: OpsLensReleaseEvidenceRefreshReadiness;

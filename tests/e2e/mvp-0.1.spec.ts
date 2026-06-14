@@ -1534,6 +1534,54 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
           missingEvidence?: string[];
         };
+        communityOperatorSubmission?: string;
+        communitySubmissionPlan?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          externalSubmissionAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          clusterMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          headSha?: string;
+          worktreeDirty?: boolean;
+          parityPassed?: boolean;
+          submissionLayout?: {
+            root?: string;
+            packageName?: string;
+            version?: string;
+            ci?: string;
+            catalogTemplate?: string;
+            manifests?: string[];
+            metadata?: string;
+            scorecard?: string;
+          };
+          sourceBundleParity?: Array<{
+            id?: string;
+            source?: string;
+            target?: string;
+            match?: boolean;
+          }>;
+          readOnlyCommands?: Array<{ id?: string; command?: string; mutation?: boolean }>;
+          approvalGatedCommands?: Array<{
+            id?: string;
+            command?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+          }>;
+          firstSubmissionActions?: Array<{
+            id?: string;
+            owner?: string;
+            status?: string;
+            nextCommand?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+            blockedBy?: string[];
+          }>;
+          risk?: string[];
+          rollbackPath?: string[];
+          missingEvidence?: string[];
+        };
         imageBuilds?: string;
         ownedImageProvenance?: string;
         ownedImageProvenancePlan?: {
@@ -2827,6 +2875,55 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       /certification readiness/i
     );
     expect(["ready", "needs-evidence", "failed"]).toContain(
+      body.installReadiness?.communityOperatorSubmission
+    );
+    expect(body.installReadiness?.communitySubmissionPlan).toMatchObject({
+      actionMode: "submissionDraftOnly",
+      externalSubmissionAttempted: false,
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.communitySubmissionPlan?.submissionLayout?.root
+    ).toBe("operators/cywell-opslens");
+    expect(
+      body.installReadiness?.communitySubmissionPlan?.readOnlyCommands?.some(
+        (command) =>
+          command.command?.includes("verify:community-submission") &&
+          command.mutation === false
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.communitySubmissionPlan?.approvalGatedCommands?.every(
+        (command) =>
+          command.mutation === true &&
+          command.requiresExplicitApproval === true
+      )
+    ).toBe(true);
+    const communitySubmissionActions =
+      body.installReadiness?.communitySubmissionPlan?.firstSubmissionActions ??
+      [];
+    expect(
+      communitySubmissionActions.some(
+        (action) =>
+          action.nextCommand?.includes("verify:community-submission") &&
+          action.mutation === false &&
+          action.requiresExplicitApproval === false
+      )
+    ).toBe(true);
+    expect(
+      communitySubmissionActions.some(
+        (action) =>
+          action.id?.includes("approval-gated") &&
+          action.mutation === true &&
+          action.requiresExplicitApproval === true
+      )
+    ).toBe(true);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(
+      /Community Operator submission/i
+    );
+    expect(["ready", "needs-evidence", "failed"]).toContain(
       body.installReadiness?.imageBuilds
     );
     expect(body.installReadiness?.evidence?.join(" ")).toContain(
@@ -3145,6 +3242,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         "mvp-gate",
+        "community-operator-submission",
         "certification-readiness",
         "catalog-toolchain",
         "security-scan-plan",
@@ -3205,6 +3303,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "mvpGate",
         "consolePluginAssets",
         "certificationReadiness",
+        "communityOperatorSubmission",
         "externalRuntimeReviewPacket",
         "releasePlan",
         "evidenceCheckpoint"
@@ -4516,6 +4615,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Certification Evidence"
     );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Community Submission"
+    );
     await expect(page.getByTestId("opslens-certification-readiness")).toContainText(
       "certificationReadinessOnly"
     );
@@ -4576,6 +4678,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-certification-gates")).toContainText(
       "certifiedOperator"
     );
+    await expect(page.getByTestId("opslens-community-submission")).toContainText(
+      "submissionDraftOnly"
+    );
+    await expect(page.getByTestId("opslens-community-submission")).toContainText(
+      "externalSubmissionAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-community-submission")).toContainText(
+      "clusterMutationAttempted=false"
+    );
+    await expect(
+      page.getByTestId("opslens-community-submission-first-actions")
+    ).toContainText("verify:community-submission");
+    await expect(
+      page.getByTestId("opslens-community-submission-first-actions")
+    ).toContainText("approval=true");
     await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
       "approvalPlanOnly"
     );

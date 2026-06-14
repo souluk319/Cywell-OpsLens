@@ -183,6 +183,8 @@ export function OpsLensAdminDashboard() {
   const alertmanagerIntake = aiopsPipeline?.alertmanagerIntake;
   const approvalPlan = overview?.installReadiness.approvalPlan;
   const certificationPlan = overview?.installReadiness.certificationPlan;
+  const communitySubmissionPlan =
+    overview?.installReadiness.communitySubmissionPlan;
   const catalogToolchainPlan =
     overview?.installReadiness.catalogToolchainPlan;
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
@@ -1229,6 +1231,8 @@ export function OpsLensAdminDashboard() {
                     overview.installReadiness.approvalPlan.ragIngestion.status,
                   "Certification Evidence":
                     overview.installReadiness.certificationReadiness,
+                  "Community Submission":
+                    overview.installReadiness.communityOperatorSubmission,
                   "Catalog Toolchain":
                     overview.installReadiness.catalogToolchain,
                   "Image Builds": overview.installReadiness.imageBuilds,
@@ -2777,6 +2781,112 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {certificationPlan.rollbackPath[0] ??
                     "Regenerate certification evidence from a clean worktree."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {communitySubmissionPlan ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-community-submission"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Community Submission</h4>
+                  <small>{communitySubmissionPlan.actionMode}</small>
+                </div>
+                <FileDiff size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{communitySubmissionPlan.artifactStatus}</span>
+                <span>head={communitySubmissionPlan.headSha}</span>
+                <span>dirty={String(communitySubmissionPlan.worktreeDirty)}</span>
+                <span>parity={String(communitySubmissionPlan.parityPassed)}</span>
+                <span>
+                  externalSubmissionAttempted=
+                  {String(communitySubmissionPlan.externalSubmissionAttempted)}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(communitySubmissionPlan.registryMutationAttempted)}
+                </span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(communitySubmissionPlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(communitySubmissionPlan.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Layout</span>
+                  <strong>
+                    {communitySubmissionPlan.submissionLayout.root} /
+                    {communitySubmissionPlan.submissionLayout.version}
+                  </strong>
+                </div>
+                <div>
+                  <span>Parity Entries</span>
+                  <strong>
+                    {communitySubmissionPlan.sourceBundleParity.length
+                      ? communitySubmissionPlan.sourceBundleParity
+                          .map(
+                            (entry) =>
+                              `${entry.id}:${entry.match ? "match" : "drift"}`
+                          )
+                          .join(", ")
+                      : "missing"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Read-only Checks</span>
+                  <strong>
+                    {communitySubmissionPlan.readOnlyCommands.length
+                      ? communitySubmissionPlan.readOnlyCommands
+                          .map((command) => command.id)
+                          .join(", ")
+                      : "none"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Approval Gate</span>
+                  <strong>
+                    {communitySubmissionPlan.approvalGatedCommands.length
+                      ? communitySubmissionPlan.approvalGatedCommands
+                          .map((command) => `${command.id}:approval`)
+                          .join(", ")
+                      : "none"}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-community-submission-first-actions"
+              >
+                {communitySubmissionPlan.firstSubmissionActions.length ? (
+                  communitySubmissionPlan.firstSubmissionActions.map(
+                    (action) => (
+                      <span key={action.id}>
+                        {action.id}:{action.owner}:{action.status}:next=
+                        {action.nextCommand}:mutation={String(action.mutation)}
+                        :approval={String(action.requiresExplicitApproval)}
+                      </span>
+                    )
+                  )
+                ) : (
+                  <span>community submission first actions missing</span>
+                )}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {communitySubmissionPlan.risk[0] ??
+                    "Community Operator submission is local evidence only."}
+                </p>
+                <p>
+                  {communitySubmissionPlan.rollbackPath[0] ??
+                    "Regenerate community submission evidence from a clean worktree."}
                 </p>
               </div>
             </div>

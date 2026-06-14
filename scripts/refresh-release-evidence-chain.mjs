@@ -27,6 +27,7 @@ const evidencePaths = {
   lightspeedIntegrationHandoff:
     "test-results/cywell-opslens-lightspeed-integration-handoff.json",
   certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
+  communityOperatorSubmission: "test-results/cywell-opslens-community-operator-submission.json",
   catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
@@ -197,6 +198,7 @@ function buildChain() {
     npmScript("operator-runtime-parity", "core", "verify:operator:runtime"),
     npmScript("lightspeed-routing", "core", "verify:lightspeed:routing"),
     npmScript("lightspeed-trojan-horse", "core", "verify:lightspeed:trojan-horse"),
+    npmScript("community-operator-submission", "release", "verify:community-submission"),
     npmScript("certification-readiness", "release", "verify:certification"),
     npmScript("catalog-toolchain", "release", "verify:catalog-toolchain"),
     options.skipImageBuild

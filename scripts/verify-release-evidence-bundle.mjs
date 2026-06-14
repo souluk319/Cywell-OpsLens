@@ -15,6 +15,7 @@ const defaults = {
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
+  communityOperatorSubmission: "test-results/cywell-opslens-community-operator-submission.json",
   catalogToolchain: "test-results/cywell-opslens-catalog-toolchain-plan.json",
   externalRuntime: "test-results/cywell-opslens-external-runtime-images-plan.json",
   externalRuntimeReviewPacket: "test-results/cywell-opslens-external-runtime-review-packet.json",
@@ -63,6 +64,8 @@ const options = {
     parsed.get("owned-image-provenance-evidence") ?? defaults.ownedImageProvenance,
   certificationReadiness:
     parsed.get("certification-readiness-evidence") ?? defaults.certificationReadiness,
+  communityOperatorSubmission:
+    parsed.get("community-operator-submission-evidence") ?? defaults.communityOperatorSubmission,
   catalogToolchain:
     parsed.get("catalog-toolchain-evidence") ?? defaults.catalogToolchain,
   externalRuntime: parsed.get("external-runtime-evidence") ?? defaults.externalRuntime,
@@ -327,6 +330,31 @@ function commandSummary(artifacts) {
     mutation: command.mutation === true,
     requiresExplicitApproval: command.requiresExplicitApproval === true
   }));
+  const communitySubmissionCommands = [
+    {
+      id: "verify-community-submission",
+      phase: "community-operator-preflight",
+      command: "npm run verify:community-submission",
+      mutation: false,
+      requiresExplicitApproval: false,
+      writesLocalEvidence: true
+    },
+    ...(artifacts.communityOperatorSubmission?.readOnlyCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      phase: command.phase ?? "community-operator-preflight",
+      command: command.command ?? "unknown",
+      mutation: command.mutation === true,
+      requiresExplicitApproval: false,
+      writesLocalEvidence: command.writesLocalEvidence === true
+    }))
+  ];
+  const communitySubmissionApprovalCommands = (artifacts.communityOperatorSubmission?.approvalGatedCommands ?? []).map((command) => ({
+    id: command.id ?? "unknown",
+    phase: command.phase ?? "community-operator-external-submission",
+    command: command.command ?? "unknown",
+    mutation: command.mutation === true,
+    requiresExplicitApproval: command.requiresExplicitApproval === true
+  }));
   const securityCommands = (artifacts.securityScan?.commands?.readOnly ?? []).map((command) => ({
     id: command.id ?? "unknown",
     phase: command.phase ?? "unknown",
@@ -345,9 +373,9 @@ function commandSummary(artifacts) {
       writesLocalEvidence: command.writesLocalEvidence === true
     }));
   return {
-    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...lightspeedIntegrationCommands, ...networkHandoffCommands, ...ocpAuthRbacCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...securityCommands, ...securityRunnerCommands]
+    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...lightspeedIntegrationCommands, ...networkHandoffCommands, ...ocpAuthRbacCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...communitySubmissionCommands, ...securityCommands, ...securityRunnerCommands]
       .filter((command) => command.mutation === false),
-    mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...lightspeedIntegrationApprovalCommands, ...ocpAuthRbacApprovalCommands, ...externalRuntimeApprovalCommands, ...certificationApprovalCommands]
+    mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...lightspeedIntegrationApprovalCommands, ...ocpAuthRbacApprovalCommands, ...externalRuntimeApprovalCommands, ...certificationApprovalCommands, ...communitySubmissionApprovalCommands]
       .filter((command) => command.mutation === true),
     forbiddenWithoutApproval: [
       "oc apply",
@@ -398,6 +426,11 @@ function approvalSummary(artifacts) {
       "release-manager",
       "product-owner"
     ],
+    communityOperatorSubmission: [
+      "release-manager",
+      "security-reviewer",
+      "product-owner"
+    ],
     ragIngestion: artifacts.installPlan?.ragIngestion?.requiredApprovals ?? [
       "rag-owner",
       "cluster-sre"
@@ -423,6 +456,10 @@ function mutationBoundary(artifacts) {
     ["certificationReadiness.registryMutationAttempted", artifacts.certificationReadiness?.registryMutationAttempted],
     ["certificationReadiness.clusterMutationAttempted", artifacts.certificationReadiness?.clusterMutationAttempted],
     ["certificationReadiness.mutationAllowedByThisVerifier", artifacts.certificationReadiness?.mutationAllowedByThisVerifier],
+    ["communityOperatorSubmission.externalSubmissionAttempted", artifacts.communityOperatorSubmission?.externalSubmissionAttempted],
+    ["communityOperatorSubmission.registryMutationAttempted", artifacts.communityOperatorSubmission?.registryMutationAttempted],
+    ["communityOperatorSubmission.clusterMutationAttempted", artifacts.communityOperatorSubmission?.clusterMutationAttempted],
+    ["communityOperatorSubmission.mutationAllowedByThisVerifier", artifacts.communityOperatorSubmission?.mutationAllowedByThisVerifier],
     ["catalogToolchain.registryMutationAttempted", artifacts.catalogToolchain?.registryMutationAttempted],
     ["catalogToolchain.clusterMutationAttempted", artifacts.catalogToolchain?.clusterMutationAttempted],
     ["catalogToolchain.mutationAllowedByThisVerifier", artifacts.catalogToolchain?.mutationAllowedByThisVerifier],
@@ -490,6 +527,7 @@ function evidenceGaps(artifacts, sources) {
     ...(artifacts.releasePlan?.missingEvidence ?? []),
     ...(artifacts.installPlan?.missingEvidence ?? []),
     ...(artifacts.certificationReadiness?.missingEvidence ?? []),
+    ...(artifacts.communityOperatorSubmission?.missingEvidence ?? []),
     ...(artifacts.catalogToolchain?.missingEvidence ?? []),
     ...(artifacts.externalRuntime?.missingEvidence ?? []),
     ...(artifacts.externalRuntimeReviewPacket?.missingEvidence ?? []),
@@ -676,6 +714,10 @@ async function main() {
     imageBuild: loadJson(options.imageBuild, "image build readiness"),
     ownedImageProvenance: loadJson(options.ownedImageProvenance, "owned image provenance"),
     certificationReadiness: loadJson(options.certificationReadiness, "certification readiness"),
+    communityOperatorSubmission: loadJson(
+      options.communityOperatorSubmission,
+      "Community Operator submission draft"
+    ),
     catalogToolchain: loadJson(options.catalogToolchain, "catalog toolchain plan"),
     externalRuntime: loadJson(options.externalRuntime, "external runtime plan"),
     externalRuntimeReviewPacket: loadJson(options.externalRuntimeReviewPacket, "external runtime review packet"),
@@ -702,6 +744,7 @@ async function main() {
     sourceSummary("imageBuild", "image build readiness", options.imageBuild, artifacts.imageBuild, headSha, ["PASS"]),
     sourceSummary("ownedImageProvenance", "owned image provenance", options.ownedImageProvenance, artifacts.ownedImageProvenance, headSha, ["PASS"]),
     sourceSummary("certificationReadiness", "certification readiness", options.certificationReadiness, artifacts.certificationReadiness, headSha, ["READY_FOR_REVIEW", "NEEDS_TOOLING"]),
+    sourceSummary("communityOperatorSubmission", "Community Operator submission draft", options.communityOperatorSubmission, artifacts.communityOperatorSubmission, headSha, ["PASS"]),
     sourceSummary("catalogToolchain", "catalog toolchain plan", options.catalogToolchain, artifacts.catalogToolchain, headSha, ["READY_FOR_DRY_RUN", "NEEDS_TOOLING"]),
     sourceSummary("externalRuntime", "external runtime plan", options.externalRuntime, artifacts.externalRuntime, headSha, ["APPROVAL_REQUIRED", "NEEDS_EVIDENCE"]),
     sourceSummary("externalRuntimeReviewPacket", "external runtime review packet", options.externalRuntimeReviewPacket, artifacts.externalRuntimeReviewPacket, headSha, ["REVIEW_PACKET_READY"]),
@@ -828,6 +871,27 @@ async function main() {
       documents: artifacts.certificationReadiness?.documents ?? {},
       missingEvidence:
         artifacts.certificationReadiness?.missingEvidence ?? []
+    },
+    communityOperatorSubmission: {
+      status: artifacts.communityOperatorSubmission?.status ?? "missing",
+      actionMode: artifacts.communityOperatorSubmission?.actionMode ?? "missing",
+      submissionLayout:
+        artifacts.communityOperatorSubmission?.submissionLayout ?? {},
+      parityPassed:
+        Array.isArray(artifacts.communityOperatorSubmission?.sourceBundleParity) &&
+        artifacts.communityOperatorSubmission.sourceBundleParity.every(
+          (entry) => entry.match === true
+        ),
+      sourceBundleParity:
+        artifacts.communityOperatorSubmission?.sourceBundleParity ?? [],
+      firstSubmissionActions:
+        artifacts.communityOperatorSubmission?.firstSubmissionActions ?? [],
+      readOnlyCommands:
+        artifacts.communityOperatorSubmission?.readOnlyCommands ?? [],
+      approvalGatedCommands:
+        artifacts.communityOperatorSubmission?.approvalGatedCommands ?? [],
+      missingEvidence:
+        artifacts.communityOperatorSubmission?.missingEvidence ?? []
     },
     catalogToolchain: {
       status: artifacts.catalogToolchain?.status ?? "missing",
