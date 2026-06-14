@@ -633,6 +633,9 @@ async function main() {
       mvpRequirement(mvpGate, "LIGHTSPEED-ROUTING", "MVP Lightspeed routing verifier"),
       mvpRequirement(mvpGate, "LIGHTSPEED-TROJAN-HORSE", "MVP exact Trojan Horse verifier"),
       mvpRequirement(mvpGate, "LIGHTSPEED-INTEGRATION-HANDOFF", "MVP Lightspeed integration handoff verifier"),
+      mvpRequirement(mvpGate, "OCP-AUTH-RBAC-PLAN", "MVP OCP auth/RBAC approval packet verifier"),
+      mvpRequirement(mvpGate, "LIVE-HANDOFF", "MVP live evidence handoff verifier"),
+      mvpRequirement(mvpGate, "OCP-NETWORK-HANDOFF", "MVP OCP network handoff verifier"),
       mvpRequirement(mvpGate, "OCP-HANDOFF-FALLBACK", "MVP OCP handoff API fallback verifier")
     ]),
     stage("stage-2-aiops-pipeline", "Cywell AI Ops incident pipeline", [
@@ -712,6 +715,9 @@ async function main() {
         ["PASS"]
       ),
       mvpRequirement(mvpGate, "OCP-HANDOFF-FALLBACK", "MVP OCP handoff API fallback verifier"),
+      mvpRequirement(mvpGate, "OCP-AUTH-RBAC-PLAN", "MVP OCP auth/RBAC approval packet verifier"),
+      mvpRequirement(mvpGate, "LIVE-HANDOFF", "MVP live evidence handoff verifier"),
+      mvpRequirement(mvpGate, "OCP-NETWORK-HANDOFF", "MVP OCP network handoff verifier"),
       laneRequirement(checkpoint, "ocpAuthRbacPlan", "OCP auth/RBAC approval packet"),
       imageActualBuildRequirement(imageBuild)
     ]),

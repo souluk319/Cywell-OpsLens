@@ -120,6 +120,27 @@ const steps = [
     purpose: "Verify the pre-registration Lightspeed handoff packet separates read-only live checks from approval-gated OLSConfig registration."
   },
   {
+    id: "OCP-AUTH-RBAC-PLAN",
+    command: "npm",
+    args: ["run", "evidence:ocp-auth-rbac-plan"],
+    acceptance: ["AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"],
+    purpose: "Verify the cluster-admin-reviewable read-only fallback RBAC approval packet without applying RBAC or creating tokens."
+  },
+  {
+    id: "LIVE-HANDOFF",
+    command: "npm",
+    args: ["run", "verify:live-handoff"],
+    acceptance: ["AC-LIVE-HANDOFF-001", "AC-DASH-001"],
+    purpose: "Verify the SRE-safe live evidence handoff turns current live gaps into read-only next actions."
+  },
+  {
+    id: "OCP-NETWORK-HANDOFF",
+    command: "npm",
+    args: ["run", "evidence:ocp-network-handoff"],
+    acceptance: ["AC-LIVE-HANDOFF-001", "AC-DASH-001"],
+    purpose: "Verify the redacted OCP network/SRE handoff packet without changing network, cluster, or registry state."
+  },
+  {
     id: "OCP-HANDOFF-FALLBACK",
     command: "npm",
     args: ["run", "verify:ocp:handoff-api-fallback"],
