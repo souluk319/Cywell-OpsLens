@@ -9134,6 +9134,50 @@ function missingOcpNetworkHandoffSummary(
   };
 }
 
+function isOcpAuthRbacClassification(classification: string): boolean {
+  return ["auth-or-rbac", "auth-failed", "token-missing"].includes(classification);
+}
+
+function isOcpNetworkChangeClassification(classification: string): boolean {
+  return ["tcp-timeout", "tcp-unreachable", "dns-unresolved"].includes(classification);
+}
+
+function ocpHandoffOwnerForClassification(classification: string): string {
+  if (isOcpAuthRbacClassification(classification)) return "cluster-admin";
+  if (classification === "tls-handshake-failed") return "cluster-sre";
+  return "network-sre";
+}
+
+function ocpHandoffTicketIdForClassification(classification: string): string {
+  if (isOcpAuthRbacClassification(classification)) {
+    return "cluster-admin-ocp-auth-rbac-ticket";
+  }
+  if (classification === "tls-handshake-failed") {
+    return "cluster-sre-ocp-api-tls-ticket";
+  }
+  return "network-sre-ocp-api-reachability-ticket";
+}
+
+function ocpHandoffTicketTitleForClassification(classification: string): string {
+  if (isOcpAuthRbacClassification(classification)) {
+    return `Restore OCP API ${classification} credential/RBAC readiness for Cywell OpsLens and Lightspeed evidence`;
+  }
+  if (classification === "tls-handshake-failed") {
+    return "Restore OCP API TLS readiness for Cywell OpsLens and Lightspeed evidence";
+  }
+  return `Restore OCP API ${classification} network readiness for Cywell OpsLens and Lightspeed evidence`;
+}
+
+function ocpHandoffTicketSummaryForClassification(classification: string): string {
+  if (isOcpAuthRbacClassification(classification)) {
+    return "Use this packet as the Cluster Admin/SRE credential and read-only RBAC ticket summary; DNS, TCP, and TLS reached the API, so collect auth/RBAC evidence before requesting any network change.";
+  }
+  if (classification === "tls-handshake-failed") {
+    return "Use this packet as the Cluster SRE/Security TLS ticket summary; DNS and TCP reached the API, so collect certificate/trust evidence before requesting any network change.";
+  }
+  return "Use this packet as the Network/SRE ticket summary; collect read-only DNS/TCP/route evidence first, then use an approved network change only if reachability remains blocked.";
+}
+
 function fallbackOcpNetworkFirstActions(
   classification: string,
   target: OpsLensOcpNetworkHandoffSummary["target"],
@@ -9146,12 +9190,7 @@ function fallbackOcpNetworkFirstActions(
     missingEvidence.length > 0
       ? missingEvidence
       : [`OCP API connectivity classification=${classification}`];
-  const owner =
-    classification === "tls-handshake-failed"
-      ? "cluster-sre"
-      : ["auth-or-rbac", "auth-failed", "token-missing"].includes(classification)
-        ? "cluster-admin"
-        : "network-sre";
+  const owner = ocpHandoffOwnerForClassification(classification);
   const host = "<redacted-host>";
   const port = target.port || "6443";
   const actions: OpsLensOcpNetworkHandoffSummary["firstNetworkActions"] = [
@@ -9216,7 +9255,26 @@ function fallbackOcpNetworkFirstActions(
     }
   ];
 
-  if (["tcp-timeout", "tcp-unreachable", "dns-unresolved"].includes(classification)) {
+  if (isOcpAuthRbacClassification(classification)) {
+    actions.unshift({
+      id: "cluster-admin-review-ocp-auth-rbac-evidence",
+      owner,
+      phase: "auth-rbac-preflight",
+      status: "blocker",
+      request:
+        "Confirm the configured OCP credential is current and the least-privilege live evidence reader RBAC plan is ready for approval.",
+      evidenceNeeded:
+        "OCP auth/RBAC approval packet shows Secrets excluded, read-only verbs only, and mutation flags false.",
+      nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "No rollback is required because this action only refreshes a local approval packet."
+    });
+  }
+
+  if (isOcpNetworkChangeClassification(classification)) {
     actions.push({
       id: "approval-gated-network-route-change",
       owner: "network-sre",
@@ -9484,19 +9542,20 @@ function getOcpNetworkHandoffReadiness(): {
       tokenConfigured: target.tokenConfigured === true,
       tlsVerify: target.tlsVerify === true
     };
+    const classification = artifact.diagnostics?.classification ?? "unknown";
     const missingEvidence = artifact.missingEvidence ?? [];
     const firstNetworkActions = (
       artifact.firstNetworkActions?.length
         ? artifact.firstNetworkActions
         : fallbackOcpNetworkFirstActions(
-            artifact.diagnostics?.classification ?? "unknown",
+            classification,
             mappedTarget,
             readOnlyCommands,
             missingEvidence
           )
     ).map((action) => ({
       id: action.id ?? "unknown",
-      owner: action.owner ?? "network-sre",
+      owner: action.owner ?? ocpHandoffOwnerForClassification(classification),
       phase: action.phase ?? "network-evidence-preflight",
       status: action.status ?? "needs-evidence",
       request: action.request ?? "network handoff first action",
@@ -9536,6 +9595,8 @@ function getOcpNetworkHandoffReadiness(): {
         requiresExplicitApproval: false
       };
     const rawTicketPacket = artifact.ticketPacket ?? {};
+    const ticketClassification =
+      rawTicketPacket.classification ?? classification;
     const mapTicketAction = (
       action:
         | NonNullable<OcpNetworkHandoffArtifact["ticketPacket"]>["firstReadOnlyAction"]
@@ -9550,31 +9611,30 @@ function getOcpNetworkHandoffReadiness(): {
       requiresExplicitApproval: action?.requiresExplicitApproval === true
     });
     const ticketPacket = {
-      id: rawTicketPacket.id ?? "network-sre-ocp-api-reachability-ticket",
+      id:
+        rawTicketPacket.id ??
+        ocpHandoffTicketIdForClassification(ticketClassification),
       owner:
         rawTicketPacket.owner ??
         firstNetworkActions.find((action) => action.owner)?.owner ??
-        "network-sre",
+        ocpHandoffOwnerForClassification(ticketClassification),
       title:
         rawTicketPacket.title ??
-        "Restore OCP API readiness for Cywell OpsLens and Lightspeed evidence",
+        ocpHandoffTicketTitleForClassification(ticketClassification),
       severity:
         rawTicketPacket.severity ??
-        (artifact.diagnostics?.classification === "api-ready"
+        (classification === "api-ready"
           ? "ready-for-live-recheck"
           : "needs-evidence"),
-      classification:
-        rawTicketPacket.classification ??
-        artifact.diagnostics?.classification ??
-        "unknown",
+      classification: ticketClassification,
       redactedTarget: rawTicketPacket.redactedTarget ?? mappedTarget.redactedBaseUrl,
       summary:
         rawTicketPacket.summary ??
-        "Use this packet as the Network/SRE ticket summary; collect read-only evidence before any approved network change.",
+        ocpHandoffTicketSummaryForClassification(ticketClassification),
       evidenceChecklist:
         rawTicketPacket.evidenceChecklist ??
         [
-          `classification=${artifact.diagnostics?.classification ?? "unknown"}`,
+          `classification=${classification}`,
           ...sourceArtifacts.map(
             (source) => `${source.id}:${source.status}:fresh=${String(source.fresh)}`
           )
@@ -9602,7 +9662,9 @@ function getOcpNetworkHandoffReadiness(): {
         mutationAllowedByThisVerifier:
           rawTicketPacket.mutationBoundary?.mutationAllowedByThisVerifier === true,
         networkChangeRequiresExplicitApproval:
-          rawTicketPacket.mutationBoundary?.networkChangeRequiresExplicitApproval === true
+          rawTicketPacket.mutationBoundary?.networkChangeRequiresExplicitApproval ??
+          (firstTicketApproval.mutation === true &&
+            firstTicketApproval.requiresExplicitApproval === true)
       },
       risk:
         rawTicketPacket.risk ??
