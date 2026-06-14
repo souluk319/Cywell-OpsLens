@@ -21,6 +21,8 @@ const paths = {
   operatorReconcile: "test-results/cywell-opslens-operator-reconcile.json",
   operatorRuntimeParity: "test-results/cywell-opslens-operator-runtime-parity.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
+  ocpNetworkHandoffApiFallback:
+    "test-results/cywell-opslens-ocp-network-handoff-api-fallback.json",
   communityOperatorSubmission: "test-results/cywell-opslens-community-operator-submission.json",
   releaseActionQueue: "test-results/cywell-opslens-release-action-queue.json",
   roadmapOut: "test-results/cywell-opslens-roadmap-plan-alignment.json",
@@ -263,7 +265,11 @@ function releaseActionQueueHandoffRequirement(actionQueue, id, label, lane, owne
   }
 
   const criticalPath = actionQueue.criticalPath?.find((entry) => entry.lane === lane);
-  const ownerPacket = actionQueue.ownerPackets?.find((packet) => packet.owner === owner);
+  const expectedOwner =
+    ticketField === "network" && criticalPath?.ticketPacket?.owner
+      ? criticalPath.ticketPacket.owner
+      : owner;
+  const ownerPacket = actionQueue.ownerPackets?.find((packet) => packet.owner === expectedOwner);
   const ticket =
     ticketField === "network"
       ? criticalPath?.ticketPacket ?? ownerPacket?.firstTicketPacket
@@ -293,22 +299,41 @@ function releaseActionQueueHandoffRequirement(actionQueue, id, label, lane, owne
     missingEvidence.push(`${lane} critical path entry is missing`);
   }
   if (!ownerPacket) {
-    missingEvidence.push(`${owner} owner packet is missing`);
+    missingEvidence.push(`${expectedOwner} owner packet is missing`);
   }
   if (!ticket?.id) {
-    missingEvidence.push(`${owner} ${ticketField} ticket packet is missing`);
+    missingEvidence.push(`${expectedOwner} ${ticketField} ticket packet is missing`);
   }
   if (firstAction?.mutation !== false) {
-    missingEvidence.push(`${owner} first ticket action must be read-only`);
+    missingEvidence.push(`${expectedOwner} first ticket action must be read-only`);
   }
-  if (approvalAction?.mutation !== true || approvalAction?.requiresExplicitApproval !== true) {
-    missingEvidence.push(`${owner} approval-gated ticket action must require explicit approval`);
+  if (ticketField === "network") {
+    const networkApprovalRequired =
+      ticket?.mutationBoundary?.networkChangeRequiresExplicitApproval === true;
+    if (
+      networkApprovalRequired &&
+      (approvalAction?.mutation !== true || approvalAction?.requiresExplicitApproval !== true)
+    ) {
+      missingEvidence.push(
+        `${expectedOwner} network change ticket action must require explicit approval`
+      );
+    }
+    if (
+      !networkApprovalRequired &&
+      (approvalAction?.mutation === true || approvalAction?.requiresExplicitApproval === true)
+    ) {
+      missingEvidence.push(
+        `${expectedOwner} non-network-change handoff must not require mutating approval`
+      );
+    }
+  } else if (approvalAction?.mutation !== true || approvalAction?.requiresExplicitApproval !== true) {
+    missingEvidence.push(`${expectedOwner} approval-gated ticket action must require explicit approval`);
   }
   if (
     ticketField === "certification-tooling" &&
     (setupAction?.mutation !== false || setupAction?.requiresHumanApproval !== true)
   ) {
-    missingEvidence.push(`${owner} certification tooling setup action must be human-approved and non-mutating`);
+    missingEvidence.push(`${expectedOwner} certification tooling setup action must be human-approved and non-mutating`);
   }
 
   return {
@@ -320,7 +345,7 @@ function releaseActionQueueHandoffRequirement(actionQueue, id, label, lane, owne
     evidence:
       missingEvidence.length === 0
         ? [
-            `${lane} ${owner} ticket=${ticket.id} first=${firstAction.id} setup=${setupAction?.id ?? "none"} approval=${approvalAction.id}`
+            `${lane} ${expectedOwner} ticket=${ticket.id} first=${firstAction.id} setup=${setupAction?.id ?? "none"} approval=${approvalAction.id}`
           ]
         : [],
     missingEvidence
@@ -515,6 +540,10 @@ async function main() {
   const operatorReconcile = loadJson(paths.operatorReconcile, "Operator reconcile");
   const operatorRuntimeParity = loadJson(paths.operatorRuntimeParity, "Operator runtime parity");
   const installPlan = loadJson(paths.installPlan, "install approval plan");
+  const ocpNetworkHandoffApiFallback = loadJson(
+    paths.ocpNetworkHandoffApiFallback,
+    "OCP network handoff API fallback"
+  );
   const communityOperatorSubmission = loadJson(
     paths.communityOperatorSubmission,
     "Community Operator submission draft"
@@ -540,6 +569,12 @@ async function main() {
     artifactFreshnessRequirement(operatorReconcile, "operator-reconcile-fresh", "Operator reconcile", headSha),
     artifactFreshnessRequirement(operatorRuntimeParity, "operator-runtime-parity-fresh", "Operator runtime parity", headSha),
     artifactFreshnessRequirement(installPlan, "install-plan-fresh", "Install approval plan", headSha),
+    artifactFreshnessRequirement(
+      ocpNetworkHandoffApiFallback,
+      "ocp-network-handoff-api-fallback-fresh",
+      "OCP network handoff API fallback",
+      headSha
+    ),
     artifactFreshnessRequirement(
       communityOperatorSubmission,
       "community-operator-submission-fresh",
@@ -579,6 +614,13 @@ async function main() {
       laneRequirement(checkpoint, "lightspeedReadiness", "Live Lightspeed/OCP readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "liveHandoff", "Read-only live evidence handoff", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "ocpNetworkHandoff", "Network/SRE handoff packet"),
+      laneRequirement(checkpoint, "ocpNetworkHandoffApiFallback", "OCP handoff API fallback checkpoint"),
+      artifactStatusRequirement(
+        ocpNetworkHandoffApiFallback,
+        "ocp-network-handoff-api-fallback-proof",
+        "OCP handoff API fallback verifier",
+        ["PASS"]
+      ),
       releaseActionQueueHandoffRequirement(
         releaseActionQueue,
         "release-action-queue-network-ticket",
@@ -661,6 +703,13 @@ async function main() {
       installPlanLightspeedRegistrationRequirement(installPlan),
       laneRequirement(checkpoint, "liveHandoff", "SRE-safe live evidence handoff", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "ocpNetworkHandoff", "Network/SRE handoff packet"),
+      laneRequirement(checkpoint, "ocpNetworkHandoffApiFallback", "OCP handoff API fallback checkpoint"),
+      artifactStatusRequirement(
+        ocpNetworkHandoffApiFallback,
+        "operator-ocp-network-handoff-api-fallback-proof",
+        "OCP handoff API fallback verifier",
+        ["PASS"]
+      ),
       laneRequirement(checkpoint, "ocpAuthRbacPlan", "OCP auth/RBAC approval packet"),
       imageActualBuildRequirement(imageBuild)
     ]),

@@ -30,6 +30,8 @@ const defaults = {
     "test-results/cywell-opslens-lightspeed-integration-handoff.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
   ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
+  ocpNetworkHandoffApiFallback:
+    "test-results/cywell-opslens-ocp-network-handoff-api-fallback.json",
   ocpAuthRbacPlan: "test-results/cywell-opslens-ocp-auth-rbac-plan.json",
   operatorPackage: "test-results/cywell-opslens-operator-package.json",
   operatorReconcile: "test-results/cywell-opslens-operator-reconcile.json",
@@ -90,6 +92,9 @@ const options = {
   liveHandoff: parsed.get("live-handoff-evidence") ?? defaults.liveHandoff,
   ocpNetworkHandoff:
     parsed.get("ocp-network-handoff-evidence") ?? defaults.ocpNetworkHandoff,
+  ocpNetworkHandoffApiFallback:
+    parsed.get("ocp-network-handoff-api-fallback-evidence") ??
+    defaults.ocpNetworkHandoffApiFallback,
   ocpAuthRbacPlan:
     parsed.get("ocp-auth-rbac-plan-evidence") ?? defaults.ocpAuthRbacPlan,
   operatorPackage:
@@ -507,6 +512,9 @@ function mutationBoundary(artifacts) {
     ["ocpNetworkHandoff.clusterMutationAttempted", artifacts.ocpNetworkHandoff?.clusterMutationAttempted],
     ["ocpNetworkHandoff.registryMutationAttempted", artifacts.ocpNetworkHandoff?.registryMutationAttempted],
     ["ocpNetworkHandoff.mutationAllowedByThisVerifier", artifacts.ocpNetworkHandoff?.mutationAllowedByThisVerifier],
+    ["ocpNetworkHandoffApiFallback.clusterMutationAttempted", artifacts.ocpNetworkHandoffApiFallback?.clusterMutationAttempted],
+    ["ocpNetworkHandoffApiFallback.registryMutationAttempted", artifacts.ocpNetworkHandoffApiFallback?.registryMutationAttempted],
+    ["ocpNetworkHandoffApiFallback.mutationAllowedByThisVerifier", artifacts.ocpNetworkHandoffApiFallback?.mutationAllowedByThisVerifier],
     ["ocpAuthRbacPlan.clusterMutationAttempted", artifacts.ocpAuthRbacPlan?.clusterMutationAttempted],
     ["ocpAuthRbacPlan.registryMutationAttempted", artifacts.ocpAuthRbacPlan?.registryMutationAttempted],
     ["ocpAuthRbacPlan.mutationAllowedByThisVerifier", artifacts.ocpAuthRbacPlan?.mutationAllowedByThisVerifier],
@@ -568,6 +576,7 @@ function evidenceGaps(artifacts, sources) {
     ...(artifacts.lightspeedIntegrationHandoff?.missingEvidence ?? []),
     ...(artifacts.liveHandoff?.missingEvidence ?? []),
     ...(artifacts.ocpNetworkHandoff?.missingEvidence ?? []),
+    ...(artifacts.ocpNetworkHandoffApiFallback?.missingEvidence ?? []),
     ...(artifacts.ocpAuthRbacPlan?.missingEvidence ?? [])
   ]);
 }
@@ -768,6 +777,10 @@ async function main() {
     ),
     liveHandoff: loadJson(options.liveHandoff, "live evidence handoff"),
     ocpNetworkHandoff: loadJson(options.ocpNetworkHandoff, "OCP network handoff"),
+    ocpNetworkHandoffApiFallback: loadJson(
+      options.ocpNetworkHandoffApiFallback,
+      "OCP network handoff API fallback"
+    ),
     ocpAuthRbacPlan: loadJson(options.ocpAuthRbacPlan, "OCP auth/RBAC plan"),
     operatorPackage: loadJson(options.operatorPackage, "Operator package"),
     operatorReconcile: loadJson(options.operatorReconcile, "Operator reconcile"),
@@ -795,6 +808,7 @@ async function main() {
     sourceSummary("lightspeedIntegrationHandoff", "Lightspeed integration handoff", options.lightspeedIntegrationHandoff, artifacts.lightspeedIntegrationHandoff, headSha, ["READY_FOR_LIVE_REGISTRATION_REVIEW", "LIVE_READY", "NEEDS_EVIDENCE"]),
     sourceSummary("liveHandoff", "live evidence handoff", options.liveHandoff, artifacts.liveHandoff, headSha, ["PASS"]),
     sourceSummary("ocpNetworkHandoff", "OCP network handoff", options.ocpNetworkHandoff, artifacts.ocpNetworkHandoff, headSha, ["READY_FOR_NETWORK_REVIEW", "READY_FOR_LIVE_RECHECK", "PASS"]),
+    sourceSummary("ocpNetworkHandoffApiFallback", "OCP network handoff API fallback", options.ocpNetworkHandoffApiFallback, artifacts.ocpNetworkHandoffApiFallback, headSha, ["PASS"]),
     sourceSummary("ocpAuthRbacPlan", "OCP auth/RBAC plan", options.ocpAuthRbacPlan, artifacts.ocpAuthRbacPlan, headSha, ["READY_FOR_LIVE_CHECK", "AUTH_RBAC_APPROVAL_REQUIRED", "WAITING_FOR_CONNECTIVITY"]),
     sourceSummary("operatorPackage", "Operator package", options.operatorPackage, artifacts.operatorPackage, headSha, ["PASS"]),
     sourceSummary("operatorReconcile", "Operator reconcile", options.operatorReconcile, artifacts.operatorReconcile, headSha, ["PASS"]),
@@ -1090,6 +1104,23 @@ async function main() {
         required: source.required === true
       })),
       missingEvidence: artifacts.ocpNetworkHandoff?.missingEvidence ?? []
+    },
+    ocpNetworkHandoffApiFallback: {
+      status: artifacts.ocpNetworkHandoffApiFallback?.status ?? "missing",
+      actionMode:
+        artifacts.ocpNetworkHandoffApiFallback?.actionMode ?? "missing",
+      caseCount: artifacts.ocpNetworkHandoffApiFallback?.cases?.length ?? 0,
+      cases: (artifacts.ocpNetworkHandoffApiFallback?.cases ?? []).map((testCase) => ({
+        classification: testCase.classification ?? "unknown",
+        owner: testCase.actual?.owner ?? "missing",
+        ticketId: testCase.actual?.ticketId ?? "missing",
+        firstActionId: testCase.actual?.firstActionId ?? "missing",
+        networkChangeRequiresExplicitApproval:
+          testCase.actual?.networkChangeRequiresExplicitApproval === true
+      })),
+      failedChecks: (artifacts.ocpNetworkHandoffApiFallback?.checks ?? []).filter(
+        (check) => check.status === "FAIL"
+      ).length
     },
     ocpAuthRbacPlan: {
       status: artifacts.ocpAuthRbacPlan?.status ?? "missing",

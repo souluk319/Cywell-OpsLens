@@ -48,7 +48,9 @@ const evidenceDefaults = {
   releasePublish: "test-results/cywell-opslens-release-publish-plan.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
-  ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json"
+  ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
+  ocpNetworkHandoffApiFallback:
+    "test-results/cywell-opslens-ocp-network-handoff-api-fallback.json"
 };
 
 function parseArgs(argv) {
@@ -1082,6 +1084,86 @@ function checkOcpNetworkHandoff(networkHandoffArtifact) {
   );
 }
 
+function checkOcpNetworkHandoffApiFallback(apiFallbackArtifact) {
+  if (!apiFallbackArtifact) return;
+  const expectedCases = new Map([
+    [
+      "auth-or-rbac",
+      {
+        owner: "cluster-admin",
+        ticketId: "cluster-admin-ocp-auth-rbac-ticket",
+        firstActionId: "cluster-admin-review-ocp-auth-rbac-evidence",
+        networkChangeRequiresExplicitApproval: false
+      }
+    ],
+    [
+      "tls-handshake-failed",
+      {
+        owner: "cluster-sre",
+        ticketId: "cluster-sre-ocp-api-tls-ticket",
+        firstActionId: "network-sre-confirm-ocp-api-dns",
+        networkChangeRequiresExplicitApproval: false
+      }
+    ],
+    [
+      "tcp-timeout",
+      {
+        owner: "network-sre",
+        ticketId: "network-sre-ocp-api-reachability-ticket",
+        firstActionId: "network-sre-confirm-ocp-api-tcp-6443",
+        networkChangeRequiresExplicitApproval: true
+      }
+    ]
+  ]);
+  const checksFailed = (apiFallbackArtifact.checks ?? []).filter(
+    (check) => check.status === "FAIL"
+  );
+  const caseViolations = [];
+
+  if (apiFallbackArtifact.status !== "PASS") {
+    caseViolations.push(`status=${apiFallbackArtifact.status ?? "missing"}`);
+  }
+  if (apiFallbackArtifact.actionMode !== "apiFallbackVerificationOnly") {
+    caseViolations.push(`actionMode=${apiFallbackArtifact.actionMode ?? "missing"}`);
+  }
+  if (artifactClusterMutationAttempted(apiFallbackArtifact)) {
+    caseViolations.push("clusterMutationAttempted");
+  }
+  if (artifactRegistryMutationAttempted(apiFallbackArtifact)) {
+    caseViolations.push("registryMutationAttempted");
+  }
+  if (artifactMutationAllowedByVerifier(apiFallbackArtifact)) {
+    caseViolations.push("mutationAllowedByThisVerifier");
+  }
+  for (const [classification, expected] of expectedCases) {
+    const actual = (apiFallbackArtifact.cases ?? []).find(
+      (candidate) => candidate.classification === classification
+    )?.actual;
+    if (!actual) {
+      caseViolations.push(`${classification}:missing`);
+      continue;
+    }
+    for (const [key, value] of Object.entries(expected)) {
+      if (actual[key] !== value) {
+        caseViolations.push(`${classification}:${key}=${actual[key] ?? "missing"}`);
+      }
+    }
+  }
+  if (checksFailed.length > 0) {
+    caseViolations.push(`failedChecks=${checksFailed.length}`);
+  }
+
+  if (caseViolations.length > 0) {
+    fail("OCP network handoff API fallback", `violations=${caseViolations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "OCP network handoff API fallback",
+    `cases=${apiFallbackArtifact.cases?.length ?? 0} failedChecks=0`
+  );
+}
+
 function checkOcpAuthRbacPlan(authRbacPlanArtifact) {
   if (!authRbacPlanArtifact) return;
   const readOnlyCommands = authRbacPlanArtifact.readOnlyCommands ?? [];
@@ -1458,6 +1540,13 @@ async function main() {
     desiredStatuses: ["READY_FOR_NETWORK_REVIEW", "READY_FOR_LIVE_RECHECK", "PASS"],
     currentHeadSha: headSha
   });
+  laneResult({
+    id: "ocpNetworkHandoffApiFallback",
+    label: "OCP network handoff API fallback",
+    artifact: artifacts.ocpNetworkHandoffApiFallback,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
 
   checkEnvContract(artifacts.envContract);
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
@@ -1475,6 +1564,7 @@ async function main() {
   checkCommunityOperatorSubmission(artifacts.communityOperatorSubmission);
   checkExternalRuntimeReviewPacket(artifacts.externalRuntimeReviewPacket);
   checkOcpNetworkHandoff(artifacts.ocpNetworkHandoff);
+  checkOcpNetworkHandoffApiFallback(artifacts.ocpNetworkHandoffApiFallback);
   checkPatchPreview(artifacts.lightspeedPatchPreview);
   checkSecurityScanRunnerPolicy(artifacts.securityScanRunner);
 
