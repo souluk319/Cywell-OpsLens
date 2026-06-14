@@ -2370,6 +2370,52 @@ function catalogToolchainItems(bundle) {
     rollbackPath:
       "No rollback is required for registry inspection; remove any incorrect local catalog tag and regenerate catalog toolchain evidence before publication."
   };
+  const cli = catalog.cli ?? [];
+  const missingCli = cli
+    .filter((tool) => tool.available !== true)
+    .map((tool) => tool.name ?? "unknown");
+  const catalogToolchainDiagnostics = [
+    {
+      id: "catalog-toolchain-status",
+      label: "Catalog toolchain",
+      value:
+        `status=${catalog.status ?? "missing"} ` +
+        `actionMode=${catalog.actionMode ?? "missing"} ` +
+        `ticket=${catalogToolchainTicketPacket.id}`
+    },
+    {
+      id: "catalog-toolchain-cli",
+      label: "CLI availability",
+      value:
+        `available=${cli.filter((tool) => tool.available === true).length}/${cli.length} ` +
+        `missing=${missingCli.join(",") || "none"}`
+    },
+    {
+      id: "catalog-registry-auth",
+      label: "Registry auth",
+      value:
+        `authConfigured=${String(catalog.registryAuthConfigured === true)} ` +
+        `baseReadable=${String(catalog.registryBaseReadable === true)} ` +
+        `secretInput=${String(catalogToolchainTicketPacket.setupAction.requiresHumanSecretInput === true)}`
+    },
+    {
+      id: "catalog-command-boundary",
+      label: "Command boundary",
+      value:
+        `readOnly=${readOnlyCommands.map((command) => command.id).join(",") || "none"} ` +
+        `setup=${setupCommands.map((command) => command.id).join(",") || "none"} ` +
+        `approval=${catalogToolchainTicketPacket.approvalGatedAction.id}`
+    },
+    {
+      id: "catalog-mutation-boundary",
+      label: "Mutation boundary",
+      value:
+        `clusterMutation=${String(catalogToolchainTicketPacket.mutationBoundary.clusterMutationAttempted === true)} ` +
+        `registryMutation=${String(catalogToolchainTicketPacket.mutationBoundary.registryMutationAttempted === true)} ` +
+        `mutationAllowed=${String(catalogToolchainTicketPacket.mutationBoundary.mutationAllowedByThisVerifier === true)} ` +
+        `publishApproval=${String(catalogToolchainTicketPacket.mutationBoundary.catalogPublishRequiresExplicitApproval !== false)}`
+    }
+  ];
 
   return [
     item({
@@ -2386,6 +2432,7 @@ function catalogToolchainItems(bundle) {
       readOnlyCommands,
       catalogToolchainTicketPacket,
       blockedBy,
+      diagnostics: catalogToolchainDiagnostics,
       acceptance: ["AC-CERT-001"]
     })
   ];

@@ -5776,6 +5776,25 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           catalogPublishRequiresExplicitApproval: true
         }
       });
+      expect(catalogRegistryAction?.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining([
+          "catalog-toolchain-status",
+          "catalog-toolchain-cli",
+          "catalog-registry-auth",
+          "catalog-command-boundary",
+          "catalog-mutation-boundary"
+        ])
+      );
+      expect(
+        catalogRegistryAction?.diagnostics?.find(
+          (item) => item.id === "catalog-registry-auth"
+        )?.value
+      ).toContain("baseReadable=false");
+      expect(
+        catalogRegistryAction?.diagnostics?.find(
+          (item) => item.id === "catalog-mutation-boundary"
+        )?.value
+      ).toContain("mutationAllowed=false");
     }
     const runtimeLiveAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -7492,6 +7511,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
     ).toContainText(/publishApproval=true|catalog registry actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
+    ).toContainText(/catalog-registry-auth|catalog registry actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
+    ).toContainText(/catalog-mutation-boundary|catalog registry actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-runtime-live-actions")
     ).toContainText(/runtime-platform-run-live-vllm-qdrant-probes|runtime live actions clear/);

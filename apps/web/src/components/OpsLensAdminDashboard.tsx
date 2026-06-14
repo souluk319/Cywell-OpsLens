@@ -2962,6 +2962,14 @@ export function OpsLensAdminDashboard() {
                         entry.catalogToolchainTicketPacket?.mutationBoundary
                           .catalogPublishRequiresExplicitApproval ?? false
                       )}
+                      :diagnostics=
+                      {entry.diagnostics
+                        .slice(0, 5)
+                        .map(
+                          (diagnostic) =>
+                            `${diagnostic.id}=${diagnostic.value}`
+                        )
+                        .join(" | ") || "none"}
                     </span>
                   ))
                 ) : (
