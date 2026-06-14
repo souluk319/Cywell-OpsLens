@@ -2924,6 +2924,10 @@ export function OpsLensAdminDashboard() {
                       {entry.approvalGatedCommands
                         .map((command) => command.id)
                         .join(", ")}
+                      :ticket={entry.ticketPacket?.id ?? "none"}:ticketFirst=
+                      {entry.ticketPacket?.firstReadOnlyAction.id ?? "none"}
+                      :ticketApproval=
+                      {entry.ticketPacket?.approvalGatedAction.id ?? "none"}
                     </span>
                   ))
                 ) : (

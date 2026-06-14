@@ -1258,9 +1258,12 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
       evidenceNeeded:
         "Lightspeed readiness can read the OLSConfig CRD and OLSConfig with TLS verification policy documented.",
       nextCommand: "npm run verify:lightspeed -- --timeout-ms 30000",
+      handoffNextCommands: networkTicketNextCommands(networkHandoff),
       readOnlyCommands,
+      approvalGatedCommands: networkTicketApprovalCommands(networkHandoff),
       blockedBy: lightspeedReadiness?.missingEvidence ?? [],
       diagnostics: ocpNetworkDiagnostics(networkHandoff),
+      ticketPacket: networkTicketPacket(networkHandoff),
       acceptance: ["AC-LS-002", "AC-LIVE-HANDOFF-001"]
     };
   }
@@ -1275,9 +1278,12 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
       evidenceNeeded:
         `Lightspeed readiness classification=${classification} changes to CRD/OLSConfig readable or NEEDS_CONFIGURATION.`,
       nextCommand: "npm run verify:lightspeed -- --timeout-ms 30000",
+      handoffNextCommands: networkTicketNextCommands(networkHandoff),
       readOnlyCommands,
+      approvalGatedCommands: networkTicketApprovalCommands(networkHandoff),
       blockedBy: lightspeedReadiness?.missingEvidence ?? [],
       diagnostics: ocpNetworkDiagnostics(networkHandoff),
+      ticketPacket: networkTicketPacket(networkHandoff),
       acceptance: ["AC-LS-002", "AC-LIVE-HANDOFF-001"]
     };
   }

@@ -5182,6 +5182,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             "ocp-network-boundary"
           ])
         );
+        expect(lightspeedReadinessAction?.ticketPacket).toMatchObject({
+          id: "network-sre-ocp-api-reachability-ticket",
+          firstReadOnlyAction: {
+            mutation: false,
+            requiresExplicitApproval: false
+          },
+          approvalGatedAction: {
+            mutation: true,
+            requiresExplicitApproval: true
+          }
+        });
+        expect(
+          lightspeedReadinessAction?.approvalGatedCommands?.every(
+            (command) =>
+              command.mutation === true &&
+              command.requiresExplicitApproval === true
+          )
+        ).toBe(true);
       }
     }
     const ocpNetworkHandoffAction =
@@ -6863,6 +6881,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
     ).toContainText(/lightspeed-readiness-live|lightspeed readiness actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
+    ).toContainText(/ticket=network-sre-ocp-api-reachability-ticket|lightspeed readiness actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
+    ).toContainText(/ticketFirst=network-sre-confirm-ocp-api-tcp-6443|lightspeed readiness actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-diagnostics")
     ).toContainText(/post-approval-rbac|ocp-network-target|cluster-admin-fix-lightspeed-readiness-auth-rbac/);
