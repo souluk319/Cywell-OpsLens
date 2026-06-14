@@ -3662,9 +3662,37 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toMatchObject({
       fresh: true
     });
+    const ocpHandoffClassification =
+      body.installReadiness?.networkHandoff?.classification ?? "unknown";
+    const ocpAuthLikeClassifications = [
+      "auth-or-rbac",
+      "auth-failed",
+      "token-missing"
+    ];
+    const ocpNetworkChangeClassifications = [
+      "tcp-timeout",
+      "tcp-unreachable",
+      "dns-unresolved"
+    ];
+    const ocpHandoffAuthLike =
+      ocpAuthLikeClassifications.includes(ocpHandoffClassification);
+    const ocpHandoffNetworkChangeRequired =
+      ocpNetworkChangeClassifications.includes(ocpHandoffClassification);
+    const expectedOcpHandoffOwner =
+      ocpHandoffClassification === "tls-handshake-failed"
+        ? "cluster-sre"
+        : ocpHandoffAuthLike
+          ? "cluster-admin"
+          : "network-sre";
+    const expectedOcpHandoffTicketId =
+      ocpHandoffClassification === "tls-handshake-failed"
+        ? "cluster-sre-ocp-api-tls-ticket"
+        : ocpHandoffAuthLike
+          ? "cluster-admin-ocp-auth-rbac-ticket"
+          : "network-sre-ocp-api-reachability-ticket";
     expect(body.installReadiness?.networkHandoff?.ticketPacket).toMatchObject({
-      id: "network-sre-ocp-api-reachability-ticket",
-      owner: "network-sre",
+      id: expectedOcpHandoffTicketId,
+      owner: expectedOcpHandoffOwner,
       classification: body.installReadiness?.networkHandoff?.classification,
       redactedTarget: expect.stringContaining("<redacted-ocp-api>")
     });
@@ -3681,13 +3709,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     });
     expect(
       body.installReadiness?.networkHandoff?.ticketPacket?.nextCommands?.join(" ")
-    ).toMatch(/verify:ocp:connectivity|Test-NetConnection|Resolve-DnsName|route print/);
+    ).toMatch(
+      ocpHandoffAuthLike
+        ? /evidence:ocp-auth-rbac-plan/
+        : /verify:ocp:connectivity|Test-NetConnection|Resolve-DnsName|route print/
+    );
     expect(
       body.installReadiness?.networkHandoff?.ticketPacket?.mutationBoundary
     ).toMatchObject({
       clusterMutationAttempted: false,
       registryMutationAttempted: false,
-      mutationAllowedByThisVerifier: false
+      mutationAllowedByThisVerifier: false,
+      networkChangeRequiresExplicitApproval: ocpHandoffNetworkChangeRequired
     });
     const networkFirstActions =
       body.installReadiness?.networkHandoff?.firstNetworkActions ?? [];
@@ -4772,6 +4805,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "live-ocp-lightspeed"
       );
+    expect(liveOcpCriticalPath?.owner).toBe(expectedOcpHandoffOwner);
+    expect(liveOcpCriticalPath?.ticketPacket).toMatchObject({
+      id: expectedOcpHandoffTicketId,
+      owner: expectedOcpHandoffOwner,
+      firstReadOnlyAction: {
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        mutation: ocpHandoffNetworkChangeRequired,
+        requiresExplicitApproval: ocpHandoffNetworkChangeRequired
+      }
+    });
     if (liveOcpCriticalPath?.owner === "network-sre") {
       expect(liveOcpCriticalPath.ticketPacket).toMatchObject({
         id: "network-sre-ocp-api-reachability-ticket",
@@ -4922,18 +4968,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         ])
       );
       const networkTicketAction = ocpNetworkActions.find(
-        (item) => item.ticketPacket?.id === "network-sre-ocp-api-reachability-ticket"
+        (item) => item.ticketPacket?.id === expectedOcpHandoffTicketId
       );
       expect(networkTicketAction?.ticketPacket).toMatchObject({
-        id: "network-sre-ocp-api-reachability-ticket",
+        id: expectedOcpHandoffTicketId,
+        owner: expectedOcpHandoffOwner,
         severity: "blocker",
         firstReadOnlyAction: {
           mutation: false,
           requiresExplicitApproval: false
         },
         approvalGatedAction: {
-          mutation: true,
-          requiresExplicitApproval: true
+          mutation: ocpHandoffNetworkChangeRequired,
+          requiresExplicitApproval: ocpHandoffNetworkChangeRequired
         }
       });
     }
@@ -4954,6 +5001,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           requiresExplicitApproval: true
         }
       });
+      if (ocpHandoffAuthLike) {
+        expect(clusterAdminOwnerPacket.firstTicketPacket).toMatchObject({
+          id: expectedOcpHandoffTicketId,
+          owner: "cluster-admin",
+          firstReadOnlyAction: {
+            id: "cluster-admin-review-ocp-auth-rbac-evidence",
+            mutation: false
+          },
+          approvalGatedAction: {
+            mutation: false,
+            requiresExplicitApproval: false
+          }
+        });
+      }
     }
     expect(
       body.installReadiness?.actionQueue?.ownerPackets?.every(
@@ -6843,16 +6904,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("mutation=false");
     await expect(
       page.getByTestId("opslens-ocp-network-ticket-packet")
-    ).toContainText("network-sre-ocp-api-reachability-ticket");
+    ).toContainText(expectedOcpHandoffTicketId);
     await expect(
       page.getByTestId("opslens-ocp-network-ticket-packet")
-    ).toContainText("network-sre");
+    ).toContainText(expectedOcpHandoffOwner);
     await expect(
       page.getByTestId("opslens-ocp-network-ticket-packet")
     ).toContainText("mutation=false");
     await expect(
       page.getByTestId("opslens-ocp-network-ticket-packet")
-    ).toContainText(/approval=true|approval=false/);
+    ).toContainText(
+      ocpHandoffNetworkChangeRequired ? "approval=true" : "approval=false"
+    );
     await expect(
       page.getByTestId("opslens-ocp-network-first-actions")
     ).toContainText(/network-sre-confirm-ocp-api|verify:ocp:connectivity/);
@@ -6861,7 +6924,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("mutation=false");
     await expect(
       page.getByTestId("opslens-ocp-network-first-actions")
-    ).toContainText(/approval=true|network first actions missing/);
+    ).toContainText(
+      ocpHandoffNetworkChangeRequired
+        ? /approval=true|network first actions missing/
+        : "approval=false"
+    );
     await expect(
       page.getByTestId("opslens-ocp-network-source-artifacts")
     ).toContainText("evidenceCheckpoint:");
@@ -7353,10 +7420,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("security-review");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
-    ).toContainText("ticket=network-sre-ocp-api-reachability-ticket");
+    ).toContainText(`ticket=${expectedOcpHandoffTicketId}`);
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
-    ).toContainText("ticketFirst=network-sre-confirm-ocp-api-tcp-6443");
+    ).toContainText(
+      ocpHandoffAuthLike
+        ? "ticketFirst=cluster-admin-review-ocp-auth-rbac-evidence"
+        : /ticketFirst=network-sre-confirm-ocp-api-(tcp-6443|dns)/
+    );
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("extTicket=registry-admin-vllm-external-runtime-ticket");
@@ -7415,10 +7486,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("release-manager.md");
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packets")
-    ).toContainText("ticket=network-sre-ocp-api-reachability-ticket");
+    ).toContainText(`ticket=${expectedOcpHandoffTicketId}`);
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packets")
-    ).toContainText("ticketFirst=network-sre-confirm-ocp-api-tcp-6443");
+    ).toContainText(
+      ocpHandoffAuthLike
+        ? "ticketFirst=cluster-admin-review-ocp-auth-rbac-evidence"
+        : /ticketFirst=network-sre-confirm-ocp-api-(tcp-6443|dns)/
+    );
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packets")
     ).toContainText("extTicket=registry-admin-vllm-external-runtime-ticket");
@@ -7496,7 +7571,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ) {
       await expect(
         page.getByTestId("opslens-release-action-queue-network-actions")
-      ).toContainText("ocp-auth-rbac-boundary");
+      ).toContainText("ocp-network-rbac");
     }
     await expect(
       page.getByTestId("opslens-release-action-queue-tooling-handoff")
@@ -7602,10 +7677,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText(/lightspeed-readiness-live|lightspeed readiness actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
-    ).toContainText(/ticket=network-sre-ocp-api-reachability-ticket|lightspeed readiness actions clear/);
+    ).toContainText(
+      ocpHandoffAuthLike
+        ? /ticket=none|lightspeed readiness actions clear/
+        : new RegExp(
+            `ticket=${expectedOcpHandoffTicketId}|lightspeed readiness actions clear`
+          )
+    );
     await expect(
       page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
-    ).toContainText(/ticketFirst=network-sre-confirm-ocp-api-tcp-6443|lightspeed readiness actions clear/);
+    ).toContainText(
+      ocpHandoffAuthLike
+        ? /ticketFirst=none|lightspeed readiness actions clear/
+        : /ticketFirst=network-sre-confirm-ocp-api-(tcp-6443|dns)|lightspeed readiness actions clear/
+    );
     await expect(
       page.getByTestId("opslens-release-action-queue-diagnostics")
     ).toContainText(/post-approval-rbac|ocp-network-target|cluster-admin-fix-lightspeed-readiness-auth-rbac/);

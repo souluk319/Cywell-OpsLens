@@ -243,6 +243,32 @@ function handoffOwner(classification) {
   return "network-sre";
 }
 
+function ticketId(classification) {
+  if (authLikeClassification(classification)) return "cluster-admin-ocp-auth-rbac-ticket";
+  if (classification === "tls-handshake-failed") return "cluster-sre-ocp-api-tls-ticket";
+  return "network-sre-ocp-api-reachability-ticket";
+}
+
+function ticketTitle(classification) {
+  if (authLikeClassification(classification)) {
+    return `Restore OCP API ${classification} credential/RBAC readiness for Cywell OpsLens and Lightspeed evidence`;
+  }
+  if (classification === "tls-handshake-failed") {
+    return "Restore OCP API TLS readiness for Cywell OpsLens and Lightspeed evidence";
+  }
+  return `Restore OCP API ${classification} network readiness for Cywell OpsLens and Lightspeed evidence`;
+}
+
+function ticketSummary(classification) {
+  if (authLikeClassification(classification)) {
+    return "Use this packet as the Cluster Admin/SRE credential and read-only RBAC ticket summary; DNS, TCP, and TLS reached the API, so collect auth/RBAC evidence before requesting any network change.";
+  }
+  if (classification === "tls-handshake-failed") {
+    return "Use this packet as the Cluster SRE/Security TLS ticket summary; DNS and TCP reached the API, so collect certificate/trust evidence before requesting any network change.";
+  }
+  return "Use this packet as the Network/SRE ticket summary; collect read-only DNS/TCP/route evidence first, then use an approved network change only if reachability remains blocked.";
+}
+
 function commandById(commands, id, fallbackCommand, fallbackPurpose) {
   const command = commands.find((candidate) => candidate.id === id);
   return {
@@ -350,6 +376,25 @@ function buildFirstNetworkActions(target, classification, addresses, commands, m
         "Regenerate the OCP network handoff if the classification changes or the Git head moves."
     }
   ];
+
+  if (authLikeClassification(classification)) {
+    actions.unshift({
+      id: "cluster-admin-review-ocp-auth-rbac-evidence",
+      owner,
+      phase: "auth-rbac-preflight",
+      status: "blocker",
+      request:
+        "Confirm the configured OCP credential is current and the least-privilege live evidence reader RBAC plan is ready for approval.",
+      evidenceNeeded:
+        "cywell-opslens-ocp-auth-rbac-plan.json shows AUTH_RBAC_APPROVAL_REQUIRED or approved reader evidence, with Secrets excluded and mutation flags false.",
+      nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "No rollback is required because this action only refreshes a local approval packet."
+    });
+  }
 
   if (["tcp-timeout", "tcp-unreachable", "dns-unresolved"].includes(classification)) {
     actions.push({
@@ -479,15 +524,13 @@ function buildTicketPacket({
   ].filter(Boolean).map(sanitize);
 
   return {
-    id: "network-sre-ocp-api-reachability-ticket",
+    id: ticketId(classification),
     owner,
-    title:
-      `Restore OCP API ${classification} readiness for Cywell OpsLens and Lightspeed evidence`,
+    title: ticketTitle(classification),
     severity: ticketSeverity(classification),
     classification,
     redactedTarget: redactedOcpTarget(target),
-    summary:
-      "Use this packet as the Network/SRE ticket summary; collect read-only DNS/TCP/route evidence first, then use an approved network change only if reachability remains blocked.",
+    summary: ticketSummary(classification),
     evidenceChecklist: [
       `classification=${classification}`,
       `target=${redactedOcpTarget(target)}`,
