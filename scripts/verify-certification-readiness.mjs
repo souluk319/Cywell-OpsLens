@@ -928,6 +928,102 @@ function buildFirstSubmissionActions(toolingHandoff, missingEvidence) {
   ];
 }
 
+function uniqueSanitized(values) {
+  return Array.from(new Set(values.map(sanitize).filter(Boolean)));
+}
+
+function ticketActionFromCommand(command, fallbackId, status, extra = {}) {
+  return {
+    id: sanitize(command?.id ?? fallbackId),
+    status,
+    nextCommand: sanitize(command?.command ?? "none"),
+    mutation: command?.mutation === true,
+    requiresExplicitApproval: command?.requiresExplicitApproval === true,
+    ...extra
+  };
+}
+
+function buildCertificationToolingTicketPacket(toolingHandoff) {
+  const firstReadOnly =
+    toolingHandoff.readOnlyCommands.find(
+      (command) => command.id === "refresh-certification-evidence"
+    ) ?? toolingHandoff.readOnlyCommands[0];
+  const firstSetup =
+    toolingHandoff.setupCommands.find((command) => command.id === "install-opm") ??
+    toolingHandoff.setupCommands[0];
+  const firstApproval =
+    toolingHandoff.approvalGatedCommands.find(
+      (command) => command.id === "partner-connect-submit"
+    ) ?? toolingHandoff.approvalGatedCommands[0];
+  const blockedBy = uniqueSanitized([
+    ...toolingHandoff.missingRequiredTools.map((tool) => `${tool} CLI unavailable on PATH`),
+    ...(toolingHandoff.runnerEvidence?.missingEvidence ?? []),
+    ...toolingHandoff.executionLanes.flatMap((lane) => lane.blockedBy ?? [])
+  ]);
+  const evidenceChecklist = uniqueSanitized([
+    `toolingStatus=${toolingHandoff.status}`,
+    `toolingSatisfiedBy=${toolingHandoff.toolingSatisfiedBy}`,
+    `missingRequiredTools=${toolingHandoff.missingRequiredTools.join(",") || "none"}`,
+    `runnerEvidence=${toolingHandoff.runnerEvidence?.status ?? "missing"}`,
+    `runnerEvidencePath=${toolingHandoff.runnerEvidence?.path ?? options.ciRunnerEvidence}`,
+    "approved CI runner evidence must be digest-pinned, current-head, approved, and include opm/operator-sdk validation logs",
+    "local workstation tooling must provide opm validate, operator-sdk bundle validate, and scorecard evidence before external submission",
+    "Partner Connect or OperatorHub submission remains approval-gated and not run by this verifier"
+  ]);
+
+  return {
+    id: "release-manager-certification-tooling-ticket",
+    owner: "release-manager",
+    title: "Provide approved opm/operator-sdk tooling or current-head CI runner evidence",
+    severity: "high",
+    classification:
+      toolingHandoff.runnerEvidence?.status === "ready"
+        ? "approved-ci-runner-ready"
+        : toolingHandoff.missingRequiredTools.length > 0
+          ? "missing-local-tooling"
+          : "certification-validation-required",
+    toolingStatus: toolingHandoff.status,
+    toolingSatisfiedBy: toolingHandoff.toolingSatisfiedBy,
+    runnerEvidenceStatus: toolingHandoff.runnerEvidence?.status ?? "missing",
+    runnerEvidencePath: toolingHandoff.runnerEvidence?.path ?? options.ciRunnerEvidence,
+    finalEvidencePath: options.ciRunnerEvidence,
+    missingRequiredTools: toolingHandoff.missingRequiredTools.map(sanitize),
+    evidenceChecklist,
+    firstReadOnlyAction: ticketActionFromCommand(
+      firstReadOnly,
+      "refresh-certification-evidence",
+      "needs-tooling"
+    ),
+    setupAction: ticketActionFromCommand(firstSetup, "install-certification-tooling", "human-setup", {
+      requiresHumanApproval: firstSetup?.requiresHumanApproval !== false
+    }),
+    approvalGatedAction: ticketActionFromCommand(
+      firstApproval,
+      "partner-connect-submit",
+      "approval-gated"
+    ),
+    nextCommands: uniqueSanitized([
+      firstReadOnly?.command,
+      firstSetup?.command,
+      ...(toolingHandoff.runnerEvidence?.nextCommands ?? []),
+      ...(toolingHandoff.nextCommands ?? []),
+      firstApproval?.command
+    ]),
+    blockedBy,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      toolingInstallRequiresHumanApproval: true,
+      externalSubmissionRequiresExplicitApproval: true
+    },
+    risk:
+      "Missing or unapproved opm/operator-sdk tooling can make Community/Certified Operator validation drift from the release evidence bundle.",
+    rollbackPath:
+      "No rollback is required because this packet writes only local evidence; replace invalid tooling or CI runner evidence and rerun certification/catalog checks."
+  };
+}
+
 function buildToolingHandoff(ciRunnerEvidence) {
   const requiredTools = cli
     .filter((entry) => entry.requiredForExternalSubmission)
@@ -949,7 +1045,7 @@ function buildToolingHandoff(ciRunnerEvidence) {
       ? "approved-ci-image"
       : "missing";
 
-  return {
+  const handoff = {
     actionMode: "humanSetupOnly",
     status: toolingReady || ciRunnerReady ? "ready-for-validation" : "needs-tooling",
     toolingSatisfiedBy,
@@ -1171,6 +1267,11 @@ function buildToolingHandoff(ciRunnerEvidence) {
       "Do not submit to Partner Connect or OperatorHub from this handoff artifact."
     ]
   };
+
+  return {
+    ...handoff,
+    ticketPacket: buildCertificationToolingTicketPacket(handoff)
+  };
 }
 
 async function writeEvidence() {
@@ -1200,6 +1301,15 @@ async function writeEvidence() {
     ),
     "mutating execution lanes require explicit approval",
     "mutating execution lanes must require explicit approval"
+  );
+  expectCheck(
+    "certification tooling ticket packet",
+    toolingHandoff.ticketPacket?.firstReadOnlyAction?.mutation === false &&
+      toolingHandoff.ticketPacket?.setupAction?.requiresHumanApproval === true &&
+      toolingHandoff.ticketPacket?.approvalGatedAction?.mutation === true &&
+      toolingHandoff.ticketPacket?.approvalGatedAction?.requiresExplicitApproval === true,
+    `ticket=${toolingHandoff.ticketPacket?.id ?? "missing"} first=${toolingHandoff.ticketPacket?.firstReadOnlyAction?.id ?? "missing"} setup=${toolingHandoff.ticketPacket?.setupAction?.id ?? "missing"} approval=${toolingHandoff.ticketPacket?.approvalGatedAction?.id ?? "missing"}`,
+    "certification tooling ticket packet must separate read-only evidence, human setup, and approval-gated submission"
   );
   const missingEvidence = [
     ...(ciRunnerEvidence.status === "ready"

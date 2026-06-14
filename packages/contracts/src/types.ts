@@ -1924,6 +1924,7 @@ export interface OpsLensCertificationReadinessSummary {
       risk: string[];
       rollbackPath: string[];
     };
+    ticketPacket: OpsLensCertificationToolingTicketPacket;
     runnerDraft: {
       path: string;
       finalEvidenceFile: string;
@@ -2233,6 +2234,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstBlockedBy: string[];
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     nextCommands: string[];
     setupCommandIds: string[];
     readOnlyCommandIds: string[];
@@ -2261,6 +2263,7 @@ export interface OpsLensReleaseActionQueueSummary {
     acceptance: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   ownerPacketCleanup: {
     dir: string;
@@ -2309,6 +2312,7 @@ export interface OpsLensReleaseActionQueueSummary {
     }>;
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   sourceArtifacts: Array<{
     id: string;
@@ -2699,6 +2703,54 @@ export interface OpsLensExternalRuntimeRegistryTicketPacket {
     registryMutationAttempted: boolean;
     mutationAllowedByThisVerifier: boolean;
     registryChangeRequiresExplicitApproval: boolean;
+  };
+  risk: string;
+  rollbackPath: string;
+}
+
+export interface OpsLensCertificationToolingTicketPacket {
+  id: string;
+  owner: "release-manager";
+  title: string;
+  severity: "high";
+  classification: string;
+  toolingStatus: string;
+  toolingSatisfiedBy: string;
+  runnerEvidenceStatus: string;
+  runnerEvidencePath: string;
+  finalEvidencePath: string;
+  missingRequiredTools: string[];
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  setupAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+    requiresHumanApproval: boolean;
+  };
+  approvalGatedAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    toolingInstallRequiresHumanApproval: boolean;
+    externalSubmissionRequiresExplicitApproval: boolean;
   };
   risk: string;
   rollbackPath: string;

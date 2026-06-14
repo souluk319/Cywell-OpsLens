@@ -267,16 +267,14 @@ function releaseActionQueueHandoffRequirement(actionQueue, id, label, lane, owne
   const ticket =
     ticketField === "network"
       ? criticalPath?.ticketPacket ?? ownerPacket?.firstTicketPacket
-      : criticalPath?.externalRuntimeTicketPacket ??
-        ownerPacket?.firstExternalRuntimeTicketPacket;
-  const firstAction =
-    ticketField === "network"
-      ? ticket?.firstReadOnlyAction
-      : ticket?.firstReadOnlyAction;
-  const approvalAction =
-    ticketField === "network"
-      ? ticket?.approvalGatedAction
-      : ticket?.approvalGatedAction;
+      : ticketField === "certification-tooling"
+        ? criticalPath?.certificationToolingTicketPacket ??
+          ownerPacket?.firstCertificationToolingTicketPacket
+        : criticalPath?.externalRuntimeTicketPacket ??
+          ownerPacket?.firstExternalRuntimeTicketPacket;
+  const firstAction = ticket?.firstReadOnlyAction;
+  const approvalAction = ticket?.approvalGatedAction;
+  const setupAction = ticket?.setupAction;
   const missingEvidence = [];
 
   if (actionQueue.status !== "ACTION_QUEUE_READY") {
@@ -297,6 +295,12 @@ function releaseActionQueueHandoffRequirement(actionQueue, id, label, lane, owne
   if (approvalAction?.mutation !== true || approvalAction?.requiresExplicitApproval !== true) {
     missingEvidence.push(`${owner} approval-gated ticket action must require explicit approval`);
   }
+  if (
+    ticketField === "certification-tooling" &&
+    (setupAction?.mutation !== false || setupAction?.requiresHumanApproval !== true)
+  ) {
+    missingEvidence.push(`${owner} certification tooling setup action must be human-approved and non-mutating`);
+  }
 
   return {
     id,
@@ -307,7 +311,7 @@ function releaseActionQueueHandoffRequirement(actionQueue, id, label, lane, owne
     evidence:
       missingEvidence.length === 0
         ? [
-            `${lane} ${owner} ticket=${ticket.id} first=${firstAction.id} approval=${approvalAction.id}`
+            `${lane} ${owner} ticket=${ticket.id} first=${firstAction.id} setup=${setupAction?.id ?? "none"} approval=${approvalAction.id}`
           ]
         : [],
     missingEvidence
@@ -676,6 +680,14 @@ async function main() {
         "external-runtime-review",
         "registry-admin",
         "external-runtime"
+      ),
+      releaseActionQueueHandoffRequirement(
+        releaseActionQueue,
+        "release-action-queue-certification-tooling-ticket",
+        "Release action queue certification tooling ticket handoff",
+        "certification-toolchain",
+        "release-manager",
+        "certification-tooling"
       ),
       laneRequirement(checkpoint, "securityScan", "Security scan and SBOM evidence plan", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "securityScanRunner", "Security scan evidence runner", ["pass", "needs-evidence"]),

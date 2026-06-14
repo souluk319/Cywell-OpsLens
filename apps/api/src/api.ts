@@ -32,6 +32,7 @@ import type {
   OpsLensCatalogToolchainSummary,
   OpsLensCertificationReadiness,
   OpsLensCertificationReadinessSummary,
+  OpsLensCertificationToolingTicketPacket,
   OpsLensCitation,
   OpsLensCommunityOperatorSubmissionReadiness,
   OpsLensCommunityOperatorSubmissionSummary,
@@ -2260,6 +2261,7 @@ type CertificationReadinessEvidenceArtifact = {
       risk?: string[];
       rollbackPath?: string[];
     };
+    ticketPacket?: OpsLensCertificationToolingTicketPacket;
     freshnessPolicy?: {
       requiredHead?: string;
       worktreeRequirement?: string;
@@ -2619,6 +2621,7 @@ type ReleaseActionQueueArtifact = {
     firstBlockedBy?: string[];
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     nextCommands?: string[];
     setupCommandIds?: string[];
     readOnlyCommandIds?: string[];
@@ -2647,6 +2650,7 @@ type ReleaseActionQueueArtifact = {
     acceptance?: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   ownerPacketCleanup?: {
     dir?: string;
@@ -2695,6 +2699,7 @@ type ReleaseActionQueueArtifact = {
     }>;
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   sourceArtifacts?: Array<{
     id?: string;
@@ -6396,13 +6401,22 @@ function mapCertificationRunnerDraft(
 function missingCertificationToolingHandoff(
   reason: string
 ): OpsLensCertificationReadinessSummary["toolingHandoff"] {
+  const missingRunnerEvidence = missingCertificationRunnerEvidence(reason);
   return {
-    actionMode: "humanSetupOnly",
+    actionMode: "humanSetupOnly" as const,
     status: "needs-evidence",
     toolingSatisfiedBy: "missing",
     requiredTools: [],
     missingRequiredTools: [],
-    runnerEvidence: missingCertificationRunnerEvidence(reason),
+    runnerEvidence: missingRunnerEvidence,
+    ticketPacket: missingCertificationToolingTicketPacket(
+      "needs-evidence",
+      "missing",
+      [],
+      missingRunnerEvidence,
+      ["refresh-certification-evidence"],
+      [reason]
+    ),
     runnerDraft: missingCertificationRunnerDraft(reason),
     freshnessPolicy: {
       requiredHead: "missing",
@@ -6432,6 +6446,179 @@ function missingCertificationToolingHandoff(
   };
 }
 
+function certificationTicketAction(
+  action:
+    | Partial<OpsLensCertificationToolingTicketPacket["firstReadOnlyAction"]>
+    | undefined,
+  fallbackId: string,
+  fallbackCommand: string,
+  fallbackStatus: string
+): OpsLensCertificationToolingTicketPacket["firstReadOnlyAction"] {
+  return {
+    id: action?.id ?? fallbackId,
+    status: action?.status ?? fallbackStatus,
+    nextCommand: action?.nextCommand ?? fallbackCommand,
+    mutation: action?.mutation === true,
+    requiresExplicitApproval: action?.requiresExplicitApproval === true
+  };
+}
+
+function missingCertificationToolingTicketPacket(
+  toolingStatus: string,
+  toolingSatisfiedBy: string,
+  missingRequiredTools: string[],
+  runnerEvidence: OpsLensCertificationReadinessSummary["toolingHandoff"]["runnerEvidence"],
+  nextCommands: string[],
+  blockedBy: string[]
+): OpsLensCertificationToolingTicketPacket {
+  return {
+    id: "release-manager-certification-tooling-ticket",
+    owner: "release-manager",
+    title: "Provide approved opm/operator-sdk tooling or current-head CI runner evidence",
+    severity: "high",
+    classification: missingRequiredTools.length > 0
+      ? "missing-local-tooling"
+      : "certification-validation-required",
+    toolingStatus,
+    toolingSatisfiedBy,
+    runnerEvidenceStatus: runnerEvidence.status,
+    runnerEvidencePath: runnerEvidence.path,
+    finalEvidencePath: "docs/release/evidence/certification/approved-ci-runner.json",
+    missingRequiredTools,
+    evidenceChecklist: [
+      `toolingStatus=${toolingStatus}`,
+      `toolingSatisfiedBy=${toolingSatisfiedBy}`,
+      `missingRequiredTools=${missingRequiredTools.join(",") || "none"}`,
+      `runnerEvidence=${runnerEvidence.status}`,
+      `runnerEvidencePath=${runnerEvidence.path}`,
+      "approved CI runner evidence must be digest-pinned, current-head, approved, and include validation logs",
+      "external submission remains approval-gated and not run by this service"
+    ],
+    firstReadOnlyAction: {
+      id: "refresh-certification-evidence",
+      status: toolingStatus,
+      nextCommand: "npm run verify:certification",
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    setupAction: {
+      id: missingRequiredTools[0] ? `install-${missingRequiredTools[0]}` : "install-certification-tooling",
+      status: "human-setup",
+      nextCommand: missingRequiredTools.length > 0
+        ? `install ${missingRequiredTools.join(" and ")} through an approved release-manager workstation or CI image`
+        : "review approved certification tooling lane",
+      mutation: false,
+      requiresExplicitApproval: false,
+      requiresHumanApproval: true
+    },
+    approvalGatedAction: {
+      id: "partner-connect-submit",
+      status: "approval-gated",
+      nextCommand: "submit reviewed certification bundle through Red Hat Partner Connect",
+      mutation: true,
+      requiresExplicitApproval: true
+    },
+    nextCommands,
+    blockedBy,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      toolingInstallRequiresHumanApproval: true,
+      externalSubmissionRequiresExplicitApproval: true
+    },
+    risk:
+      "Missing or unapproved opm/operator-sdk tooling can make Community/Certified Operator validation drift from the release evidence bundle.",
+    rollbackPath:
+      "No rollback is required because this packet writes only local evidence; replace invalid tooling or CI runner evidence and rerun certification/catalog checks."
+  };
+}
+
+function mapCertificationToolingTicketPacket(
+  artifact: CertificationReadinessEvidenceArtifact["toolingHandoff"] | undefined,
+  mapped: Pick<
+    OpsLensCertificationReadinessSummary["toolingHandoff"],
+    | "status"
+    | "toolingSatisfiedBy"
+    | "missingRequiredTools"
+    | "runnerEvidence"
+    | "nextCommands"
+    | "executionLanes"
+  >
+): OpsLensCertificationToolingTicketPacket {
+  const fallback = missingCertificationToolingTicketPacket(
+    mapped.status,
+    mapped.toolingSatisfiedBy,
+    mapped.missingRequiredTools,
+    mapped.runnerEvidence,
+    mapped.nextCommands,
+    [
+      ...mapped.missingRequiredTools.map((tool) => `${tool} CLI unavailable on PATH`),
+      ...mapped.runnerEvidence.missingEvidence,
+      ...mapped.executionLanes.flatMap((lane) => lane.blockedBy)
+    ]
+  );
+  const packet = artifact?.ticketPacket;
+  if (!packet) return fallback;
+
+  return {
+    id: packet.id ?? fallback.id,
+    owner: "release-manager",
+    title: packet.title ?? fallback.title,
+    severity: "high",
+    classification: packet.classification ?? fallback.classification,
+    toolingStatus: packet.toolingStatus ?? fallback.toolingStatus,
+    toolingSatisfiedBy: packet.toolingSatisfiedBy ?? fallback.toolingSatisfiedBy,
+    runnerEvidenceStatus:
+      packet.runnerEvidenceStatus ?? fallback.runnerEvidenceStatus,
+    runnerEvidencePath: packet.runnerEvidencePath ?? fallback.runnerEvidencePath,
+    finalEvidencePath: packet.finalEvidencePath ?? fallback.finalEvidencePath,
+    missingRequiredTools:
+      packet.missingRequiredTools ?? fallback.missingRequiredTools,
+    evidenceChecklist: packet.evidenceChecklist ?? fallback.evidenceChecklist,
+    firstReadOnlyAction: certificationTicketAction(
+      packet.firstReadOnlyAction,
+      fallback.firstReadOnlyAction.id,
+      fallback.firstReadOnlyAction.nextCommand,
+      fallback.firstReadOnlyAction.status
+    ),
+    setupAction: {
+      ...certificationTicketAction(
+        packet.setupAction,
+        fallback.setupAction.id,
+        fallback.setupAction.nextCommand,
+        fallback.setupAction.status
+      ),
+      requiresHumanApproval:
+        packet.setupAction?.requiresHumanApproval ?? fallback.setupAction.requiresHumanApproval
+    },
+    approvalGatedAction: certificationTicketAction(
+      packet.approvalGatedAction,
+      fallback.approvalGatedAction.id,
+      fallback.approvalGatedAction.nextCommand,
+      fallback.approvalGatedAction.status
+    ),
+    nextCommands: packet.nextCommands ?? fallback.nextCommands,
+    blockedBy: packet.blockedBy ?? fallback.blockedBy,
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      toolingInstallRequiresHumanApproval:
+        packet.mutationBoundary?.toolingInstallRequiresHumanApproval ??
+        fallback.mutationBoundary.toolingInstallRequiresHumanApproval,
+      externalSubmissionRequiresExplicitApproval:
+        packet.mutationBoundary?.externalSubmissionRequiresExplicitApproval ??
+        fallback.mutationBoundary.externalSubmissionRequiresExplicitApproval
+    },
+    risk: packet.risk ?? fallback.risk,
+    rollbackPath: packet.rollbackPath ?? fallback.rollbackPath
+  };
+}
+
 function mapCertificationToolingHandoff(
   artifact: CertificationReadinessEvidenceArtifact["toolingHandoff"] | undefined,
   cli: OpsLensCertificationReadinessSummary["cli"],
@@ -6441,7 +6628,10 @@ function mapCertificationToolingHandoff(
     const missingRequiredTools = cli
       .filter((tool) => tool.requiredForExternalSubmission && !tool.available)
       .map((tool) => tool.name);
-    return {
+    const missingRunnerEvidence = missingCertificationRunnerEvidence(
+      "certification readiness evidence does not include approved CI runner evidence"
+    );
+    const mapped = {
       ...missingCertificationToolingHandoff(
         "certification readiness evidence does not include tooling handoff"
       ),
@@ -6449,9 +6639,7 @@ function mapCertificationToolingHandoff(
       toolingSatisfiedBy: "missing",
       requiredTools: cli.filter((tool) => tool.requiredForExternalSubmission),
       missingRequiredTools,
-      runnerEvidence: missingCertificationRunnerEvidence(
-        "certification readiness evidence does not include approved CI runner evidence"
-      ),
+      runnerEvidence: missingRunnerEvidence,
       runnerDraft: mapCertificationRunnerDraft(headSha),
       freshnessPolicy: {
         requiredHead: "current Git HEAD",
@@ -6482,10 +6670,14 @@ function mapCertificationToolingHandoff(
             ]
           : ["npm run verify:certification"]
     };
+    return {
+      ...mapped,
+      ticketPacket: mapCertificationToolingTicketPacket(undefined, mapped)
+    };
   }
 
-  return {
-    actionMode: "humanSetupOnly",
+  const mapped = {
+    actionMode: "humanSetupOnly" as const,
     status: artifact.status ?? "needs-evidence",
     toolingSatisfiedBy: artifact.toolingSatisfiedBy ?? "missing",
     requiredTools: (artifact.requiredTools ?? []).map((tool) => ({
@@ -6545,6 +6737,10 @@ function mapCertificationToolingHandoff(
     nextCommands: artifact.nextCommands ?? [],
     risk: artifact.risk ?? [],
     rollbackPath: artifact.rollbackPath ?? []
+  };
+  return {
+    ...mapped,
+    ticketPacket: mapCertificationToolingTicketPacket(artifact, mapped)
   };
 }
 
@@ -7682,6 +7878,8 @@ function getReleaseActionQueueReadiness(): {
       firstBlockedBy: packet.firstBlockedBy ?? [],
       firstTicketPacket: packet.firstTicketPacket,
       firstExternalRuntimeTicketPacket: packet.firstExternalRuntimeTicketPacket,
+      firstCertificationToolingTicketPacket:
+        packet.firstCertificationToolingTicketPacket,
       nextCommands: packet.nextCommands ?? [],
       setupCommandIds: packet.setupCommandIds ?? [],
       readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
@@ -7716,7 +7914,8 @@ function getReleaseActionQueueReadiness(): {
       approvalGatedCommandIds: entry.approvalGatedCommandIds ?? [],
       acceptance: entry.acceptance ?? [],
       ticketPacket: entry.ticketPacket,
-      externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket
+      externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
+      certificationToolingTicketPacket: entry.certificationToolingTicketPacket
     }));
     const items = (artifact.items ?? []).map((entry) => ({
       id: entry.id ?? "unknown",
@@ -7758,7 +7957,8 @@ function getReleaseActionQueueReadiness(): {
         value: diagnostic.value ?? "unknown"
       })),
       ticketPacket: entry.ticketPacket,
-      externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket
+      externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
+      certificationToolingTicketPacket: entry.certificationToolingTicketPacket
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
       id: source.id ?? "unknown",

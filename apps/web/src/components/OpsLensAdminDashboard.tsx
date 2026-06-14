@@ -2518,6 +2518,11 @@ export function OpsLensAdminDashboard() {
                       :extFirst=
                       {entry.externalRuntimeTicketPacket?.firstReadOnlyAction.id ??
                         "none"}
+                      :certTicket=
+                      {entry.certificationToolingTicketPacket?.id ?? "none"}
+                      :certFirst=
+                      {entry.certificationToolingTicketPacket?.firstReadOnlyAction
+                        .id ?? "none"}
                       :tools={entry.missingRequiredTools.join(",") || "none"}
                       :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
                       {entry.readOnlyCommandIds.join(",") || "none"}:approval=
@@ -2558,6 +2563,11 @@ export function OpsLensAdminDashboard() {
                     {packet.firstExternalRuntimeTicketPacket?.id ?? "none"}
                     :extFirst=
                     {packet.firstExternalRuntimeTicketPacket?.firstReadOnlyAction
+                      .id ?? "none"}
+                    :certTicket=
+                    {packet.firstCertificationToolingTicketPacket?.id ?? "none"}
+                    :certFirst=
+                    {packet.firstCertificationToolingTicketPacket?.firstReadOnlyAction
                       .id ?? "none"}
                   </span>
                 ))}
