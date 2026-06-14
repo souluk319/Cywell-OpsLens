@@ -1404,6 +1404,11 @@ export type OpsLensOcpNetworkHandoffReadiness =
   | "needs-evidence"
   | "blocked";
 
+export type OpsLensOcpNetworkHandoffApiFallbackReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "blocked";
+
 export type OpsLensOcpAuthRbacPlanReadiness =
   | "ready"
   | "needs-evidence"
@@ -1669,6 +1674,31 @@ export interface OpsLensOcpNetworkHandoffSummary {
     headSha: string;
     worktreeDirty: boolean | string;
   }>;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensOcpNetworkHandoffApiFallbackSummary {
+  status: OpsLensOcpNetworkHandoffApiFallbackReadiness;
+  artifactStatus: string;
+  actionMode: "apiFallbackVerificationOnly";
+  headSha: string;
+  worktreeDirty: boolean | string;
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  caseCount: number;
+  failedCheckCount: number;
+  cases: Array<{
+    classification: string;
+    owner: string;
+    ticketId: string;
+    firstActionId: string;
+    approvalId: string;
+    networkChangeRequiresExplicitApproval: boolean;
+  }>;
+  evidence: string[];
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
@@ -3180,6 +3210,8 @@ export interface OpsLensAdminOverviewResponse {
     handoff: OpsLensLiveEvidenceHandoffSummary;
     ocpNetworkHandoff: OpsLensOcpNetworkHandoffReadiness;
     networkHandoff: OpsLensOcpNetworkHandoffSummary;
+    ocpNetworkHandoffApiFallback: OpsLensOcpNetworkHandoffApiFallbackReadiness;
+    networkHandoffApiFallback: OpsLensOcpNetworkHandoffApiFallbackSummary;
     ocpAuthRbacPlan: OpsLensOcpAuthRbacPlanReadiness;
     authRbacPlan: OpsLensOcpAuthRbacPlanSummary;
     certification: "not-started" | "draft" | "ready";

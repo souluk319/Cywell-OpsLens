@@ -1549,6 +1549,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           risk?: string[];
           rollbackPath?: string[];
         };
+        ocpNetworkHandoffApiFallback?: string;
+        networkHandoffApiFallback?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          headSha?: string;
+          worktreeDirty?: boolean | string;
+          clusterMutationAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          caseCount?: number;
+          failedCheckCount?: number;
+          cases?: Array<{
+            classification?: string;
+            owner?: string;
+            ticketId?: string;
+            firstActionId?: string;
+            approvalId?: string;
+            networkChangeRequiresExplicitApproval?: boolean;
+          }>;
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         operatorDryRun?: string;
         operatorRuntimeBoundary?: string;
         operatorRuntimeBoundarySummary?: {
@@ -3722,6 +3746,49 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       mutationAllowedByThisVerifier: false,
       networkChangeRequiresExplicitApproval: ocpHandoffNetworkChangeRequired
     });
+    expect(body.installReadiness?.ocpNetworkHandoffApiFallback).toBe("ready");
+    expect(body.installReadiness?.networkHandoffApiFallback).toMatchObject({
+      status: "ready",
+      artifactStatus: "PASS",
+      actionMode: "apiFallbackVerificationOnly",
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      caseCount: 3,
+      failedCheckCount: 0
+    });
+    expect(
+      body.installReadiness?.networkHandoffApiFallback?.cases
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          classification: "auth-or-rbac",
+          owner: "cluster-admin",
+          ticketId: "cluster-admin-ocp-auth-rbac-ticket",
+          firstActionId: "cluster-admin-review-ocp-auth-rbac-evidence",
+          networkChangeRequiresExplicitApproval: false
+        }),
+        expect.objectContaining({
+          classification: "tls-handshake-failed",
+          owner: "cluster-sre",
+          ticketId: "cluster-sre-ocp-api-tls-ticket",
+          firstActionId: "network-sre-confirm-ocp-api-dns",
+          networkChangeRequiresExplicitApproval: false
+        }),
+        expect.objectContaining({
+          classification: "tcp-timeout",
+          owner: "network-sre",
+          ticketId: "network-sre-ocp-api-reachability-ticket",
+          firstActionId: "network-sre-confirm-ocp-api-tcp-6443",
+          networkChangeRequiresExplicitApproval: true
+        })
+      ])
+    );
+    expect(
+      JSON.stringify(body.installReadiness?.networkHandoffApiFallback)
+    ).not.toMatch(
+      /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/
+    );
     const networkFirstActions =
       body.installReadiness?.networkHandoff?.firstNetworkActions ?? [];
     expect(networkFirstActions.length).toBeGreaterThanOrEqual(3);
@@ -6711,6 +6778,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Network Handoff"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Handoff Fallback"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Operator Dry-run"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
@@ -6935,6 +7005,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-ocp-network-source-artifacts")
     ).toContainText("fresh=true");
+    await expect(
+      page.getByTestId("opslens-ocp-network-handoff-api-fallback")
+    ).toContainText("apiFallbackVerificationOnly");
+    await expect(
+      page.getByTestId("opslens-ocp-network-handoff-api-fallback")
+    ).toContainText("clusterMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-ocp-network-handoff-api-fallback")
+    ).toContainText("registryMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-ocp-network-handoff-api-fallback-cases")
+    ).toContainText("auth-or-rbac:cluster-admin:cluster-admin-ocp-auth-rbac-ticket");
+    await expect(
+      page.getByTestId("opslens-ocp-network-handoff-api-fallback-cases")
+    ).toContainText("tls-handshake-failed:cluster-sre:cluster-sre-ocp-api-tls-ticket");
+    await expect(
+      page.getByTestId("opslens-ocp-network-handoff-api-fallback-cases")
+    ).toContainText("tcp-timeout:network-sre:network-sre-ocp-api-reachability-ticket");
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Auth/RBAC Plan"
     );

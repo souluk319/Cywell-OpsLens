@@ -303,6 +303,8 @@ export function OpsLensAdminDashboard() {
   const checkpoint = overview?.installReadiness.checkpoint;
   const liveHandoff = overview?.installReadiness.handoff;
   const networkHandoff = overview?.installReadiness.networkHandoff;
+  const networkHandoffApiFallback =
+    overview?.installReadiness.networkHandoffApiFallback;
   const authRbacPlan = overview?.installReadiness.authRbacPlan;
   const envContract = overview?.installReadiness.envContract;
   const ocpConnectivity = overview?.installReadiness.connectivity;
@@ -1431,6 +1433,8 @@ export function OpsLensAdminDashboard() {
                   "Live Handoff": overview.installReadiness.liveHandoff,
                   "Network Handoff":
                     overview.installReadiness.ocpNetworkHandoff,
+                  "Handoff Fallback":
+                    overview.installReadiness.ocpNetworkHandoffApiFallback,
                   "Auth/RBAC Plan":
                     overview.installReadiness.ocpAuthRbacPlan,
                   Certification: overview.installReadiness.certification
@@ -2061,6 +2065,49 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {networkHandoff.rollbackPath[0] ??
                     "Regenerate the handoff after OCP network evidence changes."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {networkHandoffApiFallback ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-ocp-network-handoff-api-fallback"
+            >
+              <div className="admin-evidence-line">
+                <span>{networkHandoffApiFallback.artifactStatus}</span>
+                <span>{networkHandoffApiFallback.actionMode}</span>
+                <span>cases={networkHandoffApiFallback.caseCount}</span>
+                <span>failedChecks={networkHandoffApiFallback.failedCheckCount}</span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(networkHandoffApiFallback.clusterMutationAttempted)}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(networkHandoffApiFallback.registryMutationAttempted)}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-ocp-network-handoff-api-fallback-cases"
+              >
+                {networkHandoffApiFallback.cases.map((testCase) => (
+                  <span key={testCase.classification}>
+                    {testCase.classification}:{testCase.owner}:{testCase.ticketId}
+                    :first={testCase.firstActionId}:approval=
+                    {String(testCase.networkChangeRequiresExplicitApproval)}
+                  </span>
+                ))}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {networkHandoffApiFallback.risk[0] ??
+                    "Fallback proof keeps partial handoff API routing classification-aware."}
+                </p>
+                <p>
+                  {networkHandoffApiFallback.rollbackPath[0] ??
+                    "Regenerate fallback proof after changing handoff API mapping."}
                 </p>
               </div>
             </div>

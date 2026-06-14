@@ -64,6 +64,8 @@ import type {
   OpsLensOcpConnectivityReadiness,
   OpsLensOcpAuthRbacPlanReadiness,
   OpsLensOcpAuthRbacPlanSummary,
+  OpsLensOcpNetworkHandoffApiFallbackReadiness,
+  OpsLensOcpNetworkHandoffApiFallbackSummary,
   OpsLensOcpNetworkHandoffReadiness,
   OpsLensOcpNetworkHandoffSummary,
   OpsLensOperatorPackageReadiness,
@@ -3055,6 +3057,40 @@ type OcpNetworkHandoffArtifact = {
   rollbackPath?: string[];
 };
 
+type OcpNetworkHandoffApiFallbackArtifact = {
+  artifactType?: string;
+  status?: string;
+  actionMode?: string;
+  headSha?: string;
+  worktreeDirty?: boolean;
+  ref?: {
+    headSha?: string;
+    worktreeDirty?: boolean;
+  };
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  cases?: Array<{
+    classification?: string;
+    actual?: {
+      classification?: string;
+      owner?: string;
+      ticketId?: string;
+      firstActionId?: string;
+      approvalId?: string;
+      networkChangeRequiresExplicitApproval?: boolean;
+    };
+  }>;
+  checks?: Array<{
+    status?: string;
+    name?: string;
+    detail?: string;
+  }>;
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type OcpAuthRbacPlanArtifact = {
   artifactType?: string;
   status?: string;
@@ -3372,6 +3408,17 @@ function ocpNetworkHandoffPath() {
   return (
     process.env.CYWELL_OPSLENS_OCP_NETWORK_HANDOFF ??
     join(repoRoot, "test-results", "cywell-opslens-ocp-network-handoff.json")
+  );
+}
+
+function ocpNetworkHandoffApiFallbackPath() {
+  return (
+    process.env.CYWELL_OPSLENS_OCP_NETWORK_HANDOFF_API_FALLBACK_EVIDENCE ??
+    join(
+      repoRoot,
+      "test-results",
+      "cywell-opslens-ocp-network-handoff-api-fallback.json"
+    )
   );
 }
 
@@ -8967,6 +9014,14 @@ function mapOcpNetworkHandoffStatus(
   return "needs-evidence";
 }
 
+function mapOcpNetworkHandoffApiFallbackStatus(
+  artifact: OcpNetworkHandoffApiFallbackArtifact
+): OpsLensOcpNetworkHandoffApiFallbackReadiness {
+  if (artifact.status === "PASS") return "ready";
+  if (artifact.status === "FAIL" || artifact.status === "BLOCKED") return "blocked";
+  return "needs-evidence";
+}
+
 function mapOcpAuthRbacPlanStatus(
   artifact: OcpAuthRbacPlanArtifact
 ): OpsLensOcpAuthRbacPlanReadiness {
@@ -8975,6 +9030,36 @@ function mapOcpAuthRbacPlanStatus(
   }
   if (artifact.status === "BLOCKED") return "blocked";
   return "needs-evidence";
+}
+
+function missingOcpNetworkHandoffApiFallbackSummary(
+  reason: string,
+  status: OpsLensOcpNetworkHandoffApiFallbackReadiness = "needs-evidence"
+): OpsLensOcpNetworkHandoffApiFallbackSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "apiFallbackVerificationOnly",
+    headSha: "unknown",
+    worktreeDirty: "unknown",
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    caseCount: 0,
+    failedCheckCount: 0,
+    cases: [],
+    evidence: [
+      "run npm run verify:ocp:handoff-api-fallback to prove API fallback handoff routing",
+      "dashboard keeps OCP handoff API fallback as needs-evidence until the artifact exists"
+    ],
+    missingEvidence: [reason],
+    risk: [
+      "Without fallback proof, partial OCP handoff artifacts could be misrouted in the dashboard."
+    ],
+    rollbackPath: [
+      "Regenerate OCP handoff API fallback evidence after changing handoff API mapping."
+    ]
+  };
 }
 
 function missingLiveEvidenceHandoffSummary(
@@ -9720,6 +9805,97 @@ function getOcpNetworkHandoffReadiness(): {
         `OCP network handoff could not be parsed from ${evidencePath}`,
         error instanceof Error ? error.message : "unknown evidence parse error",
         "invalid OCP network handoff evidence blocks overclaiming network readiness"
+      ]
+    };
+  }
+}
+
+function getOcpNetworkHandoffApiFallbackReadiness(): {
+  status: OpsLensOcpNetworkHandoffApiFallbackReadiness;
+  evidence: string[];
+  networkHandoffApiFallback: OpsLensOcpNetworkHandoffApiFallbackSummary;
+} {
+  const evidencePath = ocpNetworkHandoffApiFallbackPath();
+
+  if (!existsSync(evidencePath)) {
+    const summary = missingOcpNetworkHandoffApiFallbackSummary(
+      `OCP handoff API fallback evidence is missing at ${evidencePath}`
+    );
+    return {
+      status: "needs-evidence",
+      networkHandoffApiFallback: summary,
+      evidence: summary.evidence
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as OcpNetworkHandoffApiFallbackArtifact;
+    const status = mapOcpNetworkHandoffApiFallbackStatus(artifact);
+    const cases = (artifact.cases ?? []).map((testCase) => ({
+      classification: testCase.classification ?? "unknown",
+      owner: testCase.actual?.owner ?? "missing",
+      ticketId: testCase.actual?.ticketId ?? "missing",
+      firstActionId: testCase.actual?.firstActionId ?? "missing",
+      approvalId: testCase.actual?.approvalId ?? "missing",
+      networkChangeRequiresExplicitApproval:
+        testCase.actual?.networkChangeRequiresExplicitApproval === true
+    }));
+    const failedCheckCount = (artifact.checks ?? []).filter(
+      (check) => check.status === "FAIL"
+    ).length;
+    const headSha = artifact.headSha ?? artifact.ref?.headSha ?? "unknown";
+    const worktreeDirty =
+      artifact.worktreeDirty ?? artifact.ref?.worktreeDirty ?? "unknown";
+    const missingEvidence = [
+      ...(artifact.missingEvidence ?? []),
+      ...(status === "ready" ? [] : [`fallback status=${artifact.status ?? "missing"}`])
+    ];
+    const summary: OpsLensOcpNetworkHandoffApiFallbackSummary = {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode: "apiFallbackVerificationOnly",
+      headSha,
+      worktreeDirty,
+      clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+      registryMutationAttempted: artifact.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        artifact.mutationAllowedByThisVerifier === true,
+      caseCount: cases.length,
+      failedCheckCount,
+      cases,
+      evidence: [
+        `OCP handoff API fallback ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `fallback cases=${cases.map((testCase) => `${testCase.classification}:${testCase.owner}:${testCase.ticketId}`).join(", ") || "missing"}`,
+        `fallback failedChecks=${failedCheckCount} dirty=${String(worktreeDirty)}`,
+        "admin overview reads fallback evidence only; it does not run live checks or mutate cluster/network state"
+      ],
+      missingEvidence,
+      risk: artifact.risk ?? [
+        "Fallback proof must stay current so partial network handoff artifacts do not route auth/RBAC blockers to Network/SRE."
+      ],
+      rollbackPath: artifact.rollbackPath ?? [
+        "Regenerate OCP handoff API fallback evidence after changing handoff API mapping."
+      ]
+    };
+    return {
+      status,
+      networkHandoffApiFallback: summary,
+      evidence: summary.evidence
+    };
+  } catch (error) {
+    const summary = missingOcpNetworkHandoffApiFallbackSummary(
+      error instanceof Error ? error.message : "unknown evidence parse error",
+      "blocked"
+    );
+    return {
+      status: "blocked",
+      networkHandoffApiFallback: summary,
+      evidence: [
+        `OCP handoff API fallback could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid fallback evidence blocks overclaiming dashboard routing safety"
       ]
     };
   }
@@ -10486,6 +10662,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const aiopsIncidentPipelineReadiness = getAiopsIncidentPipelineReadiness();
   const liveHandoffReadiness = getLiveEvidenceHandoffReadiness();
   const ocpNetworkHandoffReadiness = getOcpNetworkHandoffReadiness();
+  const ocpNetworkHandoffApiFallbackReadiness =
+    getOcpNetworkHandoffApiFallbackReadiness();
   const ocpAuthRbacPlanReadiness = getOcpAuthRbacPlanReadiness();
   const installReadinessEvidence = [
     releaseEvidenceRefreshReadiness.evidence[0],
@@ -10495,6 +10673,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     aiopsIncidentPipelineReadiness.evidence[0],
     liveHandoffReadiness.evidence[0],
     ocpNetworkHandoffReadiness.evidence[0],
+    ocpNetworkHandoffApiFallbackReadiness.evidence[0],
     ocpAuthRbacPlanReadiness.evidence[0],
     ocpConnectivityReadiness.evidence[0],
     operatorPackageReadiness.evidence[0],
@@ -10540,6 +10719,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...aiopsIncidentPipelineReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
     ...ocpNetworkHandoffReadiness.evidence.slice(1),
+    ...ocpNetworkHandoffApiFallbackReadiness.evidence.slice(1),
     ...ocpAuthRbacPlanReadiness.evidence.slice(1),
     ...evidenceCheckpointReadiness.evidence.slice(1)
   ].filter((item): item is string => Boolean(item));
@@ -10767,6 +10947,10 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       handoff: liveHandoffReadiness.handoff,
       ocpNetworkHandoff: ocpNetworkHandoffReadiness.status,
       networkHandoff: ocpNetworkHandoffReadiness.networkHandoff,
+      ocpNetworkHandoffApiFallback:
+        ocpNetworkHandoffApiFallbackReadiness.status,
+      networkHandoffApiFallback:
+        ocpNetworkHandoffApiFallbackReadiness.networkHandoffApiFallback,
       ocpAuthRbacPlan: ocpAuthRbacPlanReadiness.status,
       authRbacPlan: ocpAuthRbacPlanReadiness.authRbacPlan,
       certification:
@@ -10784,6 +10968,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 4 Operator runtime boundary is validated by npm run verify:operator:runtime",
         "Live OCP connectivity is classified by npm run verify:ocp:connectivity",
         "Stage 4 OCP network/SRE handoff is generated by npm run evidence:ocp-network-handoff",
+        "Stage 4 OCP handoff API fallback proof is generated by npm run verify:ocp:handoff-api-fallback",
         "Stage 4 OCP auth/RBAC approval packet is generated by npm run evidence:ocp-auth-rbac-plan",
         "Stage 4 mutating install approval plan is generated by npm run verify:install-plan",
         "Stage 4 live evidence handoff is generated by npm run verify:live-handoff",
