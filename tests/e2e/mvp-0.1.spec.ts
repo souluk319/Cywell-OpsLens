@@ -5814,6 +5814,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText(/external-runtime-review|release-publish|install-approval/);
     await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("ticket=network-sre-ocp-api-reachability-ticket");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("ticketFirst=network-sre-confirm-ocp-api-tcp-6443");
+    await expect(
       page.getByTestId("opslens-release-action-queue-owner-packets")
     ).toContainText("cluster-admin.md");
     await expect(
