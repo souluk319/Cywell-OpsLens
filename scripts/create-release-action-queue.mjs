@@ -725,7 +725,7 @@ function liveReaderSmokeDiagnostics(ocpLiveReaderSmoke) {
   ];
 }
 
-function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveReaderSmoke) {
+function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveReaderSmoke, networkHandoff) {
   const gap = lightspeedReadiness?.currentGap ?? {};
   const classification = gap.classification ?? "unknown";
   const readOnlyCommands = [
@@ -779,6 +779,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
       nextCommand: "npm run verify:lightspeed -- --timeout-ms 30000",
       readOnlyCommands,
       blockedBy: lightspeedReadiness?.missingEvidence ?? [],
+      diagnostics: ocpNetworkDiagnostics(networkHandoff),
       acceptance: ["AC-LS-002", "AC-LIVE-HANDOFF-001"]
     };
   }
@@ -795,6 +796,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
       nextCommand: "npm run verify:lightspeed -- --timeout-ms 30000",
       readOnlyCommands,
       blockedBy: lightspeedReadiness?.missingEvidence ?? [],
+      diagnostics: ocpNetworkDiagnostics(networkHandoff),
       acceptance: ["AC-LS-002", "AC-LIVE-HANDOFF-001"]
     };
   }
@@ -808,6 +810,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
     nextCommand: gap.nextCommand ?? "npm run verify:lightspeed -- --timeout-ms 30000",
     readOnlyCommands,
     blockedBy: lightspeedReadiness?.missingEvidence ?? [],
+    diagnostics: liveReaderSmokeDiagnostics(ocpLiveReaderSmoke),
     acceptance: ["AC-LS-001", "AC-LS-002"]
   };
 }
@@ -833,7 +836,7 @@ function checkpointItems(checkpoint, networkHandoff, certificationReadiness, aut
   addIfOpen("ocpConnectivity", ocpConnectivityAction(networkHandoff, authRbacPlan));
   addIfOpen(
     "lightspeedReadiness",
-    lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveReaderSmoke)
+    lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveReaderSmoke, networkHandoff)
   );
   addIfOpen("externalRuntime", {
     id: "release-manager-complete-external-runtime-final-evidence",

@@ -3169,6 +3169,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         expect(lightspeedReadinessAction?.blockedBy?.join(" ")).toMatch(
           /tls|tcp|dns|network|OLSConfig/i
         );
+        expect(lightspeedReadinessAction?.diagnostics?.map((item) => item.id)).toEqual(
+          expect.arrayContaining([
+            "ocp-network-target",
+            "ocp-network-probes",
+            "ocp-network-boundary"
+          ])
+        );
       }
     }
     const ocpNetworkHandoffAction =
