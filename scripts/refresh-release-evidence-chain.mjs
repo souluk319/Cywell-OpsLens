@@ -420,6 +420,9 @@ function actionQueueSummary(headSha) {
       open: packet.open ?? 0,
       blocker: packet.blocker ?? 0,
       high: packet.high ?? 0,
+      firstActionId: sanitize(packet.firstActionId ?? "none"),
+      firstActionPriority: sanitize(packet.firstActionPriority ?? "normal"),
+      firstNextCommand: sanitize(packet.firstNextCommand ?? "none"),
       approvalGatedCommandCount: (packet.approvalGatedCommandIds ?? []).length,
       mutationAllowedByThisVerifier: packet.mutationAllowedByThisVerifier === true
     };

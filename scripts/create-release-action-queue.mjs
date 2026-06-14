@@ -1671,9 +1671,27 @@ function ownerSummary(items) {
   });
 }
 
+const actionPriorityRank = {
+  blocker: 0,
+  high: 1,
+  normal: 2
+};
+
+function firstOwnerAction(entries) {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .sort((a, b) => {
+      const priorityDelta =
+        (actionPriorityRank[a.entry.priority] ?? 99) -
+        (actionPriorityRank[b.entry.priority] ?? 99);
+      return priorityDelta || a.index - b.index;
+    })[0]?.entry;
+}
+
 function buildOwnerPackets(owners, items) {
   return owners.map((owner) => {
     const entries = items.filter((entry) => entry.owner === owner.owner);
+    const firstAction = firstOwnerAction(entries);
     return {
       owner: owner.owner,
       status: owner.blocker > 0 ? "blocker" : owner.open > 0 ? "open" : "clear",
@@ -1683,6 +1701,13 @@ function buildOwnerPackets(owners, items) {
       high: owner.high,
       normal: owner.normal,
       itemIds: entries.map((entry) => entry.id),
+      firstActionId: firstAction?.id ?? "none",
+      firstActionPriority: firstAction?.priority ?? "normal",
+      firstActionSource: firstAction?.source ?? "none",
+      firstActionRequest: firstAction?.request ?? "none",
+      firstNextCommand: firstAction?.nextCommand ?? "none",
+      firstEvidenceNeeded: firstAction?.evidenceNeeded ?? "none",
+      firstBlockedBy: uniqueStrings(firstAction?.blockedBy ?? []).slice(0, 6),
       nextCommands: uniqueStrings(
         entries.flatMap((entry) => [
           entry.nextCommand,
@@ -1768,7 +1793,7 @@ function markdownFor(queue) {
     "## Owner Packets",
     "",
     ...queue.ownerPackets.map((packet) =>
-      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}`
+      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}`
     ),
     "",
     "## Owner Packet Cleanup",
@@ -1856,6 +1881,10 @@ function ownerPacketMarkdown(queue, packet) {
     `- Open: ${packet.open}`,
     `- Blocker: ${packet.blocker}`,
     `- High: ${packet.high}`,
+    `- First action: ${packet.firstActionId} (${packet.firstActionPriority})`,
+    `- First next command: ${packet.firstNextCommand}`,
+    `- First evidence needed: ${packet.firstEvidenceNeeded}`,
+    `- First blocked by: ${packet.firstBlockedBy.join("; ") || "none"}`,
     `- Missing tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
     `- Acceptance: ${packet.acceptance.join(", ") || "none"}`,
     "",

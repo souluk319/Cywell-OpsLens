@@ -1593,6 +1593,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               owner?: string;
               markdownPath?: string;
               exists?: boolean;
+              firstActionId?: string;
+              firstActionPriority?: string;
+              firstNextCommand?: string;
               approvalGatedCommandCount?: number;
             }>;
           };
@@ -1655,6 +1658,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             blocker?: number;
             high?: number;
             itemIds?: string[];
+            firstActionId?: string;
+            firstActionPriority?: string;
+            firstActionSource?: string;
+            firstActionRequest?: string;
+            firstNextCommand?: string;
+            firstEvidenceNeeded?: string;
+            firstBlockedBy?: string[];
             nextCommands?: string[];
             readOnlyCommandIds?: string[];
             approvalGatedCommandIds?: string[];
@@ -2770,6 +2780,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (packet) => packet.exists === true
       )
     ).toBe(true);
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.ownerPackets?.every(
+        (packet) => packet.firstActionId && packet.firstNextCommand
+      )
+    ).toBe(true);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /release evidence refresh/i
     );
@@ -2884,6 +2899,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       );
     if (clusterAdminOwnerPacket) {
       expect(clusterAdminOwnerPacket.markdownPath).toContain("cluster-admin.md");
+    }
+    expect(
+      body.installReadiness?.actionQueue?.ownerPackets?.every(
+        (packet) =>
+          packet.firstActionId &&
+          packet.firstNextCommand &&
+          packet.firstEvidenceNeeded
+      )
+    ).toBe(true);
+    const firstBlockerOwnerPacket =
+      body.installReadiness?.actionQueue?.ownerPackets?.find(
+        (packet) => packet.status === "blocker"
+      );
+    if (firstBlockerOwnerPacket) {
+      expect(firstBlockerOwnerPacket.firstActionPriority).toBe("blocker");
+      expect(firstBlockerOwnerPacket.firstBlockedBy?.length ?? 0).toBeGreaterThan(0);
     }
     const liveReaderRbacOwnerPacket =
       body.installReadiness?.actionQueue?.ownerPackets?.find((packet) =>

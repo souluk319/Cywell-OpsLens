@@ -2002,6 +2002,9 @@ type ReleaseEvidenceRefreshArtifact = {
       open?: number;
       blocker?: number;
       high?: number;
+      firstActionId?: string;
+      firstActionPriority?: string;
+      firstNextCommand?: string;
       approvalGatedCommandCount?: number;
       mutationAllowedByThisVerifier?: boolean;
     }>;
@@ -2086,6 +2089,13 @@ type ReleaseActionQueueArtifact = {
     high?: number;
     normal?: number;
     itemIds?: string[];
+    firstActionId?: string;
+    firstActionPriority?: string;
+    firstActionSource?: string;
+    firstActionRequest?: string;
+    firstNextCommand?: string;
+    firstEvidenceNeeded?: string;
+    firstBlockedBy?: string[];
     nextCommands?: string[];
     setupCommandIds?: string[];
     readOnlyCommandIds?: string[];
@@ -5093,6 +5103,9 @@ function getReleaseEvidenceRefreshReadiness(): {
         open: packet.open ?? 0,
         blocker: packet.blocker ?? 0,
         high: packet.high ?? 0,
+        firstActionId: packet.firstActionId ?? "none",
+        firstActionPriority: packet.firstActionPriority ?? "normal",
+        firstNextCommand: packet.firstNextCommand ?? "none",
         approvalGatedCommandCount: packet.approvalGatedCommandCount ?? 0,
         mutationAllowedByThisVerifier:
           packet.mutationAllowedByThisVerifier === true
@@ -5390,6 +5403,13 @@ function getReleaseActionQueueReadiness(): {
       high: packet.high ?? 0,
       normal: packet.normal ?? 0,
       itemIds: packet.itemIds ?? [],
+      firstActionId: packet.firstActionId ?? "none",
+      firstActionPriority: packet.firstActionPriority ?? "normal",
+      firstActionSource: packet.firstActionSource ?? "none",
+      firstActionRequest: packet.firstActionRequest ?? "none",
+      firstNextCommand: packet.firstNextCommand ?? "none",
+      firstEvidenceNeeded: packet.firstEvidenceNeeded ?? "none",
+      firstBlockedBy: packet.firstBlockedBy ?? [],
       nextCommands: packet.nextCommands ?? [],
       setupCommandIds: packet.setupCommandIds ?? [],
       readOnlyCommandIds: packet.readOnlyCommandIds ?? [],

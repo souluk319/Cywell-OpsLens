@@ -1733,6 +1733,9 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
       open: number;
       blocker: number;
       high: number;
+      firstActionId: string;
+      firstActionPriority: string;
+      firstNextCommand: string;
       approvalGatedCommandCount: number;
       mutationAllowedByThisVerifier: boolean;
     }>;
@@ -1805,6 +1808,13 @@ export interface OpsLensReleaseActionQueueSummary {
     high: number;
     normal: number;
     itemIds: string[];
+    firstActionId: string;
+    firstActionPriority: string;
+    firstActionSource: string;
+    firstActionRequest: string;
+    firstNextCommand: string;
+    firstEvidenceNeeded: string;
+    firstBlockedBy: string[];
     nextCommands: string[];
     setupCommandIds: string[];
     readOnlyCommandIds: string[];

@@ -1696,7 +1696,8 @@ export function OpsLensAdminDashboard() {
                     {packet.owner}:
                     {packet.markdownPath.split(/[\\/]/).pop() ??
                       packet.markdownPath}
-                    :exists={String(packet.exists)}
+                    :exists={String(packet.exists)}:first={packet.firstActionId}
+                    :next={packet.firstNextCommand}
                   </span>
                 ))}
               </div>
@@ -1906,7 +1907,8 @@ export function OpsLensAdminDashboard() {
                     {packet.markdownPath.split(/[\\/]/).pop() ??
                       packet.markdownPath}
                     :open={packet.open}:approval=
-                    {packet.approvalGatedCommandIds.length}
+                    {packet.approvalGatedCommandIds.length}:first=
+                    {packet.firstActionId}:next={packet.firstNextCommand}
                   </span>
                 ))}
               </div>
