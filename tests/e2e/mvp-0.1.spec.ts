@@ -5575,6 +5575,38 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         )
       ).toBe(true);
     }
+    const ocpAuthRbacPlanAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) =>
+          item.id === "cluster-admin-review-ocp-auth-rbac-plan-gap" ||
+          item.id === "cluster-admin-approve-ocp-live-reader-rbac"
+      );
+    if (ocpAuthRbacPlanAction) {
+      expect(ocpAuthRbacPlanAction.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining([
+          "ocp-auth-rbac-status",
+          "ocp-auth-rbac-target",
+          "ocp-auth-rbac-rules",
+          "ocp-auth-rbac-commands",
+          "ocp-auth-rbac-boundary"
+        ])
+      );
+      expect(
+        ocpAuthRbacPlanAction.diagnostics?.find(
+          (item) => item.id === "ocp-auth-rbac-target"
+        )?.value
+      ).toContain("<redacted-ocp-api>");
+      expect(
+        ocpAuthRbacPlanAction.diagnostics?.find(
+          (item) => item.id === "ocp-auth-rbac-rules"
+        )?.value
+      ).toContain("secrets=false");
+      expect(
+        ocpAuthRbacPlanAction.diagnostics?.find(
+          (item) => item.id === "ocp-auth-rbac-boundary"
+        )?.value
+      ).toContain("mutationAllowed=false");
+    }
     const lightspeedReadinessAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) =>
@@ -7445,6 +7477,17 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-network-actions")
     ).toContainText(/ocp-network-probes|network actions clear/);
+    if (
+      body.installReadiness?.actionQueue?.items?.some(
+        (item) =>
+          item.id === "cluster-admin-review-ocp-auth-rbac-plan-gap" ||
+          item.id === "cluster-admin-approve-ocp-live-reader-rbac"
+      )
+    ) {
+      await expect(
+        page.getByTestId("opslens-release-action-queue-network-actions")
+      ).toContainText("ocp-auth-rbac-boundary");
+    }
     await expect(
       page.getByTestId("opslens-release-action-queue-tooling-handoff")
     ).toContainText("opm");

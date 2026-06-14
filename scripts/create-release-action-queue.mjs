@@ -2919,6 +2919,57 @@ function networkItems(networkHandoff) {
   ];
 }
 
+function ocpAuthRbacDiagnostics(authRbacPlan) {
+  const diagnostics = authRbacPlan?.diagnostics ?? {};
+  const target = authRbacPlan?.target ?? {};
+  const clusterRole = authRbacPlan?.rbac?.clusterRole ?? {};
+  const readOnlyCommands = authRbacPlan?.readOnlyCommands ?? [];
+  const approvalCommands = authRbacPlan?.approvalGatedCommands ?? [];
+  return [
+    {
+      id: "ocp-auth-rbac-status",
+      label: "OCP auth/RBAC plan",
+      value:
+        `status=${authRbacPlan?.status ?? "missing"} ` +
+        `actionMode=${authRbacPlan?.actionMode ?? "missing"} ` +
+        `classification=${diagnostics.classification ?? "missing"}`
+    },
+    {
+      id: "ocp-auth-rbac-target",
+      label: "OCP target",
+      value:
+        `target=${target.redactedBaseUrl ?? redactedOcpTarget(target)} ` +
+        `tokenConfigured=${String(target.tokenConfigured === true)} ` +
+        `tlsVerify=${String(target.tlsVerify === true)}`
+    },
+    {
+      id: "ocp-auth-rbac-rules",
+      label: "RBAC rules",
+      value:
+        `rules=${clusterRole.ruleCount ?? 0} ` +
+        `readOnly=${String(clusterRole.readOnlyOnly === true)} ` +
+        `secrets=${String(clusterRole.secretsIncluded === true)} ` +
+        `verbs=${(clusterRole.allowedVerbs ?? []).join(",") || "none"}`
+    },
+    {
+      id: "ocp-auth-rbac-commands",
+      label: "Command boundary",
+      value:
+        `readOnly=${readOnlyCommands.length} ` +
+        `approval=${approvalCommands.map((command) => command.id).join(",") || "none"}`
+    },
+    {
+      id: "ocp-auth-rbac-boundary",
+      label: "Mutation boundary",
+      value:
+        `clusterMutation=${String(authRbacPlan?.clusterMutationAttempted === true)} ` +
+        `registryMutation=${String(authRbacPlan?.registryMutationAttempted === true)} ` +
+        `mutationAllowed=${String(authRbacPlan?.mutationAllowedByThisVerifier === true)} ` +
+        `approvals=${(authRbacPlan?.requiredApprovals ?? []).join(",") || "none"}`
+    }
+  ];
+}
+
 function ocpAuthRbacItems(authRbacPlan) {
   if (!authRbacPlan || ["READY_FOR_LIVE_CHECK", "PASS"].includes(authRbacPlan.status)) {
     return [];
@@ -2941,6 +2992,7 @@ function ocpAuthRbacItems(authRbacPlan) {
         readOnlyCommands: authRbacPlan.readOnlyCommands ?? [],
         approvalGatedCommands: authRbacPlan.approvalGatedCommands ?? [],
         blockedBy: authRbacPlan.missingEvidence ?? [],
+        diagnostics: ocpAuthRbacDiagnostics(authRbacPlan),
         acceptance: ["AC-OCP-001", "AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
       })
     ];
@@ -2959,6 +3011,7 @@ function ocpAuthRbacItems(authRbacPlan) {
       readOnlyCommands: authRbacPlan.readOnlyCommands ?? [],
       approvalGatedCommands: authRbacPlan.approvalGatedCommands ?? [],
       blockedBy: authRbacPlan.missingEvidence ?? [],
+      diagnostics: ocpAuthRbacDiagnostics(authRbacPlan),
       acceptance: ["AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
     })
   ];
