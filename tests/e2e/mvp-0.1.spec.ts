@@ -3641,7 +3641,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         networkDiagnosticAction?.diagnostics?.find(
           (item) => item.id === "ocp-network-target"
         )?.value
-      ).toMatch(/host=.*port=.*tokenConfigured=(true|false)/);
+      ).toMatch(/target=.*<redacted-ocp-api>.*port=.*tokenConfigured=(true|false)/);
       expect(
         networkDiagnosticAction?.diagnostics?.find(
           (item) => item.id === "ocp-network-probes"
