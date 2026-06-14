@@ -293,10 +293,20 @@ function buildChain() {
     npmScript("ocp-network-handoff-post-checkpoint", "approval", "evidence:ocp-network-handoff"),
     npmScript("roadmap-plan", "approval", "verify:roadmap-plan", [], { expectedNonZero: true }),
     npmScript("release-evidence-bundle", "approval", "verify:release-evidence-bundle"),
-    npmScript("release-action-queue", "approval", "evidence:release-action-queue"),
+    npmScript(
+      "release-action-queue",
+      "approval",
+      "evidence:release-action-queue",
+      ["--defer-release-refresh-source"]
+    ),
     npmScript("roadmap-plan-final", "approval", "verify:roadmap-plan", [], { expectedNonZero: true }),
     npmScript("release-evidence-bundle-final", "approval", "verify:release-evidence-bundle"),
-    npmScript("release-action-queue-final", "approval", "evidence:release-action-queue")
+    npmScript(
+      "release-action-queue-final",
+      "approval",
+      "evidence:release-action-queue",
+      ["--defer-release-refresh-source"]
+    )
   );
 
   return commands;

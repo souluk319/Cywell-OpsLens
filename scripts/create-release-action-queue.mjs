@@ -58,6 +58,7 @@ const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
   ownerPacketsDir: parsed.get("owner-packets-dir") ?? defaults.ownerPacketsDir,
+  deferReleaseRefreshSource: process.argv.slice(2).includes("--defer-release-refresh-source"),
   releaseRefreshEvidence:
     parsed.get("release-refresh-evidence") ?? defaults.releaseRefreshEvidence,
   releaseBundleEvidence:
@@ -244,6 +245,24 @@ function sourceSummary(id, label, path, artifact, currentHeadSha, required = fal
     mutationViolation,
     headSha: artifactRef(artifact).headSha ?? "missing",
     worktreeDirty: artifactRef(artifact).worktreeDirty ?? "unknown"
+  };
+}
+
+function deferredSourceSummary(id, label, path, reason) {
+  pass(`${label} source`, `${label} deferred: ${reason}`);
+  return {
+    id,
+    label,
+    path: resolve(path),
+    artifactType: "deferred",
+    status: "DEFERRED",
+    fresh: true,
+    required: false,
+    mutationViolation: false,
+    headSha: "deferred",
+    worktreeDirty: false,
+    deferred: true,
+    reason: sanitize(reason)
   };
 }
 
@@ -2534,22 +2553,29 @@ function ragProductionReadinessDiagnostics(ragProductionReadiness) {
   ];
 }
 
+function prefixedEvidence(source, values) {
+  return normalizedEvidence(values).map((entry) => `${source}: ${entry}`);
+}
+
 function runtimeLiveItems(
-  releaseRefresh,
   runtimeReadiness,
   runtimeRagContract,
   runtimeRagFixture,
   ragProductionReadiness
 ) {
-  const missingEvidence = normalizedEvidence(releaseRefresh?.missingEvidence ?? []);
-  const runtimeProbeGaps = missingEvidence.filter((entry) =>
-    /runtimeReadiness:.*(?:qdrant|vllm).*live probe/i.test(entry)
-  );
-  const runtimeRagGaps = missingEvidence.filter((entry) =>
-    /runtimeRag|runtimeRagFixture/i.test(entry)
-  );
-  const ragQueueGaps = missingEvidence.filter((entry) =>
-    /ragApprovalQueue:.*(?:production|vector write audit|ingestion worker)|ragProductionReadiness:/i.test(entry)
+  const runtimeProbeGaps = prefixedEvidence(
+    "runtimeReadiness",
+    runtimeReadiness?.missingEvidence ?? []
+  ).filter((entry) => /(?:qdrant|vllm).*live probe/i.test(entry));
+  const runtimeRagGaps = [
+    ...prefixedEvidence("runtimeRag", runtimeRagContract?.missingEvidence ?? []),
+    ...prefixedEvidence("runtimeRagFixture", runtimeRagFixture?.missingEvidence ?? [])
+  ];
+  const ragQueueGaps = prefixedEvidence(
+    "ragProductionReadiness",
+    ragProductionReadiness?.missingEvidence ?? []
+  ).filter((entry) =>
+    /production|vector write audit|ingestion worker|source-ref|rollback export/i.test(entry)
   );
   const items = [];
 
@@ -3037,7 +3063,6 @@ function buildItems(artifacts, currentHeadSha) {
       ...bundleDecisionItems(artifacts.releaseBundle),
       ...catalogToolchainItems(artifacts.releaseBundle),
       ...runtimeLiveItems(
-        artifacts.releaseRefresh,
         artifacts.runtimeReadiness,
         artifacts.runtimeRagContract,
         artifacts.runtimeRagFixture,
@@ -3695,7 +3720,9 @@ async function main() {
   else pass("current worktree", `dirty=false head=${headSha}`);
 
   const artifacts = {
-    releaseRefresh: loadJson(options.releaseRefreshEvidence, "release evidence refresh", false),
+    releaseRefresh: options.deferReleaseRefreshSource
+      ? undefined
+      : loadJson(options.releaseRefreshEvidence, "release evidence refresh", false),
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
     envContract: loadJson(options.envContract, "environment isolation contract", false),
     aiopsIncidentPipeline: loadJson(options.aiopsIncidentPipeline, "AI Ops incident pipeline", false),
@@ -3716,7 +3743,14 @@ async function main() {
   };
 
   const sourceArtifacts = [
-    sourceSummary("releaseRefresh", "release evidence refresh", options.releaseRefreshEvidence, artifacts.releaseRefresh, headSha),
+    options.deferReleaseRefreshSource
+      ? deferredSourceSummary(
+          "releaseRefresh",
+          "release evidence refresh",
+          options.releaseRefreshEvidence,
+          "verify:release-refresh writes this artifact after the final action queue convergence pass"
+        )
+      : sourceSummary("releaseRefresh", "release evidence refresh", options.releaseRefreshEvidence, artifacts.releaseRefresh, headSha),
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
     sourceSummary("envContract", "environment isolation contract", options.envContract, artifacts.envContract, headSha, true),
     sourceSummary("aiopsIncidentPipeline", "AI Ops incident pipeline", options.aiopsIncidentPipeline, artifacts.aiopsIncidentPipeline, headSha),
