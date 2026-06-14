@@ -3063,6 +3063,28 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         ?.runnerEvidence?.nextCommands?.join(" ")
     ).toContain("evidence:certification:ci-runner-draft");
     expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff?.runnerDraft
+    ).toMatchObject({
+      path: "docs/release/evidence/certification/approved-ci-runner.draft.json",
+      finalEvidenceFile:
+        "docs/release/evidence/certification/approved-ci-runner.json",
+      actionMode: "draftOnly",
+      draft: true,
+      sameHead: true,
+      mutation: false,
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff?.runnerDraft
+        ?.evidenceState
+    ).toMatch(/DRAFT_NEEDS_EVIDENCE|DRAFT_REVIEW_READY/);
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff?.runnerDraft
+        ?.reviewerRequests?.length ?? 0
+    ).toBeGreaterThanOrEqual(1);
+    expect(
       body.installReadiness?.certificationPlan?.toolingHandoff
         ?.executionLanes?.map((lane) => lane.id)
     ).toEqual(
@@ -5136,6 +5158,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-certification-ci-runner")
     ).toContainText("operator-sdk:");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-draft")
+    ).toContainText("approved-ci-runner.draft.json");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-draft")
+    ).toContainText("sameHead=true");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-draft")
+    ).toContainText("mutation=false");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-draft")
+    ).toContainText(/DRAFT_NEEDS_EVIDENCE|DRAFT_REVIEW_READY/);
     await expect(
       page.getByTestId("opslens-certification-execution-lanes")
     ).toContainText("local-workstation");

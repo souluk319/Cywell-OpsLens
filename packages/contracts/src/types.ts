@@ -1824,6 +1824,43 @@ export interface OpsLensCertificationReadinessSummary {
       risk: string[];
       rollbackPath: string[];
     };
+    runnerDraft: {
+      path: string;
+      finalEvidenceFile: string;
+      status: string;
+      evidenceState: string;
+      actionMode: string;
+      draft: boolean;
+      sameHead: boolean;
+      mutation: boolean;
+      registryMutationAttempted: boolean;
+      clusterMutationAttempted: boolean;
+      mutationAllowedByThisVerifier: boolean;
+      missingEvidence: string[];
+      reviewerRequests: Array<{
+        owner: string;
+        request: string;
+        evidenceNeeded: string;
+        nextCommand: string;
+      }>;
+      sourceEvidence: {
+        certificationReadiness: {
+          path: string;
+          status: string;
+          headSha: string;
+          worktreeDirty: boolean | string;
+        };
+        catalogToolchain: {
+          path: string;
+          status: string;
+          headSha: string;
+          worktreeDirty: boolean | string;
+        };
+      };
+      nextCommands: string[];
+      risk: string[];
+      rollbackPath: string[];
+    };
     freshnessPolicy: {
       requiredHead: string;
       worktreeRequirement: string;

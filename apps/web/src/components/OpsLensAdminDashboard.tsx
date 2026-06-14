@@ -3114,6 +3114,39 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-certification-ci-runner-draft"
+              >
+                <span>
+                  draft={certificationPlan.toolingHandoff.runnerDraft.evidenceState}
+                </span>
+                <span>
+                  path={certificationPlan.toolingHandoff.runnerDraft.path}
+                </span>
+                <span>
+                  sameHead=
+                  {String(certificationPlan.toolingHandoff.runnerDraft.sameHead)}
+                </span>
+                <span>
+                  mutation=
+                  {String(certificationPlan.toolingHandoff.runnerDraft.mutation)}
+                </span>
+                <span>
+                  final=
+                  {
+                    certificationPlan.toolingHandoff.runnerDraft
+                      .finalEvidenceFile
+                  }
+                </span>
+                <span>
+                  missing=
+                  {
+                    certificationPlan.toolingHandoff.runnerDraft
+                      .missingEvidence.length
+                  }
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-certification-execution-lanes"
               >
                 {certificationPlan.toolingHandoff.executionLanes.map((lane) => (

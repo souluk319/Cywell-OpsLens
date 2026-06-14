@@ -5966,6 +5966,164 @@ function mapCertificationRunnerEvidence(
   };
 }
 
+function missingCertificationRunnerDraft(
+  reason: string
+): OpsLensCertificationReadinessSummary["toolingHandoff"]["runnerDraft"] {
+  return {
+    path: "docs/release/evidence/certification/approved-ci-runner.draft.json",
+    finalEvidenceFile: "docs/release/evidence/certification/approved-ci-runner.json",
+    status: "missing",
+    evidenceState: "missing",
+    actionMode: "draftOnly",
+    draft: true,
+    sameHead: false,
+    mutation: false,
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    missingEvidence: [reason],
+    reviewerRequests: [],
+    sourceEvidence: {
+      certificationReadiness: {
+        path: "test-results/cywell-opslens-certification-readiness.json",
+        status: "missing",
+        headSha: "missing",
+        worktreeDirty: "unknown"
+      },
+      catalogToolchain: {
+        path: "test-results/cywell-opslens-catalog-toolchain-plan.json",
+        status: "missing",
+        headSha: "missing",
+        worktreeDirty: "unknown"
+      }
+    },
+    nextCommands: ["npm run evidence:certification:ci-runner-draft -- --force"],
+    risk: [
+      "CI runner draft intake is missing; release-manager cannot review approved CI runner evidence gaps from the dashboard."
+    ],
+    rollbackPath: [
+      "Regenerate the draft intake from a clean current head or discard it before final CI runner approval."
+    ]
+  };
+}
+
+function mapCertificationRunnerDraft(
+  headSha: string
+): OpsLensCertificationReadinessSummary["toolingHandoff"]["runnerDraft"] {
+  const draftPath =
+    "docs/release/evidence/certification/approved-ci-runner.draft.json";
+  const absoluteDraftPath = join(repoRoot, draftPath);
+  if (!existsSync(absoluteDraftPath)) {
+    return missingCertificationRunnerDraft(
+      `approved CI runner draft evidence is missing at ${draftPath}`
+    );
+  }
+
+  try {
+    const artifact = JSON.parse(readFileSync(absoluteDraftPath, "utf8")) as {
+      evidenceState?: string;
+      status?: string;
+      actionMode?: string;
+      draft?: boolean;
+      finalEvidenceFile?: string;
+      registryMutationAttempted?: boolean;
+      clusterMutationAttempted?: boolean;
+      mutationAllowedByThisVerifier?: boolean;
+      ref?: {
+        headSha?: string;
+        worktreeDirty?: boolean;
+      };
+      reviewerRequests?: Array<{
+        owner?: string;
+        request?: string;
+        evidenceNeeded?: string;
+        nextCommand?: string;
+      }>;
+      sourceEvidence?: {
+        certificationReadiness?: {
+          path?: string;
+          status?: string;
+          headSha?: string;
+          worktreeDirty?: boolean | string;
+        };
+        catalogToolchain?: {
+          path?: string;
+          status?: string;
+          headSha?: string;
+          worktreeDirty?: boolean | string;
+        };
+      };
+      missingEvidence?: string[];
+      nextCommands?: string[];
+      risk?: string[];
+      rollbackPath?: string[];
+    };
+    const mutation =
+      artifact.registryMutationAttempted === true ||
+      artifact.clusterMutationAttempted === true ||
+      artifact.mutationAllowedByThisVerifier === true;
+    const sameHead =
+      artifact.ref?.headSha === headSha && artifact.ref?.worktreeDirty === false;
+    return {
+      path: draftPath,
+      finalEvidenceFile:
+        artifact.finalEvidenceFile ??
+        "docs/release/evidence/certification/approved-ci-runner.json",
+      status: artifact.status ?? artifact.evidenceState ?? "unknown",
+      evidenceState: artifact.evidenceState ?? artifact.status ?? "unknown",
+      actionMode: artifact.actionMode ?? "draftOnly",
+      draft: artifact.draft !== false,
+      sameHead,
+      mutation,
+      registryMutationAttempted: artifact.registryMutationAttempted === true,
+      clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        artifact.mutationAllowedByThisVerifier === true,
+      missingEvidence: artifact.missingEvidence ?? [],
+      reviewerRequests: (artifact.reviewerRequests ?? []).map((request) => ({
+        owner: request.owner ?? "release-manager",
+        request: request.request ?? "review approved CI runner draft evidence",
+        evidenceNeeded: request.evidenceNeeded ?? "missing evidence",
+        nextCommand:
+          request.nextCommand ??
+          "npm run evidence:certification:ci-runner-draft -- --force"
+      })),
+      sourceEvidence: {
+        certificationReadiness: {
+          path:
+            artifact.sourceEvidence?.certificationReadiness?.path ??
+            "test-results/cywell-opslens-certification-readiness.json",
+          status:
+            artifact.sourceEvidence?.certificationReadiness?.status ?? "missing",
+          headSha:
+            artifact.sourceEvidence?.certificationReadiness?.headSha ?? "missing",
+          worktreeDirty:
+            artifact.sourceEvidence?.certificationReadiness?.worktreeDirty ??
+            "unknown"
+        },
+        catalogToolchain: {
+          path:
+            artifact.sourceEvidence?.catalogToolchain?.path ??
+            "test-results/cywell-opslens-catalog-toolchain-plan.json",
+          status: artifact.sourceEvidence?.catalogToolchain?.status ?? "missing",
+          headSha:
+            artifact.sourceEvidence?.catalogToolchain?.headSha ?? "missing",
+          worktreeDirty:
+            artifact.sourceEvidence?.catalogToolchain?.worktreeDirty ??
+            "unknown"
+        }
+      },
+      nextCommands: artifact.nextCommands ?? [],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? []
+    };
+  } catch (error) {
+    return missingCertificationRunnerDraft(
+      error instanceof Error ? error.message : "unknown runner draft parse error"
+    );
+  }
+}
+
 function missingCertificationToolingHandoff(
   reason: string
 ): OpsLensCertificationReadinessSummary["toolingHandoff"] {
@@ -5976,6 +6134,7 @@ function missingCertificationToolingHandoff(
     requiredTools: [],
     missingRequiredTools: [],
     runnerEvidence: missingCertificationRunnerEvidence(reason),
+    runnerDraft: missingCertificationRunnerDraft(reason),
     freshnessPolicy: {
       requiredHead: "missing",
       worktreeRequirement: "missing certification readiness evidence",
@@ -6006,7 +6165,8 @@ function missingCertificationToolingHandoff(
 
 function mapCertificationToolingHandoff(
   artifact: CertificationReadinessEvidenceArtifact["toolingHandoff"] | undefined,
-  cli: OpsLensCertificationReadinessSummary["cli"]
+  cli: OpsLensCertificationReadinessSummary["cli"],
+  headSha: string
 ): OpsLensCertificationReadinessSummary["toolingHandoff"] {
   if (!artifact) {
     const missingRequiredTools = cli
@@ -6023,6 +6183,7 @@ function mapCertificationToolingHandoff(
       runnerEvidence: missingCertificationRunnerEvidence(
         "certification readiness evidence does not include approved CI runner evidence"
       ),
+      runnerDraft: mapCertificationRunnerDraft(headSha),
       freshnessPolicy: {
         requiredHead: "current Git HEAD",
         worktreeRequirement:
@@ -6067,6 +6228,7 @@ function mapCertificationToolingHandoff(
     })),
     missingRequiredTools: artifact.missingRequiredTools ?? [],
     runnerEvidence: mapCertificationRunnerEvidence(artifact.runnerEvidence),
+    runnerDraft: mapCertificationRunnerDraft(headSha),
     freshnessPolicy: {
       requiredHead:
         artifact.freshnessPolicy?.requiredHead ?? "current Git HEAD",
@@ -6300,7 +6462,8 @@ function getCertificationReadiness(): {
     }));
     const toolingHandoff = mapCertificationToolingHandoff(
       artifact.toolingHandoff,
-      cli
+      cli,
+      artifact.ref?.headSha ?? "unknown"
     );
     const gateCounts = {
       internalCatalog: countCertificationGateStatuses(
@@ -6359,6 +6522,7 @@ function getCertificationReadiness(): {
           : "all reported external submission CLIs are available",
         `certification tooling handoff ${toolingHandoff.actionMode} status=${toolingHandoff.status} missingRequiredTools=${toolingHandoff.missingRequiredTools.join(", ") || "none"} next=${toolingHandoff.nextCommands[0] ?? "unknown"}`,
         `certification tooling satisfiedBy=${toolingHandoff.toolingSatisfiedBy} ciRunner=${toolingHandoff.runnerEvidence.status} sameHead=${String(toolingHandoff.runnerEvidence.sameHead)} mutation=${String(toolingHandoff.runnerEvidence.mutation)} path=${toolingHandoff.runnerEvidence.path}`,
+        `certification CI runner draft ${toolingHandoff.runnerDraft.evidenceState} sameHead=${String(toolingHandoff.runnerDraft.sameHead)} missing=${toolingHandoff.runnerDraft.missingEvidence.length}`,
         toolingHandoff.executionLanes.length
           ? `certification tooling lanes=${toolingHandoff.executionLanes.map((lane) => `${lane.id}:${lane.status}`).join(", ")}`
           : "certification tooling execution lanes are not listed",
