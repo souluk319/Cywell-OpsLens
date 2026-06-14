@@ -642,7 +642,7 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
       request:
         "Fix OCP API TLS trust, proxy TLS interception, or OCP_TLS_VERIFY settings after DNS/TCP evidence has passed.",
       evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
-      nextCommand: "npm run verify:ocp:connectivity",
+      nextCommand: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
       diagnostics: ocpNetworkDiagnostics(networkHandoff),
       acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
     };
@@ -653,7 +653,7 @@ function ocpConnectivityAction(networkHandoff, authRbacPlan) {
     priority: "blocker",
     request: "Restore TCP reachability from the verifier workstation or approved bastion to the company OCP API.",
     evidenceNeeded: "OCP connectivity diagnostic classification becomes api-ready.",
-    nextCommand: "npm run verify:ocp:connectivity",
+    nextCommand: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
     diagnostics: ocpNetworkDiagnostics(networkHandoff),
     acceptance: ["AC-OCP-001", "AC-LIVE-HANDOFF-001"]
   };

@@ -2916,6 +2916,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(firstBlockerOwnerPacket.firstActionPriority).toBe("blocker");
       expect(firstBlockerOwnerPacket.firstBlockedBy?.length ?? 0).toBeGreaterThan(0);
     }
+    const networkOwnerPacket =
+      body.installReadiness?.actionQueue?.ownerPackets?.find(
+        (packet) => packet.owner === "network-sre"
+      );
+    if (networkOwnerPacket) {
+      expect(networkOwnerPacket.firstNextCommand).toContain("--timeout-ms 30000");
+    }
     const liveReaderRbacOwnerPacket =
       body.installReadiness?.actionQueue?.ownerPackets?.find((packet) =>
         packet.approvalGatedCommandIds?.includes("apply-live-evidence-reader-rbac")

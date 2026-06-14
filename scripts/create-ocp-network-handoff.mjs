@@ -291,7 +291,7 @@ function markdownFor(packet) {
     "## Next Evidence Refresh",
     "",
     "```powershell",
-    "npm run verify:ocp:connectivity",
+    "npm run verify:ocp:connectivity -- --timeout-ms 30000",
     "npm run verify:operator:dry-run",
     "npm run verify:lightspeed -- --timeout-ms 30000",
     "npm run verify:live-handoff",
