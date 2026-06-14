@@ -2886,6 +2886,21 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-external-runtime-first-actions"
+              >
+                {externalRuntimeReview.firstReviewerActions.length ? (
+                  externalRuntimeReview.firstReviewerActions.map((action) => (
+                    <span key={`${action.imageName}-${action.role}`}>
+                      {action.imageName}:{action.role}:{action.nextCommand}:
+                      finalEvidence={String(action.finalEvidenceExists)}
+                    </span>
+                  ))
+                ) : (
+                  <span>first reviewer actions clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-external-runtime-reviewer-actions"
               >
                 {externalRuntimeReview.images.flatMap((image) =>

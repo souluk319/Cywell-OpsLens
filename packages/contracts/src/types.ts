@@ -2095,6 +2095,16 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
   mutationAllowedByThisVerifier: boolean;
   requiredApprovals: string[];
   markdownPath: string;
+  firstReviewerActions: Array<{
+    imageName: string;
+    role: string;
+    request: string;
+    evidenceNeeded: string;
+    nextCommand: string;
+    sourceDigestInspectionStatus: string;
+    candidateStatus: string;
+    finalEvidenceExists: boolean;
+  }>;
   images: Array<{
     name: string;
     image: string;

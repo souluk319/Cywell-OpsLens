@@ -3615,6 +3615,7 @@ function missingExternalRuntimeReviewPacketSummary(
       "product-owner"
     ],
     markdownPath: "missing",
+    firstReviewerActions: [],
     images: [],
     readOnlyCommands: [],
     approvalGatedCommands: [],
@@ -3711,6 +3712,22 @@ function getExternalRuntimeReviewPacketReadiness(): {
       })),
       missingEvidenceCount: image.missingEvidence?.length ?? 0
     }));
+    const firstReviewerActions = images.flatMap((image) => {
+      const request = image.reviewerRequests[0];
+      if (!request) return [];
+      return [
+        {
+          imageName: image.name,
+          role: request.role,
+          request: request.request,
+          evidenceNeeded: request.evidenceNeeded,
+          nextCommand: request.nextCommand,
+          sourceDigestInspectionStatus: image.sourceDigestInspectionStatus,
+          candidateStatus: image.candidateMatrix.status,
+          finalEvidenceExists: image.finalEvidenceExists
+        }
+      ];
+    });
     const readOnlyCommands = (artifact.readOnlyCommands ?? []).map((command) => ({
       id: command.id ?? "unknown",
       phase: command.phase ?? "unknown",
@@ -3742,6 +3759,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
           artifact.mutationAllowedByThisVerifier === true,
         requiredApprovals: artifact.requiredApprovals ?? [],
         markdownPath: artifact.markdownOut ?? "missing",
+        firstReviewerActions,
         images,
         readOnlyCommands,
         approvalGatedCommands,
@@ -3756,6 +3774,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
         imageSummary
           ? `external runtime review images=${imageSummary}`
           : "external runtime review images are not listed",
+        `external runtime first reviewer actions=${firstReviewerActions.map((action) => `${action.imageName}:${action.role}:${action.nextCommand}`).join(", ") || "missing"}`,
         `external runtime reviewer missingEvidence=${(artifact.missingEvidence ?? []).length}`,
         "admin overview reads external runtime review packet only; it does not promote drafts, mirror, sign, push, or patch resources"
       ]

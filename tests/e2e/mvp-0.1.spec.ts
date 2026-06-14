@@ -1494,6 +1494,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           mutationAllowedByThisVerifier?: boolean;
           requiredApprovals?: string[];
           markdownPath?: string;
+          firstReviewerActions?: Array<{
+            imageName?: string;
+            role?: string;
+            request?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            sourceDigestInspectionStatus?: string;
+            candidateStatus?: string;
+            finalEvidenceExists?: boolean;
+          }>;
           images?: Array<{
             name?: string;
             sourceDigestInspectionStatus?: string;
@@ -2672,6 +2682,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (image) => image.name
       )
     ).toEqual(expect.arrayContaining(["vllm", "qdrant"]));
+    expect(
+      body.installReadiness?.externalRuntimeReview?.firstReviewerActions?.map(
+        (action) => action.imageName
+      )
+    ).toEqual(expect.arrayContaining(["vllm", "qdrant"]));
+    expect(
+      body.installReadiness?.externalRuntimeReview?.firstReviewerActions?.every(
+        (action) =>
+          action.role &&
+          action.nextCommand?.includes("evidence:external-runtime") &&
+          action.finalEvidenceExists === false
+      )
+    ).toBe(true);
     expect(
       body.installReadiness?.externalRuntimeReview?.images?.map(
         (image) => `${image.name}:${image.sourceDigestInspectionStatus}`
@@ -4227,6 +4250,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-external-runtime-review-packet")
     ).toContainText("vllm");
+    await expect(
+      page.getByTestId("opslens-external-runtime-first-actions")
+    ).toContainText("vllm:");
+    await expect(
+      page.getByTestId("opslens-external-runtime-first-actions")
+    ).toContainText("evidence:external-runtime");
+    await expect(
+      page.getByTestId("opslens-external-runtime-first-actions")
+    ).toContainText("finalEvidence=false");
     await expect(
       page.getByTestId("opslens-external-runtime-candidates")
     ).toContainText(/candidate=/);
