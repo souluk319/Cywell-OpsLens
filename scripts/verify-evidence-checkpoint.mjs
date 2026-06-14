@@ -21,6 +21,8 @@ const evidenceDefaults = {
   ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
   ragProductionReadiness: "test-results/cywell-opslens-rag-production-readiness.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
+  lightspeedExtensionPoint:
+    "test-results/cywell-opslens-lightspeed-extension-point.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
   lightspeedIntegrationHandoff:
@@ -1157,6 +1159,13 @@ async function main() {
     label: "RAG production readiness",
     artifact: artifacts.ragProductionReadiness,
     desiredStatuses: ["APPROVAL_REQUIRED"],
+    currentHeadSha: headSha
+  });
+  laneResult({
+    id: "lightspeedExtensionPoint",
+    label: "Lightspeed extension point decision",
+    artifact: artifacts.lightspeedExtensionPoint,
+    desiredStatuses: ["PASS"],
     currentHeadSha: headSha
   });
   laneResult({

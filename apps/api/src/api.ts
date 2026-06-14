@@ -44,6 +44,8 @@ import type {
   OpsLensImageBuildReadiness,
   OpsLensInstallApprovalPlanSummary,
   OpsLensInstallPlanReadiness,
+  OpsLensLightspeedExtensionPointReadiness,
+  OpsLensLightspeedExtensionPointSummary,
   OpsLensLightspeedRegistrationApprovalPlanSummary,
   OpsLensLightspeedIntegrationHandoffSummary,
   OpsLensLiveEvidenceHandoffReadiness,
@@ -407,6 +409,40 @@ type LightspeedTrojanHorseEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type LightspeedExtensionPointEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  actionMode?: "readOnlyEvidenceOnly";
+  generatedAt?: string;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  vectorWriteAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  extensionPoint?: {
+    productContract?: string;
+    lightspeedFacingEndpoint?: string;
+    localSmokeEndpoint?: string;
+    restApiRole?: string;
+    undocumentedWebhookSupported?: boolean;
+    legacyConfigMapRegistrationSupported?: boolean;
+    technologyPreview?: boolean;
+  };
+  olsconfig?: OpsLensLightspeedExtensionPointSummary["olsconfig"];
+  routes?: OpsLensLightspeedExtensionPointSummary["routes"];
+  requirements?: OpsLensLightspeedExtensionPointSummary["requirements"];
+  mutationBoundary?: OpsLensLightspeedExtensionPointSummary["mutationBoundary"];
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+  evidence?: string[];
+};
+
 type LightspeedIntegrationHandoffEvidenceArtifact = {
   artifactType?: string;
   status?: string;
@@ -445,6 +481,13 @@ function lightspeedTrojanHorseEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_TROJAN_HORSE_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-lightspeed-trojan-horse.json")
+  );
+}
+
+function lightspeedExtensionPointEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_LIGHTSPEED_EXTENSION_POINT_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-lightspeed-extension-point.json")
   );
 }
 
@@ -651,6 +694,189 @@ function getLightspeedTrojanHorseProof(): OpsLensAdminOverviewResponse["lightspe
       ],
       missingEvidence: [
         "regenerate Trojan Horse evidence with npm run verify:lightspeed:trojan-horse"
+      ]
+    };
+  }
+}
+
+function mapLightspeedExtensionPointStatus(
+  artifactStatus?: string,
+  dirty = false
+): OpsLensLightspeedExtensionPointReadiness {
+  if (artifactStatus === "PASS" && !dirty) return "ready";
+  if (artifactStatus === "FAIL" || artifactStatus === "FAILED" || artifactStatus === "invalid") {
+    return "failed";
+  }
+  return "needs-evidence";
+}
+
+function missingLightspeedExtensionPointSummary(
+  reason: string,
+  artifactStatus = "missing"
+): OpsLensLightspeedExtensionPointSummary {
+  return {
+    status: mapLightspeedExtensionPointStatus(artifactStatus),
+    artifactStatus,
+    actionMode: "readOnlyEvidenceOnly",
+    productContract: "OLSConfig.spec.mcpServers custom MCP server",
+    lightspeedFacingEndpoint: "/mcp",
+    localSmokeEndpoint: "/api/opslens/mcp",
+    restApiRole: "local-smoke-demo-and-product-api-only",
+    undocumentedWebhookSupported: false,
+    legacyConfigMapRegistrationSupported: false,
+    technologyPreview: true,
+    headSha: "missing",
+    worktreeDirty: false,
+    olsconfig: {
+      path: "deploy/lightspeed/olsconfig-cywell-opslens-mcp.yaml",
+      apiVersion: "missing",
+      kind: "missing",
+      namespace: "missing",
+      name: "missing",
+      featureGates: [],
+      server: {
+        name: "missing",
+        url: "missing",
+        timeout: "missing",
+        userBearerForwarding: false,
+        secretHeader: false
+      }
+    },
+    routes: [
+      {
+        path: "/mcp",
+        method: "POST",
+        role: "lightspeed-facing",
+        handler: "handleOpsLensMcpRequest"
+      },
+      {
+        path: "/api/opslens/mcp",
+        method: "POST",
+        role: "local-smoke-demo",
+        handler: "handleOpsLensMcpRequest"
+      }
+    ],
+    requirements: [],
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      mutationAllowedByThisVerifier: false
+    },
+    missingEvidence: [reason],
+    risk: [
+      "Without extension point evidence, Stage 1 could drift back to undocumented webhook or legacy ConfigMap assumptions."
+    ],
+    rollbackPath: [
+      "Regenerate extension point evidence with npm run verify:lightspeed-extension."
+    ],
+    evidence: [
+      "Lightspeed extension point evidence is not available yet.",
+      "Dashboard keeps Stage 1 extension decision as needs-evidence until verifier output exists."
+    ]
+  };
+}
+
+function getLightspeedExtensionPointReadiness(): {
+  status: OpsLensLightspeedExtensionPointReadiness;
+  extensionPoint: OpsLensLightspeedExtensionPointSummary;
+  evidence: string[];
+} {
+  const evidencePath = lightspeedExtensionPointEvidencePath();
+  if (!existsSync(evidencePath)) {
+    const extensionPoint = missingLightspeedExtensionPointSummary(
+      `Lightspeed extension point evidence is missing at ${evidencePath}`
+    );
+    return {
+      status: extensionPoint.status,
+      extensionPoint,
+      evidence: [
+        `Lightspeed extension point evidence missing at ${evidencePath}`,
+        "run npm run verify:lightspeed-extension"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as LightspeedExtensionPointEvidenceArtifact;
+    const status = mapLightspeedExtensionPointStatus(
+      artifact.status,
+      artifact.ref?.worktreeDirty === true
+    );
+    const extensionPoint: OpsLensLightspeedExtensionPointSummary = {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode: "readOnlyEvidenceOnly",
+      productContract:
+        artifact.extensionPoint?.productContract ??
+        "OLSConfig.spec.mcpServers custom MCP server",
+      lightspeedFacingEndpoint:
+        artifact.extensionPoint?.lightspeedFacingEndpoint ?? "/mcp",
+      localSmokeEndpoint:
+        artifact.extensionPoint?.localSmokeEndpoint ?? "/api/opslens/mcp",
+      restApiRole:
+        artifact.extensionPoint?.restApiRole ??
+        "local-smoke-demo-and-product-api-only",
+      undocumentedWebhookSupported:
+        artifact.extensionPoint?.undocumentedWebhookSupported === true,
+      legacyConfigMapRegistrationSupported:
+        artifact.extensionPoint?.legacyConfigMapRegistrationSupported === true,
+      technologyPreview: artifact.extensionPoint?.technologyPreview !== false,
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      olsconfig: artifact.olsconfig ?? missingLightspeedExtensionPointSummary(
+        "OLSConfig summary is missing"
+      ).olsconfig,
+      routes: artifact.routes ?? missingLightspeedExtensionPointSummary(
+        "route summary is missing"
+      ).routes,
+      requirements: artifact.requirements ?? [],
+      mutationBoundary: {
+        clusterMutationAttempted:
+          artifact.mutationBoundary?.clusterMutationAttempted === true ||
+          artifact.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          artifact.mutationBoundary?.registryMutationAttempted === true ||
+          artifact.registryMutationAttempted === true,
+        vectorWriteAttempted:
+          artifact.mutationBoundary?.vectorWriteAttempted === true ||
+          artifact.vectorWriteAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationBoundary?.mutationAllowedByThisVerifier === true ||
+          artifact.mutationAllowedByThisVerifier === true
+      },
+      missingEvidence: artifact.missingEvidence ?? [],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? [],
+      evidence: artifact.evidence ?? []
+    };
+
+    return {
+      status,
+      extensionPoint,
+      evidence: [
+        `Lightspeed extension point evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `extension productContract=${extensionPoint.productContract}`,
+        `lightspeed endpoint=${extensionPoint.lightspeedFacingEndpoint} smoke=${extensionPoint.localSmokeEndpoint}`,
+        `unsupported webhook=${String(extensionPoint.undocumentedWebhookSupported)} legacyConfigMap=${String(extensionPoint.legacyConfigMapRegistrationSupported)}`,
+        `extension verifier generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"}`,
+        "admin overview reads extension point evidence only; it does not patch OLSConfig, call Lightspeed, or mutate clusters"
+      ]
+    };
+  } catch (error) {
+    const extensionPoint = missingLightspeedExtensionPointSummary(
+      error instanceof Error ? error.message : "unknown evidence parse error",
+      "invalid"
+    );
+    return {
+      status: extensionPoint.status,
+      extensionPoint,
+      evidence: [
+        `Lightspeed extension point evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid extension point evidence blocks Stage 1 extension claims"
       ]
     };
   }
@@ -7887,6 +8113,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const usedTokens = 784_200;
   const budgetTokens = 1_500_000;
   const runtimeReadiness = await getOpsLensRuntimeReadiness();
+  const lightspeedExtensionPointReadiness =
+    getLightspeedExtensionPointReadiness();
   const lightspeedReadiness = getLightspeedMcpReadiness();
   const imageBuildReadiness = getImageBuildReadiness();
   const ownedImageProvenanceReadiness = getOwnedImageProvenanceReadiness();
@@ -7913,6 +8141,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const ocpAuthRbacPlanReadiness = getOcpAuthRbacPlanReadiness();
   const installReadinessEvidence = [
     releaseEvidenceRefreshReadiness.evidence[0],
+    lightspeedExtensionPointReadiness.evidence[0],
     evidenceCheckpointReadiness.evidence[0],
     aiopsIncidentPipelineReadiness.evidence[0],
     liveHandoffReadiness.evidence[0],
@@ -7935,6 +8164,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     releaseActionQueueReadiness.evidence[0],
     ragProductionReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
+    ...lightspeedExtensionPointReadiness.evidence.slice(1),
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
     ...installPlanReadiness.evidence.slice(1),
@@ -8135,6 +8365,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     },
     installReadiness: {
       lightspeedMcp: lightspeedReadiness.status,
+      lightspeedExtensionPoint: lightspeedExtensionPointReadiness.status,
+      extensionPoint: lightspeedExtensionPointReadiness.extensionPoint,
       consoleDashboard: "prototype",
       operatorPackaging: "draft",
       ocpConnectivity: ocpConnectivityReadiness.status,
@@ -8178,6 +8410,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       evidence: [
         ...installReadinessEvidence,
         "Stage 1 MCP contract has verifier coverage",
+        "Stage 1 Lightspeed extension point decision is validated by npm run verify:lightspeed-extension",
         "Stage 2 incident packet has logs/events/metrics coverage",
         "Stage 2 AI Ops incident pipeline is validated by npm run verify:aiops",
         "Stage 3 dashboard is now served by /api/opslens/admin/overview",

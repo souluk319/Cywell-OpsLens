@@ -12,6 +12,8 @@ const defaults = {
   markdownOut: "test-results/cywell-opslens-release-evidence-bundle.md",
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
+  lightspeedExtensionPoint:
+    "test-results/cywell-opslens-lightspeed-extension-point.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenance: "test-results/cywell-opslens-owned-image-provenance.json",
   certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
@@ -59,6 +61,9 @@ const options = {
   mvpGate: parsed.get("mvp-gate-evidence") ?? defaults.mvpGate,
   consolePluginAssets:
     parsed.get("console-plugin-assets-evidence") ?? defaults.consolePluginAssets,
+  lightspeedExtensionPoint:
+    parsed.get("lightspeed-extension-point-evidence") ??
+    defaults.lightspeedExtensionPoint,
   imageBuild: parsed.get("image-build-evidence") ?? defaults.imageBuild,
   ownedImageProvenance:
     parsed.get("owned-image-provenance-evidence") ?? defaults.ownedImageProvenance,
@@ -100,7 +105,7 @@ const startedAt = new Date().toISOString();
 function sanitize(value) {
   return String(value ?? "")
     .replace(/--token\s+\S+/gi, "--token <redacted>")
-    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]{12,}/gi, "Bearer <redacted>")
     .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>");
 }
 
@@ -251,6 +256,16 @@ function commandSummary(artifacts) {
     requiresExplicitApproval: false,
     writesLocalEvidence: command.writesLocalEvidence === true
   }));
+  const lightspeedExtensionCommands = [
+    {
+      id: "verify-lightspeed-extension",
+      phase: "lightspeed-extension-decision",
+      command: "npm run verify:lightspeed-extension",
+      mutation: false,
+      requiresExplicitApproval: false,
+      writesLocalEvidence: true
+    }
+  ];
   const lightspeedIntegrationApprovalCommands = (artifacts.lightspeedIntegrationHandoff?.approvalGatedCommands ?? []).map((command) => ({
     id: command.id ?? "unknown",
     phase: command.phase ?? "lightspeed-integration-handoff",
@@ -373,7 +388,7 @@ function commandSummary(artifacts) {
       writesLocalEvidence: command.writesLocalEvidence === true
     }));
   return {
-    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...lightspeedIntegrationCommands, ...networkHandoffCommands, ...ocpAuthRbacCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...communitySubmissionCommands, ...securityCommands, ...securityRunnerCommands]
+    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...lightspeedExtensionCommands, ...lightspeedIntegrationCommands, ...networkHandoffCommands, ...ocpAuthRbacCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...communitySubmissionCommands, ...securityCommands, ...securityRunnerCommands]
       .filter((command) => command.mutation === false),
     mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...lightspeedIntegrationApprovalCommands, ...ocpAuthRbacApprovalCommands, ...externalRuntimeApprovalCommands, ...certificationApprovalCommands, ...communitySubmissionApprovalCommands]
       .filter((command) => command.mutation === true),
@@ -469,6 +484,10 @@ function mutationBoundary(artifacts) {
     ["securityScanRunner.registryMutationAttempted", artifacts.securityScanRunner?.registryMutationAttempted],
     ["securityScanRunner.clusterMutationAttempted", artifacts.securityScanRunner?.clusterMutationAttempted],
     ["securityScanRunner.mutationAllowedByThisVerifier", artifacts.securityScanRunner?.mutationAllowedByThisVerifier],
+    ["lightspeedExtensionPoint.clusterMutationAttempted", artifacts.lightspeedExtensionPoint?.clusterMutationAttempted],
+    ["lightspeedExtensionPoint.registryMutationAttempted", artifacts.lightspeedExtensionPoint?.registryMutationAttempted],
+    ["lightspeedExtensionPoint.vectorWriteAttempted", artifacts.lightspeedExtensionPoint?.vectorWriteAttempted],
+    ["lightspeedExtensionPoint.mutationAllowedByThisVerifier", artifacts.lightspeedExtensionPoint?.mutationAllowedByThisVerifier],
     ["lightspeedIntegrationHandoff.clusterMutationAttempted", artifacts.lightspeedIntegrationHandoff?.clusterMutationAttempted],
     ["lightspeedIntegrationHandoff.registryMutationAttempted", artifacts.lightspeedIntegrationHandoff?.registryMutationAttempted],
     ["lightspeedIntegrationHandoff.vectorWriteAttempted", artifacts.lightspeedIntegrationHandoff?.vectorWriteAttempted],
@@ -533,6 +552,7 @@ function evidenceGaps(artifacts, sources) {
     ...(artifacts.externalRuntimeReviewPacket?.missingEvidence ?? []),
     ...(artifacts.securityScan?.missingEvidence ?? []),
     ...(artifacts.securityScanRunner?.missingEvidence ?? []),
+    ...(artifacts.lightspeedExtensionPoint?.missingEvidence ?? []),
     ...(artifacts.lightspeedIntegrationHandoff?.missingEvidence ?? []),
     ...(artifacts.liveHandoff?.missingEvidence ?? []),
     ...(artifacts.ocpNetworkHandoff?.missingEvidence ?? []),
@@ -711,6 +731,10 @@ async function main() {
   const artifacts = {
     mvpGate: loadJson(options.mvpGate, "MVP gate"),
     consolePluginAssets: loadJson(options.consolePluginAssets, "ConsolePlugin assets"),
+    lightspeedExtensionPoint: loadJson(
+      options.lightspeedExtensionPoint,
+      "Lightspeed extension point decision"
+    ),
     imageBuild: loadJson(options.imageBuild, "image build readiness"),
     ownedImageProvenance: loadJson(options.ownedImageProvenance, "owned image provenance"),
     certificationReadiness: loadJson(options.certificationReadiness, "certification readiness"),
@@ -741,6 +765,7 @@ async function main() {
   const sources = [
     sourceSummary("mvpGate", "MVP gate", options.mvpGate, artifacts.mvpGate, headSha, ["PASS"]),
     sourceSummary("consolePluginAssets", "ConsolePlugin assets", options.consolePluginAssets, artifacts.consolePluginAssets, headSha, ["PASS"]),
+    sourceSummary("lightspeedExtensionPoint", "Lightspeed extension point decision", options.lightspeedExtensionPoint, artifacts.lightspeedExtensionPoint, headSha, ["PASS"]),
     sourceSummary("imageBuild", "image build readiness", options.imageBuild, artifacts.imageBuild, headSha, ["PASS"]),
     sourceSummary("ownedImageProvenance", "owned image provenance", options.ownedImageProvenance, artifacts.ownedImageProvenance, headSha, ["PASS"]),
     sourceSummary("certificationReadiness", "certification readiness", options.certificationReadiness, artifacts.certificationReadiness, headSha, ["READY_FOR_REVIEW", "NEEDS_TOOLING"]),

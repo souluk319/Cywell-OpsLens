@@ -22,6 +22,7 @@ const evidencePaths = {
   ragApprovalQueue: "test-results/cywell-opslens-rag-approval-queue.json",
   ragProductionReadiness: "test-results/cywell-opslens-rag-production-readiness.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
+  lightspeedExtensionPoint: "test-results/cywell-opslens-lightspeed-extension-point.json",
   lightspeedRouting: "test-results/cywell-opslens-lightspeed-tool-routing.json",
   lightspeedTrojanHorse: "test-results/cywell-opslens-lightspeed-trojan-horse.json",
   lightspeedIntegrationHandoff:
@@ -196,6 +197,7 @@ function buildChain() {
     npmScript("console-plugin-assets", "core", "verify:console-plugin"),
     npmScript("operator-reconcile", "core", "verify:operator:reconcile"),
     npmScript("operator-runtime-parity", "core", "verify:operator:runtime"),
+    npmScript("lightspeed-extension-point", "core", "verify:lightspeed-extension"),
     npmScript("lightspeed-routing", "core", "verify:lightspeed:routing"),
     npmScript("lightspeed-trojan-horse", "core", "verify:lightspeed:trojan-horse"),
     npmScript("community-operator-submission", "release", "verify:community-submission"),

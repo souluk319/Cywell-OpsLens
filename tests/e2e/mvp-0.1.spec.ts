@@ -1268,6 +1268,44 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       };
       installReadiness?: {
         lightspeedMcp?: string;
+        lightspeedExtensionPoint?: string;
+        extensionPoint?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          productContract?: string;
+          lightspeedFacingEndpoint?: string;
+          localSmokeEndpoint?: string;
+          undocumentedWebhookSupported?: boolean;
+          legacyConfigMapRegistrationSupported?: boolean;
+          technologyPreview?: boolean;
+          olsconfig?: {
+            kind?: string;
+            featureGates?: string[];
+            server?: {
+              name?: string;
+              url?: string;
+              userBearerForwarding?: boolean;
+              secretHeader?: boolean;
+            };
+          };
+          routes?: Array<{
+            path?: string;
+            method?: string;
+            role?: string;
+          }>;
+          requirements?: Array<{ id?: string; pass?: boolean }>;
+          mutationBoundary?: {
+            clusterMutationAttempted?: boolean;
+            registryMutationAttempted?: boolean;
+            vectorWriteAttempted?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+          };
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+          evidence?: string[];
+        };
         operatorPackaging?: string;
         ocpConnectivity?: string;
         connectivity?: {
@@ -2294,6 +2332,52 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.lightspeed?.mcp?.integrationHandoff?.evidence?.join(" ")
     ).toContain("verify:lightspeed:integration-handoff");
+    expect(["ready", "needs-evidence", "failed"]).toContain(
+      body.installReadiness?.lightspeedExtensionPoint
+    );
+    expect(body.installReadiness?.extensionPoint).toMatchObject({
+      actionMode: "readOnlyEvidenceOnly",
+      productContract: "OLSConfig.spec.mcpServers custom MCP server",
+      lightspeedFacingEndpoint: "/mcp",
+      localSmokeEndpoint: "/api/opslens/mcp",
+      undocumentedWebhookSupported: false,
+      legacyConfigMapRegistrationSupported: false,
+      technologyPreview: true
+    });
+    expect(body.installReadiness?.extensionPoint?.olsconfig?.kind).toBe(
+      "OLSConfig"
+    );
+    expect(
+      body.installReadiness?.extensionPoint?.olsconfig?.featureGates
+    ).toContain("MCPServer");
+    expect(
+      body.installReadiness?.extensionPoint?.olsconfig?.server?.url
+    ).toContain("/mcp");
+    expect(body.installReadiness?.extensionPoint?.olsconfig?.server).toMatchObject({
+      userBearerForwarding: true,
+      secretHeader: true
+    });
+    expect(
+      body.installReadiness?.extensionPoint?.routes?.map((route) => route.path)
+    ).toEqual(expect.arrayContaining(["/mcp", "/api/opslens/mcp"]));
+    expect(
+      body.installReadiness?.extensionPoint?.mutationBoundary
+    ).toMatchObject({
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.extensionPoint?.requirements?.some(
+        (requirement) =>
+          requirement.id === "no-undocumented-lightspeed-webhook" &&
+          requirement.pass === true
+      )
+    ).toBe(true);
+    expect(body.installReadiness?.evidence?.join(" ")).toContain(
+      "verify:lightspeed-extension"
+    );
     if (
       body.lightspeed?.mcp?.integrationHandoff?.status ===
         "ready-for-live-registration-review" ||
@@ -3302,6 +3386,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect.arrayContaining([
         "mvpGate",
         "consolePluginAssets",
+        "lightspeedExtensionPoint",
         "certificationReadiness",
         "communityOperatorSubmission",
         "externalRuntimeReviewPacket",
@@ -4438,6 +4523,45 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "OCP Connectivity"
     );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Extension Point"
+    );
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-point")
+    ).toContainText("readOnlyEvidenceOnly");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-point")
+    ).toContainText("OLSConfig.spec.mcpServers");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-point")
+    ).toContainText("endpoint=/mcp");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-point")
+    ).toContainText("webhook=false");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-point")
+    ).toContainText("legacyConfigMap=false");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-olsconfig")
+    ).toContainText("OLSConfig");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-olsconfig")
+    ).toContainText("MCPServer");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-olsconfig")
+    ).toContainText("userBearer=true");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-olsconfig")
+    ).toContainText("secretHeader=true");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-routes")
+    ).toContainText("POST /mcp:lightspeed-facing");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-routes")
+    ).toContainText("POST /api/opslens/mcp:local-smoke-demo");
+    await expect(
+      page.getByTestId("opslens-lightspeed-extension-boundary")
+    ).toContainText("mutationAllowedByThisVerifier=false");
     await expect(page.getByTestId("opslens-ocp-connectivity")).toContainText(
       /classification=/
     );

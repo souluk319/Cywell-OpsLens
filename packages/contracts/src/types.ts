@@ -2043,6 +2043,63 @@ export interface OpsLensReleaseActionQueueSummary {
   rollbackPath: string[];
 }
 
+export type OpsLensLightspeedExtensionPointReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "failed";
+
+export interface OpsLensLightspeedExtensionPointSummary {
+  status: OpsLensLightspeedExtensionPointReadiness;
+  artifactStatus: string;
+  actionMode: "readOnlyEvidenceOnly";
+  productContract: string;
+  lightspeedFacingEndpoint: string;
+  localSmokeEndpoint: string;
+  restApiRole: string;
+  undocumentedWebhookSupported: boolean;
+  legacyConfigMapRegistrationSupported: boolean;
+  technologyPreview: boolean;
+  headSha: string;
+  worktreeDirty: boolean;
+  olsconfig: {
+    path: string;
+    apiVersion: string;
+    kind: string;
+    namespace: string;
+    name: string;
+    featureGates: string[];
+    server: {
+      name: string;
+      url: string;
+      timeout: string | number;
+      userBearerForwarding: boolean;
+      secretHeader: boolean;
+    };
+  };
+  routes: Array<{
+    path: string;
+    method: string;
+    role: string;
+    handler: string;
+  }>;
+  requirements: Array<{
+    id: string;
+    pass: boolean;
+    evidence: string;
+    missingEvidence: string;
+  }>;
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    vectorWriteAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+  };
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+  evidence: string[];
+}
+
 export interface OpsLensRagIngestionApprovalPlanSummary {
   actionMode: "ingestionPlanOnly";
   status: "ready-for-ingestion-job" | "needs-evidence" | "failed";
@@ -2402,6 +2459,8 @@ export interface OpsLensAdminOverviewResponse {
   };
   installReadiness: {
     lightspeedMcp: OpsLensLightspeedMcpReadiness;
+    lightspeedExtensionPoint: OpsLensLightspeedExtensionPointReadiness;
+    extensionPoint: OpsLensLightspeedExtensionPointSummary;
     consoleDashboard: "prototype" | "ready";
     operatorPackaging: "not-started" | "draft" | "ready";
     ocpConnectivity: OpsLensOcpConnectivityReadiness;

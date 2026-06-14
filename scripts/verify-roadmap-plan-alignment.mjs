@@ -10,6 +10,8 @@ const execFileAsync = promisify(execFile);
 const paths = {
   plan: "kugnus-idea/CywellOpsLens_plan.md",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
+  lightspeedExtensionPoint:
+    "test-results/cywell-opslens-lightspeed-extension-point.json",
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
   aiopsIncidentPipeline: "test-results/cywell-opslens-aiops-incident-pipeline.json",
   imageBuild: "test-results/cywell-opslens-image-build-readiness.json",
@@ -29,7 +31,7 @@ const startedAt = new Date().toISOString();
 function sanitize(value) {
   return String(value)
     .replace(/--token\s+\S+/gi, "--token <redacted>")
-    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]{12,}/gi, "Bearer <redacted>")
     .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>");
 }
 
@@ -422,6 +424,10 @@ async function main() {
   else fail("roadmap plan source", `${planPath} is missing`);
 
   const checkpoint = loadJson(paths.evidenceCheckpoint, "evidence checkpoint");
+  const lightspeedExtensionPoint = loadJson(
+    paths.lightspeedExtensionPoint,
+    "Lightspeed extension point decision"
+  );
   const mvpGate = loadJson(paths.mvpGate, "MVP gate");
   const aiopsIncidentPipeline = loadJson(paths.aiopsIncidentPipeline, "AI Ops incident pipeline");
   const imageBuild = loadJson(paths.imageBuild, "image build readiness");
@@ -436,6 +442,12 @@ async function main() {
   );
   const globalRequirements = [
     artifactFreshnessRequirement(checkpoint, "checkpoint-fresh", "Evidence checkpoint", headSha),
+    artifactFreshnessRequirement(
+      lightspeedExtensionPoint,
+      "lightspeed-extension-point-fresh",
+      "Lightspeed extension point decision",
+      headSha
+    ),
     artifactFreshnessRequirement(mvpGate, "mvp-gate-fresh", "MVP gate", headSha),
     artifactFreshnessRequirement(aiopsIncidentPipeline, "aiops-incident-pipeline-fresh", "AI Ops incident pipeline", headSha),
     artifactFreshnessRequirement(imageBuild, "image-build-fresh", "Image build readiness", headSha),
@@ -459,6 +471,17 @@ async function main() {
         /OLSConfig/i,
         /커스텀 MCP|custom MCP/i
       ]),
+      artifactStatusRequirement(
+        lightspeedExtensionPoint,
+        "lightspeed-extension-point-decision",
+        "Lightspeed extension point decision verifier",
+        ["PASS"]
+      ),
+      laneRequirement(
+        checkpoint,
+        "lightspeedExtensionPoint",
+        "Lightspeed extension point checkpoint"
+      ),
       laneRequirement(checkpoint, "lightspeedRouting", "10-question Lightspeed tool routing score"),
       laneRequirement(checkpoint, "lightspeedTrojanHorse", "Exact Korean Trojan Horse custom question"),
       laneRequirement(checkpoint, "lightspeedIntegrationHandoff", "Lightspeed integration handoff packet", ["pass", "needs-evidence"]),

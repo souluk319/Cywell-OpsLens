@@ -181,6 +181,7 @@ export function OpsLensAdminDashboard() {
     ) ?? [];
   const aiopsPipeline = overview?.aiops.incidentPipeline;
   const alertmanagerIntake = aiopsPipeline?.alertmanagerIntake;
+  const extensionPoint = overview?.installReadiness.extensionPoint;
   const approvalPlan = overview?.installReadiness.approvalPlan;
   const certificationPlan = overview?.installReadiness.certificationPlan;
   const communitySubmissionPlan =
@@ -1221,6 +1222,8 @@ export function OpsLensAdminDashboard() {
             {overview
               ? Object.entries({
                   "Lightspeed MCP": overview.installReadiness.lightspeedMcp,
+                  "Extension Point":
+                    overview.installReadiness.lightspeedExtensionPoint,
                   "AI Ops Pipeline": overview.aiops.incidentPipeline.status,
                   "Console Dashboard": overview.installReadiness.consoleDashboard,
                   Operator: overview.installReadiness.operatorPackaging,
@@ -1279,6 +1282,111 @@ export function OpsLensAdminDashboard() {
               {item}
             </p>
           ))}
+          {extensionPoint ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-lightspeed-extension-point"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Lightspeed Extension Point</h4>
+                  <small>{extensionPoint.actionMode}</small>
+                </div>
+                <ListChecks size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{extensionPoint.artifactStatus}</span>
+                <span>contract={extensionPoint.productContract}</span>
+                <span>endpoint={extensionPoint.lightspeedFacingEndpoint}</span>
+                <span>smoke={extensionPoint.localSmokeEndpoint}</span>
+                <span>
+                  webhook=
+                  {String(extensionPoint.undocumentedWebhookSupported)}
+                </span>
+                <span>
+                  legacyConfigMap=
+                  {String(extensionPoint.legacyConfigMapRegistrationSupported)}
+                </span>
+                <span>
+                  technologyPreview=
+                  {String(extensionPoint.technologyPreview)}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-lightspeed-extension-olsconfig"
+              >
+                <span>{extensionPoint.olsconfig.kind}</span>
+                <span>
+                  server={extensionPoint.olsconfig.server.name}
+                </span>
+                <span>
+                  url={extensionPoint.olsconfig.server.url}
+                </span>
+                <span>
+                  featureGates=
+                  {extensionPoint.olsconfig.featureGates.join(", ") ||
+                    "missing"}
+                </span>
+                <span>
+                  userBearer=
+                  {String(extensionPoint.olsconfig.server.userBearerForwarding)}
+                </span>
+                <span>
+                  secretHeader=
+                  {String(extensionPoint.olsconfig.server.secretHeader)}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-lightspeed-extension-routes"
+              >
+                {extensionPoint.routes.map((route) => (
+                  <span key={`${route.method}-${route.path}`}>
+                    {route.method} {route.path}:{route.role}
+                  </span>
+                ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-lightspeed-extension-boundary"
+              >
+                <span>
+                  clusterMutationAttempted=
+                  {String(
+                    extensionPoint.mutationBoundary.clusterMutationAttempted
+                  )}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(
+                    extensionPoint.mutationBoundary.registryMutationAttempted
+                  )}
+                </span>
+                <span>
+                  vectorWriteAttempted=
+                  {String(extensionPoint.mutationBoundary.vectorWriteAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(
+                    extensionPoint.mutationBoundary
+                      .mutationAllowedByThisVerifier
+                  )}
+                </span>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {extensionPoint.evidence[0] ??
+                    "Extension point evidence is read-only."}
+                </p>
+                <p>
+                  {extensionPoint.risk[0] ??
+                    "Live OLSConfig registration still needs approval."}
+                </p>
+              </div>
+            </div>
+          ) : null}
           {ocpConnectivity ? (
             <div
               className="install-approval-summary"

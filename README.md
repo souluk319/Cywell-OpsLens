@@ -32,6 +32,7 @@ npm run verify:ocp:connectivity
 npm run verify:runtime-rag
 npm run verify:runtime-rag:fixture
 npm run verify:lightspeed:routing
+npm run verify:lightspeed-extension
 npm run verify:rag:approval-queue
 npm run test:e2e
 npm run verify:lightspeed:fixture
@@ -42,6 +43,8 @@ npm run verify:lightspeed:fixture
 `npm run verify:console-plugin` validates the OpenShift Console dynamic plugin assets emitted by the dashboard build: `plugin-manifest.json`, `plugin-entry.js`, the exposed `/opslens` route chunk, navigation extensions, iframe dashboard URL, UserToken proxy base, and asset MIME types. It writes `test-results/cywell-opslens-console-plugin-assets.json`.
 
 `npm run verify:evidence-checkpoint` reads the current local evidence artifacts, including the RAG approval queue bridge, ConsolePlugin asset evidence, Lightspeed routing score, and Community Operator submission draft, checks that they are stamped with the current git head, keeps live OCP/Lightspeed and external runtime gaps visible, and writes `test-results/cywell-opslens-evidence-checkpoint.json`. It does not build, push, patch, apply, delete, scale, or contact the cluster.
+
+`npm run verify:lightspeed-extension` locks the Stage 1 Lightspeed extension point decision to `OLSConfig.spec.mcpServers`: production traffic uses `/mcp`, the local smoke alias is `/api/opslens/mcp`, undocumented webhooks and legacy ConfigMap mutation are rejected, and the verifier writes `test-results/cywell-opslens-lightspeed-extension-point.json` without contacting the cluster or mutating anything.
 
 `npm run verify:roadmap-plan` maps `kugnus-idea/CywellOpsLens_plan.md` to current evidence for the five launch stages: Lightspeed MCP PoC, AI Ops pipeline, dedicated dashboard, Operator/internal catalog packaging, and Red Hat certification/GTM. It now treats ConsolePlugin assets as direct Stage 3/4 evidence and the Community Operator submission draft as direct Stage 5 evidence rather than relying on MVP gate indirection. It writes `test-results/cywell-opslens-roadmap-plan-alignment.json` and treats live OCP/Lightspeed reachability, external runtime certification inputs, release approval, install approval, and external submission approval as explicit `NEEDS_EVIDENCE` gaps rather than hidden completion.
 
@@ -101,7 +104,7 @@ The web app uses these endpoints through the Vite proxy, so the fixture-backed U
 
 Cywell OpsLens Stage 1 uses the OpenShift Lightspeed custom MCP server path, not an undocumented webhook path. The MVP MCP surface provides six read-only tools: `get_cluster_signal`, `retrieve_customer_knowledge`, `generate_playbook`, `open_console_deep_link`, `run_preflight`, and `propose_remediation`; mutating tools such as `apply_remediation` are deliberately excluded from MVP. Tool responses share the same safety envelope: citations, missing evidence, risks, rollback path, runtime RAG audit, redaction, and `mutationAllowed=false`.
 
-`npm run verify:lightspeed:routing` adds the Stage 1 tool-selection fixture: 10 representative Lightspeed questions must select the expected read-only OpsLens MCP tool and at least 8 routed responses must keep the safety/evidence contract.
+`npm run verify:lightspeed:routing` adds the Stage 1 tool-selection fixture: 10 representative Lightspeed questions must select the expected read-only OpsLens MCP tool and at least 8 routed responses must keep the safety/evidence contract. `npm run verify:lightspeed-extension` verifies the same Stage 1 surface from the OLSConfig/MCP registration side so the API, Operator, dashboard, and roadmap do not drift into an undocumented Lightspeed webhook or legacy ConfigMap path.
 
 Stage 2 begins with `POST /api/opslens/incidents/analyze`: an alert-triggered, plan-only incident endpoint that combines read-only resource detail, pod candidates, events, `sinceSeconds`-bounded pod logs, and opt-in Prometheus metric correlation with private runbook citations. Failed reads are returned as `missingEvidence`, not hidden.
 
