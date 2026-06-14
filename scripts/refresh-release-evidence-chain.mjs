@@ -29,6 +29,8 @@ const evidencePaths = {
   lightspeedIntegrationHandoff:
     "test-results/cywell-opslens-lightspeed-integration-handoff.json",
   certificationReadiness: "test-results/cywell-opslens-certification-readiness.json",
+  certificationCiWorkflow:
+    "test-results/cywell-opslens-certification-ci-workflow.json",
   certificationCiRunnerDraft:
     "docs/release/evidence/certification/approved-ci-runner.draft.json",
   communityOperatorSubmission: "test-results/cywell-opslens-community-operator-submission.json",
@@ -215,6 +217,7 @@ function buildChain() {
       "evidence:certification:ci-runner-draft",
       ["--force"]
     ),
+    npmScript("certification-ci-workflow", "release", "verify:certification-ci-workflow"),
     options.skipImageBuild
       ? npmScript("image-readiness-static", "release", "verify:images")
       : npmScript("image-readiness-build", "release", "verify:images:build", [], { timeoutMs: Math.max(options.commandTimeoutMs, 900000) }),

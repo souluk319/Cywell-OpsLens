@@ -74,6 +74,31 @@ Missing, placeholder, stale-head, or mutating CI runner evidence remains `needs-
 
 The draft helper must not install tooling, pull runner images, log in to registries, create Partner Connect submissions, create `approved-ci-runner.json`, or mutate a cluster.
 
+## Manual GitHub Actions Lane
+
+The repository also includes `.github/workflows/certification-tooling.yml` for the approved CI image lane. It is `workflow_dispatch` only and uses `contents: read` permissions.
+
+Run it only after the release-manager has selected an approved runner label or CI image with `oc`, `docker`, `opm`, and `operator-sdk` available on `PATH`. The workflow runs:
+
+```powershell
+opm validate deploy/catalog/fbc
+operator-sdk bundle validate ./deploy/operator/bundle --select-optional suite=operatorframework
+operator-sdk scorecard ./deploy/operator/bundle
+npm run verify:certification
+npm run verify:catalog-toolchain
+npm run evidence:certification:ci-runner-draft -- --force
+```
+
+It uploads `approved-ci-runner.draft.json`, certification/catalog evidence, and validation logs as a GitHub Actions artifact. It does not create `docs/release/evidence/certification/approved-ci-runner.json`, push images, submit to Partner Connect or OperatorHub, or mutate a cluster.
+
+Verify the workflow contract locally with:
+
+```powershell
+npm run verify:certification-ci-workflow
+```
+
+Only after release-manager and security-reviewer review the workflow artifact should the real values be copied into `approved-ci-runner.json`.
+
 ## Freshness and Owner Handoff
 
 Certification evidence is fresh only when it is generated on the current Git HEAD from a clean worktree before Community or Certified Operator submission.

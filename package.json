@@ -30,6 +30,7 @@
     "verify:operator:runtime": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-operator-runtime-parity.mjs",
     "verify:console-plugin": "node ./scripts/verify-console-plugin-assets.mjs",
     "verify:certification": "node ./scripts/verify-certification-readiness.mjs",
+    "verify:certification-ci-workflow": "node ./scripts/verify-certification-ci-workflow.mjs",
     "evidence:certification:ci-runner-draft": "node ./scripts/create-certification-ci-runner-draft.mjs",
     "verify:community-submission": "node ./scripts/verify-community-operator-submission.mjs",
     "verify:catalog-toolchain": "node ./scripts/verify-catalog-toolchain-plan.mjs",

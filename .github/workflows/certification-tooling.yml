@@ -1,0 +1,113 @@
+name: Cywell OpsLens Certification Tooling Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_label:
+        description: "Approved runner label that already has oc, docker, opm, and operator-sdk available on PATH."
+        required: true
+        default: "self-hosted"
+      runner_image:
+        description: "Approved CI runner image or runner profile reference reviewed by release-manager/security-reviewer."
+        required: true
+        default: "<approved-ci-image>"
+      runner_image_digest:
+        description: "Immutable approved runner image digest, for example registry.example.com/opslens/cert-runner@sha256:<digest>."
+        required: true
+        default: "<approved-ci-image>@sha256:<digest>"
+      approved_by:
+        description: "Reviewer who approved the runner/tooling lane."
+        required: true
+        default: "<release-manager-or-security-reviewer>"
+      approval_ticket:
+        description: "Release or security review ticket for this runner/tooling lane."
+        required: true
+        default: "<release-or-security-review-ticket>"
+      approved_at:
+        description: "ISO-8601 approval timestamp."
+        required: true
+        default: "<iso-8601-timestamp>"
+
+permissions:
+  contents: read
+
+jobs:
+  certification-tooling-evidence:
+    name: Certification tooling evidence draft
+    runs-on: ${{ inputs.runner_label }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Capture certification tool versions
+        shell: bash
+        run: |
+          mkdir -p test-results/certification-ci-runner
+          {
+            echo "## oc"
+            oc version --client
+            echo "## docker"
+            docker --version
+            echo "## opm"
+            opm version
+            echo "## operator-sdk"
+            operator-sdk version
+          } 2>&1 | tee test-results/certification-ci-runner/tool-versions.log
+
+      - name: Validate file-based catalog
+        shell: bash
+        run: |
+          opm validate deploy/catalog/fbc 2>&1 | tee test-results/certification-ci-runner/opm-validate.log
+
+      - name: Validate operator bundle
+        shell: bash
+        run: |
+          operator-sdk bundle validate ./deploy/operator/bundle --select-optional suite=operatorframework 2>&1 | tee test-results/certification-ci-runner/operator-sdk-bundle-validate.log
+
+      - name: Run operator scorecard
+        shell: bash
+        run: |
+          operator-sdk scorecard ./deploy/operator/bundle 2>&1 | tee test-results/certification-ci-runner/operator-sdk-scorecard.log
+
+      - name: Refresh local certification evidence
+        run: npm run verify:certification
+
+      - name: Refresh catalog toolchain evidence
+        run: npm run verify:catalog-toolchain
+
+      - name: Create reviewed-runner draft packet
+        run: >
+          npm run evidence:certification:ci-runner-draft -- --force
+          --runner-id "${{ github.workflow }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          --runner-image "${{ inputs.runner_image }}"
+          --runner-image-digest "${{ inputs.runner_image_digest }}"
+          --approved-by "${{ inputs.approved_by }}"
+          --ticket "${{ inputs.approval_ticket }}"
+          --approved-at "${{ inputs.approved_at }}"
+          --opm-validate-log "github-actions:${{ github.workflow }}:${{ github.run_id }}:opm-validate.log"
+          --operator-sdk-bundle-validate-log "github-actions:${{ github.workflow }}:${{ github.run_id }}:operator-sdk-bundle-validate.log"
+          --operator-sdk-scorecard-log "github-actions:${{ github.workflow }}:${{ github.run_id }}:operator-sdk-scorecard.log"
+
+      - name: Upload certification tooling draft artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cywell-opslens-certification-tooling-evidence
+          path: |
+            docs/release/evidence/certification/approved-ci-runner.draft.json
+            test-results/cywell-opslens-certification-readiness.json
+            test-results/cywell-opslens-catalog-toolchain-plan.json
+            test-results/certification-ci-runner/*.log
+          if-no-files-found: warn
