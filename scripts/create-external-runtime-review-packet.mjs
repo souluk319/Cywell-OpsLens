@@ -214,6 +214,7 @@ function finalEvidenceStatus(path) {
 function summarizeCandidate(candidate) {
   if (!candidate) return undefined;
   const counts = candidate.vulnerability?.severityCounts ?? {};
+  const criticalFindings = candidate.vulnerability?.criticalFindings ?? [];
   return {
     label: candidate.label ?? "unknown",
     image: candidate.image ?? "unknown",
@@ -228,7 +229,13 @@ function summarizeCandidate(candidate) {
     sbomPath: candidate.sbom?.path ?? "missing",
     reviewDraftPath: candidate.reviewDraft?.path ?? "missing",
     sbomPackageCount: candidate.sbom?.packageCount ?? "unknown",
-    reviewDecision: candidate.reviewDraft?.decision ?? "unknown"
+    reviewDecision: candidate.reviewDraft?.decision ?? "unknown",
+    criticalFindingPackages: unique(
+      criticalFindings.map((finding) => finding.packageName ?? "unknown")
+    ).slice(0, 6),
+    criticalFindingIds: unique(
+      criticalFindings.map((finding) => finding.vulnerabilityId ?? "unknown")
+    ).slice(0, 10)
   };
 }
 
@@ -257,14 +264,25 @@ function candidateMatrixSummary(name, candidateMatrix) {
 function candidateEvidenceLine(candidateMatrix) {
   const best = candidateMatrix?.bestCandidate;
   if (!best) return "";
+  const criticalDetails = [
+    Array.isArray(best.criticalFindingPackages) && best.criticalFindingPackages.length > 0
+      ? `criticalPackages=${best.criticalFindingPackages.join(",")}`
+      : "",
+    Array.isArray(best.criticalFindingIds) && best.criticalFindingIds.length > 0
+      ? `criticalIds=${best.criticalFindingIds.join(",")}`
+      : ""
+  ].filter(Boolean).join(" ");
   return best.releaseEligible === true
     ? `Best scanned candidate ${best.image} reports criticalFindings=0 highFindings=${best.highFindings}; scan=${best.vulnerabilityPath} sbom=${best.sbomPath}; approval is still required before promotion`
-    : `Best scanned candidate ${best.image} reports criticalFindings=${best.criticalFindings} highFindings=${best.highFindings}; it reduces risk but still needs remediation or security exception before promotion`;
+    : `Best scanned candidate ${best.image} reports criticalFindings=${best.criticalFindings} highFindings=${best.highFindings}; ${criticalDetails || "critical details unavailable"}; it reduces risk but still needs remediation or security exception before promotion`;
 }
 
 function candidateScanCommand(name) {
   const timeout = name === "vllm" ? " --timeout-ms 7200000" : "";
-  return `npm run evidence:external-runtime:candidate-scan -- --name ${name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${timeout}`;
+  const scannerOptions = name === "vllm"
+    ? " --trivy-timeout 30m --trivy-scanners vuln"
+    : "";
+  return `npm run evidence:external-runtime:candidate-scan -- --name ${name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${timeout}${scannerOptions}`;
 }
 
 function digestReferenceBase(imageRef, fallbackName) {

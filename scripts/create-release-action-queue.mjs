@@ -241,6 +241,34 @@ function uniqueStrings(values) {
   return [...new Set(values.map(sanitize).filter(Boolean))];
 }
 
+function inlineList(values, fallback = "none", limit = 8) {
+  const list = Array.isArray(values) ? values : [];
+  const sanitized = uniqueStrings(list).slice(0, limit);
+  return sanitized.length > 0 ? sanitized.join(",") : fallback;
+}
+
+function candidateCriticalSummary(bestCandidate) {
+  if (!bestCandidate) return "missing";
+  const criticalCount = Number(bestCandidate.criticalFindings ?? 0);
+  if (!Number.isFinite(criticalCount) || criticalCount <= 0) {
+    return "criticalPackages=none criticalIds=none";
+  }
+  return [
+    `criticalPackages=${inlineList(bestCandidate.criticalFindingPackages, "unknown", 6)}`,
+    `criticalIds=${inlineList(bestCandidate.criticalFindingIds, "unknown", 10)}`
+  ].join(" ");
+}
+
+function candidateRequirement(imageName, candidateStatus, bestCandidate) {
+  if (bestCandidate?.releaseEligible === true) {
+    return `Review zero-critical ${imageName} candidate evidence; attach approved scan/SBOM and keep promotionApproved=false until final external runtime approval.`;
+  }
+  if (bestCandidate) {
+    return `Next ${imageName} candidate must be an immutable digest with complete vulnerability/SBOM evidence and criticalFindings=0; current best remains criticalFindings=${bestCandidate.criticalFindings ?? "unknown"} highFindings=${bestCandidate.highFindings ?? "unknown"}.`;
+  }
+  return `Scan an immutable ${imageName} digest candidate with complete vulnerability/SBOM evidence and criticalFindings=0; current candidateMatrix status=${candidateStatus}.`;
+}
+
 function stripReleaseActionQueueFeedback(value) {
   return sanitize(value).replace(/^(?:releaseActionQueue:\s*)+/i, "");
 }
@@ -843,6 +871,7 @@ function externalRuntimeItems(packet) {
     const candidate = image.candidateMatrix;
     const candidateStatus = candidate?.status ?? "missing";
     const candidateReady = ["candidate-ready-for-review", "current-evidence-release-eligible"].includes(candidateStatus);
+    const bestCandidate = candidate?.bestCandidate;
     const candidateDiagnostics = [
       {
         id: "candidate-status",
@@ -879,6 +908,16 @@ function externalRuntimeItems(packet) {
         value: candidate?.bestCandidate
           ? `reviewDecision=${candidate.bestCandidate.reviewDecision ?? "unknown"} sbomPackages=${candidate.bestCandidate.sbomPackageCount ?? "unknown"} promotionApproved=false`
           : "missing"
+      },
+      {
+        id: "candidate-critical-summary",
+        label: "Remaining criticals",
+        value: candidateCriticalSummary(bestCandidate)
+      },
+      {
+        id: "candidate-requirement",
+        label: "Next candidate requirement",
+        value: candidateRequirement(image.name, candidateStatus, bestCandidate)
       }
     ];
     const candidateTimeout = image.name === "vllm" ? " --timeout-ms 7200000" : "";
@@ -887,7 +926,6 @@ function externalRuntimeItems(packet) {
       : "";
     const candidateScanCommand =
       `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${candidateTimeout}${candidateScannerOptions}`;
-    const bestCandidate = candidate?.bestCandidate;
     const candidateApprovalCommand = candidateReady && bestCandidate?.releaseEligible === true
       ? `npm run evidence:external-runtime:draft -- --name ${image.name} --scan-status approved --scan-evidence ${bestCandidate.vulnerabilityPath ?? "<zero-critical-scan-report>"} --scan-critical-findings ${bestCandidate.criticalFindings ?? 0} --scan-high-findings ${bestCandidate.highFindings ?? "<high-findings>"} --sbom-status approved --sbom-evidence ${bestCandidate.sbomPath ?? "<approved-sbom-path-or-url>"} --ticket <change-ticket> --force`
       : `npm run evidence:external-runtime:draft -- --name ${image.name} --scan-status approved --scan-evidence <zero-critical-scan-report> --scan-critical-findings 0 --ticket <change-ticket> --force`;
@@ -907,8 +945,9 @@ function externalRuntimeItems(packet) {
       evidenceNeeded: [
         `candidateMatrix status=${candidateStatus}`,
         bestCandidate
-          ? `best=${bestCandidate.image} criticalFindings=${bestCandidate.criticalFindings} highFindings=${bestCandidate.highFindings} scan=${bestCandidate.vulnerabilityPath ?? "missing"} sbom=${bestCandidate.sbomPath ?? "missing"}`
+          ? `best=${bestCandidate.image} criticalFindings=${bestCandidate.criticalFindings} highFindings=${bestCandidate.highFindings} ${candidateCriticalSummary(bestCandidate)} scan=${bestCandidate.vulnerabilityPath ?? "missing"} sbom=${bestCandidate.sbomPath ?? "missing"}`
           : "best=missing",
+        candidateRequirement(image.name, candidateStatus, bestCandidate),
         candidate?.recommendation ?? "candidate recommendation missing"
       ].join("; "),
       nextCommand: candidateNextCommand,

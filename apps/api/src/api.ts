@@ -1569,6 +1569,8 @@ type ExternalRuntimeReviewPacketEvidenceArtifact = {
         mediumFindings?: number | string;
         lowFindings?: number | string;
         reviewDecision?: string;
+        criticalFindingPackages?: string[];
+        criticalFindingIds?: string[];
       };
       zeroCriticalCandidates?: Array<unknown>;
       recommendation?: string;
@@ -3587,7 +3589,9 @@ function summarizeExternalRuntimeCandidate(
     highFindings: candidate.highFindings ?? "unknown",
     mediumFindings: candidate.mediumFindings ?? "unknown",
     lowFindings: candidate.lowFindings ?? "unknown",
-    reviewDecision: candidate.reviewDecision ?? "unknown"
+    reviewDecision: candidate.reviewDecision ?? "unknown",
+    criticalFindingPackages: candidate.criticalFindingPackages ?? [],
+    criticalFindingIds: candidate.criticalFindingIds ?? []
   };
 }
 

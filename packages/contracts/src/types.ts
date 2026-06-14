@@ -2057,6 +2057,8 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
         mediumFindings: number | string;
         lowFindings: number | string;
         reviewDecision: string;
+        criticalFindingPackages: string[];
+        criticalFindingIds: string[];
       };
       zeroCriticalCount: number;
       recommendation: string;

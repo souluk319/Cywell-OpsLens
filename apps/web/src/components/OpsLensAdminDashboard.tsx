@@ -2078,7 +2078,15 @@ export function OpsLensAdminDashboard() {
                 {releaseCandidateActions.length > 0 ? (
                   releaseCandidateActions.map((entry) => (
                     <span key={entry.id}>
-                      {entry.owner}:{entry.priority}:{entry.nextCommand}
+                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
+                      :diagnostics=
+                      {entry.diagnostics
+                        .slice(0, 7)
+                        .map(
+                          (diagnostic) =>
+                            `${diagnostic.id}=${diagnostic.value}`
+                        )
+                        .join(" | ")}
                     </span>
                   ))
                 ) : (

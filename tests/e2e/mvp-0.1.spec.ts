@@ -2976,8 +2976,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "--trivy-scanners vuln"
       );
       expect(vllmCandidateAction.diagnostics?.map((item) => item.id)).toEqual(
-        expect.arrayContaining(["candidate-findings", "candidate-review"])
+        expect.arrayContaining([
+          "candidate-findings",
+          "candidate-review",
+          "candidate-critical-summary",
+          "candidate-requirement"
+        ])
       );
+      expect(vllmCandidateAction.evidenceNeeded).toContain("criticalFindings=0");
+      const criticalSummary = vllmCandidateAction.diagnostics?.find(
+        (item) => item.id === "candidate-critical-summary"
+      )?.value;
+      expect(
+        criticalSummary === "criticalPackages=none criticalIds=none" ||
+          /criticalPackages=.*criticalIds=/.test(criticalSummary ?? "")
+      ).toBe(true);
+      expect(
+        vllmCandidateAction.diagnostics?.find(
+          (item) => item.id === "candidate-requirement"
+        )?.value
+      ).toMatch(/immutable .*digest.*criticalFindings=0|zero-critical/);
       const bestCandidateDiagnostic = vllmCandidateAction.diagnostics?.find(
         (item) => item.id === "candidate-best"
       )?.value;
@@ -4184,6 +4202,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-candidate-actions")
     ).toContainText("evidence:external-runtime:candidate-scan");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-candidate-actions")
+    ).toContainText(/candidate-critical-summary|candidate-requirement/);
     await expect(
       page.getByTestId("opslens-release-action-queue-security-review-actions")
     ).toContainText("security-review-operator-final-evidence");
