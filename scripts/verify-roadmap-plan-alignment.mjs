@@ -22,6 +22,7 @@ const paths = {
   operatorRuntimeParity: "test-results/cywell-opslens-operator-runtime-parity.json",
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   communityOperatorSubmission: "test-results/cywell-opslens-community-operator-submission.json",
+  releaseActionQueue: "test-results/cywell-opslens-release-action-queue.json",
   roadmapOut: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   roadmapMarkdownOut: "test-results/cywell-opslens-roadmap-plan-alignment.md"
 };
@@ -250,6 +251,69 @@ function installPlanLightspeedRegistrationRequirement(installPlan) {
   };
 }
 
+function releaseActionQueueHandoffRequirement(actionQueue, id, label, lane, owner, ticketField) {
+  if (!actionQueue) {
+    return {
+      id,
+      label,
+      status: "needs-evidence",
+      evidence: [],
+      missingEvidence: ["release action queue artifact is missing"]
+    };
+  }
+
+  const criticalPath = actionQueue.criticalPath?.find((entry) => entry.lane === lane);
+  const ownerPacket = actionQueue.ownerPackets?.find((packet) => packet.owner === owner);
+  const ticket =
+    ticketField === "network"
+      ? criticalPath?.ticketPacket ?? ownerPacket?.firstTicketPacket
+      : criticalPath?.externalRuntimeTicketPacket ??
+        ownerPacket?.firstExternalRuntimeTicketPacket;
+  const firstAction =
+    ticketField === "network"
+      ? ticket?.firstReadOnlyAction
+      : ticket?.firstReadOnlyAction;
+  const approvalAction =
+    ticketField === "network"
+      ? ticket?.approvalGatedAction
+      : ticket?.approvalGatedAction;
+  const missingEvidence = [];
+
+  if (actionQueue.status !== "ACTION_QUEUE_READY") {
+    missingEvidence.push(`release action queue status=${actionQueue.status ?? "missing"}`);
+  }
+  if (!criticalPath) {
+    missingEvidence.push(`${lane} critical path entry is missing`);
+  }
+  if (!ownerPacket) {
+    missingEvidence.push(`${owner} owner packet is missing`);
+  }
+  if (!ticket?.id) {
+    missingEvidence.push(`${owner} ${ticketField} ticket packet is missing`);
+  }
+  if (firstAction?.mutation !== false) {
+    missingEvidence.push(`${owner} first ticket action must be read-only`);
+  }
+  if (approvalAction?.mutation !== true || approvalAction?.requiresExplicitApproval !== true) {
+    missingEvidence.push(`${owner} approval-gated ticket action must require explicit approval`);
+  }
+
+  return {
+    id,
+    label,
+    status: missingEvidence.length === 0 ? "pass" : "needs-evidence",
+    artifactType: actionQueue.artifactType ?? actionQueue.schema ?? "unknown",
+    artifactStatus: actionQueue.status ?? "unknown",
+    evidence:
+      missingEvidence.length === 0
+        ? [
+            `${lane} ${owner} ticket=${ticket.id} first=${firstAction.id} approval=${approvalAction.id}`
+          ]
+        : [],
+    missingEvidence
+  };
+}
+
 function artifactRef(artifact) {
   return {
     headSha: artifact?.headSha ?? artifact?.ref?.headSha,
@@ -442,6 +506,10 @@ async function main() {
     paths.communityOperatorSubmission,
     "Community Operator submission draft"
   );
+  const releaseActionQueue = loadJson(
+    paths.releaseActionQueue,
+    "release action queue"
+  );
   const globalRequirements = [
     artifactFreshnessRequirement(checkpoint, "checkpoint-fresh", "Evidence checkpoint", headSha),
     artifactFreshnessRequirement(
@@ -463,6 +531,12 @@ async function main() {
       communityOperatorSubmission,
       "community-operator-submission-fresh",
       "Community Operator submission draft",
+      headSha
+    ),
+    artifactFreshnessRequirement(
+      releaseActionQueue,
+      "release-action-queue-fresh",
+      "Release action queue",
       headSha
     )
   ];
@@ -492,6 +566,14 @@ async function main() {
       laneRequirement(checkpoint, "lightspeedReadiness", "Live Lightspeed/OCP readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "liveHandoff", "Read-only live evidence handoff", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "ocpNetworkHandoff", "Network/SRE handoff packet"),
+      releaseActionQueueHandoffRequirement(
+        releaseActionQueue,
+        "release-action-queue-network-ticket",
+        "Release action queue Network/SRE ticket handoff",
+        "live-ocp-lightspeed",
+        "network-sre",
+        "network"
+      ),
       laneRequirement(checkpoint, "ocpAuthRbacPlan", "OCP auth/RBAC approval packet"),
       mvpRequirement(mvpGate, "LIGHTSPEED-ROUTING", "MVP Lightspeed routing verifier"),
       mvpRequirement(mvpGate, "LIGHTSPEED-TROJAN-HORSE", "MVP exact Trojan Horse verifier"),
@@ -587,6 +669,14 @@ async function main() {
       laneRequirement(checkpoint, "catalogToolchain", "Catalog toolchain readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "externalRuntime", "External runtime image evidence", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "externalRuntimeReviewPacket", "External runtime reviewer packet", ["pass", "needs-evidence"]),
+      releaseActionQueueHandoffRequirement(
+        releaseActionQueue,
+        "release-action-queue-external-runtime-ticket",
+        "Release action queue external runtime registry ticket handoff",
+        "external-runtime-review",
+        "registry-admin",
+        "external-runtime"
+      ),
       laneRequirement(checkpoint, "securityScan", "Security scan and SBOM evidence plan", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "securityScanRunner", "Security scan evidence runner", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "releasePublish", "Release publish approval plan", ["pass", "needs-evidence"]),
