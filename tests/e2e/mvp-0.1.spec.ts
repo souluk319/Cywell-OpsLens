@@ -2765,6 +2765,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         ?.map((command) => `${command.id} ${command.command}`)
         .join(" ")
     ).toMatch(/Test-NetConnection|Resolve-DnsName|verify:ocp:connectivity/i);
+    const ocpNetworkEvidenceText = JSON.stringify({
+      connectivity: body.installReadiness?.connectivity,
+      networkHandoff: body.installReadiness?.networkHandoff
+    });
+    expect(ocpNetworkEvidenceText).not.toMatch(
+      /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/
+    );
+    expect(ocpNetworkEvidenceText).not.toMatch(
+      /\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/i
+    );
     expect(body.installReadiness?.networkHandoff).toMatchObject({
       actionMode: "handoffOnly",
       clusterMutationAttempted: false,

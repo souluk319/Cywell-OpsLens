@@ -58,7 +58,13 @@ function sanitize(value) {
     .replace(/--token\s+\S+/gi, "--token <redacted>")
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
     .replace(/([?&](?:access_)?token=)[^&\s]+/gi, "$1<redacted>")
-    .replace(/(auth|token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>");
+    .replace(/(auth|token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>")
+    .replace(/\b10(?:\.\d{1,3}){3}\b/g, "<redacted-private-ip>")
+    .replace(/\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b/g, "<redacted-private-ip>")
+    .replace(/\b192\.168(?:\.\d{1,3}){2}\b/g, "<redacted-private-ip>")
+    .replace(/(Test-NetConnection\s+-ComputerName\s+)(?:"?)[^\s"]+/gi, "$1<redacted-ocp-api>")
+    .replace(/(Resolve-DnsName\s+)(?:"?)[^\s"]+/gi, "$1<redacted-ocp-api>")
+    .replace(/\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/gi, "<redacted-ocp-api>");
 }
 
 function secretLike(value) {
@@ -67,6 +73,13 @@ function secretLike(value) {
     /(?:auth|token|password|passwd|secret|api[_-]?key)(=|:)(?!<redacted>)[^\s]+/i.test(value) ||
     /[?&](?:access_)?token=[^&\s]+/i.test(value) ||
     /-----BEGIN (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----/i.test(value);
+}
+
+function endpointLeakLike(value) {
+  return /\b10(?:\.\d{1,3}){3}\b/.test(value) ||
+    /\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b/.test(value) ||
+    /\b192\.168(?:\.\d{1,3}){2}\b/.test(value) ||
+    /\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/i.test(value);
 }
 
 function record(status, name, detail) {
@@ -91,6 +104,24 @@ function redactedOcpTarget(target = {}) {
     : "https:";
   const port = target.port ?? String(target.redactedBaseUrl ?? "").match(/:(\d+)(?:\/)?$/)?.[1] ?? "unknown";
   return `${protocol}//<redacted-ocp-api>${port === "unknown" ? "" : `:${port}`}`;
+}
+
+function redactedAddressText(addresses) {
+  const count = Array.isArray(addresses) ? addresses.filter(Boolean).length : 0;
+  return count > 0 ? `<redacted-private-ip>${count > 1 ? ` x${count}` : ""}` : "unresolved";
+}
+
+function redactedDiagnostics(diagnostics = {}) {
+  const dns = diagnostics.dns ?? {};
+  const addresses = Array.isArray(dns.addresses) ? dns.addresses : [];
+  return {
+    ...diagnostics,
+    dns: {
+      ...dns,
+      addresses: addresses.map(() => "<redacted-private-ip>"),
+      addressCount: dns.addressCount ?? addresses.length
+    }
+  };
 }
 
 async function runCapture(command, args) {
@@ -221,9 +252,9 @@ function commandById(commands, id, fallbackCommand, fallbackPurpose) {
 }
 
 function buildFirstNetworkActions(target, classification, addresses, commands, missingEvidence) {
-  const host = target.host ?? "unknown";
+  const host = sanitize(target.host ?? "unknown");
   const port = target.port ?? "6443";
-  const addressText = addresses.length > 0 ? addresses.join(", ") : "unresolved";
+  const addressText = redactedAddressText(addresses);
   const owner = handoffOwner(classification);
   const blockedBy = missingEvidence.length
     ? missingEvidence
@@ -343,9 +374,9 @@ function buildFirstNetworkActions(target, classification, addresses, commands, m
 }
 
 function adminRequests(target, classification, addresses) {
-  const host = target.host ?? "unknown";
+  const host = sanitize(target.host ?? "unknown");
   const port = target.port ?? "unknown";
-  const addressText = addresses.length > 0 ? addresses.join(", ") : "unresolved";
+  const addressText = redactedAddressText(addresses);
   if (authLikeClassification(classification)) {
     return [
       `Confirm the configured OCP credential is current for ${host}:${port}; DNS/TCP/TLS already passed from this verifier.`,
@@ -404,7 +435,7 @@ function markdownFor(packet) {
     `- Status: ${packet.status}`,
     `- Classification: ${diagnostics.classification}`,
     `- Target: ${redactedOcpTarget(target)}`,
-    `- DNS: ${(diagnostics.dns?.addresses ?? []).join(", ") || "missing"}`,
+    `- DNS: ${redactedAddressText(diagnostics.dns?.addresses ?? [])}`,
     `- TCP: ${diagnostics.tcp?.status ?? "missing"} ${diagnostics.tcp?.error ? `(${diagnostics.tcp.error})` : ""}`,
     `- TLS: ${diagnostics.tls?.status ?? "missing"}`,
     `- Kubernetes /version: ${diagnostics.kubernetesVersion?.status ?? "missing"}`,
@@ -490,7 +521,7 @@ async function main() {
   ];
 
   const target = artifacts.ocpConnectivity?.target ?? {};
-  const diagnostics = artifacts.ocpConnectivity?.diagnostics ?? {};
+  const diagnostics = redactedDiagnostics(artifacts.ocpConnectivity?.diagnostics ?? {});
   const classification = diagnostics.classification ?? "missing";
   const commands = readOnlyCommands(artifacts.ocpConnectivity, artifacts.liveHandoff);
   const unsafeCommands = commandBoundary(commands);
@@ -576,6 +607,9 @@ async function main() {
   const markdown = markdownFor(packet);
   if (secretLike(serialized) || secretLike(markdown)) {
     throw new Error("OCP network handoff would include secret-like material");
+  }
+  if (endpointLeakLike(serialized) || endpointLeakLike(markdown)) {
+    throw new Error("OCP network handoff would include an unredacted OCP host or private IP");
   }
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
   await mkdir(dirname(resolve(options.markdownOut)), { recursive: true });

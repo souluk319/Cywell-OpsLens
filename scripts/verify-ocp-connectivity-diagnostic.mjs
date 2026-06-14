@@ -208,10 +208,34 @@ function secretValuesForLeakCheck() {
     .filter((value) => value && value.length >= 8);
 }
 
+function sensitiveEndpointValues() {
+  const values = [
+    "OCP_API_BASE_URL",
+    "OPENSHIFT_API_BASE_URL",
+    "KUBE_API_BASE_URL"
+  ]
+    .map((key) => process.env[key])
+    .filter(Boolean);
+  return [
+    ...values,
+    ...values.flatMap((value) => {
+      try {
+        const url = new URL(value);
+        return [url.hostname, url.host];
+      } catch {
+        return [];
+      }
+    })
+  ].filter((value) => value && value.length >= 4);
+}
+
 function sanitize(value) {
   let result = String(value ?? "");
   for (const secret of secretValuesForLeakCheck()) {
     result = result.split(secret).join("<redacted>");
+  }
+  for (const endpoint of sensitiveEndpointValues()) {
+    result = result.split(endpoint).join("<redacted-ocp-api>");
   }
   return result
     .replace(/--token\s+\S+/gi, "--token <redacted>")
@@ -220,6 +244,13 @@ function sanitize(value) {
     .replace(/\b10(?:\.\d{1,3}){3}\b/g, "<redacted-private-ip>")
     .replace(/\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b/g, "<redacted-private-ip>")
     .replace(/\b192\.168(?:\.\d{1,3}){2}\b/g, "<redacted-private-ip>");
+}
+
+function endpointLeakLike(value) {
+  return /\b10(?:\.\d{1,3}){3}\b/.test(value) ||
+    /\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b/.test(value) ||
+    /\b192\.168(?:\.\d{1,3}){2}\b/.test(value) ||
+    /\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/i.test(value);
 }
 
 function endpointFromBaseUrl(baseUrl) {
@@ -298,7 +329,11 @@ async function diagnoseDns(endpoint, timeoutMs) {
     );
     const addresses = results.map((item) => item.address);
     pass("DNS lookup", `${redactedEndpointLabel(endpoint)} resolved to ${addresses.length} address(es)`);
-    return { status: "pass", addresses };
+    return {
+      status: "pass",
+      addresses: addresses.map(() => "<redacted-private-ip>"),
+      addressCount: addresses.length
+    };
   } catch (error) {
     warn("DNS lookup", `${redactedEndpointLabel(endpoint)} unresolved: ${error instanceof Error ? error.message : String(error)}`);
     return {
@@ -684,8 +719,8 @@ function classify({ config, endpoint, dnsResult, tcpResult, tlsResult, httpResul
 function readOnlyTroubleshootingCommands(endpoint, dnsResult) {
   if (!endpoint) return [];
   const firstAddress = dnsResult.addresses?.[0];
-  const target = firstAddress ?? endpoint.hostname;
-  const host = endpoint.hostname;
+  const target = firstAddress ? "<redacted-private-ip>" : "<redacted-ocp-api>";
+  const host = "<redacted-ocp-api>";
   const port = endpoint.port;
 
   return [
@@ -1012,6 +1047,9 @@ async function main() {
   const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
   if (secretValuesForLeakCheck().some((secret) => serialized.includes(secret))) {
     throw new Error("OCP connectivity diagnostic would include a configured secret value");
+  }
+  if (endpointLeakLike(serialized)) {
+    throw new Error("OCP connectivity diagnostic would include an unredacted OCP host or private IP");
   }
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");

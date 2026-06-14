@@ -107,7 +107,13 @@ function sanitize(value) {
     .replace(/--token\s+\S+/gi, "--token <redacted>")
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
     .replace(/([?&](?:access_)?token=)[^&\s]+/gi, "$1<redacted>")
-    .replace(/(auth|token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>");
+    .replace(/(auth|token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>")
+    .replace(/\b10(?:\.\d{1,3}){3}\b/g, "<redacted-private-ip>")
+    .replace(/\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b/g, "<redacted-private-ip>")
+    .replace(/\b192\.168(?:\.\d{1,3}){2}\b/g, "<redacted-private-ip>")
+    .replace(/(Test-NetConnection\s+-ComputerName\s+)(?:"?)[^\s"]+/gi, "$1<redacted-ocp-api>")
+    .replace(/(Resolve-DnsName\s+)(?:"?)[^\s"]+/gi, "$1<redacted-ocp-api>")
+    .replace(/\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/gi, "<redacted-ocp-api>");
 }
 
 function secretLike(value) {
@@ -116,6 +122,13 @@ function secretLike(value) {
     /(?:auth|token|password|passwd|secret|api[_-]?key)(=|:)(?!<redacted>)[^\s]+/i.test(value) ||
     /[?&](?:access_)?token=[^&\s]+/i.test(value) ||
     /-----BEGIN (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----/i.test(value);
+}
+
+function endpointLeakLike(value) {
+  return /\b10(?:\.\d{1,3}){3}\b/.test(value) ||
+    /\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b/.test(value) ||
+    /\b192\.168(?:\.\d{1,3}){2}\b/.test(value) ||
+    /\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/i.test(value);
 }
 
 function record(status, name, detail) {
@@ -558,7 +571,7 @@ function ocpNetworkDiagnostics(networkHandoff) {
   const diagnostics = networkHandoff?.diagnostics ?? {};
   const target = networkHandoff?.target ?? {};
   const dnsAddresses = Array.isArray(diagnostics.dns?.addresses)
-    ? diagnostics.dns.addresses.join(",")
+    ? diagnostics.dns.addresses.map(sanitize).join(",")
     : "";
   const rbacReviews = diagnostics.rbacAccessReviews ?? [];
   const allowedReviews = rbacReviews.filter((review) => review.status === "allowed");
@@ -2216,6 +2229,13 @@ async function main() {
     ownerPacketMarkdowns.some((packet) => secretLike(packet.markdown))
   ) {
     throw new Error("release action queue would include secret-like material");
+  }
+  if (
+    endpointLeakLike(serialized) ||
+    endpointLeakLike(markdown) ||
+    ownerPacketMarkdowns.some((packet) => endpointLeakLike(packet.markdown))
+  ) {
+    throw new Error("release action queue would include an unredacted OCP host or private IP");
   }
 
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");
