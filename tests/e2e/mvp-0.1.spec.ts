@@ -5196,6 +5196,43 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (item) => item.id === "release-publish-commands"
       )?.value
     ).toContain("approvalGated=");
+    const installApprovalAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) =>
+          item.id === "cluster-admin-refresh-install-plan-after-live-evidence"
+      );
+    expect(
+      installApprovalAction?.diagnostics?.map((item) => item.id)
+    ).toEqual(
+      expect.arrayContaining([
+        "install-approval-status",
+        "install-approval-approvals",
+        "install-approval-commands",
+        "install-approval-lightspeed",
+        "install-approval-rag",
+        "install-approval-boundary"
+      ])
+    );
+    expect(
+      installApprovalAction?.diagnostics?.find(
+        (item) => item.id === "install-approval-boundary"
+      )?.value
+    ).toContain("mutationAllowed=false");
+    expect(
+      installApprovalAction?.diagnostics?.find(
+        (item) => item.id === "install-approval-boundary"
+      )?.value
+    ).toContain("vectorWrite=false");
+    expect(
+      installApprovalAction?.diagnostics?.find(
+        (item) => item.id === "install-approval-lightspeed"
+      )?.value
+    ).toContain("mode=PatchOLSConfig");
+    expect(
+      installApprovalAction?.diagnostics?.find(
+        (item) => item.id === "install-approval-rag"
+      )?.value
+    ).toContain("actionMode=ingestionPlanOnly");
     const externalRuntimeCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "external-runtime-review"
@@ -5247,6 +5284,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         requiresExplicitApproval: true
       }
     });
+    expect(installApprovalCriticalPath?.diagnostics).toEqual(
+      expect.arrayContaining([
+        "install-approval-status",
+        "install-approval-approvals",
+        "install-approval-commands",
+        "install-approval-lightspeed",
+        "install-approval-rag",
+        "install-approval-boundary"
+      ])
+    );
     const registryOwnerPacket =
       body.installReadiness?.actionQueue?.ownerPackets?.find(
         (packet) => packet.owner === "registry-admin"
@@ -7250,6 +7297,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("installFirst=run-operator-server-dry-run");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("install-approval-boundary");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("tools=opm,operator-sdk");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
@@ -7328,6 +7378,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-approval-handoff")
     ).toContainText("release-publish-boundary");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-approval-handoff")
+    ).toContainText("install-approval-boundary");
     await expect(
       page.getByTestId("opslens-release-action-queue-readonly-handoff")
     ).toContainText("ocp-connectivity");

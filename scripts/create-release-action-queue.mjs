@@ -594,6 +594,75 @@ function releasePublishDiagnostics(releasePlan) {
   ];
 }
 
+function installApprovalDiagnostics(installPlan) {
+  const ticket = installPlan?.ticketPacket ?? {};
+  const boundary = ticket.mutationBoundary ?? {};
+  const commands = installPlan?.commands ?? [];
+  const readOnly = commands.filter((command) => command.mutation !== true);
+  const approvalGated = commands.filter((command) => command.mutation === true);
+  const missingEvidence = installPlan?.missingEvidence ?? [];
+  const requiredApprovals =
+    installPlan?.requiredApprovals ?? ticket.requiredApprovals ?? [];
+  const lightspeed = installPlan?.lightspeedRegistration ?? {};
+  const target = lightspeed.target ?? {};
+  const rag = installPlan?.ragIngestion ?? {};
+  return [
+    {
+      id: "install-approval-status",
+      label: "Install approval",
+      value:
+        `status=${installPlan?.status ?? "missing"} ` +
+        `actionMode=${installPlan?.actionMode ?? "missing"} ` +
+        `ticket=${ticket.id ?? "missing"}`
+    },
+    {
+      id: "install-approval-approvals",
+      label: "Required approvals",
+      value:
+        `required=${requiredApprovals.join(",") || "none"} ` +
+        `missingEvidence=${missingEvidence.length}`
+    },
+    {
+      id: "install-approval-commands",
+      label: "Command boundary",
+      value:
+        `readOnly=${readOnly.length} ` +
+        `approvalGated=${approvalGated.length} ` +
+        `approval=${approvalGated.map((command) => command.id).slice(0, 6).join(",") || "none"}`
+    },
+    {
+      id: "install-approval-lightspeed",
+      label: "Lightspeed registration",
+      value:
+        `mode=${lightspeed.mode ?? "missing"} ` +
+        `config=${lightspeed.configResourceKind ?? "missing"} ` +
+        `preview=${String(lightspeed.actionMode === "previewOnly")} ` +
+        `target=${target.namespace ?? "missing"}/${target.name ?? "missing"} ` +
+        `legacyConfigMapMutation=${String(lightspeed.legacyConfigMapMutationAttempted === true)}`
+    },
+    {
+      id: "install-approval-rag",
+      label: "RAG ingestion",
+      value:
+        `status=${rag.status ?? "missing"} ` +
+        `actionMode=${rag.actionMode ?? "missing"} ` +
+        `vectorWrite=${String(rag.vectorWriteAttempted === true)} ` +
+        `ingestionJob=${String(rag.ingestionJobCreated === true)}`
+    },
+    {
+      id: "install-approval-boundary",
+      label: "Mutation boundary",
+      value:
+        `clusterMutation=${String(boundary.clusterMutationAttempted === true)} ` +
+        `registryMutation=${String(boundary.registryMutationAttempted === true)} ` +
+        `vectorWrite=${String(boundary.vectorWriteAttempted === true)} ` +
+        `ingestionJob=${String(boundary.ingestionJobCreated === true)} ` +
+        `mutationAllowed=${String(boundary.mutationAllowedByThisVerifier === true)} ` +
+        `installApproval=${String(boundary.installRequiresExplicitApproval !== false)}`
+    }
+  ];
+}
+
 function stripReleaseActionQueueFeedback(value) {
   return sanitize(value).replace(/^(?:releaseActionQueue:\s*)+/i, "");
 }
@@ -1791,6 +1860,7 @@ function checkpointItems(
       (command) => command.mutation === true
     ),
     blockedBy: installPlan?.missingEvidence ?? [],
+    diagnostics: installApprovalDiagnostics(installPlan),
     installApprovalTicketPacket: installPlan?.ticketPacket,
     acceptance: ["AC-OP-005"]
   });
