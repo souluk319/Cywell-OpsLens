@@ -2287,6 +2287,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         .join(" ")
     ).toMatch(/ocp:connectivity|vpn|firewall|dns|token|tls|api/i);
     expect(
+      body.installReadiness?.connectivity?.actionHints
+        ?.map((hint) => `${hint.summary} ${hint.nextCheck}`)
+        .join(" ")
+    ).toContain("--timeout-ms 30000");
+    expect(
       body.installReadiness?.connectivity?.readOnlyTroubleshootingCommands
         ?.every((command) => command.mutation === false)
     ).toBe(true);

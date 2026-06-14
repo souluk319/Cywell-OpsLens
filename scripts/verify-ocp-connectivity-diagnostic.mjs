@@ -682,16 +682,17 @@ function readOnlyTroubleshootingCommands(endpoint, dnsResult) {
 }
 
 function actionHintsForClassification(classification, troubleshootingCommands = []) {
+  const boundedConnectivityCheck = "npm run verify:ocp:connectivity -- --timeout-ms 30000";
   const tcpNextCheck =
     troubleshootingCommands.find((command) => command.id === "windows-test-netconnection")?.command ??
-    "Test TCP reachability to the API host and port, then rerun npm run verify:ocp:connectivity.";
+    `Test TCP reachability to the API host and port, then rerun ${boundedConnectivityCheck}.`;
   const common = [
     {
       id: "rerun-read-only-diagnostic",
       severity: "info",
-      summary: "Rerun npm run verify:ocp:connectivity after the environment or network change.",
+      summary: `Rerun ${boundedConnectivityCheck} after the environment or network change.`,
       evidence: "The verifier performs DNS, TCP, TLS, /version, and oc raw reads only.",
-      nextCheck: "npm run verify:ocp:connectivity"
+      nextCheck: boundedConnectivityCheck
     }
   ];
 
@@ -702,7 +703,7 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         severity: "blocked",
         summary: "Set OCP_API_BASE_URL and OCP_API_TOKEN, or point KUBECONFIG at a usable cluster context.",
         evidence: "No OpenShift API endpoint was available to classify.",
-        nextCheck: "npm run verify:env && npm run verify:ocp:connectivity"
+        nextCheck: `npm run verify:env && ${boundedConnectivityCheck}`
       }
     ],
     "invalid-api-url": [
@@ -711,7 +712,7 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         severity: "blocked",
         summary: "Use a full OpenShift API URL such as https://api.example:6443.",
         evidence: "The configured OCP API base URL could not be parsed.",
-        nextCheck: "npm run verify:ocp:connectivity"
+        nextCheck: boundedConnectivityCheck
       }
     ],
     "token-missing": [
@@ -729,7 +730,7 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         severity: "blocked",
         summary: "Check DNS, hosts file, VPN DNS suffixes, and split-horizon resolver settings.",
         evidence: "The API hostname did not resolve.",
-        nextCheck: "Resolve the API host, then rerun npm run verify:ocp:connectivity."
+        nextCheck: `Resolve the API host, then rerun ${boundedConnectivityCheck}.`
       }
     ],
     "tcp-timeout": [
@@ -754,7 +755,7 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         severity: "blocked",
         summary: "Check that the OpenShift API host and port are reachable from this machine.",
         evidence: "TCP connect failed before TLS or Kubernetes auth could be tested.",
-        nextCheck: "Rerun npm run verify:ocp:connectivity after network reachability is restored."
+        nextCheck: `Rerun ${boundedConnectivityCheck} after network reachability is restored.`
       }
     ],
     "tls-handshake-failed": [
@@ -763,7 +764,7 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         severity: "blocked",
         summary: "Check enterprise CA trust or set explicit OCP_TLS_VERIFY/OCP_INSECURE_SKIP_TLS_VERIFY values.",
         evidence: "TCP passed, but TLS handshake did not.",
-        nextCheck: "Rerun npm run verify:ocp:connectivity; do not reuse Lightspeed TLS variables for OCP."
+        nextCheck: `Rerun ${boundedConnectivityCheck}; do not reuse Lightspeed TLS variables for OCP.`
       }
     ],
     "auth-failed": [
@@ -772,7 +773,7 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         severity: "blocked",
         summary: "Refresh OCP_API_TOKEN or kubeconfig credentials and confirm user access.",
         evidence: "The API was reachable but authentication or authorization failed.",
-        nextCheck: "oc whoami && npm run verify:ocp:connectivity"
+        nextCheck: `oc whoami && ${boundedConnectivityCheck}`
       }
     ],
     "auth-or-rbac": [
@@ -781,7 +782,7 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         severity: "blocked",
         summary: "Refresh the OCP API credential or grant the read-only RBAC needed for discovery.",
         evidence: "DNS, TCP, and TLS reached the API, but Kubernetes returned 401 or 403.",
-        nextCheck: "oc whoami && oc auth can-i get crd olsconfigs.ols.openshift.io && npm run verify:ocp:connectivity"
+        nextCheck: `oc whoami && oc auth can-i get crd olsconfigs.ols.openshift.io && ${boundedConnectivityCheck}`
       }
     ],
     "api-unreachable": [
@@ -790,7 +791,7 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         severity: "blocked",
         summary: "Check API server health, proxy settings, and network path after TCP/TLS diagnostics.",
         evidence: "The API did not return usable /version evidence.",
-        nextCheck: "npm run verify:ocp:connectivity"
+        nextCheck: boundedConnectivityCheck
       }
     ],
     "api-ready": [
@@ -940,7 +941,7 @@ async function main() {
     ],
     rollbackPath: [
       "No rollback is required because this verifier is read-only.",
-      "Fix network/VPN/firewall/DNS or token configuration, then rerun npm run verify:ocp:connectivity.",
+      "Fix network/VPN/firewall/DNS or token configuration, then rerun npm run verify:ocp:connectivity -- --timeout-ms 30000.",
       "After OCP connectivity passes, rerun verify:lightspeed, verify:operator:dry-run, verify:install-plan, verify:evidence-checkpoint, and verify:roadmap-plan."
     ],
     checks

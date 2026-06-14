@@ -327,7 +327,7 @@ function classifyLiveReadFailure(ocError, apiError) {
   let classification = "api-unreachable";
   let evidence =
     "live OCP read failed before Lightspeed OLSConfig or CRD readiness could be confirmed";
-  let nextCommand = "npm run verify:ocp:connectivity";
+  let nextCommand = "npm run verify:ocp:connectivity -- --timeout-ms 30000";
   let owner = "cluster-sre";
 
   if (!config.baseUrl || !config.token) {

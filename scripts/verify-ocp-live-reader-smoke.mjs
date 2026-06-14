@@ -261,7 +261,7 @@ function commands() {
   return [
     {
       id: "verify-ocp-connectivity-with-approved-reader",
-      command: "npm run verify:ocp:connectivity",
+      command: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
       phase: "post-approval-live-smoke",
       purpose:
         "Using the approved short-lived live reader token already configured in the environment, prove OCP /version and required read-only RBAC.",

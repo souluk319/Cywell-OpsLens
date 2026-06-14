@@ -429,7 +429,7 @@ function readOnlyCommands() {
     {
       id: "classify-ocp-network",
       phase: "live-readiness",
-      command: "npm run verify:ocp:connectivity",
+      command: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
       mutation: false,
       writesLocalEvidence: true,
       purpose: "Classify DNS/TCP/TLS/API reachability before blaming Lightspeed or OpsLens."

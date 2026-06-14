@@ -139,7 +139,7 @@ function commandPlan(mcpUrlConfigured, troubleshootingCommands = []) {
     },
     {
       id: "ocp-connectivity",
-      command: "npm run verify:ocp:connectivity",
+      command: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
       purpose: "Classify DNS, TCP, TLS, Kubernetes /version, and oc reachability without mutation.",
       phase: "live-read-only",
       requiresNetwork: true,
@@ -160,7 +160,7 @@ function commandPlan(mcpUrlConfigured, troubleshootingCommands = []) {
     },
     ...troubleshootingCommands.map((command) => ({
       id: command.id ?? "ocp-network-read-only",
-      command: command.command ?? "npm run verify:ocp:connectivity",
+      command: command.command ?? "npm run verify:ocp:connectivity -- --timeout-ms 30000",
       purpose: command.purpose ?? "Collect read-only OCP network troubleshooting evidence.",
       phase: command.phase ?? "local-network-read-only",
       requiresNetwork: command.requiresNetwork === true,

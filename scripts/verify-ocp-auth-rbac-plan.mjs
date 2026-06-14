@@ -329,7 +329,7 @@ function readOnlyCommands(manifestPath) {
     {
       id: "refresh-ocp-connectivity",
       phase: "local-evidence-refresh",
-      command: "npm run verify:ocp:connectivity",
+      command: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
       purpose: "Refresh redacted OCP API DNS/TCP/TLS/auth classification.",
       requiresNetwork: true,
       mutation: false,
@@ -614,7 +614,7 @@ async function main() {
       "No rollback is required for this verifier because it writes only local evidence.",
       "If the RBAC is approved and later revoked, delete the ClusterRoleBinding, ClusterRole, and ServiceAccount named cywell-opslens-live-evidence-reader.",
       "Do not delete the cywell-opslens namespace as rollback unless it was created only for this fallback reader and contains no product resources.",
-      "Remove the local short-lived credential and rerun npm run verify:ocp:connectivity to prove the current auth/RBAC state."
+      "Remove the local short-lived credential and rerun npm run verify:ocp:connectivity -- --timeout-ms 30000 to prove the current auth/RBAC state."
     ],
     markdownOut: resolve(options.markdownOut),
     checks
