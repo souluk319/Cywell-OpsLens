@@ -3033,6 +3033,22 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-security-first-review-actions"
+              >
+                {securityScanPlan.firstSecurityReviewActions.length ? (
+                  securityScanPlan.firstSecurityReviewActions.map((action) => (
+                    <span key={action.id}>
+                      {action.id}:{action.owner}:{action.status}:next=
+                      {action.nextCommand}:mutation={String(action.mutation)}
+                      :approval={String(action.requiresExplicitApproval)}
+                    </span>
+                  ))
+                ) : (
+                  <span>security review first actions missing</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-security-review-drafts"
               >
                 {securityScanPlan.images.slice(0, 7).map((image) => (

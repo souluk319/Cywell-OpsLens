@@ -597,6 +597,62 @@ function buildCommands({ ownedImages, externalImages }) {
   return { readOnly, setup, approvalGated };
 }
 
+function firstSecurityReviewActions(images, commands) {
+  const requiredImages = images.filter((image) => image.required);
+  const reviewActions = requiredImages
+    .filter((image) => image.securityEvidence.reviewApproved !== true)
+    .slice(0, 3)
+    .map((image) => {
+      const reviewDraft = image.securityEvidence.reviewDraft;
+      const blockedBy = [
+        ...(!image.securityEvidence.vulnerabilityReportValid
+          ? [`${image.name} vulnerability scan evidence is missing or invalid`]
+          : []),
+        ...(!image.securityEvidence.sbomValid
+          ? [`${image.name} SBOM evidence is missing or invalid`]
+          : []),
+        ...reviewDraft.missingEvidence
+      ].slice(0, 6);
+
+      return {
+        id: `security-review-${image.name}`,
+        owner: "security-reviewer",
+        phase: "security-review-draft",
+        status: reviewDraft.readyForFinalReview ? "ready-for-final-review" : "needs-evidence",
+        request: `Review ${image.name} scan/SBOM evidence and create an explicit security review draft before final release evidence.`,
+        evidenceNeeded: `${image.name} same-head vulnerability scan, SBOM, reviewer, security ticket, and explicit decision.`,
+        nextCommand: `npm run evidence:security-review:draft -- --name ${image.name} --reviewer <security-reviewer> --ticket <security-ticket> --decision approved --force`,
+        mutation: false,
+        requiresExplicitApproval: false,
+        blockedBy,
+        rollbackPath: `Delete or supersede ${image.name}-security-review.draft.json if it was created from the wrong image digest or Git head.`
+      };
+    });
+
+  const firstMutatingCommand = commands.approvalGated.find((entry) => entry.mutation === true);
+  const gatedMutationAction = firstMutatingCommand
+    ? [
+        {
+          id: `approval-gated-${firstMutatingCommand.id}`,
+          owner: "registry-admin",
+          phase: firstMutatingCommand.phase,
+          status: "approval-gated",
+          request: `Do not run ${firstMutatingCommand.id} until security and release approvals are explicit.`,
+          evidenceNeeded: "All required vulnerability, SBOM, provenance, and security review evidence passes, and release-manager, registry-admin, security-reviewer, and product-owner approvals are recorded.",
+          nextCommand: firstMutatingCommand.command,
+          mutation: true,
+          requiresExplicitApproval: true,
+          blockedBy: requiredImages
+            .filter((image) => image.securityEvidence.reviewApproved !== true)
+            .map((image) => `${image.name}: approved security review evidence missing`),
+          rollbackPath: "Do not attach signatures until approval; if a signature is attached from the wrong image digest, revoke or supersede it with corrected image and signature evidence."
+        }
+      ]
+    : [];
+
+  return [...reviewActions, ...gatedMutationAction];
+}
+
 function securityEvidenceReadmeCheck() {
   const readmePath = resolve(options.securityEvidenceDir, "README.md");
   if (!existsSync(readmePath)) {
@@ -716,6 +772,7 @@ async function main() {
   }
 
   const commands = buildCommands({ ownedImages, externalImages });
+  const firstReviewActions = firstSecurityReviewActions(allImages, commands);
   const status = planStatus(missingEvidence);
   const artifact = {
     schema: "cywell.opslens.security-scan-plan.v0.1",
@@ -745,6 +802,7 @@ async function main() {
     securityScanRunner: runnerCoverage,
     images: allImages,
     commands,
+    firstSecurityReviewActions: firstReviewActions,
     missingEvidence,
     risk: [
       "A scan plan is not a certification result; release approval still requires reviewed scan, SBOM, signature, provenance, and critical-finding evidence.",

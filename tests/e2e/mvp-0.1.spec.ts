@@ -1588,8 +1588,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           setupCommands?: Array<{ id?: string; mutation?: boolean }>;
           approvalGatedCommands?: Array<{
             id?: string;
+            command?: string;
             mutation?: boolean;
             requiresExplicitApproval?: boolean;
+          }>;
+          firstSecurityReviewActions?: Array<{
+            id?: string;
+            owner?: string;
+            phase?: string;
+            status?: string;
+            request?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+            blockedBy?: string[];
+            rollbackPath?: string;
           }>;
           risk?: string[];
           rollbackPath?: string[];
@@ -2841,6 +2855,31 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           command.mutation === true &&
           command.requiresExplicitApproval === true
       )
+    ).toBe(true);
+    const securityFirstActions =
+      body.installReadiness?.securityScanPlan?.firstSecurityReviewActions ?? [];
+    expect(securityFirstActions.length).toBeGreaterThanOrEqual(2);
+    expect(
+      securityFirstActions.some(
+        (action) =>
+          action.owner === "security-reviewer" &&
+          action.mutation === false &&
+          action.requiresExplicitApproval === false &&
+          /evidence:security-review:draft/.test(action.nextCommand ?? "")
+      )
+    ).toBe(true);
+    expect(
+      securityFirstActions.some(
+        (action) =>
+          action.id?.startsWith("approval-gated-sign-") &&
+          action.owner === "registry-admin" &&
+          action.mutation === true &&
+          action.requiresExplicitApproval === true &&
+          /cosign sign/.test(action.nextCommand ?? "")
+      )
+    ).toBe(true);
+    expect(
+      securityFirstActions.every((action) => Array.isArray(action.blockedBy))
     ).toBe(true);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /security scan/i
@@ -4363,6 +4402,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-security-scan-plan")).toContainText(
       "sign-owned"
     );
+    await expect(
+      page.getByTestId("opslens-security-first-review-actions")
+    ).toContainText("security-reviewer");
+    await expect(
+      page.getByTestId("opslens-security-first-review-actions")
+    ).toContainText("evidence:security-review:draft");
+    await expect(
+      page.getByTestId("opslens-security-first-review-actions")
+    ).toContainText("approval-gated-sign-owned");
+    await expect(
+      page.getByTestId("opslens-security-first-review-actions")
+    ).toContainText("approval=true");
     await expect(page.getByTestId("opslens-security-review-drafts")).toContainText(
       "operator:draft="
     );

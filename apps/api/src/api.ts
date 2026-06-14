@@ -2010,6 +2010,19 @@ type SecurityScanPlanEvidenceArtifact = {
       requiresExplicitApproval?: boolean;
     }>;
   };
+  firstSecurityReviewActions?: Array<{
+    id?: string;
+    owner?: string;
+    phase?: string;
+    status?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
+  }>;
   missingEvidence?: string[];
   risk?: string[];
   rollbackPath?: string[];
@@ -5110,6 +5123,22 @@ function missingSecurityScanPlanSummary(
     ],
     setupCommands: [],
     approvalGatedCommands: [],
+    firstSecurityReviewActions: [
+      {
+        id: "security-review-plan-missing",
+        owner: "security-reviewer",
+        phase: "security-review-preflight",
+        status: "needs-evidence",
+        request: "Generate the security scan plan before human security review.",
+        evidenceNeeded: reason,
+        nextCommand: "npm run verify:security-scan-plan",
+        mutation: false,
+        requiresExplicitApproval: false,
+        blockedBy: [reason],
+        rollbackPath:
+          "No rollback is required for read-only security review preflight."
+      }
+    ],
     missingEvidence: [reason],
     risk: [
       "Without security scan plan evidence, release review cannot distinguish missing scan/SBOM inputs from approved signing or registry actions."
@@ -5118,6 +5147,63 @@ function missingSecurityScanPlanSummary(
       "Run npm run verify:security-scan-plan from a clean Git HEAD before release-manager review."
     ]
   };
+}
+
+function deriveFirstSecurityReviewActions(
+  images: OpsLensSecurityScanPlanSummary["images"],
+  approvalGatedCommands: OpsLensSecurityScanPlanSummary["approvalGatedCommands"]
+): OpsLensSecurityScanPlanSummary["firstSecurityReviewActions"] {
+  const requiredImages = images.filter((image) => image.required);
+  const reviewActions = requiredImages
+    .filter((image) => !image.reviewExists)
+    .slice(0, 3)
+    .map((image) => ({
+      id: `security-review-${image.name}`,
+      owner: "security-reviewer",
+      phase: "security-review-draft",
+      status: image.reviewDraft.readyForFinalReview
+        ? "ready-for-final-review"
+        : "needs-evidence",
+      request: `Review ${image.name} scan/SBOM evidence and create an explicit security review draft before final release evidence.`,
+      evidenceNeeded: `${image.name} same-head vulnerability scan, SBOM, reviewer, security ticket, and explicit decision.`,
+      nextCommand: `npm run evidence:security-review:draft -- --name ${image.name} --reviewer <security-reviewer> --ticket <security-ticket> --decision approved --force`,
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy: [
+        ...(!image.vulnerabilityReportExists
+          ? [`${image.name} vulnerability scan evidence is missing`]
+          : []),
+        ...(!image.sbomExists ? [`${image.name} SBOM evidence is missing`] : []),
+        ...image.reviewDraft.missingEvidence
+      ].slice(0, 6),
+      rollbackPath: `Delete or supersede ${image.name}-security-review.draft.json if it was created from the wrong image digest or Git head.`
+    }));
+  const firstMutatingCommand = approvalGatedCommands.find(
+    (command) => command.mutation
+  );
+  const gatedMutationAction = firstMutatingCommand
+    ? [
+        {
+          id: `approval-gated-${firstMutatingCommand.id}`,
+          owner: "registry-admin",
+          phase: firstMutatingCommand.phase,
+          status: "approval-gated",
+          request: `Do not run ${firstMutatingCommand.id} until security and release approvals are explicit.`,
+          evidenceNeeded:
+            "All required vulnerability, SBOM, provenance, and security review evidence passes, and release-manager, registry-admin, security-reviewer, and product-owner approvals are recorded.",
+          nextCommand: firstMutatingCommand.command,
+          mutation: true,
+          requiresExplicitApproval: true,
+          blockedBy: requiredImages
+            .filter((image) => !image.reviewExists)
+            .map((image) => `${image.name}: approved security review evidence missing`),
+          rollbackPath:
+            "Do not attach signatures until approval; if a signature is attached from the wrong image digest, revoke or supersede it with corrected image and signature evidence."
+        }
+      ]
+    : [];
+
+  return [...reviewActions, ...gatedMutationAction];
 }
 
 function getSecurityScanPlanReadiness(): {
@@ -5206,6 +5292,30 @@ function getSecurityScanPlanReadiness(): {
       mutation: command.mutation === true,
       requiresExplicitApproval: command.requiresExplicitApproval === true
     }));
+    const fallbackFirstSecurityReviewActions = deriveFirstSecurityReviewActions(
+      images,
+      approvalGatedCommands
+    );
+    const firstSecurityReviewActions = (
+      artifact.firstSecurityReviewActions?.length
+        ? artifact.firstSecurityReviewActions
+        : fallbackFirstSecurityReviewActions
+    ).map((action) => ({
+      id: action.id ?? "unknown",
+      owner: action.owner ?? "security-reviewer",
+      phase: action.phase ?? "security-review-draft",
+      status: action.status ?? "needs-evidence",
+      request: action.request ?? "security review action",
+      evidenceNeeded: action.evidenceNeeded ?? "missing evidence",
+      nextCommand:
+        action.nextCommand ?? "npm run evidence:security-review:draft -- --all --force",
+      mutation: action.mutation === true,
+      requiresExplicitApproval: action.requiresExplicitApproval === true,
+      blockedBy: action.blockedBy ?? [],
+      rollbackPath:
+        action.rollbackPath ??
+        "Regenerate security scan evidence before proceeding."
+    }));
     const missingTools = cli
       .filter((tool) => !tool.available)
       .map((tool) => tool.name)
@@ -5231,6 +5341,7 @@ function getSecurityScanPlanReadiness(): {
         readOnlyCommands,
         setupCommands,
         approvalGatedCommands,
+        firstSecurityReviewActions,
         missingEvidence: artifact.missingEvidence ?? [],
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? []
@@ -5239,6 +5350,7 @@ function getSecurityScanPlanReadiness(): {
         `Security scan plan ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `security scan plan generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `scanReadOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length} approvalGatedCommands=${approvalGatedCommands.length}`,
+        `securityFirstReviewActions=${firstSecurityReviewActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         missingTools ? `missing local scan/sign CLIs=${missingTools}` : "all reported scan/sign CLIs are available",
         `required images missing scan/SBOM/review evidence=${requiredMissingEvidence}`,
         `security review drafts=${images.map((image) => `${image.name}:${image.reviewDraft.evidenceState}:sameHead=${String(image.reviewDraft.sameHead)}:decision=${image.reviewDraft.decision}:explicit=${String(image.reviewDraft.explicitDecisionProvided)}:ready=${String(image.reviewDraft.readyForFinalReview)}`).join(", ")}`,
