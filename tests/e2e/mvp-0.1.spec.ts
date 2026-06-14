@@ -1380,7 +1380,34 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           toolingHandoff?: {
             actionMode?: string;
             status?: string;
+            toolingSatisfiedBy?: string;
             missingRequiredTools?: string[];
+            runnerEvidence?: {
+              path?: string;
+              requiredSchema?: string;
+              status?: string;
+              approved?: boolean;
+              sameHead?: boolean;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+              runner?: {
+                id?: string;
+                image?: string;
+                imageDigest?: string;
+                approvedBy?: string;
+                ticket?: string;
+                approvedAt?: string;
+              };
+              toolVersions?: {
+                oc?: string;
+                docker?: string;
+                opm?: string;
+                operatorSdk?: string;
+              };
+              evidenceArtifacts?: Record<string, string>;
+              missingEvidence?: string[];
+              nextCommands?: string[];
+            };
             freshnessPolicy?: {
               requiredHead?: string;
               worktreeRequirement?: string;
@@ -2480,6 +2507,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ]).toContain(
       body.installReadiness?.certificationPlan?.toolingHandoff?.status
     );
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.toolingSatisfiedBy
+    ).toMatch(/local-workstation|approved-ci-image|missing/);
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.runnerEvidence
+    ).toMatchObject({
+      path: "docs/release/evidence/certification/approved-ci-runner.json",
+      requiredSchema: "cywell.opslens.certification-ci-runner.v0.1",
+      mutation: false
+    });
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.runnerEvidence?.status
+    ).toMatch(/missing|needs-evidence|ready|invalid/);
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.runnerEvidence?.nextCommands?.join(" ")
+    ).toContain("verify:certification");
     expect(
       body.installReadiness?.certificationPlan?.toolingHandoff
         ?.executionLanes?.map((lane) => lane.id)
@@ -4135,6 +4182,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-certification-tooling-handoff")
     ).toContainText("approvalGated=");
+    await expect(
+      page.getByTestId("opslens-certification-tooling-handoff")
+    ).toContainText("satisfiedBy=");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner")
+    ).toContainText("approved-ci-runner.json");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner")
+    ).toContainText("mutation=false");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner")
+    ).toContainText("operator-sdk:");
     await expect(
       page.getByTestId("opslens-certification-execution-lanes")
     ).toContainText("local-workstation");

@@ -1,0 +1,33 @@
+{
+  "schema": "cywell.opslens.certification-ci-runner.v0.1",
+  "artifactType": "opslens.certification-ci-runner.v0.1",
+  "ref": {
+    "headSha": "<current-git-head>"
+  },
+  "runner": {
+    "id": "<approved-runner-or-ci-job-id>",
+    "image": "<approved-ci-image>",
+    "imageDigest": "<approved-ci-image>@sha256:<digest>",
+    "approvedBy": "<release-manager-or-security-reviewer>",
+    "ticket": "<release-or-security-review-ticket>",
+    "approvedAt": "<iso-8601-timestamp>"
+  },
+  "toolVersions": {
+    "oc": "<oc version --client output>",
+    "docker": "<docker --version output>",
+    "opm": "<opm version output>",
+    "operatorSdk": "<operator-sdk version output>"
+  },
+  "evidenceArtifacts": {
+    "certificationReadiness": "test-results/cywell-opslens-certification-readiness.json",
+    "catalogToolchain": "test-results/cywell-opslens-catalog-toolchain-plan.json",
+    "opmValidateLog": "<ci-log-or-artifact-for-opm-validate>",
+    "operatorSdkBundleValidateLog": "<ci-log-or-artifact-for-operator-sdk-bundle-validate>",
+    "operatorSdkScorecardLog": "<ci-log-or-artifact-for-operator-sdk-scorecard>"
+  },
+  "mutation": false,
+  "notes": [
+    "Copy this file to approved-ci-runner.json only after the runner image digest, approver, ticket, current head, tool versions, and validation logs are real.",
+    "This evidence may satisfy missing local opm/operator-sdk tooling, but it does not approve Partner Connect, OperatorHub submission, registry push, signing, mirroring, or cluster mutation."
+  ]
+}

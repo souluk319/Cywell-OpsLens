@@ -2590,6 +2590,10 @@ export function OpsLensAdminDashboard() {
                   status={certificationPlan.toolingHandoff.status}
                 </span>
                 <span>
+                  satisfiedBy=
+                  {certificationPlan.toolingHandoff.toolingSatisfiedBy}
+                </span>
+                <span>
                   missing=
                   {certificationPlan.toolingHandoff.missingRequiredTools.join(
                     ", "
@@ -2609,6 +2613,39 @@ export function OpsLensAdminDashboard() {
                     certificationPlan.toolingHandoff.approvalGatedCommands
                       .length
                   }
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-certification-ci-runner"
+              >
+                <span>
+                  status=
+                  {certificationPlan.toolingHandoff.runnerEvidence.status}
+                </span>
+                <span>
+                  path={certificationPlan.toolingHandoff.runnerEvidence.path}
+                </span>
+                <span>
+                  sameHead=
+                  {String(
+                    certificationPlan.toolingHandoff.runnerEvidence.sameHead
+                  )}
+                </span>
+                <span>
+                  mutation=
+                  {String(
+                    certificationPlan.toolingHandoff.runnerEvidence.mutation
+                  )}
+                </span>
+                <span>
+                  tools=
+                  {[
+                    `oc:${certificationPlan.toolingHandoff.runnerEvidence.toolVersions.oc}`,
+                    `docker:${certificationPlan.toolingHandoff.runnerEvidence.toolVersions.docker}`,
+                    `opm:${certificationPlan.toolingHandoff.runnerEvidence.toolVersions.opm}`,
+                    `operator-sdk:${certificationPlan.toolingHandoff.runnerEvidence.toolVersions.operatorSdk}`
+                  ].join(", ")}
                 </span>
               </div>
               <div

@@ -42,6 +42,28 @@ Certification tooling readiness can be completed through one of these lanes:
 
 The hosted lane is approval-gated and may mutate an external portal or listing workflow. It is listed as a handoff only; local verifiers must never run it.
 
+## Approved CI Runner Evidence
+
+When `opm` or `operator-sdk` cannot be installed on the local workstation, the release-manager may satisfy the tooling lane with a reviewed CI runner artifact instead of local binaries.
+
+Use `docs/release/evidence/certification/approved-ci-runner.example.json` as the template, then create `docs/release/evidence/certification/approved-ci-runner.json` only after the values are real:
+
+- current Git `headSha`
+- approved runner or CI image digest pinned by `sha256`
+- approver, approval ticket, and approval timestamp
+- `oc`, `docker`, `opm`, and `operator-sdk` versions captured from the runner
+- artifact or log references for `opm validate`, `operator-sdk bundle validate`, and `operator-sdk scorecard`
+- `mutation: false`
+
+Validate it with:
+
+```powershell
+npm run verify:certification -- --ci-runner-evidence docs/release/evidence/certification/approved-ci-runner.json
+npm run verify:catalog-toolchain
+```
+
+Missing, placeholder, stale-head, or mutating CI runner evidence remains `needs-evidence` and does not approve Community/Certified Operator readiness.
+
 ## Freshness and Owner Handoff
 
 Certification evidence is fresh only when it is generated on the current Git HEAD from a clean worktree before Community or Certified Operator submission.

@@ -9,6 +9,7 @@ const execFileAsync = promisify(execFile);
 
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-certification-readiness.json",
+  ciRunnerEvidence: "docs/release/evidence/certification/approved-ci-runner.json",
   timeoutMs: 10000
 };
 
@@ -48,6 +49,7 @@ function parseArgs(argv) {
 const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  ciRunnerEvidence: parsed.get("ci-runner-evidence") ?? defaults.ciRunnerEvidence,
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
 };
 
@@ -460,18 +462,216 @@ async function gitStatusShort() {
   return value.split(/\r?\n/).filter(Boolean).map(sanitize);
 }
 
-function statusFromChecks() {
+function hasMeaningfulValue(value) {
+  const text = String(value ?? "").trim();
+  return Boolean(text) && !/[<>]/.test(text) && !/\b(example|placeholder|todo|changeme|change-ticket|security-ticket|missing|unknown)\b/i.test(text);
+}
+
+function hasDigest(value) {
+  return /sha256:[a-f0-9]{64}/i.test(String(value ?? ""));
+}
+
+function ciRunnerEvidenceTemplateCommands() {
+  return [
+    `copy docs/release/evidence/certification/approved-ci-runner.example.json to ${options.ciRunnerEvidence}`,
+    "fill runner image digest, approval ticket, approver, current head, tool versions, and validation logs",
+    `npm run verify:certification -- --ci-runner-evidence ${options.ciRunnerEvidence}`,
+    "npm run verify:catalog-toolchain"
+  ];
+}
+
+function sanitizeObject(value) {
+  if (Array.isArray(value)) return value.map((entry) => sanitizeObject(entry));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, sanitizeObject(entry)])
+    );
+  }
+  return typeof value === "string" ? sanitize(value) : value;
+}
+
+async function loadCiRunnerEvidence(headSha) {
+  const evidencePath = options.ciRunnerEvidence;
+  const base = {
+    path: evidencePath,
+    requiredSchema: "cywell.opslens.certification-ci-runner.v0.1",
+    status: "missing",
+    approved: false,
+    sameHead: false,
+    mutation: false,
+    requiresExplicitApproval: false,
+    runner: {
+      id: "missing",
+      image: "missing",
+      imageDigest: "missing",
+      approvedBy: "missing",
+      ticket: "missing",
+      approvedAt: "missing"
+    },
+    toolVersions: {
+      oc: "missing",
+      docker: "missing",
+      opm: "missing",
+      operatorSdk: "missing"
+    },
+    evidenceArtifacts: {
+      certificationReadiness: "missing",
+      catalogToolchain: "missing",
+      opmValidateLog: "missing",
+      operatorSdkBundleValidateLog: "missing",
+      operatorSdkScorecardLog: "missing"
+    },
+    missingEvidence: [],
+    nextCommands: ciRunnerEvidenceTemplateCommands(),
+    risk: [
+      "CI runner evidence can satisfy missing local opm/operator-sdk tooling only when it is approved, digest-pinned, current-head, and includes validation logs.",
+      "This verifier never pulls the CI image, logs in to a registry, submits to Partner Connect, or mutates a cluster."
+    ],
+    rollbackPath: [
+      "Remove or replace the approved CI runner evidence if the runner image digest, tooling versions, or approval ticket are invalid.",
+      "Rerun certification and catalog toolchain evidence after any CI runner image or toolchain change."
+    ]
+  };
+
+  let raw;
+  try {
+    raw = await readFile(resolve(evidencePath), "utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      warn("approved CI runner evidence", `${evidencePath} is not readable: ${error.message}`);
+      return {
+        ...base,
+        status: "invalid",
+        missingEvidence: [`${evidencePath} is not readable: ${sanitize(error.message)}`]
+      };
+    }
+    return {
+      ...base,
+      missingEvidence: [
+        `approved CI runner evidence is missing at ${evidencePath}`
+      ]
+    };
+  }
+
+  let artifact;
+  try {
+    artifact = JSON.parse(raw);
+  } catch (error) {
+    warn("approved CI runner evidence", `${evidencePath} is not valid JSON: ${error.message}`);
+    return {
+      ...base,
+      status: "invalid",
+      missingEvidence: [`${evidencePath} is not valid JSON: ${sanitize(error.message)}`]
+    };
+  }
+
+  const sanitized = sanitizeObject(artifact);
+  const ref = sanitized.ref ?? {};
+  const runner = sanitized.runner ?? {};
+  const toolVersions = sanitized.toolVersions ?? {};
+  const evidenceArtifacts = sanitized.evidenceArtifacts ?? {};
+  const sameHead = ref.headSha === headSha || sanitized.headSha === headSha;
+  const missingEvidence = [];
+
+  if (sanitized.schema !== base.requiredSchema && sanitized.artifactType !== "opslens.certification-ci-runner.v0.1") {
+    missingEvidence.push(`schema must be ${base.requiredSchema}`);
+  }
+  if (!sameHead) {
+    missingEvidence.push(`runner evidence headSha must match current head ${headSha}`);
+  }
+  if (!hasMeaningfulValue(runner.id)) missingEvidence.push("runner.id is required");
+  if (!hasMeaningfulValue(runner.image)) missingEvidence.push("runner.image is required");
+  if (!hasDigest(runner.imageDigest)) missingEvidence.push("runner.imageDigest must include sha256 digest");
+  if (!hasMeaningfulValue(runner.approvedBy)) missingEvidence.push("runner.approvedBy is required");
+  if (!hasMeaningfulValue(runner.ticket)) missingEvidence.push("runner.ticket is required");
+  if (!hasMeaningfulValue(runner.approvedAt) || Number.isNaN(Date.parse(runner.approvedAt))) {
+    missingEvidence.push("runner.approvedAt must be an ISO timestamp");
+  }
+  for (const tool of ["oc", "docker", "opm", "operatorSdk"]) {
+    if (!hasMeaningfulValue(toolVersions[tool])) {
+      missingEvidence.push(`toolVersions.${tool} is required`);
+    }
+  }
+  for (const field of [
+    "certificationReadiness",
+    "catalogToolchain",
+    "opmValidateLog",
+    "operatorSdkBundleValidateLog",
+    "operatorSdkScorecardLog"
+  ]) {
+    if (!hasMeaningfulValue(evidenceArtifacts[field])) {
+      missingEvidence.push(`evidenceArtifacts.${field} is required`);
+    }
+  }
+  if (sanitized.mutation !== false) {
+    missingEvidence.push("mutation must be false for the CI runner evidence lane");
+  }
+
+  if (missingEvidence.length > 0) {
+    warn("approved CI runner evidence", `${evidencePath} is present but not ready: ${missingEvidence.join("; ")}`);
+  } else {
+    pass("approved CI runner evidence", `${evidencePath} is approved and current-head`);
+  }
+
+  return {
+    ...base,
+    status: missingEvidence.length === 0 ? "ready" : "needs-evidence",
+    approved: missingEvidence.length === 0,
+    sameHead,
+    mutation: sanitized.mutation === true,
+    runner: {
+      id: sanitize(runner.id ?? "missing"),
+      image: sanitize(runner.image ?? "missing"),
+      imageDigest: sanitize(runner.imageDigest ?? "missing"),
+      approvedBy: sanitize(runner.approvedBy ?? "missing"),
+      ticket: sanitize(runner.ticket ?? "missing"),
+      approvedAt: sanitize(runner.approvedAt ?? "missing")
+    },
+    toolVersions: {
+      oc: sanitize(toolVersions.oc ?? "missing"),
+      docker: sanitize(toolVersions.docker ?? "missing"),
+      opm: sanitize(toolVersions.opm ?? "missing"),
+      operatorSdk: sanitize(toolVersions.operatorSdk ?? "missing")
+    },
+    evidenceArtifacts: {
+      certificationReadiness: sanitize(evidenceArtifacts.certificationReadiness ?? "missing"),
+      catalogToolchain: sanitize(evidenceArtifacts.catalogToolchain ?? "missing"),
+      opmValidateLog: sanitize(evidenceArtifacts.opmValidateLog ?? "missing"),
+      operatorSdkBundleValidateLog: sanitize(evidenceArtifacts.operatorSdkBundleValidateLog ?? "missing"),
+      operatorSdkScorecardLog: sanitize(evidenceArtifacts.operatorSdkScorecardLog ?? "missing")
+    },
+    missingEvidence,
+    nextCommands:
+      missingEvidence.length === 0
+        ? [
+            `npm run verify:certification -- --ci-runner-evidence ${evidencePath}`,
+            "npm run verify:catalog-toolchain",
+            "npm run verify:release-refresh -- --live-timeout-ms 30000"
+          ]
+        : ciRunnerEvidenceTemplateCommands()
+  };
+}
+
+function statusFromChecks(toolingHandoff) {
   if (checks.some((check) => check.status === "FAIL")) return "FAILED";
-  const requiredToolingMissing = cli.some(
-    (entry) => entry.requiredForExternalSubmission && !entry.available
+  const ciRunnerReady = toolingHandoff.runnerEvidence?.status === "ready";
+  const requiredToolingMissing =
+    toolingHandoff.missingRequiredTools.length > 0 && !ciRunnerReady;
+  const unresolvedWarnings = checks.some(
+    (check) =>
+      check.status === "WARN" &&
+      !(
+        ciRunnerReady &&
+        /^CLI (oc|docker|opm|operator-sdk)$/.test(check.name)
+      )
   );
-  if (requiredToolingMissing || checks.some((check) => check.status === "WARN")) {
+  if (requiredToolingMissing || unresolvedWarnings) {
     return "NEEDS_TOOLING";
   }
   return "READY_FOR_REVIEW";
 }
 
-function buildToolingHandoff() {
+function buildToolingHandoff(ciRunnerEvidence) {
   const requiredTools = cli
     .filter((entry) => entry.requiredForExternalSubmission)
     .map((entry) => ({
@@ -485,12 +685,20 @@ function buildToolingHandoff() {
     .map((entry) => entry.name);
   const requiredToolNames = requiredTools.map((entry) => entry.name);
   const toolingReady = missingRequiredTools.length === 0;
+  const ciRunnerReady = ciRunnerEvidence.status === "ready";
+  const toolingSatisfiedBy = toolingReady
+    ? "local-workstation"
+    : ciRunnerReady
+      ? "approved-ci-image"
+      : "missing";
 
   return {
     actionMode: "humanSetupOnly",
-    status: toolingReady ? "ready-for-validation" : "needs-tooling",
+    status: toolingReady || ciRunnerReady ? "ready-for-validation" : "needs-tooling",
+    toolingSatisfiedBy,
     requiredTools,
     missingRequiredTools,
+    runnerEvidence: ciRunnerEvidence,
     freshnessPolicy: {
       requiredHead: "current Git HEAD",
       worktreeRequirement: "clean worktree before Community or Certified Operator submission",
@@ -534,7 +742,7 @@ function buildToolingHandoff() {
       {
         id: "approved-ci-image",
         owner: "release-manager",
-        status: "needs-evidence",
+        status: ciRunnerReady ? "ready-for-validation" : "needs-evidence",
         purpose: "Use an approved CI image or runner when a local workstation cannot provide trusted opm/operator-sdk tooling.",
         requiredTools: requiredToolNames,
         requiredEvidence: [
@@ -542,14 +750,10 @@ function buildToolingHandoff() {
           "tool versions captured from the CI lane",
           "current-head certification and catalog toolchain artifacts exported by the CI lane"
         ],
-        blockedBy: [
-          "approved CI image or runner digest is not recorded in this artifact"
-        ],
-        nextCommands: [
-          "provide approved CI image or runner evidence",
-          "npm run verify:certification",
-          "npm run verify:catalog-toolchain"
-        ],
+        blockedBy: ciRunnerReady ? [] : ciRunnerEvidence.missingEvidence,
+        nextCommands: ciRunnerReady
+          ? ciRunnerEvidence.nextCommands
+          : ciRunnerEvidence.nextCommands,
         mutation: false,
         requiresExplicitApproval: false
       },
@@ -566,7 +770,7 @@ function buildToolingHandoff() {
           "explicit release-manager and security-reviewer approval"
         ],
         blockedBy: [
-          ...(toolingReady ? [] : ["local or CI certification tooling readiness is not complete"]),
+          ...(toolingReady || ciRunnerReady ? [] : ["local or CI certification tooling readiness is not complete"]),
           "release publish, security, and external runtime evidence must be approved before external submission"
         ],
         nextCommands: [
@@ -680,7 +884,9 @@ function buildToolingHandoff() {
       missingRequiredTools.length > 0
         ? [
             "review docs/release/cywell-opslens-certification-tooling.md",
-            "install opm and operator-sdk through an approved release-manager path",
+            ciRunnerReady
+              ? `use approved CI runner evidence from ${ciRunnerEvidence.path}`
+              : "install opm and operator-sdk through an approved release-manager path or provide approved CI runner evidence",
             "npm run verify:certification",
             "npm run verify:catalog-toolchain"
           ]
@@ -712,7 +918,8 @@ async function writeEvidence() {
   );
   const worktreeStatus = await gitStatusShort();
   const worktreeDirty = worktreeStatus.length > 0;
-  const toolingHandoff = buildToolingHandoff();
+  const ciRunnerEvidence = await loadCiRunnerEvidence(headSha);
+  const toolingHandoff = buildToolingHandoff(ciRunnerEvidence);
   expectCheck(
     "certification tooling execution lanes",
     toolingHandoff.executionLanes.some((lane) => lane.id === "local-workstation") &&
@@ -729,11 +936,16 @@ async function writeEvidence() {
     "mutating execution lanes require explicit approval",
     "mutating execution lanes must require explicit approval"
   );
-  const status = statusFromChecks();
+  const status = statusFromChecks(toolingHandoff);
   const missingEvidence = [
-    ...cli
-      .filter((entry) => entry.requiredForExternalSubmission && !entry.available)
-      .map((entry) => `${entry.name} CLI is required before Community/Certified Operator submission`),
+    ...(ciRunnerEvidence.status === "ready"
+      ? []
+      : cli
+          .filter((entry) => entry.requiredForExternalSubmission && !entry.available)
+          .map((entry) => `${entry.name} CLI is required before Community/Certified Operator submission`)),
+    ...(toolingHandoff.missingRequiredTools.length > 0 && ciRunnerEvidence.status !== "ready"
+      ? ciRunnerEvidence.missingEvidence
+      : []),
     ...checks
       .filter((check) => check.status === "WARN")
       .map((check) => `${check.name}: ${check.detail}`)

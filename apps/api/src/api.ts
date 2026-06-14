@@ -1774,6 +1774,41 @@ type CertificationReadinessEvidenceArtifact = {
       requiredForExternalSubmission?: boolean;
     }>;
     missingRequiredTools?: string[];
+    toolingSatisfiedBy?: string;
+    runnerEvidence?: {
+      path?: string;
+      requiredSchema?: string;
+      status?: string;
+      approved?: boolean;
+      sameHead?: boolean;
+      mutation?: boolean;
+      requiresExplicitApproval?: boolean;
+      runner?: {
+        id?: string;
+        image?: string;
+        imageDigest?: string;
+        approvedBy?: string;
+        ticket?: string;
+        approvedAt?: string;
+      };
+      toolVersions?: {
+        oc?: string;
+        docker?: string;
+        opm?: string;
+        operatorSdk?: string;
+      };
+      evidenceArtifacts?: {
+        certificationReadiness?: string;
+        catalogToolchain?: string;
+        opmValidateLog?: string;
+        operatorSdkBundleValidateLog?: string;
+        operatorSdkScorecardLog?: string;
+      };
+      missingEvidence?: string[];
+      nextCommands?: string[];
+      risk?: string[];
+      rollbackPath?: string[];
+    };
     freshnessPolicy?: {
       requiredHead?: string;
       worktreeRequirement?: string;
@@ -4406,14 +4441,119 @@ function countCertificationGateStatuses(
   return counts;
 }
 
+function missingCertificationRunnerEvidence(
+  reason: string
+): OpsLensCertificationReadinessSummary["toolingHandoff"]["runnerEvidence"] {
+  return {
+    path: "docs/release/evidence/certification/approved-ci-runner.json",
+    requiredSchema: "cywell.opslens.certification-ci-runner.v0.1",
+    status: "missing",
+    approved: false,
+    sameHead: false,
+    mutation: false,
+    requiresExplicitApproval: false,
+    runner: {
+      id: "missing",
+      image: "missing",
+      imageDigest: "missing",
+      approvedBy: "missing",
+      ticket: "missing",
+      approvedAt: "missing"
+    },
+    toolVersions: {
+      oc: "missing",
+      docker: "missing",
+      opm: "missing",
+      operatorSdk: "missing"
+    },
+    evidenceArtifacts: {
+      certificationReadiness: "missing",
+      catalogToolchain: "missing",
+      opmValidateLog: "missing",
+      operatorSdkBundleValidateLog: "missing",
+      operatorSdkScorecardLog: "missing"
+    },
+    missingEvidence: [reason],
+    nextCommands: [
+      "copy docs/release/evidence/certification/approved-ci-runner.example.json to docs/release/evidence/certification/approved-ci-runner.json",
+      "npm run verify:certification -- --ci-runner-evidence docs/release/evidence/certification/approved-ci-runner.json",
+      "npm run verify:catalog-toolchain"
+    ],
+    risk: [
+      "Approved CI runner evidence is missing; local opm/operator-sdk gaps remain release-manager owned."
+    ],
+    rollbackPath: [
+      "Regenerate certification readiness evidence after providing an approved CI runner artifact."
+    ]
+  };
+}
+
+function mapCertificationRunnerEvidence(
+  artifact:
+    | NonNullable<
+        CertificationReadinessEvidenceArtifact["toolingHandoff"]
+      >["runnerEvidence"]
+    | undefined
+): OpsLensCertificationReadinessSummary["toolingHandoff"]["runnerEvidence"] {
+  if (!artifact) {
+    return missingCertificationRunnerEvidence(
+      "certification readiness evidence does not include approved CI runner evidence"
+    );
+  }
+  return {
+    path:
+      artifact.path ??
+      "docs/release/evidence/certification/approved-ci-runner.json",
+    requiredSchema:
+      artifact.requiredSchema ??
+      "cywell.opslens.certification-ci-runner.v0.1",
+    status: artifact.status ?? "missing",
+    approved: artifact.approved === true,
+    sameHead: artifact.sameHead === true,
+    mutation: artifact.mutation === true,
+    requiresExplicitApproval: artifact.requiresExplicitApproval === true,
+    runner: {
+      id: artifact.runner?.id ?? "missing",
+      image: artifact.runner?.image ?? "missing",
+      imageDigest: artifact.runner?.imageDigest ?? "missing",
+      approvedBy: artifact.runner?.approvedBy ?? "missing",
+      ticket: artifact.runner?.ticket ?? "missing",
+      approvedAt: artifact.runner?.approvedAt ?? "missing"
+    },
+    toolVersions: {
+      oc: artifact.toolVersions?.oc ?? "missing",
+      docker: artifact.toolVersions?.docker ?? "missing",
+      opm: artifact.toolVersions?.opm ?? "missing",
+      operatorSdk: artifact.toolVersions?.operatorSdk ?? "missing"
+    },
+    evidenceArtifacts: {
+      certificationReadiness:
+        artifact.evidenceArtifacts?.certificationReadiness ?? "missing",
+      catalogToolchain:
+        artifact.evidenceArtifacts?.catalogToolchain ?? "missing",
+      opmValidateLog: artifact.evidenceArtifacts?.opmValidateLog ?? "missing",
+      operatorSdkBundleValidateLog:
+        artifact.evidenceArtifacts?.operatorSdkBundleValidateLog ?? "missing",
+      operatorSdkScorecardLog:
+        artifact.evidenceArtifacts?.operatorSdkScorecardLog ?? "missing"
+    },
+    missingEvidence: artifact.missingEvidence ?? [],
+    nextCommands: artifact.nextCommands ?? [],
+    risk: artifact.risk ?? [],
+    rollbackPath: artifact.rollbackPath ?? []
+  };
+}
+
 function missingCertificationToolingHandoff(
   reason: string
 ): OpsLensCertificationReadinessSummary["toolingHandoff"] {
   return {
     actionMode: "humanSetupOnly",
     status: "needs-evidence",
+    toolingSatisfiedBy: "missing",
     requiredTools: [],
     missingRequiredTools: [],
+    runnerEvidence: missingCertificationRunnerEvidence(reason),
     freshnessPolicy: {
       requiredHead: "missing",
       worktreeRequirement: "missing certification readiness evidence",
@@ -4455,8 +4595,12 @@ function mapCertificationToolingHandoff(
         "certification readiness evidence does not include tooling handoff"
       ),
       status: missingRequiredTools.length > 0 ? "needs-tooling" : "needs-evidence",
+      toolingSatisfiedBy: "missing",
       requiredTools: cli.filter((tool) => tool.requiredForExternalSubmission),
       missingRequiredTools,
+      runnerEvidence: missingCertificationRunnerEvidence(
+        "certification readiness evidence does not include approved CI runner evidence"
+      ),
       freshnessPolicy: {
         requiredHead: "current Git HEAD",
         worktreeRequirement:
@@ -4491,6 +4635,7 @@ function mapCertificationToolingHandoff(
   return {
     actionMode: "humanSetupOnly",
     status: artifact.status ?? "needs-evidence",
+    toolingSatisfiedBy: artifact.toolingSatisfiedBy ?? "missing",
     requiredTools: (artifact.requiredTools ?? []).map((tool) => ({
       name: tool.name ?? "unknown",
       available: tool.available === true,
@@ -4499,6 +4644,7 @@ function mapCertificationToolingHandoff(
         tool.requiredForExternalSubmission === true
     })),
     missingRequiredTools: artifact.missingRequiredTools ?? [],
+    runnerEvidence: mapCertificationRunnerEvidence(artifact.runnerEvidence),
     freshnessPolicy: {
       requiredHead:
         artifact.freshnessPolicy?.requiredHead ?? "current Git HEAD",
@@ -4665,6 +4811,7 @@ function getCertificationReadiness(): {
           ? `missing external submission CLIs=${missingExternalTools}`
           : "all reported external submission CLIs are available",
         `certification tooling handoff ${toolingHandoff.actionMode} status=${toolingHandoff.status} missingRequiredTools=${toolingHandoff.missingRequiredTools.join(", ") || "none"} next=${toolingHandoff.nextCommands[0] ?? "unknown"}`,
+        `certification tooling satisfiedBy=${toolingHandoff.toolingSatisfiedBy} ciRunner=${toolingHandoff.runnerEvidence.status} sameHead=${String(toolingHandoff.runnerEvidence.sameHead)} mutation=${String(toolingHandoff.runnerEvidence.mutation)} path=${toolingHandoff.runnerEvidence.path}`,
         toolingHandoff.executionLanes.length
           ? `certification tooling lanes=${toolingHandoff.executionLanes.map((lane) => `${lane.id}:${lane.status}`).join(", ")}`
           : "certification tooling execution lanes are not listed",

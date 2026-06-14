@@ -1621,6 +1621,41 @@ export interface OpsLensCertificationReadinessSummary {
       requiredForExternalSubmission: boolean;
     }>;
     missingRequiredTools: string[];
+    toolingSatisfiedBy: string;
+    runnerEvidence: {
+      path: string;
+      requiredSchema: string;
+      status: string;
+      approved: boolean;
+      sameHead: boolean;
+      mutation: boolean;
+      requiresExplicitApproval: boolean;
+      runner: {
+        id: string;
+        image: string;
+        imageDigest: string;
+        approvedBy: string;
+        ticket: string;
+        approvedAt: string;
+      };
+      toolVersions: {
+        oc: string;
+        docker: string;
+        opm: string;
+        operatorSdk: string;
+      };
+      evidenceArtifacts: {
+        certificationReadiness: string;
+        catalogToolchain: string;
+        opmValidateLog: string;
+        operatorSdkBundleValidateLog: string;
+        operatorSdkScorecardLog: string;
+      };
+      missingEvidence: string[];
+      nextCommands: string[];
+      risk: string[];
+      rollbackPath: string[];
+    };
     freshnessPolicy: {
       requiredHead: string;
       worktreeRequirement: string;
