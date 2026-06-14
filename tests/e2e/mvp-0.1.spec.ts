@@ -1199,6 +1199,32 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           };
           missingEvidence?: string[];
         };
+        liveHandoff?: {
+          status?: string;
+          actionMode?: string;
+          runtimePlatformOwner?: string;
+          dataMlOwner?: string;
+          liveProbeEnabled?: boolean;
+          qdrantStatus?: string;
+          vllmStatus?: string;
+          runtimeReadinessAction?: {
+            id?: string;
+            owner?: string;
+            readOnlyCommandIds?: string[];
+          };
+          runtimeRagAction?: {
+            id?: string;
+            owner?: string;
+            readOnlyCommandIds?: string[];
+          };
+          requiredReadOnlyCommands?: string[];
+          approvalGatedCommandCount?: number;
+          mutationAllowedByThisVerifier?: boolean;
+          clusterMutationAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          vectorWriteAttempted?: boolean;
+          missingEvidence?: string[];
+        };
       };
       incidents?: Array<{
         metricQueries?: Array<{ name?: string; status?: string }>;
@@ -2455,6 +2481,47 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.runtime?.readiness?.missingEvidence?.join(" ")).toContain(
       "live readiness was not probed"
     );
+    expect(["ready", "needs-live-evidence", "blocked"]).toContain(
+      body.runtime?.liveHandoff?.status
+    );
+    expect(body.runtime?.liveHandoff).toMatchObject({
+      actionMode: "handoffOnly",
+      runtimePlatformOwner: "runtime-platform",
+      dataMlOwner: "data-ml-engineer",
+      liveProbeEnabled: false,
+      qdrantStatus: body.runtime?.readiness?.vectorStore?.status,
+      vllmStatus: body.runtime?.readiness?.modelRuntime?.status,
+      mutationAllowedByThisVerifier: false,
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false
+    });
+    expect(
+      body.runtime?.liveHandoff?.runtimeReadinessAction
+    ).toMatchObject({
+      id: "runtime-platform-run-live-vllm-qdrant-probes",
+      owner: "runtime-platform"
+    });
+    expect(
+      body.runtime?.liveHandoff?.runtimeReadinessAction?.readOnlyCommandIds
+    ).toEqual(expect.arrayContaining(["runtime-readiness-live"]));
+    expect(body.runtime?.liveHandoff?.runtimeRagAction).toMatchObject({
+      id: "data-ml-engineer-prove-runtime-rag-live-quality",
+      owner: "data-ml-engineer"
+    });
+    expect(
+      body.runtime?.liveHandoff?.runtimeRagAction?.readOnlyCommandIds
+    ).toEqual(
+      expect.arrayContaining(["runtime-rag-contract", "runtime-rag-fixture"])
+    );
+    expect(body.runtime?.liveHandoff?.requiredReadOnlyCommands).toEqual(
+      expect.arrayContaining([
+        "runtime-readiness-live",
+        "runtime-rag-contract",
+        "runtime-rag-fixture"
+      ])
+    );
+    expect(body.runtime?.liveHandoff?.approvalGatedCommandCount).toBe(0);
 
     const runtimeReadiness = await request.get("/api/opslens/runtime/readiness");
     expect(runtimeReadiness.ok()).toBe(true);
@@ -4433,6 +4500,39 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-runtime-readiness")).toContainText(
       "liveProbe=false"
     );
+    await expect(page.getByTestId("opslens-runtime-live-handoff")).toContainText(
+      "handoffOnly"
+    );
+    await expect(page.getByTestId("opslens-runtime-live-handoff")).toContainText(
+      "runtimeOwner=runtime-platform"
+    );
+    await expect(page.getByTestId("opslens-runtime-live-handoff")).toContainText(
+      "dataOwner=data-ml-engineer"
+    );
+    await expect(page.getByTestId("opslens-runtime-live-handoff")).toContainText(
+      "liveProbe=false"
+    );
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-actions")
+    ).toContainText("runtime-platform-run-live-vllm-qdrant-probes");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-actions")
+    ).toContainText("runtime-readiness-live");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-actions")
+    ).toContainText("data-ml-engineer-prove-runtime-rag-live-quality");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-actions")
+    ).toContainText("runtime-rag-fixture");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-boundary")
+    ).toContainText("mutationAllowedByThisVerifier=false");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-boundary")
+    ).toContainText("clusterMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-boundary")
+    ).toContainText("vectorWriteAttempted=false");
     await expect(page.getByTestId("opslens-incident-metrics")).toContainText(
       "pod-memory"
     );

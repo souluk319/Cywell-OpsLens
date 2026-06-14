@@ -1099,6 +1099,48 @@ export interface OpsLensRuntimeReadiness {
   rollbackPath: string[];
 }
 
+export type OpsLensRuntimeLiveHandoffStatus =
+  | "ready"
+  | "needs-live-evidence"
+  | "blocked";
+
+export interface OpsLensRuntimeLiveHandoffAction {
+  id: string;
+  owner: string;
+  priority: "blocker" | "high" | "normal";
+  nextCommand: string;
+  evidenceNeeded: string;
+  readOnlyCommandIds: string[];
+  blockedBy: string[];
+  diagnostics: Array<{
+    id: string;
+    label: string;
+    value: string;
+  }>;
+}
+
+export interface OpsLensRuntimeLiveHandoffSummary {
+  status: OpsLensRuntimeLiveHandoffStatus;
+  actionMode: "handoffOnly";
+  runtimePlatformOwner: string;
+  dataMlOwner: string;
+  liveProbeEnabled: boolean;
+  qdrantStatus: OpsLensRuntimeReadinessStatus;
+  vllmStatus: OpsLensRuntimeReadinessStatus;
+  runtimeReadinessAction?: OpsLensRuntimeLiveHandoffAction;
+  runtimeRagAction?: OpsLensRuntimeLiveHandoffAction;
+  requiredReadOnlyCommands: string[];
+  approvalGatedCommandCount: number;
+  mutationAllowedByThisVerifier: false;
+  clusterMutationAttempted: false;
+  registryMutationAttempted: false;
+  vectorWriteAttempted: false;
+  evidence: string[];
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface OpsLensRuntimeHealth {
   provider: "vllm" | "mock-local";
   model: string;
@@ -1106,6 +1148,7 @@ export interface OpsLensRuntimeHealth {
   replicas: number;
   readyReplicas: number;
   readiness: OpsLensRuntimeReadiness;
+  liveHandoff: OpsLensRuntimeLiveHandoffSummary;
   gpu: {
     available: boolean;
     deviceClass: string;

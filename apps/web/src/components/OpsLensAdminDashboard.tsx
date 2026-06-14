@@ -7,6 +7,7 @@ import type {
   OpsLensRagApprovalQueueReviewResponse,
   OpsLensRagApprovalQueueSubmissionResponse,
   OpsLensRagEvidenceExportResponse,
+  OpsLensRuntimeLiveHandoffAction,
   OpsLensRagValidationResponse
 } from "@kugnus/contracts";
 import {
@@ -200,6 +201,13 @@ export function OpsLensAdminDashboard() {
   const releaseBundlePacketName =
     releaseBundle?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const releaseActionQueue = overview?.installReadiness.actionQueue;
+  const runtimeLiveHandoff = overview?.runtime.liveHandoff;
+  const runtimeLiveHandoffActions = [
+    runtimeLiveHandoff?.runtimeReadinessAction,
+    runtimeLiveHandoff?.runtimeRagAction
+  ].filter(
+    (action): action is OpsLensRuntimeLiveHandoffAction => action !== undefined
+  );
   const releaseCandidateActions =
     releaseActionQueue?.items.filter((entry) =>
       entry.id.includes("candidate-matrix")
@@ -990,6 +998,65 @@ export function OpsLensAdminDashboard() {
               {String(
                 overview?.runtime.readiness.vectorStore.liveProbeEnabled ?? false
               )}
+            </span>
+          </div>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-runtime-live-handoff"
+          >
+            <span>{runtimeLiveHandoff?.actionMode ?? "handoffOnly"}</span>
+            <span>status={runtimeLiveHandoff?.status ?? "--"}</span>
+            <span>
+              runtimeOwner={runtimeLiveHandoff?.runtimePlatformOwner ?? "--"}
+            </span>
+            <span>dataOwner={runtimeLiveHandoff?.dataMlOwner ?? "--"}</span>
+            <span>
+              liveProbe={String(runtimeLiveHandoff?.liveProbeEnabled ?? false)}
+            </span>
+            <span>qdrant={runtimeLiveHandoff?.qdrantStatus ?? "--"}</span>
+            <span>vllm={runtimeLiveHandoff?.vllmStatus ?? "--"}</span>
+          </div>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-runtime-live-handoff-actions"
+          >
+            {runtimeLiveHandoffActions.length > 0 ? (
+              runtimeLiveHandoffActions.map((action) => (
+                <span key={action.id}>
+                  {action.id}:{action.owner}:{action.priority}:
+                  {action.nextCommand}:readOnly=
+                  {action.readOnlyCommandIds.join(", ")}
+                </span>
+              ))
+            ) : (
+              <span>runtime live handoff clear</span>
+            )}
+          </div>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-runtime-live-handoff-boundary"
+          >
+            <span>
+              mutationAllowedByThisVerifier=
+              {String(
+                runtimeLiveHandoff?.mutationAllowedByThisVerifier ?? false
+              )}
+            </span>
+            <span>
+              clusterMutationAttempted=
+              {String(runtimeLiveHandoff?.clusterMutationAttempted ?? false)}
+            </span>
+            <span>
+              registryMutationAttempted=
+              {String(runtimeLiveHandoff?.registryMutationAttempted ?? false)}
+            </span>
+            <span>
+              vectorWriteAttempted=
+              {String(runtimeLiveHandoff?.vectorWriteAttempted ?? false)}
+            </span>
+            <span>
+              approvalGated=
+              {runtimeLiveHandoff?.approvalGatedCommandCount ?? 0}
             </span>
           </div>
           {overview?.runtime.readiness.missingEvidence.slice(0, 2).map((item) => (

@@ -75,6 +75,8 @@ import type {
   OpsLensSecurityScanReadiness,
   OpsLensRagIngestionApprovalPlanSummary,
   OpsLensRuntimeDependencyReadiness,
+  OpsLensRuntimeLiveHandoffAction,
+  OpsLensRuntimeLiveHandoffSummary,
   OpsLensRuntimeReadiness,
   OpsLensRuntimeReadinessStatus,
   OpsLensRuntimeRagAudit,
@@ -6698,6 +6700,111 @@ function getReleaseActionQueueReadiness(): {
   }
 }
 
+type ReleaseActionQueueItem = OpsLensReleaseActionQueueSummary["items"][number];
+
+function summarizeRuntimeLiveAction(
+  action?: ReleaseActionQueueItem
+): OpsLensRuntimeLiveHandoffAction | undefined {
+  if (!action) {
+    return undefined;
+  }
+
+  return {
+    id: action.id,
+    owner: action.owner,
+    priority: action.priority,
+    nextCommand: action.nextCommand,
+    evidenceNeeded: action.evidenceNeeded,
+    readOnlyCommandIds: action.readOnlyCommands.map((command) => command.id),
+    blockedBy: action.blockedBy,
+    diagnostics: action.diagnostics
+  };
+}
+
+function buildRuntimeLiveHandoffSummary(
+  runtimeReadiness: OpsLensRuntimeReadiness,
+  actionQueue: OpsLensReleaseActionQueueSummary
+): OpsLensRuntimeLiveHandoffSummary {
+  const runtimeReadinessAction = summarizeRuntimeLiveAction(
+    actionQueue.items.find(
+      (item) => item.id === "runtime-platform-run-live-vllm-qdrant-probes"
+    )
+  );
+  const runtimeRagAction = summarizeRuntimeLiveAction(
+    actionQueue.items.find(
+      (item) => item.id === "data-ml-engineer-prove-runtime-rag-live-quality"
+    )
+  );
+  const hasBothLiveProbes =
+    runtimeReadiness.vectorStore.liveProbeEnabled &&
+    runtimeReadiness.modelRuntime.liveProbeEnabled;
+  const bothRuntimeDependenciesReady =
+    runtimeReadiness.vectorStore.status === "ready" &&
+    runtimeReadiness.modelRuntime.status === "ready";
+  const status =
+    runtimeReadiness.status === "ready" &&
+    hasBothLiveProbes &&
+    bothRuntimeDependenciesReady
+      ? "ready"
+      : actionQueue.status === "blocked"
+        ? "blocked"
+        : "needs-live-evidence";
+  const requiredReadOnlyCommands = Array.from(
+    new Set([
+      ...(runtimeReadinessAction?.readOnlyCommandIds ?? []),
+      ...(runtimeRagAction?.readOnlyCommandIds ?? [])
+    ])
+  );
+  const missingEvidence = [
+    ...runtimeReadiness.missingEvidence,
+    ...(runtimeReadinessAction ? [] : ["runtime live readiness owner action is missing"]),
+    ...(runtimeRagAction ? [] : ["runtime RAG live quality owner action is missing"]),
+    ...(runtimeReadinessAction?.blockedBy ?? []),
+    ...(runtimeRagAction?.blockedBy ?? [])
+  ];
+
+  return {
+    status,
+    actionMode: "handoffOnly",
+    runtimePlatformOwner: runtimeReadinessAction?.owner ?? "runtime-platform",
+    dataMlOwner: runtimeRagAction?.owner ?? "data-ml-engineer",
+    liveProbeEnabled:
+      runtimeReadiness.vectorStore.liveProbeEnabled ||
+      runtimeReadiness.modelRuntime.liveProbeEnabled,
+    qdrantStatus: runtimeReadiness.vectorStore.status,
+    vllmStatus: runtimeReadiness.modelRuntime.status,
+    runtimeReadinessAction,
+    runtimeRagAction,
+    requiredReadOnlyCommands,
+    approvalGatedCommandCount:
+      (actionQueue.items.find(
+        (item) => item.id === "runtime-platform-run-live-vllm-qdrant-probes"
+      )?.approvalGatedCommands.length ?? 0) +
+      (actionQueue.items.find(
+        (item) => item.id === "data-ml-engineer-prove-runtime-rag-live-quality"
+      )?.approvalGatedCommands.length ?? 0),
+    mutationAllowedByThisVerifier: false,
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    vectorWriteAttempted: false,
+    evidence: [
+      "Runtime live handoff is derived from release action queue owner packets.",
+      "runtime-platform owns live vLLM/Qdrant probe evidence.",
+      "data-ml-engineer owns runtime RAG live quality evidence.",
+      "No cluster, registry, or vector mutation is attempted by this handoff summary."
+    ],
+    missingEvidence,
+    risk: [
+      "Without live vLLM/Qdrant probes, runtime readiness remains evidence-limited.",
+      "Without runtime RAG live quality evidence, dashboard answers cannot claim external model/vector path readiness."
+    ],
+    rollbackPath: [
+      "Keep runtime answers on local fixture/mock evidence until runtime live probes pass.",
+      "Re-run npm run verify:runtime and npm run verify:runtime-rag after network/runtime access is restored."
+    ]
+  };
+}
+
 function missingRagProductionReadinessSummary(
   reason: string,
   status: OpsLensRagProductionReadiness = "needs-evidence"
@@ -8133,6 +8240,10 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const releaseEvidenceRefreshReadiness = getReleaseEvidenceRefreshReadiness();
   const releaseEvidenceBundleReadiness = getReleaseEvidenceBundleReadiness();
   const releaseActionQueueReadiness = getReleaseActionQueueReadiness();
+  const runtimeLiveHandoff = buildRuntimeLiveHandoffSummary(
+    runtimeReadiness,
+    releaseActionQueueReadiness.actionQueue
+  );
   const ragProductionReadiness = getRagProductionReadiness();
   const evidenceCheckpointReadiness = getEvidenceCheckpointReadiness();
   const aiopsIncidentPipelineReadiness = getAiopsIncidentPipelineReadiness();
@@ -8162,6 +8273,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     releasePublishReadiness.evidence[0],
     releaseEvidenceBundleReadiness.evidence[0],
     releaseActionQueueReadiness.evidence[0],
+    runtimeLiveHandoff.evidence[0],
     ragProductionReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
     ...lightspeedExtensionPointReadiness.evidence.slice(1),
@@ -8180,6 +8292,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...releaseEvidenceRefreshReadiness.evidence.slice(1),
     ...releaseEvidenceBundleReadiness.evidence.slice(1),
     ...releaseActionQueueReadiness.evidence.slice(1),
+    ...runtimeLiveHandoff.evidence.slice(1),
     ...ragProductionReadiness.evidence.slice(1),
     ...aiopsIncidentPipelineReadiness.evidence.slice(1),
     ...liveHandoffReadiness.evidence.slice(1),
@@ -8252,6 +8365,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       replicas: 2,
       readyReplicas: runtimeReadiness.status === "ready" ? 2 : 0,
       readiness: runtimeReadiness,
+      liveHandoff: runtimeLiveHandoff,
       gpu: {
         available: runtimeReadiness.modelRuntime.status === "ready",
         deviceClass: "nvidia.com/gpu",
