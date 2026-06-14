@@ -5609,6 +5609,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
       "registryMutationAttempted=false"
     );
+    await expect(
+      page.getByTestId("opslens-release-action-queue-source-artifacts")
+    ).toContainText("envContract:PASS:fresh=true:required=true:mutation=false");
     await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
       /network-sre|cluster-admin|cluster-sre|release-manager/
     );

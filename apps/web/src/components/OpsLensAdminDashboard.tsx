@@ -2491,6 +2491,18 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-source-artifacts"
+              >
+                {releaseActionQueue.sourceArtifacts.slice(0, 8).map((source) => (
+                  <span key={source.id}>
+                    {source.id}:{source.status}:fresh={String(source.fresh)}
+                    :required={String(source.required)}:mutation=
+                    {String(source.mutationViolation)}
+                  </span>
+                ))}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-release-action-queue-owner-packets"
               >
                 {releaseActionQueue.ownerPackets.slice(0, 7).map((packet) => (
