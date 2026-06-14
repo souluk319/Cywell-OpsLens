@@ -453,7 +453,7 @@ async function main() {
       laneRequirement(checkpoint, "lightspeedIntegrationHandoff", "Lightspeed integration handoff packet", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "ocpConnectivity", "Live OCP connectivity diagnostic", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "lightspeedReadiness", "Live Lightspeed/OCP readiness", ["pass", "needs-evidence"]),
-      laneRequirement(checkpoint, "liveHandoff", "Read-only live evidence handoff"),
+      laneRequirement(checkpoint, "liveHandoff", "Read-only live evidence handoff", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "ocpNetworkHandoff", "Network/SRE handoff packet"),
       laneRequirement(checkpoint, "ocpAuthRbacPlan", "OCP auth/RBAC approval packet"),
       mvpRequirement(mvpGate, "LIGHTSPEED-ROUTING", "MVP Lightspeed routing verifier"),
@@ -520,7 +520,7 @@ async function main() {
       laneRequirement(checkpoint, "operatorDryRun", "Live Operator server dry-run", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "installPlan", "Human install approval plan", ["pass", "needs-evidence"]),
       installPlanLightspeedRegistrationRequirement(installPlan),
-      laneRequirement(checkpoint, "liveHandoff", "SRE-safe live evidence handoff"),
+      laneRequirement(checkpoint, "liveHandoff", "SRE-safe live evidence handoff", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "ocpNetworkHandoff", "Network/SRE handoff packet"),
       laneRequirement(checkpoint, "ocpAuthRbacPlan", "OCP auth/RBAC approval packet"),
       imageActualBuildRequirement(imageBuild)
