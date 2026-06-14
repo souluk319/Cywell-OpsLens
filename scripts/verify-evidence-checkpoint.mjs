@@ -105,6 +105,14 @@ function fail(name, detail) {
   record("FAIL", name, detail);
 }
 
+function redactedOcpTarget(target = {}) {
+  const protocol = String(target.protocol ?? target.redactedBaseUrl ?? "").startsWith("http://")
+    ? "http:"
+    : "https:";
+  const port = target.port ?? String(target.redactedBaseUrl ?? "").match(/:(\d+)(?:\/)?$/)?.[1] ?? "unknown";
+  return `${protocol}//<redacted-ocp-api>${port === "unknown" ? "" : `:${port}`}`;
+}
+
 async function runCapture(command, args) {
   try {
     const { stdout, stderr } = await execFileAsync(command, args, {
@@ -979,13 +987,13 @@ function checkOcpConnectivityDiagnostic(connectivityArtifact) {
   if (classification === "api-ready") {
     pass(
       "OCP connectivity diagnostic",
-      `classification=api-ready target=${target.host ?? "unknown"}:${target.port ?? "unknown"}`
+      `classification=api-ready target=${redactedOcpTarget(target)}`
     );
     return;
   }
   warn(
     "OCP connectivity diagnostic",
-    `classification=${classification} target=${target.host ?? "unknown"}:${target.port ?? "unknown"}`
+    `classification=${classification} target=${redactedOcpTarget(target)}`
   );
 }
 

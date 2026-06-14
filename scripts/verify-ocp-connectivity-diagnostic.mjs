@@ -216,7 +216,10 @@ function sanitize(value) {
   return result
     .replace(/--token\s+\S+/gi, "--token <redacted>")
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
-    .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>");
+    .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>")
+    .replace(/\b10(?:\.\d{1,3}){3}\b/g, "<redacted-private-ip>")
+    .replace(/\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b/g, "<redacted-private-ip>")
+    .replace(/\b192\.168(?:\.\d{1,3}){2}\b/g, "<redacted-private-ip>");
 }
 
 function endpointFromBaseUrl(baseUrl) {
@@ -228,15 +231,21 @@ function endpointFromBaseUrl(baseUrl) {
     url.password = "";
     url.search = "";
     url.hash = "";
+    const redactedPort = url.port || (url.protocol === "https:" ? "443" : "80");
     return {
       protocol: url.protocol,
       hostname: url.hostname,
       port,
-      redactedBaseUrl: url.toString().replace(/\/$/, "")
+      redactedBaseUrl: `${url.protocol}//<redacted-ocp-api>:${redactedPort}`
     };
   } catch {
     return undefined;
   }
+}
+
+function redactedEndpointLabel(endpoint) {
+  if (!endpoint) return "<missing-ocp-api>";
+  return `${endpoint.protocol}//<redacted-ocp-api>:${endpoint.port}`;
 }
 
 async function withTimeout(promise, timeoutMs, timeoutMessage) {
@@ -288,10 +297,10 @@ async function diagnoseDns(endpoint, timeoutMs) {
       `DNS lookup timed out after ${timeoutMs}ms`
     );
     const addresses = results.map((item) => item.address);
-    pass("DNS lookup", `${endpoint.hostname} resolved to ${addresses.join(", ")}`);
+    pass("DNS lookup", `${redactedEndpointLabel(endpoint)} resolved to ${addresses.length} address(es)`);
     return { status: "pass", addresses };
   } catch (error) {
-    warn("DNS lookup", `${endpoint.hostname} unresolved: ${error instanceof Error ? error.message : String(error)}`);
+    warn("DNS lookup", `${redactedEndpointLabel(endpoint)} unresolved: ${error instanceof Error ? error.message : String(error)}`);
     return {
       status: "needs-evidence",
       addresses: [],
@@ -317,15 +326,15 @@ async function diagnoseTcp(endpoint, timeoutMs) {
     }
     socket.setTimeout(timeoutMs);
     socket.once("connect", () => {
-      pass("TCP connect", `${endpoint.hostname}:${endpoint.port} connected in ${Date.now() - started}ms`);
+      pass("TCP connect", `${redactedEndpointLabel(endpoint)} connected in ${Date.now() - started}ms`);
       settle({ status: "pass" });
     });
     socket.once("timeout", () => {
-      warn("TCP connect", `${endpoint.hostname}:${endpoint.port} timed out after ${timeoutMs}ms`);
+      warn("TCP connect", `${redactedEndpointLabel(endpoint)} timed out after ${timeoutMs}ms`);
       settle({ status: "needs-evidence", error: "tcp-timeout" });
     });
     socket.once("error", (error) => {
-      warn("TCP connect", `${endpoint.hostname}:${endpoint.port} failed: ${error.message}`);
+      warn("TCP connect", `${redactedEndpointLabel(endpoint)} failed: ${error.message}`);
       settle({ status: "needs-evidence", error: error.message });
     });
   });
@@ -930,7 +939,7 @@ async function main() {
     target: endpoint
       ? {
           protocol: endpoint.protocol,
-          host: endpoint.hostname,
+          host: "<redacted-ocp-api>",
           port: endpoint.port,
           redactedBaseUrl: endpoint.redactedBaseUrl,
           baseUrlSource: config.baseUrlSource,

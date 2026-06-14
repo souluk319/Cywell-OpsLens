@@ -135,6 +135,21 @@ function countSensitiveValues(value: unknown): number {
   return (stableStringify(value).match(sensitivePattern) ?? []).length;
 }
 
+function redactedOcpTarget(target: {
+  protocol?: unknown;
+  redactedBaseUrl?: unknown;
+  port?: unknown;
+}): string {
+  const protocol = String(target.protocol ?? target.redactedBaseUrl ?? "").startsWith("http://")
+    ? "http:"
+    : "https:";
+  const port =
+    target.port ??
+    String(target.redactedBaseUrl ?? "").match(/:(\d+)(?:\/)?$/)?.[1] ??
+    "unknown";
+  return `${protocol}//<redacted-ocp-api>${port === "unknown" ? "" : `:${String(port)}`}`;
+}
+
 function retrieveRunbookCitations(
   tenantId: string,
   question: string,
@@ -4530,9 +4545,9 @@ function getOcpConnectivityDiagnosticReadiness(): {
         mutationAllowedByThisVerifier:
           artifact.mutationAllowedByThisVerifier === true,
         target: {
-          host: target.host ?? "unknown",
+          host: "<redacted-host>",
           port: target.port ?? "unknown",
-          redactedBaseUrl: target.redactedBaseUrl ?? "unknown",
+          redactedBaseUrl: redactedOcpTarget(target),
           tokenConfigured: target.tokenConfigured === true,
           tlsVerify: target.tlsVerify !== false
         },
@@ -4545,7 +4560,7 @@ function getOcpConnectivityDiagnosticReadiness(): {
       },
       evidence: [
         `OCP connectivity diagnostic ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
-        `OCP connectivity classification=${classification} target=${target.host ?? "unknown"}:${target.port ?? "unknown"}`,
+        `OCP connectivity classification=${classification} target=${redactedOcpTarget(target)}`,
         `diagnostics dns=${diagnostics.dns} tcp=${diagnostics.tcp} tls=${diagnostics.tls} /version=${diagnostics.kubernetesVersion} oc=${diagnostics.oc}`,
         diagnostics.rbacAccessReviews.length
           ? `rbacAccessReviews=${diagnostics.rbacAccessReviews.map((review) => `${review.id}:${review.status}`).join(",")}`
@@ -7432,7 +7447,7 @@ function fallbackOcpNetworkFirstActions(
       : ["auth-or-rbac", "auth-failed", "token-missing"].includes(classification)
         ? "cluster-admin"
         : "network-sre";
-  const host = target.host || "unknown";
+  const host = "<redacted-host>";
   const port = target.port || "6443";
   const actions: OpsLensOcpNetworkHandoffSummary["firstNetworkActions"] = [
     {
@@ -7758,9 +7773,9 @@ function getOcpNetworkHandoffReadiness(): {
       writesEvidence: command.writesEvidence === true
     }));
     const mappedTarget = {
-      host: target.host ?? "unknown",
+      host: "<redacted-host>",
       port: target.port ?? "unknown",
-      redactedBaseUrl: target.redactedBaseUrl ?? "unknown",
+      redactedBaseUrl: redactedOcpTarget(target),
       tokenConfigured: target.tokenConfigured === true,
       tlsVerify: target.tlsVerify === true
     };
@@ -7914,9 +7929,9 @@ function getOcpAuthRbacPlanReadiness(): {
         mutationAllowedByThisVerifier:
           artifact.mutationAllowedByThisVerifier === true,
         target: {
-          host: target.host ?? "unknown",
+          host: "<redacted-host>",
           port: target.port ?? "unknown",
-          redactedBaseUrl: target.redactedBaseUrl ?? "unknown",
+          redactedBaseUrl: redactedOcpTarget(target),
           tokenConfigured: target.tokenConfigured === true,
           tlsVerify: target.tlsVerify === true
         },

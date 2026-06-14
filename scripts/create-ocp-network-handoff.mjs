@@ -85,6 +85,14 @@ function fail(name, detail) {
   record("FAIL", name, detail);
 }
 
+function redactedOcpTarget(target = {}) {
+  const protocol = String(target.protocol ?? target.redactedBaseUrl ?? "").startsWith("http://")
+    ? "http:"
+    : "https:";
+  const port = target.port ?? String(target.redactedBaseUrl ?? "").match(/:(\d+)(?:\/)?$/)?.[1] ?? "unknown";
+  return `${protocol}//<redacted-ocp-api>${port === "unknown" ? "" : `:${port}`}`;
+}
+
 async function runCapture(command, args) {
   try {
     const { stdout } = await execFileAsync(command, args, {
@@ -395,7 +403,7 @@ function markdownFor(packet) {
     "",
     `- Status: ${packet.status}`,
     `- Classification: ${diagnostics.classification}`,
-    `- Target: ${target.redactedBaseUrl ?? `${target.host}:${target.port}`}`,
+    `- Target: ${redactedOcpTarget(target)}`,
     `- DNS: ${(diagnostics.dns?.addresses ?? []).join(", ") || "missing"}`,
     `- TCP: ${diagnostics.tcp?.status ?? "missing"} ${diagnostics.tcp?.error ? `(${diagnostics.tcp.error})` : ""}`,
     `- TLS: ${diagnostics.tls?.status ?? "missing"}`,

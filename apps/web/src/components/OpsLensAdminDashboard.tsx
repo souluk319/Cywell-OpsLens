@@ -1474,9 +1474,7 @@ export function OpsLensAdminDashboard() {
               <div className="approval-summary-grid">
                 <div>
                   <span>Target</span>
-                  <strong>
-                    {ocpConnectivity.target.host}:{ocpConnectivity.target.port}
-                  </strong>
+                  <strong>{ocpConnectivity.target.redactedBaseUrl}</strong>
                 </div>
                 <div>
                   <span>Network</span>
@@ -1570,9 +1568,7 @@ export function OpsLensAdminDashboard() {
               <div className="approval-summary-grid">
                 <div>
                   <span>Target</span>
-                  <strong>
-                    {networkHandoff.target.host}:{networkHandoff.target.port}
-                  </strong>
+                  <strong>{networkHandoff.target.redactedBaseUrl}</strong>
                 </div>
                 <div>
                   <span>Packet</span>

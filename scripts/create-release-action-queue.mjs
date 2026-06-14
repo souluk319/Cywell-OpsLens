@@ -134,6 +134,14 @@ function fail(name, detail) {
   record("FAIL", name, detail);
 }
 
+function redactedOcpTarget(target = {}) {
+  const protocol = String(target.protocol ?? target.redactedBaseUrl ?? "").startsWith("http://")
+    ? "http:"
+    : "https:";
+  const port = target.port ?? String(target.redactedBaseUrl ?? "").match(/:(\d+)(?:\/)?$/)?.[1] ?? "unknown";
+  return `${protocol}//<redacted-ocp-api>${port === "unknown" ? "" : `:${port}`}`;
+}
+
 async function runCapture(command, args) {
   try {
     const { stdout } = await execFileAsync(command, args, {
@@ -571,7 +579,7 @@ function ocpNetworkDiagnostics(networkHandoff) {
       id: "ocp-network-target",
       label: "OCP target",
       value:
-        `host=${target.host ?? "missing"} port=${target.port ?? "missing"} tokenConfigured=${String(target.tokenConfigured === true)} tlsVerify=${String(target.tlsVerify === true)}`
+        `target=${redactedOcpTarget(target)} port=${target.port ?? "missing"} tokenConfigured=${String(target.tokenConfigured === true)} tlsVerify=${String(target.tlsVerify === true)}`
     },
     {
       id: "ocp-network-dns",

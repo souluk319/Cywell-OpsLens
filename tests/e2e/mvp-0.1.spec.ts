@@ -2705,6 +2705,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toMatch(
       /api-ready|tcp-timeout|tcp-unreachable|dns-unresolved|api-unreachable|auth-or-rbac|auth-failed|tls-handshake-failed|not-configured|invalid-api-url|token-missing/
     );
+    expect(body.installReadiness?.connectivity?.target?.host).toMatch(
+      /redacted/i
+    );
+    expect(
+      body.installReadiness?.connectivity?.target?.redactedBaseUrl
+    ).toContain("<redacted-ocp-api>");
     expect(
       body.installReadiness?.connectivity?.actionHints?.length ?? 0
     ).toBeGreaterThan(0);
@@ -2733,6 +2739,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       registryMutationAttempted: false,
       mutationAllowedByThisVerifier: false
     });
+    expect(body.installReadiness?.networkHandoff?.target?.host).toMatch(
+      /redacted/i
+    );
+    expect(
+      body.installReadiness?.networkHandoff?.target?.redactedBaseUrl
+    ).toContain("<redacted-ocp-api>");
     const networkFirstActions =
       body.installReadiness?.networkHandoff?.firstNetworkActions ?? [];
     expect(networkFirstActions.length).toBeGreaterThanOrEqual(3);
@@ -4755,6 +4767,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-ocp-connectivity")).toContainText(
       /dns=|tcp=/
     );
+    await expect(page.getByTestId("opslens-ocp-connectivity")).toContainText(
+      "<redacted-ocp-api>"
+    );
     await expect(
       page.getByTestId("opslens-ocp-connectivity-rbac")
     ).toContainText("can-i-list-pods");
@@ -4805,6 +4820,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-ocp-network-handoff")).toContainText(
       "registryMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-ocp-network-handoff")).toContainText(
+      "<redacted-ocp-api>"
     );
     await expect(
       page.getByTestId("opslens-ocp-network-handoff-commands")
