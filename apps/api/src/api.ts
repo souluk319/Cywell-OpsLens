@@ -1593,8 +1593,22 @@ type ExternalRuntimeReviewPacketEvidenceArtifact = {
   approvalGatedCommands?: Array<{
     id?: string;
     phase?: string;
+    command?: string;
     mutation?: boolean;
     requiresExplicitApproval?: boolean;
+  }>;
+  firstRegistryActions?: Array<{
+    id?: string;
+    owner?: string;
+    phase?: string;
+    status?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
   }>;
   missingEvidence?: string[];
   risk?: string[];
@@ -3697,6 +3711,7 @@ function missingExternalRuntimeReviewPacketSummary(
     ],
     markdownPath: "missing",
     firstReviewerActions: [],
+    firstRegistryActions: [],
     images: [],
     readOnlyCommands: [],
     approvalGatedCommands: [],
@@ -3734,6 +3749,62 @@ function summarizeExternalRuntimeCandidate(
     criticalFindingPackages: candidate.criticalFindingPackages ?? [],
     criticalFindingIds: candidate.criticalFindingIds ?? []
   };
+}
+
+function fallbackExternalRuntimeFirstRegistryActions(
+  images: OpsLensExternalRuntimeReviewPacketSummary["images"],
+  approvalGatedCommands: OpsLensExternalRuntimeReviewPacketSummary["approvalGatedCommands"]
+): OpsLensExternalRuntimeReviewPacketSummary["firstRegistryActions"] {
+  const registryRequests = images.flatMap((image) =>
+    image.reviewerRequests
+      .filter((request) => request.role === "registry-admin")
+      .slice(0, 3)
+      .map((request, index) => ({
+        id: `external-runtime-${image.name}-registry-${index + 1}`,
+        owner: "registry-admin",
+        phase: request.nextCommand.includes("draft:digests")
+          ? "source-digest-inspection"
+          : "mirror-digest-evidence",
+        status:
+          image.sourceDigestInspectionStatus === "pass" &&
+          !request.nextCommand.includes("draft:digests")
+            ? "needs-mirror-evidence"
+            : "needs-registry-access",
+        request: request.request,
+        evidenceNeeded: request.evidenceNeeded,
+        nextCommand: request.nextCommand,
+        mutation: false,
+        requiresExplicitApproval: false,
+        blockedBy: [
+          `${image.name}: sourceDigestInspection=${image.sourceDigestInspectionStatus}`,
+          `${image.name}: finalEvidenceExists=${String(image.finalEvidenceExists)}`
+        ],
+        rollbackPath:
+          "No rollback is required because registry-admin first actions only refresh ignored draft evidence or record reviewer-supplied digest references."
+      }))
+  );
+  const gatedRegistryActions = approvalGatedCommands
+    .filter((command) => command.mutation === true)
+    .slice(0, 3)
+    .map((command) => ({
+      id: `approval-gated-${command.id}`,
+      owner: "registry-admin",
+      phase: command.phase,
+      status: "approval-gated",
+      request: `Do not run ${command.id} until external runtime evidence and approvals are explicit.`,
+      evidenceNeeded:
+        "Reviewed final runtime evidence, immutable source digests, internal mirror digests, and registry/security/product/release approvals.",
+      nextCommand: `approval-gated ${command.id}`,
+      mutation: true,
+      requiresExplicitApproval: true,
+      blockedBy: images
+        .filter((image) => !image.finalEvidenceExists)
+        .map((image) => `${image.name} final reviewed runtime evidence missing`),
+      rollbackPath:
+        "Supersede the mirrored image, signature, and release evidence with corrected approved digests."
+    }));
+
+  return [...registryRequests, ...gatedRegistryActions];
 }
 
 function getExternalRuntimeReviewPacketReadiness(): {
@@ -3821,6 +3892,29 @@ function getExternalRuntimeReviewPacketReadiness(): {
       mutation: command.mutation === true,
       requiresExplicitApproval: command.requiresExplicitApproval === true
     }));
+    const firstRegistryActions = (
+      artifact.firstRegistryActions?.length
+        ? artifact.firstRegistryActions
+        : fallbackExternalRuntimeFirstRegistryActions(
+            images,
+            approvalGatedCommands
+          )
+    ).map((action) => ({
+      id: action.id ?? "unknown",
+      owner: action.owner ?? "registry-admin",
+      phase: action.phase ?? "external-runtime-registry",
+      status: action.status ?? "needs-evidence",
+      request: action.request ?? "external runtime registry action",
+      evidenceNeeded: action.evidenceNeeded ?? "missing evidence",
+      nextCommand:
+        action.nextCommand ?? "npm run evidence:external-runtime:draft:digests",
+      mutation: action.mutation === true,
+      requiresExplicitApproval: action.requiresExplicitApproval === true,
+      blockedBy: action.blockedBy ?? [],
+      rollbackPath:
+        action.rollbackPath ??
+        "Regenerate the external runtime review packet before proceeding."
+    }));
     const imageSummary = images
       .map(
         (image) =>
@@ -3841,6 +3935,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
         requiredApprovals: artifact.requiredApprovals ?? [],
         markdownPath: artifact.markdownOut ?? "missing",
         firstReviewerActions,
+        firstRegistryActions,
         images,
         readOnlyCommands,
         approvalGatedCommands,
@@ -3856,6 +3951,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
           ? `external runtime review images=${imageSummary}`
           : "external runtime review images are not listed",
         `external runtime first reviewer actions=${firstReviewerActions.map((action) => `${action.imageName}:${action.role}:${action.nextCommand}`).join(", ") || "missing"}`,
+        `external runtime first registry actions=${firstRegistryActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         `external runtime reviewer missingEvidence=${(artifact.missingEvidence ?? []).length}`,
         "admin overview reads external runtime review packet only; it does not promote drafts, mirror, sign, push, or patch resources"
       ]

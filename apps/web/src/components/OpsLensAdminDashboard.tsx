@@ -2965,6 +2965,22 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-external-runtime-registry-actions"
+              >
+                {externalRuntimeReview.firstRegistryActions.length ? (
+                  externalRuntimeReview.firstRegistryActions.map((action) => (
+                    <span key={action.id}>
+                      {action.id}:{action.owner}:{action.status}:next=
+                      {action.nextCommand}:mutation={String(action.mutation)}
+                      :approval={String(action.requiresExplicitApproval)}
+                    </span>
+                  ))
+                ) : (
+                  <span>registry first actions clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-external-runtime-reviewer-actions"
               >
                 {externalRuntimeReview.images.flatMap((image) =>

@@ -1586,6 +1586,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             candidateStatus?: string;
             finalEvidenceExists?: boolean;
           }>;
+          firstRegistryActions?: Array<{
+            id?: string;
+            owner?: string;
+            phase?: string;
+            status?: string;
+            request?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+            blockedBy?: string[];
+            rollbackPath?: string;
+          }>;
           images?: Array<{
             name?: string;
             sourceDigestInspectionStatus?: string;
@@ -2916,6 +2929,32 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           action.role &&
           action.nextCommand?.includes("evidence:external-runtime") &&
           action.finalEvidenceExists === false
+      )
+    ).toBe(true);
+    const externalRuntimeRegistryActions =
+      body.installReadiness?.externalRuntimeReview?.firstRegistryActions ?? [];
+    expect(externalRuntimeRegistryActions.length).toBeGreaterThanOrEqual(2);
+    expect(
+      externalRuntimeRegistryActions.some(
+        (action) =>
+          action.owner === "registry-admin" &&
+          action.nextCommand?.includes("evidence:external-runtime") &&
+          action.mutation === false &&
+          action.requiresExplicitApproval === false
+      )
+    ).toBe(true);
+    expect(
+      externalRuntimeRegistryActions.some(
+        (action) =>
+          action.owner === "registry-admin" &&
+          action.id?.startsWith("approval-gated-") &&
+          action.mutation === true &&
+          action.requiresExplicitApproval === true
+      )
+    ).toBe(true);
+    expect(
+      externalRuntimeRegistryActions.every((action) =>
+        Array.isArray(action.blockedBy)
       )
     ).toBe(true);
     expect(
@@ -4564,6 +4603,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-external-runtime-first-actions")
     ).toContainText("finalEvidence=false");
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-actions")
+    ).toContainText("registry-admin");
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-actions")
+    ).toContainText("evidence:external-runtime");
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-actions")
+    ).toContainText("approval=true");
     await expect(
       page.getByTestId("opslens-external-runtime-candidates")
     ).toContainText(/candidate=/);

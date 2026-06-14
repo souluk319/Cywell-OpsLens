@@ -600,6 +600,67 @@ function approvalGatedCommands(externalRuntime) {
     }));
 }
 
+function buildFirstRegistryActions(images, approvalGated) {
+  const registryRequests = images.flatMap((image) =>
+    image.reviewerRequests
+      .filter((request) => request.role === "registry-admin")
+      .slice(0, 3)
+      .map((request, index) => ({
+        id: `external-runtime-${image.name}-registry-${index + 1}`,
+        owner: "registry-admin",
+        phase: /draft:digests/i.test(request.nextCommand)
+          ? "source-digest-inspection"
+          : "mirror-digest-evidence",
+        status:
+          image.sourceDigestInspection?.status === "pass" &&
+          !/draft:digests/i.test(request.nextCommand)
+            ? "needs-mirror-evidence"
+            : "needs-registry-access",
+        request: request.request,
+        evidenceNeeded: request.evidenceNeeded,
+        nextCommand: request.nextCommand,
+        mutation: false,
+        requiresExplicitApproval: false,
+        blockedBy: unique(
+          [
+            ...image.missingEvidence.filter((item) =>
+              /source-digest|mirror-digest|registry|digest/i.test(item)
+            ),
+            `sourceDigestInspection=${image.sourceDigestInspection?.status ?? "missing"}`,
+            image.finalEvidence.exists
+              ? ""
+              : `${image.name} final reviewed runtime evidence is missing`
+          ].filter(Boolean)
+        ),
+        rollbackPath:
+          "No rollback is required because registry-admin first actions only refresh ignored draft evidence or record reviewer-supplied digest references."
+      }))
+  );
+  const gatedRegistryActions = approvalGated
+    .filter((command) => command.mutation === true)
+    .slice(0, 3)
+    .map((command) => ({
+      id: `approval-gated-${command.id}`,
+      owner: "registry-admin",
+      phase: command.phase,
+      status: "approval-gated",
+      request: `Do not run ${command.id} until external runtime evidence and approvals are explicit.`,
+      evidenceNeeded:
+        "Reviewed final vLLM/Qdrant evidence, immutable source digests, internal mirror digests, security approval, product approval, release-manager approval, and registry-admin approval.",
+      nextCommand: command.command,
+      mutation: true,
+      requiresExplicitApproval: true,
+      blockedBy: images
+        .filter((image) => !image.finalEvidence.exists)
+        .map((image) => `${image.name} final reviewed runtime evidence missing`),
+      rollbackPath:
+        command.rollback ??
+        "Supersede the mirrored image, signature, and release evidence with corrected approved digests."
+    }));
+
+  return [...registryRequests, ...gatedRegistryActions];
+}
+
 function commandLooksMutating(command) {
   const text = String(command ?? "");
   if (/\b(oc|kubectl)\s+apply\b/i.test(text) && /--dry-run=(server|client)\b/i.test(text)) {
@@ -622,6 +683,23 @@ function markdownFor(packet) {
     `- Required approvers: ${packet.requiredApprovals.join(", ")}`,
     `- Missing evidence count: ${packet.missingEvidence.length}`,
     "",
+    "## First Registry Actions",
+    "",
+    ...packet.firstRegistryActions.map((action) => [
+      `### ${action.id}`,
+      "",
+      `Owner: ${action.owner}`,
+      `Status: ${action.status}`,
+      `Mutation: ${String(action.mutation)}`,
+      `Requires explicit approval: ${String(action.requiresExplicitApproval)}`,
+      "",
+      `Evidence needed: ${action.evidenceNeeded}`,
+      "",
+      "```powershell",
+      action.nextCommand,
+      "```",
+      ""
+    ].join("\n")),
     "## Source Artifacts",
     "",
     ...packet.sourceArtifacts.map((source) =>
@@ -736,6 +814,7 @@ async function main() {
   const images = imagePackets(artifacts.externalRuntime, artifacts.candidateMatrix);
   const readOnly = readOnlyCommands(images, artifacts.candidateMatrix);
   const approvalGated = approvalGatedCommands(artifacts.externalRuntime);
+  const firstRegistryActions = buildFirstRegistryActions(images, approvalGated);
   const unsafeReadOnly = readOnly
     .filter((command) => command.mutation === true || commandLooksMutating(command.command))
     .map((command) => command.id);
@@ -743,6 +822,22 @@ async function main() {
     fail("external runtime review command boundary", `read-only commands include mutation: ${unsafeReadOnly.join(", ")}`);
   } else {
     pass("external runtime review command boundary", `${readOnly.length} read-only/local evidence command(s), ${approvalGated.length} approval-gated command(s) not run`);
+  }
+  if (
+    firstRegistryActions.some(
+      (action) =>
+        action.mutation !== true &&
+        /evidence:external-runtime/.test(action.nextCommand)
+    )
+  ) {
+    pass("external runtime first registry read-only action", "registry-admin has read-only digest/draft evidence action");
+  } else {
+    fail("external runtime first registry read-only action", "registry-admin first actions must include a read-only external-runtime evidence command");
+  }
+  if (firstRegistryActions.every((action) => action.mutation !== true || action.requiresExplicitApproval === true)) {
+    pass("external runtime first registry mutation boundary", "mutating registry actions require explicit approval");
+  } else {
+    fail("external runtime first registry mutation boundary", "mutating registry actions must require explicit approval");
   }
 
   const mutationViolations = [
@@ -814,6 +909,7 @@ async function main() {
     images,
     readOnlyCommands: readOnly,
     approvalGatedCommands: approvalGated,
+    firstRegistryActions,
     missingEvidence,
     evidence: [
       "This packet consolidates external runtime draft intake, source digest inspection state, scan/SBOM plan state, candidate comparison evidence, and approval-gated mirror/sign commands.",

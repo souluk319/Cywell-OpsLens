@@ -2170,6 +2170,19 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
     candidateStatus: string;
     finalEvidenceExists: boolean;
   }>;
+  firstRegistryActions: Array<{
+    id: string;
+    owner: string;
+    phase: string;
+    status: string;
+    request: string;
+    evidenceNeeded: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+    blockedBy: string[];
+    rollbackPath: string;
+  }>;
   images: Array<{
     name: string;
     image: string;
