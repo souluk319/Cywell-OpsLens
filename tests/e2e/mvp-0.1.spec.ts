@@ -4848,6 +4848,50 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         requiresExplicitApproval: true
       }
     });
+    const externalRuntimeFinalEvidenceAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) =>
+          item.id ===
+          "release-manager-complete-external-runtime-final-evidence"
+      );
+    expect(
+      externalRuntimeFinalEvidenceAction?.readOnlyCommands?.map(
+        (command) => command.id
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        "refresh-external-runtime-review-packet",
+        "verify-external-runtime-plan"
+      ])
+    );
+    expect(
+      externalRuntimeFinalEvidenceAction?.handoffNextCommands
+    ).toEqual(
+      expect.arrayContaining([
+        "npm run evidence:external-runtime:review-packet",
+        "npm run verify:external-runtime-plan"
+      ])
+    );
+    expect(
+      externalRuntimeFinalEvidenceAction?.diagnostics?.map((item) => item.id)
+    ).toEqual(
+      expect.arrayContaining([
+        "external-runtime-final-evidence",
+        "external-runtime-review-packet",
+        "external-runtime-reviewers",
+        "external-runtime-registry-admin-requests",
+        "external-runtime-security-reviewer-requests",
+        "external-runtime-release-manager-requests",
+        "external-runtime-product-owner-requests",
+        "external-runtime-candidate-summary",
+        "external-runtime-command-boundary"
+      ])
+    );
+    expect(
+      externalRuntimeFinalEvidenceAction?.diagnostics?.find(
+        (item) => item.id === "external-runtime-command-boundary"
+      )?.value
+    ).toContain("mutationAllowed=false");
     const externalRuntimeCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "external-runtime-review"
@@ -6835,7 +6879,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("sign-owned-operator");
     await expect(
       page.getByTestId("opslens-release-action-queue-diagnostics")
-    ).toContainText(/candidate-status|security-final-review|post-approval-rbac|source-digest-inspection|registry-access/);
+    ).toContainText(/candidate-status|security-final-review|post-approval-rbac|source-digest-inspection|registry-access|external-runtime-final-evidence/);
     await expect(
       page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
     ).toContainText(/registry-admin-fix-catalog-base-image-auth|catalog registry actions clear/);

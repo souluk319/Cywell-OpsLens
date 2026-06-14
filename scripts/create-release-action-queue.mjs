@@ -347,6 +347,150 @@ function externalRuntimeReviewerDiagnostics(image, request) {
   return diagnostics;
 }
 
+function externalRuntimeFinalEvidenceReadOnlyCommands(packet) {
+  const reviewPacketCommand = {
+    id: "refresh-external-runtime-review-packet",
+    phase: "external-runtime-review",
+    command: "npm run evidence:external-runtime:review-packet",
+    purpose:
+      "Regenerate the external runtime reviewer packet before release-manager final evidence coordination.",
+    mutation: false,
+    writesLocalEvidence: true
+  };
+  const verifyPlanCommand = {
+    id: "verify-external-runtime-plan",
+    phase: "external-runtime-review",
+    command: "npm run verify:external-runtime-plan",
+    purpose: "Verify final reviewed vLLM/Qdrant runtime evidence without promoting or mutating images.",
+    mutation: false,
+    writesLocalEvidence: true
+  };
+  return uniqueByKey(
+    [
+      reviewPacketCommand,
+      ...(packet?.readOnlyCommands ?? []).filter(
+        (command) => command.mutation !== true
+      ),
+      verifyPlanCommand
+    ],
+    (command) => `${command.id ?? "unknown"}:${command.command ?? "unknown"}`
+  );
+}
+
+function externalRuntimeFinalEvidenceHandoffCommands(packet) {
+  const reviewerCommands = (packet?.images ?? [])
+    .flatMap((image) => image.reviewerRequests ?? [])
+    .map((request) => request.nextCommand);
+  return uniqueStrings([
+    "npm run evidence:external-runtime:review-packet",
+    ...reviewerCommands,
+    "npm run verify:external-runtime-plan"
+  ]);
+}
+
+function externalRuntimeRoleRequests(packet, role) {
+  return (packet?.images ?? [])
+    .flatMap((image) =>
+      (image.reviewerRequests ?? []).map((request) => ({
+        image,
+        request
+      }))
+    )
+    .filter((entry) => entry.request?.role === role);
+}
+
+function externalRuntimeFinalEvidenceDiagnostics(packet) {
+  const images = packet?.images ?? [];
+  const reviewerRequests = images.flatMap((image) => image.reviewerRequests ?? []);
+  const roleCounts = new Map();
+  for (const request of reviewerRequests) {
+    const role = request.role ?? "unknown";
+    roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1);
+  }
+  const roleSummary = [...roleCounts.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([role, count]) => `${role}=${count}`)
+    .join(" ") || "none";
+  const imageFinalSummary = images.map((image) => {
+    const finalEvidence = image.finalEvidence ?? {};
+    return [
+      image.name ?? "unknown",
+      `final=${String(finalEvidence.exists === true)}`,
+      `state=${image.evidenceState ?? "missing"}`,
+      `draft=${image.draftStatus ?? "missing"}`,
+      `missing=${image.missingEvidence?.length ?? 0}`
+    ].join(":");
+  });
+  const candidateSummary = images.map((image) => {
+    const matrix = image.candidateMatrix ?? {};
+    const best = matrix.bestCandidate;
+    return [
+      image.name ?? "unknown",
+      `status=${matrix.status ?? "missing"}`,
+      `zeroCritical=${matrix.zeroCriticalCandidates?.length ?? 0}`,
+      best
+        ? `best=${best.image ?? "unknown"} critical=${best.criticalFindings ?? "unknown"} high=${best.highFindings ?? "unknown"}`
+        : "best=missing"
+    ].join(":");
+  });
+  const diagnostics = [
+    {
+      id: "external-runtime-final-evidence",
+      label: "Final evidence",
+      value: imageFinalSummary.join(" | ") || "missing"
+    },
+    {
+      id: "external-runtime-review-packet",
+      label: "Review packet",
+      value:
+        `status=${packet?.status ?? "missing"} ` +
+        `actionMode=${packet?.actionMode ?? "missing"} ` +
+        `missingEvidence=${packet?.missingEvidence?.length ?? 0}`
+    },
+    {
+      id: "external-runtime-reviewers",
+      label: "Reviewer requests",
+      value: `total=${reviewerRequests.length} ${roleSummary}`
+    },
+    {
+      id: "external-runtime-registry-admin-requests",
+      label: "Registry admin requests",
+      value:
+        `count=${externalRuntimeRoleRequests(packet, "registry-admin").length} ` +
+        `tickets=${(packet?.ticketPackets ?? []).map((ticket) => ticket.id).join(",") || "none"}`
+    },
+    {
+      id: "external-runtime-security-reviewer-requests",
+      label: "Security reviewer requests",
+      value: `count=${externalRuntimeRoleRequests(packet, "security-reviewer").length}`
+    },
+    {
+      id: "external-runtime-release-manager-requests",
+      label: "Release manager requests",
+      value: `count=${externalRuntimeRoleRequests(packet, "release-manager").length}`
+    },
+    {
+      id: "external-runtime-product-owner-requests",
+      label: "Product owner requests",
+      value: `count=${externalRuntimeRoleRequests(packet, "product-owner").length}`
+    },
+    {
+      id: "external-runtime-candidate-summary",
+      label: "Candidate summary",
+      value: candidateSummary.join(" | ") || "missing"
+    },
+    {
+      id: "external-runtime-command-boundary",
+      label: "Command boundary",
+      value:
+        `readOnly=${packet?.readOnlyCommands?.length ?? 0} ` +
+        `approvalGated=${packet?.approvalGatedCommands?.length ?? 0} ` +
+        "mutationAllowed=false"
+    }
+  ];
+  return diagnostics;
+}
+
 function stripReleaseActionQueueFeedback(value) {
   return sanitize(value).replace(/^(?:releaseActionQueue:\s*)+/i, "");
 }
@@ -1310,7 +1454,8 @@ function checkpointItems(
   lightspeedReadiness,
   ocpLiveReaderSmoke,
   releasePlan,
-  installPlan
+  installPlan,
+  externalRuntimeReviewPacket
 ) {
   const lanes = checkpoint?.lanes ?? [];
   const byId = new Map(lanes.map((lane) => [lane.id, lane]));
@@ -1341,6 +1486,13 @@ function checkpointItems(
     request: "Coordinate final reviewed vLLM/Qdrant evidence files after registry/security/product inputs are complete.",
     evidenceNeeded: "docs/release/evidence/external-runtime/vllm.json and qdrant.json pass verify:external-runtime-plan.",
     nextCommand: "npm run verify:external-runtime-plan",
+    handoffNextCommands:
+      externalRuntimeFinalEvidenceHandoffCommands(externalRuntimeReviewPacket),
+    readOnlyCommands:
+      externalRuntimeFinalEvidenceReadOnlyCommands(externalRuntimeReviewPacket),
+    blockedBy: externalRuntimeReviewPacket?.missingEvidence ?? [],
+    diagnostics:
+      externalRuntimeFinalEvidenceDiagnostics(externalRuntimeReviewPacket),
     acceptance: ["AC-CERT-001"]
   });
   addIfOpen("certificationReadiness", {
@@ -2392,7 +2544,8 @@ function buildItems(artifacts, currentHeadSha) {
         artifacts.lightspeedReadiness,
         artifacts.ocpLiveReaderSmoke,
         artifacts.releasePlan,
-        artifacts.installPlan
+        artifacts.installPlan,
+        artifacts.externalRuntimeReview
       ),
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
       ...securityScanItems(artifacts.securityScanPlan),
