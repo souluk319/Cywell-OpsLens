@@ -1809,6 +1809,7 @@ function checkpointItems(
     id: "release-manager-complete-external-runtime-final-evidence",
     owner: "release-manager",
     priority: "high",
+    source: "externalRuntimeReviewPacket:externalRuntimePlan",
     request: "Coordinate final reviewed vLLM/Qdrant evidence files after registry/security/product inputs are complete.",
     evidenceNeeded: "docs/release/evidence/external-runtime/vllm.json and qdrant.json pass verify:external-runtime-plan.",
     nextCommand: "npm run verify:external-runtime-plan",
@@ -1825,6 +1826,7 @@ function checkpointItems(
     id: "release-manager-complete-certification-tooling",
     owner: "release-manager",
     priority: "high",
+    source: "certificationReadiness",
     request:
       certificationReadiness?.toolingHandoff?.missingRequiredTools?.length
         ? `Install or provide approved certification tooling: ${certificationReadiness.toolingHandoff.missingRequiredTools.join(", ")}.`
@@ -1854,6 +1856,7 @@ function checkpointItems(
     id: "release-manager-refresh-publish-plan-after-evidence",
     owner: "release-manager",
     priority: "high",
+    source: "releasePlan",
     request: "Refresh release publish approval plan after external runtime and scan evidence are complete.",
     evidenceNeeded: "Release publish plan status becomes PUBLISH_APPROVAL_REQUIRED with clean same-head evidence.",
     nextCommand: "npm run verify:release-plan",
@@ -1874,6 +1877,7 @@ function checkpointItems(
     id: "cluster-admin-refresh-install-plan-after-live-evidence",
     owner: "cluster-admin",
     priority: "high",
+    source: "installPlan",
     request: "Refresh install approval plan after live OCP/Lightspeed evidence and release image evidence are current.",
     evidenceNeeded: "Install approval plan status becomes APPROVAL_REQUIRED with all mutating commands approval-gated.",
     nextCommand: "npm run verify:install-plan",

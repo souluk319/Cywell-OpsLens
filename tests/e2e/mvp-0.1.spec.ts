@@ -5280,6 +5280,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "verify-external-runtime-plan"
       ])
     );
+    expect(externalRuntimeFinalEvidenceAction?.source).toBe(
+      "externalRuntimeReviewPacket:externalRuntimePlan"
+    );
     expect(
       externalRuntimeFinalEvidenceAction?.handoffNextCommands
     ).toEqual(
@@ -5313,6 +5316,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (item) =>
           item.id === "release-manager-refresh-publish-plan-after-evidence"
       );
+    expect(releasePublishAction?.source).toBe("releasePlan");
     expect(
       releasePublishAction?.diagnostics?.map((item) => item.id)
     ).toEqual(
@@ -5339,6 +5343,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (item) =>
           item.id === "cluster-admin-refresh-install-plan-after-live-evidence"
       );
+    expect(installApprovalAction?.source).toBe("installPlan");
     expect(
       installApprovalAction?.diagnostics?.map((item) => item.id)
     ).toEqual(
@@ -5849,6 +5854,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (item) => item.id === "release-manager-complete-certification-tooling"
       );
     if (certificationToolingAction) {
+      expect(certificationToolingAction.source).toBe("certificationReadiness");
       expect(certificationToolingAction.missingRequiredTools).toEqual(
         expect.arrayContaining(["opm", "operator-sdk"])
       );
