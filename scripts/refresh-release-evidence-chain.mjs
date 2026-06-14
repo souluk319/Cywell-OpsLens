@@ -54,6 +54,8 @@ const evidencePaths = {
   installPlan: "test-results/cywell-opslens-install-approval-plan.json",
   liveHandoff: "test-results/cywell-opslens-live-evidence-handoff.json",
   ocpNetworkHandoff: "test-results/cywell-opslens-ocp-network-handoff.json",
+  ocpNetworkHandoffApiFallback:
+    "test-results/cywell-opslens-ocp-network-handoff-api-fallback.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   releaseEvidenceBundle: "test-results/cywell-opslens-release-evidence-bundle.json",
@@ -285,6 +287,7 @@ function buildChain() {
     npmScript("install-plan", "approval", "verify:install-plan"),
     npmScript("live-handoff", "approval", "verify:live-handoff"),
     npmScript("ocp-network-handoff", "approval", "evidence:ocp-network-handoff"),
+    npmScript("ocp-network-handoff-api-fallback", "approval", "verify:ocp:handoff-api-fallback"),
     npmScript("lightspeed-integration-handoff", "approval", "verify:lightspeed:integration-handoff"),
     npmScript("evidence-checkpoint", "approval", "verify:evidence-checkpoint"),
     npmScript("ocp-network-handoff-post-checkpoint", "approval", "evidence:ocp-network-handoff"),
