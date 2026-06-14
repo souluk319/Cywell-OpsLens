@@ -108,7 +108,7 @@ Cywell OpsLens Stage 1 uses the OpenShift Lightspeed custom MCP server path, not
 
 Stage 2 begins with `POST /api/opslens/incidents/analyze`: an alert-triggered, plan-only incident endpoint that combines read-only resource detail, pod candidates, events, `sinceSeconds`-bounded pod logs, and opt-in Prometheus metric correlation with private runbook citations. Failed reads are returned as `missingEvidence`, not hidden.
 
-Stage 3 starts with `GET /api/opslens/admin/overview` and the OpsLens Admin Dashboard surface for RAG document health, validate-only evidence export, env-gated RAG approval queue persistence, token usage, GPU/runtime samples, Lightspeed MCP tool matrix plus routing score, incident metric query status, Operator package static boundary, and install readiness.
+Stage 3 starts with `GET /api/opslens/admin/overview` and the OpsLens Admin Dashboard surface for RAG document health, validate-only evidence export, env-gated RAG approval queue persistence, environment isolation evidence from `npm run verify:env`, token usage, GPU/runtime samples, Lightspeed MCP tool matrix plus routing score, incident metric query status, Operator package static boundary, and install readiness.
 
 `npm run verify:rag:approval-queue` proves the post-MVP approval queue bridge: default API mode remains `designOnly`, the queue inventory is read-only, an explicitly enabled local queue persists and lists only metadata/redacted chunks/approval requirements, invalid drafts are rejected before persistence, and no raw Markdown, vector write, cluster mutation, approval mutation, or secret-like value is stored.
 
@@ -130,7 +130,7 @@ Live OpenShift read-only API support:
 - `GET /api/ocp/pod-logs?namespace=default&pod=<pod>&tailLines=200&sinceSeconds=600`
 - `GET /api/ocp/events?apiVersion=v1&kind=Pod&namespace=default&name=<pod>`
 
-The API loads `OCP_API_BASE_URL` and `OCP_API_TOKEN` from `.env`, and also falls back to kubeconfig server/token candidates when the env URL points at a console endpoint instead of the Kubernetes API root. CRC/self-signed TLS can be handled with `OCP_TLS_VERIFY=false` or the existing `OPENSHIFT_LIGHTSPEED_TLS_VERIFY=false`.
+The API loads `OCP_API_BASE_URL` and `OCP_API_TOKEN` from `.env`, and also falls back to kubeconfig server/token candidates when the env URL points at a console endpoint instead of the Kubernetes API root. CRC/self-signed TLS can be handled with `OCP_TLS_VERIFY=false`; `OPENSHIFT_LIGHTSPEED_TLS_VERIFY` is intentionally ignored by the OCP reader. `npm run verify:env` writes `test-results/cywell-opslens-env-contract.json` with key names/counts only, so `.env` target changes can be checked without persisting secret values.
 
 Safety defaults:
 

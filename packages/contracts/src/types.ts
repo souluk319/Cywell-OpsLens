@@ -1368,6 +1368,38 @@ export type OpsLensOcpAuthRbacPlanReadiness =
   | "needs-evidence"
   | "blocked";
 
+export type OpsLensEnvContractReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "failed";
+
+export interface OpsLensEnvContractSummary {
+  status: OpsLensEnvContractReadiness;
+  artifactStatus: string;
+  actionMode: "localEnvAuditOnly";
+  headSha: string;
+  worktreeDirty: boolean | string;
+  activeOcpTarget: boolean;
+  activeLightspeedTarget: boolean;
+  activeKeyCount: number;
+  commentedTrackedCount: number;
+  duplicateActiveKeys: string[];
+  activeMissingValues: string[];
+  checks: Array<{
+    name: string;
+    status: "PASS" | "FAIL";
+    detail: string;
+  }>;
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  vectorWriteAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  evidence: string[];
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export interface OpsLensEvidenceCheckpointSummary {
   status: OpsLensEvidenceCheckpointReadiness;
   artifactStatus: string;
@@ -2685,6 +2717,8 @@ export interface OpsLensAdminOverviewResponse {
   };
   installReadiness: {
     lightspeedMcp: OpsLensLightspeedMcpReadiness;
+    environmentIsolation: OpsLensEnvContractReadiness;
+    envContract: OpsLensEnvContractSummary;
     lightspeedExtensionPoint: OpsLensLightspeedExtensionPointReadiness;
     extensionPoint: OpsLensLightspeedExtensionPointSummary;
     consoleDashboard: "prototype" | "ready";

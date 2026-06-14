@@ -1,11 +1,22 @@
 #!/usr/bin/env node
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const repoRoot = resolve(".");
+const evidenceOut = resolve(
+  process.env.CYWELL_OPSLENS_ENV_CONTRACT_EVIDENCE ??
+    "test-results/cywell-opslens-env-contract.json"
+);
 const envModule = pathToFileURL(resolve(repoRoot, "apps/api/src/env.ts")).href;
 const tsxCli = resolve(repoRoot, "node_modules/tsx/dist/cli.mjs");
 const sensitiveEnvPrefix = /^(OCP|OPENSHIFT|KUBE|CYWELL_OPSLENS)_/;
@@ -64,6 +75,24 @@ function check(name, condition, detail) {
   checks.push({ name, condition, detail });
   const prefix = condition ? "[PASS]" : "[FAIL]";
   console.log(`${prefix} ${name}: ${detail}`);
+}
+
+function gitValue(args, fallback) {
+  const result = spawnSync("git", args, {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+  if (result.status !== 0 || !result.stdout.trim()) return fallback;
+  return result.stdout.trim().split(/\r?\n/).at(-1)?.trim() || fallback;
+}
+
+function gitDirty() {
+  const result = spawnSync("git", ["status", "--short"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+  if (result.status !== 0) return true;
+  return result.stdout.trim().length > 0;
 }
 
 const trackedEnvKeys = new Set([
@@ -250,10 +279,67 @@ if (envAudit.exists) {
 }
 
 const failed = checks.filter((entry) => !entry.condition);
+const artifact = {
+  artifactType: "opslens.env-contract.v0.1",
+  status: failed.length > 0 ? "FAIL" : "PASS",
+  actionMode: "localEnvAuditOnly",
+  generatedAt: new Date().toISOString(),
+  ref: {
+    branch: gitValue(["branch", "--show-current"], "unknown"),
+    headSha: gitValue(["rev-parse", "--short", "HEAD"], "unknown"),
+    baseRef: gitValue(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], "origin/main"),
+    worktreeDirty: gitDirty()
+  },
+  envAudit: {
+    exists: envAudit.exists,
+    activeKeyCount: envAudit.activeCounts.size,
+    activeKeys: Array.from(envAudit.activeCounts.keys()).sort(),
+    commentedTrackedCount: envAudit.commentedTrackedCount,
+    duplicateActiveKeys: envAudit.duplicateActiveKeys,
+    activeMissingValues: envAudit.activeMissingValues,
+    activeOcpTarget:
+      envAudit.exists &&
+      hasActive(envAudit, "OCP_API_BASE_URL") &&
+      hasActive(envAudit, "OCP_API_TOKEN") &&
+      !envAudit.activeMissingValues.includes("OCP_API_BASE_URL") &&
+      !envAudit.activeMissingValues.includes("OCP_API_TOKEN"),
+    activeLightspeedTarget:
+      envAudit.exists &&
+      hasActive(envAudit, "OPENSHIFT_LIGHTSPEED_BASE_URL") &&
+      hasActive(envAudit, "OPENSHIFT_LIGHTSPEED_API_TOKEN") &&
+      !envAudit.activeMissingValues.includes("OPENSHIFT_LIGHTSPEED_BASE_URL") &&
+      !envAudit.activeMissingValues.includes("OPENSHIFT_LIGHTSPEED_API_TOKEN")
+  },
+  checks: checks.map((entry) => ({
+    name: entry.name,
+    status: entry.condition ? "PASS" : "FAIL",
+    detail: entry.detail
+  })),
+  clusterMutationAttempted: false,
+  registryMutationAttempted: false,
+  vectorWriteAttempted: false,
+  mutationAllowedByThisVerifier: false,
+  evidence: [
+    "OCP API target keys are loaded independently from OpenShift Lightspeed target keys.",
+    "Actual .env values are not written to evidence; only key names, counts, and presence states are recorded.",
+    "Commented legacy OCP/Lightspeed entries are ignored by loadEnvFile."
+  ],
+  missingEvidence: failed.map((entry) => `${entry.name}: ${entry.detail}`),
+  risk: [
+    "If OCP and Lightspeed env settings drift, live readiness evidence can point at the wrong endpoint or silently inherit unsafe TLS/timeout behavior."
+  ],
+  rollbackPath: [
+    "Restore OCP_API_BASE_URL/OCP_API_TOKEN and OPENSHIFT_LIGHTSPEED_BASE_URL/OPENSHIFT_LIGHTSPEED_API_TOKEN to one active target each, then rerun npm run verify:env."
+  ]
+};
+
+mkdirSync(dirname(evidenceOut), { recursive: true });
+writeFileSync(evidenceOut, `${JSON.stringify(artifact, null, 2)}\n`);
 console.log("");
 console.log(
   `Cywell OpsLens env contract verification: ${failed.length} fail, ${checks.length} checks`
 );
+console.log(`Env contract evidence written: ${evidenceOut}`);
 
 if (failed.length > 0) {
   process.exitCode = 1;

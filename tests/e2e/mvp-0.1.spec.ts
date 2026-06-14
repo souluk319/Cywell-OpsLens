@@ -1316,6 +1316,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       };
       installReadiness?: {
         lightspeedMcp?: string;
+        environmentIsolation?: string;
+        envContract?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          headSha?: string;
+          worktreeDirty?: boolean | string;
+          activeOcpTarget?: boolean;
+          activeLightspeedTarget?: boolean;
+          activeKeyCount?: number;
+          commentedTrackedCount?: number;
+          duplicateActiveKeys?: string[];
+          activeMissingValues?: string[];
+          checks?: Array<{ name?: string; status?: string; detail?: string }>;
+          clusterMutationAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          vectorWriteAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          evidence?: string[];
+          missingEvidence?: string[];
+        };
         lightspeedExtensionPoint?: string;
         extensionPoint?: {
           status?: string;
@@ -2782,6 +2803,35 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.evidence?.join(" ")).toContain(
       "Lightspeed currentGap="
     );
+    expect(["ready", "needs-evidence", "failed"]).toContain(
+      body.installReadiness?.environmentIsolation
+    );
+    expect(body.installReadiness?.envContract).toMatchObject({
+      actionMode: "localEnvAuditOnly",
+      activeOcpTarget: true,
+      activeLightspeedTarget: true,
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.envContract?.checks?.map((check) => check.name)
+    ).toEqual(
+      expect.arrayContaining([
+        "OCP base URL and token",
+        "Lightspeed TLS isolation",
+        "Actual .env OCP target active",
+        "Actual .env Lightspeed target active"
+      ])
+    );
+    expect(
+      body.installReadiness?.envContract?.duplicateActiveKeys
+    ).toEqual([]);
+    expect(
+      body.installReadiness?.envContract?.activeMissingValues
+    ).toEqual([]);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(/verify:env/);
     expect(body.installReadiness?.operatorPackaging).toBe("draft");
     expect(["ready", "needs-evidence", "failed"]).toContain(
       body.installReadiness?.ocpConnectivity
@@ -3639,6 +3689,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         "mvp-gate",
+        "env-contract",
         "community-operator-submission",
         "certification-readiness",
         "catalog-toolchain",
@@ -3647,6 +3698,17 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "release-evidence-bundle"
       ])
     );
+    expect(
+      body.installReadiness?.refresh?.artifacts?.map((artifact) => artifact.id)
+    ).toEqual(expect.arrayContaining(["envContract"]));
+    expect(
+      body.installReadiness?.refresh?.artifacts?.find(
+        (artifact) => artifact.id === "envContract"
+      )
+    ).toMatchObject({
+      status: "PASS",
+      fresh: true
+    });
     expect(
       body.installReadiness?.refresh?.commands?.find(
         (command) => command.id === "security-review-drafts-all"
@@ -5100,6 +5162,33 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Auth/RBAC Plan"
     );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Environment"
+    );
+    await expect(page.getByTestId("opslens-env-contract")).toContainText(
+      "Environment Isolation"
+    );
+    await expect(page.getByTestId("opslens-env-contract")).toContainText(
+      "localEnvAuditOnly"
+    );
+    await expect(page.getByTestId("opslens-env-contract")).toContainText(
+      "activeOcpTarget=true"
+    );
+    await expect(page.getByTestId("opslens-env-contract")).toContainText(
+      "activeLightspeedTarget=true"
+    );
+    await expect(page.getByTestId("opslens-env-contract")).toContainText(
+      "Commented Legacy"
+    );
+    await expect(
+      page.getByTestId("opslens-env-contract-boundary")
+    ).toContainText("clusterMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-env-contract-boundary")
+    ).toContainText("mutationAllowedByThisVerifier=false");
+    await expect(
+      page.getByTestId("opslens-env-contract-checks")
+    ).toContainText("OCP base URL and token=PASS");
     await expect(page.getByTestId("opslens-ocp-auth-rbac-plan")).toContainText(
       "approvalPlanOnly"
     );

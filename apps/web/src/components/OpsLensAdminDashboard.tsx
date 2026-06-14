@@ -300,6 +300,7 @@ export function OpsLensAdminDashboard() {
   const liveHandoff = overview?.installReadiness.handoff;
   const networkHandoff = overview?.installReadiness.networkHandoff;
   const authRbacPlan = overview?.installReadiness.authRbacPlan;
+  const envContract = overview?.installReadiness.envContract;
   const ocpConnectivity = overview?.installReadiness.connectivity;
   const lightspeedMcp = overview?.lightspeed.mcp;
   const validationFailed = validation?.issues.some(
@@ -1336,6 +1337,8 @@ export function OpsLensAdminDashboard() {
             {overview
               ? Object.entries({
                   "Lightspeed MCP": overview.installReadiness.lightspeedMcp,
+                  Environment:
+                    overview.installReadiness.environmentIsolation,
                   "Extension Point":
                     overview.installReadiness.lightspeedExtensionPoint,
                   "AI Ops Pipeline": overview.aiops.incidentPipeline.status,
@@ -1715,6 +1718,91 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {operatorRuntimeBoundary.risk[0] ??
                     "Live Operator SDK and OLM smoke remain approval-gated."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {envContract ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-env-contract"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Environment Isolation</h4>
+                  <small>{envContract.actionMode}</small>
+                </div>
+                <ShieldCheck size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{envContract.artifactStatus}</span>
+                <span>head={envContract.headSha}</span>
+                <span>dirty={String(envContract.worktreeDirty)}</span>
+                <span>
+                  activeOcpTarget={String(envContract.activeOcpTarget)}
+                </span>
+                <span>
+                  activeLightspeedTarget=
+                  {String(envContract.activeLightspeedTarget)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Active Keys</span>
+                  <strong>{envContract.activeKeyCount}</strong>
+                </div>
+                <div>
+                  <span>Commented Legacy</span>
+                  <strong>{envContract.commentedTrackedCount}</strong>
+                </div>
+                <div>
+                  <span>Duplicates</span>
+                  <strong>{envContract.duplicateActiveKeys.length}</strong>
+                </div>
+                <div>
+                  <span>Missing Values</span>
+                  <strong>{envContract.activeMissingValues.length}</strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-env-contract-boundary"
+              >
+                <span>
+                  clusterMutationAttempted=
+                  {String(envContract.clusterMutationAttempted)}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(envContract.registryMutationAttempted)}
+                </span>
+                <span>
+                  vectorWriteAttempted=
+                  {String(envContract.vectorWriteAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(envContract.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-env-contract-checks"
+              >
+                {envContract.checks.slice(0, 4).map((check) => (
+                  <span key={check.name}>
+                    {check.name}={check.status}
+                  </span>
+                ))}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {envContract.evidence[0] ??
+                    "Environment contract evidence records key state only."}
+                </p>
+                <p>
+                  {envContract.rollbackPath[0] ??
+                    "Run npm run verify:env after changing .env target keys."}
                 </p>
               </div>
             </div>

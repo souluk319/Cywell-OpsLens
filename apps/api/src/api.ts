@@ -35,6 +35,8 @@ import type {
   OpsLensCitation,
   OpsLensCommunityOperatorSubmissionReadiness,
   OpsLensCommunityOperatorSubmissionSummary,
+  OpsLensEnvContractReadiness,
+  OpsLensEnvContractSummary,
   OpsLensEvidenceCheckpointReadiness,
   OpsLensEvidenceCheckpointSummary,
   OpsLensExternalRuntimeImagesPlanSummary,
@@ -3090,6 +3092,48 @@ type OcpConnectivityDiagnosticArtifact = {
   rollbackPath?: string[];
 };
 
+type EnvContractArtifact = {
+  artifactType?: string;
+  status?: string;
+  actionMode?: string;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  envAudit?: {
+    exists?: boolean;
+    activeKeyCount?: number;
+    activeKeys?: string[];
+    commentedTrackedCount?: number;
+    duplicateActiveKeys?: string[];
+    activeMissingValues?: string[];
+    activeOcpTarget?: boolean;
+    activeLightspeedTarget?: boolean;
+  };
+  checks?: Array<{
+    name?: string;
+    status?: string;
+    detail?: string;
+  }>;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  vectorWriteAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  evidence?: string[];
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
+function envContractEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_ENV_CONTRACT_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-env-contract.json")
+  );
+}
+
 function lightspeedReadinessEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_LIGHTSPEED_READINESS_EVIDENCE ??
@@ -4979,6 +5023,147 @@ function getOperatorRuntimeBoundaryReadiness(): {
         message,
         "invalid Operator runtime boundary evidence blocks overclaiming install readiness"
       ]
+    };
+  }
+}
+
+function getEnvContractReadiness(): {
+  status: OpsLensEnvContractReadiness;
+  evidence: string[];
+  envContract: OpsLensEnvContractSummary;
+} {
+  const evidencePath = envContractEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    const missingEvidence = [
+      `Environment contract evidence is missing at ${evidencePath}`
+    ];
+    const evidence = [
+      "run npm run verify:env to prove OCP and Lightspeed target key isolation",
+      "dashboard keeps environment isolation as needs-evidence until the artifact exists",
+      "verify:env records key presence and counts only; it does not write secret values"
+    ];
+
+    return {
+      status: "needs-evidence",
+      evidence,
+      envContract: {
+        status: "needs-evidence",
+        artifactStatus: "missing",
+        actionMode: "localEnvAuditOnly",
+        headSha: "missing",
+        worktreeDirty: false,
+        activeOcpTarget: false,
+        activeLightspeedTarget: false,
+        activeKeyCount: 0,
+        commentedTrackedCount: 0,
+        duplicateActiveKeys: [],
+        activeMissingValues: [],
+        checks: [],
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        vectorWriteAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        evidence,
+        missingEvidence,
+        risk: [
+          "Without environment isolation evidence, live readiness checks can be pointed at the wrong OCP or Lightspeed target."
+        ],
+        rollbackPath: [
+          "Run npm run verify:env after updating .env target keys."
+        ]
+      }
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as EnvContractArtifact;
+    const status: OpsLensEnvContractReadiness =
+      artifact.status === "PASS" && artifact.ref?.worktreeDirty !== true
+        ? "ready"
+        : artifact.status === "FAIL"
+          ? "failed"
+          : "needs-evidence";
+    const checks = (artifact.checks ?? []).map((check) => ({
+      name: check.name ?? "unknown",
+      status: check.status === "PASS" ? "PASS" as const : "FAIL" as const,
+      detail: check.detail ?? "missing detail"
+    }));
+    const evidence = [
+      `Environment contract ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+      `verify:env head=${artifact.ref?.headSha ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")} activeKeys=${String(artifact.envAudit?.activeKeyCount ?? 0)} commented=${String(artifact.envAudit?.commentedTrackedCount ?? 0)}`,
+      `activeOcpTarget=${String(artifact.envAudit?.activeOcpTarget === true)} activeLightspeedTarget=${String(artifact.envAudit?.activeLightspeedTarget === true)}`,
+      "env contract evidence records key state only and redacts actual values"
+    ];
+
+    return {
+      status,
+      evidence,
+      envContract: {
+        status,
+        artifactStatus: artifact.status ?? "unknown",
+        actionMode: "localEnvAuditOnly",
+        headSha: artifact.ref?.headSha ?? "unknown",
+        worktreeDirty: artifact.ref?.worktreeDirty === true,
+        activeOcpTarget: artifact.envAudit?.activeOcpTarget === true,
+        activeLightspeedTarget:
+          artifact.envAudit?.activeLightspeedTarget === true,
+        activeKeyCount: artifact.envAudit?.activeKeyCount ?? 0,
+        commentedTrackedCount: artifact.envAudit?.commentedTrackedCount ?? 0,
+        duplicateActiveKeys: artifact.envAudit?.duplicateActiveKeys ?? [],
+        activeMissingValues: artifact.envAudit?.activeMissingValues ?? [],
+        checks,
+        clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+        registryMutationAttempted: artifact.registryMutationAttempted === true,
+        vectorWriteAttempted: artifact.vectorWriteAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationAllowedByThisVerifier === true,
+        evidence: [...evidence, ...(artifact.evidence ?? []).slice(0, 3)],
+        missingEvidence: artifact.missingEvidence ?? [],
+        risk: artifact.risk ?? [],
+        rollbackPath: artifact.rollbackPath ?? []
+      }
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "unknown env contract parse error";
+    const evidence = [
+      `Environment contract could not be parsed from ${evidencePath}`,
+      message,
+      "invalid environment evidence blocks overclaiming live target isolation"
+    ];
+
+    return {
+      status: "failed",
+      evidence,
+      envContract: {
+        status: "failed",
+        artifactStatus: "invalid",
+        actionMode: "localEnvAuditOnly",
+        headSha: "unknown",
+        worktreeDirty: false,
+        activeOcpTarget: false,
+        activeLightspeedTarget: false,
+        activeKeyCount: 0,
+        commentedTrackedCount: 0,
+        duplicateActiveKeys: [],
+        activeMissingValues: [],
+        checks: [],
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        vectorWriteAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        evidence,
+        missingEvidence: [message],
+        risk: [
+          "Invalid env evidence prevents trusting live readiness target selection."
+        ],
+        rollbackPath: [
+          "Regenerate the artifact with npm run verify:env after fixing the evidence file."
+        ]
+      }
     };
   }
 }
@@ -9203,6 +9388,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const lightspeedExtensionPointReadiness =
     getLightspeedExtensionPointReadiness();
   const lightspeedReadiness = getLightspeedMcpReadiness();
+  const envContractReadiness = getEnvContractReadiness();
   const imageBuildReadiness = getImageBuildReadiness();
   const ownedImageProvenanceReadiness = getOwnedImageProvenanceReadiness();
   const externalRuntimeImagesReadiness = getExternalRuntimeImagesPlanReadiness();
@@ -9235,6 +9421,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const ocpAuthRbacPlanReadiness = getOcpAuthRbacPlanReadiness();
   const installReadinessEvidence = [
     releaseEvidenceRefreshReadiness.evidence[0],
+    envContractReadiness.evidence[0],
     lightspeedExtensionPointReadiness.evidence[0],
     evidenceCheckpointReadiness.evidence[0],
     aiopsIncidentPipelineReadiness.evidence[0],
@@ -9277,6 +9464,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...securityScanReadiness.evidence.slice(1),
     ...releasePublishReadiness.evidence.slice(1),
     ...releaseEvidenceRefreshReadiness.evidence.slice(1),
+    ...envContractReadiness.evidence.slice(1),
     ...releaseEvidenceBundleReadiness.evidence.slice(1),
     ...releaseActionQueueReadiness.evidence.slice(1),
     ...runtimeLiveHandoff.evidence.slice(1),
@@ -9466,6 +9654,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     },
     installReadiness: {
       lightspeedMcp: lightspeedReadiness.status,
+      environmentIsolation: envContractReadiness.status,
+      envContract: envContractReadiness.envContract,
       lightspeedExtensionPoint: lightspeedExtensionPointReadiness.status,
       extensionPoint: lightspeedExtensionPointReadiness.extensionPoint,
       consoleDashboard: "prototype",
@@ -9516,6 +9706,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       evidence: [
         ...installReadinessEvidence,
         "Stage 1 MCP contract has verifier coverage",
+        "OCP/Lightspeed environment isolation is validated by npm run verify:env",
         "Stage 1 Lightspeed extension point decision is validated by npm run verify:lightspeed-extension",
         "Stage 2 incident packet has logs/events/metrics coverage",
         "Stage 2 AI Ops incident pipeline is validated by npm run verify:aiops",

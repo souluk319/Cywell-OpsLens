@@ -15,6 +15,7 @@ const defaults = {
 
 const evidencePaths = {
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
+  envContract: "test-results/cywell-opslens-env-contract.json",
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
   runtimeRag: "test-results/cywell-opslens-runtime-rag-contract.json",
   runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
@@ -191,6 +192,7 @@ function buildChain() {
   ];
   const commands = [
     npmScript("mvp-gate", "core", "verify:mvp", mvpGateArgs),
+    npmScript("env-contract", "core", "verify:env"),
     npmScript("runtime-readiness", "core", "verify:runtime"),
     npmScript("runtime-rag", "core", "verify:runtime-rag"),
     npmScript("runtime-rag-fixture", "core", "verify:runtime-rag:fixture"),
