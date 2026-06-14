@@ -3769,6 +3769,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         "mvpGate",
+        "envContract",
         "consolePluginAssets",
         "lightspeedExtensionPoint",
         "certificationReadiness",
