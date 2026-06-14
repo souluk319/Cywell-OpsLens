@@ -5233,6 +5233,42 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (item) => item.id === "install-approval-rag"
       )?.value
     ).toContain("actionMode=ingestionPlanOnly");
+    const releaseDecisionAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "release-manager-publish-decision-not-ready"
+      );
+    expect(releaseDecisionAction?.diagnostics?.map((item) => item.id)).toEqual(
+      expect.arrayContaining([
+        "release-decision-status",
+        "release-decision-readiness",
+        "release-decision-stages",
+        "release-decision-evidence",
+        "release-decision-boundary"
+      ])
+    );
+    expect(
+      releaseDecisionAction?.diagnostics?.find(
+        (item) => item.id === "release-decision-boundary"
+      )?.value
+    ).toContain("mutationAllowed=false");
+    const installDecisionAction =
+      body.installReadiness?.actionQueue?.items?.find(
+        (item) => item.id === "cluster-admin-install-decision-not-ready"
+      );
+    expect(installDecisionAction?.diagnostics?.map((item) => item.id)).toEqual(
+      expect.arrayContaining([
+        "install-decision-status",
+        "install-decision-readiness",
+        "install-decision-stages",
+        "install-decision-evidence",
+        "install-decision-boundary"
+      ])
+    );
+    expect(
+      installDecisionAction?.diagnostics?.find(
+        (item) => item.id === "install-decision-boundary"
+      )?.value
+    ).toContain("mutationAllowed=false");
     const externalRuntimeCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "external-runtime-review"
@@ -7420,6 +7456,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-diagnostics")
     ).toContainText(/candidate-status|security-final-review|post-approval-rbac|source-digest-inspection|registry-access|external-runtime-final-evidence/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-decision-actions")
+    ).toContainText("release-manager-publish-decision-not-ready");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-decision-actions")
+    ).toContainText("release-decision-boundary");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-decision-actions")
+    ).toContainText("cluster-admin-install-decision-not-ready");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-decision-actions")
+    ).toContainText("install-decision-boundary");
     await expect(
       page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
     ).toContainText(/registry-admin-fix-catalog-base-image-auth|catalog registry actions clear/);

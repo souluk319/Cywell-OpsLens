@@ -255,6 +255,10 @@ export function OpsLensAdminDashboard() {
         entry.id.includes("lightspeed-readiness") ||
         entry.source.includes("lightspeedReadiness")
     ) ?? [];
+  const releaseDecisionActions =
+    releaseActionQueue?.items.filter((entry) =>
+      entry.id.includes("decision-not-ready")
+    ) ?? [];
   const releaseApprovalHandoffActions = releaseActionQueue
     ? [
         ...releaseActionQueue.items.filter((entry) =>
@@ -2776,6 +2780,28 @@ export function OpsLensAdminDashboard() {
                         .join(" | ")}
                     </span>
                   ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-decision-actions"
+              >
+                {releaseDecisionActions.length > 0 ? (
+                  releaseDecisionActions.map((entry) => (
+                    <span key={entry.id}>
+                      {entry.id}:{entry.owner}:next={entry.nextCommand}
+                      :diagnostics=
+                      {entry.diagnostics
+                        .slice(0, 6)
+                        .map(
+                          (diagnostic) =>
+                            `${diagnostic.id}=${diagnostic.value}`
+                        )
+                        .join(" | ") || "none"}
+                    </span>
+                  ))
+                ) : (
+                  <span>decision actions clear</span>
+                )}
               </div>
               <div
                 className="admin-evidence-line"

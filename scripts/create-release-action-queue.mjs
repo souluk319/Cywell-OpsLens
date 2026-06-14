@@ -2172,6 +2172,56 @@ function securityScanItems(plan) {
 function bundleDecisionItems(bundle) {
   const decision = bundle?.decision ?? {};
   const items = [];
+  const bundleDecisionDiagnostics = (kind) => {
+    const prefix = kind === "publish" ? "release-decision" : "install-decision";
+    const readyKey = kind === "publish" ? "publishReady" : "installReady";
+    const missingEvidence = bundle?.missingEvidence ?? [];
+    const stageSummary =
+      (bundle?.stages ?? [])
+        .filter((stage) => stage.status !== "PASS")
+        .map((stage) => `${stage.id ?? "unknown"}=${stage.status ?? "unknown"}`)
+        .join(" ") || "all-pass";
+    return [
+      {
+        id: `${prefix}-status`,
+        label: "Bundle decision",
+        value:
+          `status=${bundle?.status ?? "missing"} ` +
+          `${readyKey}=${String(decision[readyKey] === true)} ` +
+          `roadmapComplete=${String(decision.roadmapComplete === true)}`
+      },
+      {
+        id: `${prefix}-readiness`,
+        label: "Readiness statuses",
+        value:
+          `release=${decision.releaseStatus ?? "unknown"} ` +
+          `install=${decision.installStatus ?? "unknown"} ` +
+          `checkpoint=${decision.checkpointStatus ?? "unknown"} ` +
+          `roadmap=${decision.roadmapStatus ?? "unknown"}`
+      },
+      {
+        id: `${prefix}-stages`,
+        label: "Open stages",
+        value: stageSummary
+      },
+      {
+        id: `${prefix}-evidence`,
+        label: "Evidence gaps",
+        value:
+          `missingEvidence=${missingEvidence.length} ` +
+          `first=${missingEvidence[0] ?? "none"}`
+      },
+      {
+        id: `${prefix}-boundary`,
+        label: "Mutation boundary",
+        value:
+          `boundaryPassed=${String(bundle?.mutationBoundary?.passed === true)} ` +
+          `clusterMutation=${String(bundle?.clusterMutationAttempted === true)} ` +
+          `registryMutation=${String(bundle?.registryMutationAttempted === true)} ` +
+          `mutationAllowed=${String(bundle?.mutationAllowedByThisVerifier === true)}`
+      }
+    ];
+  };
   if (decision.publishReady !== true) {
     items.push(item({
       id: "release-manager-publish-decision-not-ready",
@@ -2182,6 +2232,7 @@ function bundleDecisionItems(bundle) {
       evidenceNeeded: `publishReady=false releaseStatus=${decision.releaseStatus ?? "unknown"} checkpointStatus=${decision.checkpointStatus ?? "unknown"} roadmapStatus=${decision.roadmapStatus ?? "unknown"}`,
       nextCommand: "npm run verify:release-evidence-bundle",
       blockedBy: bundle?.missingEvidence ?? [],
+      diagnostics: bundleDecisionDiagnostics("publish"),
       acceptance: ["AC-CERT-001"]
     }));
   }
@@ -2195,6 +2246,7 @@ function bundleDecisionItems(bundle) {
       evidenceNeeded: `installReady=false installStatus=${decision.installStatus ?? "unknown"} checkpointStatus=${decision.checkpointStatus ?? "unknown"}`,
       nextCommand: "npm run verify:install-plan",
       blockedBy: bundle?.missingEvidence ?? [],
+      diagnostics: bundleDecisionDiagnostics("install"),
       acceptance: ["AC-OP-005"]
     }));
   }
