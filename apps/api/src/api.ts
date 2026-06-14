@@ -2303,15 +2303,31 @@ type RagProductionReadinessArtifact = {
   requiredApprovals?: string[];
   readOnlyCommands?: Array<{
     id?: string;
+    command?: string;
     phase?: string;
     mutation?: boolean;
     writesLocalEvidence?: boolean;
   }>;
   approvalGatedCommands?: Array<{
     id?: string;
+    command?: string;
     phase?: string;
     mutation?: boolean;
     requiresExplicitApproval?: boolean;
+    rollback?: string;
+  }>;
+  firstProductionActions?: Array<{
+    id?: string;
+    owner?: string;
+    phase?: string;
+    status?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
   }>;
   missingEvidence?: string[];
   risk?: string[];
@@ -5985,6 +6001,22 @@ function missingRagProductionReadinessSummary(
       }
     ],
     approvalGatedCommands: [],
+    firstProductionActions: [
+      {
+        id: "rag-production-readiness-missing",
+        owner: "rag-owner",
+        phase: "production-readiness-preflight",
+        status: "needs-evidence",
+        request: "Generate the RAG production readiness handoff before enabling production ingestion.",
+        evidenceNeeded: reason,
+        nextCommand: "npm run verify:rag:production-readiness",
+        mutation: false,
+        requiresExplicitApproval: false,
+        blockedBy: [reason],
+        rollbackPath:
+          "No rollback is required for read-only RAG production readiness preflight."
+      }
+    ],
     missingEvidence: [reason],
     risk: [
       "Production RAG ingestion must remain blocked until queue, worker, audit sink, source-ref, and rollback evidence are present."
@@ -5996,6 +6028,93 @@ function missingRagProductionReadinessSummary(
       "RAG production readiness evidence is missing; dashboard must not claim live ingestion readiness"
     ]
   };
+}
+
+function ragProductionGapOwner(gap: string) {
+  if (/worker|job|apply|deployment|schedule/i.test(gap)) return "cluster-sre";
+  if (/audit|rollback|vector/i.test(gap)) return "security-reviewer";
+  return "rag-owner";
+}
+
+function ragProductionGapNextCommand(gap: string) {
+  if (/approval queue|source-ref/i.test(gap)) {
+    return "npm run verify:rag:approval-queue";
+  }
+  if (/worker|job|apply|deployment/i.test(gap)) {
+    return "npm run verify:install-plan";
+  }
+  return "npm run verify:rag:production-readiness";
+}
+
+function deriveFirstRagProductionActions(
+  missingEvidence: string[],
+  readOnlyCommands: OpsLensRagProductionReadinessSummary["readOnlyCommands"],
+  approvalGatedCommands: OpsLensRagProductionReadinessSummary["approvalGatedCommands"]
+): OpsLensRagProductionReadinessSummary["firstProductionActions"] {
+  const gapActions = missingEvidence.slice(0, 3).map((gap, index) => ({
+    id: `rag-production-gap-${index + 1}`,
+    owner: ragProductionGapOwner(gap),
+    phase: "production-readiness-preflight",
+    status: "needs-evidence",
+    request:
+      "Resolve production RAG ingestion readiness evidence before enabling queue, worker, vector writes, or ingestion jobs.",
+    evidenceNeeded: gap,
+    nextCommand: ragProductionGapNextCommand(gap),
+    mutation: false,
+    requiresExplicitApproval: false,
+    blockedBy: [gap],
+    rollbackPath:
+      "No rollback is required for read-only RAG production readiness preflight."
+  }));
+  const preflight =
+    readOnlyCommands.find((command) => command.id === "verify-rag-production-readiness") ??
+    readOnlyCommands[0];
+  const preflightAction = preflight
+    ? [
+        {
+          id: preflight.id,
+          owner: "rag-owner",
+          phase: preflight.phase,
+          status: missingEvidence.length > 0 ? "needs-evidence" : "ready",
+          request:
+            "Refresh the non-mutating RAG production readiness handoff from current approval queue and contract evidence.",
+          evidenceNeeded:
+            missingEvidence.length > 0
+              ? "RAG production readiness gaps remain before approval."
+              : "Current-head RAG production readiness evidence is ready for approval review.",
+          nextCommand: "npm run verify:rag:production-readiness",
+          mutation: false,
+          requiresExplicitApproval: false,
+          blockedBy: missingEvidence,
+          rollbackPath:
+            "No rollback is required for read-only RAG production readiness refresh."
+        }
+      ]
+    : [];
+  const firstMutatingCommand = approvalGatedCommands.find(
+    (command) => command.mutation
+  );
+  const gatedMutationAction = firstMutatingCommand
+    ? [
+        {
+          id: `approval-gated-${firstMutatingCommand.id}`,
+          owner: "cluster-sre",
+          phase: firstMutatingCommand.phase,
+          status: "approval-gated",
+          request: `Do not run ${firstMutatingCommand.id} until RAG production approvals are explicit.`,
+          evidenceNeeded:
+            "All RAG production readiness gaps are resolved and rag-owner, cluster-sre, and security-reviewer approvals are recorded.",
+          nextCommand: "oc apply -f deploy/rag-production/approved-rag-ingestion-stack.yaml",
+          mutation: true,
+          requiresExplicitApproval: true,
+          blockedBy: missingEvidence,
+          rollbackPath:
+            "Disable the ingestion worker schedule and revert approved source refs before retrying."
+        }
+      ]
+    : [];
+
+  return [...gapActions, ...preflightAction, ...gatedMutationAction];
 }
 
 function getRagProductionReadiness(): {
@@ -6026,6 +6145,45 @@ function getRagProductionReadiness(): {
     const status = mapRagProductionReadinessStatus(artifact);
     const readiness = artifact.readiness ?? {};
     const components = artifact.components ?? {};
+    const readOnlyCommands = (artifact.readOnlyCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      phase: command.phase ?? "rag-production-readiness",
+      mutation: command.mutation === true,
+      writesLocalEvidence: command.writesLocalEvidence === true
+    }));
+    const approvalGatedCommands = (artifact.approvalGatedCommands ?? []).map(
+      (command) => ({
+        id: command.id ?? "unknown",
+        phase: command.phase ?? "approval-gated",
+        mutation: command.mutation === true,
+        requiresExplicitApproval: command.requiresExplicitApproval === true
+      })
+    );
+    const fallbackFirstProductionActions = deriveFirstRagProductionActions(
+      artifact.missingEvidence ?? [],
+      readOnlyCommands,
+      approvalGatedCommands
+    );
+    const firstProductionActions = (
+      artifact.firstProductionActions?.length
+        ? artifact.firstProductionActions
+        : fallbackFirstProductionActions
+    ).map((action) => ({
+      id: action.id ?? "unknown",
+      owner: action.owner ?? "rag-owner",
+      phase: action.phase ?? "production-readiness-preflight",
+      status: action.status ?? "needs-evidence",
+      request: action.request ?? "RAG production readiness action",
+      evidenceNeeded: action.evidenceNeeded ?? "missing evidence",
+      nextCommand:
+        action.nextCommand ?? "npm run verify:rag:production-readiness",
+      mutation: action.mutation === true,
+      requiresExplicitApproval: action.requiresExplicitApproval === true,
+      blockedBy: action.blockedBy ?? [],
+      rollbackPath:
+        action.rollbackPath ??
+        "Regenerate RAG production readiness evidence before proceeding."
+    }));
     const productionReadiness: OpsLensRagProductionReadinessSummary = {
       status,
       artifactStatus: artifact.status ?? "unknown",
@@ -6066,20 +6224,9 @@ function getRagProductionReadiness(): {
             components.vectorWriteAuditSink?.recordsRollbackChunkIds === true
         }
       },
-      readOnlyCommands: (artifact.readOnlyCommands ?? []).map((command) => ({
-        id: command.id ?? "unknown",
-        phase: command.phase ?? "rag-production-readiness",
-        mutation: command.mutation === true,
-        writesLocalEvidence: command.writesLocalEvidence === true
-      })),
-      approvalGatedCommands: (artifact.approvalGatedCommands ?? []).map(
-        (command) => ({
-          id: command.id ?? "unknown",
-          phase: command.phase ?? "approval-gated",
-          mutation: command.mutation === true,
-          requiresExplicitApproval: command.requiresExplicitApproval === true
-        })
-      ),
+      readOnlyCommands,
+      approvalGatedCommands,
+      firstProductionActions,
       missingEvidence: artifact.missingEvidence ?? [],
       risk: artifact.risk ?? [],
       rollbackPath: artifact.rollbackPath ?? [],
@@ -6091,6 +6238,7 @@ function getRagProductionReadiness(): {
         `ingestionWorker liveReady=${String(components.ingestionWorker?.liveReady === true)} createsJobByVerifier=${String(components.ingestionWorker?.createsKubernetesJobByThisVerifier === true)}`,
         `vectorAudit appendOnly=${String(components.vectorWriteAuditSink?.appendOnly === true)} rollbackChunkIds=${String(components.vectorWriteAuditSink?.recordsRollbackChunkIds === true)}`,
         `mutation boundary cluster=${String(artifact.clusterMutationAttempted === true)} vectorWrite=${String(artifact.vectorWriteAttempted === true)} ingestionJob=${String(artifact.ingestionJobCreated === true)}`,
+        `ragProductionFirstActions=${firstProductionActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads RAG production readiness evidence only; it does not enable DB persistence, create ingestion jobs, or write vectors"
       ]

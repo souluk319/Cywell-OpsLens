@@ -160,6 +160,75 @@ function commandLooksMutating(command) {
   return /\b(oc|kubectl)\s+(apply|create|delete|patch|replace|scale|rollout|adm)|\b(docker|podman|skopeo)\s+(push|copy)|\b(cosign)\s+sign|\b(operator-sdk|opm)\s+.*\b(push|publish)\b/i.test(text);
 }
 
+function productionGapOwner(gap) {
+  if (/worker|job|apply|deployment|schedule/i.test(gap)) return "cluster-sre";
+  if (/audit|rollback|vector/i.test(gap)) return "security-reviewer";
+  return "rag-owner";
+}
+
+function productionGapNextCommand(gap) {
+  if (/approval queue|source-ref/i.test(gap)) return "npm run verify:rag:approval-queue";
+  if (/worker|job|apply|deployment/i.test(gap)) return "npm run verify:install-plan";
+  return "npm run verify:rag:production-readiness";
+}
+
+function firstProductionActions(missingEvidence, readOnlyCommands, approvalGatedCommands) {
+  const gapActions = missingEvidence.slice(0, 3).map((gap, index) => ({
+    id: `rag-production-gap-${index + 1}`,
+    owner: productionGapOwner(gap),
+    phase: "production-readiness-preflight",
+    status: "needs-evidence",
+    request: "Resolve production RAG ingestion readiness evidence before enabling queue, worker, vector writes, or ingestion jobs.",
+    evidenceNeeded: gap,
+    nextCommand: productionGapNextCommand(gap),
+    mutation: false,
+    requiresExplicitApproval: false,
+    blockedBy: [gap],
+    rollbackPath: "No rollback is required for read-only RAG production readiness preflight."
+  }));
+  const preflight = readOnlyCommands.find((command) => command.id === "verify-rag-production-readiness") ?? readOnlyCommands[0];
+  const preflightAction = preflight
+    ? [
+        {
+          id: preflight.id,
+          owner: "rag-owner",
+          phase: preflight.phase,
+          status: missingEvidence.length > 0 ? "needs-evidence" : "ready",
+          request: "Refresh the non-mutating RAG production readiness handoff from current approval queue and contract evidence.",
+          evidenceNeeded:
+            missingEvidence.length > 0
+              ? "RAG production readiness gaps remain before approval."
+              : "Current-head RAG production readiness evidence is ready for approval review.",
+          nextCommand: preflight.command,
+          mutation: false,
+          requiresExplicitApproval: false,
+          blockedBy: missingEvidence,
+          rollbackPath: "No rollback is required for read-only RAG production readiness refresh."
+        }
+      ]
+    : [];
+  const firstMutatingCommand = approvalGatedCommands.find((command) => command.mutation === true);
+  const gatedMutationAction = firstMutatingCommand
+    ? [
+        {
+          id: `approval-gated-${firstMutatingCommand.id}`,
+          owner: "cluster-sre",
+          phase: firstMutatingCommand.phase,
+          status: "approval-gated",
+          request: `Do not run ${firstMutatingCommand.id} until RAG production approvals are explicit.`,
+          evidenceNeeded: "All RAG production readiness gaps are resolved and rag-owner, cluster-sre, and security-reviewer approvals are recorded.",
+          nextCommand: firstMutatingCommand.command,
+          mutation: true,
+          requiresExplicitApproval: true,
+          blockedBy: missingEvidence,
+          rollbackPath: firstMutatingCommand.rollback ?? "Disable the ingestion worker schedule and revert approved source refs before retrying."
+        }
+      ]
+    : [];
+
+  return [...gapActions, ...preflightAction, ...gatedMutationAction];
+}
+
 function refOf(artifact) {
   return {
     headSha: artifact?.headSha ?? artifact?.ref?.headSha,
@@ -374,6 +443,11 @@ async function main() {
     "approved source-ref retrieval path is not live",
     "approved rollback export path has not been exercised against a live vector store"
   ].map(sanitize);
+  const firstActions = firstProductionActions(
+    missingEvidence,
+    readOnlyCommands,
+    approvalGatedCommands
+  );
   const status = failures.length > 0 ? "BLOCKED" : "APPROVAL_REQUIRED";
 
   const artifact = {
@@ -475,6 +549,7 @@ async function main() {
       rationale: sanitize(command.rationale),
       rollback: sanitize(command.rollback)
     })),
+    firstProductionActions: firstActions,
     evidence: [
       "production readiness verifier validates the queue/worker/audit contract without applying manifests",
       "default state keeps production queue, ingestion worker, vector writes, and cluster mutation disabled",

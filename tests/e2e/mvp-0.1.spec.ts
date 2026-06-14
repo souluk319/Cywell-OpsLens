@@ -1159,6 +1159,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             vectorWriteAuditSink?: { appendOnly?: boolean };
           };
           requiredApprovals?: string[];
+          firstProductionActions?: Array<{
+            id?: string;
+            owner?: string;
+            phase?: string;
+            status?: string;
+            request?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+            blockedBy?: string[];
+            rollbackPath?: string;
+          }>;
           missingEvidence?: string[];
         };
       };
@@ -2052,6 +2065,31 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.rag?.productionReadiness?.requiredApprovals).toEqual(
       expect.arrayContaining(["rag-owner", "cluster-sre", "security-reviewer"])
     );
+    const ragProductionFirstActions =
+      body.rag?.productionReadiness?.firstProductionActions ?? [];
+    expect(ragProductionFirstActions.length).toBeGreaterThanOrEqual(2);
+    expect(
+      ragProductionFirstActions.some(
+        (action) =>
+          action.owner === "rag-owner" &&
+          action.mutation === false &&
+          action.requiresExplicitApproval === false &&
+          /verify:rag:production-readiness/.test(action.nextCommand ?? "")
+      )
+    ).toBe(true);
+    expect(
+      ragProductionFirstActions.some(
+        (action) =>
+          action.id?.startsWith("approval-gated-") &&
+          action.owner === "cluster-sre" &&
+          action.mutation === true &&
+          action.requiresExplicitApproval === true &&
+          /oc apply/.test(action.nextCommand ?? "")
+      )
+    ).toBe(true);
+    expect(
+      ragProductionFirstActions.every((action) => Array.isArray(action.blockedBy))
+    ).toBe(true);
     expect(body.tokenUsage?.budgetTokens).toBeGreaterThan(
       body.tokenUsage?.usedTokens ?? 0
     );
@@ -3973,6 +4011,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-rag-production-readiness")
     ).toContainText("ingestionJobCreated=false");
+    await expect(
+      page.getByTestId("opslens-rag-production-first-actions")
+    ).toContainText("rag-owner");
+    await expect(
+      page.getByTestId("opslens-rag-production-first-actions")
+    ).toContainText("verify:rag:production-readiness");
+    await expect(
+      page.getByTestId("opslens-rag-production-first-actions")
+    ).toContainText("approval-gated-apply-approved-rag-production-stack");
+    await expect(
+      page.getByTestId("opslens-rag-production-first-actions")
+    ).toContainText("approval=true");
     await expect(page.getByTestId("opslens-token-usage")).toContainText(
       "lightspeed-mcp"
     );

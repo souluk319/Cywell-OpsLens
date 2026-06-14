@@ -542,6 +542,22 @@ export function OpsLensAdminDashboard() {
                   approvals={ragProductionReadiness.requiredApprovals.join(",")}
                 </span>
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-rag-production-first-actions"
+              >
+                {ragProductionReadiness.firstProductionActions.length ? (
+                  ragProductionReadiness.firstProductionActions.map((action) => (
+                    <span key={action.id}>
+                      {action.id}:{action.owner}:{action.status}:next=
+                      {action.nextCommand}:mutation={String(action.mutation)}
+                      :approval={String(action.requiresExplicitApproval)}
+                    </span>
+                  ))
+                ) : (
+                  <span>RAG production first actions missing</span>
+                )}
+              </div>
             </div>
           ) : null}
           <div
