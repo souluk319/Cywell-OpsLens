@@ -4485,7 +4485,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toBeGreaterThan(0);
     expect(
       body.installReadiness?.checkpoint?.lanes?.map((lane) => lane.id)
-    ).toEqual(expect.arrayContaining(["consolePluginAssets"]));
+    ).toEqual(expect.arrayContaining(["envContract", "consolePluginAssets"]));
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /evidence checkpoint/i
     );
@@ -5689,6 +5689,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-evidence-checkpoint")).toContainText(
       "dirty=false"
+    );
+    await expect(page.getByTestId("opslens-evidence-checkpoint")).toContainText(
+      "envContract"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       /needs-live-check|needs-configuration|needs-evidence|partial|ready|approval-required|failed|blocked/

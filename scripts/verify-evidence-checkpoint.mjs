@@ -14,6 +14,7 @@ const defaults = {
 
 const evidenceDefaults = {
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
+  envContract: "test-results/cywell-opslens-env-contract.json",
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
   runtimeRag: "test-results/cywell-opslens-runtime-rag-contract.json",
   runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
@@ -333,6 +334,52 @@ function checkOwnedImageProvenance(provenanceArtifact) {
   pass(
     "owned image provenance",
     "operator/api/dashboard/bundle local image IDs are inspected without registry or cluster mutation"
+  );
+}
+
+function checkEnvContract(envArtifact) {
+  if (!envArtifact) return;
+  const violations = [];
+  const audit = envArtifact.envAudit ?? {};
+  const failingChecks = (envArtifact.checks ?? [])
+    .filter((check) => check.status !== "PASS")
+    .map((check) => check.name ?? "unknown");
+
+  if (envArtifact.status !== "PASS") {
+    violations.push(`status=${envArtifact.status ?? "missing"}`);
+  }
+  if (audit.activeOcpTarget !== true) {
+    violations.push("activeOcpTarget");
+  }
+  if (audit.activeLightspeedTarget !== true) {
+    violations.push("activeLightspeedTarget");
+  }
+  if ((audit.duplicateActiveKeys ?? []).length > 0) {
+    violations.push(`duplicateActiveKeys=${audit.duplicateActiveKeys.join(",")}`);
+  }
+  if ((audit.activeMissingValues ?? []).length > 0) {
+    violations.push(`activeMissingValues=${audit.activeMissingValues.join(",")}`);
+  }
+  if (
+    envArtifact.clusterMutationAttempted === true ||
+    envArtifact.registryMutationAttempted === true ||
+    envArtifact.vectorWriteAttempted === true ||
+    envArtifact.mutationAllowedByThisVerifier === true
+  ) {
+    violations.push("mutationBoundary");
+  }
+  if (failingChecks.length > 0) {
+    violations.push(`failingChecks=${failingChecks.join(",")}`);
+  }
+
+  if (violations.length > 0) {
+    fail("environment isolation contract", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "environment isolation contract",
+    `activeKeys=${audit.activeKeyCount ?? 0} commented=${audit.commentedTrackedCount ?? 0} values redacted`
   );
 }
 
@@ -1173,6 +1220,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "envContract",
+    label: "environment isolation contract",
+    artifact: artifacts.envContract,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "runtimeReadiness",
     label: "runtime readiness",
     artifact: artifacts.runtimeReadiness,
@@ -1405,6 +1459,7 @@ async function main() {
     currentHeadSha: headSha
   });
 
+  checkEnvContract(artifacts.envContract);
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
   checkLightspeedTrojanHorse(artifacts.lightspeedTrojanHorse);
   checkLightspeedIntegrationHandoff(artifacts.lightspeedIntegrationHandoff);

@@ -11,6 +11,7 @@ const defaults = {
   evidenceOut: "test-results/cywell-opslens-release-evidence-bundle.json",
   markdownOut: "test-results/cywell-opslens-release-evidence-bundle.md",
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
+  envContract: "test-results/cywell-opslens-env-contract.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   lightspeedExtensionPoint:
     "test-results/cywell-opslens-lightspeed-extension-point.json",
@@ -60,6 +61,7 @@ const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
   mvpGate: parsed.get("mvp-gate-evidence") ?? defaults.mvpGate,
+  envContract: parsed.get("env-contract-evidence") ?? defaults.envContract,
   consolePluginAssets:
     parsed.get("console-plugin-assets-evidence") ?? defaults.consolePluginAssets,
   lightspeedExtensionPoint:
@@ -458,6 +460,10 @@ function approvalSummary(artifacts) {
 
 function mutationBoundary(artifacts) {
   const flags = [
+    ["envContract.clusterMutationAttempted", artifacts.envContract?.clusterMutationAttempted],
+    ["envContract.registryMutationAttempted", artifacts.envContract?.registryMutationAttempted],
+    ["envContract.vectorWriteAttempted", artifacts.envContract?.vectorWriteAttempted],
+    ["envContract.mutationAllowedByThisVerifier", artifacts.envContract?.mutationAllowedByThisVerifier],
     ["releasePlan.registryMutationAttempted", artifacts.releasePlan?.registryMutationAttempted],
     ["releasePlan.clusterMutationAttempted", artifacts.releasePlan?.clusterMutationAttempted],
     ["releasePlan.mutationAllowedByThisVerifier", artifacts.releasePlan?.mutationAllowedByThisVerifier],
@@ -736,6 +742,7 @@ async function main() {
 
   const artifacts = {
     mvpGate: loadJson(options.mvpGate, "MVP gate"),
+    envContract: loadJson(options.envContract, "environment isolation contract"),
     consolePluginAssets: loadJson(options.consolePluginAssets, "ConsolePlugin assets"),
     lightspeedExtensionPoint: loadJson(
       options.lightspeedExtensionPoint,
@@ -771,6 +778,7 @@ async function main() {
 
   const sources = [
     sourceSummary("mvpGate", "MVP gate", options.mvpGate, artifacts.mvpGate, headSha, ["PASS"]),
+    sourceSummary("envContract", "environment isolation contract", options.envContract, artifacts.envContract, headSha, ["PASS"]),
     sourceSummary("consolePluginAssets", "ConsolePlugin assets", options.consolePluginAssets, artifacts.consolePluginAssets, headSha, ["PASS"]),
     sourceSummary("lightspeedExtensionPoint", "Lightspeed extension point decision", options.lightspeedExtensionPoint, artifacts.lightspeedExtensionPoint, headSha, ["PASS"]),
     sourceSummary("imageBuild", "image build readiness", options.imageBuild, artifacts.imageBuild, headSha, ["PASS"]),
