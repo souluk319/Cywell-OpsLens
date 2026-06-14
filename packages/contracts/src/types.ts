@@ -1585,6 +1585,40 @@ export interface OpsLensOcpNetworkHandoffSummary {
     blockedBy: string[];
     rollbackPath: string;
   }>;
+  ticketPacket: {
+    id: string;
+    owner: string;
+    title: string;
+    severity: string;
+    classification: string;
+    redactedTarget: string;
+    summary: string;
+    evidenceChecklist: string[];
+    firstReadOnlyAction: {
+      id: string;
+      status: string;
+      nextCommand: string;
+      mutation: boolean;
+      requiresExplicitApproval: boolean;
+    };
+    approvalGatedAction: {
+      id: string;
+      status: string;
+      nextCommand: string;
+      mutation: boolean;
+      requiresExplicitApproval: boolean;
+    };
+    nextCommands: string[];
+    blockedBy: string[];
+    mutationBoundary: {
+      clusterMutationAttempted: boolean;
+      registryMutationAttempted: boolean;
+      mutationAllowedByThisVerifier: boolean;
+      networkChangeRequiresExplicitApproval: boolean;
+    };
+    risk: string;
+    rollbackPath: string;
+  };
   sourceArtifacts: Array<{
     id: string;
     label: string;

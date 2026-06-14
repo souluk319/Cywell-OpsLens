@@ -1948,6 +1948,31 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-ocp-network-ticket-packet"
+              >
+                <span>
+                  {networkHandoff.ticketPacket.id}:{networkHandoff.ticketPacket.owner}
+                  :{networkHandoff.ticketPacket.severity}
+                </span>
+                <span>{networkHandoff.ticketPacket.title}</span>
+                <span>
+                  first={networkHandoff.ticketPacket.firstReadOnlyAction.id}
+                  :mutation=
+                  {String(networkHandoff.ticketPacket.firstReadOnlyAction.mutation)}
+                </span>
+                <span>
+                  approval=
+                  {String(
+                    networkHandoff.ticketPacket.approvalGatedAction
+                      .requiresExplicitApproval
+                  )}
+                </span>
+                <span>
+                  next={networkHandoff.ticketPacket.nextCommands.slice(0, 2).join(" | ")}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-ocp-network-first-actions"
               >
                 {networkHandoff.firstNetworkActions.length ? (

@@ -1456,6 +1456,40 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             blockedBy?: string[];
             rollbackPath?: string;
           }>;
+          ticketPacket?: {
+            id?: string;
+            owner?: string;
+            title?: string;
+            severity?: string;
+            classification?: string;
+            redactedTarget?: string;
+            summary?: string;
+            evidenceChecklist?: string[];
+            firstReadOnlyAction?: {
+              id?: string;
+              status?: string;
+              nextCommand?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            approvalGatedAction?: {
+              id?: string;
+              status?: string;
+              nextCommand?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            nextCommands?: string[];
+            blockedBy?: string[];
+            mutationBoundary?: {
+              clusterMutationAttempted?: boolean;
+              registryMutationAttempted?: boolean;
+              mutationAllowedByThisVerifier?: boolean;
+              networkChangeRequiresExplicitApproval?: boolean;
+            };
+            risk?: string;
+            rollbackPath?: string;
+          };
           sourceArtifacts?: Array<{
             id?: string;
             fresh?: boolean;
@@ -2908,6 +2942,33 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       )
     ).toMatchObject({
       fresh: true
+    });
+    expect(body.installReadiness?.networkHandoff?.ticketPacket).toMatchObject({
+      id: "network-sre-ocp-api-reachability-ticket",
+      owner: "network-sre",
+      classification: body.installReadiness?.networkHandoff?.classification,
+      redactedTarget: expect.stringContaining("<redacted-ocp-api>")
+    });
+    expect(
+      body.installReadiness?.networkHandoff?.ticketPacket?.evidenceChecklist?.join(
+        " "
+      )
+    ).toContain("classification=");
+    expect(
+      body.installReadiness?.networkHandoff?.ticketPacket?.firstReadOnlyAction
+    ).toMatchObject({
+      mutation: false,
+      requiresExplicitApproval: false
+    });
+    expect(
+      body.installReadiness?.networkHandoff?.ticketPacket?.nextCommands?.join(" ")
+    ).toMatch(/verify:ocp:connectivity|Test-NetConnection|Resolve-DnsName|route print/);
+    expect(
+      body.installReadiness?.networkHandoff?.ticketPacket?.mutationBoundary
+    ).toMatchObject({
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
     });
     const networkFirstActions =
       body.installReadiness?.networkHandoff?.firstNetworkActions ?? [];
@@ -5202,6 +5263,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-ocp-network-handoff-commands")
     ).toContainText("mutation=false");
+    await expect(
+      page.getByTestId("opslens-ocp-network-ticket-packet")
+    ).toContainText("network-sre-ocp-api-reachability-ticket");
+    await expect(
+      page.getByTestId("opslens-ocp-network-ticket-packet")
+    ).toContainText("network-sre");
+    await expect(
+      page.getByTestId("opslens-ocp-network-ticket-packet")
+    ).toContainText("mutation=false");
+    await expect(
+      page.getByTestId("opslens-ocp-network-ticket-packet")
+    ).toContainText(/approval=true|approval=false/);
     await expect(
       page.getByTestId("opslens-ocp-network-first-actions")
     ).toContainText(/network-sre-confirm-ocp-api|verify:ocp:connectivity/);

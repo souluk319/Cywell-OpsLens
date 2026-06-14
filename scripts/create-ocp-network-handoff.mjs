@@ -421,9 +421,100 @@ function riskForClassification(classification) {
   ];
 }
 
+function ticketSeverity(classification) {
+  if (classification === "api-ready") return "ready-for-live-recheck";
+  if (["tcp-timeout", "tcp-unreachable", "dns-unresolved"].includes(classification)) {
+    return "blocker";
+  }
+  if (["tls-handshake-failed", "auth-or-rbac", "auth-failed", "token-missing"].includes(classification)) {
+    return "blocker";
+  }
+  return "needs-evidence";
+}
+
+function compactAction(action, fallbackId) {
+  return {
+    id: sanitize(action?.id ?? fallbackId),
+    status: sanitize(action?.status ?? "missing"),
+    nextCommand: sanitize(action?.nextCommand ?? "missing"),
+    mutation: action?.mutation === true,
+    requiresExplicitApproval: action?.requiresExplicitApproval === true
+  };
+}
+
+function buildTicketPacket({
+  target,
+  classification,
+  firstNetworkActions,
+  sourceArtifacts,
+  missingEvidence,
+  adminRequests,
+  risk,
+  rollbackPath
+}) {
+  const owner = handoffOwner(classification);
+  const readOnlyActions = firstNetworkActions.filter((action) => action.mutation === false);
+  const firstReadOnly =
+    readOnlyActions.find((action) => action.status === "blocker") ??
+    readOnlyActions.find((action) => /Test-NetConnection|Resolve-DnsName|route print|verify:ocp:connectivity/i.test(action.nextCommand)) ??
+    readOnlyActions[0];
+  const approvalGated =
+    firstNetworkActions.find((action) => action.mutation === true) ?? {
+      id: "none",
+      status: "not-required",
+      nextCommand: "none",
+      mutation: false,
+      requiresExplicitApproval: false
+    };
+  const rerun = firstNetworkActions.find((action) =>
+    /verify:ocp:connectivity/i.test(action.nextCommand)
+  );
+  const sourceSummary = sourceArtifacts.map((source) =>
+    `${source.id}:${source.status}:fresh=${String(source.fresh)}`
+  );
+  const nextCommands = [
+    firstReadOnly?.nextCommand,
+    rerun?.nextCommand,
+    approvalGated.mutation === true ? approvalGated.nextCommand : undefined
+  ].filter(Boolean).map(sanitize);
+
+  return {
+    id: "network-sre-ocp-api-reachability-ticket",
+    owner,
+    title:
+      `Restore OCP API ${classification} readiness for Cywell OpsLens and Lightspeed evidence`,
+    severity: ticketSeverity(classification),
+    classification,
+    redactedTarget: redactedOcpTarget(target),
+    summary:
+      "Use this packet as the Network/SRE ticket summary; collect read-only DNS/TCP/route evidence first, then use an approved network change only if reachability remains blocked.",
+    evidenceChecklist: [
+      `classification=${classification}`,
+      `target=${redactedOcpTarget(target)}`,
+      ...sourceSummary,
+      ...adminRequests.slice(0, 3)
+    ].map(sanitize),
+    firstReadOnlyAction: compactAction(firstReadOnly, "missing-read-only-action"),
+    approvalGatedAction: compactAction(approvalGated, "none"),
+    nextCommands,
+    blockedBy: missingEvidence.map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      networkChangeRequiresExplicitApproval: approvalGated.mutation === true
+    },
+    risk: risk[0] ?? "Network reachability must be proven before live readiness can be trusted.",
+    rollbackPath:
+      rollbackPath[0] ??
+      "No rollback is required for this packet because it writes only local evidence."
+  };
+}
+
 function markdownFor(packet) {
   const target = packet.target;
   const diagnostics = packet.diagnostics;
+  const ticket = packet.ticketPacket;
   const lines = [
     "# Cywell OpsLens OCP Network Handoff",
     "",
@@ -444,6 +535,22 @@ function markdownFor(packet) {
     `## Ask For ${packet.ownerHint ?? "Network/SRE"}`,
     "",
     ...packet.adminRequests.map((item) => `- ${item}`),
+    "",
+    "## Ticket Packet",
+    "",
+    `- ID: ${ticket.id}`,
+    `- Owner: ${ticket.owner}`,
+    `- Severity: ${ticket.severity}`,
+    `- Title: ${ticket.title}`,
+    `- Target: ${ticket.redactedTarget}`,
+    `- First read-only action: ${ticket.firstReadOnlyAction.id}`,
+    `- First read-only command: ${ticket.firstReadOnlyAction.nextCommand}`,
+    `- Approval-gated action: ${ticket.approvalGatedAction.id}`,
+    `- Network change approval required: ${String(ticket.mutationBoundary.networkChangeRequiresExplicitApproval)}`,
+    "",
+    "### Ticket Evidence Checklist",
+    "",
+    ...ticket.evidenceChecklist.map((item) => `- ${item}`),
     "",
     "## First Network Actions",
     "",
@@ -551,6 +658,22 @@ async function main() {
     commands,
     missingEvidence
   );
+  const risk = riskForClassification(classification);
+  const rollbackPath = [
+    "No rollback is required because this packet writes only local evidence.",
+    "After network changes, rerun the listed read-only verifiers and regenerate the release evidence chain."
+  ];
+  const adminRequestList = adminRequests(target, classification, diagnostics.dns?.addresses ?? []);
+  const ticketPacket = buildTicketPacket({
+    target,
+    classification,
+    firstNetworkActions,
+    sourceArtifacts: sources,
+    missingEvidence,
+    adminRequests: adminRequestList,
+    risk,
+    rollbackPath
+  });
   if (
     firstNetworkActions.every(
       (action) =>
@@ -589,16 +712,14 @@ async function main() {
     target,
     diagnostics,
     ownerHint: handoffAudience(classification),
-    adminRequests: adminRequests(target, classification, diagnostics.dns?.addresses ?? []),
+    adminRequests: adminRequestList,
     readOnlyCommands: commands,
     firstNetworkActions,
+    ticketPacket,
     sourceArtifacts: sources,
     missingEvidence,
-    risk: riskForClassification(classification),
-    rollbackPath: [
-      "No rollback is required because this packet writes only local evidence.",
-      "After network changes, rerun the listed read-only verifiers and regenerate the release evidence chain."
-    ],
+    risk,
+    rollbackPath,
     markdownOut: resolve(options.markdownOut),
     checks
   };

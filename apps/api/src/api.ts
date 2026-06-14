@@ -2960,6 +2960,40 @@ type OcpNetworkHandoffArtifact = {
     blockedBy?: string[];
     rollbackPath?: string;
   }>;
+  ticketPacket?: {
+    id?: string;
+    owner?: string;
+    title?: string;
+    severity?: string;
+    classification?: string;
+    redactedTarget?: string;
+    summary?: string;
+    evidenceChecklist?: string[];
+    firstReadOnlyAction?: {
+      id?: string;
+      status?: string;
+      nextCommand?: string;
+      mutation?: boolean;
+      requiresExplicitApproval?: boolean;
+    };
+    approvalGatedAction?: {
+      id?: string;
+      status?: string;
+      nextCommand?: string;
+      mutation?: boolean;
+      requiresExplicitApproval?: boolean;
+    };
+    nextCommands?: string[];
+    blockedBy?: string[];
+    mutationBoundary?: {
+      clusterMutationAttempted?: boolean;
+      registryMutationAttempted?: boolean;
+      mutationAllowedByThisVerifier?: boolean;
+      networkChangeRequiresExplicitApproval?: boolean;
+    };
+    risk?: string;
+    rollbackPath?: string;
+  };
   sourceArtifacts?: Array<{
     id?: string;
     label?: string;
@@ -8305,6 +8339,43 @@ function missingOcpNetworkHandoffSummary(
           "No rollback is required because this action only writes local handoff evidence."
       }
     ],
+    ticketPacket: {
+      id: "network-sre-ocp-api-reachability-ticket",
+      owner: "network-sre",
+      title: "Generate OCP network handoff before live readiness review",
+      severity: "needs-evidence",
+      classification: "missing",
+      redactedTarget: "missing",
+      summary:
+        "Generate the Network/SRE ticket packet before treating live OCP or Lightspeed readiness as actionable.",
+      evidenceChecklist: [reason],
+      firstReadOnlyAction: {
+        id: "generate-ocp-network-handoff",
+        status: "needs-evidence",
+        nextCommand: "npm run evidence:ocp-network-handoff",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id: "none",
+        status: "not-required",
+        nextCommand: "none",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      nextCommands: ["npm run evidence:ocp-network-handoff"],
+      blockedBy: [reason],
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        networkChangeRequiresExplicitApproval: false
+      },
+      risk:
+        "Without a network handoff packet, tcp-timeout and route/firewall evidence can be lost between operators.",
+      rollbackPath:
+        "No rollback is required because this action only writes local handoff evidence."
+    },
     sourceArtifacts: [],
     missingEvidence: [reason],
     risk: [
@@ -8700,6 +8771,101 @@ function getOcpNetworkHandoffReadiness(): {
       headSha: source.headSha ?? "unknown",
       worktreeDirty: source.worktreeDirty ?? "unknown"
     }));
+    const firstTicketReadOnly =
+      firstNetworkActions.find((action) => action.mutation === false && action.status === "blocker") ??
+      firstNetworkActions.find((action) => action.mutation === false) ?? {
+        id: "missing-read-only-action",
+        status: "missing",
+        nextCommand: "missing",
+        mutation: false,
+        requiresExplicitApproval: false
+      };
+    const firstTicketApproval =
+      firstNetworkActions.find((action) => action.mutation === true) ?? {
+        id: "none",
+        status: "not-required",
+        nextCommand: "none",
+        mutation: false,
+        requiresExplicitApproval: false
+      };
+    const rawTicketPacket = artifact.ticketPacket ?? {};
+    const mapTicketAction = (
+      action:
+        | NonNullable<OcpNetworkHandoffArtifact["ticketPacket"]>["firstReadOnlyAction"]
+        | NonNullable<OcpNetworkHandoffArtifact["ticketPacket"]>["approvalGatedAction"]
+        | typeof firstTicketReadOnly,
+      fallback: typeof firstTicketReadOnly
+    ) => ({
+      id: action?.id ?? fallback.id,
+      status: action?.status ?? fallback.status,
+      nextCommand: action?.nextCommand ?? fallback.nextCommand,
+      mutation: action?.mutation === true,
+      requiresExplicitApproval: action?.requiresExplicitApproval === true
+    });
+    const ticketPacket = {
+      id: rawTicketPacket.id ?? "network-sre-ocp-api-reachability-ticket",
+      owner:
+        rawTicketPacket.owner ??
+        firstNetworkActions.find((action) => action.owner)?.owner ??
+        "network-sre",
+      title:
+        rawTicketPacket.title ??
+        "Restore OCP API readiness for Cywell OpsLens and Lightspeed evidence",
+      severity:
+        rawTicketPacket.severity ??
+        (artifact.diagnostics?.classification === "api-ready"
+          ? "ready-for-live-recheck"
+          : "needs-evidence"),
+      classification:
+        rawTicketPacket.classification ??
+        artifact.diagnostics?.classification ??
+        "unknown",
+      redactedTarget: rawTicketPacket.redactedTarget ?? mappedTarget.redactedBaseUrl,
+      summary:
+        rawTicketPacket.summary ??
+        "Use this packet as the Network/SRE ticket summary; collect read-only evidence before any approved network change.",
+      evidenceChecklist:
+        rawTicketPacket.evidenceChecklist ??
+        [
+          `classification=${artifact.diagnostics?.classification ?? "unknown"}`,
+          ...sourceArtifacts.map(
+            (source) => `${source.id}:${source.status}:fresh=${String(source.fresh)}`
+          )
+        ],
+      firstReadOnlyAction: mapTicketAction(
+        rawTicketPacket.firstReadOnlyAction,
+        firstTicketReadOnly
+      ),
+      approvalGatedAction: mapTicketAction(
+        rawTicketPacket.approvalGatedAction,
+        firstTicketApproval
+      ),
+      nextCommands:
+        rawTicketPacket.nextCommands ??
+        firstNetworkActions
+          .map((action) => action.nextCommand)
+          .filter(Boolean)
+          .slice(0, 4),
+      blockedBy: rawTicketPacket.blockedBy ?? missingEvidence,
+      mutationBoundary: {
+        clusterMutationAttempted:
+          rawTicketPacket.mutationBoundary?.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          rawTicketPacket.mutationBoundary?.registryMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          rawTicketPacket.mutationBoundary?.mutationAllowedByThisVerifier === true,
+        networkChangeRequiresExplicitApproval:
+          rawTicketPacket.mutationBoundary?.networkChangeRequiresExplicitApproval === true
+      },
+      risk:
+        rawTicketPacket.risk ??
+        artifact.risk?.[0] ??
+        "Network reachability must be proven before live readiness can be trusted.",
+      rollbackPath:
+        rawTicketPacket.rollbackPath ??
+        artifact.rollbackPath?.[0] ??
+        "No rollback is required because this packet writes only local evidence."
+    };
 
     return {
       status,
@@ -8719,6 +8885,7 @@ function getOcpNetworkHandoffReadiness(): {
         adminRequests: artifact.adminRequests ?? [],
         readOnlyCommands,
         firstNetworkActions,
+        ticketPacket,
         sourceArtifacts,
         missingEvidence,
         risk: artifact.risk ?? [],
