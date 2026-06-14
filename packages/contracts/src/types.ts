@@ -1176,6 +1176,39 @@ export interface OpsLensAdminIncidentMetricSummary {
   lastAnalyzedAt: string;
 }
 
+export type OpsLensAiopsMonitoringProxyHandoffStatus =
+  | "ready"
+  | "needs-approval"
+  | "needs-evidence";
+
+export interface OpsLensAiopsMonitoringProxyHandoffSummary {
+  status: OpsLensAiopsMonitoringProxyHandoffStatus;
+  actionMode: "handoffOnly";
+  owner: "cluster-sre";
+  enabled: boolean;
+  reachable: boolean;
+  approvalRequired: boolean;
+  requiredQueries: string[];
+  readyQueries: string[];
+  missingQueries: string[];
+  sampleCount: number;
+  nextCommand: string;
+  readOnlyCommands: Array<{
+    id: string;
+    command: string;
+    phase: string;
+    mutation: boolean;
+    requiresNetwork: boolean;
+    writesLocalEvidence: boolean;
+  }>;
+  mutationAllowedByThisVerifier: boolean;
+  clusterMutationAttempted: boolean;
+  evidence: string[];
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
 export type OpsLensAiopsIncidentPipelineReadiness =
   | "ready"
   | "needs-live-evidence"
@@ -1199,6 +1232,7 @@ export interface OpsLensAiopsIncidentPipelineSummary {
   mutationAllowedByThisVerifier: boolean;
   requiredMetricQueries: string[];
   metricQueries: OpsLensAdminMetricQueryStatus[];
+  monitoringProxyHandoff: OpsLensAiopsMonitoringProxyHandoffSummary;
   triggerEvidenceRequired: string[];
   alertmanagerIntake: {
     artifactType: string;

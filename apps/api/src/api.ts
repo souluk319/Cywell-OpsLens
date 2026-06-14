@@ -8846,6 +8846,116 @@ function mapAiopsMetricQueries(
   });
 }
 
+function buildAiopsMonitoringProxyHandoff(
+  artifact: AiopsIncidentPipelineArtifact | undefined,
+  metricQueries: OpsLensAiopsIncidentPipelineSummary["metricQueries"],
+  reason?: string
+): OpsLensAiopsIncidentPipelineSummary["monitoringProxyHandoff"] {
+  const requiredQueries =
+    artifact?.pipeline?.requiredMetricQueries ?? aiopsRequiredMetricQueries;
+  const liveQueries = artifact?.liveSmoke?.incident?.metricQueries ?? [];
+  const liveQueryByName = new Map(
+    liveQueries.map((query) => [query.name, query])
+  );
+  const readyQueries = metricQueries
+    .filter((query) => query.status === "ready")
+    .map((query) => query.name);
+  const missingQueries = requiredQueries.filter(
+    (name) => !readyQueries.includes(name)
+  );
+  const sampleCount = metricQueries.reduce(
+    (total, query) => total + query.sampleCount,
+    0
+  );
+  const metricMissingEvidence = [
+    ...(artifact?.missingEvidence ?? []),
+    ...(artifact?.liveSmoke?.missingEvidence ?? []),
+    ...(artifact?.liveSmoke?.incident?.missingEvidence ?? []),
+    ...metricQueries.flatMap((query) => query.missingEvidence)
+  ];
+  const monitoringGaps = Array.from(
+    new Set(
+      metricMissingEvidence.filter((item) =>
+        /metrics\/|Prometheus|Monitoring service proxy|OCP_ENABLE_MONITORING_PROXY|monitoring proxy/i.test(
+          item
+        )
+      )
+    )
+  );
+  const enabled = requiredQueries.some(
+    (name) => liveQueryByName.get(name)?.enabled === true
+  );
+  const reachable = requiredQueries.some(
+    (name) => liveQueryByName.get(name)?.reachable === true
+  );
+  const hasMonitoringProxyGap =
+    monitoringGaps.length > 0 ||
+    requiredQueries.some((name) => {
+      const query = liveQueryByName.get(name);
+      return query?.enabled === false || query?.reachable === false;
+    });
+  const status: OpsLensAiopsIncidentPipelineSummary["monitoringProxyHandoff"]["status"] =
+    !artifact
+      ? "needs-evidence"
+      : missingQueries.length === 0
+        ? "ready"
+        : hasMonitoringProxyGap
+          ? "needs-approval"
+          : "needs-evidence";
+  const missingEvidence =
+    reason !== undefined
+      ? [reason]
+      : monitoringGaps.length > 0
+        ? monitoringGaps
+        : missingQueries.map(
+            (name) =>
+              `metrics/${name}: monitoring proxy sample evidence is missing`
+          );
+
+  return {
+    status,
+    actionMode: "handoffOnly",
+    owner: "cluster-sre",
+    enabled,
+    reachable,
+    approvalRequired: status !== "ready",
+    requiredQueries,
+    readyQueries,
+    missingQueries,
+    sampleCount,
+    nextCommand: "npm run verify:aiops",
+    readOnlyCommands: [
+      {
+        id: "aiops-monitoring-proxy-smoke",
+        command:
+          "Set OCP_ENABLE_MONITORING_PROXY=true only after approval, then run npm run verify:aiops",
+        phase: "aiops-monitoring-proxy-evidence",
+        mutation: false,
+        requiresNetwork: true,
+        writesLocalEvidence: true
+      }
+    ],
+    mutationAllowedByThisVerifier: false,
+    clusterMutationAttempted: artifact?.clusterMutationAttempted === true,
+    evidence: [
+      "Monitoring proxy handoff is derived from opslens.aiops-incident-pipeline.v0.1.",
+      `requiredMetricQueries=${requiredQueries.join(",")}`,
+      `readyMetricQueries=${readyQueries.join(",") || "none"}`,
+      `monitoringProxy enabled=${String(enabled)} reachable=${String(reachable)} sampleCount=${String(sampleCount)}`,
+      "The dashboard only routes evidence collection; it does not enable the proxy or mutate the cluster."
+    ],
+    missingEvidence,
+    risk: [
+      "Metric correlation remains incomplete until Cluster SRE approves and refreshes read-only monitoring proxy evidence.",
+      "Keeping the proxy disabled preserves the read-only MVP boundary but limits Prometheus-backed incident confidence."
+    ],
+    rollbackPath: [
+      "Unset OCP_ENABLE_MONITORING_PROXY or keep it false to return to log/event/runbook-only incident analysis.",
+      "No cluster rollback is required because this handoff runs no apply, delete, scale, or proxy mutation."
+    ]
+  };
+}
+
 function mapAiopsAlertmanagerIntake(
   artifact?: AiopsIncidentPipelineArtifact
 ): OpsLensAiopsIncidentPipelineSummary["alertmanagerIntake"] {
@@ -8915,6 +9025,14 @@ function getAiopsIncidentPipelineReadiness(): {
       "dashboard keeps the AI Ops pipeline as needs-live-evidence until the artifact exists",
       "verify:aiops starts the public API and performs read-only OCP evidence reads only"
     ];
+    const metricQueries = aiopsRequiredMetricQueries.map((name) => ({
+      name,
+      query: name,
+      status: "missing" as const,
+      sampleCount: 0,
+      evidence: [],
+      missingEvidence: [`metrics/${name}: evidence artifact is missing`]
+    }));
 
     return {
       status: "needs-live-evidence",
@@ -8932,14 +9050,12 @@ function getAiopsIncidentPipelineReadiness(): {
         ingestionJobCreated: false,
         mutationAllowedByThisVerifier: false,
         requiredMetricQueries: aiopsRequiredMetricQueries,
-        metricQueries: aiopsRequiredMetricQueries.map((name) => ({
-          name,
-          query: name,
-          status: "missing",
-          sampleCount: 0,
-          evidence: [],
-          missingEvidence: [`metrics/${name}: evidence artifact is missing`]
-        })),
+        metricQueries,
+        monitoringProxyHandoff: buildAiopsMonitoringProxyHandoff(
+          undefined,
+          metricQueries,
+          missingEvidence[0]
+        ),
         triggerEvidenceRequired: aiopsTriggerEvidenceRequired,
         alertmanagerIntake: mapAiopsAlertmanagerIntake(),
         acceptance: ["AC-AIOPS-001", "AC-AIOPS-002", "AC-DASH-001"],
@@ -9007,6 +9123,10 @@ function getAiopsIncidentPipelineReadiness(): {
           artifact.mutationAllowedByThisVerifier === true,
         requiredMetricQueries,
         metricQueries,
+        monitoringProxyHandoff: buildAiopsMonitoringProxyHandoff(
+          artifact,
+          metricQueries
+        ),
         triggerEvidenceRequired,
         alertmanagerIntake,
         acceptance: artifact.acceptance ?? [
@@ -9050,6 +9170,11 @@ function getAiopsIncidentPipelineReadiness(): {
         mutationAllowedByThisVerifier: false,
         requiredMetricQueries: aiopsRequiredMetricQueries,
         metricQueries: [],
+        monitoringProxyHandoff: buildAiopsMonitoringProxyHandoff(
+          undefined,
+          [],
+          message
+        ),
         triggerEvidenceRequired: aiopsTriggerEvidenceRequired,
         alertmanagerIntake: {
           ...mapAiopsAlertmanagerIntake(),

@@ -1272,6 +1272,28 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             sampleCount?: number;
             missingEvidence?: string[];
           }>;
+          monitoringProxyHandoff?: {
+            status?: string;
+            actionMode?: string;
+            owner?: string;
+            enabled?: boolean;
+            reachable?: boolean;
+            approvalRequired?: boolean;
+            requiredQueries?: string[];
+            readyQueries?: string[];
+            missingQueries?: string[];
+            nextCommand?: string;
+            readOnlyCommands?: Array<{
+              id?: string;
+              mutation?: boolean;
+              requiresNetwork?: boolean;
+              writesLocalEvidence?: boolean;
+            }>;
+            mutationAllowedByThisVerifier?: boolean;
+            clusterMutationAttempted?: boolean;
+            evidence?: string[];
+            missingEvidence?: string[];
+          };
           triggerEvidenceRequired?: string[];
           alertmanagerIntake?: {
             artifactType?: string;
@@ -2694,6 +2716,43 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "pod-memory"
       ])
     );
+    const monitoringProxyHandoff =
+      body.aiops?.incidentPipeline?.monitoringProxyHandoff;
+    expect(["ready", "needs-approval", "needs-evidence"]).toContain(
+      monitoringProxyHandoff?.status
+    );
+    expect(monitoringProxyHandoff).toMatchObject({
+      actionMode: "handoffOnly",
+      owner: "cluster-sre",
+      mutationAllowedByThisVerifier: false,
+      clusterMutationAttempted: false
+    });
+    expect(monitoringProxyHandoff?.requiredQueries).toEqual(
+      expect.arrayContaining([
+        "firing-alert",
+        "pod-restarts",
+        "pod-cpu",
+        "pod-memory"
+      ])
+    );
+    expect(monitoringProxyHandoff?.nextCommand).toContain("verify:aiops");
+    expect(
+      monitoringProxyHandoff?.readOnlyCommands?.map((command) => command.id)
+    ).toEqual(expect.arrayContaining(["aiops-monitoring-proxy-smoke"]));
+    expect(
+      monitoringProxyHandoff?.readOnlyCommands?.find(
+        (command) => command.id === "aiops-monitoring-proxy-smoke"
+      )
+    ).toMatchObject({
+      mutation: false,
+      requiresNetwork: true,
+      writesLocalEvidence: true
+    });
+    expect(
+      `${monitoringProxyHandoff?.evidence?.join(" ") ?? ""} ${
+        monitoringProxyHandoff?.missingEvidence?.join(" ") ?? ""
+      }`
+    ).toMatch(/monitoring proxy|Monitoring proxy|OCP_ENABLE_MONITORING_PROXY/);
     expect(
       body.aiops?.incidentPipeline?.triggerEvidenceRequired
     ).toEqual(
@@ -4768,6 +4827,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-aiops-pipeline-evidence")
     ).toContainText("triggerEvidence=");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-handoff")
+    ).toContainText("Monitoring Proxy");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-handoff")
+    ).toContainText("handoffOnly");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-handoff")
+    ).toContainText("owner=cluster-sre");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-handoff")
+    ).toContainText("approvalRequired=");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-handoff")
+    ).toContainText("mutationAllowedByThisVerifier=false");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-commands")
+    ).toContainText("npm run verify:aiops");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-commands")
+    ).toContainText("aiops-monitoring-proxy-smoke");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-commands")
+    ).toContainText("mutation=false");
     await expect(page.getByTestId("opslens-alertmanager-intake")).toContainText(
       "Alertmanager"
     );

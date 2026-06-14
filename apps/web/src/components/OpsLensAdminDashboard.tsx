@@ -182,6 +182,7 @@ export function OpsLensAdminDashboard() {
     ) ?? [];
   const aiopsPipeline = overview?.aiops.incidentPipeline;
   const alertmanagerIntake = aiopsPipeline?.alertmanagerIntake;
+  const monitoringProxyHandoff = aiopsPipeline?.monitoringProxyHandoff;
   const extensionPoint = overview?.installReadiness.extensionPoint;
   const operatorPackage = overview?.installReadiness.operatorPackageSummary;
   const operatorRuntimeBoundary =
@@ -1233,6 +1234,46 @@ export function OpsLensAdminDashboard() {
               triggerEvidence=
               {(aiopsPipeline?.triggerEvidenceRequired ?? []).join("/")}
             </span>
+          </div>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-aiops-monitoring-proxy-handoff"
+          >
+            <span>Monitoring Proxy</span>
+            <span>{monitoringProxyHandoff?.actionMode ?? "handoffOnly"}</span>
+            <span>status={monitoringProxyHandoff?.status ?? "needs-evidence"}</span>
+            <span>owner={monitoringProxyHandoff?.owner ?? "cluster-sre"}</span>
+            <span>
+              enabled={String(monitoringProxyHandoff?.enabled ?? false)}
+            </span>
+            <span>
+              reachable={String(monitoringProxyHandoff?.reachable ?? false)}
+            </span>
+            <span>
+              approvalRequired=
+              {String(monitoringProxyHandoff?.approvalRequired ?? true)}
+            </span>
+            <span>
+              missingQueries=
+              {(monitoringProxyHandoff?.missingQueries ?? []).length}
+            </span>
+            <span>
+              mutationAllowedByThisVerifier=
+              {String(
+                monitoringProxyHandoff?.mutationAllowedByThisVerifier ?? false
+              )}
+            </span>
+          </div>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-aiops-monitoring-proxy-commands"
+          >
+            <span>{monitoringProxyHandoff?.nextCommand ?? "npm run verify:aiops"}</span>
+            {(monitoringProxyHandoff?.readOnlyCommands ?? []).map((command) => (
+              <span key={command.id}>
+                {command.id}:mutation={String(command.mutation)}
+              </span>
+            ))}
           </div>
           <div
             className="admin-evidence-line"
