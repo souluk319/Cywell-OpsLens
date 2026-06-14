@@ -2523,6 +2523,11 @@ export function OpsLensAdminDashboard() {
                       :certFirst=
                       {entry.certificationToolingTicketPacket?.firstReadOnlyAction
                         .id ?? "none"}
+                      :securityTicket=
+                      {entry.securityReviewTicketPacket?.id ?? "none"}
+                      :securityFirst=
+                      {entry.securityReviewTicketPacket?.firstReadOnlyAction.id ??
+                        "none"}
                       :tools={entry.missingRequiredTools.join(",") || "none"}
                       :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
                       {entry.readOnlyCommandIds.join(",") || "none"}:approval=
@@ -2568,6 +2573,11 @@ export function OpsLensAdminDashboard() {
                     {packet.firstCertificationToolingTicketPacket?.id ?? "none"}
                     :certFirst=
                     {packet.firstCertificationToolingTicketPacket?.firstReadOnlyAction
+                      .id ?? "none"}
+                    :securityTicket=
+                    {packet.firstSecurityReviewTicketPacket?.id ?? "none"}
+                    :securityFirst=
+                    {packet.firstSecurityReviewTicketPacket?.firstReadOnlyAction
                       .id ?? "none"}
                   </span>
                 ))}
@@ -3900,6 +3910,28 @@ export function OpsLensAdminDashboard() {
                   ))
                 ) : (
                   <span>security review first actions missing</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-security-review-tickets"
+              >
+                {securityScanPlan.ticketPackets.length ? (
+                  securityScanPlan.ticketPackets.map((ticket) => (
+                    <span key={ticket.id}>
+                      {ticket.id}:{ticket.owner}:{ticket.severity}:image=
+                      {ticket.imageName}:classification={ticket.classification}
+                      :first={ticket.firstReadOnlyAction.id}:approval=
+                      {ticket.approvalGatedAction.id}:requiresApproval=
+                      {String(ticket.approvalGatedAction.requiresExplicitApproval)}
+                      :mutationAllowed=
+                      {String(
+                        ticket.mutationBoundary.mutationAllowedByThisVerifier
+                      )}
+                    </span>
+                  ))
+                ) : (
+                  <span>security review tickets clear</span>
                 )}
               </div>
               <div

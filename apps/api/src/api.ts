@@ -81,6 +81,7 @@ import type {
   OpsLensRemediationProposal,
   OpsLensSecurityScanPlanSummary,
   OpsLensSecurityScanReadiness,
+  OpsLensSecurityReviewTicketPacket,
   OpsLensRagIngestionApprovalPlanSummary,
   OpsLensRuntimeDependencyReadiness,
   OpsLensRuntimeLiveHandoffAction,
@@ -2472,6 +2473,7 @@ type SecurityScanPlanEvidenceArtifact = {
     blockedBy?: string[];
     rollbackPath?: string;
   }>;
+  ticketPackets?: OpsLensSecurityReviewTicketPacket[];
   missingEvidence?: string[];
   risk?: string[];
   rollbackPath?: string[];
@@ -2621,6 +2623,7 @@ type ReleaseActionQueueArtifact = {
     firstBlockedBy?: string[];
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     nextCommands?: string[];
     setupCommandIds?: string[];
@@ -2650,6 +2653,7 @@ type ReleaseActionQueueArtifact = {
     acceptance?: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   ownerPacketCleanup?: {
@@ -2699,6 +2703,7 @@ type ReleaseActionQueueArtifact = {
     }>;
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   sourceArtifacts?: Array<{
@@ -7208,6 +7213,7 @@ function missingSecurityScanPlanSummary(
           "No rollback is required for read-only security review preflight."
       }
     ],
+    ticketPackets: [],
     missingEvidence: [reason],
     risk: [
       "Without security scan plan evidence, release review cannot distinguish missing scan/SBOM inputs from approved signing or registry actions."
@@ -7399,6 +7405,7 @@ function getSecurityScanPlanReadiness(): {
         action.rollbackPath ??
         "Regenerate security scan evidence before proceeding."
     }));
+    const ticketPackets = artifact.ticketPackets ?? [];
     const missingTools = cli
       .filter((tool) => !tool.available)
       .map((tool) => tool.name)
@@ -7426,6 +7433,7 @@ function getSecurityScanPlanReadiness(): {
         setupCommands,
         approvalGatedCommands,
         firstSecurityReviewActions,
+        ticketPackets,
         missingEvidence: artifact.missingEvidence ?? [],
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? []
@@ -7436,6 +7444,7 @@ function getSecurityScanPlanReadiness(): {
         `scanReadOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length} approvalGatedCommands=${approvalGatedCommands.length}`,
         `security scan runner status=${runnerEvidence.status} actionMode=${runnerEvidence.actionMode} evidenceWritten=${String(runnerEvidence.evidenceWritten)} fresh=${String(runnerEvidence.fresh)} dockerFallback=${String(runnerEvidence.executeDockerFallback)} digestPinned=${String(runnerEvidence.scannerDigestsPinned)} missingTargets=${runnerEvidence.missingTargets.join(",") || "none"}`,
         `securityFirstReviewActions=${firstSecurityReviewActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
+        `securityReviewTicketPackets=${ticketPackets.map((ticket) => `${ticket.id}:${ticket.imageName}:${ticket.firstReadOnlyAction.id}:approval=${ticket.approvalGatedAction.id}`).join(", ") || "missing"}`,
         missingTools ? `missing local scan/sign CLIs=${missingTools}` : "all reported scan/sign CLIs are available",
         `required images missing scan/SBOM/review evidence=${requiredMissingEvidence}`,
         `security review drafts=${images.map((image) => `${image.name}:${image.reviewDraft.evidenceState}:sameHead=${String(image.reviewDraft.sameHead)}:decision=${image.reviewDraft.decision}:explicit=${String(image.reviewDraft.explicitDecisionProvided)}:ready=${String(image.reviewDraft.readyForFinalReview)}`).join(", ")}`,
@@ -7878,6 +7887,8 @@ function getReleaseActionQueueReadiness(): {
       firstBlockedBy: packet.firstBlockedBy ?? [],
       firstTicketPacket: packet.firstTicketPacket,
       firstExternalRuntimeTicketPacket: packet.firstExternalRuntimeTicketPacket,
+      firstSecurityReviewTicketPacket:
+        packet.firstSecurityReviewTicketPacket,
       firstCertificationToolingTicketPacket:
         packet.firstCertificationToolingTicketPacket,
       nextCommands: packet.nextCommands ?? [],
@@ -7915,6 +7926,7 @@ function getReleaseActionQueueReadiness(): {
       acceptance: entry.acceptance ?? [],
       ticketPacket: entry.ticketPacket,
       externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
+      securityReviewTicketPacket: entry.securityReviewTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket
     }));
     const items = (artifact.items ?? []).map((entry) => ({
@@ -7958,6 +7970,7 @@ function getReleaseActionQueueReadiness(): {
       })),
       ticketPacket: entry.ticketPacket,
       externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
+      securityReviewTicketPacket: entry.securityReviewTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({

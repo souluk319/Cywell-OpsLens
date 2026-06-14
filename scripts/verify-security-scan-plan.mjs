@@ -653,6 +653,132 @@ function firstSecurityReviewActions(images, commands) {
   return [...reviewActions, ...gatedMutationAction];
 }
 
+function uniqueSanitized(values) {
+  return [...new Set(values.filter(Boolean).map(sanitize))];
+}
+
+function securityReviewTicketClassification(image) {
+  const evidence = image.securityEvidence ?? {};
+  const draft = evidence.reviewDraft ?? {};
+  if (evidence.vulnerabilityReportExists !== true || evidence.sbomExists !== true) {
+    return "scan-or-sbom-missing";
+  }
+  if (evidence.vulnerabilityReportValid !== true || evidence.sbomValid !== true) {
+    return "scan-or-sbom-invalid";
+  }
+  if (draft.exists !== true) {
+    return "draft-missing";
+  }
+  if (draft.readyForFinalReview !== true) {
+    return "draft-needs-evidence";
+  }
+  if (evidence.reviewExists !== true) {
+    return "final-review-missing";
+  }
+  if (evidence.reviewApproved !== true) {
+    return "final-review-not-approved";
+  }
+  return "review-approved";
+}
+
+function securityReviewTicketPackets(images, commands) {
+  return images
+    .filter((image) => image.required)
+    .filter((image) => image.securityEvidence.reviewApproved !== true)
+    .map((image) => {
+      const evidence = image.securityEvidence;
+      const draft = evidence.reviewDraft;
+      const imageName = sanitize(image.name ?? "unknown");
+      const signingCommand = commands.approvalGated.find((entry) =>
+        String(entry.id ?? "").includes(imageName)
+      );
+      const nextReviewCommand = `npm run evidence:security-review:draft -- --name ${imageName} --reviewer <security-reviewer> --ticket <security-ticket> --decision approved --force`;
+      const approvalCommand = signingCommand?.command ?? `cosign sign ${image.desiredMirror ?? image.image ?? "unknown"}`;
+      const blockedBy = uniqueSanitized([
+        ...(evidence.vulnerabilityReportValid === true
+          ? []
+          : [`${imageName} vulnerability scan evidence is missing or invalid`]),
+        ...(evidence.sbomValid === true
+          ? []
+          : [`${imageName} SBOM evidence is missing or invalid`]),
+        ...(evidence.reviewApproved === true
+          ? []
+          : [`${imageName} final security review evidence is not approved`]),
+        ...draft.missingEvidence,
+        ...evidence.validationMissingEvidence
+      ]).slice(0, 8);
+
+      return {
+        id: `security-reviewer-${imageName}-security-review-ticket`,
+        owner: "security-reviewer",
+        title: `Security review handoff for ${imageName}`,
+        severity: "high",
+        imageName,
+        image: sanitize(image.image ?? "unknown"),
+        classification: securityReviewTicketClassification(image),
+        draftStatus: draft.readyForFinalReview
+          ? "ready-for-final-review"
+          : draft.exists
+            ? "draft-needs-evidence"
+            : "missing",
+        evidenceState: sanitize(draft.evidenceState ?? "missing"),
+        finalEvidenceFile: sanitize(
+          draft.finalEvidenceFile ??
+            `docs/release/evidence/security/${imageName}-security-review.json`
+        ),
+        vulnerabilityReportExists: evidence.vulnerabilityReportExists === true,
+        sbomExists: evidence.sbomExists === true,
+        reviewExists: evidence.reviewExists === true,
+        reviewApproved: evidence.reviewApproved === true,
+        reviewerProvided: draft.reviewerProvided === true,
+        ticketProvided: draft.ticketProvided === true,
+        criticalFindings:
+          Number.isFinite(Number(evidence.vulnerabilityCriticalFindings))
+            ? Number(evidence.vulnerabilityCriticalFindings)
+            : "unknown",
+        evidenceChecklist: [
+          `${imageName} vulnerability scan evidence exists and criticalFindings=0`,
+          `${imageName} SBOM evidence exists and is parseable`,
+          `${imageName} security review draft is same-head and clean`,
+          `${imageName} reviewer and security ticket are non-placeholder values`,
+          `${imageName} explicit decision is recorded before final evidence`,
+          `${imageName} signing remains approval-gated and is not run by this verifier`
+        ].map(sanitize),
+        firstReadOnlyAction: {
+          id: `security-review-${imageName}`,
+          status: draft.readyForFinalReview
+            ? "ready-for-final-review"
+            : "needs-evidence",
+          nextCommand: nextReviewCommand,
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        approvalGatedAction: {
+          id: signingCommand?.id ?? `sign-${imageName}`,
+          status: "approval-gated",
+          nextCommand: approvalCommand,
+          mutation: true,
+          requiresExplicitApproval: true
+        },
+        nextCommands: uniqueSanitized([
+          nextReviewCommand,
+          approvalCommand
+        ]),
+        blockedBy,
+        mutationBoundary: {
+          clusterMutationAttempted: false,
+          registryMutationAttempted: false,
+          mutationAllowedByThisVerifier: false,
+          signingRequiresExplicitApproval: true
+        },
+        risk:
+          "Security review handoff blocks release approval until scan, SBOM, reviewer, ticket, and explicit decision evidence are same-head and reviewed.",
+        rollbackPath:
+          `Delete or supersede ${imageName}-security-review.draft.json and regenerate security scan evidence if the ticket was created from the wrong image digest or Git head.`
+      };
+    });
+}
+
 function securityEvidenceReadmeCheck() {
   const readmePath = resolve(options.securityEvidenceDir, "README.md");
   if (!existsSync(readmePath)) {
@@ -773,6 +899,29 @@ async function main() {
 
   const commands = buildCommands({ ownedImages, externalImages });
   const firstReviewActions = firstSecurityReviewActions(allImages, commands);
+  const ticketPackets = securityReviewTicketPackets(allImages, commands);
+  if (
+    ticketPackets.every(
+      (ticket) =>
+        ticket.firstReadOnlyAction.mutation === false &&
+        ticket.firstReadOnlyAction.requiresExplicitApproval === false &&
+        ticket.approvalGatedAction.mutation === true &&
+        ticket.approvalGatedAction.requiresExplicitApproval === true &&
+        ticket.mutationBoundary.clusterMutationAttempted === false &&
+        ticket.mutationBoundary.registryMutationAttempted === false &&
+        ticket.mutationBoundary.mutationAllowedByThisVerifier === false
+    )
+  ) {
+    pass(
+      "security review ticket boundary",
+      `${ticketPackets.length} ticket packet(s) are read-only first and approval-gated for signing`
+    );
+  } else {
+    fail(
+      "security review ticket boundary",
+      "security review tickets must keep first actions read-only and signing approval-gated"
+    );
+  }
   const status = planStatus(missingEvidence);
   const artifact = {
     schema: "cywell.opslens.security-scan-plan.v0.1",
@@ -803,6 +952,7 @@ async function main() {
     images: allImages,
     commands,
     firstSecurityReviewActions: firstReviewActions,
+    ticketPackets,
     missingEvidence,
     risk: [
       "A scan plan is not a certification result; release approval still requires reviewed scan, SBOM, signature, provenance, and critical-finding evidence.",

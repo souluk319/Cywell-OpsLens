@@ -1993,6 +1993,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             blockedBy?: string[];
             rollbackPath?: string;
           }>;
+          ticketPackets?: Array<{
+            id?: string;
+            owner?: string;
+            severity?: string;
+            imageName?: string;
+            classification?: string;
+            firstReadOnlyAction?: {
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            approvalGatedAction?: {
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            mutationBoundary?: {
+              clusterMutationAttempted?: boolean;
+              registryMutationAttempted?: boolean;
+              mutationAllowedByThisVerifier?: boolean;
+              signingRequiresExplicitApproval?: boolean;
+            };
+          }>;
           risk?: string[];
           rollbackPath?: string[];
           missingEvidence?: string[];
@@ -2161,6 +2184,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 requiresExplicitApproval?: boolean;
               };
             };
+            firstSecurityReviewTicketPacket?: {
+              id?: string;
+              severity?: string;
+              imageName?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
             firstCertificationToolingTicketPacket?: {
               id?: string;
               severity?: string;
@@ -2216,6 +2254,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             externalRuntimeTicketPacket?: {
               id?: string;
               severity?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
+            securityReviewTicketPacket?: {
+              id?: string;
+              severity?: string;
+              imageName?: string;
               firstReadOnlyAction?: {
                 id?: string;
                 mutation?: boolean;
@@ -2296,6 +2349,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             externalRuntimeTicketPacket?: {
               id?: string;
               severity?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
+            securityReviewTicketPacket?: {
+              id?: string;
+              severity?: string;
+              imageName?: string;
               firstReadOnlyAction?: {
                 id?: string;
                 mutation?: boolean;
@@ -3957,6 +4025,33 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       securityFirstActions.every((action) => Array.isArray(action.blockedBy))
     ).toBe(true);
+    const securityReviewTickets =
+      body.installReadiness?.securityScanPlan?.ticketPackets ?? [];
+    expect(securityReviewTickets.length).toBeGreaterThan(0);
+    const operatorSecurityReviewTicket = securityReviewTickets.find(
+      (ticket) => ticket.imageName === "operator"
+    );
+    expect(operatorSecurityReviewTicket).toMatchObject({
+      id: "security-reviewer-operator-security-review-ticket",
+      owner: "security-reviewer",
+      severity: "high",
+      firstReadOnlyAction: {
+        id: "security-review-operator",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id: "sign-owned-operator",
+        mutation: true,
+        requiresExplicitApproval: true
+      },
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        signingRequiresExplicitApproval: true
+      }
+    });
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /security scan/i
     );
@@ -4621,6 +4716,51 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           command.mutation === true && command.requiresExplicitApproval === true
       )
     ).toBe(true);
+    expect(securityReviewAction?.securityReviewTicketPacket).toMatchObject({
+      id: "security-reviewer-operator-security-review-ticket",
+      severity: "high",
+      imageName: "operator",
+      firstReadOnlyAction: {
+        id: "security-review-operator",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id: "sign-owned-operator",
+        mutation: true,
+        requiresExplicitApproval: true
+      }
+    });
+    const securityReviewCriticalPath =
+      body.installReadiness?.actionQueue?.criticalPath?.find(
+        (entry) => entry.lane === "security-review"
+      );
+    expect(securityReviewCriticalPath?.securityReviewTicketPacket).toMatchObject({
+      id: "security-reviewer-operator-security-review-ticket",
+      severity: "high",
+      firstReadOnlyAction: {
+        mutation: false
+      },
+      approvalGatedAction: {
+        id: "sign-owned-operator",
+        requiresExplicitApproval: true
+      }
+    });
+    const securityReviewerOwnerPacket =
+      body.installReadiness?.actionQueue?.ownerPackets?.find(
+        (packet) => packet.owner === "security-reviewer"
+      );
+    expect(securityReviewerOwnerPacket?.firstSecurityReviewTicketPacket).toMatchObject({
+      id: "security-reviewer-operator-security-review-ticket",
+      firstReadOnlyAction: {
+        id: "security-review-operator",
+        mutation: false
+      },
+      approvalGatedAction: {
+        id: "sign-owned-operator",
+        requiresExplicitApproval: true
+      }
+    });
     const ocpAuthAction = body.installReadiness?.actionQueue?.items?.find(
       (item) => item.id === "cluster-admin-fix-ocp-auth-rbac"
     );
@@ -6023,6 +6163,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       page.getByTestId("opslens-security-first-review-actions")
     ).toContainText("approval=true");
     await expect(
+      page.getByTestId("opslens-security-review-tickets")
+    ).toContainText("security-reviewer-operator-security-review-ticket");
+    await expect(
+      page.getByTestId("opslens-security-review-tickets")
+    ).toContainText("first=security-review-operator");
+    await expect(
+      page.getByTestId("opslens-security-review-tickets")
+    ).toContainText("approval=sign-owned-operator");
+    await expect(
+      page.getByTestId("opslens-security-review-tickets")
+    ).toContainText("requiresApproval=true");
+    await expect(
       page.getByTestId("opslens-security-scan-runner-evidence")
     ).toContainText("evidenceWritten=true");
     await expect(
@@ -6123,6 +6275,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText(/external-runtime-review|release-publish|install-approval/);
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("security-review");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("ticket=network-sre-ocp-api-reachability-ticket");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
@@ -6139,6 +6294,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("certFirst=refresh-certification-evidence");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText(
+      "securityTicket=security-reviewer-operator-security-review-ticket"
+    );
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("securityFirst=security-review-operator");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("tools=opm,operator-sdk");
@@ -6175,6 +6338,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packets")
     ).toContainText("certFirst=refresh-certification-evidence");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packets")
+    ).toContainText(
+      "securityTicket=security-reviewer-operator-security-review-ticket"
+    );
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packets")
+    ).toContainText("securityFirst=security-review-operator");
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packet-cleanup")
     ).toContainText("deletionAllowed=true");

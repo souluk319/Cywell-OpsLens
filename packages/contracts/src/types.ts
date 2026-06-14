@@ -1859,6 +1859,7 @@ export interface OpsLensSecurityScanPlanSummary {
     blockedBy: string[];
     rollbackPath: string;
   }>;
+  ticketPackets: OpsLensSecurityReviewTicketPacket[];
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
@@ -2234,6 +2235,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstBlockedBy: string[];
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     nextCommands: string[];
     setupCommandIds: string[];
@@ -2263,6 +2265,7 @@ export interface OpsLensReleaseActionQueueSummary {
     acceptance: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   ownerPacketCleanup: {
@@ -2312,6 +2315,7 @@ export interface OpsLensReleaseActionQueueSummary {
     }>;
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   sourceArtifacts: Array<{
@@ -2703,6 +2707,51 @@ export interface OpsLensExternalRuntimeRegistryTicketPacket {
     registryMutationAttempted: boolean;
     mutationAllowedByThisVerifier: boolean;
     registryChangeRequiresExplicitApproval: boolean;
+  };
+  risk: string;
+  rollbackPath: string;
+}
+
+export interface OpsLensSecurityReviewTicketPacket {
+  id: string;
+  owner: "security-reviewer";
+  title: string;
+  severity: "high";
+  imageName: string;
+  image: string;
+  classification: string;
+  draftStatus: string;
+  evidenceState: string;
+  finalEvidenceFile: string;
+  vulnerabilityReportExists: boolean;
+  sbomExists: boolean;
+  reviewExists: boolean;
+  reviewApproved: boolean;
+  reviewerProvided: boolean;
+  ticketProvided: boolean;
+  criticalFindings: number | string;
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  approvalGatedAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    signingRequiresExplicitApproval: boolean;
   };
   risk: string;
   rollbackPath: string;
