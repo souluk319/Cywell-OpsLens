@@ -2515,6 +2515,19 @@ type OcpNetworkHandoffArtifact = {
     mutation?: boolean;
     writesEvidence?: boolean;
   }>;
+  firstNetworkActions?: Array<{
+    id?: string;
+    owner?: string;
+    phase?: string;
+    status?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
+  }>;
   sourceArtifacts?: Array<{
     id?: string;
     label?: string;
@@ -6533,6 +6546,23 @@ function missingOcpNetworkHandoffSummary(
         writesEvidence: true
       }
     ],
+    firstNetworkActions: [
+      {
+        id: "generate-ocp-network-handoff",
+        owner: "network-sre",
+        phase: "network-evidence-preflight",
+        status: "needs-evidence",
+        request:
+          "Generate the OCP network handoff packet before opening a Network/SRE ticket.",
+        evidenceNeeded: reason,
+        nextCommand: "npm run evidence:ocp-network-handoff",
+        mutation: false,
+        requiresExplicitApproval: false,
+        blockedBy: [reason],
+        rollbackPath:
+          "No rollback is required because this action only writes local handoff evidence."
+      }
+    ],
     sourceArtifacts: [],
     missingEvidence: [reason],
     risk: [
@@ -6542,6 +6572,110 @@ function missingOcpNetworkHandoffSummary(
       "Run npm run evidence:ocp-network-handoff after refreshing OCP connectivity evidence."
     ]
   };
+}
+
+function fallbackOcpNetworkFirstActions(
+  classification: string,
+  target: OpsLensOcpNetworkHandoffSummary["target"],
+  readOnlyCommands: OpsLensOcpNetworkHandoffSummary["readOnlyCommands"],
+  missingEvidence: string[]
+): OpsLensOcpNetworkHandoffSummary["firstNetworkActions"] {
+  const commandById = (id: string, fallback: string) =>
+    readOnlyCommands.find((command) => command.id === id)?.command ?? fallback;
+  const blockedBy =
+    missingEvidence.length > 0
+      ? missingEvidence
+      : [`OCP API connectivity classification=${classification}`];
+  const owner =
+    classification === "tls-handshake-failed"
+      ? "cluster-sre"
+      : ["auth-or-rbac", "auth-failed", "token-missing"].includes(classification)
+        ? "cluster-admin"
+        : "network-sre";
+  const host = target.host || "unknown";
+  const port = target.port || "6443";
+  const actions: OpsLensOcpNetworkHandoffSummary["firstNetworkActions"] = [
+    {
+      id: "network-sre-confirm-ocp-api-dns",
+      owner,
+      phase: "network-dns-preflight",
+      status: classification === "dns-unresolved" ? "blocker" : "read-only",
+      request:
+        "Confirm the OCP API hostname resolves before debugging Lightspeed or Operator readiness.",
+      evidenceNeeded:
+        "DNS result for the configured OCP API host from this workstation or approved bastion.",
+      nextCommand: commandById(
+        "windows-resolve-dns",
+        `powershell -NoProfile -Command "Resolve-DnsName ${host}"`
+      ),
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "No rollback is required because this command only reads resolver output."
+    },
+    {
+      id: "network-sre-confirm-ocp-api-tcp-6443",
+      owner,
+      phase: "network-tcp-preflight",
+      status: ["tcp-timeout", "tcp-unreachable"].includes(classification)
+        ? "blocker"
+        : "read-only",
+      request:
+        "Confirm TCP 6443 reachability before investigating TLS, RBAC, or Lightspeed configuration.",
+      evidenceNeeded:
+        "TCP reachability result for the configured OCP API host and port.",
+      nextCommand: commandById(
+        "windows-test-netconnection",
+        `powershell -NoProfile -Command "Test-NetConnection -ComputerName ${host} -Port ${port} -InformationLevel Detailed"`
+      ),
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "No rollback is required because this command only tests socket reachability."
+    },
+    {
+      id: "network-sre-rerun-ocp-connectivity-diagnostic",
+      owner,
+      phase: "network-evidence-refresh",
+      status: classification === "api-ready" ? "ready-for-live-recheck" : "needs-evidence",
+      request:
+        "Rerun the bounded OCP connectivity diagnostic after DNS/TCP/TLS/auth changes.",
+      evidenceNeeded:
+        "Current-head OCP connectivity diagnostic shows classification=api-ready.",
+      nextCommand: commandById(
+        "ocp-connectivity",
+        "npm run verify:ocp:connectivity -- --timeout-ms 30000"
+      ),
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "Regenerate the OCP network handoff if the classification changes or the Git head moves."
+    }
+  ];
+
+  if (["tcp-timeout", "tcp-unreachable", "dns-unresolved"].includes(classification)) {
+    actions.push({
+      id: "approval-gated-network-route-change",
+      owner: "network-sre",
+      phase: "network-change",
+      status: "approval-gated",
+      request:
+        "Open an approved Network/SRE change for VPN, firewall, security-group, DNS, or route fixes; the API does not run this change.",
+      evidenceNeeded:
+        "Approved network change ticket with source, destination, port 6443, expected DNS, rollback owner, and maintenance window.",
+      nextCommand: `open approved Network/SRE change for ${host}:${port} reachability`,
+      mutation: true,
+      requiresExplicitApproval: true,
+      blockedBy,
+      rollbackPath:
+        "Revert the approved network change through the same Network/SRE change ticket if reachability or routing is incorrect."
+    });
+  }
+
+  return actions;
 }
 
 function missingOcpAuthRbacPlanSummary(
@@ -6783,6 +6917,38 @@ function getOcpNetworkHandoffReadiness(): {
       mutation: command.mutation === true,
       writesEvidence: command.writesEvidence === true
     }));
+    const mappedTarget = {
+      host: target.host ?? "unknown",
+      port: target.port ?? "unknown",
+      redactedBaseUrl: target.redactedBaseUrl ?? "unknown",
+      tokenConfigured: target.tokenConfigured === true,
+      tlsVerify: target.tlsVerify === true
+    };
+    const missingEvidence = artifact.missingEvidence ?? [];
+    const firstNetworkActions = (
+      artifact.firstNetworkActions?.length
+        ? artifact.firstNetworkActions
+        : fallbackOcpNetworkFirstActions(
+            artifact.diagnostics?.classification ?? "unknown",
+            mappedTarget,
+            readOnlyCommands,
+            missingEvidence
+          )
+    ).map((action) => ({
+      id: action.id ?? "unknown",
+      owner: action.owner ?? "network-sre",
+      phase: action.phase ?? "network-evidence-preflight",
+      status: action.status ?? "needs-evidence",
+      request: action.request ?? "network handoff first action",
+      evidenceNeeded: action.evidenceNeeded ?? "missing evidence",
+      nextCommand: action.nextCommand ?? "npm run evidence:ocp-network-handoff",
+      mutation: action.mutation === true,
+      requiresExplicitApproval: action.requiresExplicitApproval === true,
+      blockedBy: action.blockedBy ?? [],
+      rollbackPath:
+        action.rollbackPath ??
+        "Regenerate the OCP network handoff before proceeding."
+    }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
       id: source.id ?? "unknown",
       label: source.label ?? "unknown",
@@ -6806,26 +6972,22 @@ function getOcpNetworkHandoffReadiness(): {
           artifact.registryMutationAttempted === true,
         mutationAllowedByThisVerifier:
           artifact.mutationAllowedByThisVerifier === true,
-        target: {
-          host: target.host ?? "unknown",
-          port: target.port ?? "unknown",
-          redactedBaseUrl: target.redactedBaseUrl ?? "unknown",
-          tokenConfigured: target.tokenConfigured === true,
-          tlsVerify: target.tlsVerify === true
-        },
+        target: mappedTarget,
         markdownPath: artifact.markdownOut ?? "unknown",
         adminRequests: artifact.adminRequests ?? [],
         readOnlyCommands,
+        firstNetworkActions,
         sourceArtifacts,
-        missingEvidence: artifact.missingEvidence ?? [],
+        missingEvidence,
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? []
       },
       evidence: [
         `OCP network handoff ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `network classification=${artifact.diagnostics?.classification ?? "unknown"} commands=${readOnlyCommands.length}`,
+        `network first actions=${firstNetworkActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         `network handoff markdown=${artifact.markdownOut ?? "unknown"}`,
-        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        ...missingEvidence.slice(0, 3),
         "admin overview reads OCP network handoff evidence only; it does not run live checks or mutating commands"
       ]
     };

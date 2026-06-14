@@ -1314,6 +1314,49 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           risk?: string[];
           rollbackPath?: string[];
         };
+        networkHandoff?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          classification?: string;
+          clusterMutationAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          target?: {
+            host?: string;
+            port?: number | string;
+            redactedBaseUrl?: string;
+            tokenConfigured?: boolean;
+            tlsVerify?: boolean;
+          };
+          markdownPath?: string;
+          adminRequests?: string[];
+          readOnlyCommands?: Array<{
+            id?: string;
+            command?: string;
+            mutation?: boolean;
+          }>;
+          firstNetworkActions?: Array<{
+            id?: string;
+            owner?: string;
+            phase?: string;
+            status?: string;
+            request?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+            blockedBy?: string[];
+            rollbackPath?: string;
+          }>;
+          sourceArtifacts?: Array<{
+            id?: string;
+            fresh?: boolean;
+          }>;
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         operatorDryRun?: string;
         installPlan?: string;
         approvalPlan?: {
@@ -2442,6 +2485,47 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         ?.map((command) => `${command.id} ${command.command}`)
         .join(" ")
     ).toMatch(/Test-NetConnection|Resolve-DnsName|verify:ocp:connectivity/i);
+    expect(body.installReadiness?.networkHandoff).toMatchObject({
+      actionMode: "handoffOnly",
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    const networkFirstActions =
+      body.installReadiness?.networkHandoff?.firstNetworkActions ?? [];
+    expect(networkFirstActions.length).toBeGreaterThanOrEqual(3);
+    expect(
+      networkFirstActions.some(
+        (action) =>
+          action.mutation === false &&
+          action.requiresExplicitApproval === false &&
+          /Test-NetConnection|Resolve-DnsName|verify:ocp:connectivity|route print/i.test(
+            action.nextCommand ?? ""
+          )
+      )
+    ).toBe(true);
+    expect(
+      networkFirstActions.every(
+        (action) => action.mutation !== true || action.requiresExplicitApproval === true
+      )
+    ).toBe(true);
+    expect(
+      networkFirstActions.every((action) => Array.isArray(action.blockedBy))
+    ).toBe(true);
+    if (
+      ["tcp-timeout", "tcp-unreachable", "dns-unresolved"].includes(
+        body.installReadiness?.networkHandoff?.classification ?? ""
+      )
+    ) {
+      expect(
+        networkFirstActions.some(
+          (action) =>
+            action.id === "approval-gated-network-route-change" &&
+            action.mutation === true &&
+            action.requiresExplicitApproval === true
+        )
+      ).toBe(true);
+    }
     expect(body.installReadiness?.connectivity?.target).toMatchObject({
       tokenConfigured: expect.any(Boolean),
       tlsVerify: expect.any(Boolean)
@@ -4279,6 +4363,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-ocp-network-handoff-commands")
     ).toContainText("mutation=false");
+    await expect(
+      page.getByTestId("opslens-ocp-network-first-actions")
+    ).toContainText(/network-sre-confirm-ocp-api|verify:ocp:connectivity/);
+    await expect(
+      page.getByTestId("opslens-ocp-network-first-actions")
+    ).toContainText("mutation=false");
+    await expect(
+      page.getByTestId("opslens-ocp-network-first-actions")
+    ).toContainText(/approval=true|network first actions missing/);
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Auth/RBAC Plan"
     );

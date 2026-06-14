@@ -1418,6 +1418,22 @@ export function OpsLensAdminDashboard() {
                   </span>
                 ))}
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-ocp-network-first-actions"
+              >
+                {networkHandoff.firstNetworkActions.length ? (
+                  networkHandoff.firstNetworkActions.map((action) => (
+                    <span key={action.id}>
+                      {action.id}:{action.owner}:{action.status}:next=
+                      {action.nextCommand}:mutation={String(action.mutation)}
+                      :approval={String(action.requiresExplicitApproval)}
+                    </span>
+                  ))
+                ) : (
+                  <span>network first actions missing</span>
+                )}
+              </div>
               <div className="admin-evidence-line">
                 {networkHandoff.sourceArtifacts.slice(0, 3).map((source) => (
                   <span key={source.id}>

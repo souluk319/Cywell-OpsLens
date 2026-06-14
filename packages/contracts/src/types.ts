@@ -1376,6 +1376,19 @@ export interface OpsLensOcpNetworkHandoffSummary {
     mutation: boolean;
     writesEvidence: boolean;
   }>;
+  firstNetworkActions: Array<{
+    id: string;
+    owner: string;
+    phase: string;
+    status: string;
+    request: string;
+    evidenceNeeded: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+    blockedBy: string[];
+    rollbackPath: string;
+  }>;
   sourceArtifacts: Array<{
     id: string;
     label: string;

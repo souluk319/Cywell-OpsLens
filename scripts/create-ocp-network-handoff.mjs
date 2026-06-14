@@ -198,6 +198,142 @@ function handoffAudience(classification) {
   return "Network/SRE";
 }
 
+function handoffOwner(classification) {
+  if (authLikeClassification(classification)) return "cluster-admin";
+  if (classification === "tls-handshake-failed") return "cluster-sre";
+  return "network-sre";
+}
+
+function commandById(commands, id, fallbackCommand, fallbackPurpose) {
+  const command = commands.find((candidate) => candidate.id === id);
+  return {
+    command: sanitize(command?.command ?? fallbackCommand),
+    purpose: sanitize(command?.purpose ?? fallbackPurpose)
+  };
+}
+
+function buildFirstNetworkActions(target, classification, addresses, commands, missingEvidence) {
+  const host = target.host ?? "unknown";
+  const port = target.port ?? "6443";
+  const addressText = addresses.length > 0 ? addresses.join(", ") : "unresolved";
+  const owner = handoffOwner(classification);
+  const blockedBy = missingEvidence.length
+    ? missingEvidence
+    : [`OCP API connectivity classification=${classification}`];
+  const dns = commandById(
+    commands,
+    "windows-resolve-dns",
+    `powershell -NoProfile -Command "Resolve-DnsName ${host}"`,
+    "Confirm the OCP API DNS result from this workstation or approved bastion."
+  );
+  const tcp = commandById(
+    commands,
+    "windows-test-netconnection",
+    `powershell -NoProfile -Command "Test-NetConnection -ComputerName ${host} -Port ${port} -InformationLevel Detailed"`,
+    "Confirm a TCP session can open to the OCP API port."
+  );
+  const route = commandById(
+    commands,
+    "windows-route-print",
+    `route print ${addressText}`,
+    "Inspect the selected route toward the resolved OCP API address."
+  );
+  const rerun = commandById(
+    commands,
+    "ocp-connectivity",
+    "npm run verify:ocp:connectivity -- --timeout-ms 30000",
+    "Reclassify DNS, TCP, TLS, Kubernetes /version, and oc reachability without mutation."
+  );
+  const actions = [
+    {
+      id: "network-sre-confirm-ocp-api-dns",
+      owner,
+      phase: "network-dns-preflight",
+      status: classification === "dns-unresolved" ? "blocker" : "read-only",
+      request:
+        "Confirm the OCP API hostname resolves to the expected company network address before debugging Lightspeed or Operator readiness.",
+      evidenceNeeded: `DNS result for ${host}; expected address context=${addressText}.`,
+      nextCommand: dns.command,
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "No rollback is required because this command only reads local resolver output."
+    },
+    {
+      id: "network-sre-confirm-ocp-api-tcp-6443",
+      owner,
+      phase: "network-tcp-preflight",
+      status: ["tcp-timeout", "tcp-unreachable"].includes(classification)
+        ? "blocker"
+        : "read-only",
+      request:
+        "Confirm TCP 6443 reachability from this workstation or approved bastion before investigating TLS, RBAC, or Lightspeed configuration.",
+      evidenceNeeded: tcp.purpose,
+      nextCommand: tcp.command,
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "No rollback is required because this command only tests socket reachability."
+    },
+    {
+      id: "network-sre-confirm-ocp-api-route",
+      owner,
+      phase: "network-route-preflight",
+      status: ["tcp-timeout", "tcp-unreachable"].includes(classification)
+        ? "needs-evidence"
+        : "read-only",
+      request:
+        "Capture the local route to the resolved OCP API address so VPN, gateway, or firewall ownership can be assigned.",
+      evidenceNeeded: route.purpose,
+      nextCommand: route.command,
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "No rollback is required because this command only reads routing state."
+    },
+    {
+      id: "network-sre-rerun-ocp-connectivity-diagnostic",
+      owner,
+      phase: "network-evidence-refresh",
+      status: classification === "api-ready" ? "ready-for-live-recheck" : "needs-evidence",
+      request:
+        "Rerun the bounded OCP connectivity diagnostic after DNS/TCP/TLS/auth changes and attach the current-head artifact.",
+      evidenceNeeded:
+        "cywell-opslens-ocp-connectivity-diagnostic.json shows classification=api-ready with current Git head and clean worktree.",
+      nextCommand: rerun.command,
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "Regenerate the OCP network handoff if the classification changes or the Git head moves."
+    }
+  ];
+
+  if (["tcp-timeout", "tcp-unreachable", "dns-unresolved"].includes(classification)) {
+    actions.push({
+      id: "approval-gated-network-route-change",
+      owner: "network-sre",
+      phase: "network-change",
+      status: "approval-gated",
+      request:
+        "Do not make VPN, firewall, security-group, DNS, or route changes from this verifier; open an approved Network/SRE change instead.",
+      evidenceNeeded:
+        "Approved network change ticket confirming source, destination, port 6443, expected DNS result, rollback owner, and maintenance window.",
+      nextCommand: `open approved Network/SRE change for ${host}:${port} reachability from the approved workstation or bastion`,
+      mutation: true,
+      requiresExplicitApproval: true,
+      blockedBy,
+      rollbackPath:
+        "Revert the approved network change through the same Network/SRE change ticket if reachability or routing is incorrect."
+    });
+  }
+
+  return actions;
+}
+
 function adminRequests(target, classification, addresses) {
   const host = target.host ?? "unknown";
   const port = target.port ?? "unknown";
@@ -270,6 +406,23 @@ function markdownFor(packet) {
     "",
     ...packet.adminRequests.map((item) => `- ${item}`),
     "",
+    "## First Network Actions",
+    "",
+    ...packet.firstNetworkActions.map((action) => [
+      `### ${action.id}`,
+      "",
+      `Owner: ${action.owner}`,
+      `Status: ${action.status}`,
+      `Mutation: ${String(action.mutation)}`,
+      `Requires explicit approval: ${String(action.requiresExplicitApproval)}`,
+      "",
+      `Evidence needed: ${action.evidenceNeeded}`,
+      "",
+      "```powershell",
+      action.nextCommand,
+      "```",
+      ""
+    ].join("\n")),
     "## Read-Only Commands",
     "",
     ...packet.readOnlyCommands.map((command) => [
@@ -352,6 +505,30 @@ async function main() {
     : missingEvidence.length > 0
       ? "READY_FOR_NETWORK_REVIEW"
       : "READY_FOR_LIVE_RECHECK";
+  const firstNetworkActions = buildFirstNetworkActions(
+    target,
+    classification,
+    diagnostics.dns?.addresses ?? [],
+    commands,
+    missingEvidence
+  );
+  if (
+    firstNetworkActions.every(
+      (action) =>
+        action.mutation !== false ||
+        action.requiresExplicitApproval !== false ||
+        !/verify:ocp:connectivity|Test-NetConnection|Resolve-DnsName|route print/i.test(action.nextCommand)
+    )
+  ) {
+    fail("network first read-only action", "first network actions must include read-only DNS, TCP, route, or connectivity diagnostics");
+  } else {
+    pass("network first read-only action", `${firstNetworkActions.filter((action) => action.mutation === false).length} read-only action(s)`);
+  }
+  if (firstNetworkActions.every((action) => action.mutation !== true || action.requiresExplicitApproval === true)) {
+    pass("network first action mutation boundary", "mutating network actions require explicit approval");
+  } else {
+    fail("network first action mutation boundary", "mutating network actions must require explicit approval");
+  }
 
   const packet = {
     schema: "cywell.opslens.ocp-network-handoff.v0.1",
@@ -375,6 +552,7 @@ async function main() {
     ownerHint: handoffAudience(classification),
     adminRequests: adminRequests(target, classification, diagnostics.dns?.addresses ?? []),
     readOnlyCommands: commands,
+    firstNetworkActions,
     sourceArtifacts: sources,
     missingEvidence,
     risk: riskForClassification(classification),
