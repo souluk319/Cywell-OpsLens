@@ -183,6 +183,7 @@ export function OpsLensAdminDashboard() {
   const aiopsPipeline = overview?.aiops.incidentPipeline;
   const alertmanagerIntake = aiopsPipeline?.alertmanagerIntake;
   const extensionPoint = overview?.installReadiness.extensionPoint;
+  const operatorPackage = overview?.installReadiness.operatorPackageSummary;
   const operatorRuntimeBoundary =
     overview?.installReadiness.operatorRuntimeBoundarySummary;
   const approvalPlan = overview?.installReadiness.approvalPlan;
@@ -1300,6 +1301,7 @@ export function OpsLensAdminDashboard() {
                   "Console Dashboard": overview.installReadiness.consoleDashboard,
                   Operator: overview.installReadiness.operatorPackaging,
                   "OCP Connectivity": overview.installReadiness.ocpConnectivity,
+                  "Operator Package": overview.installReadiness.operatorPackage,
                   "Operator Dry-run": overview.installReadiness.operatorDryRun,
                   "Operator Boundary":
                     overview.installReadiness.operatorRuntimeBoundary,
@@ -1457,6 +1459,118 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {extensionPoint.risk[0] ??
                     "Live OLSConfig registration still needs approval."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {operatorPackage ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-operator-package"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Operator Package</h4>
+                  <small>{operatorPackage.actionMode}</small>
+                </div>
+                <ListChecks size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{operatorPackage.artifactStatus}</span>
+                <span>head={operatorPackage.headSha}</span>
+                <span>dirty={String(operatorPackage.worktreeDirty)}</span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(operatorPackage.clusterMutationAttempted)}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(operatorPackage.registryMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(operatorPackage.mutationAllowedByThisVerifier)}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-operator-package-boundary"
+              >
+                <span>
+                  staticOlsConfig=
+                  {String(
+                    operatorPackage.packageBoundary.staticStackContainsOlsConfig
+                  )}
+                </span>
+                <span>
+                  staticRegistration=
+                  {String(
+                    operatorPackage.packageBoundary
+                      .staticStackAppliesLightspeedRegistration
+                  )}
+                </span>
+                <span>
+                  appObjects=
+                  {operatorPackage.packageBoundary.appManifestObjectCount}
+                </span>
+                <span>
+                  approvalGatedTemplate=
+                  {String(
+                    operatorPackage.packageBoundary.approvalGatedTemplateExists
+                  )}
+                </span>
+                <span>
+                  mode={operatorPackage.packageBoundary.reconcileMode}
+                </span>
+                <span>
+                  approvalGatedOnly=
+                  {String(operatorPackage.packageBoundary.approvalGatedOnly)}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-operator-package-olsconfig"
+              >
+                <span>{operatorPackage.packageBoundary.olsconfigTemplateKind}</span>
+                <span>
+                  name={operatorPackage.packageBoundary.olsconfigTemplateName}
+                </span>
+                <span>
+                  namespace=
+                  {operatorPackage.packageBoundary.olsconfigTemplateNamespace}
+                </span>
+                <span>
+                  server={operatorPackage.packageBoundary.mcpServerName}
+                </span>
+                <span>
+                  featureGates=
+                  {operatorPackage.packageBoundary.featureGates.join(", ") ||
+                    "missing"}
+                </span>
+                <span>
+                  headers=
+                  {operatorPackage.packageBoundary.headerTypes.join(", ") ||
+                    "missing"}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-operator-package-forbidden"
+              >
+                {operatorPackage.packageBoundary.forbiddenRegistrationPaths
+                  .slice(0, 3)
+                  .map((path) => (
+                    <span key={path}>{path}</span>
+                  ))}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {operatorPackage.evidence[0] ??
+                    "Operator package evidence is read-only."}
+                </p>
+                <p>
+                  {operatorPackage.rollbackPath[0] ??
+                    operatorPackage.packageBoundary.rollbackPath}
                 </p>
               </div>
             </div>

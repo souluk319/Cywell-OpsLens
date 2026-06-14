@@ -108,7 +108,7 @@ Cywell OpsLens Stage 1 uses the OpenShift Lightspeed custom MCP server path, not
 
 Stage 2 begins with `POST /api/opslens/incidents/analyze`: an alert-triggered, plan-only incident endpoint that combines read-only resource detail, pod candidates, events, `sinceSeconds`-bounded pod logs, and opt-in Prometheus metric correlation with private runbook citations. Failed reads are returned as `missingEvidence`, not hidden.
 
-Stage 3 starts with `GET /api/opslens/admin/overview` and the OpsLens Admin Dashboard surface for RAG document health, validate-only evidence export, env-gated RAG approval queue persistence, token usage, GPU/runtime samples, Lightspeed MCP tool matrix plus routing score, incident metric query status, and install readiness.
+Stage 3 starts with `GET /api/opslens/admin/overview` and the OpsLens Admin Dashboard surface for RAG document health, validate-only evidence export, env-gated RAG approval queue persistence, token usage, GPU/runtime samples, Lightspeed MCP tool matrix plus routing score, incident metric query status, Operator package static boundary, and install readiness.
 
 `npm run verify:rag:approval-queue` proves the post-MVP approval queue bridge: default API mode remains `designOnly`, the queue inventory is read-only, an explicitly enabled local queue persists and lists only metadata/redacted chunks/approval requirements, invalid drafts are rejected before persistence, and no raw Markdown, vector write, cluster mutation, approval mutation, or secret-like value is stored.
 

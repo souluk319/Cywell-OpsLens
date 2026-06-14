@@ -1251,6 +1251,11 @@ export type OpsLensOperatorDryRunReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensOperatorPackageReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "failed";
+
 export type OpsLensOperatorRuntimeBoundaryReadiness =
   | "ready"
   | "needs-evidence"
@@ -1342,6 +1347,40 @@ export interface OpsLensEvidenceCheckpointSummary {
   }>;
   missingEvidence: string[];
   blockers: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensOperatorPackageSummary {
+  status: OpsLensOperatorPackageReadiness;
+  artifactStatus: string;
+  actionMode: "operatorPackageStaticOnly" | "readOnlyEvidenceOnly";
+  headSha: string;
+  worktreeDirty: boolean | string;
+  registryMutationAttempted: boolean;
+  clusterMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  acceptance: string[];
+  packageBoundary: {
+    staticStackContainsOlsConfig: boolean | string;
+    staticStackAppliesLightspeedRegistration: boolean | string;
+    appManifestObjectCount: number | string;
+    approvalGatedTemplateExists: boolean | string;
+    olsconfigTemplateKind: string;
+    olsconfigTemplateName: string;
+    olsconfigTemplateNamespace: string;
+    reconcileMode: string;
+    approvalGatedOnly: boolean | string;
+    featureGates: string[];
+    mcpServerName: string;
+    mcpUrl: string;
+    headerTypes: string[];
+    forbiddenRegistrationPaths: string[];
+    rollbackPath: string;
+  };
+  evidence: string[];
+  missingEvidence: string[];
+  warnings: string[];
   risk: string[];
   rollbackPath: string[];
 }
@@ -2581,6 +2620,8 @@ export interface OpsLensAdminOverviewResponse {
     operatorPackaging: "not-started" | "draft" | "ready";
     ocpConnectivity: OpsLensOcpConnectivityReadiness;
     connectivity: OpsLensOcpConnectivityDiagnosticSummary;
+    operatorPackage: OpsLensOperatorPackageReadiness;
+    operatorPackageSummary: OpsLensOperatorPackageSummary;
     operatorDryRun: OpsLensOperatorDryRunReadiness;
     operatorRuntimeBoundary: OpsLensOperatorRuntimeBoundaryReadiness;
     operatorRuntimeBoundarySummary: OpsLensOperatorRuntimeBoundarySummary;

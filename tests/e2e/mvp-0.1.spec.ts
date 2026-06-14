@@ -4798,6 +4798,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Operator Boundary"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Operator Package"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "OCP Connectivity"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
@@ -4839,6 +4842,51 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-lightspeed-extension-boundary")
     ).toContainText("mutationAllowedByThisVerifier=false");
+    await expect(page.getByTestId("opslens-operator-package")).toContainText(
+      "operatorPackageStaticOnly"
+    );
+    await expect(page.getByTestId("opslens-operator-package")).toContainText(
+      "clusterMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-operator-package")).toContainText(
+      "registryMutationAttempted=false"
+    );
+    await expect(
+      page.getByTestId("opslens-operator-package-boundary")
+    ).toContainText("staticOlsConfig=false");
+    await expect(
+      page.getByTestId("opslens-operator-package-boundary")
+    ).toContainText("staticRegistration=false");
+    await expect(
+      page.getByTestId("opslens-operator-package-boundary")
+    ).toContainText("approvalGatedTemplate=true");
+    await expect(
+      page.getByTestId("opslens-operator-package-boundary")
+    ).toContainText("mode=PatchOLSConfig");
+    await expect(
+      page.getByTestId("opslens-operator-package-boundary")
+    ).toContainText("approvalGatedOnly=true");
+    await expect(
+      page.getByTestId("opslens-operator-package-olsconfig")
+    ).toContainText("OLSConfig");
+    await expect(
+      page.getByTestId("opslens-operator-package-olsconfig")
+    ).toContainText("name=cluster");
+    await expect(
+      page.getByTestId("opslens-operator-package-olsconfig")
+    ).toContainText("namespace=openshift-lightspeed");
+    await expect(
+      page.getByTestId("opslens-operator-package-olsconfig")
+    ).toContainText("server=cywell-opslens");
+    await expect(
+      page.getByTestId("opslens-operator-package-olsconfig")
+    ).toContainText("MCPServer");
+    await expect(
+      page.getByTestId("opslens-operator-package-olsconfig")
+    ).toContainText("headers=kubernetes, secret");
+    await expect(
+      page.getByTestId("opslens-operator-package-forbidden")
+    ).toContainText("legacy Lightspeed ConfigMap mutation");
     await expect(
       page.getByTestId("opslens-operator-runtime-boundary")
     ).toContainText("operatorRuntimeParityOnly");

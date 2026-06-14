@@ -59,6 +59,8 @@ import type {
   OpsLensOcpAuthRbacPlanSummary,
   OpsLensOcpNetworkHandoffReadiness,
   OpsLensOcpNetworkHandoffSummary,
+  OpsLensOperatorPackageReadiness,
+  OpsLensOperatorPackageSummary,
   OpsLensOperatorDryRunReadiness,
   OpsLensOperatorRuntimeBoundaryReadiness,
   OpsLensOperatorRuntimeBoundarySummary,
@@ -1903,6 +1905,52 @@ type OperatorDryRunEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type OperatorPackageEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  registryMutationAttempted?: boolean;
+  clusterMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  acceptance?: string[];
+  packageBoundary?: {
+    appManifest?: {
+      objectCount?: number;
+      containsOlsResources?: boolean;
+      staticStackAppliesLightspeedRegistration?: boolean;
+    };
+    olsconfigTemplate?: {
+      kind?: string;
+      name?: string;
+      namespace?: string;
+      approvalGatedOnly?: boolean;
+      reconcileMode?: string;
+      rollbackPath?: string;
+      featureGates?: string[];
+      mcpServerName?: string;
+      mcpUrl?: string;
+      headerTypes?: string[];
+    };
+    lightspeedRegistration?: {
+      staticStackContainsOlsConfig?: boolean;
+      approvalGatedTemplateExists?: boolean;
+      forbiddenRegistrationPaths?: string[];
+    };
+  };
+  evidence?: string[];
+  missingEvidence?: string[];
+  warnings?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type OperatorRuntimeParityEvidenceArtifact = {
   artifactType?: string;
   status?: string;
@@ -3077,6 +3125,13 @@ function externalRuntimeReviewPacketEvidencePath() {
   );
 }
 
+function operatorPackageEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_OPERATOR_PACKAGE_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-operator-package.json")
+  );
+}
+
 function operatorDryRunEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_OPERATOR_DRY_RUN_EVIDENCE ??
@@ -3290,6 +3345,37 @@ function mapExternalRuntimeReviewPacketReadinessStatus(
     return "needs-evidence";
   }
   if (artifact.status === "REVIEW_PACKET_READY") {
+    return "ready";
+  }
+  return "needs-evidence";
+}
+
+function mapOperatorPackageReadinessStatus(
+  artifact: OperatorPackageEvidenceArtifact
+): OpsLensOperatorPackageReadiness {
+  const packageBoundary = artifact.packageBoundary;
+  const lightspeedRegistration = packageBoundary?.lightspeedRegistration;
+  const olsconfigTemplate = packageBoundary?.olsconfigTemplate;
+  const staticBoundaryReady =
+    lightspeedRegistration?.staticStackContainsOlsConfig === false &&
+    packageBoundary?.appManifest?.staticStackAppliesLightspeedRegistration === false &&
+    lightspeedRegistration?.approvalGatedTemplateExists === true &&
+    olsconfigTemplate?.approvalGatedOnly === true &&
+    olsconfigTemplate?.reconcileMode === "PatchOLSConfig";
+
+  if (
+    artifact.status === "FAIL" ||
+    artifact.clusterMutationAttempted ||
+    artifact.registryMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier ||
+    artifact.actionMode !== "operatorPackageStaticOnly"
+  ) {
+    return "failed";
+  }
+  if (artifact.ref?.worktreeDirty) {
+    return "needs-evidence";
+  }
+  if (artifact.status === "PASS" && staticBoundaryReady) {
     return "ready";
   }
   return "needs-evidence";
@@ -4464,6 +4550,174 @@ function getExternalRuntimeReviewPacketReadiness(): {
         `External runtime review packet could not be parsed from ${evidencePath}`,
         error instanceof Error ? error.message : "unknown evidence parse error",
         "invalid external runtime review packet blocks dashboard readiness"
+      ]
+    };
+  }
+}
+
+function missingOperatorPackageSummary(
+  message: string,
+  status: OpsLensOperatorPackageReadiness = "needs-evidence",
+  artifactStatus = "missing"
+): OpsLensOperatorPackageSummary {
+  return {
+    status,
+    artifactStatus,
+    actionMode: "readOnlyEvidenceOnly",
+    headSha: "missing",
+    worktreeDirty: "unknown",
+    registryMutationAttempted: false,
+    clusterMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    acceptance: ["AC-OP-001", "AC-OP-005", "AC-CERT-001"],
+    packageBoundary: {
+      staticStackContainsOlsConfig: "unknown",
+      staticStackAppliesLightspeedRegistration: "unknown",
+      appManifestObjectCount: "unknown",
+      approvalGatedTemplateExists: "unknown",
+      olsconfigTemplateKind: "missing",
+      olsconfigTemplateName: "missing",
+      olsconfigTemplateNamespace: "missing",
+      reconcileMode: "missing",
+      approvalGatedOnly: "unknown",
+      featureGates: [],
+      mcpServerName: "missing",
+      mcpUrl: "missing",
+      headerTypes: [],
+      forbiddenRegistrationPaths: [],
+      rollbackPath: "Regenerate operator package evidence before live install review."
+    },
+    evidence: [
+      "dashboard keeps Operator package readiness as needs-evidence until static package evidence exists",
+      "admin overview reads Operator package evidence only; it does not apply manifests, patch OLSConfig, push images, or mutate cluster resources"
+    ],
+    missingEvidence: [message],
+    warnings: [],
+    risk: [
+      "Without Operator package evidence, the dashboard cannot prove static app stack and Lightspeed registration boundaries."
+    ],
+    rollbackPath: [
+      "Run npm run verify:operator from a clean worktree, then rerun admin overview and MVP acceptance checks."
+    ]
+  };
+}
+
+function getOperatorPackageReadiness(): {
+  status: OpsLensOperatorPackageReadiness;
+  summary: OpsLensOperatorPackageSummary;
+  evidence: string[];
+} {
+  const evidencePath = operatorPackageEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    const missingEvidence = [
+      `Operator package evidence is missing at ${evidencePath}`,
+      "run npm run verify:operator to create static package boundary evidence"
+    ];
+    const summary = missingOperatorPackageSummary(missingEvidence[0]);
+    return {
+      status: summary.status,
+      summary: {
+        ...summary,
+        missingEvidence
+      },
+      evidence: [
+        "run npm run verify:operator to create Operator package evidence",
+        "dashboard reads Operator package evidence only; it does not apply manifests or patch OLSConfig",
+        ...missingEvidence
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as OperatorPackageEvidenceArtifact;
+    const status = mapOperatorPackageReadinessStatus(artifact);
+    const packageBoundary = artifact.packageBoundary ?? {};
+    const appManifest = packageBoundary.appManifest ?? {};
+    const olsconfigTemplate = packageBoundary.olsconfigTemplate ?? {};
+    const lightspeedRegistration = packageBoundary.lightspeedRegistration ?? {};
+    const actionMode =
+      artifact.actionMode === "operatorPackageStaticOnly"
+        ? "operatorPackageStaticOnly"
+        : "readOnlyEvidenceOnly";
+    const missingEvidence = [
+      ...(artifact.missingEvidence ?? []),
+      ...(status === "ready"
+        ? []
+        : [
+            `Operator package status=${status} artifact=${artifact.status ?? "unknown"} actionMode=${artifact.actionMode ?? "unknown"}`
+          ])
+    ];
+    const summary: OpsLensOperatorPackageSummary = {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode,
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty ?? "unknown",
+      registryMutationAttempted: artifact.registryMutationAttempted === true,
+      clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        artifact.mutationAllowedByThisVerifier === true,
+      acceptance: artifact.acceptance ?? ["AC-OP-001", "AC-OP-005", "AC-CERT-001"],
+      packageBoundary: {
+        staticStackContainsOlsConfig:
+          lightspeedRegistration.staticStackContainsOlsConfig ??
+          appManifest.containsOlsResources ??
+          "unknown",
+        staticStackAppliesLightspeedRegistration:
+          appManifest.staticStackAppliesLightspeedRegistration ?? "unknown",
+        appManifestObjectCount: appManifest.objectCount ?? "unknown",
+        approvalGatedTemplateExists:
+          lightspeedRegistration.approvalGatedTemplateExists ?? "unknown",
+        olsconfigTemplateKind: olsconfigTemplate.kind ?? "missing",
+        olsconfigTemplateName: olsconfigTemplate.name ?? "missing",
+        olsconfigTemplateNamespace: olsconfigTemplate.namespace ?? "missing",
+        reconcileMode: olsconfigTemplate.reconcileMode ?? "missing",
+        approvalGatedOnly: olsconfigTemplate.approvalGatedOnly ?? "unknown",
+        featureGates: olsconfigTemplate.featureGates ?? [],
+        mcpServerName: olsconfigTemplate.mcpServerName ?? "missing",
+        mcpUrl: olsconfigTemplate.mcpUrl ?? "missing",
+        headerTypes: olsconfigTemplate.headerTypes ?? [],
+        forbiddenRegistrationPaths:
+          lightspeedRegistration.forbiddenRegistrationPaths ?? [],
+        rollbackPath:
+          olsconfigTemplate.rollbackPath ??
+          "Restore the previous OLSConfig spec.featureGates and spec.mcpServers from GitOps or cluster backup."
+      },
+      evidence: artifact.evidence ?? [],
+      missingEvidence,
+      warnings: artifact.warnings ?? [],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? []
+    };
+
+    return {
+      status,
+      summary,
+      evidence: [
+        `Operator package evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `operator package generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `staticStackContainsOlsConfig=${String(summary.packageBoundary.staticStackContainsOlsConfig)} staticStackAppliesLightspeedRegistration=${String(summary.packageBoundary.staticStackAppliesLightspeedRegistration)} approvalGatedTemplateExists=${String(summary.packageBoundary.approvalGatedTemplateExists)} mode=${summary.packageBoundary.reconcileMode}`,
+        `forbiddenRegistrationPaths=${summary.packageBoundary.forbiddenRegistrationPaths.join(", ") || "missing"}`,
+        "admin overview reads Operator package evidence only; it does not apply manifests, patch OLSConfig, push images, or mutate cluster resources"
+      ]
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown evidence parse error";
+    const summary = missingOperatorPackageSummary(
+      message,
+      "failed",
+      "invalid"
+    );
+    return {
+      status: "failed",
+      summary,
+      evidence: [
+        `Operator package evidence could not be parsed from ${evidencePath}`,
+        message,
+        "invalid Operator package evidence blocks dashboard readiness"
       ]
     };
   }
@@ -8666,6 +8920,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const externalRuntimeReviewPacketReadiness =
     getExternalRuntimeReviewPacketReadiness();
   const ocpConnectivityReadiness = getOcpConnectivityDiagnosticReadiness();
+  const operatorPackageReadiness = getOperatorPackageReadiness();
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
   const operatorRuntimeBoundaryReadiness =
     getOperatorRuntimeBoundaryReadiness();
@@ -8698,6 +8953,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ocpNetworkHandoffReadiness.evidence[0],
     ocpAuthRbacPlanReadiness.evidence[0],
     ocpConnectivityReadiness.evidence[0],
+    operatorPackageReadiness.evidence[0],
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
     operatorRuntimeBoundaryReadiness.evidence[0],
@@ -8716,6 +8972,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     runtimeLiveHandoff.evidence[0],
     ragProductionReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
+    ...operatorPackageReadiness.evidence.slice(1),
     ...lightspeedExtensionPointReadiness.evidence.slice(1),
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
@@ -8926,6 +9183,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       operatorPackaging: "draft",
       ocpConnectivity: ocpConnectivityReadiness.status,
       connectivity: ocpConnectivityReadiness.connectivity,
+      operatorPackage: operatorPackageReadiness.status,
+      operatorPackageSummary: operatorPackageReadiness.summary,
       operatorDryRun: operatorDryRunReadiness.status,
       operatorRuntimeBoundary: operatorRuntimeBoundaryReadiness.status,
       operatorRuntimeBoundarySummary:
