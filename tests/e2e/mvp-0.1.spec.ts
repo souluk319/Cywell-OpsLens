@@ -2267,6 +2267,43 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 requiresExplicitApproval?: boolean;
               };
             };
+            firstCatalogToolchainTicketPacket?: {
+              id?: string;
+              owner?: string;
+              severity?: string;
+              classification?: string;
+              catalogStatus?: string;
+              registryAuthConfigured?: boolean;
+              registryBaseReadable?: boolean;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              setupAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+                requiresHumanSecretInput?: boolean;
+              };
+              localArtifactAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                registryAuthRequiresHumanSecretInput?: boolean;
+                catalogPublishRequiresExplicitApproval?: boolean;
+              };
+            };
             firstCertificationToolingTicketPacket?: {
               id?: string;
               severity?: string;
@@ -2372,16 +2409,39 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 requiresExplicitApproval?: boolean;
               };
             };
-            installApprovalTicketPacket?: {
+            catalogToolchainTicketPacket?: {
               id?: string;
+              owner?: string;
+              severity?: string;
+              classification?: string;
+              catalogStatus?: string;
               firstReadOnlyAction?: {
                 id?: string;
                 mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              setupAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+                requiresHumanSecretInput?: boolean;
+              };
+              localArtifactAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
               };
               approvalGatedAction?: {
                 id?: string;
                 mutation?: boolean;
                 requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                registryAuthRequiresHumanSecretInput?: boolean;
+                catalogPublishRequiresExplicitApproval?: boolean;
               };
             };
             certificationToolingTicketPacket?: {
@@ -2489,6 +2549,43 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 id?: string;
                 mutation?: boolean;
                 requiresExplicitApproval?: boolean;
+              };
+            };
+            catalogToolchainTicketPacket?: {
+              id?: string;
+              owner?: string;
+              severity?: string;
+              classification?: string;
+              catalogStatus?: string;
+              registryAuthConfigured?: boolean;
+              registryBaseReadable?: boolean;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              setupAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+                requiresHumanSecretInput?: boolean;
+              };
+              localArtifactAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                registryAuthRequiresHumanSecretInput?: boolean;
+                catalogPublishRequiresExplicitApproval?: boolean;
               };
             };
             certificationToolingTicketPacket?: {
@@ -4803,6 +4900,37 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         requiresExplicitApproval: true
       }
     });
+    expect(registryOwnerPacket?.firstCatalogToolchainTicketPacket).toMatchObject({
+      id: "registry-admin-catalog-toolchain-ticket",
+      severity: "high",
+      firstReadOnlyAction: {
+        id: "registry-base-inspect",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      setupAction: {
+        id: "registry-login",
+        mutation: false,
+        requiresHumanSecretInput: true
+      },
+      localArtifactAction: {
+        id: "catalog-local-build",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id: "approval-gated-publish-catalog-image",
+        mutation: true,
+        requiresExplicitApproval: true
+      },
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        registryAuthRequiresHumanSecretInput: true,
+        catalogPublishRequiresExplicitApproval: true
+      }
+    });
     const vllmCandidateAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) => item.id === "external-runtime-vllm-candidate-matrix"
@@ -5123,6 +5251,38 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(catalogRegistryAction?.setupCommands?.map((command) => command.id)).toEqual(
         expect.arrayContaining(["registry-login"])
       );
+      expect(catalogRegistryAction?.catalogToolchainTicketPacket).toMatchObject({
+        id: "registry-admin-catalog-toolchain-ticket",
+        owner: "registry-admin",
+        firstReadOnlyAction: {
+          id: "registry-base-inspect",
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        setupAction: {
+          id: "registry-login",
+          mutation: false,
+          requiresExplicitApproval: false,
+          requiresHumanSecretInput: true
+        },
+        localArtifactAction: {
+          id: "catalog-local-build",
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        approvalGatedAction: {
+          id: "approval-gated-publish-catalog-image",
+          mutation: true,
+          requiresExplicitApproval: true
+        },
+        mutationBoundary: {
+          clusterMutationAttempted: false,
+          registryMutationAttempted: false,
+          mutationAllowedByThisVerifier: false,
+          registryAuthRequiresHumanSecretInput: true,
+          catalogPublishRequiresExplicitApproval: true
+        }
+      });
     }
     const runtimeLiveAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -6605,6 +6765,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       page.getByTestId("opslens-release-action-queue-owner-packets")
     ).toContainText("installFirst=run-operator-server-dry-run");
     await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packets")
+    ).toContainText("catalogTicket=registry-admin-catalog-toolchain-ticket");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packets")
+    ).toContainText("catalogFirst=registry-base-inspect");
+    await expect(
       page.getByTestId("opslens-release-action-queue-owner-packet-cleanup")
     ).toContainText("deletionAllowed=true");
     await expect(
@@ -6658,6 +6824,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
     ).toContainText(/registry-base-inspect|catalog registry actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
+    ).toContainText(/catalogTicket=registry-admin-catalog-toolchain-ticket|catalog registry actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
+    ).toContainText(/catalogSetup=registry-login|catalog registry actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
+    ).toContainText(/catalogLocal=catalog-local-build|catalog registry actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
+    ).toContainText(/catalogApproval=approval-gated-publish-catalog-image|catalog registry actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
+    ).toContainText(/secretInput=true|catalog registry actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
+    ).toContainText(/publishApproval=true|catalog registry actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-runtime-live-actions")
     ).toContainText(/runtime-platform-run-live-vllm-qdrant-probes|runtime live actions clear/);

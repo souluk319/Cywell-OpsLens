@@ -2238,6 +2238,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     firstReleasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     firstInstallApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
+    firstCatalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     nextCommands: string[];
     setupCommandIds: string[];
@@ -2270,6 +2271,7 @@ export interface OpsLensReleaseActionQueueSummary {
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
+    catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   ownerPacketCleanup: {
@@ -2322,6 +2324,7 @@ export interface OpsLensReleaseActionQueueSummary {
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
+    catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   sourceArtifacts: Array<{
@@ -2833,6 +2836,59 @@ export interface OpsLensInstallApprovalTicketPacket {
     ingestionJobCreated: boolean;
     mutationAllowedByThisVerifier: boolean;
     installRequiresExplicitApproval: boolean;
+  };
+  risk: string;
+  rollbackPath: string;
+}
+
+export interface OpsLensCatalogToolchainTicketPacket {
+  id: string;
+  owner: "registry-admin";
+  title: string;
+  severity: "high";
+  classification: string;
+  catalogStatus: string;
+  registryAuthConfigured: boolean;
+  registryBaseReadable: boolean;
+  baseImage: string;
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  setupAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+    requiresHumanSecretInput: boolean;
+  };
+  localArtifactAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  approvalGatedAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    registryAuthRequiresHumanSecretInput: boolean;
+    catalogPublishRequiresExplicitApproval: boolean;
   };
   risk: string;
   rollbackPath: string;

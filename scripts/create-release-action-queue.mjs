@@ -536,6 +536,7 @@ function item({
   securityReviewTicketPacket,
   releasePublishTicketPacket,
   installApprovalTicketPacket,
+  catalogToolchainTicketPacket,
   certificationToolingTicketPacket,
   acceptance = []
 }) {
@@ -592,6 +593,9 @@ function item({
       : undefined,
     installApprovalTicketPacket: installApprovalTicketPacket
       ? sanitizeInstallApprovalTicketPacket(installApprovalTicketPacket)
+      : undefined,
+    catalogToolchainTicketPacket: catalogToolchainTicketPacket
+      ? sanitizeCatalogToolchainTicketPacket(catalogToolchainTicketPacket)
       : undefined,
     certificationToolingTicketPacket: certificationToolingTicketPacket
       ? sanitizeCertificationToolingTicketPacket(certificationToolingTicketPacket)
@@ -845,6 +849,63 @@ function sanitizeInstallApprovalTicketPacket(packet = {}) {
     rollbackPath: sanitize(
       packet.rollbackPath ??
         "Use the approved uninstall order and restore OLSConfig from GitOps or backup after any install correction."
+    )
+  };
+}
+
+function sanitizeCatalogToolchainTicketPacket(packet = {}) {
+  return {
+    id: sanitize(packet.id ?? "registry-admin-catalog-toolchain-ticket"),
+    owner: "registry-admin",
+    title: sanitize(packet.title ?? "Catalog registry auth and toolchain handoff"),
+    severity: "high",
+    classification: sanitize(packet.classification ?? "registry-auth-required"),
+    catalogStatus: sanitize(packet.catalogStatus ?? "needs-tooling"),
+    registryAuthConfigured: packet.registryAuthConfigured === true,
+    registryBaseReadable: packet.registryBaseReadable === true,
+    baseImage: sanitize(
+      packet.baseImage ??
+        "registry.redhat.io/openshift4/ose-operator-registry-rhel9:v4.18"
+    ),
+    evidenceChecklist: (packet.evidenceChecklist ?? []).map(sanitize),
+    firstReadOnlyAction: sanitizeExternalRuntimeTicketAction(
+      packet.firstReadOnlyAction,
+      "registry-base-inspect"
+    ),
+    setupAction: {
+      ...sanitizeExternalRuntimeTicketAction(packet.setupAction, "registry-login"),
+      requiresHumanSecretInput:
+        packet.setupAction?.requiresHumanSecretInput !== false
+    },
+    localArtifactAction: sanitizeExternalRuntimeTicketAction(
+      packet.localArtifactAction,
+      "catalog-local-build"
+    ),
+    approvalGatedAction: sanitizeExternalRuntimeTicketAction(
+      packet.approvalGatedAction,
+      "approval-gated-publish-catalog-image"
+    ),
+    nextCommands: (packet.nextCommands ?? []).map(sanitize),
+    blockedBy: (packet.blockedBy ?? []).map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      registryAuthRequiresHumanSecretInput:
+        packet.mutationBoundary?.registryAuthRequiresHumanSecretInput !== false,
+      catalogPublishRequiresExplicitApproval:
+        packet.mutationBoundary?.catalogPublishRequiresExplicitApproval !== false
+    },
+    risk: sanitize(
+      packet.risk ??
+        "Catalog image build and publish remain blocked until registry.redhat.io auth and catalog toolchain evidence are explicit."
+    ),
+    rollbackPath: sanitize(
+      packet.rollbackPath ??
+        "No rollback is required for read-only registry inspection; remove any incorrect local catalog tag before rebuilding."
     )
   };
 }
@@ -1709,6 +1770,93 @@ function catalogToolchainItems(bundle) {
   const blockedBy = (bundle?.missingEvidence ?? []).filter((entry) =>
     /registry\.redhat\.io|catalog actual image build|catalog local build|base image manifest/i.test(entry)
   );
+  const firstReadOnly =
+    readOnlyCommands.find((command) => command.id === "registry-base-inspect") ??
+    readOnlyCommands[0] ?? {
+      id: "registry-base-inspect",
+      command:
+        "docker manifest inspect registry.redhat.io/openshift4/ose-operator-registry-rhel9:v4.18"
+    };
+  const setupAction =
+    setupCommands.find((command) => command.id === "registry-login") ?? {
+      id: "registry-login",
+      command: "docker login registry.redhat.io"
+    };
+  const localArtifact =
+    readOnlyCommands.find((command) => command.id === "catalog-local-build") ?? {
+      id: "catalog-local-build",
+      command:
+        "docker build -f deploy/catalog/catalog.Dockerfile -t cywell/opslens-catalog:verify deploy/catalog"
+    };
+  const catalogToolchainTicketPacket = {
+    id: "registry-admin-catalog-toolchain-ticket",
+    owner: "registry-admin",
+    title: "Catalog registry auth and toolchain handoff",
+    severity: "high",
+    classification: catalog.registryAuthConfigured
+      ? "registry-base-image-unreadable"
+      : "registry-auth-required",
+    catalogStatus: catalog.status ?? "needs-tooling",
+    registryAuthConfigured: catalog.registryAuthConfigured === true,
+    registryBaseReadable: catalog.registryBaseReadable === true,
+    baseImage:
+      "registry.redhat.io/openshift4/ose-operator-registry-rhel9:v4.18",
+    evidenceChecklist: [
+      "registry.redhat.io auth is configured through an approved credential path",
+      "registry base image manifest is readable with docker manifest inspect",
+      "catalog local build runs only after read-only base image inspection passes",
+      "catalog image push or publication remains approval-gated"
+    ],
+    firstReadOnlyAction: {
+      id: firstReadOnly.id,
+      status: catalog.registryBaseReadable === true ? "pass" : "needs-evidence",
+      nextCommand: firstReadOnly.command,
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    setupAction: {
+      id: setupAction.id,
+      status: catalog.registryAuthConfigured === true ? "ready" : "human-setup",
+      nextCommand: setupAction.command,
+      mutation: false,
+      requiresExplicitApproval: false,
+      requiresHumanSecretInput: true
+    },
+    localArtifactAction: {
+      id: localArtifact.id,
+      status: catalog.registryBaseReadable === true ? "ready" : "blocked",
+      nextCommand: localArtifact.command,
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id: "approval-gated-publish-catalog-image",
+      status: "approval-gated",
+      nextCommand:
+        "approval-gated catalog image push/sign/publish command from release publish plan",
+      mutation: true,
+      requiresExplicitApproval: true
+    },
+    nextCommands: uniqueStrings([
+      firstReadOnly.command,
+      setupAction.command,
+      localArtifact.command,
+      "npm run verify:catalog-toolchain",
+      "npm run evidence:release-action-queue"
+    ]),
+    blockedBy,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      registryAuthRequiresHumanSecretInput: true,
+      catalogPublishRequiresExplicitApproval: true
+    },
+    risk:
+      "Catalog build and publication can drift from release evidence if registry auth or base-image readability is not proven first.",
+    rollbackPath:
+      "No rollback is required for registry inspection; remove any incorrect local catalog tag and regenerate catalog toolchain evidence before publication."
+  };
 
   return [
     item({
@@ -1723,6 +1871,7 @@ function catalogToolchainItems(bundle) {
       nextCommand: "npm run verify:catalog-toolchain",
       setupCommands,
       readOnlyCommands,
+      catalogToolchainTicketPacket,
       blockedBy,
       acceptance: ["AC-CERT-001"]
     })
@@ -2388,6 +2537,9 @@ function criticalPath(items) {
         installApprovalTicketPacket: entry.installApprovalTicketPacket
           ? sanitizeInstallApprovalTicketPacket(entry.installApprovalTicketPacket)
           : undefined,
+        catalogToolchainTicketPacket: entry.catalogToolchainTicketPacket
+          ? sanitizeCatalogToolchainTicketPacket(entry.catalogToolchainTicketPacket)
+          : undefined,
         certificationToolingTicketPacket: entry.certificationToolingTicketPacket
           ? sanitizeCertificationToolingTicketPacket(entry.certificationToolingTicketPacket)
           : undefined
@@ -2413,6 +2565,9 @@ function buildOwnerPackets(owners, items) {
     const firstInstallApprovalTicketPacket = entries.find(
       (entry) => entry.installApprovalTicketPacket
     )?.installApprovalTicketPacket;
+    const firstCatalogToolchainTicketPacket = entries.find(
+      (entry) => entry.catalogToolchainTicketPacket
+    )?.catalogToolchainTicketPacket;
     const firstCertificationToolingTicketPacket = entries.find(
       (entry) => entry.certificationToolingTicketPacket
     )?.certificationToolingTicketPacket;
@@ -2437,6 +2592,7 @@ function buildOwnerPackets(owners, items) {
       firstSecurityReviewTicketPacket,
       firstReleasePublishTicketPacket,
       firstInstallApprovalTicketPacket,
+      firstCatalogToolchainTicketPacket,
       firstCertificationToolingTicketPacket,
       nextCommands: uniqueStrings(
         entries.flatMap((entry) => [
@@ -2517,7 +2673,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",
@@ -2529,7 +2685,7 @@ function markdownFor(queue) {
     "## Owner Packets",
     "",
     ...queue.ownerPackets.map((packet) =>
-      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}`
+      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Packet Cleanup",
@@ -2626,6 +2782,7 @@ function ownerPacketMarkdown(queue, packet) {
     `- First security review ticket: ${packet.firstSecurityReviewTicketPacket?.id ?? "none"}`,
     `- First release publish ticket: ${packet.firstReleasePublishTicketPacket?.id ?? "none"}`,
     `- First install approval ticket: ${packet.firstInstallApprovalTicketPacket?.id ?? "none"}`,
+    `- First catalog toolchain ticket: ${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}`,
     `- First certification tooling ticket: ${packet.firstCertificationToolingTicketPacket?.id ?? "none"}`,
     `- Missing tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
     `- Acceptance: ${packet.acceptance.join(", ") || "none"}`,
@@ -2715,6 +2872,26 @@ function ownerPacketMarkdown(queue, packet) {
           ""
         ]
       : []),
+    ...(packet.firstCatalogToolchainTicketPacket
+      ? [
+          "## Catalog Toolchain Ticket Packet",
+          "",
+          `- ID: ${packet.firstCatalogToolchainTicketPacket.id}`,
+          `- Title: ${packet.firstCatalogToolchainTicketPacket.title}`,
+          `- Severity: ${packet.firstCatalogToolchainTicketPacket.severity}`,
+          `- Classification: ${packet.firstCatalogToolchainTicketPacket.classification}`,
+          `- Catalog status: ${packet.firstCatalogToolchainTicketPacket.catalogStatus}`,
+          `- Registry auth configured: ${String(packet.firstCatalogToolchainTicketPacket.registryAuthConfigured)}`,
+          `- Registry base readable: ${String(packet.firstCatalogToolchainTicketPacket.registryBaseReadable)}`,
+          `- First read-only action: ${packet.firstCatalogToolchainTicketPacket.firstReadOnlyAction.id}`,
+          `- Setup action: ${packet.firstCatalogToolchainTicketPacket.setupAction.id}`,
+          `- Human secret input: ${String(packet.firstCatalogToolchainTicketPacket.setupAction.requiresHumanSecretInput)}`,
+          `- Local artifact action: ${packet.firstCatalogToolchainTicketPacket.localArtifactAction.id}`,
+          `- Approval-gated action: ${packet.firstCatalogToolchainTicketPacket.approvalGatedAction.id}`,
+          `- Approval required: ${String(packet.firstCatalogToolchainTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          ""
+        ]
+      : []),
     ...(packet.firstCertificationToolingTicketPacket
       ? [
           "## Certification Tooling Ticket Packet",
@@ -2774,6 +2951,7 @@ function ownerPacketMarkdown(queue, packet) {
       `- Security review ticket: ${entry.securityReviewTicketPacket?.id ?? "none"}`,
       `- Release publish ticket: ${entry.releasePublishTicketPacket?.id ?? "none"}`,
       `- Install approval ticket: ${entry.installApprovalTicketPacket?.id ?? "none"}`,
+      `- Catalog toolchain ticket: ${entry.catalogToolchainTicketPacket?.id ?? "none"}`,
       `- Certification tooling ticket: ${entry.certificationToolingTicketPacket?.id ?? "none"}`,
       `- Blocked by: ${entry.blockedBy.length ? entry.blockedBy.join("; ") : "none"}`,
       ""

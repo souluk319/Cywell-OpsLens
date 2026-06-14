@@ -2538,6 +2538,11 @@ export function OpsLensAdminDashboard() {
                       :installFirst=
                       {entry.installApprovalTicketPacket?.firstReadOnlyAction.id ??
                         "none"}
+                      :catalogTicket=
+                      {entry.catalogToolchainTicketPacket?.id ?? "none"}
+                      :catalogFirst=
+                      {entry.catalogToolchainTicketPacket?.firstReadOnlyAction.id ??
+                        "none"}
                       :tools={entry.missingRequiredTools.join(",") || "none"}
                       :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
                       {entry.readOnlyCommandIds.join(",") || "none"}:approval=
@@ -2598,6 +2603,11 @@ export function OpsLensAdminDashboard() {
                     {packet.firstInstallApprovalTicketPacket?.id ?? "none"}
                     :installFirst=
                     {packet.firstInstallApprovalTicketPacket?.firstReadOnlyAction
+                      .id ?? "none"}
+                    :catalogTicket=
+                    {packet.firstCatalogToolchainTicketPacket?.id ?? "none"}
+                    :catalogFirst=
+                    {packet.firstCatalogToolchainTicketPacket?.firstReadOnlyAction
                       .id ?? "none"}
                   </span>
                 ))}
@@ -2824,6 +2834,30 @@ export function OpsLensAdminDashboard() {
                       {entry.setupCommands
                         .map((command) => command.id)
                         .join(", ")}
+                      :catalogTicket=
+                      {entry.catalogToolchainTicketPacket?.id ?? "none"}
+                      :catalogFirst=
+                      {entry.catalogToolchainTicketPacket?.firstReadOnlyAction.id ??
+                        "none"}
+                      :catalogSetup=
+                      {entry.catalogToolchainTicketPacket?.setupAction.id ??
+                        "none"}
+                      :catalogLocal=
+                      {entry.catalogToolchainTicketPacket?.localArtifactAction.id ??
+                        "none"}
+                      :catalogApproval=
+                      {entry.catalogToolchainTicketPacket?.approvalGatedAction.id ??
+                        "none"}
+                      :secretInput=
+                      {String(
+                        entry.catalogToolchainTicketPacket?.setupAction
+                          .requiresHumanSecretInput ?? false
+                      )}
+                      :publishApproval=
+                      {String(
+                        entry.catalogToolchainTicketPacket?.mutationBoundary
+                          .catalogPublishRequiresExplicitApproval ?? false
+                      )}
                     </span>
                   ))
                 ) : (

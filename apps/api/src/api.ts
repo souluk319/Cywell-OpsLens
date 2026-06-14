@@ -30,6 +30,7 @@ import type {
   OpsLensAiopsIncidentPipelineSummary,
   OpsLensCatalogToolchainReadiness,
   OpsLensCatalogToolchainSummary,
+  OpsLensCatalogToolchainTicketPacket,
   OpsLensCertificationReadiness,
   OpsLensCertificationReadinessSummary,
   OpsLensCertificationToolingTicketPacket,
@@ -2630,6 +2631,7 @@ type ReleaseActionQueueArtifact = {
     firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     firstReleasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     firstInstallApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
+    firstCatalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     nextCommands?: string[];
     setupCommandIds?: string[];
@@ -2662,6 +2664,7 @@ type ReleaseActionQueueArtifact = {
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
+    catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   ownerPacketCleanup?: {
@@ -2714,6 +2717,7 @@ type ReleaseActionQueueArtifact = {
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
+    catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   sourceArtifacts?: Array<{
@@ -8181,6 +8185,8 @@ function getReleaseActionQueueReadiness(): {
         packet.firstReleasePublishTicketPacket,
       firstInstallApprovalTicketPacket:
         packet.firstInstallApprovalTicketPacket,
+      firstCatalogToolchainTicketPacket:
+        packet.firstCatalogToolchainTicketPacket,
       firstCertificationToolingTicketPacket:
         packet.firstCertificationToolingTicketPacket,
       nextCommands: packet.nextCommands ?? [],
@@ -8221,6 +8227,7 @@ function getReleaseActionQueueReadiness(): {
       securityReviewTicketPacket: entry.securityReviewTicketPacket,
       releasePublishTicketPacket: entry.releasePublishTicketPacket,
       installApprovalTicketPacket: entry.installApprovalTicketPacket,
+      catalogToolchainTicketPacket: entry.catalogToolchainTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket
     }));
     const items = (artifact.items ?? []).map((entry) => ({
@@ -8267,6 +8274,7 @@ function getReleaseActionQueueReadiness(): {
       securityReviewTicketPacket: entry.securityReviewTicketPacket,
       releasePublishTicketPacket: entry.releasePublishTicketPacket,
       installApprovalTicketPacket: entry.installApprovalTicketPacket,
+      catalogToolchainTicketPacket: entry.catalogToolchainTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
