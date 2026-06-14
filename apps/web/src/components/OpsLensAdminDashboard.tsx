@@ -3418,6 +3418,36 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-security-scan-runner-evidence"
+              >
+                <span>
+                  status={securityScanPlan.runnerEvidence.status}
+                </span>
+                <span>
+                  evidenceWritten=
+                  {String(securityScanPlan.runnerEvidence.evidenceWritten)}
+                </span>
+                <span>
+                  fresh={String(securityScanPlan.runnerEvidence.fresh)}
+                </span>
+                <span>
+                  dockerFallback=
+                  {String(
+                    securityScanPlan.runnerEvidence.executeDockerFallback
+                  )}
+                </span>
+                <span>
+                  digestPinned=
+                  {String(securityScanPlan.runnerEvidence.scannerDigestsPinned)}
+                </span>
+                <span>
+                  missingTargets=
+                  {securityScanPlan.runnerEvidence.missingTargets.join(", ") ||
+                    "none"}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-security-review-drafts"
               >
                 {securityScanPlan.images.slice(0, 7).map((image) => (

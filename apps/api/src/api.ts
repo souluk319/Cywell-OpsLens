@@ -2318,6 +2318,15 @@ type SecurityScanPlanEvidenceArtifact = {
       requiresExplicitApproval?: boolean;
     }>;
   };
+  securityScanRunner?: {
+    evidenceWritten?: boolean;
+    fresh?: boolean;
+    scannerDigestsPinned?: boolean;
+    missingTargets?: string[];
+    status?: string;
+    actionMode?: string;
+    executeDockerFallback?: boolean;
+  };
   firstSecurityReviewActions?: Array<{
     id?: string;
     owner?: string;
@@ -5876,6 +5885,18 @@ function missingSecurityScanPlanSummary(
     mutationAllowedByThisVerifier: false,
     cli: [],
     images: [],
+    runnerEvidence: {
+      status: "missing",
+      actionMode: "missing",
+      evidenceWritten: false,
+      fresh: false,
+      executeDockerFallback: false,
+      scannerDigestsPinned: false,
+      missingTargets: [],
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    },
     readOnlyCommands: [
       {
         id: "generate-security-scan-plan",
@@ -6034,6 +6055,20 @@ function getSecurityScanPlanReadiness(): {
           image.securityEvidence?.reviewDraft?.missingEvidence ?? []
       }
     }));
+    const runnerEvidence = {
+      status: artifact.securityScanRunner?.status ?? "missing",
+      actionMode: artifact.securityScanRunner?.actionMode ?? "missing",
+      evidenceWritten: artifact.securityScanRunner?.evidenceWritten === true,
+      fresh: artifact.securityScanRunner?.fresh === true,
+      executeDockerFallback:
+        artifact.securityScanRunner?.executeDockerFallback === true,
+      scannerDigestsPinned:
+        artifact.securityScanRunner?.scannerDigestsPinned === true,
+      missingTargets: artifact.securityScanRunner?.missingTargets ?? [],
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    };
     const readOnlyCommands = (artifact.commands?.readOnly ?? []).map((command) => ({
       id: command.id ?? "unknown",
       command: command.command ?? "unknown",
@@ -6103,6 +6138,7 @@ function getSecurityScanPlanReadiness(): {
           artifact.mutationAllowedByThisVerifier === true,
         cli,
         images,
+        runnerEvidence,
         readOnlyCommands,
         setupCommands,
         approvalGatedCommands,
@@ -6115,6 +6151,7 @@ function getSecurityScanPlanReadiness(): {
         `Security scan plan ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `security scan plan generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `scanReadOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length} approvalGatedCommands=${approvalGatedCommands.length}`,
+        `security scan runner status=${runnerEvidence.status} actionMode=${runnerEvidence.actionMode} evidenceWritten=${String(runnerEvidence.evidenceWritten)} fresh=${String(runnerEvidence.fresh)} dockerFallback=${String(runnerEvidence.executeDockerFallback)} digestPinned=${String(runnerEvidence.scannerDigestsPinned)} missingTargets=${runnerEvidence.missingTargets.join(",") || "none"}`,
         `securityFirstReviewActions=${firstSecurityReviewActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         missingTools ? `missing local scan/sign CLIs=${missingTools}` : "all reported scan/sign CLIs are available",
         `required images missing scan/SBOM/review evidence=${requiredMissingEvidence}`,

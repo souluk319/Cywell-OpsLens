@@ -175,6 +175,46 @@ function loadJson(path, label) {
   }
 }
 
+function loadExistingRunnerEvidence(path) {
+  const absolutePath = resolve(path);
+  if (!existsSync(absolutePath)) return undefined;
+  try {
+    return JSON.parse(readFileSync(absolutePath, "utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+function canPreserveExecutionEvidence(existing, headSha, worktreeDirty) {
+  const requiredTargets = new Set(["operator", "api", "dashboard", "bundle"]);
+  const passedTargets = new Set(
+    (existing?.results ?? [])
+      .filter((result) =>
+        requiredTargets.has(result.name) &&
+        result.executionMode === "docker-fallback" &&
+        result.vulnerabilityReport?.status === "PASS" &&
+        result.sbom?.status === "PASS" &&
+        result.reviewDraft?.status === "PASS"
+      )
+      .map((result) => result.name)
+  );
+  return (
+    existing?.artifactType === "opslens.security-scan-evidence-runner.v0.1" &&
+    existing?.status === "EVIDENCE_WRITTEN" &&
+    existing?.actionMode === "scanEvidenceLocalWrite" &&
+    existing?.ref?.headSha === headSha &&
+    existing?.ref?.worktreeDirty === false &&
+    worktreeDirty === false &&
+    existing?.options?.executeDockerFallback === true &&
+    existing?.scannerImages?.trivy?.digestResolved === true &&
+    existing?.scannerImages?.syft?.digestResolved === true &&
+    [...requiredTargets].every((target) => passedTargets.has(target)) &&
+    existing?.registryMutationAttempted === false &&
+    existing?.clusterMutationAttempted === false &&
+    existing?.mutationAllowedByThisVerifier === false
+  );
+}
+
 function ownedTargets(provenance) {
   const images = Array.isArray(provenance?.images) && provenance.images.length > 0
     ? provenance.images.map((image) => ({
@@ -552,6 +592,11 @@ async function main() {
   const baseRef = await gitValue(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], "unknown");
   const worktreeStatus = await gitStatusShort();
   const worktreeDirty = worktreeStatus.length > 0;
+  const existingRunnerEvidence = loadExistingRunnerEvidence(options.evidenceOut);
+  const preserveExecutionEvidence =
+    !options.execute &&
+    !options.executeDockerFallback &&
+    canPreserveExecutionEvidence(existingRunnerEvidence, headSha, worktreeDirty);
   if (worktreeDirty) warn("current worktree", `dirty=true entries=${worktreeStatus.length}`);
   else pass("current worktree", `dirty=false head=${headSha}`);
 
@@ -589,6 +634,8 @@ async function main() {
     trivy: await resolveScannerImage("trivy", options.trivyImage),
     syft: await resolveScannerImage("syft", options.syftImage)
   };
+  let artifactScannerImages = scannerImages;
+  let artifactResults = results;
 
   if (options.execute) {
     if (!trivyAvailable || !syftAvailable) {
@@ -608,13 +655,20 @@ async function main() {
         await executeDockerFallbackForTarget(plan, scannerImages);
       }
     }
+  } else if (preserveExecutionEvidence) {
+    artifactScannerImages = existingRunnerEvidence.scannerImages;
+    artifactResults = existingRunnerEvidence.results ?? [];
+    pass(
+      "scan runner execution evidence preserved",
+      `preserved ${artifactResults.length} Docker fallback result(s) from current clean head ${headSha}`
+    );
   } else {
     pass("scan runner mode", "plan-only; pass --execute or --execute-docker-fallback to write vulnerability/SBOM evidence locally");
   }
 
   const status = checks.some((check) => check.status === "FAIL")
     ? "BLOCKED"
-    : options.execute || options.executeDockerFallback
+    : options.execute || options.executeDockerFallback || preserveExecutionEvidence
       ? "EVIDENCE_WRITTEN"
       : "PLAN_READY";
   const evidenceOutPath = resolve(options.evidenceOut);
@@ -626,7 +680,10 @@ async function main() {
     generatedAt: new Date().toISOString(),
     startedAt,
     status,
-    actionMode: options.execute || options.executeDockerFallback ? "scanEvidenceLocalWrite" : "scanEvidencePlanOnly",
+    actionMode:
+      options.execute || options.executeDockerFallback || preserveExecutionEvidence
+        ? "scanEvidenceLocalWrite"
+        : "scanEvidencePlanOnly",
     registryMutationAttempted: false,
     clusterMutationAttempted: false,
     mutationAllowedByThisVerifier: false,
@@ -640,7 +697,10 @@ async function main() {
     options: {
       name: options.name,
       execute: options.execute,
-      executeDockerFallback: options.executeDockerFallback,
+      executeDockerFallback:
+        options.executeDockerFallback ||
+        Boolean(existingRunnerEvidence?.options?.executeDockerFallback && preserveExecutionEvidence),
+      preservedExecutionEvidence: preserveExecutionEvidence,
       includeExternal: options.includeExternal,
       imageOverride: options.imageOverride,
       scanRefOverride: options.scanRefOverride,
@@ -648,17 +708,17 @@ async function main() {
       trivyTimeout: options.trivyTimeout,
       trivyScanners: options.trivyScanners
     },
-    scannerImages,
+    scannerImages: artifactScannerImages,
     cli: {
       trivy: trivyAvailable,
       syft: syftAvailable,
       docker: dockerAvailable
     },
     commandPlans: plans,
-    results,
+    results: artifactResults,
     missingEvidence: [
-      ...(!trivyAvailable && !options.executeDockerFallback ? ["trivy CLI unavailable for --execute mode"] : []),
-      ...(!syftAvailable && !options.executeDockerFallback ? ["syft CLI unavailable for --execute mode"] : []),
+      ...(!trivyAvailable && !options.executeDockerFallback && !preserveExecutionEvidence ? ["trivy CLI unavailable for --execute mode"] : []),
+      ...(!syftAvailable && !options.executeDockerFallback && !preserveExecutionEvidence ? ["syft CLI unavailable for --execute mode"] : []),
       ...(options.executeDockerFallback && !scannerImages.trivy.digestResolved ? ["trivy Docker scanner image digest was not resolved"] : []),
       ...(options.executeDockerFallback && !scannerImages.syft.digestResolved ? ["syft Docker scanner image digest was not resolved"] : []),
       ...(plans.length === 0 ? [`no scan targets matched ${options.name}`] : []),
@@ -668,7 +728,9 @@ async function main() {
       "This runner is local evidence generation only; it does not sign, push, mirror, apply, delete, scale, or patch cluster resources.",
       options.executeDockerFallback
         ? "Docker fallback scanner images are pulled locally and converted to immutable RepoDigests before scans run."
-        : "Docker fallback commands are emitted as a plan because scanner image pulls should be reviewed and pinned before release evidence collection.",
+        : preserveExecutionEvidence
+          ? "Same-head Docker fallback scan evidence was preserved without re-pulling scanner images or re-running scans."
+          : "Docker fallback commands are emitted as a plan because scanner image pulls should be reviewed and pinned before release evidence collection.",
       "Final release readiness still requires reviewed *-security-review.json evidence with criticalFindings=0."
     ],
     rollbackPath: [
@@ -696,7 +758,7 @@ async function main() {
     console.log(`[${check.status}] ${check.name}: ${check.detail}`);
   }
   console.log("");
-  console.log(`Cywell OpsLens security scan evidence runner: status=${artifact.status}, targets=${plans.length}, execute=${options.execute}, executeDockerFallback=${options.executeDockerFallback}`);
+  console.log(`Cywell OpsLens security scan evidence runner: status=${artifact.status}, targets=${plans.length}, execute=${options.execute}, executeDockerFallback=${options.executeDockerFallback}, preservedExecutionEvidence=${preserveExecutionEvidence}`);
   if (artifact.status === "BLOCKED") process.exitCode = 1;
 }
 

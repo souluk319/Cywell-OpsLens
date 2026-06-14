@@ -1774,6 +1774,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               readyForFinalReview?: boolean;
             };
           }>;
+          runnerEvidence?: {
+            status?: string;
+            actionMode?: string;
+            evidenceWritten?: boolean;
+            fresh?: boolean;
+            executeDockerFallback?: boolean;
+            scannerDigestsPinned?: boolean;
+            missingTargets?: string[];
+            registryMutationAttempted?: boolean;
+            clusterMutationAttempted?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+          };
           readOnlyCommands?: Array<{
             id?: string;
             mutation?: boolean;
@@ -3278,6 +3290,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining(["operator", "api", "dashboard", "bundle", "vllm", "qdrant"])
     );
+    expect(body.installReadiness?.securityScanPlan?.runnerEvidence).toMatchObject({
+      actionMode: "scanEvidenceLocalWrite",
+      evidenceWritten: true,
+      fresh: true,
+      executeDockerFallback: true,
+      scannerDigestsPinned: true,
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.securityScanPlan?.runnerEvidence?.missingTargets
+    ).toEqual([]);
     const operatorSecurityReviewDraft =
       body.installReadiness?.securityScanPlan?.images?.find(
         (image) => image.name === "operator"
@@ -5008,6 +5033,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-security-first-review-actions")
     ).toContainText("approval=true");
+    await expect(
+      page.getByTestId("opslens-security-scan-runner-evidence")
+    ).toContainText("evidenceWritten=true");
+    await expect(
+      page.getByTestId("opslens-security-scan-runner-evidence")
+    ).toContainText("fresh=true");
+    await expect(
+      page.getByTestId("opslens-security-scan-runner-evidence")
+    ).toContainText("dockerFallback=true");
+    await expect(
+      page.getByTestId("opslens-security-scan-runner-evidence")
+    ).toContainText("digestPinned=true");
+    await expect(
+      page.getByTestId("opslens-security-scan-runner-evidence")
+    ).toContainText("missingTargets=none");
     await expect(page.getByTestId("opslens-security-review-drafts")).toContainText(
       "operator:draft="
     );

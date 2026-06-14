@@ -1629,6 +1629,18 @@ export interface OpsLensSecurityScanPlanSummary {
       missingEvidence: string[];
     };
   }>;
+  runnerEvidence: {
+    status: string;
+    actionMode: string;
+    evidenceWritten: boolean;
+    fresh: boolean;
+    executeDockerFallback: boolean;
+    scannerDigestsPinned: boolean;
+    missingTargets: string[];
+    registryMutationAttempted: boolean;
+    clusterMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+  };
   readOnlyCommands: Array<{
     id: string;
     command: string;
