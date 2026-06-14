@@ -103,6 +103,7 @@ import type {
   OpsLensRagEvidenceExportResponse,
   OpsLensRagProductionReadiness,
   OpsLensRagProductionReadinessSummary,
+  OpsLensRagProductionTicketPacket,
   OpsLensRagValidationRequest,
   OpsLensRagValidationResponse,
   OpsLensToolName,
@@ -2633,6 +2634,7 @@ type ReleaseActionQueueArtifact = {
     firstInstallApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     firstCatalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
+    firstRagProductionTicketPacket?: OpsLensRagProductionTicketPacket;
     nextCommands?: string[];
     setupCommandIds?: string[];
     readOnlyCommandIds?: string[];
@@ -2666,6 +2668,7 @@ type ReleaseActionQueueArtifact = {
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
+    ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
   }>;
   ownerPacketCleanup?: {
     dir?: string;
@@ -2719,6 +2722,7 @@ type ReleaseActionQueueArtifact = {
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
+    ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
   }>;
   sourceArtifacts?: Array<{
     id?: string;
@@ -2810,6 +2814,7 @@ type RagProductionReadinessArtifact = {
     blockedBy?: string[];
     rollbackPath?: string;
   }>;
+  ticketPacket?: OpsLensRagProductionTicketPacket;
   missingEvidence?: string[];
   risk?: string[];
   rollbackPath?: string[];
@@ -8189,6 +8194,7 @@ function getReleaseActionQueueReadiness(): {
         packet.firstCatalogToolchainTicketPacket,
       firstCertificationToolingTicketPacket:
         packet.firstCertificationToolingTicketPacket,
+      firstRagProductionTicketPacket: packet.firstRagProductionTicketPacket,
       nextCommands: packet.nextCommands ?? [],
       setupCommandIds: packet.setupCommandIds ?? [],
       readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
@@ -8228,7 +8234,8 @@ function getReleaseActionQueueReadiness(): {
       releasePublishTicketPacket: entry.releasePublishTicketPacket,
       installApprovalTicketPacket: entry.installApprovalTicketPacket,
       catalogToolchainTicketPacket: entry.catalogToolchainTicketPacket,
-      certificationToolingTicketPacket: entry.certificationToolingTicketPacket
+      certificationToolingTicketPacket: entry.certificationToolingTicketPacket,
+      ragProductionTicketPacket: entry.ragProductionTicketPacket
     }));
     const items = (artifact.items ?? []).map((entry) => ({
       id: entry.id ?? "unknown",
@@ -8275,7 +8282,8 @@ function getReleaseActionQueueReadiness(): {
       releasePublishTicketPacket: entry.releasePublishTicketPacket,
       installApprovalTicketPacket: entry.installApprovalTicketPacket,
       catalogToolchainTicketPacket: entry.catalogToolchainTicketPacket,
-      certificationToolingTicketPacket: entry.certificationToolingTicketPacket
+      certificationToolingTicketPacket: entry.certificationToolingTicketPacket,
+      ragProductionTicketPacket: entry.ragProductionTicketPacket
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
       id: source.id ?? "unknown",
@@ -8460,6 +8468,50 @@ function missingRagProductionReadinessSummary(
   reason: string,
   status: OpsLensRagProductionReadiness = "needs-evidence"
 ): OpsLensRagProductionReadinessSummary {
+  const ticketPacket: OpsLensRagProductionTicketPacket = {
+    id: "rag-owner-production-ingestion-ticket",
+    owner: "rag-owner",
+    title: "RAG production ingestion approval handoff",
+    severity: "high",
+    classification: "rag-production-readiness-missing",
+    readinessStatus: status === "blocked" ? "BLOCKED" : "MISSING",
+    requiredApprovals: ["rag-owner", "cluster-sre", "security-reviewer"],
+    queueLive: false,
+    ingestionWorkerLive: false,
+    vectorWriteAuditSinkLive: false,
+    evidenceChecklist: [reason],
+    firstReadOnlyAction: {
+      id: "verify-rag-production-readiness",
+      status: "needs-evidence",
+      nextCommand: "npm run verify:rag:production-readiness",
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id: "approval-gated-apply-approved-rag-production-stack",
+      status: "approval-gated",
+      nextCommand: "oc apply -f deploy/rag-production/approved-rag-ingestion-stack.yaml",
+      mutation: true,
+      requiresExplicitApproval: true
+    },
+    nextCommands: [
+      "npm run verify:rag:production-readiness",
+      "npm run verify:install-plan"
+    ],
+    blockedBy: [reason],
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false,
+      ingestionRequiresExplicitApproval: true
+    },
+    risk:
+      "Production RAG ingestion must remain blocked until queue, worker, audit sink, source-ref, and rollback evidence are present.",
+    rollbackPath:
+      "Run npm run verify:rag:production-readiness after refreshing RAG approval queue evidence."
+  };
   return {
     status,
     artifactStatus: status === "blocked" ? "invalid" : "missing",
@@ -8522,6 +8574,7 @@ function missingRagProductionReadinessSummary(
           "No rollback is required for read-only RAG production readiness preflight."
       }
     ],
+    ticketPacket,
     missingEvidence: [reason],
     risk: [
       "Production RAG ingestion must remain blocked until queue, worker, audit sink, source-ref, and rollback evidence are present."
@@ -8689,6 +8742,100 @@ function getRagProductionReadiness(): {
         action.rollbackPath ??
         "Regenerate RAG production readiness evidence before proceeding."
     }));
+    const fallbackReadOnlyAction =
+      firstProductionActions.find((action) => action.mutation === false) ??
+      firstProductionActions[0];
+    const fallbackApprovalAction =
+      firstProductionActions.find((action) => action.mutation === true);
+    const ticketPacket: OpsLensRagProductionTicketPacket = {
+      id: artifact.ticketPacket?.id ?? "rag-owner-production-ingestion-ticket",
+      owner: "rag-owner",
+      title:
+        artifact.ticketPacket?.title ??
+        "RAG production ingestion approval handoff",
+      severity: "high",
+      classification:
+        artifact.ticketPacket?.classification ??
+        "production-ingestion-evidence-required",
+      readinessStatus: artifact.ticketPacket?.readinessStatus ?? artifact.status ?? "unknown",
+      requiredApprovals:
+        artifact.ticketPacket?.requiredApprovals ??
+        artifact.requiredApprovals ??
+        ["rag-owner", "cluster-sre", "security-reviewer"],
+      queueLive:
+        artifact.ticketPacket?.queueLive ??
+        (readiness.productionQueueLive === true),
+      ingestionWorkerLive:
+        artifact.ticketPacket?.ingestionWorkerLive ??
+        (readiness.ingestionWorkerLive === true),
+      vectorWriteAuditSinkLive:
+        artifact.ticketPacket?.vectorWriteAuditSinkLive ??
+        (readiness.vectorWriteAuditSinkLive === true),
+      evidenceChecklist:
+        artifact.ticketPacket?.evidenceChecklist ??
+        (artifact.missingEvidence ?? []).slice(0, 6),
+      firstReadOnlyAction: {
+        id:
+          artifact.ticketPacket?.firstReadOnlyAction?.id ??
+          fallbackReadOnlyAction?.id ??
+          "verify-rag-production-readiness",
+        status:
+          artifact.ticketPacket?.firstReadOnlyAction?.status ??
+          fallbackReadOnlyAction?.status ??
+          "needs-evidence",
+        nextCommand:
+          artifact.ticketPacket?.firstReadOnlyAction?.nextCommand ??
+          fallbackReadOnlyAction?.nextCommand ??
+          "npm run verify:rag:production-readiness",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id:
+          artifact.ticketPacket?.approvalGatedAction?.id ??
+          fallbackApprovalAction?.id ??
+          "approval-gated-apply-approved-rag-production-stack",
+        status:
+          artifact.ticketPacket?.approvalGatedAction?.status ??
+          fallbackApprovalAction?.status ??
+          "approval-gated",
+        nextCommand:
+          artifact.ticketPacket?.approvalGatedAction?.nextCommand ??
+          fallbackApprovalAction?.nextCommand ??
+          "oc apply -f deploy/rag-production/approved-rag-ingestion-stack.yaml",
+        mutation: true,
+        requiresExplicitApproval: true
+      },
+      nextCommands:
+        artifact.ticketPacket?.nextCommands ??
+        [
+          "npm run verify:rag:production-readiness",
+          "npm run verify:install-plan"
+        ],
+      blockedBy: artifact.ticketPacket?.blockedBy ?? artifact.missingEvidence ?? [],
+      mutationBoundary: {
+        clusterMutationAttempted:
+          artifact.ticketPacket?.mutationBoundary?.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          artifact.ticketPacket?.mutationBoundary?.registryMutationAttempted === true,
+        vectorWriteAttempted:
+          artifact.ticketPacket?.mutationBoundary?.vectorWriteAttempted === true,
+        ingestionJobCreated:
+          artifact.ticketPacket?.mutationBoundary?.ingestionJobCreated === true,
+        mutationAllowedByThisVerifier:
+          artifact.ticketPacket?.mutationBoundary?.mutationAllowedByThisVerifier === true,
+        ingestionRequiresExplicitApproval:
+          artifact.ticketPacket?.mutationBoundary?.ingestionRequiresExplicitApproval !== false
+      },
+      risk:
+        artifact.ticketPacket?.risk ??
+        artifact.risk?.[0] ??
+        "Production RAG ingestion remains blocked until approval evidence is explicit.",
+      rollbackPath:
+        artifact.ticketPacket?.rollbackPath ??
+        artifact.rollbackPath?.[0] ??
+        "Disable the ingestion worker schedule and stop manual job creation."
+    };
     const productionReadiness: OpsLensRagProductionReadinessSummary = {
       status,
       artifactStatus: artifact.status ?? "unknown",
@@ -8732,6 +8879,7 @@ function getRagProductionReadiness(): {
       readOnlyCommands,
       approvalGatedCommands,
       firstProductionActions,
+      ticketPacket,
       missingEvidence: artifact.missingEvidence ?? [],
       risk: artifact.risk ?? [],
       rollbackPath: artifact.rollbackPath ?? [],

@@ -1172,6 +1172,31 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             blockedBy?: string[];
             rollbackPath?: string;
           }>;
+          ticketPacket?: {
+            id?: string;
+            owner?: string;
+            severity?: string;
+            classification?: string;
+            readinessStatus?: string;
+            requiredApprovals?: string[];
+            firstReadOnlyAction?: {
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            approvalGatedAction?: {
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            mutationBoundary?: {
+              clusterMutationAttempted?: boolean;
+              vectorWriteAttempted?: boolean;
+              ingestionJobCreated?: boolean;
+              mutationAllowedByThisVerifier?: boolean;
+              ingestionRequiresExplicitApproval?: boolean;
+            };
+          };
           missingEvidence?: string[];
         };
       };
@@ -2323,6 +2348,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 requiresExplicitApproval?: boolean;
               };
             };
+            firstRagProductionTicketPacket?: {
+              id?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
             mutationAllowedByThisVerifier?: boolean;
           }>;
           criticalPath?: Array<{
@@ -2461,6 +2499,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 id?: string;
                 mutation?: boolean;
                 requiresExplicitApproval?: boolean;
+              };
+            };
+            ragProductionTicketPacket?: {
+              id?: string;
+              owner?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                vectorWriteAttempted?: boolean;
+                ingestionJobCreated?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                ingestionRequiresExplicitApproval?: boolean;
               };
             };
           }>;
@@ -2606,6 +2665,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 id?: string;
                 mutation?: boolean;
                 requiresExplicitApproval?: boolean;
+              };
+            };
+            ragProductionTicketPacket?: {
+              id?: string;
+              owner?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                vectorWriteAttempted?: boolean;
+                ingestionJobCreated?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                ingestionRequiresExplicitApproval?: boolean;
               };
             };
           }>;
@@ -2892,6 +2972,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       ragProductionFirstActions.every((action) => Array.isArray(action.blockedBy))
     ).toBe(true);
+    expect(body.rag?.productionReadiness?.ticketPacket).toMatchObject({
+      id: "rag-owner-production-ingestion-ticket",
+      owner: "rag-owner",
+      firstReadOnlyAction: {
+        id: "verify-rag-production-readiness",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id: "approval-gated-apply-approved-rag-production-stack",
+        mutation: true,
+        requiresExplicitApproval: true
+      },
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        vectorWriteAttempted: false,
+        ingestionJobCreated: false,
+        mutationAllowedByThisVerifier: false,
+        ingestionRequiresExplicitApproval: true
+      }
+    });
     expect(body.tokenUsage?.budgetTokens).toBeGreaterThan(
       body.tokenUsage?.usedTokens ?? 0
     );
@@ -5425,6 +5526,43 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(ragOwnerQueueAction?.blockedBy?.some((entry) =>
         /releaseActionQueue:\s*releaseActionQueue:/i.test(entry)
       )).toBe(false);
+      expect(ragOwnerQueueAction?.ragProductionTicketPacket).toMatchObject({
+        id: "rag-owner-production-ingestion-ticket",
+        owner: "rag-owner",
+        firstReadOnlyAction: {
+          id: "verify-rag-production-readiness",
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        approvalGatedAction: {
+          id: "approval-gated-apply-approved-rag-production-stack",
+          mutation: true,
+          requiresExplicitApproval: true
+        },
+        mutationBoundary: {
+          clusterMutationAttempted: false,
+          vectorWriteAttempted: false,
+          ingestionJobCreated: false,
+          mutationAllowedByThisVerifier: false,
+          ingestionRequiresExplicitApproval: true
+        }
+      });
+      const ragProductionCriticalPath =
+        body.installReadiness?.actionQueue?.criticalPath?.find(
+          (entry) => entry.lane === "rag-production"
+        );
+      expect(ragProductionCriticalPath?.ragProductionTicketPacket).toMatchObject({
+        id: "rag-owner-production-ingestion-ticket",
+        firstReadOnlyAction: {
+          id: "verify-rag-production-readiness",
+          mutation: false
+        },
+        approvalGatedAction: {
+          id: "approval-gated-apply-approved-rag-production-stack",
+          mutation: true,
+          requiresExplicitApproval: true
+        }
+      });
     }
     const monitoringProxyAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -5838,6 +5976,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-rag-production-first-actions")
     ).toContainText("approval=true");
+    await expect(
+      page.getByTestId("opslens-rag-production-ticket")
+    ).toContainText("rag-owner-production-ingestion-ticket");
+    await expect(
+      page.getByTestId("opslens-rag-production-ticket")
+    ).toContainText("first=verify-rag-production-readiness");
+    await expect(
+      page.getByTestId("opslens-rag-production-ticket")
+    ).toContainText("approval=approval-gated-apply-approved-rag-production-stack");
+    await expect(
+      page.getByTestId("opslens-rag-production-ticket")
+    ).toContainText("ingestionApproval=true");
     await expect(page.getByTestId("opslens-token-usage")).toContainText(
       "lightspeed-mcp"
     );
@@ -6913,6 +7063,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-runtime-live-actions")
     ).toContainText(/runtime-rag-fixture|runtime live actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-runtime-live-actions")
+    ).toContainText(/ragTicket=rag-owner-production-ingestion-ticket|runtime live actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-monitoring-proxy-actions")
     ).toContainText(/cluster-sre-enable-monitoring-proxy-evidence|monitoring proxy actions clear/);

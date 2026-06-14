@@ -682,6 +682,7 @@ function item({
   installApprovalTicketPacket,
   catalogToolchainTicketPacket,
   certificationToolingTicketPacket,
+  ragProductionTicketPacket,
   acceptance = []
 }) {
   return {
@@ -743,6 +744,9 @@ function item({
       : undefined,
     certificationToolingTicketPacket: certificationToolingTicketPacket
       ? sanitizeCertificationToolingTicketPacket(certificationToolingTicketPacket)
+      : undefined,
+    ragProductionTicketPacket: ragProductionTicketPacket
+      ? sanitizeRagProductionTicketPacket(ragProductionTicketPacket)
       : undefined,
     acceptance
   };
@@ -1110,6 +1114,60 @@ function sanitizeCertificationToolingTicketPacket(packet = {}) {
     rollbackPath: sanitize(
       packet.rollbackPath ??
         "No rollback is required because this packet writes only local evidence."
+    )
+  };
+}
+
+function sanitizeRagProductionTicketPacket(packet = {}) {
+  return {
+    id: sanitize(packet.id ?? "rag-owner-production-ingestion-ticket"),
+    owner: "rag-owner",
+    title: sanitize(packet.title ?? "RAG production ingestion approval handoff"),
+    severity: "high",
+    classification: sanitize(
+      packet.classification ?? "production-ingestion-evidence-required"
+    ),
+    readinessStatus: sanitize(packet.readinessStatus ?? "missing"),
+    requiredApprovals: (packet.requiredApprovals ?? [
+      "rag-owner",
+      "cluster-sre",
+      "security-reviewer"
+    ]).map(sanitize),
+    queueLive: packet.queueLive === true,
+    ingestionWorkerLive: packet.ingestionWorkerLive === true,
+    vectorWriteAuditSinkLive: packet.vectorWriteAuditSinkLive === true,
+    evidenceChecklist: (packet.evidenceChecklist ?? []).map(sanitize),
+    firstReadOnlyAction: sanitizeExternalRuntimeTicketAction(
+      packet.firstReadOnlyAction,
+      "verify-rag-production-readiness"
+    ),
+    approvalGatedAction: sanitizeExternalRuntimeTicketAction(
+      packet.approvalGatedAction,
+      "approval-gated-apply-approved-rag-production-stack"
+    ),
+    nextCommands: (packet.nextCommands ?? []).map(sanitize),
+    blockedBy: (packet.blockedBy ?? []).map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      vectorWriteAttempted:
+        packet.mutationBoundary?.vectorWriteAttempted === true,
+      ingestionJobCreated:
+        packet.mutationBoundary?.ingestionJobCreated === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      ingestionRequiresExplicitApproval:
+        packet.mutationBoundary?.ingestionRequiresExplicitApproval !== false
+    },
+    risk: sanitize(
+      packet.risk ??
+        "Production RAG ingestion remains blocked until approval evidence is explicit."
+    ),
+    rollbackPath: sanitize(
+      packet.rollbackPath ??
+        "Disable the ingestion worker schedule and stop manual job creation."
     )
   };
 }
@@ -2257,6 +2315,7 @@ function runtimeLiveItems(
         }
       ],
       approvalGatedCommands: ragProductionReadiness?.approvalGatedCommands ?? [],
+      ragProductionTicketPacket: ragProductionReadiness?.ticketPacket,
       blockedBy: ragQueueGaps,
       diagnostics: ragProductionReadinessDiagnostics(ragProductionReadiness),
       acceptance: ["AC-RAG-001", "AC-RAG-002", "AC-DASH-001", "AC-OP-005"]
@@ -2701,6 +2760,9 @@ function criticalPath(items) {
           : undefined,
         certificationToolingTicketPacket: entry.certificationToolingTicketPacket
           ? sanitizeCertificationToolingTicketPacket(entry.certificationToolingTicketPacket)
+          : undefined,
+        ragProductionTicketPacket: entry.ragProductionTicketPacket
+          ? sanitizeRagProductionTicketPacket(entry.ragProductionTicketPacket)
           : undefined
       };
     })
@@ -2730,6 +2792,9 @@ function buildOwnerPackets(owners, items) {
     const firstCertificationToolingTicketPacket = entries.find(
       (entry) => entry.certificationToolingTicketPacket
     )?.certificationToolingTicketPacket;
+    const firstRagProductionTicketPacket = entries.find(
+      (entry) => entry.ragProductionTicketPacket
+    )?.ragProductionTicketPacket;
     return {
       owner: owner.owner,
       status: owner.blocker > 0 ? "blocker" : owner.open > 0 ? "open" : "clear",
@@ -2753,6 +2818,7 @@ function buildOwnerPackets(owners, items) {
       firstInstallApprovalTicketPacket,
       firstCatalogToolchainTicketPacket,
       firstCertificationToolingTicketPacket,
+      firstRagProductionTicketPacket,
       nextCommands: uniqueStrings(
         entries.flatMap((entry) => [
           entry.nextCommand,
@@ -2832,7 +2898,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}, ragTicket=${entry.ragProductionTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",
@@ -2844,7 +2910,7 @@ function markdownFor(queue) {
     "## Owner Packets",
     "",
     ...queue.ownerPackets.map((packet) =>
-      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}`
+      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}, ragTicket=${packet.firstRagProductionTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Packet Cleanup",
@@ -2943,6 +3009,7 @@ function ownerPacketMarkdown(queue, packet) {
     `- First install approval ticket: ${packet.firstInstallApprovalTicketPacket?.id ?? "none"}`,
     `- First catalog toolchain ticket: ${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}`,
     `- First certification tooling ticket: ${packet.firstCertificationToolingTicketPacket?.id ?? "none"}`,
+    `- First RAG production ticket: ${packet.firstRagProductionTicketPacket?.id ?? "none"}`,
     `- Missing tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
     `- Acceptance: ${packet.acceptance.join(", ") || "none"}`,
     "",
@@ -3070,6 +3137,26 @@ function ownerPacketMarkdown(queue, packet) {
           ""
         ]
       : []),
+    ...(packet.firstRagProductionTicketPacket
+      ? [
+          "## RAG Production Ticket Packet",
+          "",
+          `- ID: ${packet.firstRagProductionTicketPacket.id}`,
+          `- Title: ${packet.firstRagProductionTicketPacket.title}`,
+          `- Severity: ${packet.firstRagProductionTicketPacket.severity}`,
+          `- Classification: ${packet.firstRagProductionTicketPacket.classification}`,
+          `- Readiness status: ${packet.firstRagProductionTicketPacket.readinessStatus}`,
+          `- Required approvals: ${packet.firstRagProductionTicketPacket.requiredApprovals.join(", ")}`,
+          `- Queue live: ${String(packet.firstRagProductionTicketPacket.queueLive)}`,
+          `- Worker live: ${String(packet.firstRagProductionTicketPacket.ingestionWorkerLive)}`,
+          `- Audit sink live: ${String(packet.firstRagProductionTicketPacket.vectorWriteAuditSinkLive)}`,
+          `- First read-only action: ${packet.firstRagProductionTicketPacket.firstReadOnlyAction.id}`,
+          `- First read-only command: ${packet.firstRagProductionTicketPacket.firstReadOnlyAction.nextCommand}`,
+          `- Approval-gated action: ${packet.firstRagProductionTicketPacket.approvalGatedAction.id}`,
+          `- Approval required: ${String(packet.firstRagProductionTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          ""
+        ]
+      : []),
     "## Next Commands",
     "",
     ...(packet.nextCommands.length
@@ -3112,6 +3199,7 @@ function ownerPacketMarkdown(queue, packet) {
       `- Install approval ticket: ${entry.installApprovalTicketPacket?.id ?? "none"}`,
       `- Catalog toolchain ticket: ${entry.catalogToolchainTicketPacket?.id ?? "none"}`,
       `- Certification tooling ticket: ${entry.certificationToolingTicketPacket?.id ?? "none"}`,
+      `- RAG production ticket: ${entry.ragProductionTicketPacket?.id ?? "none"}`,
       `- Blocked by: ${entry.blockedBy.length ? entry.blockedBy.join("; ") : "none"}`,
       ""
     );

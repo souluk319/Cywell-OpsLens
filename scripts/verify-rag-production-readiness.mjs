@@ -229,6 +229,86 @@ function firstProductionActions(missingEvidence, readOnlyCommands, approvalGated
   return [...gapActions, ...preflightAction, ...gatedMutationAction];
 }
 
+function buildRagProductionTicketPacket({
+  status,
+  readiness,
+  requiredApprovals,
+  readOnlyCommands,
+  approvalGatedCommands,
+  missingEvidence,
+  risk,
+  rollbackPath
+}) {
+  const firstReadOnlyCommand =
+    readOnlyCommands.find((command) => command.id === "verify-rag-production-readiness") ??
+    readOnlyCommands[0] ??
+    {
+      id: "verify-rag-production-readiness",
+      phase: "rag-production-readiness",
+      command: "npm run verify:rag:production-readiness",
+      mutation: false
+    };
+  const firstApprovalCommand =
+    approvalGatedCommands.find((command) => command.mutation === true) ??
+    {
+      id: "apply-approved-rag-production-stack",
+      phase: "post-approval-rag-ingestion",
+      command: "oc apply -f deploy/rag-production/approved-rag-ingestion-stack.yaml",
+      mutation: true,
+      requiresExplicitApproval: true
+    };
+  const classification =
+    missingEvidence.length > 0
+      ? "production-ingestion-evidence-required"
+      : "rag-production-approval-required";
+  return {
+    id: "rag-owner-production-ingestion-ticket",
+    owner: "rag-owner",
+    title: "RAG production ingestion approval handoff",
+    severity: "high",
+    classification,
+    readinessStatus: status,
+    requiredApprovals,
+    queueLive: readiness.productionQueueLive === true,
+    ingestionWorkerLive: readiness.ingestionWorkerLive === true,
+    vectorWriteAuditSinkLive: readiness.vectorWriteAuditSinkLive === true,
+    evidenceChecklist: [
+      ...missingEvidence.slice(0, 6),
+      "rag-owner, cluster-sre, and security-reviewer approvals are required before production ingestion",
+      "approved source-ref, rollback export, and append-only vector write audit evidence are required"
+    ].map(sanitize),
+    firstReadOnlyAction: {
+      id: sanitize(firstReadOnlyCommand.id ?? "verify-rag-production-readiness"),
+      status: missingEvidence.length > 0 ? "needs-evidence" : "ready",
+      nextCommand: sanitize(firstReadOnlyCommand.command ?? "npm run verify:rag:production-readiness"),
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id: `approval-gated-${sanitize(firstApprovalCommand.id ?? "apply-approved-rag-production-stack")}`,
+      status: "approval-gated",
+      nextCommand: sanitize(firstApprovalCommand.command ?? "oc apply -f deploy/rag-production/approved-rag-ingestion-stack.yaml"),
+      mutation: true,
+      requiresExplicitApproval: true
+    },
+    nextCommands: [
+      sanitize(firstReadOnlyCommand.command ?? "npm run verify:rag:production-readiness"),
+      "npm run verify:install-plan"
+    ],
+    blockedBy: missingEvidence.map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false,
+      ingestionRequiresExplicitApproval: true
+    },
+    risk: sanitize(risk[0] ?? "Production ingestion remains blocked until approval evidence is explicit."),
+    rollbackPath: sanitize(rollbackPath[0] ?? "Disable the ingestion worker schedule and stop manual job creation.")
+  };
+}
+
 function refOf(artifact) {
   return {
     headSha: artifact?.headSha ?? artifact?.ref?.headSha,
@@ -435,7 +515,7 @@ async function main() {
     pass("RAG approval queue same-head bridge", `head=${headSha} status=PASS ingestionPlanOnly`);
   }
 
-  const failures = checks.filter((check) => check.status === "FAIL");
+  const initialFailures = checks.filter((check) => check.status === "FAIL");
   const liveGaps = componentLiveGaps(contract);
   const missingEvidence = [
     ...approvalQueueMissingEvidence,
@@ -448,7 +528,43 @@ async function main() {
     readOnlyCommands,
     approvalGatedCommands
   );
-  const status = failures.length > 0 ? "BLOCKED" : "APPROVAL_REQUIRED";
+  let status = initialFailures.length > 0 ? "BLOCKED" : "APPROVAL_REQUIRED";
+  const readiness = {
+    contractReady: initialFailures.length === 0,
+    approvalRequired: true,
+    productionQueueLive: components.queue?.liveReady === true,
+    ingestionWorkerLive: components.ingestionWorker?.liveReady === true,
+    vectorWriteAuditSinkLive: components.vectorWriteAuditSink?.liveReady === true,
+    missingLiveComponents: liveGaps
+  };
+  const ticketPacket = buildRagProductionTicketPacket({
+    status,
+    readiness,
+    requiredApprovals: contract?.requiredApprovals ?? requiredApprovals,
+    readOnlyCommands,
+    approvalGatedCommands,
+    missingEvidence,
+    risk: contract?.risk ?? [],
+    rollbackPath: contract?.rollbackPath ?? []
+  });
+
+  expectCheck(
+    "RAG production ticket boundary",
+    ticketPacket.firstReadOnlyAction.mutation === false &&
+      ticketPacket.firstReadOnlyAction.requiresExplicitApproval === false &&
+      ticketPacket.approvalGatedAction.mutation === true &&
+      ticketPacket.approvalGatedAction.requiresExplicitApproval === true &&
+      ticketPacket.mutationBoundary.clusterMutationAttempted === false &&
+      ticketPacket.mutationBoundary.vectorWriteAttempted === false &&
+      ticketPacket.mutationBoundary.ingestionJobCreated === false &&
+      ticketPacket.mutationBoundary.mutationAllowedByThisVerifier === false,
+    `ticket=${ticketPacket.id} first=${ticketPacket.firstReadOnlyAction.id} approval=${ticketPacket.approvalGatedAction.id}`,
+    "RAG production ticket must separate read-only readiness refresh from approval-gated ingestion mutation"
+  );
+  const failures = checks.filter((check) => check.status === "FAIL");
+  status = failures.length > 0 ? "BLOCKED" : "APPROVAL_REQUIRED";
+  readiness.contractReady = failures.length === 0;
+  ticketPacket.readinessStatus = status;
 
   const artifact = {
     schema: "cywell.opslens.rag-production-readiness.v0.1",
@@ -477,14 +593,7 @@ async function main() {
       headSha: approvalQueueRef.headSha ?? "missing",
       worktreeDirty: approvalQueueRef.worktreeDirty ?? "unknown"
     },
-    readiness: {
-      contractReady: failures.length === 0,
-      approvalRequired: true,
-      productionQueueLive: components.queue?.liveReady === true,
-      ingestionWorkerLive: components.ingestionWorker?.liveReady === true,
-      vectorWriteAuditSinkLive: components.vectorWriteAuditSink?.liveReady === true,
-      missingLiveComponents: liveGaps
-    },
+    readiness,
     components: {
       queue: {
         backendClass: components.queue?.backendClass ?? "missing",
@@ -550,6 +659,7 @@ async function main() {
       rollback: sanitize(command.rollback)
     })),
     firstProductionActions: firstActions,
+    ticketPacket,
     evidence: [
       "production readiness verifier validates the queue/worker/audit contract without applying manifests",
       "default state keeps production queue, ingestion worker, vector writes, and cluster mutation disabled",

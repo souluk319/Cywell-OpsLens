@@ -2240,6 +2240,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstInstallApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     firstCatalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
+    firstRagProductionTicketPacket?: OpsLensRagProductionTicketPacket;
     nextCommands: string[];
     setupCommandIds: string[];
     readOnlyCommandIds: string[];
@@ -2273,6 +2274,7 @@ export interface OpsLensReleaseActionQueueSummary {
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
+    ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
   }>;
   ownerPacketCleanup: {
     dir: string;
@@ -2326,6 +2328,7 @@ export interface OpsLensReleaseActionQueueSummary {
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
+    ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
   }>;
   sourceArtifacts: Array<{
     id: string;
@@ -2942,6 +2945,46 @@ export interface OpsLensCertificationToolingTicketPacket {
   rollbackPath: string;
 }
 
+export interface OpsLensRagProductionTicketPacket {
+  id: string;
+  owner: "rag-owner";
+  title: string;
+  severity: "high";
+  classification: string;
+  readinessStatus: string;
+  requiredApprovals: string[];
+  queueLive: boolean;
+  ingestionWorkerLive: boolean;
+  vectorWriteAuditSinkLive: boolean;
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  approvalGatedAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    vectorWriteAttempted: boolean;
+    ingestionJobCreated: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    ingestionRequiresExplicitApproval: boolean;
+  };
+  risk: string;
+  rollbackPath: string;
+}
+
 export type OpsLensRagProductionReadiness =
   | "approval-required"
   | "needs-evidence"
@@ -3009,6 +3052,7 @@ export interface OpsLensRagProductionReadinessSummary {
     blockedBy: string[];
     rollbackPath: string;
   }>;
+  ticketPacket: OpsLensRagProductionTicketPacket;
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];

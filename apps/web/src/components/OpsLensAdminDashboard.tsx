@@ -577,6 +577,35 @@ export function OpsLensAdminDashboard() {
                   <span>RAG production first actions missing</span>
                 )}
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-rag-production-ticket"
+              >
+                <span>
+                  ticket={ragProductionReadiness.ticketPacket.id}
+                </span>
+                <span>
+                  first={ragProductionReadiness.ticketPacket.firstReadOnlyAction.id}
+                </span>
+                <span>
+                  approval=
+                  {ragProductionReadiness.ticketPacket.approvalGatedAction.id}
+                </span>
+                <span>
+                  requiresApproval=
+                  {String(
+                    ragProductionReadiness.ticketPacket.approvalGatedAction
+                      .requiresExplicitApproval
+                  )}
+                </span>
+                <span>
+                  ingestionApproval=
+                  {String(
+                    ragProductionReadiness.ticketPacket.mutationBoundary
+                      .ingestionRequiresExplicitApproval
+                  )}
+                </span>
+              </div>
             </div>
           ) : null}
           <div
@@ -2543,6 +2572,11 @@ export function OpsLensAdminDashboard() {
                       :catalogFirst=
                       {entry.catalogToolchainTicketPacket?.firstReadOnlyAction.id ??
                         "none"}
+                      :ragTicket=
+                      {entry.ragProductionTicketPacket?.id ?? "none"}
+                      :ragFirst=
+                      {entry.ragProductionTicketPacket?.firstReadOnlyAction.id ??
+                        "none"}
                       :tools={entry.missingRequiredTools.join(",") || "none"}
                       :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
                       {entry.readOnlyCommandIds.join(",") || "none"}:approval=
@@ -2608,6 +2642,11 @@ export function OpsLensAdminDashboard() {
                     {packet.firstCatalogToolchainTicketPacket?.id ?? "none"}
                     :catalogFirst=
                     {packet.firstCatalogToolchainTicketPacket?.firstReadOnlyAction
+                      .id ?? "none"}
+                    :ragTicket=
+                    {packet.firstRagProductionTicketPacket?.id ?? "none"}
+                    :ragFirst=
+                    {packet.firstRagProductionTicketPacket?.firstReadOnlyAction
                       .id ?? "none"}
                   </span>
                 ))}
@@ -2884,6 +2923,10 @@ export function OpsLensAdminDashboard() {
                             `${diagnostic.id}=${diagnostic.value}`
                         )
                         .join(" | ")}
+                      :ragTicket={entry.ragProductionTicketPacket?.id ?? "none"}
+                      :ragApproval=
+                      {entry.ragProductionTicketPacket?.approvalGatedAction.id ??
+                        "none"}
                     </span>
                   ))
                 ) : (
