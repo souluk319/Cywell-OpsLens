@@ -2840,6 +2840,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       mutationAllowedByThisVerifier: false,
       mutationBoundaryPassed: true
     });
+    expect(
+      body.installReadiness?.actionQueue?.missingEvidence?.join(" ")
+    ).not.toMatch(/npm run verify:ocp:connectivity(?! -- --timeout-ms 30000)/);
     expect(body.installReadiness?.actionQueue?.markdownPath).toContain(
       "cywell-opslens-release-action-queue.md"
     );

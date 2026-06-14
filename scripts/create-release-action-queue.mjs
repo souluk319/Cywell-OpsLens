@@ -2090,7 +2090,7 @@ async function main() {
     mutationBoundary,
     missingEvidence: normalizedEvidence([
       ...(artifacts.releaseBundle?.missingEvidence ?? []),
-      ...(artifacts.releaseRefresh?.missingEvidence ?? []),
+      // releaseRefresh summarizes a prior action queue run; feeding it back causes stale circular gaps.
       ...(artifacts.checkpoint?.missingEvidence ?? []),
       ...(artifacts.securityScanPlan?.missingEvidence ?? []),
       ...(artifacts.ragProductionReadiness?.missingEvidence ?? []),
