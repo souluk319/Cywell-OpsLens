@@ -2514,6 +2514,10 @@ export function OpsLensAdminDashboard() {
                       {entry.actionId}:next={entry.nextCommand}:ticket=
                       {entry.ticketPacket?.id ?? "none"}:ticketFirst=
                       {entry.ticketPacket?.firstReadOnlyAction.id ?? "none"}
+                      :extTicket={entry.externalRuntimeTicketPacket?.id ?? "none"}
+                      :extFirst=
+                      {entry.externalRuntimeTicketPacket?.firstReadOnlyAction.id ??
+                        "none"}
                       :tools={entry.missingRequiredTools.join(",") || "none"}
                       :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
                       {entry.readOnlyCommandIds.join(",") || "none"}:approval=
@@ -2550,6 +2554,11 @@ export function OpsLensAdminDashboard() {
                     {packet.firstActionId}:next={packet.firstNextCommand}
                     :ticket={packet.firstTicketPacket?.id ?? "none"}:ticketFirst=
                     {packet.firstTicketPacket?.firstReadOnlyAction.id ?? "none"}
+                    :extTicket=
+                    {packet.firstExternalRuntimeTicketPacket?.id ?? "none"}
+                    :extFirst=
+                    {packet.firstExternalRuntimeTicketPacket?.firstReadOnlyAction
+                      .id ?? "none"}
                   </span>
                 ))}
               </div>
@@ -3731,6 +3740,24 @@ export function OpsLensAdminDashboard() {
                   ))
                 ) : (
                   <span>registry first actions clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-external-runtime-registry-tickets"
+              >
+                {externalRuntimeReview.ticketPackets.length ? (
+                  externalRuntimeReview.ticketPackets.map((ticket) => (
+                    <span key={ticket.id}>
+                      {ticket.id}:{ticket.owner}:{ticket.severity}:image=
+                      {ticket.imageName}:classification={ticket.classification}
+                      :first={ticket.firstReadOnlyAction.id}:approval=
+                      {ticket.approvalGatedAction.id}:requiresApproval=
+                      {String(ticket.approvalGatedAction.requiresExplicitApproval)}
+                    </span>
+                  ))
+                ) : (
+                  <span>registry tickets clear</span>
                 )}
               </div>
               <div

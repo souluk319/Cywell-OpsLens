@@ -532,6 +532,7 @@ function item({
   blockedBy = [],
   diagnostics = [],
   ticketPacket,
+  externalRuntimeTicketPacket,
   acceptance = []
 }) {
   return {
@@ -576,6 +577,9 @@ function item({
       value: sanitize(diagnostic.value ?? "unknown")
     })),
     ticketPacket: ticketPacket ? sanitizeTicketPacket(ticketPacket) : undefined,
+    externalRuntimeTicketPacket: externalRuntimeTicketPacket
+      ? sanitizeExternalRuntimeTicketPacket(externalRuntimeTicketPacket)
+      : undefined,
     acceptance
   };
 }
@@ -618,6 +622,64 @@ function sanitizeTicketPacket(packet = {}) {
         packet.mutationBoundary?.networkChangeRequiresExplicitApproval === true
     },
     risk: sanitize(packet.risk ?? "Network reachability blocks live readiness."),
+    rollbackPath: sanitize(
+      packet.rollbackPath ??
+        "No rollback is required because this packet writes only local evidence."
+    )
+  };
+}
+
+function sanitizeExternalRuntimeTicketAction(action = {}, fallbackId = "none") {
+  return {
+    id: sanitize(action.id ?? fallbackId),
+    status: sanitize(action.status ?? "missing"),
+    nextCommand: sanitize(action.nextCommand ?? "none"),
+    mutation: action.mutation === true,
+    requiresExplicitApproval: action.requiresExplicitApproval === true
+  };
+}
+
+function sanitizeExternalRuntimeTicketPacket(packet = {}) {
+  return {
+    id: sanitize(packet.id ?? "registry-admin-external-runtime-ticket"),
+    owner: "registry-admin",
+    title: sanitize(packet.title ?? "External runtime registry review"),
+    severity: packet.severity === "blocker" ? "blocker" : "high",
+    imageName: sanitize(packet.imageName ?? "unknown"),
+    sourceImage: sanitize(packet.sourceImage ?? "unknown"),
+    desiredMirror: sanitize(packet.desiredMirror ?? "<internal-registry>"),
+    classification: sanitize(packet.classification ?? "registry-review-required"),
+    draftStatus: sanitize(packet.draftStatus ?? "missing"),
+    evidenceState: sanitize(packet.evidenceState ?? "missing"),
+    finalEvidenceExists: packet.finalEvidenceExists === true,
+    missingEvidenceCount: Number.isFinite(packet.missingEvidenceCount)
+      ? packet.missingEvidenceCount
+      : 0,
+    evidenceChecklist: (packet.evidenceChecklist ?? []).map(sanitize),
+    firstReadOnlyAction: sanitizeExternalRuntimeTicketAction(
+      packet.firstReadOnlyAction,
+      "external-runtime-registry-readonly"
+    ),
+    approvalGatedAction: sanitizeExternalRuntimeTicketAction(
+      packet.approvalGatedAction,
+      "external-runtime-registry-approval"
+    ),
+    nextCommands: (packet.nextCommands ?? []).map(sanitize),
+    blockedBy: (packet.blockedBy ?? []).map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      registryChangeRequiresExplicitApproval:
+        packet.mutationBoundary?.registryChangeRequiresExplicitApproval !== false
+    },
+    risk: sanitize(
+      packet.risk ??
+        "External runtime registry evidence blocks release approval until reviewed."
+    ),
     rollbackPath: sanitize(
       packet.rollbackPath ??
         "No rollback is required because this packet writes only local evidence."
@@ -1034,6 +1096,8 @@ function checkpointItems(checkpoint, networkHandoff, certificationReadiness, aut
 function externalRuntimeItems(packet) {
   const readOnlyCommands = packet?.readOnlyCommands ?? [];
   const approvalGatedCommands = packet?.approvalGatedCommands ?? [];
+  const externalRuntimeTicketFor = (imageName) =>
+    (packet?.ticketPackets ?? []).find((ticket) => ticket.imageName === imageName);
   return (packet?.images ?? []).flatMap((image) => {
     const readOnlyFor = (nextCommand) =>
       externalRuntimeReadOnlyCommandsFor(readOnlyCommands, image.name, nextCommand);
@@ -1053,6 +1117,10 @@ function externalRuntimeItems(packet) {
           request.nextCommand ?? "npm run evidence:external-runtime:review-packet",
         readOnlyCommands: readOnlyFor(request.nextCommand ?? ""),
         approvalGatedCommands: approvalFor(request.role ?? ""),
+        externalRuntimeTicketPacket:
+          request.role === "registry-admin"
+            ? externalRuntimeTicketFor(image.name)
+            : undefined,
         blockedBy: image.missingEvidence ?? [],
         diagnostics: externalRuntimeReviewerDiagnostics(image, request),
         acceptance: ["AC-CERT-001"]
@@ -2047,6 +2115,9 @@ function criticalPath(items) {
         acceptance: uniqueStrings(entry.acceptance ?? []),
         ticketPacket: entry.ticketPacket
           ? sanitizeTicketPacket(entry.ticketPacket)
+          : undefined,
+        externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket
+          ? sanitizeExternalRuntimeTicketPacket(entry.externalRuntimeTicketPacket)
           : undefined
       };
     })
@@ -2058,6 +2129,9 @@ function buildOwnerPackets(owners, items) {
     const entries = items.filter((entry) => entry.owner === owner.owner);
     const firstAction = firstOwnerAction(entries);
     const firstTicketPacket = entries.find((entry) => entry.ticketPacket)?.ticketPacket;
+    const firstExternalRuntimeTicketPacket = entries.find(
+      (entry) => entry.externalRuntimeTicketPacket
+    )?.externalRuntimeTicketPacket;
     return {
       owner: owner.owner,
       status: owner.blocker > 0 ? "blocker" : owner.open > 0 ? "open" : "clear",
@@ -2075,6 +2149,7 @@ function buildOwnerPackets(owners, items) {
       firstEvidenceNeeded: firstAction?.evidenceNeeded ?? "none",
       firstBlockedBy: uniqueStrings(firstAction?.blockedBy ?? []).slice(0, 6),
       firstTicketPacket,
+      firstExternalRuntimeTicketPacket,
       nextCommands: uniqueStrings(
         entries.flatMap((entry) => [
           entry.nextCommand,
@@ -2154,7 +2229,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",
@@ -2259,6 +2334,7 @@ function ownerPacketMarkdown(queue, packet) {
     `- First evidence needed: ${packet.firstEvidenceNeeded}`,
     `- First blocked by: ${packet.firstBlockedBy.join("; ") || "none"}`,
     `- First ticket: ${packet.firstTicketPacket?.id ?? "none"}`,
+    `- First external runtime ticket: ${packet.firstExternalRuntimeTicketPacket?.id ?? "none"}`,
     `- Missing tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
     `- Acceptance: ${packet.acceptance.join(", ") || "none"}`,
     "",
@@ -2274,6 +2350,23 @@ function ownerPacketMarkdown(queue, packet) {
           `- First read-only command: ${packet.firstTicketPacket.firstReadOnlyAction.nextCommand}`,
           `- Approval-gated action: ${packet.firstTicketPacket.approvalGatedAction.id}`,
           `- Approval required: ${String(packet.firstTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          ""
+        ]
+      : []),
+    ...(packet.firstExternalRuntimeTicketPacket
+      ? [
+          "## External Runtime Ticket Packet",
+          "",
+          `- ID: ${packet.firstExternalRuntimeTicketPacket.id}`,
+          `- Title: ${packet.firstExternalRuntimeTicketPacket.title}`,
+          `- Severity: ${packet.firstExternalRuntimeTicketPacket.severity}`,
+          `- Image: ${packet.firstExternalRuntimeTicketPacket.sourceImage}`,
+          `- Desired mirror: ${packet.firstExternalRuntimeTicketPacket.desiredMirror}`,
+          `- Classification: ${packet.firstExternalRuntimeTicketPacket.classification}`,
+          `- First read-only action: ${packet.firstExternalRuntimeTicketPacket.firstReadOnlyAction.id}`,
+          `- First read-only command: ${packet.firstExternalRuntimeTicketPacket.firstReadOnlyAction.nextCommand}`,
+          `- Approval-gated action: ${packet.firstExternalRuntimeTicketPacket.approvalGatedAction.id}`,
+          `- Approval required: ${String(packet.firstExternalRuntimeTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
           ""
         ]
       : []),
@@ -2313,6 +2406,7 @@ function ownerPacketMarkdown(queue, packet) {
       `- Evidence needed: ${entry.evidenceNeeded}`,
       `- Next command: ${entry.nextCommand}`,
       `- Ticket: ${entry.ticketPacket?.id ?? "none"}`,
+      `- External runtime ticket: ${entry.externalRuntimeTicketPacket?.id ?? "none"}`,
       `- Blocked by: ${entry.blockedBy.length ? entry.blockedBy.join("; ") : "none"}`,
       ""
     );

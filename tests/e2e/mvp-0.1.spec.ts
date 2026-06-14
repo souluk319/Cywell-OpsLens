@@ -1820,6 +1820,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             blockedBy?: string[];
             rollbackPath?: string;
           }>;
+          ticketPackets?: Array<{
+            id?: string;
+            owner?: string;
+            severity?: string;
+            imageName?: string;
+            classification?: string;
+            firstReadOnlyAction?: {
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            approvalGatedAction?: {
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            mutationBoundary?: {
+              registryMutationAttempted?: boolean;
+              registryChangeRequiresExplicitApproval?: boolean;
+            };
+          }>;
           candidateHandoff?: Array<{
             imageName?: string;
             status?: string;
@@ -2096,6 +2117,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             readOnlyCommandIds?: string[];
             approvalGatedCommandIds?: string[];
             missingRequiredTools?: string[];
+            firstExternalRuntimeTicketPacket?: {
+              id?: string;
+              severity?: string;
+              firstReadOnlyAction?: { id?: string; mutation?: boolean };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
             mutationAllowedByThisVerifier?: boolean;
           }>;
           criticalPath?: Array<{
@@ -2116,6 +2147,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             approvalGatedCommandIds?: string[];
             acceptance?: string[];
             ticketPacket?: {
+              id?: string;
+              severity?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
+            externalRuntimeTicketPacket?: {
               id?: string;
               severity?: string;
               firstReadOnlyAction?: {
@@ -2163,6 +2208,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               value?: string;
             }>;
             ticketPacket?: {
+              id?: string;
+              severity?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
+            externalRuntimeTicketPacket?: {
               id?: string;
               severity?: string;
               firstReadOnlyAction?: {
@@ -3579,6 +3638,28 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         Array.isArray(action.blockedBy)
       )
     ).toBe(true);
+    const vllmRegistryTicket =
+      body.installReadiness?.externalRuntimeReview?.ticketPackets?.find(
+        (ticket) => ticket.id === "registry-admin-vllm-external-runtime-ticket"
+      );
+    expect(vllmRegistryTicket).toMatchObject({
+      owner: "registry-admin",
+      severity: "blocker",
+      imageName: "vllm",
+      firstReadOnlyAction: {
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id: "mirror-vllm",
+        mutation: true,
+        requiresExplicitApproval: true
+      },
+      mutationBoundary: {
+        registryMutationAttempted: false,
+        registryChangeRequiresExplicitApproval: true
+      }
+    });
     expect(
       body.installReadiness?.externalRuntimeReview?.images?.map(
         (image) => `${image.name}:${image.sourceDigestInspectionStatus}`
@@ -4222,6 +4303,41 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (item) => item.id === "registry-access"
       )?.value
     ).toMatch(/classification=registry-/);
+    expect(vllmRegistryDigestAction?.externalRuntimeTicketPacket).toMatchObject({
+      id: "registry-admin-vllm-external-runtime-ticket",
+      severity: "blocker",
+      firstReadOnlyAction: {
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id: "mirror-vllm",
+        mutation: true,
+        requiresExplicitApproval: true
+      }
+    });
+    const externalRuntimeCriticalPath =
+      body.installReadiness?.actionQueue?.criticalPath?.find(
+        (entry) => entry.lane === "external-runtime-review"
+      );
+    expect(externalRuntimeCriticalPath?.externalRuntimeTicketPacket).toMatchObject({
+      id: "registry-admin-vllm-external-runtime-ticket",
+      severity: "blocker"
+    });
+    const registryOwnerPacket =
+      body.installReadiness?.actionQueue?.ownerPackets?.find(
+        (packet) => packet.owner === "registry-admin"
+      );
+    expect(registryOwnerPacket?.firstExternalRuntimeTicketPacket).toMatchObject({
+      id: "registry-admin-vllm-external-runtime-ticket",
+      firstReadOnlyAction: {
+        mutation: false
+      },
+      approvalGatedAction: {
+        id: "mirror-vllm",
+        requiresExplicitApproval: true
+      }
+    });
     const vllmCandidateAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) => item.id === "external-runtime-vllm-candidate-matrix"
@@ -5669,6 +5785,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       page.getByTestId("opslens-external-runtime-registry-actions")
     ).toContainText("approval=true");
     await expect(
+      page.getByTestId("opslens-external-runtime-registry-tickets")
+    ).toContainText("registry-admin-vllm-external-runtime-ticket");
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-tickets")
+    ).toContainText("first=external-runtime-vllm-registry-1");
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-tickets")
+    ).toContainText("approval=mirror-vllm");
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-tickets")
+    ).toContainText("requiresApproval=true");
+    await expect(
       page.getByTestId("opslens-external-runtime-candidates")
     ).toContainText(/candidate=/);
     await expect(
@@ -5841,6 +5969,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("ticketFirst=network-sre-confirm-ocp-api-tcp-6443");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("extTicket=registry-admin-vllm-external-runtime-ticket");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("extFirst=external-runtime-vllm-registry-1");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("tools=opm,operator-sdk");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
@@ -5863,6 +5997,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packets")
     ).toContainText("ticketFirst=network-sre-confirm-ocp-api-tcp-6443");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packets")
+    ).toContainText("extTicket=registry-admin-vllm-external-runtime-ticket");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-packets")
+    ).toContainText("extFirst=external-runtime-vllm-registry-1");
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packet-cleanup")
     ).toContainText("deletionAllowed=true");

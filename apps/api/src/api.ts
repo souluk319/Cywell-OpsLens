@@ -41,6 +41,7 @@ import type {
   OpsLensEvidenceCheckpointSummary,
   OpsLensExternalRuntimeImagesPlanSummary,
   OpsLensExternalRuntimeReadiness,
+  OpsLensExternalRuntimeRegistryTicketPacket,
   OpsLensExternalRuntimeReviewPacketReadiness,
   OpsLensExternalRuntimeReviewPacketSummary,
   OpsLensImageBuildReadiness,
@@ -1879,6 +1880,7 @@ type ExternalRuntimeReviewPacketEvidenceArtifact = {
     blockedBy?: string[];
     rollbackPath?: string;
   }>;
+  ticketPackets?: OpsLensExternalRuntimeRegistryTicketPacket[];
   missingEvidence?: string[];
   risk?: string[];
   rollbackPath?: string[];
@@ -2616,6 +2618,7 @@ type ReleaseActionQueueArtifact = {
     firstEvidenceNeeded?: string;
     firstBlockedBy?: string[];
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
+    firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     nextCommands?: string[];
     setupCommandIds?: string[];
     readOnlyCommandIds?: string[];
@@ -2643,6 +2646,7 @@ type ReleaseActionQueueArtifact = {
     approvalGatedCommandIds?: string[];
     acceptance?: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
+    externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
   }>;
   ownerPacketCleanup?: {
     dir?: string;
@@ -2690,6 +2694,7 @@ type ReleaseActionQueueArtifact = {
       value?: string;
     }>;
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
+    externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
   }>;
   sourceArtifacts?: Array<{
     id?: string;
@@ -4297,6 +4302,7 @@ function missingExternalRuntimeReviewPacketSummary(
     markdownPath: "missing",
     firstReviewerActions: [],
     firstRegistryActions: [],
+    ticketPackets: [],
     images: [],
     candidateHandoff: [],
     readOnlyCommands: [],
@@ -4581,6 +4587,42 @@ function getExternalRuntimeReviewPacketReadiness(): {
         action.rollbackPath ??
         "Regenerate the external runtime review packet before proceeding."
     }));
+    const ticketPackets = (artifact.ticketPackets ?? []).map((ticket) => ({
+      ...ticket,
+      owner: "registry-admin" as const,
+      severity: ticket.severity === "blocker" ? ("blocker" as const) : ("high" as const),
+      evidenceChecklist: ticket.evidenceChecklist ?? [],
+      firstReadOnlyAction: {
+        id: ticket.firstReadOnlyAction?.id ?? "unknown",
+        status: ticket.firstReadOnlyAction?.status ?? "needs-evidence",
+        nextCommand:
+          ticket.firstReadOnlyAction?.nextCommand ??
+          "npm run evidence:external-runtime:draft:digests",
+        mutation: ticket.firstReadOnlyAction?.mutation === true,
+        requiresExplicitApproval:
+          ticket.firstReadOnlyAction?.requiresExplicitApproval === true
+      },
+      approvalGatedAction: {
+        id: ticket.approvalGatedAction?.id ?? "unknown",
+        status: ticket.approvalGatedAction?.status ?? "approval-gated",
+        nextCommand: ticket.approvalGatedAction?.nextCommand ?? "approval-gated",
+        mutation: ticket.approvalGatedAction?.mutation === true,
+        requiresExplicitApproval:
+          ticket.approvalGatedAction?.requiresExplicitApproval === true
+      },
+      nextCommands: ticket.nextCommands ?? [],
+      blockedBy: ticket.blockedBy ?? [],
+      mutationBoundary: {
+        clusterMutationAttempted:
+          ticket.mutationBoundary?.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          ticket.mutationBoundary?.registryMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          ticket.mutationBoundary?.mutationAllowedByThisVerifier === true,
+        registryChangeRequiresExplicitApproval:
+          ticket.mutationBoundary?.registryChangeRequiresExplicitApproval !== false
+      }
+    }));
     const imageSummary = images
       .map(
         (image) =>
@@ -4602,6 +4644,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
         markdownPath: artifact.markdownOut ?? "missing",
         firstReviewerActions,
         firstRegistryActions,
+        ticketPackets,
         images,
         candidateHandoff,
         readOnlyCommands,
@@ -7638,6 +7681,7 @@ function getReleaseActionQueueReadiness(): {
       firstEvidenceNeeded: packet.firstEvidenceNeeded ?? "none",
       firstBlockedBy: packet.firstBlockedBy ?? [],
       firstTicketPacket: packet.firstTicketPacket,
+      firstExternalRuntimeTicketPacket: packet.firstExternalRuntimeTicketPacket,
       nextCommands: packet.nextCommands ?? [],
       setupCommandIds: packet.setupCommandIds ?? [],
       readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
@@ -7671,7 +7715,8 @@ function getReleaseActionQueueReadiness(): {
       readOnlyCommandIds: entry.readOnlyCommandIds ?? [],
       approvalGatedCommandIds: entry.approvalGatedCommandIds ?? [],
       acceptance: entry.acceptance ?? [],
-      ticketPacket: entry.ticketPacket
+      ticketPacket: entry.ticketPacket,
+      externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket
     }));
     const items = (artifact.items ?? []).map((entry) => ({
       id: entry.id ?? "unknown",
@@ -7712,7 +7757,8 @@ function getReleaseActionQueueReadiness(): {
         label: diagnostic.label ?? "Diagnostic",
         value: diagnostic.value ?? "unknown"
       })),
-      ticketPacket: entry.ticketPacket
+      ticketPacket: entry.ticketPacket,
+      externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
       id: source.id ?? "unknown",

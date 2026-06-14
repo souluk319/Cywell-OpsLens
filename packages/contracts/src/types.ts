@@ -2232,6 +2232,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstEvidenceNeeded: string;
     firstBlockedBy: string[];
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
+    firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     nextCommands: string[];
     setupCommandIds: string[];
     readOnlyCommandIds: string[];
@@ -2259,6 +2260,7 @@ export interface OpsLensReleaseActionQueueSummary {
     approvalGatedCommandIds: string[];
     acceptance: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
+    externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
   }>;
   ownerPacketCleanup: {
     dir: string;
@@ -2306,6 +2308,7 @@ export interface OpsLensReleaseActionQueueSummary {
       value: string;
     }>;
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
+    externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
   }>;
   sourceArtifacts: Array<{
     id: string;
@@ -2589,6 +2592,7 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
     blockedBy: string[];
     rollbackPath: string;
   }>;
+  ticketPackets: OpsLensExternalRuntimeRegistryTicketPacket[];
   images: Array<{
     name: string;
     image: string;
@@ -2658,6 +2662,46 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
+}
+
+export interface OpsLensExternalRuntimeRegistryTicketPacket {
+  id: string;
+  owner: "registry-admin";
+  title: string;
+  severity: "blocker" | "high";
+  imageName: string;
+  sourceImage: string;
+  desiredMirror: string;
+  classification: string;
+  draftStatus: string;
+  evidenceState: string;
+  finalEvidenceExists: boolean;
+  missingEvidenceCount: number;
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  approvalGatedAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    registryChangeRequiresExplicitApproval: boolean;
+  };
+  risk: string;
+  rollbackPath: string;
 }
 
 export type OpsLensRagProductionReadiness =
