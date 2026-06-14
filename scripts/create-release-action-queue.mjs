@@ -535,6 +535,7 @@ function item({
   externalRuntimeTicketPacket,
   securityReviewTicketPacket,
   releasePublishTicketPacket,
+  installApprovalTicketPacket,
   certificationToolingTicketPacket,
   acceptance = []
 }) {
@@ -588,6 +589,9 @@ function item({
       : undefined,
     releasePublishTicketPacket: releasePublishTicketPacket
       ? sanitizeReleasePublishTicketPacket(releasePublishTicketPacket)
+      : undefined,
+    installApprovalTicketPacket: installApprovalTicketPacket
+      ? sanitizeInstallApprovalTicketPacket(installApprovalTicketPacket)
       : undefined,
     certificationToolingTicketPacket: certificationToolingTicketPacket
       ? sanitizeCertificationToolingTicketPacket(certificationToolingTicketPacket)
@@ -796,6 +800,51 @@ function sanitizeReleasePublishTicketPacket(packet = {}) {
     rollbackPath: sanitize(
       packet.rollbackPath ??
         "Publish corrected tags and update FBC/CatalogSource references after any approved correction."
+    )
+  };
+}
+
+function sanitizeInstallApprovalTicketPacket(packet = {}) {
+  return {
+    id: sanitize(packet.id ?? "cluster-admin-install-approval-ticket"),
+    owner: "cluster-admin",
+    title: sanitize(packet.title ?? "Install approval handoff"),
+    severity: "high",
+    classification: sanitize(packet.classification ?? "install-evidence-gaps"),
+    installStatus: sanitize(packet.installStatus ?? "needs-evidence"),
+    requiredApprovals: (packet.requiredApprovals ?? []).map(sanitize),
+    evidenceChecklist: (packet.evidenceChecklist ?? []).map(sanitize),
+    firstReadOnlyAction: sanitizeExternalRuntimeTicketAction(
+      packet.firstReadOnlyAction,
+      "run-operator-server-dry-run"
+    ),
+    approvalGatedAction: sanitizeExternalRuntimeTicketAction(
+      packet.approvalGatedAction,
+      "approval-gated-install"
+    ),
+    nextCommands: (packet.nextCommands ?? []).map(sanitize),
+    blockedBy: (packet.blockedBy ?? []).map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      vectorWriteAttempted:
+        packet.mutationBoundary?.vectorWriteAttempted === true,
+      ingestionJobCreated:
+        packet.mutationBoundary?.ingestionJobCreated === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      installRequiresExplicitApproval:
+        packet.mutationBoundary?.installRequiresExplicitApproval !== false
+    },
+    risk: sanitize(
+      packet.risk ??
+        "Install approval remains blocked until cluster mutations are explicitly approved."
+    ),
+    rollbackPath: sanitize(
+      packet.rollbackPath ??
+        "Use the approved uninstall order and restore OLSConfig from GitOps or backup after any install correction."
     )
   };
 }
@@ -1193,7 +1242,8 @@ function checkpointItems(
   authRbacPlan,
   lightspeedReadiness,
   ocpLiveReaderSmoke,
-  releasePlan
+  releasePlan,
+  installPlan
 ) {
   const lanes = checkpoint?.lanes ?? [];
   const byId = new Map(lanes.map((lane) => [lane.id, lane]));
@@ -1280,6 +1330,16 @@ function checkpointItems(
     request: "Refresh install approval plan after live OCP/Lightspeed evidence and release image evidence are current.",
     evidenceNeeded: "Install approval plan status becomes APPROVAL_REQUIRED with all mutating commands approval-gated.",
     nextCommand: "npm run verify:install-plan",
+    handoffNextCommands:
+      installPlan?.ticketPacket?.nextCommands ?? [],
+    readOnlyCommands: (installPlan?.commands ?? []).filter(
+      (command) => command.mutation !== true
+    ),
+    approvalGatedCommands: (installPlan?.commands ?? []).filter(
+      (command) => command.mutation === true
+    ),
+    blockedBy: installPlan?.missingEvidence ?? [],
+    installApprovalTicketPacket: installPlan?.ticketPacket,
     acceptance: ["AC-OP-005"]
   });
 
@@ -2176,7 +2236,8 @@ function buildItems(artifacts, currentHeadSha) {
         artifacts.ocpAuthRbacPlan,
         artifacts.lightspeedReadiness,
         artifacts.ocpLiveReaderSmoke,
-        artifacts.releasePlan
+        artifacts.releasePlan,
+        artifacts.installPlan
       ),
       ...externalRuntimeItems(artifacts.externalRuntimeReview),
       ...securityScanItems(artifacts.securityScanPlan),
@@ -2324,6 +2385,9 @@ function criticalPath(items) {
         releasePublishTicketPacket: entry.releasePublishTicketPacket
           ? sanitizeReleasePublishTicketPacket(entry.releasePublishTicketPacket)
           : undefined,
+        installApprovalTicketPacket: entry.installApprovalTicketPacket
+          ? sanitizeInstallApprovalTicketPacket(entry.installApprovalTicketPacket)
+          : undefined,
         certificationToolingTicketPacket: entry.certificationToolingTicketPacket
           ? sanitizeCertificationToolingTicketPacket(entry.certificationToolingTicketPacket)
           : undefined
@@ -2346,6 +2410,9 @@ function buildOwnerPackets(owners, items) {
     const firstReleasePublishTicketPacket = entries.find(
       (entry) => entry.releasePublishTicketPacket
     )?.releasePublishTicketPacket;
+    const firstInstallApprovalTicketPacket = entries.find(
+      (entry) => entry.installApprovalTicketPacket
+    )?.installApprovalTicketPacket;
     const firstCertificationToolingTicketPacket = entries.find(
       (entry) => entry.certificationToolingTicketPacket
     )?.certificationToolingTicketPacket;
@@ -2369,6 +2436,7 @@ function buildOwnerPackets(owners, items) {
       firstExternalRuntimeTicketPacket,
       firstSecurityReviewTicketPacket,
       firstReleasePublishTicketPacket,
+      firstInstallApprovalTicketPacket,
       firstCertificationToolingTicketPacket,
       nextCommands: uniqueStrings(
         entries.flatMap((entry) => [
@@ -2449,7 +2517,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",
@@ -2461,7 +2529,7 @@ function markdownFor(queue) {
     "## Owner Packets",
     "",
     ...queue.ownerPackets.map((packet) =>
-      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}`
+      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Packet Cleanup",
@@ -2557,6 +2625,7 @@ function ownerPacketMarkdown(queue, packet) {
     `- First external runtime ticket: ${packet.firstExternalRuntimeTicketPacket?.id ?? "none"}`,
     `- First security review ticket: ${packet.firstSecurityReviewTicketPacket?.id ?? "none"}`,
     `- First release publish ticket: ${packet.firstReleasePublishTicketPacket?.id ?? "none"}`,
+    `- First install approval ticket: ${packet.firstInstallApprovalTicketPacket?.id ?? "none"}`,
     `- First certification tooling ticket: ${packet.firstCertificationToolingTicketPacket?.id ?? "none"}`,
     `- Missing tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
     `- Acceptance: ${packet.acceptance.join(", ") || "none"}`,
@@ -2629,6 +2698,23 @@ function ownerPacketMarkdown(queue, packet) {
           ""
         ]
       : []),
+    ...(packet.firstInstallApprovalTicketPacket
+      ? [
+          "## Install Approval Ticket Packet",
+          "",
+          `- ID: ${packet.firstInstallApprovalTicketPacket.id}`,
+          `- Title: ${packet.firstInstallApprovalTicketPacket.title}`,
+          `- Severity: ${packet.firstInstallApprovalTicketPacket.severity}`,
+          `- Classification: ${packet.firstInstallApprovalTicketPacket.classification}`,
+          `- Install status: ${packet.firstInstallApprovalTicketPacket.installStatus}`,
+          `- Required approvals: ${packet.firstInstallApprovalTicketPacket.requiredApprovals.join(", ")}`,
+          `- First read-only action: ${packet.firstInstallApprovalTicketPacket.firstReadOnlyAction.id}`,
+          `- First read-only command: ${packet.firstInstallApprovalTicketPacket.firstReadOnlyAction.nextCommand}`,
+          `- Approval-gated action: ${packet.firstInstallApprovalTicketPacket.approvalGatedAction.id}`,
+          `- Approval required: ${String(packet.firstInstallApprovalTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          ""
+        ]
+      : []),
     ...(packet.firstCertificationToolingTicketPacket
       ? [
           "## Certification Tooling Ticket Packet",
@@ -2687,6 +2773,7 @@ function ownerPacketMarkdown(queue, packet) {
       `- External runtime ticket: ${entry.externalRuntimeTicketPacket?.id ?? "none"}`,
       `- Security review ticket: ${entry.securityReviewTicketPacket?.id ?? "none"}`,
       `- Release publish ticket: ${entry.releasePublishTicketPacket?.id ?? "none"}`,
+      `- Install approval ticket: ${entry.installApprovalTicketPacket?.id ?? "none"}`,
       `- Certification tooling ticket: ${entry.certificationToolingTicketPacket?.id ?? "none"}`,
       `- Blocked by: ${entry.blockedBy.length ? entry.blockedBy.join("; ") : "none"}`,
       ""

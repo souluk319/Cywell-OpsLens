@@ -276,8 +276,11 @@ function releaseActionQueueHandoffRequirement(actionQueue, id, label, lane, owne
           : ticketField === "release-publish"
             ? criticalPath?.releasePublishTicketPacket ??
               ownerPacket?.firstReleasePublishTicketPacket
-        : criticalPath?.externalRuntimeTicketPacket ??
-          ownerPacket?.firstExternalRuntimeTicketPacket;
+            : ticketField === "install-approval"
+              ? criticalPath?.installApprovalTicketPacket ??
+                ownerPacket?.firstInstallApprovalTicketPacket
+              : criticalPath?.externalRuntimeTicketPacket ??
+                ownerPacket?.firstExternalRuntimeTicketPacket;
   const firstAction = ticket?.firstReadOnlyAction;
   const approvalAction = ticket?.approvalGatedAction;
   const setupAction = ticket?.setupAction;
@@ -712,6 +715,14 @@ async function main() {
         "release-publish",
         "release-manager",
         "release-publish"
+      ),
+      releaseActionQueueHandoffRequirement(
+        releaseActionQueue,
+        "release-action-queue-install-approval-ticket",
+        "Release action queue install approval ticket handoff",
+        "install-approval",
+        "cluster-admin",
+        "install-approval"
       ),
       laneRequirement(checkpoint, "releasePublish", "Release publish approval plan", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "ownedImageProvenance", "Owned image provenance", ["pass", "needs-evidence"]),

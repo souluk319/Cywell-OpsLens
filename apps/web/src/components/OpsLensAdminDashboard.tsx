@@ -2533,6 +2533,11 @@ export function OpsLensAdminDashboard() {
                       :publishFirst=
                       {entry.releasePublishTicketPacket?.firstReadOnlyAction.id ??
                         "none"}
+                      :installTicket=
+                      {entry.installApprovalTicketPacket?.id ?? "none"}
+                      :installFirst=
+                      {entry.installApprovalTicketPacket?.firstReadOnlyAction.id ??
+                        "none"}
                       :tools={entry.missingRequiredTools.join(",") || "none"}
                       :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
                       {entry.readOnlyCommandIds.join(",") || "none"}:approval=
@@ -2588,6 +2593,11 @@ export function OpsLensAdminDashboard() {
                     {packet.firstReleasePublishTicketPacket?.id ?? "none"}
                     :publishFirst=
                     {packet.firstReleasePublishTicketPacket?.firstReadOnlyAction
+                      .id ?? "none"}
+                    :installTicket=
+                    {packet.firstInstallApprovalTicketPacket?.id ?? "none"}
+                    :installFirst=
+                    {packet.firstInstallApprovalTicketPacket?.firstReadOnlyAction
                       .id ?? "none"}
                   </span>
                 ))}
@@ -3029,6 +3039,27 @@ export function OpsLensAdminDashboard() {
                 ) : (
                   <span>first approval actions clear</span>
                 )}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-install-approval-ticket"
+              >
+                <span>
+                  {approvalPlan.ticketPacket.id}:{approvalPlan.ticketPacket.owner}:
+                  {approvalPlan.ticketPacket.classification}:first=
+                  {approvalPlan.ticketPacket.firstReadOnlyAction.id}:approval=
+                  {approvalPlan.ticketPacket.approvalGatedAction.id}
+                  :requiresApproval=
+                  {String(
+                    approvalPlan.ticketPacket.approvalGatedAction
+                      .requiresExplicitApproval
+                  )}
+                  :mutationAllowed=
+                  {String(
+                    approvalPlan.ticketPacket.mutationBoundary
+                      .mutationAllowedByThisVerifier
+                  )}
+                </span>
               </div>
               <div
                 className="admin-evidence-line"

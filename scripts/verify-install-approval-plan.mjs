@@ -575,6 +575,112 @@ function firstApprovalActions(checklist, commands) {
   return [...checklistActions, ...gatedMutationAction];
 }
 
+function uniqueStrings(values) {
+  return [...new Set(values.filter(Boolean).map((value) => String(value)))];
+}
+
+function buildInstallApprovalTicketPacket({ status, checklist, commands, firstActions }) {
+  const dryRunChecklist = checklist.find((item) => item.id === "operator-server-dry-run");
+  const openChecklistItems = checklist.filter((item) => item.status !== "pass");
+  const firstReadOnlyCommand =
+    commands.find((entry) => entry.id === "run-operator-server-dry-run" && entry.mutation === false) ??
+    commands.find((entry) => entry.mutation === false);
+  const firstReadOnly =
+    firstActions.find((action) => action.id === firstReadOnlyCommand?.id) ??
+    (firstReadOnlyCommand
+      ? {
+          id: firstReadOnlyCommand.id,
+          status:
+            dryRunChecklist?.status ??
+            (status === "APPROVAL_REQUIRED" ? "ready" : "needs-evidence"),
+          nextCommand: firstReadOnlyCommand.command,
+          mutation: false,
+          requiresExplicitApproval: false
+        }
+      : {
+          id: "run-operator-server-dry-run",
+          status: status === "APPROVAL_REQUIRED" ? "ready" : "needs-evidence",
+          nextCommand: "npm run verify:operator:dry-run",
+          mutation: false,
+          requiresExplicitApproval: false
+        });
+  const approvalAction =
+    firstActions.find((action) => action.mutation === true) ??
+    (() => {
+      const firstMutatingCommand = commands.find((entry) => entry.mutation === true);
+      return {
+        id: firstMutatingCommand
+          ? `approval-gated-${firstMutatingCommand.id}`
+          : "approval-gated-install",
+        status: "approval-gated",
+        nextCommand:
+          firstMutatingCommand?.command ?? "approval-gated install command",
+        mutation: true,
+        requiresExplicitApproval: true
+      };
+    })();
+
+  return {
+    id: "cluster-admin-install-approval-ticket",
+    owner: "cluster-admin",
+    title: "Install approval handoff",
+    severity: "high",
+    classification:
+      openChecklistItems.length > 0
+        ? "install-evidence-gaps"
+        : "install-approval-required",
+    installStatus: status,
+    requiredApprovals: [
+      "cluster-admin",
+      "cluster-sre",
+      "security-reviewer",
+      "product-owner"
+    ],
+    evidenceChecklist: [
+      "Operator server-side dry-run evidence is current and read-only",
+      "Lightspeed PatchOLSConfig preview is current and preview-only",
+      "Release image build/provenance evidence is current-head",
+      "RAG ingestion remains ingestionPlanOnly with no vector writes",
+      "Namespace, CatalogSource, Subscription, InstallPlan approval, OpsLensInstallation, and OLSConfig mutation remain approval-gated"
+    ],
+    firstReadOnlyAction: {
+      id: firstReadOnly.id,
+      status: firstReadOnly.status,
+      nextCommand: firstReadOnly.nextCommand,
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id: approvalAction.id,
+      status: approvalAction.status,
+      nextCommand: approvalAction.nextCommand,
+      mutation: true,
+      requiresExplicitApproval: true
+    },
+    nextCommands: uniqueStrings([
+      firstReadOnly.nextCommand,
+      approvalAction.nextCommand,
+      "npm run verify:install-plan",
+      "npm run evidence:release-action-queue"
+    ]),
+    blockedBy: uniqueStrings(
+      openChecklistItems.map((item) => `${item.id}: ${item.evidence}`)
+    ).slice(0, 8),
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false,
+      installRequiresExplicitApproval: true
+    },
+    risk:
+      "Install approval handoff blocks namespace creation, OLM resources, InstallPlan approval, OpsLensInstallation apply, OLSConfig patching, and future RAG ingestion until human approvals are explicit.",
+    rollbackPath:
+      "Use the generated uninstall order: restore OLSConfig, delete OpsLensInstallation, remove ConsolePlugin after console cleanup, preserve vector PVCs, then delete Subscription, CSV, CatalogSource, and namespace."
+  };
+}
+
 function secretValuesForLeakCheck() {
   return [
     "OCP_API_TOKEN",
@@ -679,6 +785,26 @@ async function buildPlan() {
     approvedIngestionPlan.status === "ready-for-ingestion-job"
       ? "ready-for-ingestion-job"
       : "needs-evidence";
+  const ticketPacket = buildInstallApprovalTicketPacket({
+    status,
+    checklist,
+    commands,
+    firstActions
+  });
+  if (
+    ticketPacket.firstReadOnlyAction.mutation === false &&
+    ticketPacket.firstReadOnlyAction.requiresExplicitApproval === false &&
+    ticketPacket.approvalGatedAction.mutation === true &&
+    ticketPacket.approvalGatedAction.requiresExplicitApproval === true &&
+    ticketPacket.mutationBoundary.clusterMutationAttempted === false &&
+    ticketPacket.mutationBoundary.vectorWriteAttempted === false &&
+    ticketPacket.mutationBoundary.ingestionJobCreated === false &&
+    ticketPacket.mutationBoundary.mutationAllowedByThisVerifier === false
+  ) {
+    pass("install approval ticket boundary", "install handoff is read-only first and approval-gated for cluster mutation");
+  } else {
+    fail("install approval ticket boundary", "install handoff must separate read-only preflight from approval-gated cluster mutation");
+  }
 
   return {
     schema: "cywell.opslens.install-approval-plan.v0.1",
@@ -762,6 +888,7 @@ async function buildPlan() {
     },
     checklist,
     firstApprovalActions: firstActions,
+    ticketPacket,
     commands,
     risk: [
       "Applying the OpsLensInstallation sample allows the Operator to patch OLSConfig because mode=PatchOLSConfig is explicit.",

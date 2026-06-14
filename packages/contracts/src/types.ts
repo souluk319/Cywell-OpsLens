@@ -2237,6 +2237,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     firstReleasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
+    firstInstallApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     nextCommands: string[];
     setupCommandIds: string[];
@@ -2268,6 +2269,7 @@ export interface OpsLensReleaseActionQueueSummary {
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
+    installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   ownerPacketCleanup: {
@@ -2319,6 +2321,7 @@ export interface OpsLensReleaseActionQueueSummary {
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
+    installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   sourceArtifacts: Array<{
@@ -2473,6 +2476,7 @@ export interface OpsLensInstallApprovalPlanSummary {
   missingEvidence: string[];
   lightspeedRegistration: OpsLensLightspeedRegistrationApprovalPlanSummary;
   ragIngestion: OpsLensRagIngestionApprovalPlanSummary;
+  ticketPacket: OpsLensInstallApprovalTicketPacket;
 }
 
 export interface OpsLensReleasePublishPlanSummary {
@@ -2792,6 +2796,43 @@ export interface OpsLensReleasePublishTicketPacket {
     registryMutationAttempted: boolean;
     mutationAllowedByThisVerifier: boolean;
     publishRequiresExplicitApproval: boolean;
+  };
+  risk: string;
+  rollbackPath: string;
+}
+
+export interface OpsLensInstallApprovalTicketPacket {
+  id: string;
+  owner: "cluster-admin";
+  title: string;
+  severity: "high";
+  classification: string;
+  installStatus: string;
+  requiredApprovals: string[];
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  approvalGatedAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    vectorWriteAttempted: boolean;
+    ingestionJobCreated: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    installRequiresExplicitApproval: boolean;
   };
   risk: string;
   rollbackPath: string;

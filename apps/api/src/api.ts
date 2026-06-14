@@ -47,6 +47,7 @@ import type {
   OpsLensExternalRuntimeReviewPacketSummary,
   OpsLensImageBuildReadiness,
   OpsLensInstallApprovalPlanSummary,
+  OpsLensInstallApprovalTicketPacket,
   OpsLensInstallPlanReadiness,
   OpsLensLightspeedExtensionPointReadiness,
   OpsLensLightspeedExtensionPointSummary,
@@ -2075,6 +2076,7 @@ type InstallApprovalPlanEvidenceArtifact = {
     blockedBy?: string[];
     rollbackPath?: string;
   }>;
+  ticketPacket?: OpsLensInstallApprovalTicketPacket;
   commands?: Array<{
     id?: string;
     phase?: string;
@@ -2627,6 +2629,7 @@ type ReleaseActionQueueArtifact = {
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     firstReleasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
+    firstInstallApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     nextCommands?: string[];
     setupCommandIds?: string[];
@@ -2658,6 +2661,7 @@ type ReleaseActionQueueArtifact = {
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
+    installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   ownerPacketCleanup?: {
@@ -2709,6 +2713,7 @@ type ReleaseActionQueueArtifact = {
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
+    installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
   }>;
   sourceArtifacts?: Array<{
@@ -5591,6 +5596,100 @@ function mapRagIngestionApprovalPlan(
   };
 }
 
+function fallbackInstallApprovalTicketPacket({
+  status,
+  classification,
+  firstApprovalActions = [],
+  requiredApprovals = [
+    "cluster-admin",
+    "cluster-sre",
+    "security-reviewer",
+    "product-owner"
+  ],
+  missingEvidence = []
+}: {
+  status: string;
+  classification: string;
+  firstApprovalActions?: Array<{
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  }>;
+  requiredApprovals?: string[];
+  missingEvidence?: string[];
+}): OpsLensInstallApprovalTicketPacket {
+  const firstReadOnly =
+    firstApprovalActions.find(
+      (action) => action.id === "run-operator-server-dry-run"
+    ) ??
+    firstApprovalActions.find((action) => action.mutation === false) ?? {
+      id: "run-operator-server-dry-run",
+      status: status === "approval-required" ? "ready" : "needs-evidence",
+      nextCommand: "npm run verify:operator:dry-run",
+      mutation: false,
+      requiresExplicitApproval: false
+    };
+  const approvalAction =
+    firstApprovalActions.find((action) => action.mutation === true) ?? {
+      id: "approval-gated-apply-operator-namespace",
+      status: "approval-gated",
+      nextCommand:
+        "oc create namespace cywell-opslens --dry-run=server -o yaml | oc apply -f -",
+      mutation: true,
+      requiresExplicitApproval: true
+    };
+
+  return {
+    id: "cluster-admin-install-approval-ticket",
+    owner: "cluster-admin",
+    title: "Install approval handoff",
+    severity: "high",
+    classification,
+    installStatus: status,
+    requiredApprovals,
+    evidenceChecklist: [
+      "Operator server-side dry-run evidence is current and read-only",
+      "Lightspeed PatchOLSConfig preview is current and preview-only",
+      "Release image and RAG ingestion evidence are current before install approval",
+      "Install and OLSConfig mutation commands remain approval-gated"
+    ],
+    firstReadOnlyAction: {
+      id: firstReadOnly.id,
+      status: firstReadOnly.status,
+      nextCommand: firstReadOnly.nextCommand,
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id: approvalAction.id,
+      status: approvalAction.status,
+      nextCommand: approvalAction.nextCommand,
+      mutation: true,
+      requiresExplicitApproval: true
+    },
+    nextCommands: [
+      firstReadOnly.nextCommand,
+      approvalAction.nextCommand,
+      "npm run verify:install-plan"
+    ],
+    blockedBy: missingEvidence,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false,
+      installRequiresExplicitApproval: true
+    },
+    risk:
+      "Install approval remains blocked until cluster mutations and future ingestion are explicitly approved.",
+    rollbackPath:
+      "Regenerate install approval evidence and use the approved uninstall order before any correction."
+  };
+}
+
 function getInstallApprovalPlanReadiness(): {
   status: OpsLensInstallPlanReadiness;
   evidence: string[];
@@ -5642,7 +5741,23 @@ function getInstallApprovalPlanReadiness(): {
         ),
         ragIngestion: missingRagIngestionPlan(
           "install approval plan evidence is missing"
-        )
+        ),
+        ticketPacket: fallbackInstallApprovalTicketPacket({
+          status: "needs-evidence",
+          classification: "install-plan-missing",
+          firstApprovalActions: [
+            {
+              id: "generate-install-approval-plan",
+              status: "needs-evidence",
+              nextCommand: "npm run verify:install-plan",
+              mutation: false,
+              requiresExplicitApproval: false
+            }
+          ],
+          missingEvidence: [
+            `install approval plan evidence is missing at ${evidencePath}`
+          ]
+        })
       },
       evidence: [
         "run npm run verify:install-plan to create install approval plan evidence",
@@ -5696,6 +5811,18 @@ function getInstallApprovalPlanReadiness(): {
       `RAG ingestion plan ${ragIngestion.actionMode} status=${ragIngestion.status} ` +
       `approvedPlan=${ragIngestion.approvedPlanStatus} ingestionJobCreated=${String(ragIngestion.ingestionJobCreated)} ` +
       `vectorWriteAttempted=${String(ragIngestion.vectorWriteAttempted)}`;
+    const ticketPacket: OpsLensInstallApprovalTicketPacket =
+      artifact.ticketPacket ??
+      fallbackInstallApprovalTicketPacket({
+        status,
+        classification:
+          (artifact.missingEvidence ?? []).length > 0
+            ? "install-evidence-gaps"
+            : "install-approval-required",
+        firstApprovalActions,
+        requiredApprovals: artifact.requiredApprovals,
+        missingEvidence: artifact.missingEvidence ?? []
+      });
 
     return {
       status,
@@ -5712,7 +5839,8 @@ function getInstallApprovalPlanReadiness(): {
         rollbackPath: artifact.rollbackPath ?? [],
         missingEvidence: artifact.missingEvidence ?? [],
         lightspeedRegistration,
-        ragIngestion
+        ragIngestion,
+        ticketPacket
       },
       evidence: [
         `Install approval plan evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
@@ -5720,6 +5848,7 @@ function getInstallApprovalPlanReadiness(): {
         `actionMode=${artifact.actionMode ?? "unknown"} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")} mutationAllowedByThisVerifier=${String(artifact.mutationAllowedByThisVerifier ?? "unknown")}`,
         `required approvals=${(artifact.requiredApprovals ?? []).join(", ") || "unknown"}`,
         `install first approval actions=${firstApprovalActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
+        `install approval ticket=${ticketPacket.id}:${ticketPacket.firstReadOnlyAction.id}:approval=${ticketPacket.approvalGatedAction.id}`,
         mutatingCommandNames
           ? `mutating commands require explicit approval: ${mutatingCommandNames}`
           : "mutating commands are not listed in latest approval plan",
@@ -5755,7 +5884,23 @@ function getInstallApprovalPlanReadiness(): {
         ragIngestion: missingRagIngestionPlan(
           error instanceof Error ? error.message : "unknown evidence parse error",
           "failed"
-        )
+        ),
+        ticketPacket: fallbackInstallApprovalTicketPacket({
+          status: "failed",
+          classification: "install-plan-invalid",
+          firstApprovalActions: [
+            {
+              id: "generate-install-approval-plan",
+              status: "failed",
+              nextCommand: "npm run verify:install-plan",
+              mutation: false,
+              requiresExplicitApproval: false
+            }
+          ],
+          missingEvidence: [
+            error instanceof Error ? error.message : "unknown evidence parse error"
+          ]
+        })
       },
       evidence: [
         `Install approval plan evidence could not be parsed from ${evidencePath}`,
@@ -8034,6 +8179,8 @@ function getReleaseActionQueueReadiness(): {
         packet.firstSecurityReviewTicketPacket,
       firstReleasePublishTicketPacket:
         packet.firstReleasePublishTicketPacket,
+      firstInstallApprovalTicketPacket:
+        packet.firstInstallApprovalTicketPacket,
       firstCertificationToolingTicketPacket:
         packet.firstCertificationToolingTicketPacket,
       nextCommands: packet.nextCommands ?? [],
@@ -8073,6 +8220,7 @@ function getReleaseActionQueueReadiness(): {
       externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
       securityReviewTicketPacket: entry.securityReviewTicketPacket,
       releasePublishTicketPacket: entry.releasePublishTicketPacket,
+      installApprovalTicketPacket: entry.installApprovalTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket
     }));
     const items = (artifact.items ?? []).map((entry) => ({
@@ -8118,6 +8266,7 @@ function getReleaseActionQueueReadiness(): {
       externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
       securityReviewTicketPacket: entry.securityReviewTicketPacket,
       releasePublishTicketPacket: entry.releasePublishTicketPacket,
+      installApprovalTicketPacket: entry.installApprovalTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
