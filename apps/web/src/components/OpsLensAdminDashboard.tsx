@@ -2814,6 +2814,9 @@ export function OpsLensAdminDashboard() {
                     <span key={entry.id}>
                       {entry.owner}:{entry.missingRequiredTools.join(", ")}:
                       {entry.setupCommands.map((command) => command.id).join(", ")}
+                      :diagnostics=
+                      {entry.diagnostics.map((diagnostic) => diagnostic.id).join(",") ||
+                        "none"}
                     </span>
                   ))}
               </div>

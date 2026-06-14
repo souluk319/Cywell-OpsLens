@@ -491,6 +491,59 @@ function externalRuntimeFinalEvidenceDiagnostics(packet) {
   return diagnostics;
 }
 
+function certificationToolingDiagnostics(certificationReadiness) {
+  const handoff = certificationReadiness?.toolingHandoff ?? {};
+  const ticket = handoff.ticketPacket ?? {};
+  const runner = handoff.runnerEvidence ?? {};
+  const lanes = handoff.executionLanes ?? [];
+  const boundary = ticket.mutationBoundary ?? {};
+  const missingTools = handoff.missingRequiredTools ?? [];
+  return [
+    {
+      id: "certification-tooling-status",
+      label: "Certification tooling",
+      value:
+        `status=${handoff.status ?? "missing"} ` +
+        `satisfiedBy=${handoff.toolingSatisfiedBy ?? "missing"} ` +
+        `ticket=${ticket.id ?? "missing"}`
+    },
+    {
+      id: "certification-missing-tools",
+      label: "Missing tools",
+      value: missingTools.length ? missingTools.join(",") : "none"
+    },
+    {
+      id: "certification-runner-evidence",
+      label: "CI runner evidence",
+      value:
+        `status=${runner.status ?? "missing"} ` +
+        `sameHead=${String(runner.sameHead === true)} ` +
+        `approved=${String(runner.approved === true)} ` +
+        `path=${runner.path ?? "missing"} ` +
+        `missing=${runner.missingEvidence?.length ?? 0}`
+    },
+    {
+      id: "certification-lanes",
+      label: "Execution lanes",
+      value: lanes.length
+        ? lanes
+            .map((lane) => `${lane.id ?? "unknown"}=${lane.status ?? "unknown"}`)
+            .join(" ")
+        : "missing"
+    },
+    {
+      id: "certification-boundary",
+      label: "Mutation boundary",
+      value:
+        `setupHumanApproval=${String(boundary.toolingInstallRequiresHumanApproval !== false)} ` +
+        `externalSubmissionApproval=${String(boundary.externalSubmissionRequiresExplicitApproval !== false)} ` +
+        `clusterMutation=${String(boundary.clusterMutationAttempted === true)} ` +
+        `registryMutation=${String(boundary.registryMutationAttempted === true)} ` +
+        `mutationAllowed=${String(boundary.mutationAllowedByThisVerifier === true)}`
+    }
+  ];
+}
+
 function stripReleaseActionQueueFeedback(value) {
   return sanitize(value).replace(/^(?:releaseActionQueue:\s*)+/i, "");
 }
@@ -1647,6 +1700,7 @@ function checkpointItems(
       (certificationReadiness?.toolingHandoff?.executionLanes ?? [])
         .flatMap((lane) => lane.blockedBy ?? [])
     ),
+    diagnostics: certificationToolingDiagnostics(certificationReadiness),
     certificationToolingTicketPacket:
       certificationReadiness?.toolingHandoff?.ticketPacket,
     acceptance: ["AC-CERT-001"]

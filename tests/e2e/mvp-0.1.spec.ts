@@ -5580,6 +5580,25 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           (command) => command.mutation === false
         )
       ).toBe(true);
+      expect(certificationToolingAction.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining([
+          "certification-tooling-status",
+          "certification-missing-tools",
+          "certification-runner-evidence",
+          "certification-lanes",
+          "certification-boundary"
+        ])
+      );
+      expect(
+        certificationToolingAction.diagnostics?.find(
+          (item) => item.id === "certification-runner-evidence"
+        )?.value
+      ).toMatch(/status=.*sameHead=.*approved=.*approved-ci-runner\.json/);
+      expect(
+        certificationToolingAction.diagnostics?.find(
+          (item) => item.id === "certification-boundary"
+        )?.value
+      ).toContain("mutationAllowed=false");
     }
     const catalogRegistryAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -7283,6 +7302,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-tooling-handoff")
     ).toContainText("operator-sdk");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-tooling-handoff")
+    ).toContainText("certification-runner-evidence");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-tooling-handoff")
+    ).toContainText("certification-boundary");
     await expect(
       page.getByTestId("opslens-release-action-queue-candidate-actions")
     ).toContainText("evidence:external-runtime:candidate-scan");
