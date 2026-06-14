@@ -4849,6 +4849,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect.arrayContaining([
         "live-ocp-lightspeed",
         "runtime-live",
+        "runtime-rag-quality",
         "external-runtime-review",
         "release-publish",
         "install-approval"
@@ -6051,6 +6052,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           ?.find((item) => item.id === "runtime-rag-contract")
           ?.value
       ).toContain("status=NEEDS_LIVE_EVIDENCE");
+      const runtimeRagCriticalPath =
+        body.installReadiness?.actionQueue?.criticalPath?.find(
+          (entry) => entry.lane === "runtime-rag-quality"
+        );
+      expect(runtimeRagCriticalPath).toMatchObject({
+        owner: "data-ml-engineer",
+        actionId: "data-ml-engineer-prove-runtime-rag-live-quality",
+        source: "runtimeRag:runtimeRagFixture"
+      });
+      expect(runtimeRagCriticalPath?.readOnlyCommandIds).toEqual(
+        expect.arrayContaining(["runtime-rag-contract", "runtime-rag-fixture"])
+      );
+      expect(runtimeRagCriticalPath?.diagnostics).toEqual(
+        expect.arrayContaining(["runtime-rag-live-gap"])
+      );
     }
     const ragOwnerQueueAction =
       body.installReadiness?.actionQueue?.items?.find(

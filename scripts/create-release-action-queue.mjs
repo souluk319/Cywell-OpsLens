@@ -3130,6 +3130,7 @@ function firstOwnerAction(entries) {
 const criticalPathLaneOrder = [
   "live-ocp-lightspeed",
   "runtime-live",
+  "runtime-rag-quality",
   "external-runtime-review",
   "certification-toolchain",
   "release-publish",
@@ -3141,7 +3142,8 @@ const criticalPathLaneOrder = [
 
 const criticalPathLabels = {
   "live-ocp-lightspeed": "Live OCP and Lightspeed reachability",
-  "runtime-live": "Runtime live probes and RAG quality",
+  "runtime-live": "Runtime live probes",
+  "runtime-rag-quality": "Runtime RAG live quality",
   "external-runtime-review": "External runtime evidence and mirroring",
   "certification-toolchain": "Certification and catalog toolchain",
   "release-publish": "Release publish approval",
@@ -3154,9 +3156,8 @@ const criticalPathLabels = {
 function criticalPathLane(entry) {
   const text = `${entry.id} ${entry.source} ${entry.owner}`.toLowerCase();
   if (/(ocp|lightspeed|network|live-handoff)/.test(text)) return "live-ocp-lightspeed";
-  if (
-    /runtime-platform|data-ml-engineer|runtime-readiness|runtime-rag|runtimeprobe|runtime-readiness-live/.test(text)
-  ) return "runtime-live";
+  if (/data-ml-engineer|runtime-rag/.test(text)) return "runtime-rag-quality";
+  if (/runtime-platform|runtime-readiness|runtimeprobe|runtime-readiness-live/.test(text)) return "runtime-live";
   if (/external-runtime|externalruntime/.test(text)) return "external-runtime-review";
   if (/certification|catalog-toolchain|tooling|opm|operator-sdk/.test(text)) return "certification-toolchain";
   if (/release-publish|publish-decision|refresh-publish/.test(text)) return "release-publish";
