@@ -49,7 +49,8 @@ const checks = [];
 const startedAt = new Date().toISOString();
 let evidenceContext = {
   expectedResources: [],
-  plan: undefined
+  plan: undefined,
+  goLightspeedMutationBoundary: undefined
 };
 
 function sanitize(value) {
@@ -128,6 +129,37 @@ function hasRuleFor(rules, apiGroup, resource, verbs = []) {
   });
 }
 
+function ruleVerbsFor(rules, apiGroup, resource) {
+  return (rules ?? []).flatMap((rule) => {
+    const groups = rule.apiGroups ?? [];
+    const resources = rule.resources ?? [];
+    if (!groups.includes(apiGroup) || !resources.includes(resource)) return [];
+    return rule.verbs ?? [];
+  });
+}
+
+function countMatches(text, pattern) {
+  return [...String(text ?? "").matchAll(pattern)].length;
+}
+
+function extractGoFunction(source, name) {
+  const marker = `func (r *OpsLensInstallationReconciler) ${name}`;
+  const start = source.indexOf(marker);
+  if (start < 0) return "";
+  const openBrace = source.indexOf("{", start);
+  if (openBrace < 0) return "";
+  let depth = 0;
+  for (let index = openBrace; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, index + 1);
+    }
+  }
+  return "";
+}
+
 async function runCapture(command, args) {
   try {
     const { stdout } = await execFileAsync(command, args, {
@@ -200,10 +232,15 @@ async function writeEvidence() {
       ragRawDocumentReturnAllowed:
         plan?.policy?.ragRawDocumentReturnAllowed === true
     },
+    goLightspeedMutationBoundary:
+      evidenceContext.goLightspeedMutationBoundary ?? {
+        functionFound: false
+      },
     evidence: [
       "TypeScript desired resources and Go/controller-runtime reconcile lanes are checked for parity.",
       "ConsolePlugin backend/proxy, API/dashboard services, NetworkPolicies, vector/model runtime, and OLSConfig patch paths are covered.",
-      "RBAC rules in config and CSV cover the resources reconciled by the Go controller."
+      "RBAC rules in config and CSV cover the resources reconciled by the Go controller.",
+      "Go Lightspeed registration source is checked so ValidateOnly exits before live reads or patches, and PatchOLSConfig is the only OLSConfig mutation path."
     ],
     missingEvidence: failures.map((check) => `${check.name}: ${check.detail}`),
     risk: [
@@ -441,6 +478,70 @@ try {
     "PatchOLSConfig reads the existing OLSConfig, preserves state, upserts Cywell MCP, and patches with rollback annotation"
   );
 
+  const lightspeedFunction = extractGoFunction(controller, "reconcileLightspeedRegistration");
+  const reconcileCallIndex = controller.indexOf("r.reconcileLightspeedRegistration(ctx, &installation)");
+  const statusUpdateIndex = controller.indexOf("r.Status().Update(ctx, &installation)");
+  const validateOnlyGuardIndex = lightspeedFunction.indexOf(
+    "mode == opslensv1alpha1.LightspeedValidateOnly"
+  );
+  const validateOnlyReturnIndex =
+    validateOnlyGuardIndex >= 0
+      ? lightspeedFunction.indexOf("return nil", validateOnlyGuardIndex)
+      : -1;
+  const endpointGuardIndex = lightspeedFunction.indexOf(
+    '!strings.HasSuffix(desiredEndpoint, "/mcp")'
+  );
+  const getIndex = lightspeedFunction.indexOf("r.Get(ctx, types.NamespacedName");
+  const patchIndex = lightspeedFunction.indexOf("r.Patch(ctx, olsConfig");
+  const patchCallCount = countMatches(lightspeedFunction, /r\.Patch\s*\(\s*ctx\s*,\s*olsConfig/g);
+  const configMapReferenceCount = countMatches(lightspeedFunction, /ConfigMap/g);
+  evidenceContext.goLightspeedMutationBoundary = {
+    functionFound: Boolean(lightspeedFunction),
+    validateOnlyGuardBeforeRead:
+      validateOnlyReturnIndex >= 0 &&
+      getIndex >= 0 &&
+      validateOnlyReturnIndex < getIndex,
+    endpointGuardBeforeRead:
+      endpointGuardIndex >= 0 &&
+      getIndex >= 0 &&
+      endpointGuardIndex < getIndex,
+    patchCallCount,
+    patchAfterRead:
+      getIndex >= 0 &&
+      patchIndex >= 0 &&
+      getIndex < patchIndex,
+    configMapReferenceCount,
+    reconcileBeforeStatus:
+      reconcileCallIndex >= 0 &&
+      statusUpdateIndex >= 0 &&
+      reconcileCallIndex < statusUpdateIndex
+  };
+
+  expectCheck(
+    "Go Lightspeed ValidateOnly mutation guard",
+    evidenceContext.goLightspeedMutationBoundary.functionFound &&
+      evidenceContext.goLightspeedMutationBoundary.validateOnlyGuardBeforeRead &&
+      evidenceContext.goLightspeedMutationBoundary.endpointGuardBeforeRead,
+    "ValidateOnly returns before OLSConfig reads/patches, and non-/mcp endpoints fail before reading live OLSConfig"
+  );
+
+  expectCheck(
+    "Go Lightspeed patch call boundary",
+    evidenceContext.goLightspeedMutationBoundary.patchCallCount === 1 &&
+      evidenceContext.goLightspeedMutationBoundary.patchAfterRead &&
+      lightspeedFunction.includes("client.MergeFrom(original)") &&
+      lightspeedFunction.includes("opslens.cywell.io/reconcile-mode") &&
+      lightspeedFunction.includes("opslens.cywell.io/rollback-path"),
+    "reconcileLightspeedRegistration has one OLSConfig Patch call, after reading existing state, with reconcile-mode and rollback annotations"
+  );
+
+  expectCheck(
+    "Go Lightspeed legacy ConfigMap boundary",
+    evidenceContext.goLightspeedMutationBoundary.configMapReferenceCount === 0 &&
+      evidenceContext.goLightspeedMutationBoundary.reconcileBeforeStatus,
+    "Lightspeed registration source does not reference legacy ConfigMap mutation and status is updated after registration reconciliation"
+  );
+
   const csvRules = (csv?.spec?.install?.spec?.clusterPermissions ?? []).flatMap(
     (permission) => permission.rules ?? []
   );
@@ -456,6 +557,20 @@ try {
     hasRuleFor(clusterRole?.rules ?? [], "networking.k8s.io", "networkpolicies", ["get", "create", "patch"]) &&
       hasRuleFor(csvRules, "networking.k8s.io", "networkpolicies", ["get", "create", "patch"]),
     "config RBAC and CSV RBAC cover the NetworkPolicies reconciled by Go"
+  );
+
+  const olsConfigRoleVerbs = ruleVerbsFor(clusterRole?.rules ?? [], "ols.openshift.io", "olsconfigs");
+  const olsConfigCsvVerbs = ruleVerbsFor(csvRules, "ols.openshift.io", "olsconfigs");
+  expectCheck(
+    "RBAC OLSConfig patch-only boundary",
+    ["get", "list", "watch", "update", "patch"].every(
+      (verb) => olsConfigRoleVerbs.includes(verb) && olsConfigCsvVerbs.includes(verb)
+    ) &&
+      !olsConfigRoleVerbs.includes("create") &&
+      !olsConfigRoleVerbs.includes("delete") &&
+      !olsConfigCsvVerbs.includes("create") &&
+      !olsConfigCsvVerbs.includes("delete"),
+    "config RBAC and CSV RBAC can read/update/patch existing OLSConfig resources but cannot create or delete them"
   );
 
   expectCheck(
