@@ -1513,7 +1513,8 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
         "Fix TLS trust or proxy TLS behavior so Lightspeed readiness can read OLSConfig resources.",
       evidenceNeeded:
         "Lightspeed readiness can read the OLSConfig CRD and OLSConfig with TLS verification policy documented.",
-      nextCommand: "npm run verify:lightspeed -- --timeout-ms 30000",
+      nextCommand:
+        gap.nextCommand ?? "npm run verify:ocp:connectivity -- --timeout-ms 30000",
       handoffNextCommands: networkTicketNextCommands(networkHandoff),
       readOnlyCommands,
       approvalGatedCommands: networkTicketApprovalCommands(networkHandoff),
@@ -1533,7 +1534,8 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
         "Restore network reachability from the verifier workstation or approved bastion so Lightspeed readiness can read OLSConfig resources.",
       evidenceNeeded:
         `Lightspeed readiness classification=${classification} changes to CRD/OLSConfig readable or NEEDS_CONFIGURATION.`,
-      nextCommand: "npm run verify:lightspeed -- --timeout-ms 30000",
+      nextCommand:
+        gap.nextCommand ?? "npm run verify:ocp:connectivity -- --timeout-ms 30000",
       handoffNextCommands: networkTicketNextCommands(networkHandoff),
       readOnlyCommands,
       approvalGatedCommands: networkTicketApprovalCommands(networkHandoff),

@@ -5390,7 +5390,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         lightspeedReadinessAction?.owner
       );
       expect(lightspeedReadinessAction?.nextCommand).toMatch(
-        /evidence:ocp-auth-rbac-plan|verify:lightspeed/
+        /evidence:ocp-auth-rbac-plan|verify:ocp:connectivity|verify:lightspeed/
       );
       expect(lightspeedReadinessAction?.evidenceNeeded).toContain("OLSConfig");
       expect(lightspeedReadinessAction?.readOnlyCommands?.map((command) => command.id)).toEqual(
@@ -5422,6 +5422,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         expect(lightspeedReadinessAction?.blockedBy?.join(" ")).toMatch(
           /tls|tcp|dns|network|OLSConfig/i
         );
+        if (
+          lightspeedReadinessAction?.id ===
+          "network-sre-unblock-lightspeed-readiness-ocp-api"
+        ) {
+          expect(lightspeedReadinessAction.nextCommand).toContain(
+            "verify:ocp:connectivity"
+          );
+        }
         expect(lightspeedReadinessAction?.diagnostics?.map((item) => item.id)).toEqual(
           expect.arrayContaining([
             "ocp-network-target",
