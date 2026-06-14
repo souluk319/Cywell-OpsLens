@@ -233,7 +233,7 @@ function buildChain() {
     );
   } else {
     commands.push(
-      npmScript("ocp-connectivity", "live", "verify:ocp:connectivity", [], {
+      npmScript("ocp-connectivity", "live", "verify:ocp:connectivity", ["--timeout-ms", String(options.liveTimeoutMs)], {
         expectedNonZero: true,
         timeoutMs: Math.max(options.liveTimeoutMs + 15000, 45000)
       }),
