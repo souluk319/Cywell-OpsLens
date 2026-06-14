@@ -2897,6 +2897,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.networkHandoff?.target?.redactedBaseUrl
     ).toContain("<redacted-ocp-api>");
+    expect(
+      body.installReadiness?.networkHandoff?.sourceArtifacts?.map(
+        (source) => source.id
+      )
+    ).toEqual(expect.arrayContaining(["evidenceCheckpoint"]));
+    expect(
+      body.installReadiness?.networkHandoff?.sourceArtifacts?.find(
+        (source) => source.id === "evidenceCheckpoint"
+      )
+    ).toMatchObject({
+      fresh: true
+    });
     const networkFirstActions =
       body.installReadiness?.networkHandoff?.firstNetworkActions ?? [];
     expect(networkFirstActions.length).toBeGreaterThanOrEqual(3);
@@ -3691,6 +3703,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect.arrayContaining([
         "mvp-gate",
         "env-contract",
+        "ocp-network-handoff-post-checkpoint",
         "community-operator-submission",
         "certification-readiness",
         "catalog-toolchain",
@@ -5198,6 +5211,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-ocp-network-first-actions")
     ).toContainText(/approval=true|network first actions missing/);
+    await expect(
+      page.getByTestId("opslens-ocp-network-source-artifacts")
+    ).toContainText("evidenceCheckpoint:");
+    await expect(
+      page.getByTestId("opslens-ocp-network-source-artifacts")
+    ).toContainText("fresh=true");
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Auth/RBAC Plan"
     );

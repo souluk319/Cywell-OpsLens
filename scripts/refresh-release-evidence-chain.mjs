@@ -284,6 +284,7 @@ function buildChain() {
     npmScript("ocp-network-handoff", "approval", "evidence:ocp-network-handoff"),
     npmScript("lightspeed-integration-handoff", "approval", "verify:lightspeed:integration-handoff"),
     npmScript("evidence-checkpoint", "approval", "verify:evidence-checkpoint"),
+    npmScript("ocp-network-handoff-post-checkpoint", "approval", "evidence:ocp-network-handoff"),
     npmScript("roadmap-plan", "approval", "verify:roadmap-plan", [], { expectedNonZero: true }),
     npmScript("release-evidence-bundle", "approval", "verify:release-evidence-bundle"),
     npmScript("release-action-queue", "approval", "evidence:release-action-queue")

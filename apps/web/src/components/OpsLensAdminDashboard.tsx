@@ -1962,10 +1962,14 @@ export function OpsLensAdminDashboard() {
                   <span>network first actions missing</span>
                 )}
               </div>
-              <div className="admin-evidence-line">
-                {networkHandoff.sourceArtifacts.slice(0, 3).map((source) => (
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-ocp-network-source-artifacts"
+              >
+                {networkHandoff.sourceArtifacts.slice(0, 5).map((source) => (
                   <span key={source.id}>
-                    {source.id} fresh={String(source.fresh)}
+                    {source.id}:{source.status}:fresh={String(source.fresh)}
+                    :required={String(source.required)}
                   </span>
                 ))}
               </div>
