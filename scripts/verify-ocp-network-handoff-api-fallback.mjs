@@ -252,16 +252,25 @@ try {
 }
 
 const failures = checks.filter((check) => check.status === "FAIL");
+const branch = gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
+const headSha = gitValue(["rev-parse", "--short", "HEAD"], "unknown");
+const baseSha = gitValue(["rev-parse", "--short", "origin/main"], "unknown");
+const worktreeDirty = gitDirty();
 const evidence = {
   artifactType: "opslens.ocp-network-handoff-api-fallback.v0.1",
   status: failures.length > 0 ? "FAIL" : "PASS",
   generatedAt: new Date().toISOString(),
+  branch,
+  headSha,
+  baseRef: "origin/main",
+  baseSha,
+  worktreeDirty,
   ref: {
-    branch: gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown"),
-    headSha: gitValue(["rev-parse", "HEAD"], "unknown"),
+    branch,
+    headSha,
     baseRef: "origin/main",
-    baseSha: gitValue(["rev-parse", "origin/main"], "unknown"),
-    worktreeDirty: gitDirty()
+    baseSha,
+    worktreeDirty
   },
   actionMode: "apiFallbackVerificationOnly",
   clusterMutationAttempted: false,
