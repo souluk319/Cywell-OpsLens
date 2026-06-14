@@ -2111,6 +2111,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             blockedBy?: string[];
             diagnostics?: string[];
             acceptance?: string[];
+            ticketPacket?: {
+              id?: string;
+              severity?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
           }>;
           ownerPacketCleanup?: {
             dir?: string;
@@ -3923,6 +3937,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (entry) => entry.owner && entry.actionId && entry.nextCommand
       )
     ).toBe(true);
+    const liveOcpCriticalPath =
+      body.installReadiness?.actionQueue?.criticalPath?.find(
+        (entry) => entry.lane === "live-ocp-lightspeed"
+      );
+    if (liveOcpCriticalPath?.owner === "network-sre") {
+      expect(liveOcpCriticalPath.ticketPacket).toMatchObject({
+        id: "network-sre-ocp-api-reachability-ticket",
+        severity: "blocker",
+        firstReadOnlyAction: {
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        approvalGatedAction: {
+          mutation: true,
+          requiresExplicitApproval: true
+        }
+      });
+    }
     expect(body.installReadiness?.actionQueue?.markdownPath).toContain(
       "cywell-opslens-release-action-queue.md"
     );

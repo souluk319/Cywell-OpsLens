@@ -2638,6 +2638,7 @@ type ReleaseActionQueueArtifact = {
     blockedBy?: string[];
     diagnostics?: string[];
     acceptance?: string[];
+    ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
   }>;
   ownerPacketCleanup?: {
     dir?: string;
@@ -7661,7 +7662,8 @@ function getReleaseActionQueueReadiness(): {
       nextCommand: entry.nextCommand ?? "not listed",
       blockedBy: entry.blockedBy ?? [],
       diagnostics: entry.diagnostics ?? [],
-      acceptance: entry.acceptance ?? []
+      acceptance: entry.acceptance ?? [],
+      ticketPacket: entry.ticketPacket
     }));
     const items = (artifact.items ?? []).map((entry) => ({
       id: entry.id ?? "unknown",

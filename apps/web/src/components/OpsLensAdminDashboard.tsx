@@ -2511,7 +2511,9 @@ export function OpsLensAdminDashboard() {
                   releaseActionQueue.criticalPath.map((entry) => (
                     <span key={entry.lane}>
                       {entry.lane}:{entry.owner}:{entry.priority}:
-                      {entry.actionId}:next={entry.nextCommand}
+                      {entry.actionId}:next={entry.nextCommand}:ticket=
+                      {entry.ticketPacket?.id ?? "none"}:ticketFirst=
+                      {entry.ticketPacket?.firstReadOnlyAction.id ?? "none"}
                     </span>
                   ))
                 ) : (

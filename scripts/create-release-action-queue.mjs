@@ -2034,7 +2034,10 @@ function criticalPath(items) {
         nextCommand: entry.nextCommand,
         blockedBy: uniqueStrings(entry.blockedBy ?? []).slice(0, 6),
         diagnostics: entry.diagnostics.slice(0, 6).map((diagnostic) => diagnostic.id),
-        acceptance: uniqueStrings(entry.acceptance ?? [])
+        acceptance: uniqueStrings(entry.acceptance ?? []),
+        ticketPacket: entry.ticketPacket
+          ? sanitizeTicketPacket(entry.ticketPacket)
+          : undefined
       };
     })
     .filter(Boolean);
@@ -2141,7 +2144,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, ticket=${entry.ticketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",

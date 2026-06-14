@@ -2254,6 +2254,7 @@ export interface OpsLensReleaseActionQueueSummary {
     blockedBy: string[];
     diagnostics: string[];
     acceptance: string[];
+    ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
   }>;
   ownerPacketCleanup: {
     dir: string;
