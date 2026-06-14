@@ -208,11 +208,11 @@ function buildChain() {
       : npmScript("image-readiness-build", "release", "verify:images:build", [], { timeoutMs: Math.max(options.commandTimeoutMs, 900000) }),
     npmScript("owned-image-provenance", "release", "verify:owned-image-provenance"),
     npmScript("external-runtime-plan", "release", "verify:external-runtime-plan"),
-    ...(options.securityScanDocker
-      ? [npmScript("security-scan-runner-docker", "release", "evidence:security-scan:docker", [], {
+    options.securityScanDocker
+      ? npmScript("security-scan-runner-docker", "release", "evidence:security-scan:docker", [], {
           timeoutMs: Math.max(options.commandTimeoutMs, 900000)
-        })]
-      : []),
+        })
+      : npmScript("security-scan-runner-plan", "release", "evidence:security-scan"),
     npmScript("security-scan-plan", "release", "verify:security-scan-plan")
   ];
 

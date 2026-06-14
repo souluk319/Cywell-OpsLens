@@ -488,6 +488,16 @@ async function diagnoseOc(config) {
   };
 }
 
+function skippedOc(reason) {
+  warn("oc /version", `skipped because ${reason}`);
+  return {
+    clientAvailable: false,
+    versionGet: "skipped",
+    skipped: true,
+    reason
+  };
+}
+
 function rbacAccessReviewSpecs() {
   return [
     {
@@ -610,6 +620,25 @@ async function diagnoseRbacAccess(config) {
       ? "pass"
       : "needs-evidence",
     reviews
+  };
+}
+
+function skippedRbacAccess(reason) {
+  warn("RBAC access reviews", `skipped because ${reason}`);
+  return {
+    status: "needs-evidence",
+    skipped: true,
+    reason,
+    reviews: rbacAccessReviewSpecs().map((spec) => ({
+      id: spec.id,
+      verb: spec.verb,
+      resource: spec.resource,
+      scope: spec.scope,
+      status: "unknown",
+      required: spec.required,
+      evidence: `skipped because ${reason}`,
+      command: `oc ${spec.args.join(" ")}`
+    }))
   };
 }
 
@@ -843,8 +872,14 @@ async function main() {
   const tcpResult = await diagnoseTcp(endpoint, config.timeoutMs);
   const tlsResult = await diagnoseTls(endpoint, config, tcpResult, config.timeoutMs);
   const httpResult = await diagnoseHttpVersion(endpoint, config, tcpResult, tlsResult, config.timeoutMs);
-  const ocResult = await diagnoseOc(config);
-  const rbacAccessResult = await diagnoseRbacAccess(config);
+  const ocAndRbacSkipReason =
+    tcpResult.status === "pass" ? undefined : "TCP connect did not pass";
+  const ocResult = ocAndRbacSkipReason
+    ? skippedOc(ocAndRbacSkipReason)
+    : await diagnoseOc(config);
+  const rbacAccessResult = ocAndRbacSkipReason
+    ? skippedRbacAccess(ocAndRbacSkipReason)
+    : await diagnoseRbacAccess(config);
   const classification = classify({
     config,
     endpoint,
