@@ -120,6 +120,13 @@ const steps = [
     purpose: "Verify the pre-registration Lightspeed handoff packet separates read-only live checks from approval-gated OLSConfig registration."
   },
   {
+    id: "OCP-HANDOFF-FALLBACK",
+    command: "npm",
+    args: ["run", "verify:ocp:handoff-api-fallback"],
+    acceptance: ["AC-DASH-001", "AC-LIVE-HANDOFF-001"],
+    purpose: "Verify dashboard/API fallback routing keeps partial OCP handoff artifacts classification-aware and non-mutating."
+  },
+  {
     id: "OPERATOR-PACKAGE",
     command: "npm",
     args: ["run", "verify:operator"],
