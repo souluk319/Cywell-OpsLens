@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -64,6 +64,76 @@ function check(name, condition, detail) {
   checks.push({ name, condition, detail });
   const prefix = condition ? "[PASS]" : "[FAIL]";
   console.log(`${prefix} ${name}: ${detail}`);
+}
+
+const trackedEnvKeys = new Set([
+  "OCP_API_BASE_URL",
+  "OCP_API_TOKEN",
+  "OCP_TLS_VERIFY",
+  "OCP_API_TIMEOUT_SECONDS",
+  "OCP_INSECURE_SKIP_TLS_VERIFY",
+  "OPENSHIFT_API_BASE_URL",
+  "OPENSHIFT_API_TOKEN",
+  "OPENSHIFT_API_TLS_VERIFY",
+  "OPENSHIFT_API_TIMEOUT_SECONDS",
+  "KUBE_API_BASE_URL",
+  "KUBE_API_TOKEN",
+  "KUBE_TLS_VERIFY",
+  "KUBE_API_TIMEOUT_SECONDS",
+  "OPENSHIFT_LIGHTSPEED_BASE_URL",
+  "OPENSHIFT_LIGHTSPEED_API_TOKEN",
+  "OPENSHIFT_LIGHTSPEED_PROVIDER",
+  "OPENSHIFT_LIGHTSPEED_MODEL",
+  "OPENSHIFT_LIGHTSPEED_TLS_VERIFY",
+  "OPENSHIFT_LIGHTSPEED_TIMEOUT_SECONDS"
+]);
+
+function actualEnvAudit(path = resolve(repoRoot, ".env")) {
+  if (!existsSync(path)) {
+    return {
+      exists: false,
+      activeCounts: new Map(),
+      commentedCounts: new Map(),
+      activeMissingValues: [],
+      duplicateActiveKeys: [],
+      commentedTrackedCount: 0
+    };
+  }
+
+  const activeCounts = new Map();
+  const commentedCounts = new Map();
+  const activeMissingValues = [];
+  let commentedTrackedCount = 0;
+
+  for (const rawLine of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const match = rawLine.match(/^\s*(#?)\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+    if (!match) continue;
+    const [, marker, key, rawValue] = match;
+    if (!trackedEnvKeys.has(key)) continue;
+
+    const target = marker === "#" ? commentedCounts : activeCounts;
+    target.set(key, (target.get(key) ?? 0) + 1);
+    if (marker === "#") {
+      commentedTrackedCount += 1;
+    } else if (!String(rawValue ?? "").trim()) {
+      activeMissingValues.push(key);
+    }
+  }
+
+  return {
+    exists: true,
+    activeCounts,
+    commentedCounts,
+    activeMissingValues,
+    duplicateActiveKeys: Array.from(activeCounts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([key]) => key),
+    commentedTrackedCount
+  };
+}
+
+function hasActive(audit, key) {
+  return (audit.activeCounts.get(key) ?? 0) > 0;
 }
 
 const lightspeedNoise = readOcpConfig({
@@ -137,6 +207,47 @@ check(
   invalidTimeout.timeoutMs === 8000,
   "invalid timeout values fall back to the 8s default"
 );
+
+const envAudit = actualEnvAudit();
+
+check(
+  "Actual .env redaction audit",
+  true,
+  envAudit.exists
+    ? `tracked active keys=${envAudit.activeCounts.size}, commented tracked entries=${envAudit.commentedTrackedCount}, values redacted`
+    : "no repo .env found; synthetic isolation checks still run"
+);
+
+if (envAudit.exists) {
+  check(
+    "Actual .env OCP target active",
+    hasActive(envAudit, "OCP_API_BASE_URL") &&
+      hasActive(envAudit, "OCP_API_TOKEN") &&
+      !envAudit.activeMissingValues.includes("OCP_API_BASE_URL") &&
+      !envAudit.activeMissingValues.includes("OCP_API_TOKEN"),
+    "OCP_API_BASE_URL/OCP_API_TOKEN are active and value presence is redacted"
+  );
+  check(
+    "Actual .env Lightspeed target active",
+    hasActive(envAudit, "OPENSHIFT_LIGHTSPEED_BASE_URL") &&
+      hasActive(envAudit, "OPENSHIFT_LIGHTSPEED_API_TOKEN") &&
+      !envAudit.activeMissingValues.includes("OPENSHIFT_LIGHTSPEED_BASE_URL") &&
+      !envAudit.activeMissingValues.includes("OPENSHIFT_LIGHTSPEED_API_TOKEN"),
+    "OPENSHIFT_LIGHTSPEED_BASE_URL/OPENSHIFT_LIGHTSPEED_API_TOKEN are active and value presence is redacted"
+  );
+  check(
+    "Actual .env active key uniqueness",
+    envAudit.duplicateActiveKeys.length === 0,
+    envAudit.duplicateActiveKeys.length === 0
+      ? "no duplicate active OCP/Lightspeed target keys"
+      : `duplicate active key(s): ${envAudit.duplicateActiveKeys.join(", ")}`
+  );
+  check(
+    "Actual .env commented legacy entries ignored",
+    true,
+    `${envAudit.commentedTrackedCount} commented OCP/Lightspeed entry/entries are ignored by loadEnvFile`
+  );
+}
 
 const failed = checks.filter((entry) => !entry.condition);
 console.log("");
