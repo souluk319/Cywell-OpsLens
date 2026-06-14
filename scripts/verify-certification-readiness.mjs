@@ -344,6 +344,7 @@ async function validateDocs() {
         "## Required Local Tools",
         "## Read-Only Validation Commands",
         "## Execution Lanes",
+        "## Approved CI Runner Evidence",
         "## Freshness and Owner Handoff",
         "## Human Setup Boundary",
         "## Approval-Gated Commands Not Run",
@@ -371,6 +372,16 @@ async function validateDocs() {
         text.includes(section),
         "present",
         "required section missing"
+      );
+    }
+    if (doc.path === paths.certificationToolingDoc) {
+      expectCheck(
+        `${doc.path} CI runner draft helper`,
+        text.includes("evidence:certification:ci-runner-draft") &&
+          text.includes("approved-ci-runner.draft.json") &&
+          text.includes("approved-ci-runner.json"),
+        "certification tooling doc links draft intake to final reviewed evidence",
+        "certification tooling doc must link CI runner draft intake to final reviewed evidence"
       );
     }
   }
@@ -474,8 +485,9 @@ function hasDigest(value) {
 
 function ciRunnerEvidenceTemplateCommands() {
   return [
-    `copy docs/release/evidence/certification/approved-ci-runner.example.json to ${options.ciRunnerEvidence}`,
-    "fill runner image digest, approval ticket, approver, current head, tool versions, and validation logs",
+    "npm run evidence:certification:ci-runner-draft -- --force",
+    "review docs/release/evidence/certification/approved-ci-runner.draft.json with release-manager and security-reviewer",
+    `create ${options.ciRunnerEvidence} only after runner image digest, approval ticket, approver, current head, tool versions, and validation logs are real`,
     `npm run verify:certification -- --ci-runner-evidence ${options.ciRunnerEvidence}`,
     "npm run verify:catalog-toolchain"
   ];

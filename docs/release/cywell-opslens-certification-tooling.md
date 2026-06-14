@@ -46,7 +46,15 @@ The hosted lane is approval-gated and may mutate an external portal or listing w
 
 When `opm` or `operator-sdk` cannot be installed on the local workstation, the release-manager may satisfy the tooling lane with a reviewed CI runner artifact instead of local binaries.
 
-Use `docs/release/evidence/certification/approved-ci-runner.example.json` as the template, then create `docs/release/evidence/certification/approved-ci-runner.json` only after the values are real:
+Use the draft helper first. It writes only an ignored draft packet and never creates final readiness evidence:
+
+```powershell
+npm run evidence:certification:ci-runner-draft -- --force
+```
+
+The draft is written to `docs/release/evidence/certification/approved-ci-runner.draft.json`. It collects current Git head, available local tool versions, current certification/catalog evidence paths, missing fields, reviewer requests, risk, and rollback guidance. Draft files do not satisfy certification readiness.
+
+Use `docs/release/evidence/certification/approved-ci-runner.example.json` as the final reviewed shape, then create `docs/release/evidence/certification/approved-ci-runner.json` only after the values are real:
 
 - current Git `headSha`
 - approved runner or CI image digest pinned by `sha256`
@@ -63,6 +71,8 @@ npm run verify:catalog-toolchain
 ```
 
 Missing, placeholder, stale-head, or mutating CI runner evidence remains `needs-evidence` and does not approve Community/Certified Operator readiness.
+
+The draft helper must not install tooling, pull runner images, log in to registries, create Partner Connect submissions, create `approved-ci-runner.json`, or mutate a cluster.
 
 ## Freshness and Owner Handoff
 

@@ -2986,6 +2986,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContain("verify:certification");
     expect(
       body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.runnerEvidence?.nextCommands?.join(" ")
+    ).toContain("evidence:certification:ci-runner-draft");
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
         ?.executionLanes?.map((lane) => lane.id)
     ).toEqual(
       expect.arrayContaining([
