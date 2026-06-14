@@ -1422,6 +1422,38 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
         };
         operatorDryRun?: string;
+        operatorRuntimeBoundary?: string;
+        operatorRuntimeBoundarySummary?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          headSha?: string;
+          worktreeDirty?: boolean | string;
+          clusterMutationAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          parity?: {
+            lightspeedMode?: string;
+            lightspeedPhase?: string;
+            willPatchLightspeed?: boolean | string;
+            assistantMutationAllowed?: boolean | string;
+            ragApprovalQueueMutationAllowed?: boolean | string;
+            ragRawDocumentReturnAllowed?: boolean | string;
+          };
+          goLightspeedMutationBoundary?: {
+            functionFound?: boolean;
+            validateOnlyGuardBeforeRead?: boolean;
+            endpointGuardBeforeRead?: boolean;
+            patchCallCount?: number;
+            patchAfterRead?: boolean;
+            configMapReferenceCount?: number;
+            reconcileBeforeStatus?: boolean;
+          };
+          evidence?: string[];
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+        };
         installPlan?: string;
         approvalPlan?: {
           actionMode?: string;
@@ -2816,6 +2848,38 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     expect(body.installReadiness?.evidence?.join(" ")).toContain(
       "Operator dry-run"
+    );
+    expect(["ready", "needs-evidence", "failed"]).toContain(
+      body.installReadiness?.operatorRuntimeBoundary
+    );
+    expect(body.installReadiness?.operatorRuntimeBoundarySummary).toMatchObject({
+      actionMode: "operatorRuntimeParityOnly",
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.operatorRuntimeBoundarySummary?.parity
+    ).toMatchObject({
+      lightspeedMode: "PatchOLSConfig",
+      assistantMutationAllowed: false,
+      ragApprovalQueueMutationAllowed: false,
+      ragRawDocumentReturnAllowed: false
+    });
+    expect(
+      body.installReadiness?.operatorRuntimeBoundarySummary
+        ?.goLightspeedMutationBoundary
+    ).toMatchObject({
+      functionFound: true,
+      validateOnlyGuardBeforeRead: true,
+      endpointGuardBeforeRead: true,
+      patchCallCount: 1,
+      patchAfterRead: true,
+      configMapReferenceCount: 0,
+      reconcileBeforeStatus: true
+    });
+    expect(body.installReadiness?.evidence?.join(" ")).toContain(
+      "Operator runtime boundary"
     );
     expect([
       "approval-required",
@@ -4721,6 +4785,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Operator Dry-run"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Operator Boundary"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "OCP Connectivity"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
@@ -4761,6 +4828,33 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("POST /api/opslens/mcp:local-smoke-demo");
     await expect(
       page.getByTestId("opslens-lightspeed-extension-boundary")
+    ).toContainText("mutationAllowedByThisVerifier=false");
+    await expect(
+      page.getByTestId("opslens-operator-runtime-boundary")
+    ).toContainText("operatorRuntimeParityOnly");
+    await expect(
+      page.getByTestId("opslens-operator-runtime-boundary")
+    ).toContainText("mode=PatchOLSConfig");
+    await expect(
+      page.getByTestId("opslens-operator-runtime-boundary")
+    ).toContainText("willPatch=true");
+    await expect(
+      page.getByTestId("opslens-operator-runtime-boundary-guards")
+    ).toContainText("ValidateOnlyBeforeRead=true");
+    await expect(
+      page.getByTestId("opslens-operator-runtime-boundary-guards")
+    ).toContainText("endpointBeforeRead=true");
+    await expect(
+      page.getByTestId("opslens-operator-runtime-boundary-guards")
+    ).toContainText("patchCallCount=1");
+    await expect(
+      page.getByTestId("opslens-operator-runtime-boundary-guards")
+    ).toContainText("legacyConfigMapReferences=0");
+    await expect(
+      page.getByTestId("opslens-operator-runtime-boundary")
+    ).toContainText("clusterMutationAttempted=false");
+    await expect(
+      page.getByTestId("opslens-operator-runtime-boundary")
     ).toContainText("mutationAllowedByThisVerifier=false");
     await expect(page.getByTestId("opslens-ocp-connectivity")).toContainText(
       /classification=/

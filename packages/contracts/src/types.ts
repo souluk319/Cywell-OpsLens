@@ -1251,6 +1251,11 @@ export type OpsLensOperatorDryRunReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensOperatorRuntimeBoundaryReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "failed";
+
 export type OpsLensOcpConnectivityReadiness =
   | "ready"
   | "needs-evidence"
@@ -1337,6 +1342,44 @@ export interface OpsLensEvidenceCheckpointSummary {
   }>;
   missingEvidence: string[];
   blockers: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensOperatorRuntimeBoundarySummary {
+  status: OpsLensOperatorRuntimeBoundaryReadiness;
+  artifactStatus: string;
+  actionMode: "operatorRuntimeParityOnly" | "readOnlyEvidenceOnly";
+  headSha: string;
+  worktreeDirty: boolean | string;
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  parity: {
+    lightspeedMode: string;
+    lightspeedPhase: string;
+    willPatchLightspeed: boolean | string;
+    assistantMutationAllowed: boolean | string;
+    ragApprovalQueueMutationAllowed: boolean | string;
+    ragRawDocumentReturnAllowed: boolean | string;
+  };
+  goLightspeedMutationBoundary: {
+    functionFound: boolean;
+    validateOnlyGuardBeforeRead: boolean;
+    endpointGuardBeforeRead: boolean;
+    patchCallCount: number;
+    patchAfterRead: boolean;
+    configMapReferenceCount: number;
+    reconcileBeforeStatus: boolean;
+  };
+  sourceArtifacts: {
+    controller: string;
+    clusterRole: string;
+    csv: string;
+    acceptance: string;
+  };
+  evidence: string[];
+  missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
 }
@@ -2539,6 +2582,8 @@ export interface OpsLensAdminOverviewResponse {
     ocpConnectivity: OpsLensOcpConnectivityReadiness;
     connectivity: OpsLensOcpConnectivityDiagnosticSummary;
     operatorDryRun: OpsLensOperatorDryRunReadiness;
+    operatorRuntimeBoundary: OpsLensOperatorRuntimeBoundaryReadiness;
+    operatorRuntimeBoundarySummary: OpsLensOperatorRuntimeBoundarySummary;
     installPlan: OpsLensInstallPlanReadiness;
     approvalPlan: OpsLensInstallApprovalPlanSummary;
     catalogToolchain: OpsLensCatalogToolchainReadiness;

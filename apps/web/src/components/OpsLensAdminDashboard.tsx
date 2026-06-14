@@ -183,6 +183,8 @@ export function OpsLensAdminDashboard() {
   const aiopsPipeline = overview?.aiops.incidentPipeline;
   const alertmanagerIntake = aiopsPipeline?.alertmanagerIntake;
   const extensionPoint = overview?.installReadiness.extensionPoint;
+  const operatorRuntimeBoundary =
+    overview?.installReadiness.operatorRuntimeBoundarySummary;
   const approvalPlan = overview?.installReadiness.approvalPlan;
   const certificationPlan = overview?.installReadiness.certificationPlan;
   const communitySubmissionPlan =
@@ -1299,6 +1301,8 @@ export function OpsLensAdminDashboard() {
                   Operator: overview.installReadiness.operatorPackaging,
                   "OCP Connectivity": overview.installReadiness.ocpConnectivity,
                   "Operator Dry-run": overview.installReadiness.operatorDryRun,
+                  "Operator Boundary":
+                    overview.installReadiness.operatorRuntimeBoundary,
                   "Install Plan": overview.installReadiness.installPlan,
                   "RAG Ingestion":
                     overview.installReadiness.approvalPlan.ragIngestion.status,
@@ -1453,6 +1457,109 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {extensionPoint.risk[0] ??
                     "Live OLSConfig registration still needs approval."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {operatorRuntimeBoundary ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-operator-runtime-boundary"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Operator Runtime Boundary</h4>
+                  <small>{operatorRuntimeBoundary.actionMode}</small>
+                </div>
+                <ShieldCheck size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{operatorRuntimeBoundary.artifactStatus}</span>
+                <span>head={operatorRuntimeBoundary.headSha}</span>
+                <span>
+                  dirty={String(operatorRuntimeBoundary.worktreeDirty)}
+                </span>
+                <span>
+                  mode={operatorRuntimeBoundary.parity.lightspeedMode}
+                </span>
+                <span>
+                  phase={operatorRuntimeBoundary.parity.lightspeedPhase}
+                </span>
+                <span>
+                  willPatch=
+                  {String(operatorRuntimeBoundary.parity.willPatchLightspeed)}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-operator-runtime-boundary-guards"
+              >
+                <span>
+                  ValidateOnlyBeforeRead=
+                  {String(
+                    operatorRuntimeBoundary.goLightspeedMutationBoundary
+                      .validateOnlyGuardBeforeRead
+                  )}
+                </span>
+                <span>
+                  endpointBeforeRead=
+                  {String(
+                    operatorRuntimeBoundary.goLightspeedMutationBoundary
+                      .endpointGuardBeforeRead
+                  )}
+                </span>
+                <span>
+                  patchCallCount=
+                  {
+                    operatorRuntimeBoundary.goLightspeedMutationBoundary
+                      .patchCallCount
+                  }
+                </span>
+                <span>
+                  patchAfterRead=
+                  {String(
+                    operatorRuntimeBoundary.goLightspeedMutationBoundary
+                      .patchAfterRead
+                  )}
+                </span>
+                <span>
+                  legacyConfigMapReferences=
+                  {
+                    operatorRuntimeBoundary.goLightspeedMutationBoundary
+                      .configMapReferenceCount
+                  }
+                </span>
+              </div>
+              <div className="admin-evidence-line">
+                <span>
+                  clusterMutationAttempted=
+                  {String(operatorRuntimeBoundary.clusterMutationAttempted)}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(operatorRuntimeBoundary.registryMutationAttempted)}
+                </span>
+                <span>
+                  mutationAllowedByThisVerifier=
+                  {String(
+                    operatorRuntimeBoundary.mutationAllowedByThisVerifier
+                  )}
+                </span>
+                <span>
+                  assistantMutationAllowed=
+                  {String(
+                    operatorRuntimeBoundary.parity.assistantMutationAllowed
+                  )}
+                </span>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {operatorRuntimeBoundary.evidence[0] ??
+                    "Operator runtime boundary evidence is read-only."}
+                </p>
+                <p>
+                  {operatorRuntimeBoundary.risk[0] ??
+                    "Live Operator SDK and OLM smoke remain approval-gated."}
                 </p>
               </div>
             </div>

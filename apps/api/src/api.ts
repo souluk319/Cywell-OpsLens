@@ -60,6 +60,8 @@ import type {
   OpsLensOcpNetworkHandoffReadiness,
   OpsLensOcpNetworkHandoffSummary,
   OpsLensOperatorDryRunReadiness,
+  OpsLensOperatorRuntimeBoundaryReadiness,
+  OpsLensOperatorRuntimeBoundarySummary,
   OpsLensOwnedImageProvenanceReadiness,
   OpsLensOwnedImageProvenanceSummary,
   OpsLensReleasePublishPlanSummary,
@@ -1901,6 +1903,49 @@ type OperatorDryRunEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type OperatorRuntimeParityEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  actionMode?: string;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  fixtures?: {
+    controller?: string;
+    clusterRole?: string;
+    csv?: string;
+    acceptance?: string;
+  };
+  parity?: {
+    lightspeedMode?: string;
+    lightspeedPhase?: string;
+    willPatchLightspeed?: boolean;
+    assistantMutationAllowed?: boolean;
+    ragApprovalQueueMutationAllowed?: boolean;
+    ragRawDocumentReturnAllowed?: boolean;
+  };
+  goLightspeedMutationBoundary?: {
+    functionFound?: boolean;
+    validateOnlyGuardBeforeRead?: boolean;
+    endpointGuardBeforeRead?: boolean;
+    patchCallCount?: number;
+    patchAfterRead?: boolean;
+    configMapReferenceCount?: number;
+    reconcileBeforeStatus?: boolean;
+  };
+  evidence?: string[];
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type InstallApprovalPlanEvidenceArtifact = {
   artifactType?: string;
   status?: string;
@@ -3039,6 +3084,13 @@ function operatorDryRunEvidencePath() {
   );
 }
 
+function operatorRuntimeParityEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_OPERATOR_RUNTIME_PARITY_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-operator-runtime-parity.json")
+  );
+}
+
 function ocpConnectivityDiagnosticEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_OCP_CONNECTIVITY_DIAGNOSTIC_EVIDENCE ??
@@ -3259,6 +3311,38 @@ function mapOperatorDryRunReadinessStatus(
     return "partial";
   }
   return "needs-evidence";
+}
+
+function mapOperatorRuntimeBoundaryReadinessStatus(
+  artifact: OperatorRuntimeParityEvidenceArtifact
+): OpsLensOperatorRuntimeBoundaryReadiness {
+  if (
+    artifact.status === "FAIL" ||
+    artifact.clusterMutationAttempted ||
+    artifact.registryMutationAttempted ||
+    artifact.mutationAllowedByThisVerifier
+  ) {
+    return "failed";
+  }
+  if (artifact.ref?.worktreeDirty || artifact.status !== "PASS") {
+    return "needs-evidence";
+  }
+  const boundary = artifact.goLightspeedMutationBoundary;
+  const boundaryReady =
+    boundary?.functionFound === true &&
+    boundary.validateOnlyGuardBeforeRead === true &&
+    boundary.endpointGuardBeforeRead === true &&
+    boundary.patchCallCount === 1 &&
+    boundary.patchAfterRead === true &&
+    boundary.configMapReferenceCount === 0 &&
+    boundary.reconcileBeforeStatus === true;
+  const parityReady =
+    artifact.parity?.lightspeedMode === "PatchOLSConfig" &&
+    artifact.parity.willPatchLightspeed === true &&
+    artifact.parity.assistantMutationAllowed === false &&
+    artifact.parity.ragApprovalQueueMutationAllowed === false &&
+    artifact.parity.ragRawDocumentReturnAllowed === false;
+  return boundaryReady && parityReady ? "ready" : "failed";
 }
 
 function mapOcpConnectivityReadinessStatus(
@@ -4440,6 +4524,206 @@ function getOperatorDryRunReadiness(): {
         `Operator dry-run evidence could not be parsed from ${evidencePath}`,
         error instanceof Error ? error.message : "unknown evidence parse error",
         "invalid Operator dry-run evidence blocks overclaiming install readiness"
+      ]
+    };
+  }
+}
+
+function getOperatorRuntimeBoundaryReadiness(): {
+  status: OpsLensOperatorRuntimeBoundaryReadiness;
+  evidence: string[];
+  boundary: OpsLensOperatorRuntimeBoundarySummary;
+} {
+  const evidencePath = operatorRuntimeParityEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    const missingEvidence = [
+      `Operator runtime parity evidence is missing at ${evidencePath}`,
+      "run npm run verify:operator:runtime to prove Go Lightspeed mutation boundaries"
+    ];
+    return {
+      status: "needs-evidence",
+      boundary: {
+        status: "needs-evidence",
+        artifactStatus: "missing",
+        actionMode: "readOnlyEvidenceOnly",
+        headSha: "missing",
+        worktreeDirty: "unknown",
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        parity: {
+          lightspeedMode: "unknown",
+          lightspeedPhase: "unknown",
+          willPatchLightspeed: "unknown",
+          assistantMutationAllowed: "unknown",
+          ragApprovalQueueMutationAllowed: "unknown",
+          ragRawDocumentReturnAllowed: "unknown"
+        },
+        goLightspeedMutationBoundary: {
+          functionFound: false,
+          validateOnlyGuardBeforeRead: false,
+          endpointGuardBeforeRead: false,
+          patchCallCount: 0,
+          patchAfterRead: false,
+          configMapReferenceCount: -1,
+          reconcileBeforeStatus: false
+        },
+        sourceArtifacts: {
+          controller: "missing",
+          clusterRole: "missing",
+          csv: "missing",
+          acceptance: "missing"
+        },
+        evidence: [
+          "dashboard keeps Operator runtime boundary as needs-evidence until source parity evidence exists"
+        ],
+        missingEvidence,
+        risk: [
+          "Without runtime parity evidence, OLSConfig mutation safety is not visible from the dashboard."
+        ],
+        rollbackPath: [
+          "Generate operator runtime parity evidence, then rerun admin overview and MVP acceptance checks."
+        ]
+      },
+      evidence: [
+        "run npm run verify:operator:runtime to create Operator runtime boundary evidence",
+        "dashboard reads Operator runtime boundary evidence only; it does not patch OLSConfig or apply manifests",
+        ...missingEvidence
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as OperatorRuntimeParityEvidenceArtifact;
+    const status = mapOperatorRuntimeBoundaryReadinessStatus(artifact);
+    const boundary = artifact.goLightspeedMutationBoundary ?? {};
+    const parity = artifact.parity ?? {};
+    const actionMode =
+      artifact.actionMode === "operatorRuntimeParityOnly"
+        ? "operatorRuntimeParityOnly"
+        : "readOnlyEvidenceOnly";
+    const missingEvidence = [
+      ...(artifact.missingEvidence ?? []),
+      ...(status === "ready"
+        ? []
+        : [`Operator runtime boundary status=${status} artifact=${artifact.status ?? "unknown"}`])
+    ];
+    const summary: OpsLensOperatorRuntimeBoundarySummary = {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode,
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty ?? "unknown",
+      clusterMutationAttempted: artifact.clusterMutationAttempted ?? false,
+      registryMutationAttempted: artifact.registryMutationAttempted ?? false,
+      mutationAllowedByThisVerifier:
+        artifact.mutationAllowedByThisVerifier ?? false,
+      parity: {
+        lightspeedMode: parity.lightspeedMode ?? "unknown",
+        lightspeedPhase: parity.lightspeedPhase ?? "unknown",
+        willPatchLightspeed: parity.willPatchLightspeed ?? "unknown",
+        assistantMutationAllowed: parity.assistantMutationAllowed ?? "unknown",
+        ragApprovalQueueMutationAllowed:
+          parity.ragApprovalQueueMutationAllowed ?? "unknown",
+        ragRawDocumentReturnAllowed:
+          parity.ragRawDocumentReturnAllowed ?? "unknown"
+      },
+      goLightspeedMutationBoundary: {
+        functionFound: boundary.functionFound === true,
+        validateOnlyGuardBeforeRead:
+          boundary.validateOnlyGuardBeforeRead === true,
+        endpointGuardBeforeRead: boundary.endpointGuardBeforeRead === true,
+        patchCallCount: boundary.patchCallCount ?? 0,
+        patchAfterRead: boundary.patchAfterRead === true,
+        configMapReferenceCount: boundary.configMapReferenceCount ?? -1,
+        reconcileBeforeStatus: boundary.reconcileBeforeStatus === true
+      },
+      sourceArtifacts: {
+        controller: artifact.fixtures?.controller ?? "unknown",
+        clusterRole: artifact.fixtures?.clusterRole ?? "unknown",
+        csv: artifact.fixtures?.csv ?? "unknown",
+        acceptance: artifact.fixtures?.acceptance ?? "unknown"
+      },
+      evidence: [
+        ...(artifact.evidence ?? []).slice(0, 4),
+        `operator runtime parity generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        `ValidateOnly guard before read=${String(boundary.validateOnlyGuardBeforeRead)} endpoint guard before read=${String(boundary.endpointGuardBeforeRead)}`,
+        `OLSConfig patchCallCount=${String(boundary.patchCallCount ?? "unknown")} patchAfterRead=${String(boundary.patchAfterRead)} legacyConfigMapReferenceCount=${String(boundary.configMapReferenceCount ?? "unknown")}`,
+        "admin overview reads Operator runtime parity evidence only; it does not patch OLSConfig, apply manifests, or run live Operator actions"
+      ],
+      missingEvidence,
+      risk: artifact.risk ?? [
+        "Runtime parity is source-level evidence; live Operator SDK and OLM smoke remain approval-gated."
+      ],
+      rollbackPath: artifact.rollbackPath ?? [
+        "Revert the controller-runtime or TypeScript reconcile mismatch and rerun npm run verify:operator:runtime."
+      ]
+    };
+
+    return {
+      status,
+      boundary: summary,
+      evidence: [
+        `Operator runtime boundary evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `Go Lightspeed boundary validateOnlyBeforeRead=${String(summary.goLightspeedMutationBoundary.validateOnlyGuardBeforeRead)} endpointBeforeRead=${String(summary.goLightspeedMutationBoundary.endpointGuardBeforeRead)} patchCallCount=${summary.goLightspeedMutationBoundary.patchCallCount} legacyConfigMapReferences=${summary.goLightspeedMutationBoundary.configMapReferenceCount}`,
+        `operator runtime boundary head=${summary.headSha} dirty=${String(summary.worktreeDirty)}`,
+        ...missingEvidence.slice(0, 3),
+        "admin overview reads Operator runtime boundary evidence only; it does not mutate OLSConfig or cluster resources"
+      ]
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "unknown evidence parse error";
+    return {
+      status: "failed",
+      boundary: {
+        status: "failed",
+        artifactStatus: "parse-error",
+        actionMode: "readOnlyEvidenceOnly",
+        headSha: "unknown",
+        worktreeDirty: "unknown",
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        parity: {
+          lightspeedMode: "unknown",
+          lightspeedPhase: "unknown",
+          willPatchLightspeed: "unknown",
+          assistantMutationAllowed: "unknown",
+          ragApprovalQueueMutationAllowed: "unknown",
+          ragRawDocumentReturnAllowed: "unknown"
+        },
+        goLightspeedMutationBoundary: {
+          functionFound: false,
+          validateOnlyGuardBeforeRead: false,
+          endpointGuardBeforeRead: false,
+          patchCallCount: 0,
+          patchAfterRead: false,
+          configMapReferenceCount: -1,
+          reconcileBeforeStatus: false
+        },
+        sourceArtifacts: {
+          controller: "unknown",
+          clusterRole: "unknown",
+          csv: "unknown",
+          acceptance: "unknown"
+        },
+        evidence: [],
+        missingEvidence: [message],
+        risk: [
+          "Invalid Operator runtime boundary evidence blocks overclaiming OLSConfig safety."
+        ],
+        rollbackPath: [
+          "Regenerate operator runtime parity evidence and rerun dashboard acceptance."
+        ]
+      },
+      evidence: [
+        `Operator runtime parity evidence could not be parsed from ${evidencePath}`,
+        message,
+        "invalid Operator runtime boundary evidence blocks overclaiming install readiness"
       ]
     };
   }
@@ -8383,6 +8667,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     getExternalRuntimeReviewPacketReadiness();
   const ocpConnectivityReadiness = getOcpConnectivityDiagnosticReadiness();
   const operatorDryRunReadiness = getOperatorDryRunReadiness();
+  const operatorRuntimeBoundaryReadiness =
+    getOperatorRuntimeBoundaryReadiness();
   const installPlanReadiness = getInstallApprovalPlanReadiness();
   const certificationReadiness = getCertificationReadiness();
   const communityOperatorSubmissionReadiness =
@@ -8414,6 +8700,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ocpConnectivityReadiness.evidence[0],
     lightspeedReadiness.evidence[0],
     operatorDryRunReadiness.evidence[0],
+    operatorRuntimeBoundaryReadiness.evidence[0],
     installPlanReadiness.evidence[0],
     certificationReadiness.evidence[0],
     communityOperatorSubmissionReadiness.evidence[0],
@@ -8432,6 +8719,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...lightspeedExtensionPointReadiness.evidence.slice(1),
     ...lightspeedReadiness.evidence.slice(1),
     ...operatorDryRunReadiness.evidence.slice(1),
+    ...operatorRuntimeBoundaryReadiness.evidence.slice(1),
     ...installPlanReadiness.evidence.slice(1),
     ...certificationReadiness.evidence.slice(1),
     ...communityOperatorSubmissionReadiness.evidence.slice(1),
@@ -8639,6 +8927,9 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       ocpConnectivity: ocpConnectivityReadiness.status,
       connectivity: ocpConnectivityReadiness.connectivity,
       operatorDryRun: operatorDryRunReadiness.status,
+      operatorRuntimeBoundary: operatorRuntimeBoundaryReadiness.status,
+      operatorRuntimeBoundarySummary:
+        operatorRuntimeBoundaryReadiness.boundary,
       installPlan: installPlanReadiness.status,
       approvalPlan: installPlanReadiness.plan,
       certificationReadiness: certificationReadiness.status,
@@ -8683,6 +8974,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 3 dashboard is now served by /api/opslens/admin/overview",
         "Stage 4 Operator package skeleton is validated by npm run verify:operator",
         "Stage 4 live API preflight is validated by npm run verify:operator:dry-run",
+        "Stage 4 Operator runtime boundary is validated by npm run verify:operator:runtime",
         "Live OCP connectivity is classified by npm run verify:ocp:connectivity",
         "Stage 4 OCP network/SRE handoff is generated by npm run evidence:ocp-network-handoff",
         "Stage 4 OCP auth/RBAC approval packet is generated by npm run evidence:ocp-auth-rbac-plan",
