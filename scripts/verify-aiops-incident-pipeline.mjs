@@ -262,6 +262,100 @@ function jsonText(value) {
   return JSON.stringify(value ?? {});
 }
 
+function aiopsMonitoringProxyTicketPacket(liveSmoke) {
+  const requiredQueries = ["firing-alert", "pod-restarts", "pod-cpu", "pod-memory"];
+  const liveQueries = liveSmoke?.incident?.metricQueries ?? [];
+  const queryByName = new Map(liveQueries.map((query) => [query.name, query]));
+  const readyQueries = requiredQueries.filter((name) => {
+    const query = queryByName.get(name);
+    return query?.enabled === true &&
+      query?.reachable === true &&
+      Number(query?.sampleCount ?? 0) > 0;
+  });
+  const missingQueries = requiredQueries.filter((name) => !readyQueries.includes(name));
+  const missingEvidence = [
+    ...(liveSmoke?.missingEvidence ?? []),
+    ...(liveSmoke?.incident?.missingEvidence ?? []),
+    ...(liveSmoke?.alertmanagerIntake?.missingEvidence ?? []),
+    ...liveQueries
+      .filter((query) => requiredQueries.includes(query.name))
+      .filter((query) => query.enabled !== true || query.reachable !== true)
+      .map((query) => `metrics/${query.name}: ${query.error ?? "monitoring proxy query evidence is missing"}`)
+  ].map(sanitize);
+  const monitoringGaps = [...new Set(
+    missingEvidence.filter((entry) =>
+      /metrics\/|Prometheus|Monitoring service proxy|OCP_ENABLE_MONITORING_PROXY|monitoring proxy/i.test(entry)
+    )
+  )];
+  const sampleCount = liveQueries
+    .filter((query) => requiredQueries.includes(query.name))
+    .reduce((total, query) => total + Number(query.sampleCount ?? 0), 0);
+  const disabled = monitoringGaps.some((entry) =>
+    /Monitoring service proxy is disabled|OCP_ENABLE_MONITORING_PROXY=true/i.test(entry)
+  );
+  const handoffStatus = missingQueries.length === 0
+    ? "ready"
+    : monitoringGaps.length > 0
+      ? "needs-approval"
+      : "needs-evidence";
+  const classification = disabled
+    ? "monitoring-proxy-disabled"
+    : missingQueries.length > 0
+      ? "monitoring-query-evidence-missing"
+      : "monitoring-proxy-ready";
+  return {
+    id: "cluster-sre-monitoring-proxy-ticket",
+    owner: "cluster-sre",
+    title: "AI Ops monitoring proxy evidence handoff",
+    severity: "high",
+    classification,
+    handoffStatus,
+    requiredQueries,
+    readyQueries,
+    missingQueries,
+    sampleCount,
+    evidenceChecklist: [
+      ...monitoringGaps.slice(0, 6),
+      "Cluster SRE approval is required before enabling the monitoring proxy path.",
+      "After approval, rerun verify:aiops and keep alert/log/event/runbook evidence intact."
+    ].map(sanitize),
+    firstReadOnlyAction: {
+      id: "aiops-monitoring-proxy-smoke",
+      status: missingQueries.length > 0 ? "needs-evidence" : "ready",
+      nextCommand: "npm run verify:aiops",
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id: "approval-gated-enable-monitoring-proxy-path",
+      status: handoffStatus === "ready" ? "not-required" : "approval-gated",
+      nextCommand:
+        "Set OCP_ENABLE_MONITORING_PROXY=true only for an approved read-only service proxy path, then run npm run verify:aiops",
+      mutation: false,
+      requiresExplicitApproval: true
+    },
+    nextCommands: [
+      "npm run verify:aiops",
+      "Set OCP_ENABLE_MONITORING_PROXY=true only after Cluster SRE approves the read-only monitoring proxy path"
+    ],
+    blockedBy: monitoringGaps.length > 0
+      ? monitoringGaps
+      : missingQueries.map((name) => `metrics/${name}: monitoring proxy sample evidence is missing`),
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false,
+      monitoringProxyEnableRequiresApproval: true
+    },
+    risk:
+      "Metric correlation remains incomplete until Cluster SRE approves and refreshes read-only monitoring proxy evidence.",
+    rollbackPath:
+      "Unset OCP_ENABLE_MONITORING_PROXY or keep it false to return to log/event/runbook-only incident analysis."
+  };
+}
+
 function assertStaticContracts() {
   const incidentsText = readText(options.incidentsSource);
   const serverText = readText(options.serverSource);
@@ -715,13 +809,31 @@ async function main() {
     ...(liveSmoke.missingEvidence ?? []),
     ...(worktreeDirty ? ["worktree was dirty when evidence was generated"] : [])
   ].map(sanitize);
+  const monitoringProxyTicketPacket = aiopsMonitoringProxyTicketPacket(liveSmoke);
+  expectCheck(
+    "AI Ops monitoring proxy ticket boundary",
+    monitoringProxyTicketPacket.firstReadOnlyAction.mutation === false &&
+      monitoringProxyTicketPacket.firstReadOnlyAction.requiresExplicitApproval === false &&
+      monitoringProxyTicketPacket.approvalGatedAction.mutation === false &&
+      monitoringProxyTicketPacket.approvalGatedAction.requiresExplicitApproval === true &&
+      monitoringProxyTicketPacket.mutationBoundary.clusterMutationAttempted === false &&
+      monitoringProxyTicketPacket.mutationBoundary.vectorWriteAttempted === false &&
+      monitoringProxyTicketPacket.mutationBoundary.ingestionJobCreated === false &&
+      monitoringProxyTicketPacket.mutationBoundary.mutationAllowedByThisVerifier === false,
+    `ticket=${monitoringProxyTicketPacket.id} first=${monitoringProxyTicketPacket.firstReadOnlyAction.id} approval=${monitoringProxyTicketPacket.approvalGatedAction.id}`,
+    "AI Ops monitoring proxy ticket must separate read-only smoke from approval-gated proxy enablement"
+  );
+  const finalFailures = checks.filter((check) => check.status === "FAIL");
+  const finalStatus = finalFailures.length > 0
+    ? "FAIL"
+    : status;
 
   const artifact = {
     schema: "cywell.opslens.aiops-incident-pipeline.v0.1",
     artifactType: "opslens.aiops-incident-pipeline.v0.1",
     generatedAt: new Date().toISOString(),
     startedAt,
-    status,
+    status: finalStatus,
     actionMode: "readOnlyEvidenceOnly",
     clusterMutationAttempted: false,
     registryMutationAttempted: false,
@@ -748,6 +860,7 @@ async function main() {
       triggerEvidenceRequired: ["alert", "logs", "events", "metrics", "runbookCitations"]
     },
     liveSmoke,
+    monitoringProxyTicketPacket,
     evidence: [
       "incident analyzer uses read-only OCP resource, pod log, event, and Prometheus query paths",
       "Alertmanager webhook intake normalizes alerts into the same plan-only incident analyzer",
@@ -785,10 +898,10 @@ async function main() {
   }
   console.log("");
   console.log(
-    `Cywell OpsLens AI Ops incident pipeline: status=${status}, ${failures.length} fail, ${checks.filter((check) => check.status === "WARN").length} warn, ${checks.length} checks`
+    `Cywell OpsLens AI Ops incident pipeline: status=${finalStatus}, ${finalFailures.length} fail, ${checks.filter((check) => check.status === "WARN").length} warn, ${checks.length} checks`
   );
 
-  if (failures.length > 0) {
+  if (finalFailures.length > 0) {
     process.exitCode = 1;
   }
 }

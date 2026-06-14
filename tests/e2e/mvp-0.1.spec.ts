@@ -1316,6 +1316,32 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             }>;
             mutationAllowedByThisVerifier?: boolean;
             clusterMutationAttempted?: boolean;
+            ticketPacket?: {
+              id?: string;
+              owner?: string;
+              classification?: string;
+              handoffStatus?: string;
+              requiredQueries?: string[];
+              readyQueries?: string[];
+              missingQueries?: string[];
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                vectorWriteAttempted?: boolean;
+                ingestionJobCreated?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                monitoringProxyEnableRequiresApproval?: boolean;
+              };
+            };
             evidence?: string[];
             missingEvidence?: string[];
           };
@@ -2361,6 +2387,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 requiresExplicitApproval?: boolean;
               };
             };
+            firstAiopsMonitoringTicketPacket?: {
+              id?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+            };
             mutationAllowedByThisVerifier?: boolean;
           }>;
           criticalPath?: Array<{
@@ -2520,6 +2559,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 ingestionJobCreated?: boolean;
                 mutationAllowedByThisVerifier?: boolean;
                 ingestionRequiresExplicitApproval?: boolean;
+              };
+            };
+            aiopsMonitoringTicketPacket?: {
+              id?: string;
+              owner?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                vectorWriteAttempted?: boolean;
+                ingestionJobCreated?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                monitoringProxyEnableRequiresApproval?: boolean;
               };
             };
           }>;
@@ -2686,6 +2746,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 ingestionJobCreated?: boolean;
                 mutationAllowedByThisVerifier?: boolean;
                 ingestionRequiresExplicitApproval?: boolean;
+              };
+            };
+            aiopsMonitoringTicketPacket?: {
+              id?: string;
+              owner?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                vectorWriteAttempted?: boolean;
+                ingestionJobCreated?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                monitoringProxyEnableRequiresApproval?: boolean;
               };
             };
           }>;
@@ -3385,6 +3466,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       mutation: false,
       requiresNetwork: true,
       writesLocalEvidence: true
+    });
+    expect(monitoringProxyHandoff?.ticketPacket).toMatchObject({
+      id: "cluster-sre-monitoring-proxy-ticket",
+      owner: "cluster-sre",
+      firstReadOnlyAction: {
+        id: "aiops-monitoring-proxy-smoke",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id: "approval-gated-enable-monitoring-proxy-path",
+        mutation: false,
+        requiresExplicitApproval: true
+      },
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        vectorWriteAttempted: false,
+        ingestionJobCreated: false,
+        mutationAllowedByThisVerifier: false,
+        monitoringProxyEnableRequiresApproval: true
+      }
     });
     expect(
       `${monitoringProxyHandoff?.evidence?.join(" ") ?? ""} ${
@@ -5568,11 +5670,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.actionQueue?.items?.find(
         (item) => item.id === "cluster-sre-enable-monitoring-proxy-evidence"
       );
+    const monitoringProxyGapText = [
+      ...(body.aiops?.incidentPipeline?.monitoringProxyHandoff
+        ?.missingEvidence ?? []),
+      ...(body.aiops?.incidentPipeline?.monitoringProxyHandoff?.blockedBy ??
+        []),
+      ...(monitoringProxyAction?.blockedBy ?? [])
+    ].join(" ");
     if (
-      body.aiops?.incidentPipeline?.alertmanagerIntake?.missingEvidence?.some(
-        (entry) =>
-          entry.includes("Monitoring service proxy") ||
-          entry.includes("OCP_ENABLE_MONITORING_PROXY")
+      /Monitoring service proxy|OCP_ENABLE_MONITORING_PROXY|metrics\//.test(
+        monitoringProxyGapText
       )
     ) {
       expect(monitoringProxyAction?.owner).toBe("cluster-sre");
@@ -5586,6 +5693,61 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(monitoringProxyAction?.blockedBy?.join(" ")).toMatch(
         /metrics\/|Monitoring service proxy/
       );
+      expect(monitoringProxyAction?.diagnostics?.map((entry) => entry.id)).toEqual(
+        expect.arrayContaining([
+          "aiops-monitoring-proxy-ticket",
+          "aiops-monitoring-queries",
+          "aiops-monitoring-boundary"
+        ])
+      );
+      expect(monitoringProxyAction?.aiopsMonitoringTicketPacket).toMatchObject({
+        id: "cluster-sre-monitoring-proxy-ticket",
+        owner: "cluster-sre",
+        firstReadOnlyAction: {
+          id: "aiops-monitoring-proxy-smoke",
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        approvalGatedAction: {
+          id: "approval-gated-enable-monitoring-proxy-path",
+          mutation: false,
+          requiresExplicitApproval: true
+        },
+        mutationBoundary: {
+          clusterMutationAttempted: false,
+          vectorWriteAttempted: false,
+          ingestionJobCreated: false,
+          mutationAllowedByThisVerifier: false,
+          monitoringProxyEnableRequiresApproval: true
+        }
+      });
+      const aiopsMonitoringCriticalPath =
+        body.installReadiness?.actionQueue?.criticalPath?.find(
+          (entry) => entry.lane === "aiops-monitoring"
+        );
+      expect(aiopsMonitoringCriticalPath?.aiopsMonitoringTicketPacket).toMatchObject({
+        id: "cluster-sre-monitoring-proxy-ticket",
+        firstReadOnlyAction: {
+          id: "aiops-monitoring-proxy-smoke",
+          mutation: false
+        },
+        approvalGatedAction: {
+          id: "approval-gated-enable-monitoring-proxy-path",
+          mutation: false,
+          requiresExplicitApproval: true
+        }
+      });
+      expect(
+        body.installReadiness?.actionQueue?.ownerPackets?.find(
+          (packet) => packet.owner === "cluster-sre"
+        )?.firstAiopsMonitoringTicketPacket
+      ).toMatchObject({
+        id: "cluster-sre-monitoring-proxy-ticket",
+        firstReadOnlyAction: {
+          id: "aiops-monitoring-proxy-smoke",
+          mutation: false
+        }
+      });
     }
     expect(
       body.installReadiness?.actionQueue?.commandCounts?.readOnly ?? 0
@@ -6131,6 +6293,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("owner=cluster-sre");
     await expect(
       page.getByTestId("opslens-aiops-monitoring-proxy-handoff")
+    ).toContainText("ticket=cluster-sre-monitoring-proxy-ticket");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-handoff")
     ).toContainText("approvalRequired=");
     await expect(
       page.getByTestId("opslens-aiops-monitoring-proxy-handoff")
@@ -6141,6 +6306,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-aiops-monitoring-proxy-commands")
     ).toContainText("aiops-monitoring-proxy-smoke");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-commands")
+    ).toContainText("approval=approval-gated-enable-monitoring-proxy-path");
+    await expect(
+      page.getByTestId("opslens-aiops-monitoring-proxy-commands")
+    ).toContainText("requiresApproval=true");
     await expect(
       page.getByTestId("opslens-aiops-monitoring-proxy-commands")
     ).toContainText("mutation=false");
@@ -7072,6 +7243,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-monitoring-proxy-actions")
     ).toContainText(/aiops-monitoring-proxy-smoke|monitoring proxy actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-monitoring-proxy-actions")
+    ).toContainText(/ticket=cluster-sre-monitoring-proxy-ticket|monitoring proxy actions clear/);
+    await expect(
+      page.getByTestId("opslens-release-action-queue-monitoring-proxy-actions")
+    ).toContainText(/ticketApproval=approval-gated-enable-monitoring-proxy-path|monitoring proxy actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
     ).toContainText(/cluster-admin-fix-lightspeed-readiness-auth-rbac|cluster-sre-fix-lightspeed-readiness-tls|network-sre-unblock-lightspeed-readiness-ocp-api|lightspeed readiness actions clear/);

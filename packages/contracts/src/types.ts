@@ -1207,6 +1207,47 @@ export interface OpsLensAiopsMonitoringProxyHandoffSummary {
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
+  ticketPacket: OpsLensAiopsMonitoringProxyTicketPacket;
+}
+
+export interface OpsLensAiopsMonitoringProxyTicketPacket {
+  id: string;
+  owner: "cluster-sre";
+  title: string;
+  severity: "high";
+  classification: string;
+  handoffStatus: OpsLensAiopsMonitoringProxyHandoffStatus;
+  requiredQueries: string[];
+  readyQueries: string[];
+  missingQueries: string[];
+  sampleCount: number;
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  approvalGatedAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    vectorWriteAttempted: boolean;
+    ingestionJobCreated: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    monitoringProxyEnableRequiresApproval: boolean;
+  };
+  risk: string;
+  rollbackPath: string;
 }
 
 export type OpsLensAiopsIncidentPipelineReadiness =
@@ -2241,6 +2282,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstCatalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     firstRagProductionTicketPacket?: OpsLensRagProductionTicketPacket;
+    firstAiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
     nextCommands: string[];
     setupCommandIds: string[];
     readOnlyCommandIds: string[];
@@ -2275,6 +2317,7 @@ export interface OpsLensReleaseActionQueueSummary {
     catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
+    aiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
   }>;
   ownerPacketCleanup: {
     dir: string;
@@ -2329,6 +2372,7 @@ export interface OpsLensReleaseActionQueueSummary {
     catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
+    aiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
   }>;
   sourceArtifacts: Array<{
     id: string;

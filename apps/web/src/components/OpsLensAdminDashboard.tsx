@@ -1293,6 +1293,11 @@ export function OpsLensAdminDashboard() {
                 monitoringProxyHandoff?.mutationAllowedByThisVerifier ?? false
               )}
             </span>
+            <span>
+              ticket=
+              {monitoringProxyHandoff?.ticketPacket?.id ??
+                "cluster-sre-monitoring-proxy-ticket"}
+            </span>
           </div>
           <div
             className="admin-evidence-line"
@@ -1304,6 +1309,23 @@ export function OpsLensAdminDashboard() {
                 {command.id}:mutation={String(command.mutation)}
               </span>
             ))}
+            <span>
+              first=
+              {monitoringProxyHandoff?.ticketPacket?.firstReadOnlyAction.id ??
+                "aiops-monitoring-proxy-smoke"}
+            </span>
+            <span>
+              approval=
+              {monitoringProxyHandoff?.ticketPacket?.approvalGatedAction.id ??
+                "approval-gated-enable-monitoring-proxy-path"}
+            </span>
+            <span>
+              requiresApproval=
+              {String(
+                monitoringProxyHandoff?.ticketPacket?.approvalGatedAction
+                  .requiresExplicitApproval ?? true
+              )}
+            </span>
           </div>
           <div
             className="admin-evidence-line"
@@ -2577,6 +2599,11 @@ export function OpsLensAdminDashboard() {
                       :ragFirst=
                       {entry.ragProductionTicketPacket?.firstReadOnlyAction.id ??
                         "none"}
+                      :aiopsTicket=
+                      {entry.aiopsMonitoringTicketPacket?.id ?? "none"}
+                      :aiopsFirst=
+                      {entry.aiopsMonitoringTicketPacket?.firstReadOnlyAction.id ??
+                        "none"}
                       :tools={entry.missingRequiredTools.join(",") || "none"}
                       :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
                       {entry.readOnlyCommandIds.join(",") || "none"}:approval=
@@ -2647,6 +2674,11 @@ export function OpsLensAdminDashboard() {
                     {packet.firstRagProductionTicketPacket?.id ?? "none"}
                     :ragFirst=
                     {packet.firstRagProductionTicketPacket?.firstReadOnlyAction
+                      .id ?? "none"}
+                    :aiopsTicket=
+                    {packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}
+                    :aiopsFirst=
+                    {packet.firstAiopsMonitoringTicketPacket?.firstReadOnlyAction
                       .id ?? "none"}
                   </span>
                 ))}
@@ -2945,6 +2977,13 @@ export function OpsLensAdminDashboard() {
                       {entry.readOnlyCommands
                         .map((command) => command.id)
                         .join(", ")}
+                      :ticket={entry.aiopsMonitoringTicketPacket?.id ?? "none"}
+                      :ticketFirst=
+                      {entry.aiopsMonitoringTicketPacket?.firstReadOnlyAction.id ??
+                        "none"}
+                      :ticketApproval=
+                      {entry.aiopsMonitoringTicketPacket?.approvalGatedAction.id ??
+                        "none"}
                     </span>
                   ))
                 ) : (

@@ -683,6 +683,7 @@ function item({
   catalogToolchainTicketPacket,
   certificationToolingTicketPacket,
   ragProductionTicketPacket,
+  aiopsMonitoringTicketPacket,
   acceptance = []
 }) {
   return {
@@ -747,6 +748,9 @@ function item({
       : undefined,
     ragProductionTicketPacket: ragProductionTicketPacket
       ? sanitizeRagProductionTicketPacket(ragProductionTicketPacket)
+      : undefined,
+    aiopsMonitoringTicketPacket: aiopsMonitoringTicketPacket
+      ? sanitizeAiopsMonitoringTicketPacket(aiopsMonitoringTicketPacket)
       : undefined,
     acceptance
   };
@@ -1168,6 +1172,56 @@ function sanitizeRagProductionTicketPacket(packet = {}) {
     rollbackPath: sanitize(
       packet.rollbackPath ??
         "Disable the ingestion worker schedule and stop manual job creation."
+    )
+  };
+}
+
+function sanitizeAiopsMonitoringTicketPacket(packet = {}) {
+  return {
+    id: sanitize(packet.id ?? "cluster-sre-monitoring-proxy-ticket"),
+    owner: "cluster-sre",
+    title: sanitize(packet.title ?? "AI Ops monitoring proxy evidence handoff"),
+    severity: "high",
+    classification: sanitize(packet.classification ?? "monitoring-proxy-disabled"),
+    handoffStatus: sanitize(packet.handoffStatus ?? "needs-evidence"),
+    requiredQueries: (packet.requiredQueries ?? []).map(sanitize),
+    readyQueries: (packet.readyQueries ?? []).map(sanitize),
+    missingQueries: (packet.missingQueries ?? []).map(sanitize),
+    sampleCount: Number.isFinite(Number(packet.sampleCount))
+      ? Number(packet.sampleCount)
+      : 0,
+    evidenceChecklist: (packet.evidenceChecklist ?? []).map(sanitize),
+    firstReadOnlyAction: sanitizeExternalRuntimeTicketAction(
+      packet.firstReadOnlyAction,
+      "aiops-monitoring-proxy-smoke"
+    ),
+    approvalGatedAction: sanitizeExternalRuntimeTicketAction(
+      packet.approvalGatedAction,
+      "approval-gated-enable-monitoring-proxy-path"
+    ),
+    nextCommands: (packet.nextCommands ?? []).map(sanitize),
+    blockedBy: (packet.blockedBy ?? []).map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      vectorWriteAttempted:
+        packet.mutationBoundary?.vectorWriteAttempted === true,
+      ingestionJobCreated:
+        packet.mutationBoundary?.ingestionJobCreated === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      monitoringProxyEnableRequiresApproval:
+        packet.mutationBoundary?.monitoringProxyEnableRequiresApproval !== false
+    },
+    risk: sanitize(
+      packet.risk ??
+        "Metric correlation remains incomplete until Cluster SRE approves monitoring proxy evidence."
+    ),
+    rollbackPath: sanitize(
+      packet.rollbackPath ??
+        "Unset OCP_ENABLE_MONITORING_PROXY or keep it false to return to log/event/runbook-only incident analysis."
     )
   };
 }
@@ -2481,6 +2535,33 @@ function aiopsMonitoringItems(aiopsIncidentPipeline) {
   if (monitoringGaps.length === 0) {
     return [];
   }
+  const ticketPacket = aiopsIncidentPipeline?.monitoringProxyTicketPacket;
+  const diagnostics = [
+    {
+      id: "aiops-monitoring-proxy-ticket",
+      label: "Monitoring proxy ticket",
+      value:
+        `ticket=${ticketPacket?.id ?? "missing"} ` +
+        `status=${ticketPacket?.handoffStatus ?? "missing"} ` +
+        `classification=${ticketPacket?.classification ?? "missing"}`
+    },
+    {
+      id: "aiops-monitoring-queries",
+      label: "Prometheus queries",
+      value:
+        `required=${ticketPacket?.requiredQueries?.length ?? 0} ` +
+        `ready=${ticketPacket?.readyQueries?.length ?? 0} ` +
+        `missing=${ticketPacket?.missingQueries?.join(",") || "none"}`
+    },
+    {
+      id: "aiops-monitoring-boundary",
+      label: "Monitoring mutation boundary",
+      value:
+        `clusterMutation=${String(ticketPacket?.mutationBoundary?.clusterMutationAttempted === true)} ` +
+        `vectorWrite=${String(ticketPacket?.mutationBoundary?.vectorWriteAttempted === true)} ` +
+        `approvalRequired=${String(ticketPacket?.mutationBoundary?.monitoringProxyEnableRequiresApproval !== false)}`
+    }
+  ];
 
   return [
     item({
@@ -2507,7 +2588,9 @@ function aiopsMonitoringItems(aiopsIncidentPipeline) {
           writesLocalEvidence: true
         }
       ],
+      aiopsMonitoringTicketPacket: ticketPacket,
       blockedBy: monitoringGaps,
+      diagnostics,
       acceptance: ["AC-AIOPS-002", "AC-DASH-001"]
     })
   ];
@@ -2763,6 +2846,9 @@ function criticalPath(items) {
           : undefined,
         ragProductionTicketPacket: entry.ragProductionTicketPacket
           ? sanitizeRagProductionTicketPacket(entry.ragProductionTicketPacket)
+          : undefined,
+        aiopsMonitoringTicketPacket: entry.aiopsMonitoringTicketPacket
+          ? sanitizeAiopsMonitoringTicketPacket(entry.aiopsMonitoringTicketPacket)
           : undefined
       };
     })
@@ -2795,6 +2881,9 @@ function buildOwnerPackets(owners, items) {
     const firstRagProductionTicketPacket = entries.find(
       (entry) => entry.ragProductionTicketPacket
     )?.ragProductionTicketPacket;
+    const firstAiopsMonitoringTicketPacket = entries.find(
+      (entry) => entry.aiopsMonitoringTicketPacket
+    )?.aiopsMonitoringTicketPacket;
     return {
       owner: owner.owner,
       status: owner.blocker > 0 ? "blocker" : owner.open > 0 ? "open" : "clear",
@@ -2819,6 +2908,7 @@ function buildOwnerPackets(owners, items) {
       firstCatalogToolchainTicketPacket,
       firstCertificationToolingTicketPacket,
       firstRagProductionTicketPacket,
+      firstAiopsMonitoringTicketPacket,
       nextCommands: uniqueStrings(
         entries.flatMap((entry) => [
           entry.nextCommand,
@@ -2898,7 +2988,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}, ragTicket=${entry.ragProductionTicketPacket?.id ?? "none"}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}, ragTicket=${entry.ragProductionTicketPacket?.id ?? "none"}, aiopsTicket=${entry.aiopsMonitoringTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",
@@ -2910,7 +3000,7 @@ function markdownFor(queue) {
     "## Owner Packets",
     "",
     ...queue.ownerPackets.map((packet) =>
-      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}, ragTicket=${packet.firstRagProductionTicketPacket?.id ?? "none"}`
+      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}, ragTicket=${packet.firstRagProductionTicketPacket?.id ?? "none"}, aiopsTicket=${packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Packet Cleanup",
@@ -3010,6 +3100,7 @@ function ownerPacketMarkdown(queue, packet) {
     `- First catalog toolchain ticket: ${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}`,
     `- First certification tooling ticket: ${packet.firstCertificationToolingTicketPacket?.id ?? "none"}`,
     `- First RAG production ticket: ${packet.firstRagProductionTicketPacket?.id ?? "none"}`,
+    `- First AI Ops monitoring ticket: ${packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}`,
     `- Missing tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
     `- Acceptance: ${packet.acceptance.join(", ") || "none"}`,
     "",
@@ -3157,6 +3248,25 @@ function ownerPacketMarkdown(queue, packet) {
           ""
         ]
       : []),
+    ...(packet.firstAiopsMonitoringTicketPacket
+      ? [
+          "## AI Ops Monitoring Ticket Packet",
+          "",
+          `- ID: ${packet.firstAiopsMonitoringTicketPacket.id}`,
+          `- Title: ${packet.firstAiopsMonitoringTicketPacket.title}`,
+          `- Severity: ${packet.firstAiopsMonitoringTicketPacket.severity}`,
+          `- Classification: ${packet.firstAiopsMonitoringTicketPacket.classification}`,
+          `- Handoff status: ${packet.firstAiopsMonitoringTicketPacket.handoffStatus}`,
+          `- Required queries: ${packet.firstAiopsMonitoringTicketPacket.requiredQueries.join(", ")}`,
+          `- Ready queries: ${packet.firstAiopsMonitoringTicketPacket.readyQueries.join(", ") || "none"}`,
+          `- Missing queries: ${packet.firstAiopsMonitoringTicketPacket.missingQueries.join(", ") || "none"}`,
+          `- First read-only action: ${packet.firstAiopsMonitoringTicketPacket.firstReadOnlyAction.id}`,
+          `- First read-only command: ${packet.firstAiopsMonitoringTicketPacket.firstReadOnlyAction.nextCommand}`,
+          `- Approval-gated action: ${packet.firstAiopsMonitoringTicketPacket.approvalGatedAction.id}`,
+          `- Approval required: ${String(packet.firstAiopsMonitoringTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          ""
+        ]
+      : []),
     "## Next Commands",
     "",
     ...(packet.nextCommands.length
@@ -3200,6 +3310,7 @@ function ownerPacketMarkdown(queue, packet) {
       `- Catalog toolchain ticket: ${entry.catalogToolchainTicketPacket?.id ?? "none"}`,
       `- Certification tooling ticket: ${entry.certificationToolingTicketPacket?.id ?? "none"}`,
       `- RAG production ticket: ${entry.ragProductionTicketPacket?.id ?? "none"}`,
+      `- AI Ops monitoring ticket: ${entry.aiopsMonitoringTicketPacket?.id ?? "none"}`,
       `- Blocked by: ${entry.blockedBy.length ? entry.blockedBy.join("; ") : "none"}`,
       ""
     );

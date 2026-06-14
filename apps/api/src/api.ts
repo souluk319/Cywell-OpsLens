@@ -28,6 +28,7 @@ import type {
   OpsLensAdminOverviewResponse,
   OpsLensAiopsIncidentPipelineReadiness,
   OpsLensAiopsIncidentPipelineSummary,
+  OpsLensAiopsMonitoringProxyTicketPacket,
   OpsLensCatalogToolchainReadiness,
   OpsLensCatalogToolchainSummary,
   OpsLensCatalogToolchainTicketPacket,
@@ -2635,6 +2636,7 @@ type ReleaseActionQueueArtifact = {
     firstCatalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     firstRagProductionTicketPacket?: OpsLensRagProductionTicketPacket;
+    firstAiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
     nextCommands?: string[];
     setupCommandIds?: string[];
     readOnlyCommandIds?: string[];
@@ -2669,6 +2671,7 @@ type ReleaseActionQueueArtifact = {
     catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
+    aiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
   }>;
   ownerPacketCleanup?: {
     dir?: string;
@@ -2723,6 +2726,7 @@ type ReleaseActionQueueArtifact = {
     catalogToolchainTicketPacket?: OpsLensCatalogToolchainTicketPacket;
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
+    aiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
   }>;
   sourceArtifacts?: Array<{
     id?: string;
@@ -2896,6 +2900,7 @@ type AiopsIncidentPipelineArtifact = {
     };
     missingEvidence?: string[];
   };
+  monitoringProxyTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
   evidence?: string[];
   missingEvidence?: string[];
   risk?: string[];
@@ -8195,6 +8200,8 @@ function getReleaseActionQueueReadiness(): {
       firstCertificationToolingTicketPacket:
         packet.firstCertificationToolingTicketPacket,
       firstRagProductionTicketPacket: packet.firstRagProductionTicketPacket,
+      firstAiopsMonitoringTicketPacket:
+        packet.firstAiopsMonitoringTicketPacket,
       nextCommands: packet.nextCommands ?? [],
       setupCommandIds: packet.setupCommandIds ?? [],
       readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
@@ -8235,7 +8242,8 @@ function getReleaseActionQueueReadiness(): {
       installApprovalTicketPacket: entry.installApprovalTicketPacket,
       catalogToolchainTicketPacket: entry.catalogToolchainTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket,
-      ragProductionTicketPacket: entry.ragProductionTicketPacket
+      ragProductionTicketPacket: entry.ragProductionTicketPacket,
+      aiopsMonitoringTicketPacket: entry.aiopsMonitoringTicketPacket
     }));
     const items = (artifact.items ?? []).map((entry) => ({
       id: entry.id ?? "unknown",
@@ -8283,7 +8291,8 @@ function getReleaseActionQueueReadiness(): {
       installApprovalTicketPacket: entry.installApprovalTicketPacket,
       catalogToolchainTicketPacket: entry.catalogToolchainTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket,
-      ragProductionTicketPacket: entry.ragProductionTicketPacket
+      ragProductionTicketPacket: entry.ragProductionTicketPacket,
+      aiopsMonitoringTicketPacket: entry.aiopsMonitoringTicketPacket
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
       id: source.id ?? "unknown",
@@ -9988,6 +9997,97 @@ function buildAiopsMonitoringProxyHandoff(
             (name) =>
               `metrics/${name}: monitoring proxy sample evidence is missing`
           );
+  const ticketPacket: OpsLensAiopsMonitoringProxyTicketPacket = {
+    id:
+      artifact?.monitoringProxyTicketPacket?.id ??
+      "cluster-sre-monitoring-proxy-ticket",
+    owner: "cluster-sre",
+    title:
+      artifact?.monitoringProxyTicketPacket?.title ??
+      "AI Ops monitoring proxy evidence handoff",
+    severity: "high",
+    classification:
+      artifact?.monitoringProxyTicketPacket?.classification ??
+      (missingQueries.length === 0
+        ? "monitoring-proxy-ready"
+        : monitoringGaps.some((item) =>
+            /Monitoring service proxy is disabled|OCP_ENABLE_MONITORING_PROXY=true/i.test(
+              item
+            )
+          )
+          ? "monitoring-proxy-disabled"
+          : "monitoring-query-evidence-missing"),
+    handoffStatus:
+      artifact?.monitoringProxyTicketPacket?.handoffStatus ?? status,
+    requiredQueries:
+      artifact?.monitoringProxyTicketPacket?.requiredQueries ?? requiredQueries,
+    readyQueries:
+      artifact?.monitoringProxyTicketPacket?.readyQueries ?? readyQueries,
+    missingQueries:
+      artifact?.monitoringProxyTicketPacket?.missingQueries ?? missingQueries,
+    sampleCount:
+      artifact?.monitoringProxyTicketPacket?.sampleCount ?? sampleCount,
+    evidenceChecklist:
+      artifact?.monitoringProxyTicketPacket?.evidenceChecklist ??
+      [
+        ...missingEvidence.slice(0, 6),
+        "Cluster SRE approval is required before enabling the monitoring proxy path."
+      ],
+    firstReadOnlyAction: {
+      id:
+        artifact?.monitoringProxyTicketPacket?.firstReadOnlyAction?.id ??
+        "aiops-monitoring-proxy-smoke",
+      status:
+        artifact?.monitoringProxyTicketPacket?.firstReadOnlyAction?.status ??
+        (missingQueries.length > 0 ? "needs-evidence" : "ready"),
+      nextCommand:
+        artifact?.monitoringProxyTicketPacket?.firstReadOnlyAction?.nextCommand ??
+        "npm run verify:aiops",
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id:
+        artifact?.monitoringProxyTicketPacket?.approvalGatedAction?.id ??
+        "approval-gated-enable-monitoring-proxy-path",
+      status:
+        artifact?.monitoringProxyTicketPacket?.approvalGatedAction?.status ??
+        (status === "ready" ? "not-required" : "approval-gated"),
+      nextCommand:
+        artifact?.monitoringProxyTicketPacket?.approvalGatedAction?.nextCommand ??
+        "Set OCP_ENABLE_MONITORING_PROXY=true only for an approved read-only service proxy path, then run npm run verify:aiops",
+      mutation: false,
+      requiresExplicitApproval: true
+    },
+    nextCommands:
+      artifact?.monitoringProxyTicketPacket?.nextCommands ??
+      [
+        "npm run verify:aiops",
+        "Set OCP_ENABLE_MONITORING_PROXY=true only after Cluster SRE approves the read-only monitoring proxy path"
+      ],
+    blockedBy:
+      artifact?.monitoringProxyTicketPacket?.blockedBy ?? missingEvidence,
+    mutationBoundary: {
+      clusterMutationAttempted:
+        artifact?.monitoringProxyTicketPacket?.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        artifact?.monitoringProxyTicketPacket?.mutationBoundary?.registryMutationAttempted === true,
+      vectorWriteAttempted:
+        artifact?.monitoringProxyTicketPacket?.mutationBoundary?.vectorWriteAttempted === true,
+      ingestionJobCreated:
+        artifact?.monitoringProxyTicketPacket?.mutationBoundary?.ingestionJobCreated === true,
+      mutationAllowedByThisVerifier:
+        artifact?.monitoringProxyTicketPacket?.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      monitoringProxyEnableRequiresApproval:
+        artifact?.monitoringProxyTicketPacket?.mutationBoundary?.monitoringProxyEnableRequiresApproval !== false
+    },
+    risk:
+      artifact?.monitoringProxyTicketPacket?.risk ??
+      "Metric correlation remains incomplete until Cluster SRE approves and refreshes read-only monitoring proxy evidence.",
+    rollbackPath:
+      artifact?.monitoringProxyTicketPacket?.rollbackPath ??
+      "Unset OCP_ENABLE_MONITORING_PROXY or keep it false to return to log/event/runbook-only incident analysis."
+  };
 
   return {
     status,
@@ -10029,7 +10129,8 @@ function buildAiopsMonitoringProxyHandoff(
     rollbackPath: [
       "Unset OCP_ENABLE_MONITORING_PROXY or keep it false to return to log/event/runbook-only incident analysis.",
       "No cluster rollback is required because this handoff runs no apply, delete, scale, or proxy mutation."
-    ]
+    ],
+    ticketPacket
   };
 }
 
