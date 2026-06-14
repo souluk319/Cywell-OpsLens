@@ -472,6 +472,14 @@ function externalRuntimeFinalEvidenceDiagnostics(packet) {
       value: `total=${reviewerRequests.length} ${roleSummary}`
     },
     {
+      id: "external-runtime-command-boundary",
+      label: "Command boundary",
+      value:
+        `readOnly=${packet?.readOnlyCommands?.length ?? 0} ` +
+        `approvalGated=${packet?.approvalGatedCommands?.length ?? 0} ` +
+        "mutationAllowed=false"
+    },
+    {
       id: "external-runtime-registry-admin-requests",
       label: "Registry admin requests",
       value:
@@ -497,14 +505,6 @@ function externalRuntimeFinalEvidenceDiagnostics(packet) {
       id: "external-runtime-candidate-summary",
       label: "Candidate summary",
       value: candidateSummary.join(" | ") || "missing"
-    },
-    {
-      id: "external-runtime-command-boundary",
-      label: "Command boundary",
-      value:
-        `readOnly=${packet?.readOnlyCommands?.length ?? 0} ` +
-        `approvalGated=${packet?.approvalGatedCommands?.length ?? 0} ` +
-        "mutationAllowed=false"
     }
   ];
   return diagnostics;
@@ -3132,6 +3132,7 @@ const criticalPathLaneOrder = [
   "runtime-live",
   "runtime-rag-quality",
   "external-runtime-review",
+  "external-runtime-final-evidence",
   "catalog-registry-auth",
   "certification-toolchain",
   "release-publish",
@@ -3146,6 +3147,7 @@ const criticalPathLabels = {
   "runtime-live": "Runtime live probes",
   "runtime-rag-quality": "Runtime RAG live quality",
   "external-runtime-review": "External runtime evidence and mirroring",
+  "external-runtime-final-evidence": "External runtime final evidence coordination",
   "catalog-registry-auth": "Catalog registry auth and base-image evidence",
   "certification-toolchain": "Certification and catalog toolchain",
   "release-publish": "Release publish approval",
@@ -3160,6 +3162,7 @@ function criticalPathLane(entry) {
   if (/(ocp|lightspeed|network|live-handoff)/.test(text)) return "live-ocp-lightspeed";
   if (/data-ml-engineer|runtime-rag/.test(text)) return "runtime-rag-quality";
   if (/runtime-platform|runtime-readiness|runtimeprobe|runtime-readiness-live/.test(text)) return "runtime-live";
+  if (/external-runtime-final-evidence|complete-external-runtime-final-evidence|externalruntimeplan/.test(text)) return "external-runtime-final-evidence";
   if (/external-runtime|externalruntime/.test(text)) return "external-runtime-review";
   if (/catalog-base-image|catalog-registry|catalogtoolchain/.test(text)) return "catalog-registry-auth";
   if (/certification|catalog-toolchain|tooling|opm|operator-sdk/.test(text)) return "certification-toolchain";

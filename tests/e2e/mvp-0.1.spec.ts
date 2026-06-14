@@ -4851,6 +4851,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "runtime-live",
         "runtime-rag-quality",
         "external-runtime-review",
+        "external-runtime-final-evidence",
         "catalog-registry-auth",
         "release-publish",
         "install-approval"
@@ -5314,6 +5315,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (item) => item.id === "external-runtime-command-boundary"
       )?.value
     ).toContain("mutationAllowed=false");
+    const externalRuntimeFinalEvidenceCriticalPath =
+      body.installReadiness?.actionQueue?.criticalPath?.find(
+        (entry) => entry.lane === "external-runtime-final-evidence"
+      );
+    expect(externalRuntimeFinalEvidenceCriticalPath).toMatchObject({
+      owner: "release-manager",
+      actionId: "release-manager-complete-external-runtime-final-evidence",
+      source: "externalRuntimeReviewPacket:externalRuntimePlan",
+      nextCommand: "npm run verify:external-runtime-plan"
+    });
+    expect(externalRuntimeFinalEvidenceCriticalPath?.readOnlyCommandIds).toEqual(
+      expect.arrayContaining([
+        "refresh-external-runtime-review-packet",
+        "verify-external-runtime-plan"
+      ])
+    );
+    expect(externalRuntimeFinalEvidenceCriticalPath?.diagnostics).toEqual(
+      expect.arrayContaining([
+        "external-runtime-final-evidence",
+        "external-runtime-review-packet",
+        "external-runtime-command-boundary"
+      ])
+    );
     const releasePublishAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) =>
@@ -7603,6 +7627,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("extFirst=external-runtime-vllm-registry-1");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("external-runtime-final-evidence");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("release-manager-complete-external-runtime-final-evidence");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("verify:external-runtime-plan");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("catalog-registry-auth");
