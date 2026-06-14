@@ -1878,6 +1878,19 @@ type CertificationReadinessEvidenceArtifact = {
     risk?: string[];
     rollbackPath?: string[];
   };
+  firstSubmissionActions?: Array<{
+    id?: string;
+    owner?: string;
+    phase?: string;
+    status?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
+  }>;
   documents?: Record<string, string>;
   missingEvidence?: string[];
   risk?: string[];
@@ -4831,6 +4844,106 @@ function mapCertificationToolingHandoff(
   };
 }
 
+function fallbackCertificationSubmissionActions(
+  toolingHandoff: OpsLensCertificationReadinessSummary["toolingHandoff"],
+  missingEvidence: string[],
+  gateCounts: OpsLensCertificationReadinessSummary["gateCounts"]
+): OpsLensCertificationReadinessSummary["firstSubmissionActions"] {
+  const blockedBy =
+    missingEvidence.length > 0
+      ? missingEvidence
+      : toolingHandoff.missingRequiredTools.map(
+          (tool) => `${tool} CLI readiness must be recorded`
+        );
+  const preflightStatus =
+    toolingHandoff.status === "ready-for-validation" && blockedBy.length === 0
+      ? "ready-for-review"
+      : toolingHandoff.status;
+  const firstGatedCommands = toolingHandoff.approvalGatedCommands.slice(0, 2);
+
+  return [
+    {
+      id: "community-operator-preflight",
+      owner: "release-manager",
+      phase: "community-operator-preflight",
+      status: preflightStatus,
+      request:
+        "Verify Community Operator packaging, bundle, FBC, scorecard, repository, and maintainer evidence before an external OperatorHub pull request.",
+      evidenceNeeded: `community gates pass=${gateCounts.communityOperator.pass}/${gateCounts.communityOperator.total}; local or approved-CI opm/operator-sdk evidence required.`,
+      nextCommand: "npm run verify:certification",
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "Fix local manifests or docs and rerun certification evidence; no external submission rollback is needed before approval."
+    },
+    {
+      id: "certified-operator-preflight",
+      owner: "release-manager",
+      phase: "certified-operator-preflight",
+      status: preflightStatus,
+      request:
+        "Verify Certified Operator release evidence, image security, provenance, support, and runtime evidence before Partner Connect review.",
+      evidenceNeeded: `certified gates pass=${gateCounts.certifiedOperator.pass}/${gateCounts.certifiedOperator.total}; current-head release evidence bundle and human approvals required.`,
+      nextCommand: "npm run verify:release-evidence-bundle",
+      mutation: false,
+      requiresExplicitApproval: false,
+      blockedBy,
+      rollbackPath:
+        "Regenerate the release bundle after fixing evidence gaps; do not submit Certified Operator materials until approvals are explicit."
+    },
+    ...firstGatedCommands.map((command) => ({
+      id: `approval-gated-${command.id}`,
+      owner: "release-manager",
+      phase: command.phase,
+      status: "approval-gated",
+      request: `Do not run ${command.id} until Community/Certified Operator evidence and release approvals are explicit.`,
+      evidenceNeeded:
+        "READY_FOR_REVIEW certification readiness, current-head release evidence bundle, security approval, runtime approval, registry approval, and product-owner approval.",
+      nextCommand: command.command,
+      mutation: command.mutation === true,
+      requiresExplicitApproval: command.requiresExplicitApproval === true,
+      blockedBy,
+      rollbackPath:
+        "Withdraw, supersede, or update the external submission through the approved Red Hat submission workflow if the wrong bundle, digest, or approval set was used."
+    }))
+  ];
+}
+
+function mapCertificationSubmissionActions(
+  artifactActions:
+    | CertificationReadinessEvidenceArtifact["firstSubmissionActions"]
+    | undefined,
+  toolingHandoff: OpsLensCertificationReadinessSummary["toolingHandoff"],
+  missingEvidence: string[],
+  gateCounts: OpsLensCertificationReadinessSummary["gateCounts"]
+): OpsLensCertificationReadinessSummary["firstSubmissionActions"] {
+  const actions =
+    artifactActions && artifactActions.length > 0
+      ? artifactActions
+      : fallbackCertificationSubmissionActions(
+          toolingHandoff,
+          missingEvidence,
+          gateCounts
+        );
+
+  return actions.map((action) => ({
+    id: action.id ?? "unknown",
+    owner: action.owner ?? "release-manager",
+    phase: action.phase ?? "submission-preflight",
+    status: action.status ?? "needs-evidence",
+    request: action.request ?? "certification submission action",
+    evidenceNeeded: action.evidenceNeeded ?? "missing evidence",
+    nextCommand: action.nextCommand ?? "npm run verify:certification",
+    mutation: action.mutation === true,
+    requiresExplicitApproval: action.requiresExplicitApproval === true,
+    blockedBy: action.blockedBy ?? [],
+    rollbackPath:
+      action.rollbackPath ??
+      "Regenerate certification readiness evidence before proceeding."
+  }));
+}
+
 function missingCertificationReadinessSummary(
   reason: string,
   status: OpsLensCertificationReadiness = "needs-evidence"
@@ -4846,6 +4959,23 @@ function missingCertificationReadinessSummary(
     worktreeDirty: false,
     cli: [],
     toolingHandoff: missingCertificationToolingHandoff(reason),
+    firstSubmissionActions: [
+      {
+        id: "generate-certification-readiness",
+        owner: "release-manager",
+        phase: "submission-preflight",
+        status: "needs-evidence",
+        request:
+          "Generate Community/Certified Operator submission readiness evidence before external submission review.",
+        evidenceNeeded: reason,
+        nextCommand: "npm run verify:certification",
+        mutation: false,
+        requiresExplicitApproval: false,
+        blockedBy: [reason],
+        rollbackPath:
+          "No rollback is required because no external submission command has run."
+      }
+    ],
     documents: {},
     gateCounts: {
       internalCatalog: { pass: 0, warn: 0, fail: 0, total: 0 },
@@ -4918,6 +5048,13 @@ function getCertificationReadiness(): {
     const documentSummary = Object.entries(documents)
       .map(([key, value]) => `${key}=${value}`)
       .join(", ");
+    const missingEvidence = artifact.missingEvidence ?? [];
+    const firstSubmissionActions = mapCertificationSubmissionActions(
+      artifact.firstSubmissionActions,
+      toolingHandoff,
+      missingEvidence,
+      gateCounts
+    );
 
     return {
       status,
@@ -4933,9 +5070,10 @@ function getCertificationReadiness(): {
         worktreeDirty: artifact.ref?.worktreeDirty === true,
         cli,
         toolingHandoff,
+        firstSubmissionActions,
         documents,
         gateCounts,
-        missingEvidence: artifact.missingEvidence ?? [],
+        missingEvidence,
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? []
       },
@@ -4952,10 +5090,11 @@ function getCertificationReadiness(): {
           ? `certification tooling lanes=${toolingHandoff.executionLanes.map((lane) => `${lane.id}:${lane.status}`).join(", ")}`
           : "certification tooling execution lanes are not listed",
         `certification tooling freshness requiredHead=${toolingHandoff.freshnessPolicy.requiredHead} rerunAfter=${toolingHandoff.freshnessPolicy.rerunAfter.join(", ") || "none"}`,
+        `certification first submission actions=${firstSubmissionActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         documentSummary
           ? `certification documents=${documentSummary}`
           : "certification documents are not listed",
-        ...(artifact.missingEvidence ?? []).slice(0, 3),
+        ...missingEvidence.slice(0, 3),
         "admin overview reads certification readiness evidence only; it does not submit to Partner Connect, push images, mirror images, sign images, apply resources, delete resources, or scale workloads"
       ]
     };

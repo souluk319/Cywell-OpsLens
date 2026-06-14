@@ -1453,6 +1453,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             approvalGatedCommands?: Array<{ id?: string; mutation?: boolean }>;
             nextCommands?: string[];
           };
+          firstSubmissionActions?: Array<{
+            id?: string;
+            owner?: string;
+            phase?: string;
+            status?: string;
+            request?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+            blockedBy?: string[];
+            rollbackPath?: string;
+          }>;
           documents?: Record<string, string>;
           gateCounts?: {
             internalCatalog?: {
@@ -2668,6 +2681,36 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.certificationPlan?.toolingHandoff
         ?.approvalGatedCommands?.every((command) => command.mutation === true)
+    ).toBe(true);
+    const certificationFirstSubmissionActions =
+      body.installReadiness?.certificationPlan?.firstSubmissionActions ?? [];
+    expect(certificationFirstSubmissionActions.length).toBeGreaterThanOrEqual(
+      3
+    );
+    expect(
+      certificationFirstSubmissionActions.some(
+        (action) =>
+          action.owner === "release-manager" &&
+          action.nextCommand?.includes("verify:certification") &&
+          action.mutation === false &&
+          action.requiresExplicitApproval === false
+      )
+    ).toBe(true);
+    expect(
+      certificationFirstSubmissionActions.some(
+        (action) =>
+          action.id?.startsWith("approval-gated-") &&
+          /partner-connect-submit|operatorhub-submit/.test(
+            action.id ?? ""
+          ) &&
+          action.mutation === true &&
+          action.requiresExplicitApproval === true
+      )
+    ).toBe(true);
+    expect(
+      certificationFirstSubmissionActions.every((action) =>
+        Array.isArray(action.blockedBy)
+      )
     ).toBe(true);
     expect(
       body.installReadiness?.certificationPlan?.gateCounts?.internalCatalog?.total ??
@@ -4389,6 +4432,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-certification-tooling-next")
     ).toContainText("verify:certification");
+    await expect(
+      page.getByTestId("opslens-certification-first-submission-actions")
+    ).toContainText(/community-operator-preflight|verify:certification/);
+    await expect(
+      page.getByTestId("opslens-certification-first-submission-actions")
+    ).toContainText("approval-gated-");
+    await expect(
+      page.getByTestId("opslens-certification-first-submission-actions")
+    ).toContainText("approval=true");
     await expect(page.getByTestId("opslens-certification-gates")).toContainText(
       "certifiedOperator"
     );

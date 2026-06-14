@@ -1712,6 +1712,19 @@ export interface OpsLensCertificationReadinessSummary {
     risk: string[];
     rollbackPath: string[];
   };
+  firstSubmissionActions: Array<{
+    id: string;
+    owner: string;
+    phase: string;
+    status: string;
+    request: string;
+    evidenceNeeded: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+    blockedBy: string[];
+    rollbackPath: string;
+  }>;
   documents: Record<string, string>;
   gateCounts: {
     internalCatalog: {

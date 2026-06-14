@@ -2726,6 +2726,22 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-certification-first-submission-actions"
+              >
+                {certificationPlan.firstSubmissionActions.length ? (
+                  certificationPlan.firstSubmissionActions.map((action) => (
+                    <span key={action.id}>
+                      {action.id}:{action.owner}:{action.status}:next=
+                      {action.nextCommand}:mutation={String(action.mutation)}
+                      :approval={String(action.requiresExplicitApproval)}
+                    </span>
+                  ))
+                ) : (
+                  <span>certification submission first actions missing</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-certification-gates"
               >
                 {Object.entries(certificationPlan.gateCounts).map(

@@ -671,6 +671,108 @@ function statusFromChecks(toolingHandoff) {
   return "READY_FOR_REVIEW";
 }
 
+function firstSubmissionGapCommand(gap) {
+  const normalized = gap.toLowerCase();
+  if (
+    /opm|operator-sdk|ci runner|runner evidence|tooling/.test(normalized)
+  ) {
+    return "npm run verify:certification";
+  }
+  if (/catalog|fbc|bundle|scorecard/.test(normalized)) {
+    return "npm run verify:catalog-toolchain";
+  }
+  if (/release|security|sbom|provenance|external runtime|image/.test(normalized)) {
+    return "npm run verify:release-refresh -- --skip-image-build --live-timeout-ms 30000";
+  }
+  return "npm run verify:certification";
+}
+
+function buildFirstSubmissionActions(toolingHandoff, missingEvidence) {
+  const uniqueGaps = [...new Set(missingEvidence.map(sanitize).filter(Boolean))];
+  const blockedBy = uniqueGaps.length
+    ? uniqueGaps
+    : toolingHandoff.missingRequiredTools.map(
+        (tool) => `${tool} CLI readiness must be recorded`
+      );
+  const preflightGaps = uniqueGaps.slice(0, 3).map((gap, index) => ({
+    id: `certification-submission-gap-${index + 1}`,
+    owner: "release-manager",
+    phase: "submission-preflight",
+    status: /opm|operator-sdk|tooling|ci runner/i.test(gap)
+      ? "needs-tooling"
+      : "needs-evidence",
+    request:
+      "Resolve the current Community/Certified Operator submission gap with read-only evidence before external submission review.",
+    evidenceNeeded: gap,
+    nextCommand: firstSubmissionGapCommand(gap),
+    mutation: false,
+    requiresExplicitApproval: false,
+    blockedBy: [gap],
+    rollbackPath:
+      "No rollback is required because this preflight only regenerates local certification evidence."
+  }));
+  const preflightStatus =
+    toolingHandoff.status === "ready-for-validation" && blockedBy.length === 0
+      ? "ready-for-review"
+      : toolingHandoff.status;
+  const communityPreflight = {
+    id: "community-operator-preflight",
+    owner: "release-manager",
+    phase: "community-operator-preflight",
+    status: preflightStatus,
+    request:
+      "Verify Community Operator packaging, bundle, FBC, scorecard, repository, and maintainer evidence before an external OperatorHub pull request.",
+    evidenceNeeded:
+      "Current-head Community Operator packaging checks plus local or approved-CI opm/operator-sdk validation output.",
+    nextCommand: "npm run verify:certification",
+    mutation: false,
+    requiresExplicitApproval: false,
+    blockedBy,
+    rollbackPath:
+      "Fix local manifests or docs and rerun certification evidence; no external submission rollback is needed before approval."
+  };
+  const certifiedPreflight = {
+    id: "certified-operator-preflight",
+    owner: "release-manager",
+    phase: "certified-operator-preflight",
+    status: preflightStatus,
+    request:
+      "Verify Certified Operator release evidence, image security, provenance, support, and runtime evidence before Partner Connect review.",
+    evidenceNeeded:
+      "Current-head release evidence bundle, security/SBOM/provenance evidence, external runtime review, and explicit approvals.",
+    nextCommand: "npm run verify:release-evidence-bundle",
+    mutation: false,
+    requiresExplicitApproval: false,
+    blockedBy,
+    rollbackPath:
+      "Regenerate the release bundle after fixing evidence gaps; do not submit Certified Operator materials until approvals are explicit."
+  };
+  const gatedSubmissionActions = toolingHandoff.approvalGatedCommands.map(
+    (command) => ({
+      id: `approval-gated-${command.id}`,
+      owner: "release-manager",
+      phase: command.phase,
+      status: "approval-gated",
+      request: `Do not run ${command.id} until Community/Certified Operator evidence and release approvals are explicit.`,
+      evidenceNeeded:
+        "READY_FOR_REVIEW certification readiness, current-head release evidence bundle, security approval, runtime approval, registry approval, and product-owner approval.",
+      nextCommand: command.command,
+      mutation: command.mutation === true,
+      requiresExplicitApproval: command.requiresExplicitApproval === true,
+      blockedBy,
+      rollbackPath:
+        "Withdraw, supersede, or update the external submission through the approved Red Hat submission workflow if the wrong bundle, digest, or approval set was used."
+    })
+  );
+
+  return [
+    ...preflightGaps,
+    communityPreflight,
+    certifiedPreflight,
+    ...gatedSubmissionActions
+  ];
+}
+
 function buildToolingHandoff(ciRunnerEvidence) {
   const requiredTools = cli
     .filter((entry) => entry.requiredForExternalSubmission)
@@ -936,7 +1038,6 @@ async function writeEvidence() {
     "mutating execution lanes require explicit approval",
     "mutating execution lanes must require explicit approval"
   );
-  const status = statusFromChecks(toolingHandoff);
   const missingEvidence = [
     ...(ciRunnerEvidence.status === "ready"
       ? []
@@ -950,6 +1051,41 @@ async function writeEvidence() {
       .filter((check) => check.status === "WARN")
       .map((check) => `${check.name}: ${check.detail}`)
   ].map(sanitize);
+  const firstSubmissionActions = buildFirstSubmissionActions(
+    toolingHandoff,
+    missingEvidence
+  );
+  expectCheck(
+    "certification first submission read-only preflight",
+    firstSubmissionActions.some(
+      (action) =>
+        action.mutation === false &&
+        action.requiresExplicitApproval === false &&
+        /verify:certification/.test(action.nextCommand)
+    ),
+    "first submission actions include a read-only certification preflight",
+    "first submission actions must include a read-only certification preflight"
+  );
+  expectCheck(
+    "certification first submission approval gate",
+    firstSubmissionActions.some(
+      (action) =>
+        action.id.startsWith("approval-gated-") &&
+        action.mutation === true &&
+        action.requiresExplicitApproval === true
+    ),
+    "first submission actions include approval-gated external submission",
+    "first submission actions must keep external submission approval-gated"
+  );
+  expectCheck(
+    "certification first submission mutation boundary",
+    firstSubmissionActions.every(
+      (action) => action.mutation !== true || action.requiresExplicitApproval === true
+    ),
+    "mutating first submission actions require explicit approval",
+    "mutating first submission actions must require explicit approval"
+  );
+  const status = statusFromChecks(toolingHandoff);
   const artifact = {
     schema: "cywell.opslens.certification-readiness.v0.1",
     artifactType: "opslens.certification-readiness.v0.1",
@@ -980,6 +1116,7 @@ async function writeEvidence() {
     },
     cli,
     toolingHandoff,
+    firstSubmissionActions,
     documents: {
       security: paths.securityDoc,
       support: paths.supportDoc,
