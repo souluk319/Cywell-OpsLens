@@ -1688,6 +1688,76 @@ function firstOwnerAction(entries) {
     })[0]?.entry;
 }
 
+const criticalPathLaneOrder = [
+  "live-ocp-lightspeed",
+  "external-runtime-review",
+  "certification-toolchain",
+  "release-publish",
+  "install-approval",
+  "security-review",
+  "rag-production",
+  "aiops-monitoring"
+];
+
+const criticalPathLabels = {
+  "live-ocp-lightspeed": "Live OCP and Lightspeed reachability",
+  "external-runtime-review": "External runtime evidence and mirroring",
+  "certification-toolchain": "Certification and catalog toolchain",
+  "release-publish": "Release publish approval",
+  "install-approval": "Install approval and OLSConfig registration",
+  "security-review": "Security scan and final review",
+  "rag-production": "RAG production ingestion approval",
+  "aiops-monitoring": "AI Ops monitoring proxy evidence"
+};
+
+function criticalPathLane(entry) {
+  const text = `${entry.id} ${entry.source} ${entry.owner}`.toLowerCase();
+  if (/(ocp|lightspeed|network|live-handoff)/.test(text)) return "live-ocp-lightspeed";
+  if (/external-runtime|externalruntime/.test(text)) return "external-runtime-review";
+  if (/certification|catalog-toolchain|tooling|opm|operator-sdk/.test(text)) return "certification-toolchain";
+  if (/release-publish|publish-decision|refresh-publish/.test(text)) return "release-publish";
+  if (/install-plan|install-decision|refresh-install/.test(text)) return "install-approval";
+  if (/security-review|security-scan/.test(text)) return "security-review";
+  if (/rag-production|rag-owner|ingestion/.test(text)) return "rag-production";
+  if (/aiops|monitoring-proxy/.test(text)) return "aiops-monitoring";
+  return undefined;
+}
+
+function criticalPath(items) {
+  const byLane = new Map();
+  for (const [index, entry] of items.entries()) {
+    const lane = criticalPathLane(entry);
+    if (!lane) continue;
+    const current = byLane.get(lane);
+    const currentRank = current ? actionPriorityRank[current.entry.priority] ?? 99 : 99;
+    const nextRank = actionPriorityRank[entry.priority] ?? 99;
+    if (!current || nextRank < currentRank || (nextRank === currentRank && index < current.index)) {
+      byLane.set(lane, { entry, index });
+    }
+  }
+  return criticalPathLaneOrder
+    .map((lane) => {
+      const match = byLane.get(lane);
+      if (!match) return undefined;
+      const entry = match.entry;
+      return {
+        lane,
+        label: criticalPathLabels[lane],
+        owner: entry.owner,
+        priority: entry.priority,
+        actionId: entry.id,
+        source: entry.source,
+        request: entry.request,
+        evidenceNeeded: entry.evidenceNeeded,
+        nextCommand: entry.nextCommand,
+        blockedBy: uniqueStrings(entry.blockedBy ?? []).slice(0, 6),
+        diagnostics: entry.diagnostics.slice(0, 6).map((diagnostic) => diagnostic.id),
+        acceptance: uniqueStrings(entry.acceptance ?? [])
+      };
+    })
+    .filter(Boolean);
+}
+
 function buildOwnerPackets(owners, items) {
   return owners.map((owner) => {
     const entries = items.filter((entry) => entry.owner === owner.owner);
@@ -1783,6 +1853,12 @@ function markdownFor(queue) {
     `- Action mode: ${queue.actionMode}`,
     `- Open items: ${queue.items.length}`,
     `- Mutation boundary passed: ${queue.mutationBoundary.passed}`,
+    "",
+    "## Release Critical Path",
+    "",
+    ...queue.criticalPath.map((entry) =>
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}`
+    ),
     "",
     "## Owner Summary",
     "",
@@ -2001,6 +2077,7 @@ async function main() {
   const items = buildItems(artifacts);
   const owners = ownerSummary(items);
   const ownerPackets = buildOwnerPackets(owners, items);
+  const releaseCriticalPath = criticalPath(items);
   const readOnly = readOnlyCommands(artifacts);
   const approvalGated = approvalGatedCommands(artifacts);
   const unsafeReadOnly = readOnly
@@ -2083,6 +2160,7 @@ async function main() {
     sourceArtifacts,
     owners,
     ownerPackets,
+    criticalPath: releaseCriticalPath,
     ownerPacketsDir: resolve(options.ownerPacketsDir),
     items,
     readOnlyCommands: readOnly,

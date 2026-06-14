@@ -1671,6 +1671,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             missingRequiredTools?: string[];
             mutationAllowedByThisVerifier?: boolean;
           }>;
+          criticalPath?: Array<{
+            lane?: string;
+            label?: string;
+            owner?: string;
+            priority?: string;
+            actionId?: string;
+            source?: string;
+            request?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            blockedBy?: string[];
+            diagnostics?: string[];
+            acceptance?: string[];
+          }>;
           ownerPacketCleanup?: {
             dir?: string;
             expectedFiles?: string[];
@@ -2843,6 +2857,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.actionQueue?.missingEvidence?.join(" ")
     ).not.toMatch(/npm run verify:ocp:connectivity(?! -- --timeout-ms 30000)/);
+    expect(body.installReadiness?.actionQueue?.criticalPath?.length ?? 0).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.actionQueue?.criticalPath?.map((entry) => entry.lane)
+    ).toEqual(
+      expect.arrayContaining([
+        "live-ocp-lightspeed",
+        "external-runtime-review",
+        "release-publish",
+        "install-approval"
+      ])
+    );
+    expect(
+      body.installReadiness?.actionQueue?.criticalPath?.every(
+        (entry) => entry.owner && entry.actionId && entry.nextCommand
+      )
+    ).toBe(true);
     expect(body.installReadiness?.actionQueue?.markdownPath).toContain(
       "cywell-opslens-release-action-queue.md"
     );
@@ -4228,6 +4258,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
       /network-sre|cluster-admin|cluster-sre|release-manager/
     );
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("live-ocp-lightspeed");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText(/external-runtime-review|release-publish|install-approval/);
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packets")
     ).toContainText("cluster-admin.md");

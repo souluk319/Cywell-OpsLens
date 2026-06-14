@@ -2105,6 +2105,20 @@ type ReleaseActionQueueArtifact = {
     acceptance?: string[];
     mutationAllowedByThisVerifier?: boolean;
   }>;
+  criticalPath?: Array<{
+    lane?: string;
+    label?: string;
+    owner?: string;
+    priority?: string;
+    actionId?: string;
+    source?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    blockedBy?: string[];
+    diagnostics?: string[];
+    acceptance?: string[];
+  }>;
   ownerPacketCleanup?: {
     dir?: string;
     expectedFiles?: string[];
@@ -5322,6 +5336,7 @@ function missingReleaseActionQueueSummary(
     worktreeDirty: false,
     owners: [],
     ownerPackets: [],
+    criticalPath: [],
     ownerPacketCleanup: {
       dir: "missing",
       expectedFiles: [],
@@ -5426,6 +5441,20 @@ function getReleaseActionQueueReadiness(): {
       staleRemoved: artifact.ownerPacketCleanup?.staleRemoved ?? [],
       deletionAllowed: artifact.ownerPacketCleanup?.deletionAllowed === true
     };
+    const criticalPath = (artifact.criticalPath ?? []).map((entry) => ({
+      lane: entry.lane ?? "unknown",
+      label: entry.label ?? "Critical path",
+      owner: entry.owner ?? "unknown",
+      priority: normalizeActionQueuePriority(entry.priority),
+      actionId: entry.actionId ?? "unknown",
+      source: entry.source ?? "unknown",
+      request: entry.request ?? "missing request",
+      evidenceNeeded: entry.evidenceNeeded ?? "missing evidence",
+      nextCommand: entry.nextCommand ?? "not listed",
+      blockedBy: entry.blockedBy ?? [],
+      diagnostics: entry.diagnostics ?? [],
+      acceptance: entry.acceptance ?? []
+    }));
     const items = (artifact.items ?? []).map((entry) => ({
       id: entry.id ?? "unknown",
       owner: entry.owner ?? "unknown",
@@ -5499,6 +5528,7 @@ function getReleaseActionQueueReadiness(): {
         worktreeDirty: artifact.ref?.worktreeDirty === true,
         owners,
         ownerPackets,
+        criticalPath,
         ownerPacketCleanup,
         items,
         sourceArtifacts,
@@ -5513,6 +5543,7 @@ function getReleaseActionQueueReadiness(): {
         `release action queue generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `release action queue markdown packet=${markdownPath}`,
         `release action queue owner packets=${ownerPackets.length}`,
+        `release action queue critical path=${criticalPath.map((entry) => `${entry.lane}:${entry.owner}:${entry.actionId}`).join(", ") || "missing"}`,
         `release action queue owner packet cleanup deletionAllowed=${String(ownerPacketCleanup.deletionAllowed)} expected=${ownerPacketCleanup.expectedFiles.length} staleRemoved=${ownerPacketCleanup.staleRemoved.length}`,
         `release action queue owners=${owners.length} items=${items.length}`,
         ownerSummary ? `release action queue owner summary=${ownerSummary}` : "release action queue owners are not listed",

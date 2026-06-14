@@ -1899,6 +1899,21 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-critical-path"
+              >
+                {releaseActionQueue.criticalPath.length > 0 ? (
+                  releaseActionQueue.criticalPath.map((entry) => (
+                    <span key={entry.lane}>
+                      {entry.lane}:{entry.owner}:{entry.priority}:
+                      {entry.actionId}:next={entry.nextCommand}
+                    </span>
+                  ))
+                ) : (
+                  <span>critical path clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-release-action-queue-owner-packets"
               >
                 {releaseActionQueue.ownerPackets.slice(0, 7).map((packet) => (

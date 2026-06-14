@@ -1824,6 +1824,20 @@ export interface OpsLensReleaseActionQueueSummary {
     acceptance: string[];
     mutationAllowedByThisVerifier: boolean;
   }>;
+  criticalPath: Array<{
+    lane: string;
+    label: string;
+    owner: string;
+    priority: "blocker" | "high" | "normal";
+    actionId: string;
+    source: string;
+    request: string;
+    evidenceNeeded: string;
+    nextCommand: string;
+    blockedBy: string[];
+    diagnostics: string[];
+    acceptance: string[];
+  }>;
   ownerPacketCleanup: {
     dir: string;
     expectedFiles: string[];
