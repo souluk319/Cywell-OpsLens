@@ -2958,6 +2958,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (command) => command.id
       )
     ).toEqual(expect.arrayContaining(["mirror-vllm"]));
+    expect(vllmRegistryDigestAction?.diagnostics?.map((item) => item.id)).toEqual(
+      expect.arrayContaining([
+        "external-runtime-review-state",
+        "source-digest-inspection",
+        "registry-access"
+      ])
+    );
+    expect(
+      vllmRegistryDigestAction?.diagnostics?.find(
+        (item) => item.id === "registry-access"
+      )?.value
+    ).toMatch(/classification=registry-/);
     const vllmCandidateAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) => item.id === "external-runtime-vllm-candidate-matrix"
@@ -4216,7 +4228,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("sign-owned-operator");
     await expect(
       page.getByTestId("opslens-release-action-queue-diagnostics")
-    ).toContainText(/candidate-status|security-final-review|post-approval-rbac/);
+    ).toContainText(/candidate-status|security-final-review|post-approval-rbac|source-digest-inspection|registry-access/);
     await expect(
       page.getByTestId("opslens-release-action-queue-catalog-registry-actions")
     ).toContainText(/registry-admin-fix-catalog-base-image-auth|catalog registry actions clear/);

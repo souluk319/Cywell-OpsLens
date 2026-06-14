@@ -269,6 +269,56 @@ function candidateRequirement(imageName, candidateStatus, bestCandidate) {
   return `Scan an immutable ${imageName} digest candidate with complete vulnerability/SBOM evidence and criticalFindings=0; current candidateMatrix status=${candidateStatus}.`;
 }
 
+function registryAccessClassification(detail) {
+  const text = String(detail ?? "").toLowerCase();
+  if (/\b401\b|unauthorized|authentication required|access denied/.test(text)) {
+    return "registry-auth-required";
+  }
+  if (/\b403\b|forbidden|permission denied/.test(text)) return "registry-permission-denied";
+  if (/\b404\b|not found|manifest unknown/.test(text)) return "registry-manifest-missing";
+  if (/timeout|timed out/.test(text)) return "registry-timeout";
+  if (/tls|certificate/.test(text)) return "registry-tls-failed";
+  if (/sha256:[a-f0-9]{32,}/.test(text)) return "registry-digest-observed";
+  return "registry-review-required";
+}
+
+function externalRuntimeReviewerDiagnostics(image, request) {
+  const sourceInspection = image.sourceDigestInspection ?? {};
+  const requestText = `${request?.request ?? ""} ${request?.evidenceNeeded ?? ""}`;
+  const diagnostics = [
+    {
+      id: "external-runtime-review-state",
+      label: "Review state",
+      value:
+        `draft=${image.draftStatus ?? "missing"} ` +
+        `state=${image.evidenceState ?? "missing"} ` +
+        `finalExists=${String(image.finalEvidence?.exists === true)} ` +
+        `missingEvidence=${image.missingEvidence?.length ?? 0}`
+    }
+  ];
+
+  if (/source digest|source-digest|sourceDigest|HEAD request|imagetools|manifest inspect/i.test(requestText)) {
+    const detail = sourceInspection.detail ?? request?.evidenceNeeded ?? "missing";
+    diagnostics.push(
+      {
+        id: "source-digest-inspection",
+        label: "Source digest inspection",
+        value:
+          `status=${sourceInspection.status ?? "missing"} ` +
+          `source=${sourceInspection.sourceImage ?? image.image ?? "unknown"} ` +
+          `method=${sourceInspection.method ?? "missing"}`
+      },
+      {
+        id: "registry-access",
+        label: "Registry access",
+        value: `classification=${registryAccessClassification(detail)} detail=${detail}`
+      }
+    );
+  }
+
+  return diagnostics;
+}
+
 function stripReleaseActionQueueFeedback(value) {
   return sanitize(value).replace(/^(?:releaseActionQueue:\s*)+/i, "");
 }
@@ -865,6 +915,7 @@ function externalRuntimeItems(packet) {
         readOnlyCommands: readOnlyFor(request.nextCommand ?? ""),
         approvalGatedCommands: approvalFor(request.role ?? ""),
         blockedBy: image.missingEvidence ?? [],
+        diagnostics: externalRuntimeReviewerDiagnostics(image, request),
         acceptance: ["AC-CERT-001"]
       })
     );
