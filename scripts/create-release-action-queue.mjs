@@ -3763,6 +3763,26 @@ async function main() {
   } else {
     warn("release action queue items", "no open items were generated");
   }
+  const itemsWithoutDiagnostics = items
+    .filter((entry) => (entry.diagnostics ?? []).length === 0)
+    .map((entry) => entry.id);
+  const criticalPathWithoutDiagnostics = releaseCriticalPath
+    .filter((entry) => (entry.diagnostics ?? []).length === 0)
+    .map((entry) => entry.lane);
+  if (itemsWithoutDiagnostics.length > 0 || criticalPathWithoutDiagnostics.length > 0) {
+    fail(
+      "release action queue diagnostics coverage",
+      [
+        `items=${itemsWithoutDiagnostics.join(",") || "none"}`,
+        `criticalPath=${criticalPathWithoutDiagnostics.join(",") || "none"}`
+      ].join(" ")
+    );
+  } else {
+    pass(
+      "release action queue diagnostics coverage",
+      `${items.length} item(s) and ${releaseCriticalPath.length} critical path lane(s) carry diagnostics`
+    );
+  }
 
   const mutationBoundary = {
     passed:

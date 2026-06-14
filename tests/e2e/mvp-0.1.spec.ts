@@ -4758,6 +4758,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (entry) => entry.owner && entry.actionId && entry.nextCommand
       )
     ).toBe(true);
+    expect(
+      body.installReadiness?.actionQueue?.items?.every(
+        (entry) => (entry.diagnostics?.length ?? 0) > 0
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.actionQueue?.criticalPath?.every(
+        (entry) => (entry.diagnostics?.length ?? 0) > 0
+      )
+    ).toBe(true);
     const liveOcpCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "live-ocp-lightspeed"
