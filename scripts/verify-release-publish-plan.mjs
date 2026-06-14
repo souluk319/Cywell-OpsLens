@@ -392,6 +392,78 @@ function planStatus(missingEvidence) {
   return "PUBLISH_APPROVAL_REQUIRED";
 }
 
+function publishGapOwner(gap) {
+  if (/external runtime|mirror|vllm|qdrant/i.test(gap)) return "registry-admin";
+  if (/catalog|registry\.redhat\.io/i.test(gap)) return "registry-admin";
+  if (/scan|sbom|certification|signature|cosign/i.test(gap)) return "security-reviewer";
+  return "release-manager";
+}
+
+function publishGapNextCommand(gap) {
+  if (/external runtime|vllm|qdrant/i.test(gap)) return "npm run verify:external-runtime-plan";
+  if (/catalog|registry\.redhat\.io/i.test(gap)) return "npm run verify:catalog-toolchain";
+  if (/owned image provenance/i.test(gap)) return "npm run verify:owned-image-provenance";
+  if (/image readiness|actual image build|verify:images:build/i.test(gap)) return "npm run verify:images:build";
+  if (/dirty/i.test(gap)) return "git status --short";
+  return "npm run verify:release-plan";
+}
+
+function firstPublishActions(missingEvidence, commands) {
+  const evidenceActions = missingEvidence.slice(0, 3).map((gap, index) => ({
+    id: `release-evidence-gap-${index + 1}`,
+    owner: publishGapOwner(gap),
+    phase: "publish-preflight",
+    status: "needs-evidence",
+    request: "Resolve release publish evidence before image push, signing, mirroring, or catalog publication.",
+    evidenceNeeded: gap,
+    nextCommand: publishGapNextCommand(gap),
+    mutation: false,
+    requiresExplicitApproval: false,
+    blockedBy: [gap],
+    rollbackPath: "No rollback is required for read-only publish preflight evidence."
+  }));
+  const preflight = commands.find((command) => command.id === "run-release-preflight");
+  const preflightAction = preflight
+    ? [
+        {
+          id: preflight.id,
+          owner: "release-manager",
+          phase: preflight.phase,
+          status: missingEvidence.length > 0 ? "needs-evidence" : "ready",
+          request: preflight.rationale,
+          evidenceNeeded:
+            missingEvidence.length > 0
+              ? "Release publish evidence gaps remain before approval."
+              : "Current-head release preflight is ready for approval review.",
+          nextCommand: preflight.command,
+          mutation: false,
+          requiresExplicitApproval: false,
+          blockedBy: missingEvidence,
+          rollbackPath: preflight.rollback
+        }
+      ]
+    : [];
+  const firstMutatingCommand = commands.find((command) => command.mutation === true);
+  const gatedMutationAction = firstMutatingCommand
+    ? [
+        {
+          id: `approval-gated-${firstMutatingCommand.id}`,
+          owner: "registry-admin",
+          phase: firstMutatingCommand.phase,
+          status: "approval-gated",
+          request: `Do not run ${firstMutatingCommand.id} until release publish approval is explicit.`,
+          evidenceNeeded: "All release publish evidence passes and release-manager, registry-admin, security-reviewer, and product-owner approvals are recorded.",
+          nextCommand: firstMutatingCommand.command,
+          mutation: true,
+          requiresExplicitApproval: true,
+          blockedBy: missingEvidence,
+          rollbackPath: firstMutatingCommand.rollback
+        }
+      ]
+    : [];
+  return [...evidenceActions, ...preflightAction, ...gatedMutationAction];
+}
+
 function secretValuesForLeakCheck() {
   return [
     "OCP_API_TOKEN",
@@ -464,6 +536,7 @@ async function buildPlan() {
   }
 
   const commands = buildCommands(publishImages, catalogSource, subscription);
+  const firstActions = firstPublishActions(missingEvidence, commands);
 
   return {
     schema: "cywell.opslens.release-publish-plan.v0.1",
@@ -497,6 +570,7 @@ async function buildPlan() {
       startingCSV: subscription?.spec?.startingCSV ?? "unknown",
       installPlanApproval: subscription?.spec?.installPlanApproval ?? "unknown"
     },
+    firstPublishActions: firstActions,
     commands,
     missingEvidence,
     risk: [

@@ -3157,6 +3157,22 @@ export function OpsLensAdminDashboard() {
                   </strong>
                 </div>
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-first-publish-actions"
+              >
+                {releasePlan.firstPublishActions.length ? (
+                  releasePlan.firstPublishActions.map((action) => (
+                    <span key={action.id}>
+                      {action.id}:{action.owner}:{action.nextCommand}:mutation=
+                      {String(action.mutation)}:approval=
+                      {String(action.requiresExplicitApproval)}
+                    </span>
+                  ))
+                ) : (
+                  <span>first publish actions clear</span>
+                )}
+              </div>
               <div className="remediation-notes">
                 <p>
                   {releasePlan.risk[0] ??

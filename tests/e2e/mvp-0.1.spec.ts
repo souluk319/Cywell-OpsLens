@@ -1602,6 +1602,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           clusterMutationAttempted?: boolean;
           mutationAllowedByThisVerifier?: boolean;
           requiredApprovals?: string[];
+          firstPublishActions?: Array<{
+            id?: string;
+            owner?: string;
+            phase?: string;
+            status?: string;
+            request?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+            blockedBy?: string[];
+            rollbackPath?: string;
+          }>;
           mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
           risk?: string[];
           rollbackPath?: string[];
@@ -2853,6 +2866,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "product-owner"
       ])
     );
+    expect(
+      body.installReadiness?.releasePlan?.firstPublishActions?.length ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.releasePlan?.firstPublishActions?.some(
+        (action) =>
+          action.mutation === false &&
+          action.nextCommand?.match(/verify:|git status/)
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.releasePlan?.firstPublishActions?.some(
+        (action) =>
+          action.mutation === true &&
+          action.requiresExplicitApproval === true &&
+          action.id?.startsWith("approval-gated-")
+      )
+    ).toBe(true);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /release publish plan/i
     );
@@ -4359,6 +4390,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-release-publish-plan")).toContainText(
       "release-manager"
     );
+    await expect(
+      page.getByTestId("opslens-release-first-publish-actions")
+    ).toContainText(/verify:|git status/);
+    await expect(
+      page.getByTestId("opslens-release-first-publish-actions")
+    ).toContainText("approval-gated-");
+    await expect(
+      page.getByTestId("opslens-release-first-publish-actions")
+    ).toContainText("approval=true");
     await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
       "bundleOnly"
     );

@@ -1729,6 +1729,19 @@ type ReleasePublishPlanEvidenceArtifact = {
     image?: string;
     source?: string;
   }>;
+  firstPublishActions?: Array<{
+    id?: string;
+    owner?: string;
+    phase?: string;
+    status?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
+  }>;
   commands?: Array<{
     id?: string;
     phase?: string;
@@ -4390,6 +4403,21 @@ function getReleasePublishPlanReadiness(): {
           "product-owner"
         ],
         publishImages: [],
+        firstPublishActions: [
+          {
+            id: "generate-release-publish-plan",
+            owner: "release-manager",
+            phase: "publish-preflight",
+            status: "needs-evidence",
+            request: "Generate release publish evidence before image push, signing, mirroring, or catalog publication.",
+            evidenceNeeded: `release publish plan evidence is missing at ${evidencePath}`,
+            nextCommand: "npm run verify:release-plan",
+            mutation: false,
+            requiresExplicitApproval: false,
+            blockedBy: [`release publish plan evidence is missing at ${evidencePath}`],
+            rollbackPath: "No rollback is required because no registry mutation has run."
+          }
+        ],
         mutatingCommands: [],
         risk: [
           "No release publish plan evidence is available yet; image push, signing, mirroring, and catalog publication remain blocked."
@@ -4419,6 +4447,19 @@ function getReleasePublishPlanReadiness(): {
       image: image.image ?? "unknown",
       source: image.source ?? "unknown"
     }));
+    const firstPublishActions = (artifact.firstPublishActions ?? []).map((action) => ({
+      id: action.id ?? "unknown",
+      owner: action.owner ?? "release-manager",
+      phase: action.phase ?? "unknown",
+      status: action.status ?? "unknown",
+      request: action.request ?? "release publish action",
+      evidenceNeeded: action.evidenceNeeded ?? "missing evidence",
+      nextCommand: action.nextCommand ?? "npm run verify:release-plan",
+      mutation: action.mutation === true,
+      requiresExplicitApproval: action.requiresExplicitApproval === true,
+      blockedBy: action.blockedBy ?? [],
+      rollbackPath: action.rollbackPath ?? "Regenerate release publish evidence before proceeding."
+    }));
     const mutatingCommands = (artifact.commands ?? [])
       .filter((command) => command.mutation)
       .map((command) => ({
@@ -4442,6 +4483,7 @@ function getReleasePublishPlanReadiness(): {
           artifact.mutationAllowedByThisVerifier === true,
         requiredApprovals: artifact.requiredApprovals ?? [],
         publishImages,
+        firstPublishActions,
         mutatingCommands,
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? [],
@@ -4453,6 +4495,7 @@ function getReleasePublishPlanReadiness(): {
         `actionMode=${artifact.actionMode ?? "unknown"} registryMutationAttempted=${String(artifact.registryMutationAttempted ?? "unknown")} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")}`,
         `required approvals=${(artifact.requiredApprovals ?? []).join(", ") || "unknown"}`,
         imageNames ? `release publish image inventory=${imageNames}` : "release publish image inventory not listed",
+        `release first publish actions=${firstPublishActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         mutatingCommandNames
           ? `publish commands require explicit approval: ${mutatingCommandNames}`
           : "publish commands are not listed in latest release plan",
@@ -4471,6 +4514,7 @@ function getReleasePublishPlanReadiness(): {
         mutationAllowedByThisVerifier: false,
         requiredApprovals: [],
         publishImages: [],
+        firstPublishActions: [],
         mutatingCommands: [],
         risk: [
           "Release publish plan evidence is invalid; registry and catalog publication commands remain blocked."
