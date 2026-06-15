@@ -4815,6 +4815,19 @@ export function OpsLensAdminDashboard() {
                 className="admin-evidence-line"
                 data-testid="opslens-external-runtime-registry-tickets"
               >
+                <span>
+                  registryPacket=
+                  {externalRuntimeReview.registryAdminPacket.markdownPath
+                    .split(/[\\/]/)
+                    .pop()}
+                  :exists=
+                  {String(externalRuntimeReview.registryAdminPacket.exists)}
+                  :loginExecuted=
+                  {String(
+                    externalRuntimeReview.registryAdminPacket
+                      .registryLoginExecutedByVerifier
+                  )}
+                </span>
                 {externalRuntimeReview.ticketPackets.length ? (
                   externalRuntimeReview.ticketPackets.map((ticket) => (
                     <span key={ticket.id}>

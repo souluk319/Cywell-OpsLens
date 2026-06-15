@@ -2125,6 +2125,17 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           mutationAllowedByThisVerifier?: boolean;
           requiredApprovals?: string[];
           markdownPath?: string;
+          registryAdminPacket?: {
+            owner?: string;
+            markdownPath?: string;
+            exists?: boolean;
+            ticketIds?: string[];
+            firstReadOnlyActionId?: string;
+            approvalGatedActionIds?: string[];
+            credentialStoredByVerifier?: boolean;
+            registryLoginExecutedByVerifier?: boolean;
+            pullSecretCreatedByVerifier?: boolean;
+          };
           firstReviewerActions?: Array<{
             imageName?: string;
             role?: string;
@@ -5375,6 +5386,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.externalRuntimeReview?.ticketPackets?.find(
         (ticket) => ticket.id === "registry-admin-vllm-external-runtime-ticket"
       );
+    expect(
+      body.installReadiness?.externalRuntimeReview?.registryAdminPacket
+    ).toMatchObject({
+      owner: "registry-admin",
+      markdownPath: expect.stringContaining(
+        "cywell-opslens-external-runtime-registry-admin.md"
+      ),
+      exists: true,
+      credentialStoredByVerifier: false,
+      registryLoginExecutedByVerifier: false,
+      pullSecretCreatedByVerifier: false
+    });
+    expect(
+      body.installReadiness?.externalRuntimeReview?.registryAdminPacket?.ticketIds
+    ).toContain("registry-admin-vllm-external-runtime-ticket");
     expect(vllmRegistryTicket).toMatchObject({
       owner: "registry-admin",
       severity: "blocker",
@@ -9566,6 +9592,17 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-external-runtime-registry-tickets")
     ).toContainText("registry-admin-vllm-external-runtime-ticket");
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-tickets")
+    ).toContainText(
+      "registryPacket=cywell-opslens-external-runtime-registry-admin.md"
+    );
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-tickets")
+    ).toContainText("exists=true");
+    await expect(
+      page.getByTestId("opslens-external-runtime-registry-tickets")
+    ).toContainText("loginExecuted=false");
     await expect(
       page.getByTestId("opslens-external-runtime-registry-tickets")
     ).toContainText("first=external-runtime-vllm-registry-1");

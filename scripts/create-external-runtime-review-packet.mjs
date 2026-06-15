@@ -10,6 +10,8 @@ const execFileAsync = promisify(execFile);
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-external-runtime-review-packet.json",
   markdownOut: "test-results/cywell-opslens-external-runtime-review-packet.md",
+  registryAdminMarkdownOut:
+    "test-results/cywell-opslens-external-runtime-registry-admin.md",
   externalRuntimeEvidence: "test-results/cywell-opslens-external-runtime-images-plan.json",
   releasePlanEvidence: "test-results/cywell-opslens-release-publish-plan.json",
   securityScanEvidence: "test-results/cywell-opslens-security-scan-plan.json",
@@ -41,6 +43,8 @@ const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
+  registryAdminMarkdownOut:
+    parsed.get("registry-admin-markdown-out") ?? defaults.registryAdminMarkdownOut,
   externalRuntimeEvidence:
     parsed.get("external-runtime-evidence") ?? defaults.externalRuntimeEvidence,
   releasePlanEvidence: parsed.get("release-plan-evidence") ?? defaults.releasePlanEvidence,
@@ -1092,6 +1096,77 @@ function markdownFor(packet) {
   return lines.join("\n");
 }
 
+function registryAdminMarkdownFor(packet) {
+  const registryTickets = packet.ticketPackets.filter(
+    (ticket) => ticket.owner === "registry-admin"
+  );
+  const registryActions = packet.firstRegistryActions.filter(
+    (action) => action.owner === "registry-admin"
+  );
+  const approvalActions = registryActions.filter((action) => action.mutation === true);
+  const readOnlyActions = registryActions.filter((action) => action.mutation !== true);
+  const lines = [
+    "# Cywell OpsLens External Runtime Registry Admin Packet",
+    "",
+    `Generated: ${packet.generatedAt}`,
+    `Git: ${packet.ref.branch} ${packet.ref.headSha} dirty=${packet.ref.worktreeDirty}`,
+    `Status: ${packet.status}`,
+    `Action mode: ${packet.actionMode}`,
+    "",
+    "## Registry Summary",
+    "",
+    `- Owner: ${packet.registryAdminPacket.owner}`,
+    `- Tickets: ${packet.registryAdminPacket.ticketIds.join(", ") || "none"}`,
+    `- First read-only action: ${packet.registryAdminPacket.firstReadOnlyActionId}`,
+    `- Approval-gated actions: ${packet.registryAdminPacket.approvalGatedActionIds.join(", ") || "none"}`,
+    `- Credential stored by verifier: ${String(packet.registryAdminPacket.credentialStoredByVerifier)}`,
+    `- Registry login executed by verifier: ${String(packet.registryAdminPacket.registryLoginExecutedByVerifier)}`,
+    `- Pull secret created by verifier: ${String(packet.registryAdminPacket.pullSecretCreatedByVerifier)}`,
+    "",
+    "## Read-only Actions",
+    "",
+    ...(readOnlyActions.length
+      ? readOnlyActions.map(
+          (action) =>
+            `- ${action.id}: ${action.status}; next=${action.nextCommand}; evidence=${action.evidenceNeeded}`
+        )
+      : ["- none"]),
+    "",
+    "## Ticket Boundaries",
+    "",
+    ...(registryTickets.length
+      ? registryTickets.flatMap((ticket) => [
+          `- ${ticket.id}: image=${ticket.imageName} classification=${ticket.classification}`,
+          `  authRequired=${String(ticket.registryAuthBoundary.authRequired)} humanCredentialInputRequired=${String(ticket.registryAuthBoundary.humanCredentialInputRequired)}`,
+          `  firstHumanSetupAction=${ticket.registryAuthBoundary.firstHumanSetupAction}`,
+          `  firstReadOnly=${ticket.firstReadOnlyAction.id} approvalGated=${ticket.approvalGatedAction.id}`,
+          `  blockedBy=${ticket.blockedBy.join(" | ") || "none"}`
+        ])
+      : ["- none"]),
+    "",
+    "## Approval-gated Registry Actions",
+    "",
+    ...(approvalActions.length
+      ? approvalActions.map(
+          (action) =>
+            `- ${action.id}: mutation=${String(action.mutation)} requiresExplicitApproval=${String(action.requiresExplicitApproval)} next=${action.nextCommand}`
+        )
+      : ["- none"]),
+    "",
+    "## Boundary",
+    "",
+    "- This packet is registry-admin evidence guidance only.",
+    "- It does not login to registries, create pull secrets, mirror images, sign images, push images, promote drafts, patch OLSConfig, install Operators, apply, delete, or scale.",
+    "- Approval-gated registry commands require explicit human approval outside this verifier.",
+    "",
+    "## Rollback Path",
+    "",
+    ...packet.rollbackPath.map((item) => `- ${item}`),
+    ""
+  ];
+  return lines.join("\n");
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -1130,6 +1205,33 @@ async function main() {
     firstRegistryActions,
     approvalGated
   );
+  const registryAdminTickets = ticketPackets.filter(
+    (ticket) => ticket.owner === "registry-admin"
+  );
+  const registryAdminActions = firstRegistryActions.filter(
+    (action) => action.owner === "registry-admin"
+  );
+  const registryAdminPacket = {
+    owner: "registry-admin",
+    markdownPath: resolve(options.registryAdminMarkdownOut),
+    exists: true,
+    ticketIds: registryAdminTickets.map((ticket) => ticket.id),
+    firstReadOnlyActionId:
+      registryAdminActions.find((action) => action.mutation !== true)?.id ??
+      "external-runtime-registry-evidence",
+    approvalGatedActionIds: registryAdminActions
+      .filter((action) => action.mutation === true)
+      .map((action) => action.id),
+    credentialStoredByVerifier: registryAdminTickets.some(
+      (ticket) => ticket.registryAuthBoundary.credentialStoredByVerifier === true
+    ),
+    registryLoginExecutedByVerifier: registryAdminTickets.some(
+      (ticket) => ticket.registryAuthBoundary.registryLoginExecutedByVerifier === true
+    ),
+    pullSecretCreatedByVerifier: registryAdminTickets.some(
+      (ticket) => ticket.registryAuthBoundary.pullSecretCreatedByVerifier === true
+    )
+  };
   const unsafeReadOnly = readOnly
     .filter((command) => command.mutation === true || commandLooksMutating(command.command))
     .map((command) => command.id);
@@ -1282,6 +1384,7 @@ async function main() {
     approvalGatedCommands: approvalGated,
     firstRegistryActions,
     ticketPackets,
+    registryAdminPacket,
     missingEvidence,
     evidence: [
       "This packet consolidates external runtime draft intake, source digest inspection state, scan/SBOM plan state, candidate comparison evidence, and approval-gated mirror/sign commands.",
@@ -1308,14 +1411,20 @@ async function main() {
 
   const serialized = `${JSON.stringify(packet, null, 2)}\n`;
   const markdown = markdownFor(packet);
-  if (secretLike(serialized) || secretLike(markdown)) {
+  const registryAdminMarkdown = registryAdminMarkdownFor(packet);
+  if (secretLike(serialized) || secretLike(markdown) || secretLike(registryAdminMarkdown)) {
     throw new Error("external runtime review packet would include secret-like material");
   }
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
   await mkdir(dirname(resolve(options.markdownOut)), { recursive: true });
+  await mkdir(dirname(resolve(options.registryAdminMarkdownOut)), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");
   await writeFile(resolve(options.markdownOut), markdown, "utf8");
-  pass("external runtime review packet export", `${resolve(options.evidenceOut)} and ${resolve(options.markdownOut)} written without secret material`);
+  await writeFile(resolve(options.registryAdminMarkdownOut), registryAdminMarkdown, "utf8");
+  pass(
+    "external runtime review packet export",
+    `${resolve(options.evidenceOut)}, ${resolve(options.markdownOut)}, and ${resolve(options.registryAdminMarkdownOut)} written without secret material`
+  );
 
   console.log("");
   for (const check of checks) {

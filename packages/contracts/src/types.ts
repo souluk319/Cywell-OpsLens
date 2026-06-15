@@ -3031,6 +3031,17 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
   mutationAllowedByThisVerifier: boolean;
   requiredApprovals: string[];
   markdownPath: string;
+  registryAdminPacket: {
+    owner: string;
+    markdownPath: string;
+    exists: boolean;
+    ticketIds: string[];
+    firstReadOnlyActionId: string;
+    approvalGatedActionIds: string[];
+    credentialStoredByVerifier: boolean;
+    registryLoginExecutedByVerifier: boolean;
+    pullSecretCreatedByVerifier: boolean;
+  };
   firstReviewerActions: Array<{
     imageName: string;
     role: string;

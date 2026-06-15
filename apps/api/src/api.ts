@@ -1985,6 +1985,17 @@ type ExternalRuntimeReviewPacketEvidenceArtifact = {
     mutation?: boolean;
     requiresExplicitApproval?: boolean;
   }>;
+  registryAdminPacket?: {
+    owner?: string;
+    markdownPath?: string;
+    exists?: boolean;
+    ticketIds?: string[];
+    firstReadOnlyActionId?: string;
+    approvalGatedActionIds?: string[];
+    credentialStoredByVerifier?: boolean;
+    registryLoginExecutedByVerifier?: boolean;
+    pullSecretCreatedByVerifier?: boolean;
+  };
   firstRegistryActions?: Array<{
     id?: string;
     owner?: string;
@@ -5012,6 +5023,17 @@ function missingExternalRuntimeReviewPacketSummary(
       "product-owner"
     ],
     markdownPath: "missing",
+    registryAdminPacket: {
+      owner: "registry-admin",
+      markdownPath: "missing",
+      exists: false,
+      ticketIds: [],
+      firstReadOnlyActionId: "missing",
+      approvalGatedActionIds: [],
+      credentialStoredByVerifier: false,
+      registryLoginExecutedByVerifier: false,
+      pullSecretCreatedByVerifier: false
+    },
     firstReviewerActions: [],
     firstRegistryActions: [],
     ticketPackets: [],
@@ -5512,6 +5534,24 @@ function getExternalRuntimeReviewPacketReadiness(): {
           ticket.registryAuthBoundary?.firstHumanSetupAction ?? "not-required"
       }
     }));
+    const registryAdminPacket = {
+      owner: artifact.registryAdminPacket?.owner ?? "registry-admin",
+      markdownPath: artifact.registryAdminPacket?.markdownPath ?? "missing",
+      exists:
+        typeof artifact.registryAdminPacket?.markdownPath === "string" &&
+        existsSync(artifact.registryAdminPacket.markdownPath),
+      ticketIds: artifact.registryAdminPacket?.ticketIds ?? [],
+      firstReadOnlyActionId:
+        artifact.registryAdminPacket?.firstReadOnlyActionId ?? "missing",
+      approvalGatedActionIds:
+        artifact.registryAdminPacket?.approvalGatedActionIds ?? [],
+      credentialStoredByVerifier:
+        artifact.registryAdminPacket?.credentialStoredByVerifier === true,
+      registryLoginExecutedByVerifier:
+        artifact.registryAdminPacket?.registryLoginExecutedByVerifier === true,
+      pullSecretCreatedByVerifier:
+        artifact.registryAdminPacket?.pullSecretCreatedByVerifier === true
+    };
     const imageSummary = images
       .map(
         (image) =>
@@ -5531,6 +5571,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
           artifact.mutationAllowedByThisVerifier === true,
         requiredApprovals: artifact.requiredApprovals ?? [],
         markdownPath: artifact.markdownOut ?? "missing",
+        registryAdminPacket,
         firstReviewerActions,
         firstRegistryActions,
         ticketPackets,
