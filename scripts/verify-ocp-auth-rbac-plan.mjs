@@ -344,6 +344,20 @@ function credentialHygieneFromConnectivity(artifact) {
   };
 }
 
+function ocContextFromConnectivity(artifact) {
+  const context = artifact?.diagnostics?.ocContext ?? {};
+  return {
+    currentContextSet: context.currentContextSet === true,
+    whoamiAvailable: context.whoamiAvailable === true,
+    showServerAvailable: context.showServerAvailable === true,
+    kubeconfigEnvConfigured: context.kubeconfigEnvConfigured === true,
+    defaultKubeconfigPresent: context.defaultKubeconfigPresent === true,
+    contextStatus: sanitize(context.contextStatus ?? "unknown"),
+    authStatus: sanitize(context.authStatus ?? "unknown"),
+    serverStatus: sanitize(context.serverStatus ?? "unknown")
+  };
+}
+
 function statusFor(classification, hasFailures) {
   if (hasFailures) return "BLOCKED";
   if (classification === "api-ready") return "READY_FOR_LIVE_CHECK";
@@ -462,6 +476,7 @@ function buildTicketPacket({
   classification,
   target,
   credentialHygiene,
+  ocContext,
   rbac,
   readOnly,
   approvalGated,
@@ -491,6 +506,9 @@ function buildTicketPacket({
       `credentialDiagnosis=${credentialHygiene.credentialDiagnosis}`,
       `credentialLocalFormatIssue=${String(credentialHygiene.localFormatIssue)}`,
       `tokenValueRedacted=${String(credentialHygiene.tokenValueRedacted)}`,
+      `ocContext=${ocContext.contextStatus}`,
+      `ocAuthenticationStatus=${ocContext.authStatus}`,
+      `ocServer=${ocContext.serverStatus}`,
       "approvalCommandsNotRun=true"
     ],
     firstReadOnlyAction: {
@@ -573,6 +591,11 @@ function markdownFor(packet) {
     `- Credential diagnosis: ${packet.credentialHygiene.credentialDiagnosis}`,
     `- Credential local format issue: ${String(packet.credentialHygiene.localFormatIssue)}`,
     `- Token value redacted: ${String(packet.credentialHygiene.tokenValueRedacted)}`,
+    `- Current oc context: ${packet.ocContext.contextStatus}`,
+    `- Current oc auth: ${packet.ocContext.authStatus}`,
+    `- Current oc server: ${packet.ocContext.serverStatus}`,
+    `- KUBECONFIG env configured: ${String(packet.ocContext.kubeconfigEnvConfigured)}`,
+    `- Default kubeconfig present: ${String(packet.ocContext.defaultKubeconfigPresent)}`,
     `- Target: ${redactedOcpTarget(target)}`,
     `- Manifest: ${packet.rbac.path}`,
     `- Namespace: ${packet.rbac.namespace.name}`,
@@ -665,6 +688,7 @@ async function main() {
   const rbac = validateManifest(manifest.documents, manifest.absolutePath);
   const classification = ocpConnectivity?.diagnostics?.classification ?? "missing";
   const credentialHygiene = credentialHygieneFromConnectivity(ocpConnectivity);
+  const ocContext = ocContextFromConnectivity(ocpConnectivity);
   const status = statusFor(
     classification,
     checks.some((check) => check.status === "FAIL") || rbac.violations.length > 0
@@ -725,10 +749,12 @@ async function main() {
       tlsVerify: ocpConnectivity?.target?.tlsVerify === true
     },
     credentialHygiene,
+    ocContext,
     diagnostics: {
       classification,
       credentialDiagnosis: credentialHygiene.credentialDiagnosis,
       credentialLocalFormatIssue: credentialHygiene.localFormatIssue,
+      ocContext,
       dns: ocpConnectivity?.diagnostics?.dns?.status ?? "missing",
       tcp: ocpConnectivity?.diagnostics?.tcp?.status ?? "missing",
       tls: ocpConnectivity?.diagnostics?.tls?.status ?? "missing",
@@ -753,6 +779,7 @@ async function main() {
         redactedBaseUrl: ocpConnectivity?.target?.redactedBaseUrl ?? "missing"
       },
       credentialHygiene,
+      ocContext,
       rbac,
       readOnly,
       approvalGated,

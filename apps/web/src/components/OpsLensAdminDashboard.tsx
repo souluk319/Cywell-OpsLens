@@ -2356,6 +2356,22 @@ export function OpsLensAdminDashboard() {
                   </span>
                 ))}
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-ocp-auth-rbac-plan-context"
+              >
+                <span>context={authRbacPlan.ocContext.contextStatus}</span>
+                <span>auth={authRbacPlan.ocContext.authStatus}</span>
+                <span>server={authRbacPlan.ocContext.serverStatus}</span>
+                <span>
+                  kubeconfigEnv=
+                  {String(authRbacPlan.ocContext.kubeconfigEnvConfigured)}
+                </span>
+                <span>
+                  defaultKubeconfig=
+                  {String(authRbacPlan.ocContext.defaultKubeconfigPresent)}
+                </span>
+              </div>
               {authRbacPlan.ticketPacket ? (
                 <div
                   className="admin-evidence-line"

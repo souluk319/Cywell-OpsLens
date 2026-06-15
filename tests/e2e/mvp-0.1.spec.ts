@@ -3177,6 +3177,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             tokenValueRedacted?: boolean;
             credentialDiagnosis?: string;
           };
+          ocContext?: {
+            currentContextSet?: boolean;
+            whoamiAvailable?: boolean;
+            showServerAvailable?: boolean;
+            kubeconfigEnvConfigured?: boolean;
+            defaultKubeconfigPresent?: boolean;
+            contextStatus?: string;
+            authStatus?: string;
+            serverStatus?: string;
+          };
           rbac?: {
             namespace?: string;
             serviceAccount?: string;
@@ -7275,6 +7285,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       credentialStoredByVerifier: false,
       tokenValueRedacted: true
     });
+    expect(body.installReadiness?.authRbacPlan?.ocContext).toMatchObject({
+      currentContextSet: expect.any(Boolean),
+      whoamiAvailable: expect.any(Boolean),
+      showServerAvailable: expect.any(Boolean),
+      kubeconfigEnvConfigured: expect.any(Boolean),
+      defaultKubeconfigPresent: expect.any(Boolean),
+      contextStatus: expect.any(String),
+      authStatus: expect.any(String),
+      serverStatus: expect.any(String)
+    });
+    expect(body.installReadiness?.authRbacPlan?.ticketPacket?.evidenceChecklist?.join(" ")).toMatch(
+      /ocContext=|ocAuthenticationStatus=|ocServer=/
+    );
     expect(body.installReadiness?.authRbacPlan?.rbac).toMatchObject({
       namespace: "cywell-opslens",
       serviceAccount: "cywell-opslens/cywell-opslens-live-evidence-reader",
@@ -8211,6 +8234,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-ocp-auth-rbac-plan-approval")
     ).toContainText("approval=true");
+    await expect(
+      page.getByTestId("opslens-ocp-auth-rbac-plan-context")
+    ).toContainText("context=");
+    await expect(
+      page.getByTestId("opslens-ocp-auth-rbac-plan-context")
+    ).toContainText("auth=");
+    await expect(
+      page.getByTestId("opslens-ocp-auth-rbac-plan-context")
+    ).toContainText("server=");
     await expect(
       page.getByTestId("opslens-ocp-auth-rbac-plan-ticket")
     ).toContainText("cluster-admin-ocp-live-reader-rbac-ticket");

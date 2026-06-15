@@ -1773,6 +1773,16 @@ export interface OpsLensOcpAuthRbacPlanSummary {
     tlsVerify: boolean;
   };
   credentialHygiene: OpsLensOcpCredentialHygieneSummary;
+  ocContext: {
+    currentContextSet: boolean;
+    whoamiAvailable: boolean;
+    showServerAvailable: boolean;
+    kubeconfigEnvConfigured: boolean;
+    defaultKubeconfigPresent: boolean;
+    contextStatus: string;
+    authStatus: string;
+    serverStatus: string;
+  };
   markdownPath: string;
   requiredApprovals: string[];
   rbac: {

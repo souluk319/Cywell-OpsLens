@@ -3195,10 +3195,30 @@ type OcpAuthRbacPlanArtifact = {
     tlsVerify?: boolean;
   };
   credentialHygiene?: OcpCredentialHygieneArtifact;
+  ocContext?: {
+    currentContextSet?: boolean;
+    whoamiAvailable?: boolean;
+    showServerAvailable?: boolean;
+    kubeconfigEnvConfigured?: boolean;
+    defaultKubeconfigPresent?: boolean;
+    contextStatus?: string;
+    authStatus?: string;
+    serverStatus?: string;
+  };
   diagnostics?: {
     classification?: string;
     credentialDiagnosis?: string;
     credentialLocalFormatIssue?: boolean;
+    ocContext?: {
+      currentContextSet?: boolean;
+      whoamiAvailable?: boolean;
+      showServerAvailable?: boolean;
+      kubeconfigEnvConfigured?: boolean;
+      defaultKubeconfigPresent?: boolean;
+      contextStatus?: string;
+      authStatus?: string;
+      serverStatus?: string;
+    };
   };
   requiredApprovals?: string[];
   rbac?: {
@@ -9910,6 +9930,16 @@ function missingOcpAuthRbacPlanSummary(
       localFormatIssue: true,
       credentialDiagnosis: "missing-evidence"
     }),
+    ocContext: {
+      currentContextSet: false,
+      whoamiAvailable: false,
+      showServerAvailable: false,
+      kubeconfigEnvConfigured: false,
+      defaultKubeconfigPresent: false,
+      contextStatus: "missing",
+      authStatus: "not-authenticated",
+      serverStatus: "missing"
+    },
     markdownPath: "missing",
     requiredApprovals: ["cluster-admin", "security-reviewer"],
     rbac: {
@@ -10474,6 +10504,17 @@ function getOcpAuthRbacPlanReadiness(): {
           artifact.diagnostics?.credentialDiagnosis ?? "unknown"
       }
     );
+    const rawOcContext = artifact.ocContext ?? artifact.diagnostics?.ocContext;
+    const ocContext = {
+      currentContextSet: rawOcContext?.currentContextSet === true,
+      whoamiAvailable: rawOcContext?.whoamiAvailable === true,
+      showServerAvailable: rawOcContext?.showServerAvailable === true,
+      kubeconfigEnvConfigured: rawOcContext?.kubeconfigEnvConfigured === true,
+      defaultKubeconfigPresent: rawOcContext?.defaultKubeconfigPresent === true,
+      contextStatus: rawOcContext?.contextStatus ?? "unknown",
+      authStatus: rawOcContext?.authStatus ?? "unknown",
+      serverStatus: rawOcContext?.serverStatus ?? "unknown"
+    };
     const rawTicketPacket = artifact.ticketPacket;
     const ticketPacket = rawTicketPacket
       ? {
@@ -10565,6 +10606,7 @@ function getOcpAuthRbacPlanReadiness(): {
           tlsVerify: target.tlsVerify === true
         },
         credentialHygiene,
+        ocContext,
         markdownPath: artifact.markdownOut ?? "unknown",
         requiredApprovals: artifact.requiredApprovals ?? [
           "cluster-admin",
@@ -10593,6 +10635,7 @@ function getOcpAuthRbacPlanReadiness(): {
         `OCP auth/RBAC plan ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `auth/RBAC classification=${artifact.diagnostics?.classification ?? "unknown"} serviceAccount=${serviceAccount.namespace ?? "unknown"}/${serviceAccount.name ?? "unknown"} readOnlyCommands=${readOnlyCommands.length} approvalGated=${approvalGatedCommands.length}`,
         `auth/RBAC credentialDiagnosis=${credentialHygiene.credentialDiagnosis} tokenRedacted=${String(credentialHygiene.tokenValueRedacted)}`,
+        `auth/RBAC ocContext=${ocContext.contextStatus} ocAuthenticationStatus=${ocContext.authStatus} ocServer=${ocContext.serverStatus}`,
         `auth/RBAC markdown=${artifact.markdownOut ?? "unknown"} secretsIncluded=${String(clusterRole.secretsIncluded ?? "unknown")} readOnlyOnly=${String(clusterRole.readOnlyOnly ?? "unknown")}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads OCP auth/RBAC plan evidence only; it does not apply RBAC or create tokens"
