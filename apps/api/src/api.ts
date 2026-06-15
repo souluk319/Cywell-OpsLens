@@ -95,6 +95,7 @@ import type {
   OpsLensRagIngestionApprovalPlanSummary,
   OpsLensRuntimeDependencyReadiness,
   OpsLensRuntimeEvidenceTicketPacket,
+  OpsLensRuntimeLiveEvidenceHandoff,
   OpsLensRuntimeLiveHandoffAction,
   OpsLensRuntimeLiveHandoffSummary,
   OpsLensRuntimeReadiness,
@@ -1600,6 +1601,67 @@ function combineRuntimeStatus(
   return "ready";
 }
 
+function redactRuntimeEndpoint(endpoint: string) {
+  try {
+    const url = new URL(endpoint);
+    const privateIp =
+      /^10(?:\.\d{1,3}){3}$/.test(url.hostname) ||
+      /^172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}$/.test(url.hostname) ||
+      /^192\.168(?:\.\d{1,3}){2}$/.test(url.hostname);
+    const host = privateIp ? "<redacted-private-ip>" : url.hostname;
+    const port = url.port ? `:${url.port}` : "";
+    const path = url.pathname === "/" ? "" : url.pathname;
+    return `${url.protocol}//${host}${port}${path}`;
+  } catch {
+    return endpoint.replace(
+      /(https?:\/\/)[^/\s:]+(?::\d+)?/gi,
+      "$1<redacted-runtime-endpoint>"
+    );
+  }
+}
+
+function runtimeLiveEvidenceHandoff(
+  dependency: OpsLensRuntimeDependencyReadiness
+): OpsLensRuntimeLiveEvidenceHandoff {
+  const status =
+    dependency.status === "ready" && dependency.liveProbeEnabled
+      ? "ready"
+      : dependency.status === "failed"
+        ? "blocked"
+        : "needs-live-evidence";
+  const classification =
+    dependency.status === "ready" && dependency.liveProbeEnabled
+      ? "ready"
+      : dependency.liveProbeEnabled
+        ? dependency.status
+        : "not-requested";
+  const nextCommand = "npm run verify:runtime -- --live --timeout-ms 30000";
+  const evidenceNeeded =
+    dependency.missingEvidence.length > 0
+      ? dependency.missingEvidence
+      : [`${dependency.provider} live probe passed; attach refreshed runtime evidence`];
+
+  return {
+    component: dependency.component,
+    provider: dependency.provider,
+    status,
+    classification,
+    owner: "runtime-platform",
+    endpoint: redactRuntimeEndpoint(dependency.endpoint),
+    probePath: dependency.probePath,
+    liveProbeEnabled: dependency.liveProbeEnabled,
+    nextCommand,
+    evidenceNeeded,
+    blockedBy: status === "ready" ? [] : evidenceNeeded,
+    mutationAllowed: false,
+    writesLocalEvidence: true,
+    requiresExplicitApproval: true,
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    vectorWriteAttempted: false
+  };
+}
+
 export async function getOpsLensRuntimeReadiness(): Promise<OpsLensRuntimeReadiness> {
   const liveProbeEnabled = envBoolean("CYWELL_OPSLENS_RUNTIME_PROBE_LIVE", false);
   const vectorStore = await probeRuntimeDependency({
@@ -1621,6 +1683,10 @@ export async function getOpsLensRuntimeReadiness(): Promise<OpsLensRuntimeReadin
     ...vectorStore.missingEvidence,
     ...modelRuntime.missingEvidence
   ]);
+  const liveEvidenceHandoff = [
+    runtimeLiveEvidenceHandoff(vectorStore),
+    runtimeLiveEvidenceHandoff(modelRuntime)
+  ];
 
   return {
     status,
@@ -1629,9 +1695,11 @@ export async function getOpsLensRuntimeReadiness(): Promise<OpsLensRuntimeReadin
     rawDocumentReturned: false,
     vectorStore,
     modelRuntime,
+    liveEvidenceHandoff,
     evidence: [
       `runtime readiness status=${status}`,
       `liveProbeEnabled=${String(liveProbeEnabled)}`,
+      `liveEvidenceHandoff=${liveEvidenceHandoff.length}`,
       `model=${runtimeModelName()}`,
       ...vectorStore.evidence,
       ...modelRuntime.evidence

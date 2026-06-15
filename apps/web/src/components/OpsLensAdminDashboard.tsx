@@ -210,6 +210,8 @@ export function OpsLensAdminDashboard() {
   const releaseActionQueue = overview?.installReadiness.actionQueue;
   const roadmapCompletion = overview?.installReadiness.roadmapCompletion;
   const runtimeLiveHandoff = overview?.runtime.liveHandoff;
+  const runtimeLiveEvidenceHandoff =
+    overview?.runtime.readiness.liveEvidenceHandoff ?? [];
   const runtimeLiveHandoffActions = [
     runtimeLiveHandoff?.runtimeReadinessAction,
     runtimeLiveHandoff?.runtimeRagAction
@@ -1074,6 +1076,24 @@ export function OpsLensAdminDashboard() {
               ))
             ) : (
               <span>runtime live handoff clear</span>
+            )}
+          </div>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-runtime-live-evidence-handoff"
+          >
+            {runtimeLiveEvidenceHandoff.length > 0 ? (
+              runtimeLiveEvidenceHandoff.map((handoff) => (
+                <span key={`${handoff.provider}-${handoff.component}`}>
+                  {handoff.provider}:{handoff.status}:{handoff.classification}:
+                  owner={handoff.owner}:writesLocalEvidence=
+                  {String(handoff.writesLocalEvidence)}:requiresApproval=
+                  {String(handoff.requiresExplicitApproval)}:mutationAllowed=
+                  {String(handoff.mutationAllowed)}:{handoff.nextCommand}
+                </span>
+              ))
+            ) : (
+              <span>runtime live evidence handoff missing</span>
             )}
           </div>
           <div

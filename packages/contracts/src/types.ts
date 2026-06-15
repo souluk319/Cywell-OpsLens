@@ -1086,6 +1086,26 @@ export interface OpsLensRuntimeDependencyReadiness {
   missingEvidence: string[];
 }
 
+export interface OpsLensRuntimeLiveEvidenceHandoff {
+  component: "vector-store" | "model-runtime";
+  provider: "qdrant" | "vllm";
+  status: "ready" | "needs-live-evidence" | "blocked";
+  classification: string;
+  owner: "runtime-platform";
+  endpoint: string;
+  probePath: string;
+  liveProbeEnabled: boolean;
+  nextCommand: string;
+  evidenceNeeded: string[];
+  blockedBy: string[];
+  mutationAllowed: false;
+  writesLocalEvidence: true;
+  requiresExplicitApproval: true;
+  clusterMutationAttempted: false;
+  registryMutationAttempted: false;
+  vectorWriteAttempted: false;
+}
+
 export interface OpsLensRuntimeReadiness {
   status: OpsLensRuntimeReadinessStatus;
   actionMode: "readOnly";
@@ -1093,6 +1113,7 @@ export interface OpsLensRuntimeReadiness {
   rawDocumentReturned: false;
   vectorStore: OpsLensRuntimeDependencyReadiness;
   modelRuntime: OpsLensRuntimeDependencyReadiness;
+  liveEvidenceHandoff: OpsLensRuntimeLiveEvidenceHandoff[];
   evidence: string[];
   missingEvidence: string[];
   risk: string[];

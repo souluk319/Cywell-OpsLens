@@ -3818,6 +3818,39 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       provider: "vllm",
       liveProbeEnabled: false
     });
+    expect(body.runtime?.readiness?.liveEvidenceHandoff).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provider: "qdrant",
+          owner: "runtime-platform",
+          writesLocalEvidence: true,
+          requiresExplicitApproval: true,
+          mutationAllowed: false,
+          clusterMutationAttempted: false,
+          registryMutationAttempted: false,
+          vectorWriteAttempted: false
+        }),
+        expect.objectContaining({
+          provider: "vllm",
+          owner: "runtime-platform",
+          writesLocalEvidence: true,
+          requiresExplicitApproval: true,
+          mutationAllowed: false,
+          clusterMutationAttempted: false,
+          registryMutationAttempted: false,
+          vectorWriteAttempted: false
+        })
+      ])
+    );
+    expect(
+      body.runtime?.readiness?.liveEvidenceHandoff?.map(
+        (handoff) => handoff.nextCommand
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("verify:runtime -- --live")
+      ])
+    );
     expect(body.runtime?.readiness?.missingEvidence?.join(" ")).toContain(
       "live readiness was not probed"
     );
@@ -3870,6 +3903,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       mutationAllowed?: boolean;
       vectorStore?: { provider?: string; liveProbeEnabled?: boolean };
       modelRuntime?: { provider?: string; liveProbeEnabled?: boolean };
+      liveEvidenceHandoff?: Array<{
+        provider?: string;
+        owner?: string;
+        writesLocalEvidence?: boolean;
+        requiresExplicitApproval?: boolean;
+        mutationAllowed?: boolean;
+        nextCommand?: string;
+      }>;
     };
     expect(runtimeReadinessBody).toMatchObject({
       actionMode: "readOnly",
@@ -3883,6 +3924,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       provider: "vllm",
       liveProbeEnabled: false
     });
+    expect(runtimeReadinessBody.liveEvidenceHandoff).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provider: "qdrant",
+          owner: "runtime-platform",
+          writesLocalEvidence: true,
+          requiresExplicitApproval: true,
+          mutationAllowed: false
+        }),
+        expect.objectContaining({
+          provider: "vllm",
+          owner: "runtime-platform",
+          writesLocalEvidence: true,
+          requiresExplicitApproval: true,
+          mutationAllowed: false
+        })
+      ])
+    );
     expect(
       body.incidents?.[0]?.metricQueries?.map((query) => query.name)
     ).toEqual(
@@ -7953,6 +8012,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-runtime-live-handoff-actions")
     ).toContainText("runtime-rag-fixture");
+    await expect(
+      page.getByTestId("opslens-runtime-live-evidence-handoff")
+    ).toContainText("qdrant");
+    await expect(
+      page.getByTestId("opslens-runtime-live-evidence-handoff")
+    ).toContainText("vllm");
+    await expect(
+      page.getByTestId("opslens-runtime-live-evidence-handoff")
+    ).toContainText("writesLocalEvidence=true");
+    await expect(
+      page.getByTestId("opslens-runtime-live-evidence-handoff")
+    ).toContainText("requiresApproval=true");
+    await expect(
+      page.getByTestId("opslens-runtime-live-evidence-handoff")
+    ).toContainText("mutationAllowed=false");
     await expect(
       page.getByTestId("opslens-runtime-live-handoff-boundary")
     ).toContainText("mutationAllowedByThisVerifier=false");

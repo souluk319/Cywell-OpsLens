@@ -350,6 +350,41 @@ function runtimeStatus(probes) {
   return "PASS";
 }
 
+function liveEvidenceHandoff(probe) {
+  const component = probe.name === "qdrant" ? "vector-store" : "model-runtime";
+  const provider = probe.name === "qdrant" ? "qdrant" : "vllm";
+  const status =
+    probe.status === "ready" && probe.liveProbeEnabled
+      ? "ready"
+      : probe.status === "failed"
+        ? "blocked"
+        : "needs-live-evidence";
+  const evidenceNeeded =
+    probe.missingEvidence.length > 0
+      ? probe.missingEvidence
+      : [`${provider} live probe passed; attach refreshed runtime evidence`];
+
+  return {
+    component,
+    provider,
+    status,
+    classification: probe.classification,
+    owner: "runtime-platform",
+    endpoint: probe.url,
+    probePath: probe.path,
+    liveProbeEnabled: probe.liveProbeEnabled,
+    nextCommand: "npm run verify:runtime -- --live --timeout-ms 30000",
+    evidenceNeeded,
+    blockedBy: status === "ready" ? [] : evidenceNeeded,
+    mutationAllowed: false,
+    writesLocalEvidence: true,
+    requiresExplicitApproval: true,
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    vectorWriteAttempted: false
+  };
+}
+
 async function main() {
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -370,8 +405,10 @@ async function main() {
 
   expectCheck("runtime contract type", contractSource.includes("OpsLensRuntimeReadiness"), "contracts expose OpsLensRuntimeReadiness");
   expectCheck("runtime dependency type", contractSource.includes("OpsLensRuntimeDependencyReadiness"), "contracts expose runtime dependency readiness");
+  expectCheck("runtime live evidence handoff type", contractSource.includes("OpsLensRuntimeLiveEvidenceHandoff"), "contracts expose runtime live evidence handoff");
   expectCheck("API readiness function", apiSource.includes("getOpsLensRuntimeReadiness"), "API exports getOpsLensRuntimeReadiness");
   expectCheck("API live probe default", apiSource.includes("CYWELL_OPSLENS_RUNTIME_PROBE_LIVE"), "runtime live probe is explicitly gated by env");
+  expectCheck("API live evidence handoff", apiSource.includes("liveEvidenceHandoff"), "API surfaces runtime live evidence handoff");
   expectCheck("API mutation boundary", apiSource.includes("mutationAllowed: false") && apiSource.includes("rawDocumentReturned: false"), "runtime readiness remains read-only and returns no raw documents");
   expectCheck("server route", serverSource.includes("/api/opslens/runtime/readiness"), "server exposes /api/opslens/runtime/readiness");
   expectCheck("API vector env", env.get("CYWELL_OPSLENS_VECTOR_URL") === "http://cywell-opslens-vector:6333", "API deployment points to Qdrant service");
@@ -387,6 +424,27 @@ async function main() {
   ];
   const status = runtimeStatus(probes);
   const missingEvidence = probes.flatMap((item) => item.missingEvidence);
+  const handoff = probes.map(liveEvidenceHandoff);
+
+  expectCheck(
+    "runtime live evidence handoff entries",
+    handoff.length === 2 &&
+      handoff.some((item) => item.provider === "qdrant") &&
+      handoff.some((item) => item.provider === "vllm"),
+    "runtime live evidence handoff covers qdrant and vllm"
+  );
+  expectCheck(
+    "runtime live evidence mutation boundary",
+    handoff.every((item) =>
+      item.mutationAllowed === false &&
+      item.writesLocalEvidence === true &&
+      item.requiresExplicitApproval === true &&
+      item.clusterMutationAttempted === false &&
+      item.registryMutationAttempted === false &&
+      item.vectorWriteAttempted === false
+    ),
+    "runtime live evidence handoff is approval-aware and does not mutate cluster, registry, or vector state"
+  );
 
   const artifact = {
     schema: "cywell.opslens.runtime-readiness.v0.1",
@@ -410,9 +468,11 @@ async function main() {
       vectorStore: probes[0],
       modelRuntime: probes[1]
     },
+    liveEvidenceHandoff: handoff,
     evidence: [
       "API exposes a read-only runtime readiness endpoint",
       "Operator app manifest wires API to Qdrant and vLLM service DNS names",
+      "Runtime live evidence handoff identifies owner, next command, missing evidence, and mutation boundary",
       "Live runtime probing is opt-in and does not mutate cluster or registry state"
     ],
     missingEvidence,
