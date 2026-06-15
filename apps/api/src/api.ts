@@ -43,6 +43,7 @@ import type {
   OpsLensEvidenceCheckpointReadiness,
   OpsLensEvidenceCheckpointSummary,
   OpsLensExternalRuntimeImagesPlanSummary,
+  OpsLensExternalRuntimeFinalEvidenceTicketPacket,
   OpsLensExternalRuntimeProductTicketPacket,
   OpsLensExternalRuntimeReadiness,
   OpsLensExternalRuntimeRegistryTicketPacket,
@@ -2634,6 +2635,7 @@ type ReleaseActionQueueArtifact = {
     firstBlockedBy?: string[];
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    firstExternalRuntimeFinalEvidenceTicketPacket?: OpsLensExternalRuntimeFinalEvidenceTicketPacket;
     firstExternalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     firstReleasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
@@ -2671,6 +2673,7 @@ type ReleaseActionQueueArtifact = {
     acceptance?: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    externalRuntimeFinalEvidenceTicketPacket?: OpsLensExternalRuntimeFinalEvidenceTicketPacket;
     externalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
@@ -2728,6 +2731,7 @@ type ReleaseActionQueueArtifact = {
     }>;
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    externalRuntimeFinalEvidenceTicketPacket?: OpsLensExternalRuntimeFinalEvidenceTicketPacket;
     externalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
@@ -8258,6 +8262,8 @@ function getReleaseActionQueueReadiness(): {
       firstBlockedBy: packet.firstBlockedBy ?? [],
       firstTicketPacket: packet.firstTicketPacket,
       firstExternalRuntimeTicketPacket: packet.firstExternalRuntimeTicketPacket,
+      firstExternalRuntimeFinalEvidenceTicketPacket:
+        packet.firstExternalRuntimeFinalEvidenceTicketPacket,
       firstExternalRuntimeProductTicketPacket:
         packet.firstExternalRuntimeProductTicketPacket,
       firstSecurityReviewTicketPacket:
@@ -8310,6 +8316,8 @@ function getReleaseActionQueueReadiness(): {
       acceptance: entry.acceptance ?? [],
       ticketPacket: entry.ticketPacket,
       externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
+      externalRuntimeFinalEvidenceTicketPacket:
+        entry.externalRuntimeFinalEvidenceTicketPacket,
       externalRuntimeProductTicketPacket:
         entry.externalRuntimeProductTicketPacket,
       securityReviewTicketPacket: entry.securityReviewTicketPacket,
@@ -8362,6 +8370,8 @@ function getReleaseActionQueueReadiness(): {
       })),
       ticketPacket: entry.ticketPacket,
       externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
+      externalRuntimeFinalEvidenceTicketPacket:
+        entry.externalRuntimeFinalEvidenceTicketPacket,
       externalRuntimeProductTicketPacket:
         entry.externalRuntimeProductTicketPacket,
       securityReviewTicketPacket: entry.securityReviewTicketPacket,

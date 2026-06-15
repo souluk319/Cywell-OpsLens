@@ -2643,6 +2643,12 @@ export function OpsLensAdminDashboard() {
                       :extFirst=
                       {entry.externalRuntimeTicketPacket?.firstReadOnlyAction.id ??
                         "none"}
+                      :finalTicket=
+                      {entry.externalRuntimeFinalEvidenceTicketPacket?.id ??
+                        "none"}
+                      :finalFirst=
+                      {entry.externalRuntimeFinalEvidenceTicketPacket
+                        ?.firstReadOnlyAction.id ?? "none"}
                       :productTicket=
                       {entry.externalRuntimeProductTicketPacket?.id ?? "none"}
                       :productFirst=
@@ -2730,6 +2736,12 @@ export function OpsLensAdminDashboard() {
                     :extFirst=
                     {packet.firstExternalRuntimeTicketPacket?.firstReadOnlyAction
                       .id ?? "none"}
+                    :finalTicket=
+                    {packet.firstExternalRuntimeFinalEvidenceTicketPacket?.id ??
+                      "none"}
+                    :finalFirst=
+                    {packet.firstExternalRuntimeFinalEvidenceTicketPacket
+                      ?.firstReadOnlyAction.id ?? "none"}
                     :productTicket=
                     {packet.firstExternalRuntimeProductTicketPacket?.id ?? "none"}
                     :productFirst=

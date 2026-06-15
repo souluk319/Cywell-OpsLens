@@ -2340,6 +2340,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 firstHumanSetupAction?: string;
               };
             };
+            firstExternalRuntimeFinalEvidenceTicketPacket?: {
+              id?: string;
+              severity?: string;
+              classification?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              verificationAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                finalEvidenceRequiresReviewedInputs?: boolean;
+              };
+            };
             firstExternalRuntimeProductTicketPacket?: {
               id?: string;
               severity?: string;
@@ -2536,6 +2557,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 pullSecretCreatedByVerifier?: boolean;
                 registryLoginExecutedByVerifier?: boolean;
                 firstHumanSetupAction?: string;
+              };
+            };
+            externalRuntimeFinalEvidenceTicketPacket?: {
+              id?: string;
+              severity?: string;
+              classification?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              verificationAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                finalEvidenceRequiresReviewedInputs?: boolean;
               };
             };
             externalRuntimeProductTicketPacket?: {
@@ -2783,6 +2825,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 pullSecretCreatedByVerifier?: boolean;
                 registryLoginExecutedByVerifier?: boolean;
                 firstHumanSetupAction?: string;
+              };
+            };
+            externalRuntimeFinalEvidenceTicketPacket?: {
+              id?: string;
+              severity?: string;
+              classification?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              verificationAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                finalEvidenceRequiresReviewedInputs?: boolean;
               };
             };
             externalRuntimeProductTicketPacket?: {
@@ -5511,6 +5574,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       source: "externalRuntimeReviewPacket:externalRuntimePlan",
       nextCommand: "npm run verify:external-runtime-plan"
     });
+    expect(
+      externalRuntimeFinalEvidenceCriticalPath
+        ?.externalRuntimeFinalEvidenceTicketPacket
+    ).toMatchObject({
+      id: "release-manager-external-runtime-final-evidence-ticket",
+      severity: "high",
+      classification: "final-evidence-coordination-required",
+      firstReadOnlyAction: {
+        id: "refresh-external-runtime-review-packet",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      verificationAction: {
+        id: "verify-external-runtime-plan",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        finalEvidenceRequiresReviewedInputs: true
+      }
+    });
     expect(externalRuntimeFinalEvidenceCriticalPath?.readOnlyCommandIds).toEqual(
       expect.arrayContaining([
         "refresh-external-runtime-review-packet",
@@ -8047,6 +8134,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("verify:external-runtime-plan");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText(
+      "finalTicket=release-manager-external-runtime-final-evidence-ticket"
+    );
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("finalFirst=refresh-external-runtime-review-packet");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("external-runtime-license-review");

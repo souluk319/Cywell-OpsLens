@@ -428,6 +428,66 @@ function externalRuntimeFinalEvidenceHandoffCommands(packet) {
   ]);
 }
 
+function externalRuntimeFinalEvidenceTicketPacket(packet) {
+  const images = packet?.images ?? [];
+  const reviewerRequests = images.flatMap((image) => image.reviewerRequests ?? []);
+  const finalEvidenceReadyCount = images.filter((image) => {
+    const finalEvidence = image.finalEvidence ?? {};
+    return finalEvidence.exists === true && finalEvidence.valid === true;
+  }).length;
+  const imageChecklist = images.map((image) => {
+    const imageName = image.name ?? "unknown";
+    const finalFile =
+      image.finalEvidenceFile ??
+      `docs/release/evidence/external-runtime/${imageName}.json`;
+    return `${imageName}: final evidence file ${finalFile} passes verify:external-runtime-plan`;
+  });
+  return {
+    id: "release-manager-external-runtime-final-evidence-ticket",
+    owner: "release-manager",
+    title: "External runtime final evidence coordination",
+    severity: "high",
+    classification: "final-evidence-coordination-required",
+    reviewPacketStatus: packet?.status ?? "missing",
+    imageCount: images.length,
+    finalEvidenceReadyCount,
+    reviewerRequestCount: reviewerRequests.length,
+    missingEvidenceCount: packet?.missingEvidence?.length ?? 0,
+    evidenceChecklist: uniqueStrings([
+      "Regenerate the external runtime review packet at the current git head.",
+      "Verify vLLM and qdrant final evidence without mirror, sign, push, or promote execution.",
+      "Confirm registry, security, release-manager, and product-owner reviewer requests are resolved before final release evidence is treated as complete.",
+      ...imageChecklist
+    ]),
+    firstReadOnlyAction: {
+      id: "refresh-external-runtime-review-packet",
+      status: "open",
+      nextCommand: "npm run evidence:external-runtime:review-packet",
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    verificationAction: {
+      id: "verify-external-runtime-plan",
+      status: "open",
+      nextCommand: "npm run verify:external-runtime-plan",
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    nextCommands: externalRuntimeFinalEvidenceHandoffCommands(packet),
+    blockedBy: packet?.missingEvidence ?? [],
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      finalEvidenceRequiresReviewedInputs: true
+    },
+    risk:
+      "Final external runtime evidence cannot be release-ready until vLLM/qdrant reviewer inputs are complete and same-head verification passes.",
+    rollbackPath:
+      "No cluster or registry rollback is required; correct the local evidence draft/final file and rerun the review packet plus verify:external-runtime-plan."
+  };
+}
+
 function externalRuntimeRoleRequests(packet, role) {
   return (packet?.images ?? [])
     .flatMap((image) =>
@@ -889,6 +949,7 @@ function item({
   diagnostics = [],
   ticketPacket,
   externalRuntimeTicketPacket,
+  externalRuntimeFinalEvidenceTicketPacket,
   externalRuntimeProductTicketPacket,
   securityReviewTicketPacket,
   releasePublishTicketPacket,
@@ -944,6 +1005,11 @@ function item({
     ticketPacket: ticketPacket ? sanitizeTicketPacket(ticketPacket) : undefined,
     externalRuntimeTicketPacket: externalRuntimeTicketPacket
       ? sanitizeExternalRuntimeTicketPacket(externalRuntimeTicketPacket)
+      : undefined,
+    externalRuntimeFinalEvidenceTicketPacket: externalRuntimeFinalEvidenceTicketPacket
+      ? sanitizeExternalRuntimeFinalEvidenceTicketPacket(
+          externalRuntimeFinalEvidenceTicketPacket
+        )
       : undefined,
     externalRuntimeProductTicketPacket: externalRuntimeProductTicketPacket
       ? sanitizeExternalRuntimeProductTicketPacket(externalRuntimeProductTicketPacket)
@@ -1085,6 +1151,62 @@ function sanitizeExternalRuntimeTicketPacket(packet = {}) {
     risk: sanitize(
       packet.risk ??
         "External runtime registry evidence blocks release approval until reviewed."
+    ),
+    rollbackPath: sanitize(
+      packet.rollbackPath ??
+        "No rollback is required because this packet writes only local evidence."
+    )
+  };
+}
+
+function sanitizeExternalRuntimeFinalEvidenceTicketPacket(packet = {}) {
+  return {
+    id: sanitize(
+      packet.id ?? "release-manager-external-runtime-final-evidence-ticket"
+    ),
+    owner: "release-manager",
+    title: sanitize(packet.title ?? "External runtime final evidence coordination"),
+    severity: "high",
+    classification: sanitize(
+      packet.classification ?? "final-evidence-coordination-required"
+    ),
+    reviewPacketStatus: sanitize(packet.reviewPacketStatus ?? "missing"),
+    imageCount: Number.isFinite(Number(packet.imageCount))
+      ? Number(packet.imageCount)
+      : 0,
+    finalEvidenceReadyCount: Number.isFinite(Number(packet.finalEvidenceReadyCount))
+      ? Number(packet.finalEvidenceReadyCount)
+      : 0,
+    reviewerRequestCount: Number.isFinite(Number(packet.reviewerRequestCount))
+      ? Number(packet.reviewerRequestCount)
+      : 0,
+    missingEvidenceCount: Number.isFinite(Number(packet.missingEvidenceCount))
+      ? Number(packet.missingEvidenceCount)
+      : 0,
+    evidenceChecklist: (packet.evidenceChecklist ?? []).map(sanitize),
+    firstReadOnlyAction: sanitizeExternalRuntimeTicketAction(
+      packet.firstReadOnlyAction,
+      "refresh-external-runtime-review-packet"
+    ),
+    verificationAction: sanitizeExternalRuntimeTicketAction(
+      packet.verificationAction,
+      "verify-external-runtime-plan"
+    ),
+    nextCommands: (packet.nextCommands ?? []).map(sanitize),
+    blockedBy: (packet.blockedBy ?? []).map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      finalEvidenceRequiresReviewedInputs:
+        packet.mutationBoundary?.finalEvidenceRequiresReviewedInputs !== false
+    },
+    risk: sanitize(
+      packet.risk ??
+        "Final external runtime evidence blocks release approval until same-head reviewed inputs are complete."
     ),
     rollbackPath: sanitize(
       packet.rollbackPath ??
@@ -1941,6 +2063,8 @@ function checkpointItems(
     blockedBy: externalRuntimeReviewPacket?.missingEvidence ?? [],
     diagnostics:
       externalRuntimeFinalEvidenceDiagnostics(externalRuntimeReviewPacket),
+    externalRuntimeFinalEvidenceTicketPacket:
+      externalRuntimeFinalEvidenceTicketPacket(externalRuntimeReviewPacket),
     acceptance: ["AC-CERT-001"]
   });
   addIfOpen("certificationReadiness", {
@@ -3557,6 +3681,12 @@ function criticalPath(items) {
         externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket
           ? sanitizeExternalRuntimeTicketPacket(entry.externalRuntimeTicketPacket)
           : undefined,
+        externalRuntimeFinalEvidenceTicketPacket:
+          entry.externalRuntimeFinalEvidenceTicketPacket
+            ? sanitizeExternalRuntimeFinalEvidenceTicketPacket(
+                entry.externalRuntimeFinalEvidenceTicketPacket
+              )
+            : undefined,
         externalRuntimeProductTicketPacket: entry.externalRuntimeProductTicketPacket
           ? sanitizeExternalRuntimeProductTicketPacket(
               entry.externalRuntimeProductTicketPacket
@@ -3599,6 +3729,9 @@ function buildOwnerPackets(owners, items) {
     const firstExternalRuntimeTicketPacket = entries.find(
       (entry) => entry.externalRuntimeTicketPacket
     )?.externalRuntimeTicketPacket;
+    const firstExternalRuntimeFinalEvidenceTicketPacket = entries.find(
+      (entry) => entry.externalRuntimeFinalEvidenceTicketPacket
+    )?.externalRuntimeFinalEvidenceTicketPacket;
     const firstExternalRuntimeProductTicketPacket = entries.find(
       (entry) => entry.externalRuntimeProductTicketPacket
     )?.externalRuntimeProductTicketPacket;
@@ -3644,6 +3777,7 @@ function buildOwnerPackets(owners, items) {
       firstBlockedBy: uniqueStrings(firstAction?.blockedBy ?? []).slice(0, 6),
       firstTicketPacket,
       firstExternalRuntimeTicketPacket,
+      firstExternalRuntimeFinalEvidenceTicketPacket,
       firstExternalRuntimeProductTicketPacket,
       firstSecurityReviewTicketPacket,
       firstReleasePublishTicketPacket,
@@ -3732,7 +3866,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, runtimeTicket=${entry.runtimeEvidenceTicketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, productTicket=${entry.externalRuntimeProductTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}, ragTicket=${entry.ragProductionTicketPacket?.id ?? "none"}, aiopsTicket=${entry.aiopsMonitoringTicketPacket?.id ?? "none"}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, runtimeTicket=${entry.runtimeEvidenceTicketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, finalTicket=${entry.externalRuntimeFinalEvidenceTicketPacket?.id ?? "none"}, productTicket=${entry.externalRuntimeProductTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}, ragTicket=${entry.ragProductionTicketPacket?.id ?? "none"}, aiopsTicket=${entry.aiopsMonitoringTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",
@@ -3744,7 +3878,7 @@ function markdownFor(queue) {
     "## Owner Packets",
     "",
     ...queue.ownerPackets.map((packet) =>
-      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, runtimeTicket=${packet.firstRuntimeEvidenceTicketPacket?.id ?? "none"}, productTicket=${packet.firstExternalRuntimeProductTicketPacket?.id ?? "none"}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}, ragTicket=${packet.firstRagProductionTicketPacket?.id ?? "none"}, aiopsTicket=${packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}`
+      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, runtimeTicket=${packet.firstRuntimeEvidenceTicketPacket?.id ?? "none"}, finalTicket=${packet.firstExternalRuntimeFinalEvidenceTicketPacket?.id ?? "none"}, productTicket=${packet.firstExternalRuntimeProductTicketPacket?.id ?? "none"}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}, ragTicket=${packet.firstRagProductionTicketPacket?.id ?? "none"}, aiopsTicket=${packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Packet Cleanup",
@@ -3883,6 +4017,26 @@ function ownerPacketMarkdown(queue, packet) {
           `- First read-only command: ${packet.firstExternalRuntimeTicketPacket.firstReadOnlyAction.nextCommand}`,
           `- Approval-gated action: ${packet.firstExternalRuntimeTicketPacket.approvalGatedAction.id}`,
           `- Approval required: ${String(packet.firstExternalRuntimeTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          ""
+        ]
+      : []),
+    ...(packet.firstExternalRuntimeFinalEvidenceTicketPacket
+      ? [
+          "## External Runtime Final Evidence Ticket Packet",
+          "",
+          `- ID: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.id}`,
+          `- Title: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.title}`,
+          `- Severity: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.severity}`,
+          `- Classification: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.classification}`,
+          `- Review packet status: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.reviewPacketStatus}`,
+          `- Image count: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.imageCount}`,
+          `- Final evidence ready: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.finalEvidenceReadyCount}`,
+          `- Reviewer requests: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.reviewerRequestCount}`,
+          `- First read-only action: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.firstReadOnlyAction.id}`,
+          `- First read-only command: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.firstReadOnlyAction.nextCommand}`,
+          `- Verification action: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.verificationAction.id}`,
+          `- Verification command: ${packet.firstExternalRuntimeFinalEvidenceTicketPacket.verificationAction.nextCommand}`,
+          `- Reviewed inputs required: ${String(packet.firstExternalRuntimeFinalEvidenceTicketPacket.mutationBoundary.finalEvidenceRequiresReviewedInputs)}`,
           ""
         ]
       : []),
@@ -4088,6 +4242,7 @@ function ownerPacketMarkdown(queue, packet) {
       `- Next command: ${entry.nextCommand}`,
       `- Ticket: ${entry.ticketPacket?.id ?? "none"}`,
       `- External runtime ticket: ${entry.externalRuntimeTicketPacket?.id ?? "none"}`,
+      `- External runtime final evidence ticket: ${entry.externalRuntimeFinalEvidenceTicketPacket?.id ?? "none"}`,
       `- External runtime product ticket: ${entry.externalRuntimeProductTicketPacket?.id ?? "none"}`,
       `- Security review ticket: ${entry.securityReviewTicketPacket?.id ?? "none"}`,
       `- Release publish ticket: ${entry.releasePublishTicketPacket?.id ?? "none"}`,

@@ -2342,6 +2342,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstBlockedBy: string[];
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    firstExternalRuntimeFinalEvidenceTicketPacket?: OpsLensExternalRuntimeFinalEvidenceTicketPacket;
     firstExternalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     firstReleasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
@@ -2379,6 +2380,7 @@ export interface OpsLensReleaseActionQueueSummary {
     acceptance: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    externalRuntimeFinalEvidenceTicketPacket?: OpsLensExternalRuntimeFinalEvidenceTicketPacket;
     externalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
@@ -2436,6 +2438,7 @@ export interface OpsLensReleaseActionQueueSummary {
     }>;
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    externalRuntimeFinalEvidenceTicketPacket?: OpsLensExternalRuntimeFinalEvidenceTicketPacket;
     externalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
@@ -2845,6 +2848,44 @@ export interface OpsLensExternalRuntimeRegistryTicketPacket {
     pullSecretCreatedByVerifier: boolean;
     registryLoginExecutedByVerifier: boolean;
     firstHumanSetupAction: string;
+  };
+  risk: string;
+  rollbackPath: string;
+}
+
+export interface OpsLensExternalRuntimeFinalEvidenceTicketPacket {
+  id: string;
+  owner: "release-manager";
+  title: string;
+  severity: "high";
+  classification: string;
+  reviewPacketStatus: string;
+  imageCount: number;
+  finalEvidenceReadyCount: number;
+  reviewerRequestCount: number;
+  missingEvidenceCount: number;
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  verificationAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    finalEvidenceRequiresReviewedInputs: boolean;
   };
   risk: string;
   rollbackPath: string;
