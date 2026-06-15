@@ -2201,6 +2201,19 @@ type InstallApprovalPlanEvidenceArtifact = {
   missingEvidence?: string[];
 };
 
+type ReleasePublishPlanCommandArtifact = {
+  id?: string;
+  phase?: string;
+  command?: string;
+  mutation?: boolean;
+  requiresExplicitApproval?: boolean;
+  credentialSetup?: boolean;
+  requiresHumanSecretInput?: boolean;
+  requiresHumanApproval?: boolean;
+  credentialStoredByVerifier?: boolean;
+  registryLoginExecutedByVerifier?: boolean;
+};
+
 type ReleasePublishPlanEvidenceArtifact = {
   artifactType?: string;
   status?: string;
@@ -2235,12 +2248,8 @@ type ReleasePublishPlanEvidenceArtifact = {
     rollbackPath?: string;
   }>;
   ticketPacket?: OpsLensReleasePublishTicketPacket;
-  commands?: Array<{
-    id?: string;
-    phase?: string;
-    mutation?: boolean;
-    requiresExplicitApproval?: boolean;
-  }>;
+  publishDecisionAction?: OpsLensReleasePublishPlanSummary["publishDecisionAction"];
+  commands?: ReleasePublishPlanCommandArtifact[];
   risk?: string[];
   rollbackPath?: string[];
   missingEvidence?: string[];
@@ -6731,6 +6740,125 @@ function getInstallApprovalPlanReadiness(): {
   }
 }
 
+function buildReleasePublishDecisionActionSummary({
+  status,
+  requiredApprovals,
+  publishImageCount,
+  firstPublishActions,
+  ticketPacket,
+  commands,
+  missingEvidence,
+  artifactDecisionAction
+}: {
+  status: string;
+  requiredApprovals: string[];
+  publishImageCount: number;
+  firstPublishActions: OpsLensReleasePublishPlanSummary["firstPublishActions"];
+  ticketPacket?: OpsLensReleasePublishTicketPacket;
+  commands?: ReleasePublishPlanCommandArtifact[];
+  missingEvidence: string[];
+  artifactDecisionAction?: OpsLensReleasePublishPlanSummary["publishDecisionAction"];
+}): OpsLensReleasePublishPlanSummary["publishDecisionAction"] {
+  const commandList = commands ?? [];
+  const readOnlyPreflight =
+    commandList.find((command) => command.id === "run-release-preflight") ??
+    commandList.find(
+      (command) =>
+        command.mutation !== true &&
+        command.credentialSetup !== true &&
+        command.requiresHumanSecretInput !== true
+    );
+  const humanSetupCommandIds = uniqueStrings(
+    commandList
+      .filter(
+        (command) =>
+          command.credentialSetup === true ||
+          command.requiresHumanSecretInput === true ||
+          command.id === "login-release-registry"
+      )
+      .map((command) => command.id ?? "unknown")
+  );
+  const approvalGatedCommandIds = uniqueStrings(
+    commandList
+      .filter(
+        (command) =>
+          command.mutation === true && command.requiresExplicitApproval !== false
+      )
+      .map((command) => command.id ?? "unknown")
+  );
+  const releaseManagerReadOnlyAction =
+    firstPublishActions.find((action) => action.id === "run-release-preflight") ??
+    firstPublishActions.find(
+      (action) => action.mutation === false && action.owner === "release-manager"
+    ) ??
+    firstPublishActions.find((action) => action.mutation === false);
+  const requiredApprovalList = uniqueStrings([
+    ...requiredApprovals,
+    ...(ticketPacket?.requiredApprovals ?? []),
+    ...(artifactDecisionAction?.requiredApprovals ?? [])
+  ]);
+  const evidenceNeeded = uniqueStrings([
+    ...missingEvidence,
+    ...(artifactDecisionAction?.evidenceNeeded ?? [])
+  ]).slice(0, 8);
+  const blockedBy = uniqueStrings([
+    ...missingEvidence,
+    ...(ticketPacket?.blockedBy ?? []),
+    ...(artifactDecisionAction?.blockedBy ?? [])
+  ]).slice(0, 8);
+
+  return {
+    id:
+      artifactDecisionAction?.id ??
+      "release-manager-release-publish-decision",
+    owner: artifactDecisionAction?.owner ?? "release-manager",
+    status:
+      artifactDecisionAction?.status ??
+      (missingEvidence.length > 0 ? "needs-evidence" : "approval-required"),
+    requiredApprovals: requiredApprovalList,
+    publishImageCount:
+      artifactDecisionAction?.publishImageCount ?? publishImageCount,
+    readOnlyPreflightCommandId:
+      readOnlyPreflight?.id ??
+      artifactDecisionAction?.readOnlyPreflightCommandId ??
+      ticketPacket?.firstReadOnlyAction.id ??
+      releaseManagerReadOnlyAction?.id ??
+      "run-release-preflight",
+    readOnlyPreflightCommand:
+      readOnlyPreflight?.command ??
+      artifactDecisionAction?.readOnlyPreflightCommand ??
+      ticketPacket?.firstReadOnlyAction.nextCommand ??
+      releaseManagerReadOnlyAction?.nextCommand ??
+      "npm run verify:release-plan",
+    humanSetupCommandIds:
+      humanSetupCommandIds.length > 0
+        ? humanSetupCommandIds
+        : artifactDecisionAction?.humanSetupCommandIds ?? [],
+    approvalGatedCommandIds:
+      approvalGatedCommandIds.length > 0
+        ? approvalGatedCommandIds
+        : artifactDecisionAction?.approvalGatedCommandIds ?? [],
+    nextCommand:
+      readOnlyPreflight?.command ??
+      artifactDecisionAction?.nextCommand ??
+      ticketPacket?.firstReadOnlyAction.nextCommand ??
+      releaseManagerReadOnlyAction?.nextCommand ??
+      "npm run verify:release-plan",
+    evidenceNeeded,
+    blockedBy,
+    mutationAllowed: false,
+    writesLocalEvidence: true,
+    requiresHumanSecretInput:
+      humanSetupCommandIds.length > 0 ||
+      artifactDecisionAction?.requiresHumanSecretInput === true,
+    requiresExplicitApproval: true,
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    publishRequiresExplicitApproval: true
+  };
+}
+
 function getReleasePublishPlanReadiness(): {
   status: OpsLensReleasePublishReadiness;
   evidence: string[];
@@ -6812,6 +6940,37 @@ function getReleasePublishPlanReadiness(): {
             "No release publish plan evidence is available yet; image push, signing, mirroring, and catalog publication remain blocked.",
           rollbackPath:
             "Generate release publish evidence before attempting registry or catalog publication commands."
+        },
+        publishDecisionAction: {
+          id: "release-manager-release-publish-decision",
+          owner: "release-manager",
+          status: "needs-evidence",
+          requiredApprovals: [
+            "release-manager",
+            "registry-admin",
+            "security-reviewer",
+            "product-owner"
+          ],
+          publishImageCount: 0,
+          readOnlyPreflightCommandId: "generate-release-publish-plan",
+          readOnlyPreflightCommand: "npm run verify:release-plan",
+          humanSetupCommandIds: [],
+          approvalGatedCommandIds: ["approval-gated-release-publish"],
+          nextCommand: "npm run verify:release-plan",
+          evidenceNeeded: [
+            `release publish plan evidence is missing at ${evidencePath}`
+          ],
+          blockedBy: [
+            `release publish plan evidence is missing at ${evidencePath}`
+          ],
+          mutationAllowed: false,
+          writesLocalEvidence: true,
+          requiresHumanSecretInput: false,
+          requiresExplicitApproval: true,
+          clusterMutationAttempted: false,
+          registryMutationAttempted: false,
+          mutationAllowedByThisVerifier: false,
+          publishRequiresExplicitApproval: true
         },
         mutatingCommands: [],
         risk: [
@@ -6917,6 +7076,16 @@ function getReleasePublishPlanReadiness(): {
         rollbackPath:
           "Publish corrected tags and update FBC/CatalogSource references after any approved correction."
       };
+    const publishDecisionAction = buildReleasePublishDecisionActionSummary({
+      status,
+      requiredApprovals: artifact.requiredApprovals ?? [],
+      publishImageCount: publishImages.length,
+      firstPublishActions,
+      ticketPacket,
+      commands: artifact.commands,
+      missingEvidence: artifact.missingEvidence ?? [],
+      artifactDecisionAction: artifact.publishDecisionAction
+    });
 
     return {
       status,
@@ -6931,6 +7100,7 @@ function getReleasePublishPlanReadiness(): {
         publishImages,
         firstPublishActions,
         ticketPacket,
+        publishDecisionAction,
         mutatingCommands,
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? [],
@@ -6944,6 +7114,7 @@ function getReleasePublishPlanReadiness(): {
         imageNames ? `release publish image inventory=${imageNames}` : "release publish image inventory not listed",
         `release first publish actions=${firstPublishActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         `release publish ticket=${ticketPacket.id}:${ticketPacket.firstReadOnlyAction.id}:approval=${ticketPacket.approvalGatedAction.id}`,
+        `release publish decision action=${publishDecisionAction.id}:first=${publishDecisionAction.readOnlyPreflightCommandId}:setup=${publishDecisionAction.humanSetupCommandIds.join(",") || "none"}:approval=${publishDecisionAction.approvalGatedCommandIds.slice(0, 3).join(",") || "none"}:mutationAllowed=${String(publishDecisionAction.mutationAllowed)}:publishRequiresExplicitApproval=${String(publishDecisionAction.publishRequiresExplicitApproval)}`,
         mutatingCommandNames
           ? `publish commands require explicit approval: ${mutatingCommandNames}`
           : "publish commands are not listed in latest release plan",
@@ -7003,6 +7174,37 @@ function getReleasePublishPlanReadiness(): {
             "Release publish plan evidence is invalid; registry and catalog publication commands remain blocked.",
           rollbackPath:
             "Regenerate release publish evidence before attempting registry or catalog publication commands."
+        },
+        publishDecisionAction: {
+          id: "release-manager-release-publish-decision",
+          owner: "release-manager",
+          status: "failed",
+          requiredApprovals: [
+            "release-manager",
+            "registry-admin",
+            "security-reviewer",
+            "product-owner"
+          ],
+          publishImageCount: 0,
+          readOnlyPreflightCommandId: "generate-release-publish-plan",
+          readOnlyPreflightCommand: "npm run verify:release-plan",
+          humanSetupCommandIds: [],
+          approvalGatedCommandIds: ["approval-gated-release-publish"],
+          nextCommand: "npm run verify:release-plan",
+          evidenceNeeded: [
+            error instanceof Error ? error.message : "unknown evidence parse error"
+          ],
+          blockedBy: [
+            error instanceof Error ? error.message : "unknown evidence parse error"
+          ],
+          mutationAllowed: false,
+          writesLocalEvidence: true,
+          requiresHumanSecretInput: false,
+          requiresExplicitApproval: true,
+          clusterMutationAttempted: false,
+          registryMutationAttempted: false,
+          mutationAllowedByThisVerifier: false,
+          publishRequiresExplicitApproval: true
         },
         mutatingCommands: [],
         risk: [

@@ -561,6 +561,61 @@ function buildReleasePublishTicketPacket({ status, missingEvidence, commands, fi
   };
 }
 
+function buildPublishDecisionAction({ status, missingEvidence, commands, ticketPacket, publishImages }) {
+  const readOnlyPreflight =
+    commands.find((entry) => entry.id === "run-release-preflight") ??
+    commands.find(
+      (entry) =>
+        entry.mutation !== true &&
+        entry.credentialSetup !== true &&
+        entry.requiresHumanSecretInput !== true
+    );
+  const humanSetupCommands = commands.filter(
+    (entry) =>
+      entry.credentialSetup === true ||
+      entry.requiresHumanSecretInput === true ||
+      entry.id === "login-release-registry"
+  );
+  const approvalGatedCommands = commands.filter(
+    (entry) => entry.mutation === true && entry.requiresExplicitApproval === true
+  );
+
+  return {
+    id: "release-manager-release-publish-decision",
+    owner: "release-manager",
+    status: missingEvidence.length > 0 ? "needs-evidence" : "approval-required",
+    requiredApprovals: ticketPacket.requiredApprovals,
+    publishImageCount: publishImages.length,
+    readOnlyPreflightCommandId:
+      readOnlyPreflight?.id ?? ticketPacket.firstReadOnlyAction.id,
+    readOnlyPreflightCommand:
+      readOnlyPreflight?.command ?? ticketPacket.firstReadOnlyAction.nextCommand,
+    humanSetupCommandIds: uniqueStrings(humanSetupCommands.map((entry) => entry.id)),
+    approvalGatedCommandIds: uniqueStrings(
+      approvalGatedCommands.map((entry) => entry.id)
+    ),
+    nextCommand:
+      readOnlyPreflight?.command ??
+      ticketPacket.firstReadOnlyAction.nextCommand ??
+      "npm run verify:release-plan",
+    evidenceNeeded: uniqueStrings(missingEvidence).slice(0, 8),
+    blockedBy: uniqueStrings(missingEvidence).slice(0, 8),
+    mutationAllowed: false,
+    writesLocalEvidence: true,
+    requiresHumanSecretInput: humanSetupCommands.some(
+      (entry) => entry.requiresHumanSecretInput === true
+    ),
+    requiresExplicitApproval: true,
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    publishRequiresExplicitApproval:
+      status !== "PUBLISH_APPROVAL_REQUIRED" ||
+      ticketPacket.mutationBoundary.publishRequiresExplicitApproval === true ||
+      approvalGatedCommands.length > 0
+  };
+}
+
 function secretValuesForLeakCheck() {
   return [
     "OCP_API_TOKEN",
@@ -642,6 +697,13 @@ async function buildPlan() {
     firstActions,
     publishImages
   });
+  const publishDecisionAction = buildPublishDecisionAction({
+    status,
+    missingEvidence,
+    commands,
+    ticketPacket,
+    publishImages
+  });
   if (
     ticketPacket.firstReadOnlyAction.mutation === false &&
     ticketPacket.firstReadOnlyAction.requiresExplicitApproval === false &&
@@ -654,6 +716,23 @@ async function buildPlan() {
     pass("release publish ticket boundary", "release publish handoff is read-only first and approval-gated for registry mutation");
   } else {
     fail("release publish ticket boundary", "release publish handoff must separate read-only preflight from approval-gated registry mutation");
+  }
+  if (
+    publishDecisionAction.readOnlyPreflightCommandId === "run-release-preflight" &&
+    publishDecisionAction.humanSetupCommandIds.includes("login-release-registry") &&
+    publishDecisionAction.approvalGatedCommandIds.some((id) => id.startsWith("push-")) &&
+    publishDecisionAction.mutationAllowed === false &&
+    publishDecisionAction.writesLocalEvidence === true &&
+    publishDecisionAction.requiresHumanSecretInput === true &&
+    publishDecisionAction.requiresExplicitApproval === true &&
+    publishDecisionAction.clusterMutationAttempted === false &&
+    publishDecisionAction.registryMutationAttempted === false &&
+    publishDecisionAction.mutationAllowedByThisVerifier === false &&
+    publishDecisionAction.publishRequiresExplicitApproval === true
+  ) {
+    pass("release publish decision action", "release-manager decision handoff separates preflight, human secret setup, and approval-gated publish commands");
+  } else {
+    fail("release publish decision action", "release publish decision handoff must expose preflight, human secret setup, approval-gated publish commands, and no-mutation boundary");
   }
 
   return {
@@ -690,6 +769,7 @@ async function buildPlan() {
     },
     firstPublishActions: firstActions,
     ticketPacket,
+    publishDecisionAction,
     commands,
     missingEvidence,
     risk: [

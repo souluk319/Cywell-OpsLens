@@ -2787,6 +2787,28 @@ export interface OpsLensReleasePublishPlanSummary {
     rollbackPath: string;
   }>;
   ticketPacket: OpsLensReleasePublishTicketPacket;
+  publishDecisionAction: {
+    id: string;
+    owner: string;
+    status: string;
+    requiredApprovals: string[];
+    publishImageCount: number;
+    readOnlyPreflightCommandId: string;
+    readOnlyPreflightCommand: string;
+    humanSetupCommandIds: string[];
+    approvalGatedCommandIds: string[];
+    nextCommand: string;
+    evidenceNeeded: string[];
+    blockedBy: string[];
+    mutationAllowed: boolean;
+    writesLocalEvidence: boolean;
+    requiresHumanSecretInput: boolean;
+    requiresExplicitApproval: boolean;
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    publishRequiresExplicitApproval: boolean;
+  };
   mutatingCommands: Array<{
     id: string;
     phase: string;

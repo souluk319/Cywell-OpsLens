@@ -4970,6 +4970,42 @@ export function OpsLensAdminDashboard() {
                   )}
                 </span>
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-publish-decision-action"
+              >
+                <span>
+                  {releasePlan.publishDecisionAction.id}:
+                  {releasePlan.publishDecisionAction.owner}:status=
+                  {releasePlan.publishDecisionAction.status}:first=
+                  {releasePlan.publishDecisionAction.readOnlyPreflightCommandId}
+                  :setup=
+                  {releasePlan.publishDecisionAction.humanSetupCommandIds.join(
+                    ","
+                  ) || "none"}
+                  :approval=
+                  {releasePlan.publishDecisionAction.approvalGatedCommandIds
+                    .slice(0, 3)
+                    .join(",") || "none"}
+                  :secret=
+                  {String(
+                    releasePlan.publishDecisionAction.requiresHumanSecretInput
+                  )}
+                  :explicitApproval=
+                  {String(
+                    releasePlan.publishDecisionAction.requiresExplicitApproval
+                  )}
+                  :mutationAllowed=
+                  {String(releasePlan.publishDecisionAction.mutationAllowed)}
+                  :writesLocalEvidence=
+                  {String(releasePlan.publishDecisionAction.writesLocalEvidence)}
+                  :publishRequiresExplicitApproval=
+                  {String(
+                    releasePlan.publishDecisionAction
+                      .publishRequiresExplicitApproval
+                  )}
+                </span>
+              </div>
               <div className="remediation-notes">
                 <p>
                   {releasePlan.risk[0] ??

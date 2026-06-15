@@ -2428,6 +2428,28 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               publishRequiresExplicitApproval?: boolean;
             };
           };
+          publishDecisionAction?: {
+            id?: string;
+            owner?: string;
+            status?: string;
+            requiredApprovals?: string[];
+            publishImageCount?: number;
+            readOnlyPreflightCommandId?: string;
+            readOnlyPreflightCommand?: string;
+            humanSetupCommandIds?: string[];
+            approvalGatedCommandIds?: string[];
+            nextCommand?: string;
+            evidenceNeeded?: string[];
+            blockedBy?: string[];
+            mutationAllowed?: boolean;
+            writesLocalEvidence?: boolean;
+            requiresHumanSecretInput?: boolean;
+            requiresExplicitApproval?: boolean;
+            clusterMutationAttempted?: boolean;
+            registryMutationAttempted?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+            publishRequiresExplicitApproval?: boolean;
+          };
           mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
           risk?: string[];
           rollbackPath?: string[];
@@ -5584,6 +5606,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         publishRequiresExplicitApproval: true
       }
     });
+    expect(body.installReadiness?.releasePlan?.publishDecisionAction).toMatchObject({
+      id: "release-manager-release-publish-decision",
+      owner: "release-manager",
+      readOnlyPreflightCommandId: "run-release-preflight",
+      humanSetupCommandIds: expect.arrayContaining(["login-release-registry"]),
+      approvalGatedCommandIds: expect.arrayContaining(["push-operator"]),
+      mutationAllowed: false,
+      writesLocalEvidence: true,
+      requiresHumanSecretInput: true,
+      requiresExplicitApproval: true,
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      publishRequiresExplicitApproval: true
+    });
+    expect(
+      body.installReadiness?.releasePlan?.publishDecisionAction
+        ?.readOnlyPreflightCommand
+    ).toMatch(/verify:release-plan/);
+    expect(
+      body.installReadiness?.releasePlan?.publishDecisionAction?.blockedBy
+        ?.join(" ")
+    ).toMatch(/external runtime|catalog actual image build/i);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /release publish plan/i
     );
@@ -9160,6 +9205,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-publish-ticket")
     ).toContainText("requiresApproval=true");
+    await expect(
+      page.getByTestId("opslens-release-publish-decision-action")
+    ).toContainText("release-manager-release-publish-decision");
+    await expect(
+      page.getByTestId("opslens-release-publish-decision-action")
+    ).toContainText("first=run-release-preflight");
+    await expect(
+      page.getByTestId("opslens-release-publish-decision-action")
+    ).toContainText("setup=login-release-registry");
+    await expect(
+      page.getByTestId("opslens-release-publish-decision-action")
+    ).toContainText("approval=push-operator");
+    await expect(
+      page.getByTestId("opslens-release-publish-decision-action")
+    ).toContainText("secret=true");
+    await expect(
+      page.getByTestId("opslens-release-publish-decision-action")
+    ).toContainText("mutationAllowed=false");
+    await expect(
+      page.getByTestId("opslens-release-publish-decision-action")
+    ).toContainText("publishRequiresExplicitApproval=true");
     await expect(
       page.getByTestId("opslens-release-refresh-security-review")
     ).toContainText("securityReviewDrafts=PASS");
