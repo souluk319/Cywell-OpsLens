@@ -352,6 +352,94 @@ function releaseActionQueueHandoffRequirement(actionQueue, id, label, lane, owne
   };
 }
 
+function releaseActionQueueTicketPackets(entry) {
+  return [
+    entry?.ticketPacket,
+    entry?.externalRuntimeTicketPacket,
+    entry?.externalRuntimeFinalEvidenceTicketPacket,
+    entry?.externalRuntimeProductTicketPacket,
+    entry?.securityReviewTicketPacket,
+    entry?.releasePublishTicketPacket,
+    entry?.installApprovalTicketPacket,
+    entry?.catalogToolchainTicketPacket,
+    entry?.certificationToolingTicketPacket,
+    entry?.ragProductionTicketPacket,
+    entry?.aiopsMonitoringTicketPacket,
+    entry?.runtimeEvidenceTicketPacket
+  ].filter(Boolean);
+}
+
+function releaseActionQueueUnsafeTicketReasons(entry) {
+  return releaseActionQueueTicketPackets(entry).flatMap((ticket) => {
+    const reasons = [];
+    const firstReadOnly = ticket.firstReadOnlyAction;
+    const approvalGated = ticket.approvalGatedAction;
+    const boundary = ticket.mutationBoundary ?? {};
+    if (firstReadOnly?.mutation === true) reasons.push("first-read-only-mutates");
+    if (firstReadOnly?.requiresExplicitApproval === true) {
+      reasons.push("first-read-only-requires-approval");
+    }
+    if (boundary.clusterMutationAttempted === true) reasons.push("cluster-mutation-attempted");
+    if (boundary.registryMutationAttempted === true) reasons.push("registry-mutation-attempted");
+    if (boundary.mutationAllowedByThisVerifier === true) {
+      reasons.push("mutation-allowed-by-verifier");
+    }
+    if (boundary.vectorWriteAttempted === true) reasons.push("vector-write-attempted");
+    if (boundary.ingestionJobCreated === true) reasons.push("ingestion-job-created");
+    if (
+      approvalGated?.mutation === true &&
+      approvalGated.requiresExplicitApproval !== true
+    ) {
+      reasons.push("approval-mutation-without-explicit-approval");
+    }
+    return reasons.length > 0
+      ? [`${entry?.lane ?? "unknown"}:${ticket.id ?? "unknown"}:${reasons.join("+")}`]
+      : [];
+  });
+}
+
+function releaseActionQueueCriticalPathSafetyRequirement(actionQueue) {
+  if (!actionQueue) {
+    return {
+      id: "release-action-queue-critical-path-safety",
+      label: "Release action queue critical-path ticket safety",
+      status: "needs-evidence",
+      evidence: [],
+      missingEvidence: ["release action queue artifact is missing"]
+    };
+  }
+  const criticalPath = actionQueue.criticalPath ?? [];
+  const missingEvidence = [
+    ...(actionQueue.status === "ACTION_QUEUE_READY"
+      ? []
+      : [`release action queue status=${actionQueue.status ?? "missing"}`]),
+    ...(criticalPath.length > 0
+      ? []
+      : ["release action queue criticalPath is empty"]),
+    ...criticalPath
+      .filter((entry) => (entry.diagnostics ?? []).length === 0)
+      .map((entry) => `${entry.lane ?? "unknown"} critical path lacks diagnostics`),
+    ...criticalPath
+      .filter((entry) => releaseActionQueueTicketPackets(entry).length === 0)
+      .map((entry) => `${entry.lane ?? "unknown"} critical path lacks ticket packet`),
+    ...criticalPath.flatMap(releaseActionQueueUnsafeTicketReasons)
+  ];
+  return {
+    id: "release-action-queue-critical-path-safety",
+    label: "Release action queue critical-path ticket safety",
+    status: missingEvidence.length === 0 ? "pass" : "needs-evidence",
+    artifactType: actionQueue.artifactType ?? actionQueue.schema ?? "unknown",
+    artifactStatus: actionQueue.status ?? "unknown",
+    evidence:
+      missingEvidence.length === 0
+        ? [
+            `${criticalPath.length} critical path lane(s) carry diagnostics, owner tickets, and approval-gated mutation boundaries`
+          ]
+        : [],
+    missingEvidence
+  };
+}
+
 function artifactRef(artifact) {
   return {
     headSha: artifact?.headSha ?? artifact?.ref?.headSha,
@@ -739,6 +827,7 @@ async function main() {
       laneRequirement(checkpoint, "catalogToolchain", "Catalog toolchain readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "externalRuntime", "External runtime image evidence", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "externalRuntimeReviewPacket", "External runtime reviewer packet", ["pass", "needs-evidence"]),
+      releaseActionQueueCriticalPathSafetyRequirement(releaseActionQueue),
       releaseActionQueueHandoffRequirement(
         releaseActionQueue,
         "release-action-queue-external-runtime-ticket",

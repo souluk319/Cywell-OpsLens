@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { mockContext } from "@kugnus/contracts";
 
 test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
@@ -5048,6 +5049,32 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.bundle?.actionQueueSafety?.unsafeTickets
     ).toEqual([]);
+    const roadmapPlan = JSON.parse(
+      readFileSync("test-results/cywell-opslens-roadmap-plan-alignment.json", "utf8")
+    ) as {
+      stages?: Array<{
+        id?: string;
+        requirements?: Array<{
+          id?: string;
+          status?: string;
+          evidence?: string[];
+          missingEvidence?: string[];
+        }>;
+      }>;
+    };
+    const roadmapActionQueueSafety = roadmapPlan.stages
+      ?.find((stage) => stage.id === "stage-5-redhat-gtm")
+      ?.requirements?.find(
+        (requirement) =>
+          requirement.id === "release-action-queue-critical-path-safety"
+      );
+    expect(roadmapActionQueueSafety).toMatchObject({
+      status: "pass",
+      missingEvidence: []
+    });
+    expect(roadmapActionQueueSafety?.evidence?.join(" ")).toContain(
+      "critical path lane"
+    );
     expect(
       body.installReadiness?.bundle?.commandCounts?.readOnly ?? 0
     ).toBeGreaterThan(0);
