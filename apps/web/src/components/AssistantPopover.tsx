@@ -20,7 +20,11 @@ interface AssistantPopoverProps {
   answer: AssistantAnswer;
   requestId: string;
   audit: AuditEnvelope | null;
+  apiStatus: "loading" | "ready" | "fallback";
+  busy: boolean;
+  model: string;
   onDraftChange: (draft: string) => void;
+  onAsk: () => void;
   onClose: () => void;
 }
 
@@ -30,7 +34,11 @@ export function AssistantPopover({
   answer,
   requestId,
   audit,
+  apiStatus,
+  busy,
+  model,
   onDraftChange,
+  onAsk,
   onClose
 }: AssistantPopoverProps) {
   return (
@@ -53,6 +61,12 @@ export function AssistantPopover({
           </div>
         </div>
         <div className="assistant-controls">
+          <span
+            className={`status-pill ${apiStatus === "ready" ? "ready" : "danger"}`}
+            data-testid="assistant-connection-status"
+          >
+            {apiStatus === "ready" ? "local plan-only" : apiStatus}
+          </span>
           <button
             className="icon-button"
             type="button"
@@ -77,6 +91,8 @@ export function AssistantPopover({
       <div className="api-trace" data-testid="api-trace">
         <span>request</span>
         <strong>{requestId}</strong>
+        <span>model</span>
+        <strong>{model}</strong>
         <span>context</span>
         <strong>{audit?.contextHash ?? "pending"}</strong>
       </div>
@@ -88,9 +104,14 @@ export function AssistantPopover({
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
         />
-        <button className="text-icon-button" type="button">
+        <button
+          className="text-icon-button"
+          type="button"
+          onClick={onAsk}
+          disabled={busy || draft.trim().length === 0}
+        >
           <SendHorizontal size={16} aria-hidden="true" />
-          Ask
+          {busy ? "Asking" : "Ask"}
         </button>
       </div>
 

@@ -12,12 +12,14 @@ import type {
 } from "@kugnus/contracts";
 import {
   Activity,
+  BrainCircuit,
   CheckCircle2,
   Cpu,
   DatabaseZap,
   Download,
   FileDiff,
   Gauge,
+  KeyRound,
   ListChecks,
   ShieldCheck,
   UploadCloud,
@@ -65,7 +67,10 @@ function statusClass(status: string) {
     status === "ready-for-review" ||
     status === "ready-for-scan" ||
     status === "ready-for-live-registration-review" ||
-    status === "live-ready"
+    status === "live-ready" ||
+    status === "mvp-locked" ||
+    status === "mvp" ||
+    status === "active"
   ) {
     return "fresh";
   }
@@ -78,7 +83,8 @@ function statusClass(status: string) {
     status === "needs-evidence" ||
     status === "partial" ||
     status === "approval-required" ||
-    status === "needs-tooling"
+    status === "needs-tooling" ||
+    status === "planned"
   ) {
     return "stale";
   }
@@ -180,6 +186,7 @@ export function OpsLensAdminDashboard() {
 
   const latestGpu = overview?.runtime.gpu.samples.at(-1);
   const ragProductionReadiness = overview?.rag.productionReadiness;
+  const opsBrain = overview?.opsBrain;
   const metricQueries = overview?.incidents.flatMap(
     (incident) => incident.metricQueries
   );
@@ -491,6 +498,141 @@ export function OpsLensAdminDashboard() {
         <div className="ocp-error" data-testid="opslens-admin-error">
           {error}
         </div>
+      ) : null}
+
+      {opsBrain ? (
+        <section
+          className="opsbrain-console"
+          data-testid="opslens-opsbrain-system"
+          aria-labelledby="opslens-opsbrain-title"
+        >
+          <div className="opsbrain-headline">
+            <div>
+              <p className="eyebrow">Cywell OpsBrain</p>
+              <h3 id="opslens-opsbrain-title">No fine-tuning growth system</h3>
+              <p>{opsBrain.productDefinition}</p>
+            </div>
+            <div className="opsbrain-badges">
+              <span className={`freshness ${statusClass(opsBrain.status)}`}>
+                {opsBrain.status}
+              </span>
+              <span className="status-pill read-only">
+                fineTuningRequired={String(opsBrain.fineTuningRequired)}
+              </span>
+              <span className="status-pill read-only">
+                actionMode={opsBrain.actionMode}
+              </span>
+            </div>
+          </div>
+
+          <div className="opsbrain-grid">
+            <article className="opsbrain-panel">
+              <div className="card-title-row">
+                <h4>
+                  <BrainCircuit size={16} aria-hidden="true" />
+                  Growth Loop
+                </h4>
+                <span>{opsBrain.growthLoop.length} steps</span>
+              </div>
+              <ol className="opsbrain-step-list">
+                {opsBrain.growthLoop.map((step) => (
+                  <li key={step.step}>
+                    <strong>
+                      {step.step}. {step.label}
+                    </strong>
+                    <span>{step.currentImplementation}</span>
+                    <small>{step.passFail}</small>
+                  </li>
+                ))}
+              </ol>
+            </article>
+
+            <article className="opsbrain-panel">
+              <div className="card-title-row">
+                <h4>
+                  <DatabaseZap size={16} aria-hidden="true" />
+                  Memory Tiers
+                </h4>
+                <span>{opsBrain.memoryTiers.length} tiers</span>
+              </div>
+              <div className="opsbrain-memory-list">
+                {opsBrain.memoryTiers.map((tier) => (
+                  <div key={tier.tier}>
+                    <span className={`freshness ${statusClass(tier.status)}`}>
+                      {tier.tier}
+                    </span>
+                    <strong>{tier.label}</strong>
+                    <small>{tier.implementation}</small>
+                    <small>write={tier.writePolicy}</small>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="opsbrain-panel">
+              <div className="card-title-row">
+                <h4>
+                  <ShieldCheck size={16} aria-hidden="true" />
+                  Risk Gate
+                </h4>
+                <span>mutationAllowed={String(opsBrain.riskGate.mutationAllowed)}</span>
+              </div>
+              <div className="opsbrain-risk-list">
+                {opsBrain.riskGate.commandClasses.map((commandClass) => (
+                  <div key={commandClass.className}>
+                    <strong>{commandClass.className}</strong>
+                    <span>
+                      approval=
+                      {commandClass.allowedWithoutApproval ? "not-required" : "required"}
+                    </span>
+                    <small>{commandClass.examples.join(", ")}</small>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="opsbrain-panel">
+              <div className="card-title-row">
+                <h4>
+                  <ListChecks size={16} aria-hidden="true" />
+                  Evaluator
+                </h4>
+                <span>golden={opsBrain.evaluator.goldenSetTarget}</span>
+              </div>
+              <div className="opsbrain-chip-list">
+                {opsBrain.evaluator.metrics.map((metric) => (
+                  <span key={metric}>{metric}</span>
+                ))}
+              </div>
+              <p>{opsBrain.evaluator.releaseGate}</p>
+            </article>
+          </div>
+
+          <div className="opsbrain-credential-panel">
+            <div className="card-title-row">
+              <h4>
+                <KeyRound size={16} aria-hidden="true" />
+                Required Keys And Tokens
+              </h4>
+              <span>values redacted</span>
+            </div>
+            <div
+              className="opsbrain-credential-list"
+              data-testid="opslens-opsbrain-credentials"
+            >
+              {opsBrain.credentialRequirements.map((requirement) => (
+                <div key={requirement.id}>
+                  <span className={`status-pill ${requirement.status === "configured" ? "ready" : requirement.status === "missing" ? "danger" : "read-only"}`}>
+                    {requirement.status}
+                  </span>
+                  <strong>{requirement.label}</strong>
+                  <small>{requirement.keyNames.join(" + ")}</small>
+                  <small>{requirement.note}</small>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       ) : null}
 
       <div className="admin-grid">

@@ -3829,6 +3829,7 @@ export interface OpsLensRoadmapCompletionSummary {
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
+  opsBrain: OpsBrainSystemSummary;
   lightspeed: {
     mcp: OpsLensLightspeedToolSurface;
   };
@@ -3910,6 +3911,78 @@ export interface OpsLensAdminOverviewResponse {
     rawDocumentReturned: false;
     uploadApplyAllowed: false;
   };
+}
+
+export interface OpsBrainSystemSummary {
+  status: "mvp-locked" | "needs-evidence" | "planned";
+  productDefinition: string;
+  fineTuningRequired: false;
+  actionMode: "readOnly" | "planOnly";
+  phases: Array<{
+    id: string;
+    label: string;
+    status: "ready" | "mvp" | "planned" | "blocked";
+    duration: string;
+    acceptance: string[];
+    evidence: string[];
+    missingEvidence: string[];
+  }>;
+  memoryTiers: Array<{
+    tier: "hot" | "warm" | "cold";
+    label: string;
+    contents: string[];
+    implementation: string;
+    writePolicy: "pinned" | "reviewed" | "append-only";
+    status: "active" | "mvp" | "planned";
+    evidence: string[];
+  }>;
+  growthLoop: Array<{
+    step: number;
+    label: string;
+    owner: "tool-layer" | "retrieval" | "evaluator" | "risk-gate" | "self-improver";
+    currentImplementation: string;
+    nextImplementation: string;
+    passFail: string;
+  }>;
+  toolLayer: {
+    defaultMode: "readOnly";
+    allowedVerbs: string[];
+    blockedVerbs: string[];
+    accessReview: string[];
+    serviceAccountRecommended: boolean;
+    evidence: string[];
+  };
+  evaluator: {
+    goldenSetTarget: number;
+    metrics: string[];
+    releaseGate: string;
+    currentEvidence: string[];
+    missingEvidence: string[];
+  };
+  riskGate: {
+    commandClasses: Array<{
+      className: "READ" | "SAFE_CHANGE" | "DANGEROUS_CHANGE";
+      allowedWithoutApproval: boolean;
+      examples: string[];
+    }>;
+    policyEngine: "local-rule-table" | "opa-planned";
+    mutationAllowed: false;
+    evidence: string[];
+  };
+  credentialRequirements: Array<{
+    id: string;
+    label: string;
+    requiredFor: string;
+    keyNames: string[];
+    issuer: string;
+    configured: boolean;
+    secretValueExposed: false;
+    status: "configured" | "missing" | "optional";
+    note: string;
+  }>;
+  openQuestions: string[];
+  evidence: string[];
+  missingEvidence: string[];
 }
 
 export interface McpJsonRpcRequest {

@@ -45,6 +45,18 @@ function resourceKey(resource: OcpApiResource) {
   return `${resource.apiVersion}/${resource.name}`;
 }
 
+export interface OcpResourcePreset {
+  activationId: string;
+  query: string;
+  preferredResources: string[];
+  namespace?: string;
+  detailView?: "json" | "yaml";
+}
+
+interface OcpResourceExplorerProps {
+  navigationPreset?: OcpResourcePreset | null;
+}
+
 const readVerbs = ["get", "list", "watch"] as const;
 
 function formatAccess(
@@ -89,7 +101,9 @@ function formatMatrixAccess(
   return `${verb} denied`;
 }
 
-export function OcpResourceExplorer() {
+export function OcpResourceExplorer({
+  navigationPreset = null
+}: OcpResourceExplorerProps) {
   const [discovery, setDiscovery] = useState<OcpApiResourcesResponse | null>(
     null
   );
@@ -193,6 +207,40 @@ export function OcpResourceExplorer() {
       )
       .slice(0, 200);
   }, [discovery, query]);
+
+  useEffect(() => {
+    if (!navigationPreset) {
+      return;
+    }
+
+    setQuery(navigationPreset.query);
+    setNamespace(navigationPreset.namespace ?? "");
+    if (navigationPreset.detailView) {
+      setDetailView(navigationPreset.detailView);
+    }
+
+    const preferred = new Set(
+      navigationPreset.preferredResources.map((resource) =>
+        resource.toLowerCase()
+      )
+    );
+    const preferredResource = discovery?.resources
+      .filter((resource) => resource.safeToList)
+      .find((resource) => {
+        const candidates = [
+          resourceKey(resource),
+          resource.name,
+          resource.kind,
+          ...resource.shortNames,
+          ...resource.categories
+        ].map((candidate) => candidate.toLowerCase());
+        return candidates.some((candidate) => preferred.has(candidate));
+      });
+
+    if (preferredResource) {
+      setSelectedKey(resourceKey(preferredResource));
+    }
+  }, [navigationPreset?.activationId, discovery]);
 
   async function loadSelectedResource(
     resource = selectedResource,
@@ -415,6 +463,7 @@ export function OcpResourceExplorer() {
               <Search size={15} aria-hidden="true" />
               <input
                 aria-label="Search API resources"
+                data-testid="ocp-resource-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="pods, routes, deployments..."

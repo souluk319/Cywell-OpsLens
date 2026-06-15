@@ -13473,6 +13473,323 @@ function getAiopsIncidentPipelineReadiness(): {
   }
 }
 
+function hasEnvValue(...keys: string[]) {
+  return keys.some((key) => Boolean(process.env[key]?.trim()));
+}
+
+function getOpsBrainSystemSummary(): OpsLensAdminOverviewResponse["opsBrain"] {
+  const ocpApiConfigured =
+    hasEnvValue("OCP_API_BASE_URL", "OPENSHIFT_API_BASE_URL", "KUBE_API_BASE_URL") &&
+    hasEnvValue("OCP_API_TOKEN", "OPENSHIFT_API_TOKEN", "KUBE_API_TOKEN");
+  const lightspeedConfigured =
+    hasEnvValue("OPENSHIFT_LIGHTSPEED_BASE_URL") &&
+    hasEnvValue("OPENSHIFT_LIGHTSPEED_API_TOKEN", "OPENSHIFT_LIGHTSPEED_TOKEN");
+  const localModelConfigured =
+    hasEnvValue("OLLAMA_BASE_URL") || hasEnvValue("VLLM_BASE_URL");
+  const litellmConfigured = hasEnvValue("LITELLM_BASE_URL", "LITELLM_API_KEY");
+  const memoryStoreConfigured =
+    hasEnvValue("DATABASE_URL", "POSTGRES_URL") ||
+    hasEnvValue("CYWELL_OPSLENS_QDRANT_URL", "QDRANT_URL");
+
+  return {
+    status: ocpApiConfigured ? "mvp-locked" : "needs-evidence",
+    productDefinition:
+      "Cywell OpsBrain is the no-fine-tuning growth loop inside OpsLens: live OCP read tools, reviewed operating memory, retrieval, evaluation, and approval gates.",
+    fineTuningRequired: false,
+    actionMode: "readOnly",
+    phases: [
+      {
+        id: "opsbrain-mvp",
+        label: "Read-only OCP tools + Markdown wiki + failure journal",
+        status: "mvp",
+        duration: "1-2 weeks",
+        acceptance: [
+          "oc get/describe/logs/events or API equivalents collect sanitized evidence",
+          "dangerous command execution count remains zero",
+          "20 golden questions have pass/fail grading"
+        ],
+        evidence: [
+          "OCP Resource Explorer already uses read-only API verbs",
+          "RAG intake is validate-only and approval queued",
+          "Assistant responses include evidence, missing evidence, risk, and rollback path"
+        ],
+        missingEvidence: [
+          ocpApiConfigured
+            ? "service-account RBAC proof still needs live evidence"
+            : "approved live OCP API token is missing or rejected",
+          "golden set has not reached 20 scored OpsBrain cases"
+        ]
+      },
+      {
+        id: "opsbrain-phase-1",
+        label: "Stateful orchestration + structured memory",
+        status: "planned",
+        duration: "1-2 weeks",
+        acceptance: [
+          "agent state resumes after restart",
+          "namespace scoping survives tool retries",
+          "tool success rate stays at or above 95%"
+        ],
+        evidence: ["current API contracts separate context sync, plan generation, and admin overview"],
+        missingEvidence: ["LangGraph/Postgres runtime is not part of MVP 0.1"]
+      },
+      {
+        id: "opsbrain-phase-2",
+        label: "Selective GraphRAG for relationship-heavy questions",
+        status: "planned",
+        duration: "2-3 weeks",
+        acceptance: [
+          "graph search improves selected multi-document questions over wiki baseline",
+          "global search is gated by cost and latency policy"
+        ],
+        evidence: ["current RAG corpus can be promoted into an entity taxonomy later"],
+        missingEvidence: ["GraphRAG parquet/Neo4j outputs are intentionally not required for MVP"]
+      },
+      {
+        id: "opsbrain-phase-3",
+        label: "Evaluator + nightly self-improver",
+        status: "planned",
+        duration: "1-2 weeks",
+        acceptance: [
+          "fixed eval set must not regress before release",
+          "instruction, retrieval, and policy candidates remain review-gated"
+        ],
+        evidence: ["completion gate and release evidence bundle already fail closed"],
+        missingEvidence: ["Ragas/OpenAI Evals/DSPy pipeline is not wired in MVP 0.1"]
+      },
+      {
+        id: "opsbrain-phase-4",
+        label: "OPA risk gate + approval workflow + observability",
+        status: "planned",
+        duration: "1-2 weeks",
+        acceptance: [
+          "unapproved SAFE_CHANGE and DANGEROUS_CHANGE actions are blocked",
+          "tool, retrieval, generation, approval, and evaluation spans are traceable"
+        ],
+        evidence: ["operator runtime boundary is validate-only unless explicit approval is present"],
+        missingEvidence: ["OPA/OpenTelemetry/OpenLIT runtime is future work"]
+      }
+    ],
+    memoryTiers: [
+      {
+        tier: "hot",
+        label: "Pinned operating memory",
+        contents: ["cluster profile", "customer policy", "forbidden actions", "current context"],
+        implementation: "context chips + system policy blocks",
+        writePolicy: "pinned",
+        status: "mvp",
+        evidence: ["context sync records cluster, namespace, selected tab, filters, RBAC scope"]
+      },
+      {
+        tier: "warm",
+        label: "Reviewed wiki and failure journal",
+        contents: ["incidents", "playbooks", "FAQ", "known issues", "risk rules"],
+        implementation: "Markdown wiki plus approval-queued RAG intake",
+        writePolicy: "reviewed",
+        status: "mvp",
+        evidence: ["RAG document validation and approval queue are exposed in OpsLens Admin"]
+      },
+      {
+        tier: "cold",
+        label: "Raw evidence and graph artifacts",
+        contents: ["long logs", "raw documents", "GraphRAG parquet", "trace exports"],
+        implementation: "ignored evidence files now, object store later",
+        writePolicy: "append-only",
+        status: "planned",
+        evidence: ["test-results and generated evidence are intentionally not committed"]
+      }
+    ],
+    growthLoop: [
+      {
+        step: 1,
+        label: "Collect live OCP evidence",
+        owner: "tool-layer",
+        currentImplementation: "read-only API explorer, console overview, coverage matrix",
+        nextImplementation: "dedicated ServiceAccount with least-privilege RBAC proof",
+        passFail: "PASS when live read succeeds without mutation"
+      },
+      {
+        step: 2,
+        label: "Compile operating memory",
+        owner: "retrieval",
+        currentImplementation: "validate-only RAG intake and approval queue",
+        nextImplementation: "incident and playbook Markdown templates compiled into searchable memory",
+        passFail: "PASS when every memory write has provenance and review status"
+      },
+      {
+        step: 3,
+        label: "Generate grounded plan",
+        owner: "retrieval",
+        currentImplementation: "plan-only Assistant response with citations and missing evidence",
+        nextImplementation: "tool-ordering and query routing tuned by golden cases",
+        passFail: "PASS when answer cites live evidence or explicitly names missing evidence"
+      },
+      {
+        step: 4,
+        label: "Evaluate and fail closed",
+        owner: "evaluator",
+        currentImplementation: "acceptance tests for UI/API/read-only contracts",
+        nextImplementation: "RAG faithfulness, tool accuracy, and safety regression suite",
+        passFail: "PASS when fixed eval set has no safety regression"
+      },
+      {
+        step: 5,
+        label: "Propose improvements without auto-mutation",
+        owner: "self-improver",
+        currentImplementation: "release action queue and owner packets",
+        nextImplementation: "nightly DSPy-style candidate updates behind review",
+        passFail: "PASS when generated policy/retrieval updates require human review"
+      },
+      {
+        step: 6,
+        label: "Gate risky commands",
+        owner: "risk-gate",
+        currentImplementation: "read-only and plan-only product boundary",
+        nextImplementation: "OPA/Rego plus approval queue for SAFE/DANGEROUS classes",
+        passFail: "PASS when unapproved delete/patch/scale/apply/admission actions are blocked"
+      }
+    ],
+    toolLayer: {
+      defaultMode: "readOnly",
+      allowedVerbs: ["get", "list", "watch", "describe", "logs", "events", "auth can-i"],
+      blockedVerbs: ["apply", "delete", "patch", "scale", "adm", "exec", "create"],
+      accessReview: [
+        "oc auth can-i list pods -A",
+        "oc auth can-i get pods --subresource=log -n <namespace>",
+        "SelfSubjectAccessReview before any privileged route"
+      ],
+      serviceAccountRecommended: true,
+      evidence: [
+        "OCP Resource Explorer disables unsafe resources in safe mode",
+        "OpsLens policy reports mutationAllowed=false"
+      ]
+    },
+    evaluator: {
+      goldenSetTarget: 20,
+      metrics: [
+        "groundedness",
+        "citation coverage",
+        "tool-call accuracy",
+        "missing-evidence honesty",
+        "dangerous-command block rate",
+        "rollback-path coverage"
+      ],
+      releaseGate:
+        "No OpsBrain improvement ships unless the fixed eval set and read-only safety checks pass.",
+      currentEvidence: [
+        "AC-UI-001",
+        "AC-CTX-001",
+        "AC-SAFE-001",
+        "AC-DASH-001",
+        "verify:completion"
+      ],
+      missingEvidence: [
+        "20 case golden set is still a planned artifact",
+        "Ragas/OpenAI Evals/custom tool evaluator is not wired in MVP 0.1"
+      ]
+    },
+    riskGate: {
+      commandClasses: [
+        {
+          className: "READ",
+          allowedWithoutApproval: true,
+          examples: ["oc get", "oc describe", "oc logs", "oc auth can-i"]
+        },
+        {
+          className: "SAFE_CHANGE",
+          allowedWithoutApproval: false,
+          examples: ["generate PR", "stage config proposal", "prepare OLSConfig patch preview"]
+        },
+        {
+          className: "DANGEROUS_CHANGE",
+          allowedWithoutApproval: false,
+          examples: ["oc delete", "oc patch", "oc scale", "oc adm", "registry push"]
+        }
+      ],
+      policyEngine: "local-rule-table",
+      mutationAllowed: false,
+      evidence: [
+        "MVP responses are read-only or plan-only",
+        "Operator runtime boundary keeps live mutations behind explicit approval"
+      ]
+    },
+    credentialRequirements: [
+      {
+        id: "ocp-read-api",
+        label: "OpenShift live read API",
+        requiredFor: "OCP Resource Explorer, live overview, coverage matrix, SSAR/RBAC checks",
+        keyNames: ["OCP_API_BASE_URL", "OCP_API_TOKEN"],
+        issuer: "OpenShift cluster admin or approved service-account token issuer",
+        configured: ocpApiConfigured,
+        secretValueExposed: false,
+        status: ocpApiConfigured ? "configured" : "missing",
+        note: "OPENSHIFT_API_TOKEN or KUBE_API_TOKEN can replace OCP_API_TOKEN; values must stay in local secret handling only."
+      },
+      {
+        id: "lightspeed-api",
+        label: "OpenShift Lightspeed integration",
+        requiredFor: "Lightspeed routing, MCP handoff, OLSConfig extension proof",
+        keyNames: ["OPENSHIFT_LIGHTSPEED_BASE_URL", "OPENSHIFT_LIGHTSPEED_API_TOKEN"],
+        issuer: "OpenShift Lightspeed administrator or platform owner",
+        configured: lightspeedConfigured,
+        secretValueExposed: false,
+        status: lightspeedConfigured ? "configured" : "missing",
+        note: "Required for live Lightspeed claims; not required for local plan-only Assistant."
+      },
+      {
+        id: "local-or-private-model",
+        label: "Local/private model runtime",
+        requiredFor: "offline or on-prem generation without external LLM transfer",
+        keyNames: ["OLLAMA_BASE_URL", "VLLM_BASE_URL"],
+        issuer: "runtime platform owner",
+        configured: localModelConfigured,
+        secretValueExposed: false,
+        status: localModelConfigured ? "configured" : "optional",
+        note: "Optional for MVP 0.1 because the current Assistant can run local plan fixtures."
+      },
+      {
+        id: "model-gateway",
+        label: "LiteLLM or external model gateway",
+        requiredFor: "provider routing, fallback, budget control, stronger diagnosis models",
+        keyNames: ["LITELLM_BASE_URL", "LITELLM_API_KEY"],
+        issuer: "AI platform owner or approved external provider owner",
+        configured: litellmConfigured,
+        secretValueExposed: false,
+        status: litellmConfigured ? "configured" : "optional",
+        note: "Do not add external provider keys until data-residency and budget policy are approved."
+      },
+      {
+        id: "memory-store",
+        label: "Structured memory/vector store",
+        requiredFor: "Postgres/pgvector, Qdrant, or future GraphRAG memory",
+        keyNames: ["DATABASE_URL", "POSTGRES_URL", "CYWELL_OPSLENS_QDRANT_URL"],
+        issuer: "data/platform owner",
+        configured: memoryStoreConfigured,
+        secretValueExposed: false,
+        status: memoryStoreConfigured ? "configured" : "optional",
+        note: "MVP keeps Markdown/RAG fixtures local; production memory needs a managed secret path."
+      }
+    ],
+    openQuestions: [
+      "final LLM provider and data-residency policy",
+      "production approval channel for SAFE_CHANGE and DANGEROUS_CHANGE",
+      "single-cluster versus multi-cluster tenant boundary",
+      "official secret-management backend",
+      "whether GraphRAG improves real customer incident questions enough to justify Phase 2 cost"
+    ],
+    evidence: [
+      "kugnus-idea/Cywell-OpsBrain/cywell-opsbrain.md",
+      "OpsBrain MVP is aligned to read-only OCP Tool Layer + Markdown wiki + failure journal + fixed eval set",
+      "Fine-tuning is explicitly not required for the growth loop"
+    ],
+    missingEvidence: [
+      "20 golden eval cases and scorer output",
+      "dedicated service-account RBAC manifest and live can-i proof",
+      "production memory store and secret backend decision"
+    ]
+  };
+}
+
 export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewResponse> {
   const documents = getOpsLensRagDocuments();
   const usedTokens = 784_200;
@@ -13584,6 +13901,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   return {
     generatedAt: new Date().toISOString(),
     source: "local-contract",
+    opsBrain: getOpsBrainSystemSummary(),
     lightspeed: getLightspeedToolSurface(),
     rag: {
       tenants: tenantRunbookDirs().length,

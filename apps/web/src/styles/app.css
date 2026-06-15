@@ -220,6 +220,14 @@ button {
   min-height: calc(100vh - 56px);
 }
 
+.console-frame.nav-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.console-frame.nav-collapsed .console-nav {
+  display: none;
+}
+
 .console-nav {
   display: grid;
   align-content: start;
@@ -241,6 +249,11 @@ button {
 
 .nav-section {
   display: grid;
+  gap: 4px;
+}
+
+.nav-group {
+  display: grid;
   gap: 2px;
 }
 
@@ -254,11 +267,26 @@ button {
 }
 
 .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
   padding: 8px 10px;
+  border: 0;
   border-radius: 4px;
+  background: transparent;
   color: #4f5255;
   font-size: 0.86rem;
   font-weight: 650;
+  text-align: left;
+}
+
+.nav-item:hover,
+.nav-item:focus-visible {
+  color: #151515;
+  background: #f0f0f0;
+  outline: 0;
 }
 
 .nav-item.active {
@@ -303,6 +331,30 @@ button {
   content: "/";
 }
 
+.navigation-command-bar {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 9px 11px;
+  border: 1px solid #d2d2d2;
+  border-left: 3px solid #009596;
+  border-radius: 6px;
+  background: #fff;
+  color: #4f5255;
+  font-size: 0.82rem;
+}
+
+.navigation-command-bar strong {
+  color: #151515;
+}
+
+.navigation-command-bar span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .section-heading {
   display: flex;
   align-items: flex-end;
@@ -336,6 +388,61 @@ button {
   color: #3c3c3c;
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.readiness-command-strip {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.7fr) minmax(260px, 1.4fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-block: 1px solid #d2d2d2;
+  background: #fff;
+}
+
+.readiness-command-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.readiness-command-main h2 {
+  margin: 0;
+  color: #151515;
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.readiness-command-metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.readiness-command-metrics span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #3c3c3c;
+  font-size: 0.78rem;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.readiness-jump {
+  justify-self: end;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .dashboard-grid {
@@ -561,6 +668,156 @@ button {
 
 .opslens-admin-dashboard {
   margin-top: 18px;
+}
+
+.opsbrain-console {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid #73c5c5;
+  border-left: 4px solid #009596;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.opsbrain-headline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.opsbrain-headline h3,
+.opsbrain-panel h4,
+.opsbrain-credential-panel h4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #151515;
+  font-size: 0.96rem;
+}
+
+.opsbrain-headline p,
+.opsbrain-panel p {
+  margin: 6px 0 0;
+  color: #4f5255;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.opsbrain-badges {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.opsbrain-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.2fr) repeat(3, minmax(220px, 0.8fr));
+  gap: 10px;
+}
+
+.opsbrain-panel,
+.opsbrain-credential-panel {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.opsbrain-panel .card-title-row,
+.opsbrain-credential-panel .card-title-row {
+  margin-bottom: 8px;
+}
+
+.opsbrain-panel .card-title-row > span,
+.opsbrain-credential-panel .card-title-row > span {
+  color: #6a6e73;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.opsbrain-step-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.opsbrain-step-list li,
+.opsbrain-risk-list div,
+.opsbrain-memory-list div,
+.opsbrain-credential-list div {
+  min-width: 0;
+}
+
+.opsbrain-step-list strong,
+.opsbrain-step-list span,
+.opsbrain-step-list small {
+  display: block;
+}
+
+.opsbrain-step-list strong,
+.opsbrain-risk-list strong,
+.opsbrain-memory-list strong,
+.opsbrain-credential-list strong {
+  color: #151515;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.opsbrain-step-list span,
+.opsbrain-step-list small,
+.opsbrain-risk-list span,
+.opsbrain-risk-list small,
+.opsbrain-memory-list small,
+.opsbrain-credential-list small {
+  color: #6a6e73;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.opsbrain-memory-list,
+.opsbrain-risk-list,
+.opsbrain-credential-list {
+  display: grid;
+  gap: 8px;
+}
+
+.opsbrain-memory-list div,
+.opsbrain-risk-list div,
+.opsbrain-credential-list div {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.opsbrain-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.opsbrain-chip-list span {
+  padding: 5px 7px;
+  border: 1px solid #bee1f4;
+  border-radius: 6px;
+  background: #f2f9fd;
+  color: #004b95;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.opsbrain-credential-list {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .admin-grid {
@@ -1516,6 +1773,13 @@ button {
   background: #e7f1fa;
 }
 
+.text-icon-button:disabled {
+  border-color: #d2d2d2;
+  color: #6a6e73;
+  background: #f0f0f0;
+  cursor: not-allowed;
+}
+
 .segmented-control {
   display: inline-grid;
   grid-auto-flow: column;
@@ -1895,6 +2159,10 @@ button {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .opsbrain-grid {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
+
   .resource-inspector-grid .console-panel:first-child {
     grid-row: auto;
   }
@@ -1921,6 +2189,14 @@ button {
   .mcp-admin-card,
   .readiness-admin-card {
     grid-column: span 1;
+  }
+
+  .readiness-command-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .readiness-jump {
+    justify-self: start;
   }
 
 }
@@ -1972,6 +2248,10 @@ button {
     gap: 4px;
   }
 
+  .nav-group {
+    display: contents;
+  }
+
   .nav-heading,
   .nav-perspective {
     display: none;
@@ -2004,6 +2284,8 @@ button {
   .change-row,
   .source-row,
   .two-column-list,
+  .opsbrain-grid,
+  .opsbrain-headline,
   .resource-query-controls,
   .route-usage-row,
   .metric-query-row,

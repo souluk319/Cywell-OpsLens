@@ -141,11 +141,71 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
   });
 
+  test("AC-UI-003 makes every console navigation item actionable", async ({
+    page
+  }) => {
+    const feedback = page.getByTestId("console-navigation-feedback");
+
+    await page.getByTestId("console-nav-logs").click();
+    await expect(feedback).toContainText("Logs");
+    await expect(page.getByTestId("log-viewport")).toBeVisible();
+
+    await page.getByTestId("console-nav-alerting").click();
+    await expect(feedback).toContainText("Alerting");
+    await expect(page.getByTestId("alert-evidence-table")).toBeVisible();
+
+    await page.getByTestId("console-nav-workloads").click();
+    await expect(feedback).toContainText("Workloads");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "deployments pods replicasets"
+    );
+
+    await page.getByTestId("console-nav-networking").click();
+    await expect(feedback).toContainText("Networking");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "routes services ingresses"
+    );
+
+    await page.getByTestId("console-nav-storage").click();
+    await expect(feedback).toContainText("Storage");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "persistentvolumeclaims persistentvolumes storageclasses"
+    );
+
+    await page.getByTestId("console-nav-overview").click();
+    await expect(feedback).toContainText("Overview");
+    await expect(
+      page.getByRole("heading", { name: "OpenShift Console Overview" })
+    ).toBeVisible();
+
+    await page.getByTestId("console-nav-metrics").click();
+    await expect(feedback).toContainText("Metrics");
+    await expect(page.getByTestId("opslens-incident-metrics")).toBeVisible();
+
+    await page.getByTestId("console-nav-administration").click();
+    await expect(feedback).toContainText("Administration");
+    await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
+
+    await page.getByTestId("console-nav-opslens-admin").click();
+    await expect(feedback).toContainText("OpsLens Admin");
+    await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
+
+    await page.getByTestId("console-nav-opsbrain").click();
+    await expect(feedback).toContainText("OpsBrain");
+    await expect(page.getByTestId("opslens-opsbrain-system")).toBeVisible();
+    await expect(page.getByTestId("opslens-opsbrain-system")).toContainText(
+      "No fine-tuning growth system"
+    );
+  });
+
   test("AC-CTX-001 renders context chips and publisher payload", async ({
     page
   }) => {
     await openAssistant(page);
     await expect(page.getByTestId("api-status")).toContainText("API ready");
+    await expect(page.getByTestId("assistant-connection-status")).toContainText(
+      "local plan-only"
+    );
     await expect(page.getByTestId("context-chips")).toContainText("Cluster");
     await expect(page.getByTestId("context-chips")).toContainText(
       "prod-ocp"
@@ -172,6 +232,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(parsed.resource?.name).toBe("version");
     expect(parsed.visibleRows?.length).toBeGreaterThanOrEqual(3);
     await expect(page.getByTestId("api-trace")).toContainText("plan-");
+
+    const planResponse = page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/actions/plan") &&
+        response.request().method() === "POST"
+    );
+    await page
+      .getByLabel("Ask from current context")
+      .fill("현재 화면 증거만 기반으로 다음 확인 계획을 다시 만들어줘.");
+    await page
+      .getByTestId("assistant-popover")
+      .getByRole("button", { name: "Ask" })
+      .click();
+    await planResponse;
+    await expect(page.getByTestId("api-trace")).toContainText(
+      "mock-local-search-mode/triage"
+    );
   });
 
   test("AC-ANS-001 answer contract includes evidence, citations, risk, and rollback", async ({
@@ -1171,9 +1248,45 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     page,
     request
   }) => {
+    test.slow();
+
+    await expect(page.getByTestId("opslens-readiness-command-strip")).toBeVisible();
+    await expect(page.getByTestId("opslens-readiness-command-strip")).toContainText(
+      "100% Readiness"
+    );
+    await expect(page.getByTestId("opslens-readiness-jump")).toHaveAttribute(
+      "href",
+      "#opslens-admin-title"
+    );
+    const readinessTop = await page
+      .getByTestId("opslens-readiness-command-strip")
+      .evaluate((node) => node.getBoundingClientRect().top);
+    expect(readinessTop).toBeLessThan(180);
+
     const response = await request.get("/api/opslens/admin/overview");
     expect(response.ok()).toBe(true);
     const body = (await response.json()) as {
+      opsBrain?: {
+        fineTuningRequired?: boolean;
+        actionMode?: string;
+        phases?: Array<{ id?: string; status?: string }>;
+        memoryTiers?: Array<{ tier?: string; writePolicy?: string }>;
+        credentialRequirements?: Array<{
+          id?: string;
+          keyNames?: string[];
+          configured?: boolean;
+          secretValueExposed?: boolean;
+          status?: string;
+        }>;
+        toolLayer?: {
+          defaultMode?: string;
+          allowedVerbs?: string[];
+          blockedVerbs?: string[];
+          serviceAccountRecommended?: boolean;
+        };
+        evaluator?: { goldenSetTarget?: number; metrics?: string[] };
+        riskGate?: { mutationAllowed?: boolean };
+      };
       rag?: {
         documents?: Array<{
           label?: string;
@@ -3896,6 +4009,49 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     for (const endpoint of configuredEndpointValuesForTest()) {
       expect(overviewPayload.includes(endpoint)).toBe(false);
     }
+    expect(body.opsBrain).toMatchObject({
+      fineTuningRequired: false,
+      actionMode: "readOnly",
+      toolLayer: {
+        defaultMode: "readOnly",
+        serviceAccountRecommended: true
+      },
+      riskGate: {
+        mutationAllowed: false
+      },
+      evaluator: {
+        goldenSetTarget: 20
+      }
+    });
+    expect(body.opsBrain?.phases?.some((phase) => phase.id === "opsbrain-mvp")).toBe(
+      true
+    );
+    expect(body.opsBrain?.memoryTiers?.map((tier) => tier.tier)).toEqual(
+      expect.arrayContaining(["hot", "warm", "cold"])
+    );
+    expect(body.opsBrain?.toolLayer?.blockedVerbs).toEqual(
+      expect.arrayContaining(["apply", "delete", "patch", "scale"])
+    );
+    expect(body.opsBrain?.credentialRequirements?.length).toBeGreaterThanOrEqual(4);
+    expect(
+      body.opsBrain?.credentialRequirements?.find(
+        (requirement) => requirement.id === "ocp-read-api"
+      )?.keyNames
+    ).toEqual(expect.arrayContaining(["OCP_API_BASE_URL", "OCP_API_TOKEN"]));
+    expect(
+      body.opsBrain?.credentialRequirements?.every(
+        (requirement) => requirement.secretValueExposed === false
+      )
+    ).toBe(true);
+    await expect(page.getByTestId("opslens-opsbrain-system")).toContainText(
+      "fineTuningRequired=false"
+    );
+    await expect(page.getByTestId("opslens-opsbrain-credentials")).toContainText(
+      "OCP_API_BASE_URL"
+    );
+    await expect(page.getByTestId("opslens-opsbrain-credentials")).toContainText(
+      "OPENSHIFT_LIGHTSPEED_API_TOKEN"
+    );
     expect(body.rag?.documents?.length).toBeGreaterThanOrEqual(3);
     expect(
       body.rag?.documents?.some(
