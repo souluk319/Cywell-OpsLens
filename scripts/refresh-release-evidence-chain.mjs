@@ -440,7 +440,12 @@ function actionQueueSummary(headSha) {
       status: "missing",
       ownerPacketCount: 0,
       ownerPacketsReady: false,
+      criticalPathCount: 0,
+      criticalPathReady: false,
       missingOwnerPackets: ["release action queue artifact is missing or unreadable"],
+      missingCriticalPathDiagnostics: ["release action queue artifact is missing or unreadable"],
+      missingCriticalPathTickets: ["release action queue artifact is missing or unreadable"],
+      unsafeCriticalPathTickets: ["release action queue artifact is missing or unreadable"],
       ownerPacketCleanup: {
         dir: "missing",
         expectedFiles: [],
@@ -452,6 +457,49 @@ function actionQueueSummary(headSha) {
   }
 
   const fresh = artifactHead(artifact) === headSha && artifactDirty(artifact) === false;
+  const ticketPackets = (entry) =>
+    [
+      entry.ticketPacket,
+      entry.externalRuntimeTicketPacket,
+      entry.externalRuntimeFinalEvidenceTicketPacket,
+      entry.externalRuntimeProductTicketPacket,
+      entry.securityReviewTicketPacket,
+      entry.releasePublishTicketPacket,
+      entry.installApprovalTicketPacket,
+      entry.catalogToolchainTicketPacket,
+      entry.certificationToolingTicketPacket,
+      entry.ragProductionTicketPacket,
+      entry.aiopsMonitoringTicketPacket,
+      entry.runtimeEvidenceTicketPacket
+    ].filter(Boolean);
+  const unsafeTicketBoundaries = (entry) =>
+    ticketPackets(entry).flatMap((ticket) => {
+      const reasons = [];
+      const firstReadOnly = ticket.firstReadOnlyAction;
+      const approvalGated = ticket.approvalGatedAction;
+      const boundary = ticket.mutationBoundary ?? {};
+      if (firstReadOnly?.mutation === true) reasons.push("first-read-only-mutates");
+      if (firstReadOnly?.requiresExplicitApproval === true) {
+        reasons.push("first-read-only-requires-approval");
+      }
+      if (boundary.clusterMutationAttempted === true) reasons.push("cluster-mutation-attempted");
+      if (boundary.registryMutationAttempted === true) reasons.push("registry-mutation-attempted");
+      if (boundary.mutationAllowedByThisVerifier === true) {
+        reasons.push("mutation-allowed-by-verifier");
+      }
+      if (boundary.vectorWriteAttempted === true) reasons.push("vector-write-attempted");
+      if (boundary.ingestionJobCreated === true) reasons.push("ingestion-job-created");
+      if (
+        approvalGated?.mutation === true &&
+        approvalGated.requiresExplicitApproval !== true
+      ) {
+        reasons.push("approval-mutation-without-explicit-approval");
+      }
+      return reasons.length > 0
+        ? [`${entry.lane ?? "unknown"}:${ticket.id ?? "unknown"}:${reasons.join("+")}`]
+        : [];
+    });
+  const criticalPath = artifact.criticalPath ?? [];
   const ownerPackets = (artifact.ownerPackets ?? []).map((packet) => {
     const markdownPath = packet.markdownPath ?? "missing";
     return {
@@ -487,8 +535,18 @@ function actionQueueSummary(headSha) {
   const mutatingOwnerPackets = ownerPackets
     .filter((packet) => packet.mutationAllowedByThisVerifier)
     .map((packet) => `${packet.owner} owner packet reports mutationAllowedByThisVerifier=true`);
-  const blockers = [
-    ...(fresh ? [] : [`release action queue is stale head=${artifactHead(artifact) ?? "missing"}`]),
+  const missingCriticalPathDiagnostics = criticalPath
+    .filter((entry) => (entry.diagnostics ?? []).length === 0)
+    .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks diagnostics`);
+  const missingCriticalPathTickets = criticalPath
+    .filter((entry) => ticketPackets(entry).length === 0)
+    .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks ticket packet`);
+  const unsafeCriticalPathTickets = criticalPath.flatMap(unsafeTicketBoundaries).map(sanitize);
+  const freshnessBlockers = fresh
+    ? []
+    : [`release action queue is stale head=${artifactHead(artifact) ?? "missing"}`];
+  const ownerPacketBlockers = [
+    ...freshnessBlockers,
     ...(ownerPackets.length > 0 ? [] : ["release action queue has no ownerPackets"]),
     ...(ownerPacketCleanup.deletionAllowed
       ? []
@@ -500,16 +558,32 @@ function actionQueueSummary(headSha) {
     ...missingOwnerPackets,
     ...mutatingOwnerPackets
   ];
+  const criticalPathBlockers = [
+    ...freshnessBlockers,
+    ...(criticalPath.length > 0 ? [] : ["release action queue has no criticalPath lanes"]),
+    ...missingCriticalPathDiagnostics,
+    ...missingCriticalPathTickets,
+    ...unsafeCriticalPathTickets
+  ];
+  const blockers = [...new Set([...ownerPacketBlockers, ...criticalPathBlockers])];
   if (blockers.length > 0) {
     fail("release action queue owner packets", blockers.join("; "));
   } else {
-    pass("release action queue owner packets", `${ownerPackets.length} owner packet(s) exist for head=${headSha}`);
+    pass(
+      "release action queue owner packets",
+      `${ownerPackets.length} owner packet(s) and ${criticalPath.length} critical path lane(s) are ready for head=${headSha}`
+    );
   }
   return {
     status: blockers.length > 0 ? "blocked" : "ready",
     ownerPacketCount: ownerPackets.length,
-    ownerPacketsReady: blockers.length === 0,
+    ownerPacketsReady: ownerPacketBlockers.length === 0,
+    criticalPathCount: criticalPath.length,
+    criticalPathReady: criticalPathBlockers.length === 0,
     missingOwnerPackets,
+    missingCriticalPathDiagnostics,
+    missingCriticalPathTickets,
+    unsafeCriticalPathTickets,
     ownerPacketCleanup,
     ownerPackets
   };

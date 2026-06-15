@@ -2524,7 +2524,12 @@ type ReleaseEvidenceRefreshArtifact = {
     status?: string;
     ownerPacketCount?: number;
     ownerPacketsReady?: boolean;
+    criticalPathCount?: number;
+    criticalPathReady?: boolean;
     missingOwnerPackets?: string[];
+    missingCriticalPathDiagnostics?: string[];
+    missingCriticalPathTickets?: string[];
+    unsafeCriticalPathTickets?: string[];
     ownerPacketCleanup?: {
       dir?: string;
       expectedFiles?: string[];
@@ -7871,7 +7876,12 @@ function missingReleaseEvidenceRefreshSummary(
       status: "missing",
       ownerPacketCount: 0,
       ownerPacketsReady: false,
+      criticalPathCount: 0,
+      criticalPathReady: false,
       missingOwnerPackets: [reason],
+      missingCriticalPathDiagnostics: [reason],
+      missingCriticalPathTickets: [reason],
+      unsafeCriticalPathTickets: [reason],
       ownerPacketCleanup: {
         dir: "missing",
         expectedFiles: [],
@@ -7934,7 +7944,15 @@ function getReleaseEvidenceRefreshReadiness(): {
       status: artifact.actionQueue?.status ?? "missing",
       ownerPacketCount: artifact.actionQueue?.ownerPacketCount ?? 0,
       ownerPacketsReady: artifact.actionQueue?.ownerPacketsReady === true,
+      criticalPathCount: artifact.actionQueue?.criticalPathCount ?? 0,
+      criticalPathReady: artifact.actionQueue?.criticalPathReady === true,
       missingOwnerPackets: artifact.actionQueue?.missingOwnerPackets ?? [],
+      missingCriticalPathDiagnostics:
+        artifact.actionQueue?.missingCriticalPathDiagnostics ?? [],
+      missingCriticalPathTickets:
+        artifact.actionQueue?.missingCriticalPathTickets ?? [],
+      unsafeCriticalPathTickets:
+        artifact.actionQueue?.unsafeCriticalPathTickets ?? [],
       ownerPacketCleanup: {
         dir: artifact.actionQueue?.ownerPacketCleanup?.dir ?? "missing",
         expectedFiles:
@@ -7990,6 +8008,7 @@ function getReleaseEvidenceRefreshReadiness(): {
         `release refresh generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `localDockerBuildAllowed=${String(artifact.localDockerBuildAllowed ?? false)} commandCount=${commands.length} artifactCount=${artifacts.length}`,
         `release refresh action queue owner packets ready=${String(actionQueue.ownerPacketsReady)} count=${actionQueue.ownerPacketCount}`,
+        `release refresh action queue critical path ready=${String(actionQueue.criticalPathReady)} count=${actionQueue.criticalPathCount}`,
         commandSummary ? `refresh commands=${commandSummary}` : "refresh command summary is not listed",
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads release refresh evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"

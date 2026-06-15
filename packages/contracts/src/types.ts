@@ -2243,7 +2243,12 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
     status: string;
     ownerPacketCount: number;
     ownerPacketsReady: boolean;
+    criticalPathCount: number;
+    criticalPathReady: boolean;
     missingOwnerPackets: string[];
+    missingCriticalPathDiagnostics: string[];
+    missingCriticalPathTickets: string[];
+    unsafeCriticalPathTickets: string[];
     ownerPacketCleanup: {
       dir: string;
       expectedFiles: string[];

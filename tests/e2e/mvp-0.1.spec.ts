@@ -2217,7 +2217,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             status?: string;
             ownerPacketCount?: number;
             ownerPacketsReady?: boolean;
+            criticalPathCount?: number;
+            criticalPathReady?: boolean;
             missingOwnerPackets?: string[];
+            missingCriticalPathDiagnostics?: string[];
+            missingCriticalPathTickets?: string[];
+            unsafeCriticalPathTickets?: string[];
             ownerPacketCleanup?: {
               dir?: string;
               expectedFiles?: string[];
@@ -4952,10 +4957,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.refresh?.actionQueue).toMatchObject({
       status: "ready",
       ownerPacketsReady: true,
+      criticalPathReady: true,
       ownerPacketCleanup: {
         deletionAllowed: true
       }
     });
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.criticalPathCount ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.missingCriticalPathDiagnostics
+    ).toEqual([]);
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.missingCriticalPathTickets
+    ).toEqual([]);
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.unsafeCriticalPathTickets
+    ).toEqual([]);
     expect(
       body.installReadiness?.refresh?.actionQueue?.ownerPacketCleanup?.expectedFiles
     ).toEqual(expect.arrayContaining(["cluster-admin.md", "release-manager.md"]));

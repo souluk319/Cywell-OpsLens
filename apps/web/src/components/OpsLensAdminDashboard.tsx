@@ -2417,6 +2417,36 @@ export function OpsLensAdminDashboard() {
                     count={releaseRefresh.actionQueue.ownerPacketCount}
                   </strong>
                 </div>
+                <div>
+                  <span>Critical Path</span>
+                  <strong>
+                    ready={String(releaseRefresh.actionQueue.criticalPathReady)},
+                    count={releaseRefresh.actionQueue.criticalPathCount}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-refresh-critical-path"
+              >
+                <span>
+                  missingDiagnostics=
+                  {releaseRefresh.actionQueue.missingCriticalPathDiagnostics.join(
+                    ", "
+                  ) || "none"}
+                </span>
+                <span>
+                  missingTickets=
+                  {releaseRefresh.actionQueue.missingCriticalPathTickets.join(
+                    ", "
+                  ) || "none"}
+                </span>
+                <span>
+                  unsafeTickets=
+                  {releaseRefresh.actionQueue.unsafeCriticalPathTickets.join(
+                    ", "
+                  ) || "none"}
+                </span>
               </div>
               <div
                 className="admin-evidence-line"
