@@ -5734,18 +5734,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "release-evidence-bundle",
         "roadmap-plan-final",
         "release-evidence-bundle-final",
-        "release-action-queue-final"
+        "release-action-queue-final",
+        "completion-gate-final"
       ])
     );
     expect(
       body.installReadiness?.refresh?.artifacts?.map((artifact) => artifact.id)
-    ).toEqual(expect.arrayContaining(["envContract"]));
+    ).toEqual(expect.arrayContaining(["envContract", "completionGate"]));
     expect(
       body.installReadiness?.refresh?.artifacts?.find(
         (artifact) => artifact.id === "envContract"
       )
     ).toMatchObject({
       status: "PASS",
+      fresh: true
+    });
+    expect(
+      body.installReadiness?.refresh?.artifacts?.find(
+        (artifact) => artifact.id === "completionGate"
+      )
+    ).toMatchObject({
       fresh: true
     });
     expect(
@@ -5881,6 +5889,51 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         }>;
       }>;
     };
+    const completionGate = JSON.parse(
+      readFileSync("test-results/cywell-opslens-completion-gate.json", "utf8")
+    ) as {
+      status?: string;
+      actionMode?: string;
+      readyToClaim100?: boolean;
+      mutationBoundaryPassed?: boolean;
+      clusterMutationAttempted?: boolean;
+      registryMutationAttempted?: boolean;
+      vectorWriteAttempted?: boolean;
+      mutationAllowedByThisVerifier?: boolean;
+      completion?: {
+        totalRequirements?: number;
+        passedRequirements?: number;
+        remainingRequirements?: number;
+        percentComplete?: number;
+        remainingExternalStateCount?: number;
+        remainingLocalOnlyCount?: number;
+        remainingExternalStateGateIds?: string[];
+        remainingLocalOnlyGateIds?: string[];
+      };
+      releaseEvidenceBundle?: {
+        status?: string;
+        bundleMatchesRoadmap?: boolean;
+        decision?: {
+          publishReady?: boolean;
+          installReady?: boolean;
+          roadmapComplete?: boolean;
+        };
+      };
+      actionQueue?: {
+        ready?: boolean;
+        criticalPathCount?: number;
+        unsafeTickets?: string[];
+      };
+      remainingTo100?: Array<{
+        gateId?: string;
+        externalStateRequired?: boolean;
+        evidenceRequired?: string[];
+      }>;
+      claimRequirements?: Array<{
+        id?: string;
+        passed?: boolean;
+      }>;
+    };
     const roadmapActionQueueSafety = roadmapPlan.stages
       ?.find((stage) => stage.id === "stage-5-redhat-gtm")
       ?.requirements?.find(
@@ -5941,6 +5994,65 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       roadmapPlan.completion?.passedRequirements ?? roadmapPassed.length;
     const roadmapRemainingRequirements =
       roadmapPlan.completion?.remainingRequirements ?? roadmapRemaining.length;
+    const expectedReadyToClaim100 =
+      roadmapRemainingRequirements === 0 &&
+      roadmapPercent === 100 &&
+      completionGate.releaseEvidenceBundle?.status === "APPROVAL_READY" &&
+      completionGate.releaseEvidenceBundle?.decision?.publishReady === true &&
+      completionGate.releaseEvidenceBundle?.decision?.installReady === true &&
+      completionGate.releaseEvidenceBundle?.decision?.roadmapComplete === true &&
+      completionGate.actionQueue?.criticalPathCount === 0 &&
+      completionGate.mutationBoundaryPassed === true;
+    expect(["PASS", "NEEDS_EVIDENCE"]).toContain(completionGate.status);
+    expect(completionGate).toMatchObject({
+      actionMode: "completionEvidenceOnly",
+      readyToClaim100: expectedReadyToClaim100,
+      mutationBoundaryPassed: true,
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      completion: {
+        totalRequirements: roadmapPlan.completion?.totalRequirements,
+        passedRequirements: roadmapPlan.completion?.passedRequirements,
+        remainingRequirements: roadmapPlan.completion?.remainingRequirements,
+        percentComplete: roadmapPlan.completion?.percentComplete,
+        remainingExternalStateCount:
+          roadmapPlan.completion?.remainingExternalStateCount,
+        remainingLocalOnlyCount: roadmapPlan.completion?.remainingLocalOnlyCount,
+        remainingExternalStateGateIds:
+          roadmapPlan.completion?.remainingExternalStateGateIds,
+        remainingLocalOnlyGateIds:
+          roadmapPlan.completion?.remainingLocalOnlyGateIds
+      },
+      releaseEvidenceBundle: {
+        bundleMatchesRoadmap: true
+      },
+      actionQueue: {
+        ready: true,
+        unsafeTickets: []
+      }
+    });
+    expect(completionGate.remainingTo100?.map((gate) => gate.gateId)).toEqual(
+      roadmapRemaining.map((entry) => entry.id)
+    );
+    expect(
+      completionGate.remainingTo100?.every(
+        (gate) =>
+          typeof gate.externalStateRequired === "boolean" &&
+          Array.isArray(gate.evidenceRequired) &&
+          gate.evidenceRequired.length > 0
+      )
+    ).toBe(true);
+    expect(
+      completionGate.claimRequirements?.find(
+        (requirement) => requirement.id === "roadmap-complete"
+      )?.passed
+    ).toBe(
+      roadmapPlan.status === "PASS" &&
+        roadmapRemainingRequirements === 0 &&
+        roadmapPercent === 100
+    );
     const roadmapRemainingHandoffs =
       body.installReadiness?.roadmapCompletion?.remainingHandoffs ?? [];
     const roadmapExternalStateHandoffs = roadmapRemainingHandoffs.filter(

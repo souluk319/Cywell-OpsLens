@@ -27,6 +27,7 @@ npm run verify:community-submission
 npm run verify:catalog-toolchain
 npm run verify:security-scan-plan
 npm run verify:release-refresh
+npm run verify:completion
 npm run evidence:release-action-queue
 npm run verify:ocp:connectivity
 npm run verify:runtime-rag
@@ -63,6 +64,8 @@ npm run verify:lightspeed:fixture
 `npm run verify:release-refresh` regenerates the release evidence chain in dependency order for the current Git HEAD, refreshes the approved CI runner draft intake without creating final approval evidence, then writes `test-results/cywell-opslens-release-evidence-refresh.json`. By default it runs local image build evidence, a plan-only security scan runner, and live read-only OCP/Lightspeed diagnostics; use `-- --skip-image-build` for a faster static refresh, `-- --skip-live` when the target cluster network is known to be unavailable, or `-- --security-scan-docker` when Docker scanner containers should generate local owned-image vulnerability/SBOM evidence during the refresh.
 
 `npm run verify:release-evidence-bundle` consolidates checkpoint, roadmap, release, install, live handoff, OCP network handoff, certification, Community Operator submission draft, catalog, image, provenance, external runtime, and security evidence into `test-results/cywell-opslens-release-evidence-bundle.json` plus `test-results/cywell-opslens-release-evidence-bundle.md`. The Markdown packet is for release-manager review only and keeps every external submission, push, mirror, sign, install, patch, apply, delete, and scale command approval-gated.
+
+`npm run verify:completion` reads the current roadmap plan alignment, release evidence bundle, and release action queue artifacts, then writes `test-results/cywell-opslens-completion-gate.json` plus Markdown. It is the single local evidence gate for "can we claim 100%": `readyToClaim100` becomes true only when roadmap completion is 100%, release/install/publish evidence is approval-ready, no external-state or local-only gates remain, the action queue has no critical-path blockers, and mutation flags stay false. `npm run verify:release-refresh` runs this as `completion-gate-final` after the final roadmap, bundle, and action queue refresh.
 
 `npm run evidence:release-action-queue` reads the refreshed checkpoint, release bundle, environment isolation contract, external runtime review packet, OCP network handoff, release publish plan, and install plan, then writes `test-results/cywell-opslens-release-action-queue.json` plus Markdown. It is an owner-scoped queue only: it assigns blocker/high evidence gaps to Network/SRE, Cluster SRE/Admin, Registry, Security, Product, and Release Manager roles without running push, mirror, sign, apply, delete, scale, or install commands; the `network-sre` packet carries the redacted OCP reachability ticket from the network handoff so the first blocker can be copied into an internal SRE ticket.
 
