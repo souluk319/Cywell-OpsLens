@@ -1642,6 +1642,21 @@ export function OpsLensAdminDashboard() {
                   ) || "none"}
                 </span>
                 <span>
+                  sources=
+                  {completionGate.claimPacket.sourceEvidenceChecklist
+                    .map(
+                      (source) =>
+                        `${source.id}:${source.fresh && source.acceptable && !source.mutationViolation ? "pass" : "needs-evidence"}`
+                    )
+                    .join(",") || "none"}
+                </span>
+                <span>
+                  failedSources=
+                  {completionGate.claimPacket.failedSourceEvidenceIds.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
                   criticalPath=
                   {completionGate.claimPacket.actionQueueCriticalPathCount}
                 </span>

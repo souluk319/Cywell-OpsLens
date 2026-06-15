@@ -3176,6 +3176,18 @@ type CompletionGateArtifact = {
     ownerCloseoutPacketPaths?: string[];
     claimRequirementIds?: string[];
     failedClaimRequirementIds?: string[];
+    sourceEvidenceChecklist?: Array<{
+      id?: string;
+      label?: string;
+      status?: string;
+      fresh?: boolean;
+      acceptable?: boolean;
+      mutationViolation?: boolean;
+      path?: string;
+      headSha?: string;
+      worktreeDirty?: boolean | string;
+    }>;
+    failedSourceEvidenceIds?: string[];
     releaseBundleStatus?: string;
     actionQueueCriticalPathCount?: number;
     mutationBoundaryPassed?: boolean;
@@ -10558,6 +10570,8 @@ function missingCompletionGateSummary(
       ownerCloseoutPacketPaths: [],
       claimRequirementIds: ["completion-gate-evidence"],
       failedClaimRequirementIds: ["completion-gate-evidence"],
+      sourceEvidenceChecklist: [],
+      failedSourceEvidenceIds: [],
       releaseBundleStatus: "missing",
       actionQueueCriticalPathCount: 0,
       mutationBoundaryPassed: false,
@@ -10729,6 +10743,24 @@ function getCompletionGateSummary(): OpsLensCompletionGateSummary {
         claimRequirementIds: artifact.claimPacket?.claimRequirementIds ?? [],
         failedClaimRequirementIds:
           artifact.claimPacket?.failedClaimRequirementIds ?? [],
+        sourceEvidenceChecklist: (
+          artifact.claimPacket?.sourceEvidenceChecklist ?? []
+        ).map((source) => ({
+          id: source.id ?? "unknown",
+          label: source.label ?? "unknown",
+          status: source.status ?? "unknown",
+          fresh: source.fresh === true,
+          acceptable: source.acceptable === true,
+          mutationViolation: source.mutationViolation === true,
+          path: source.path ?? "missing",
+          headSha: source.headSha ?? "missing",
+          worktreeDirty:
+            typeof source.worktreeDirty === "boolean"
+              ? source.worktreeDirty
+              : source.worktreeDirty ?? "unknown"
+        })),
+        failedSourceEvidenceIds:
+          artifact.claimPacket?.failedSourceEvidenceIds ?? [],
         releaseBundleStatus:
           artifact.claimPacket?.releaseBundleStatus ??
           artifact.releaseEvidenceBundle?.status ??

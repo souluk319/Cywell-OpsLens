@@ -3717,6 +3717,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             ownerCloseoutPacketPaths?: string[];
             claimRequirementIds?: string[];
             failedClaimRequirementIds?: string[];
+            sourceEvidenceChecklist?: Array<{
+              id?: string;
+              label?: string;
+              status?: string;
+              fresh?: boolean;
+              acceptable?: boolean;
+              mutationViolation?: boolean;
+              path?: string;
+              headSha?: string;
+              worktreeDirty?: boolean | string;
+            }>;
+            failedSourceEvidenceIds?: string[];
             releaseBundleStatus?: string;
             actionQueueCriticalPathCount?: number;
             mutationBoundaryPassed?: boolean;
@@ -6280,6 +6292,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         ownerCloseoutPacketPaths?: string[];
         claimRequirementIds?: string[];
         failedClaimRequirementIds?: string[];
+        sourceEvidenceChecklist?: Array<{
+          id?: string;
+          label?: string;
+          status?: string;
+          fresh?: boolean;
+          acceptable?: boolean;
+          mutationViolation?: boolean;
+          path?: string;
+          headSha?: string;
+          worktreeDirty?: boolean | string;
+        }>;
+        failedSourceEvidenceIds?: string[];
         releaseBundleStatus?: string;
         actionQueueCriticalPathCount?: number;
         mutationBoundaryPassed?: boolean;
@@ -6455,6 +6479,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         roadmapPlan.completion?.remainingExternalStateGateIds,
       remainingLocalOnlyGateIds:
         roadmapPlan.completion?.remainingLocalOnlyGateIds,
+      failedSourceEvidenceIds: [],
       releaseBundleStatus: completionGate.releaseEvidenceBundle?.status,
       actionQueueCriticalPathCount:
         completionGate.actionQueue?.criticalPathCount,
@@ -6481,12 +6506,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         ?.filter((requirement) => !requirement.passed)
         .map((requirement) => requirement.id)
     );
+    expect(
+      completionGate.claimPacket?.sourceEvidenceChecklist?.map(
+        (source) => source.id
+      )
+    ).toEqual(["roadmapPlan", "releaseEvidenceBundle", "releaseActionQueue"]);
+    expect(
+      completionGate.claimPacket?.sourceEvidenceChecklist?.every(
+        (source) =>
+          source.fresh === true &&
+          source.acceptable === true &&
+          source.mutationViolation === false &&
+          source.path &&
+          source.headSha === completionGate.ref?.headSha
+      )
+    ).toBe(true);
     const completionClaimPacketMarkdown = readFileSync(
       String(completionGate.claimPacket?.markdownPath),
       "utf8"
     );
     expect(completionClaimPacketMarkdown).toContain(
       "Cywell OpsLens 100% Claim Packet"
+    );
+    expect(completionClaimPacketMarkdown).toContain(
+      "Source Evidence Checklist"
     );
     expect(completionClaimPacketMarkdown).toContain(
       "does not approve install plans"
@@ -6613,6 +6656,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       claimRequirementIds: completionGate.claimPacket?.claimRequirementIds,
       failedClaimRequirementIds:
         completionGate.claimPacket?.failedClaimRequirementIds,
+      sourceEvidenceChecklist:
+        completionGate.claimPacket?.sourceEvidenceChecklist,
+      failedSourceEvidenceIds:
+        completionGate.claimPacket?.failedSourceEvidenceIds,
       releaseBundleStatus: completionGate.claimPacket?.releaseBundleStatus,
       actionQueueCriticalPathCount:
         completionGate.claimPacket?.actionQueueCriticalPathCount,
@@ -10708,6 +10755,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-completion-gate-claim-packet")
     ).toContainText("exists=true");
+    await expect(
+      page.getByTestId("opslens-completion-gate-claim-packet")
+    ).toContainText("sources=roadmapPlan:pass");
+    await expect(
+      page.getByTestId("opslens-completion-gate-claim-packet")
+    ).toContainText("failedSources=none");
     await expect(
       page.getByTestId("opslens-completion-gate-claim-packet")
     ).toContainText(

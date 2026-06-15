@@ -583,6 +583,15 @@ function completionClaimPacketMarkdown(artifact) {
     `- Action queue critical path: ${packet.actionQueueCriticalPathCount}`,
     `- Mutation boundary passed: ${String(packet.mutationBoundaryPassed)}`,
     "",
+    "## Source Evidence Checklist",
+    "",
+    ...(packet.sourceEvidenceChecklist.length
+      ? packet.sourceEvidenceChecklist.map(
+          (source) =>
+            `- ${source.id}: status=${source.status} fresh=${String(source.fresh)} acceptable=${String(source.acceptable)} mutationViolation=${String(source.mutationViolation)} path=${source.path}`
+        )
+      : ["- none"]),
+    "",
     "## Failed Claim Requirements",
     "",
     ...(packet.failedClaimRequirementIds.length
@@ -852,6 +861,17 @@ async function main() {
     }
   ];
   const readyToClaim100 = claimRequirements.every((item) => item.passed);
+  const sourceEvidenceChecklist = sources.map((source) => ({
+    id: source.id,
+    label: source.label,
+    status: source.status,
+    fresh: source.fresh,
+    acceptable: source.acceptable,
+    mutationViolation: source.mutationViolation,
+    path: source.path,
+    headSha: source.headSha,
+    worktreeDirty: source.worktreeDirty
+  }));
   const claimPacket = {
     owner: "release-manager",
     status: readyToClaim100 ? "ready" : "needs-evidence",
@@ -870,6 +890,15 @@ async function main() {
     failedClaimRequirementIds: claimRequirements
       .filter((item) => !item.passed)
       .map((item) => item.id),
+    sourceEvidenceChecklist,
+    failedSourceEvidenceIds: sourceEvidenceChecklist
+      .filter(
+        (source) =>
+          source.fresh !== true ||
+          source.acceptable !== true ||
+          source.mutationViolation === true
+      )
+      .map((source) => source.id),
     releaseBundleStatus: releaseBundle?.status ?? "missing",
     actionQueueCriticalPathCount: queueSafety.criticalPathCount,
     mutationBoundaryPassed,

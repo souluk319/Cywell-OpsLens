@@ -2592,6 +2592,18 @@ export interface OpsLensCompletionGateSummary {
     ownerCloseoutPacketPaths: string[];
     claimRequirementIds: string[];
     failedClaimRequirementIds: string[];
+    sourceEvidenceChecklist: Array<{
+      id: string;
+      label: string;
+      status: string;
+      fresh: boolean;
+      acceptable: boolean;
+      mutationViolation: boolean;
+      path: string;
+      headSha: string;
+      worktreeDirty: boolean | string;
+    }>;
+    failedSourceEvidenceIds: string[];
     releaseBundleStatus: string;
     actionQueueCriticalPathCount: number;
     mutationBoundaryPassed: boolean;
