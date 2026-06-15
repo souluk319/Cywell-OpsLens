@@ -3721,6 +3721,23 @@ function criticalPath(items) {
     .filter(Boolean);
 }
 
+function criticalPathTicketIds(entry) {
+  return uniqueStrings([
+    entry.ticketPacket?.id,
+    entry.externalRuntimeTicketPacket?.id,
+    entry.externalRuntimeFinalEvidenceTicketPacket?.id,
+    entry.externalRuntimeProductTicketPacket?.id,
+    entry.securityReviewTicketPacket?.id,
+    entry.releasePublishTicketPacket?.id,
+    entry.installApprovalTicketPacket?.id,
+    entry.catalogToolchainTicketPacket?.id,
+    entry.certificationToolingTicketPacket?.id,
+    entry.ragProductionTicketPacket?.id,
+    entry.aiopsMonitoringTicketPacket?.id,
+    entry.runtimeEvidenceTicketPacket?.id
+  ].filter(Boolean));
+}
+
 function buildOwnerPackets(owners, items) {
   return owners.map((owner) => {
     const entries = items.filter((entry) => entry.owner === owner.owner);
@@ -4383,6 +4400,20 @@ async function main() {
     pass(
       "release action queue diagnostics coverage",
       `${items.length} item(s) and ${releaseCriticalPath.length} critical path lane(s) carry diagnostics`
+    );
+  }
+  const criticalPathWithoutTickets = releaseCriticalPath
+    .filter((entry) => criticalPathTicketIds(entry).length === 0)
+    .map((entry) => entry.lane);
+  if (criticalPathWithoutTickets.length > 0) {
+    fail(
+      "release action queue ticket coverage",
+      `criticalPath=${criticalPathWithoutTickets.join(",")}`
+    );
+  } else {
+    pass(
+      "release action queue ticket coverage",
+      `${releaseCriticalPath.length} critical path lane(s) carry ticket packet(s)`
     );
   }
 

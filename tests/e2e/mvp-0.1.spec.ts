@@ -5063,6 +5063,25 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (entry) => (entry.diagnostics?.length ?? 0) > 0
       )
     ).toBe(true);
+    const criticalPathTicketIds =
+      body.installReadiness?.actionQueue?.criticalPath?.map((entry) =>
+        [
+          entry.ticketPacket?.id,
+          entry.externalRuntimeTicketPacket?.id,
+          entry.externalRuntimeFinalEvidenceTicketPacket?.id,
+          entry.externalRuntimeProductTicketPacket?.id,
+          entry.securityReviewTicketPacket?.id,
+          entry.releasePublishTicketPacket?.id,
+          entry.installApprovalTicketPacket?.id,
+          entry.catalogToolchainTicketPacket?.id,
+          entry.certificationToolingTicketPacket?.id,
+          entry.ragProductionTicketPacket?.id,
+          entry.aiopsMonitoringTicketPacket?.id,
+          entry.runtimeEvidenceTicketPacket?.id
+        ].filter(Boolean)
+      ) ?? [];
+    expect(criticalPathTicketIds.length).toBeGreaterThan(0);
+    expect(criticalPathTicketIds.every((ids) => ids.length > 0)).toBe(true);
     const runtimeLiveCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "runtime-live"
