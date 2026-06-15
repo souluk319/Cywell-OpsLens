@@ -8369,6 +8369,7 @@ function missingRoadmapCompletionSummary(
     remaining: [],
     criticalPathBlockerCount: 0,
     criticalPathBlockers: [],
+    remainingHandoffs: [],
     mutationBoundaryPassed: false,
     missingEvidence: [reason],
     risk: [
@@ -8425,7 +8426,8 @@ function getRoadmapCompletionSummary(
         ? "ready"
         : "needs-evidence";
     const mutationBoundaryPassed = true;
-    const criticalPathBlockers = (actionQueue?.criticalPath ?? []).map(
+    const criticalPathEntries = actionQueue?.criticalPath ?? [];
+    const criticalPathBlockers = criticalPathEntries.map(
       (entry) => ({
         lane: entry.lane,
         label: entry.label,
@@ -8438,6 +8440,48 @@ function getRoadmapCompletionSummary(
         blockedBy: entry.blockedBy
       })
     );
+    const gateToCriticalPath = new Map([
+      ["ocpConnectivity", ["live-ocp-lightspeed", "ocp-live-reader-rbac"]],
+      ["lightspeedReadiness", ["lightspeed-auth-rbac", "live-ocp-lightspeed"]],
+      ["installPlan", ["install-approval"]],
+      ["certificationReadiness", ["certification-toolchain"]],
+      [
+        "externalRuntime",
+        ["external-runtime-review", "external-runtime-final-evidence"]
+      ],
+      ["releasePublish", ["release-publish"]]
+    ]);
+    const fallbackBlocker =
+      criticalPathEntries.find((entry) => entry.priority === "blocker") ??
+      criticalPathEntries[0];
+    const remainingHandoffs = remaining.map((gate) => {
+      const preferredLanes = gateToCriticalPath.get(gate.id) ?? [];
+      const blocker =
+        criticalPathEntries.find((entry) =>
+          preferredLanes.includes(entry.lane)
+        ) ?? fallbackBlocker;
+      return {
+        stage: gate.stage,
+        gateId: gate.id,
+        status: gate.status,
+        owner: blocker?.owner ?? "release-manager",
+        priority: blocker?.priority ?? "high",
+        actionId: blocker?.actionId ?? "refresh-roadmap-evidence",
+        nextCommand: blocker?.nextCommand ?? "npm run verify:roadmap-plan",
+        evidenceNeeded:
+          blocker?.evidenceNeeded ??
+          `Refresh evidence for roadmap gate ${gate.stage}/${gate.id}.`,
+        externalStateRequired:
+          blocker
+            ? blocker.approvalGatedCommandIds.length > 0 ||
+              blocker.setupCommandIds.length > 0 ||
+              /<[^>]+>|approval|approved|install|submit|push|mirror|sign|apply|login/i.test(
+                `${blocker.nextCommand} ${blocker.evidenceNeeded} ${blocker.blockedBy.join(" ")}`
+              )
+            : true,
+        blockedBy: blocker?.blockedBy ?? []
+      };
+    });
 
     return {
       status,
@@ -8452,6 +8496,7 @@ function getRoadmapCompletionSummary(
       remaining,
       criticalPathBlockerCount: criticalPathBlockers.length,
       criticalPathBlockers,
+      remainingHandoffs,
       mutationBoundaryPassed,
       missingEvidence: artifact.missingEvidence ?? [],
       risk: artifact.risk ?? [],
@@ -8471,6 +8516,12 @@ function getRoadmapCompletionSummary(
               .map((item) => `${item.owner}/${item.actionId}`)
               .join(", ")}`
           : "critical path blockers=none",
+        remainingHandoffs.length
+          ? `remaining handoffs=${remainingHandoffs
+              .slice(0, 8)
+              .map((item) => `${item.gateId}->${item.owner}/${item.actionId}`)
+              .join(", ")}`
+          : "remaining handoffs=none",
         "roadmap completion reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
       ]
     };

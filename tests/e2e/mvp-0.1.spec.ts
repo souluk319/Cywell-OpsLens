@@ -3270,6 +3270,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             acceptance?: string[];
             blockedBy?: string[];
           }>;
+          remainingHandoffs?: Array<{
+            stage?: string;
+            gateId?: string;
+            status?: string;
+            owner?: string;
+            priority?: string;
+            actionId?: string;
+            nextCommand?: string;
+            evidenceNeeded?: string;
+            externalStateRequired?: boolean;
+            blockedBy?: string[];
+          }>;
           mutationBoundaryPassed?: boolean;
           missingEvidence?: string[];
           risk?: string[];
@@ -5310,6 +5322,34 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       roadmapRemaining
     );
     expect(
+      body.installReadiness?.roadmapCompletion?.remainingHandoffs?.length
+    ).toBe(roadmapRemaining.length);
+    expect(
+      body.installReadiness?.roadmapCompletion?.remainingHandoffs?.map(
+        (entry) => entry.gateId
+      )
+    ).toEqual(roadmapRemaining.map((entry) => entry.id));
+    expect(
+      body.installReadiness?.roadmapCompletion?.remainingHandoffs?.every(
+        (entry) =>
+          entry.owner &&
+          entry.actionId &&
+          entry.nextCommand &&
+          entry.evidenceNeeded &&
+          typeof entry.externalStateRequired === "boolean"
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.roadmapCompletion?.remainingHandoffs?.find(
+        (entry) => entry.gateId === "ocpConnectivity"
+      )
+    ).toMatchObject({
+      owner: "cluster-admin",
+      actionId: "cluster-admin-fix-ocp-auth-rbac",
+      nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+      externalStateRequired: true
+    });
+    expect(
       body.installReadiness?.roadmapCompletion?.criticalPathBlockers?.map(
         (entry) => entry.actionId
       )
@@ -5331,6 +5371,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.roadmapCompletion?.evidence?.join(" ")
     ).toContain("critical path blockers=");
+    expect(
+      body.installReadiness?.roadmapCompletion?.evidence?.join(" ")
+    ).toContain("remaining handoffs=");
     expect(
       body.installReadiness?.bundle?.commandCounts?.readOnly ?? 0
     ).toBeGreaterThan(0);
@@ -8941,6 +8984,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText(
       body.installReadiness?.roadmapCompletion?.remaining?.[0]?.id ?? "none"
     );
+    await expect(
+      page.getByTestId("opslens-roadmap-remaining-handoffs")
+    ).toContainText(
+      body.installReadiness?.roadmapCompletion?.remainingHandoffs?.[0]
+        ?.actionId ?? "none"
+    );
+    await expect(
+      page.getByTestId("opslens-roadmap-remaining-handoffs")
+    ).toContainText("external=");
     await expect(
       page.getByTestId("opslens-roadmap-critical-path-blockers")
     ).toContainText(

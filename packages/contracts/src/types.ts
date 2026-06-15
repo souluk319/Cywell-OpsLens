@@ -3328,6 +3328,18 @@ export interface OpsLensRoadmapCompletionSummary {
     acceptance: string[];
     blockedBy: string[];
   }>;
+  remainingHandoffs: Array<{
+    stage: string;
+    gateId: string;
+    status: string;
+    owner: string;
+    priority: string;
+    actionId: string;
+    nextCommand: string;
+    evidenceNeeded: string;
+    externalStateRequired: boolean;
+    blockedBy: string[];
+  }>;
   mutationBoundaryPassed: boolean;
   missingEvidence: string[];
   risk: string[];

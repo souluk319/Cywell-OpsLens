@@ -1531,6 +1531,21 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-roadmap-remaining-handoffs"
+              >
+                {roadmapCompletion.remainingHandoffs.slice(0, 8).map((entry) => (
+                  <span key={`${entry.stage}-${entry.gateId}-${entry.actionId}`}>
+                    {entry.gateId}:{entry.owner}:{entry.priority}:
+                    {entry.actionId}:next={entry.nextCommand}:external=
+                    {String(entry.externalStateRequired)}
+                  </span>
+                ))}
+                {roadmapCompletion.remainingHandoffs.length === 0 ? (
+                  <span>none</span>
+                ) : null}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-roadmap-critical-path-blockers"
               >
                 {roadmapCompletion.criticalPathBlockers
