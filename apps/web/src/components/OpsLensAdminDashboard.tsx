@@ -1584,8 +1584,16 @@ export function OpsLensAdminDashboard() {
               >
                 {completionGate.remainingTo100.slice(0, 8).map((gate) => (
                   <span key={`${gate.stage}-${gate.gateId}`}>
-                    {gate.gateId}:{gate.owner}:{gate.actionId}:external=
-                    {String(gate.externalStateRequired)}
+                    {gate.gateId}:{gate.lane}:{gate.owner}:{gate.priority}:
+                    {gate.actionId}:next={gate.nextCommand}:external=
+                    {String(gate.externalStateRequired)}:tickets=
+                    {gate.ticketIds.join(",") || "none"}:readOnly=
+                    {gate.readOnlyCommandIds.slice(0, 3).join(",") || "none"}
+                    :setup=
+                    {gate.setupCommandIds.slice(0, 3).join(",") || "none"}
+                    :approval=
+                    {gate.approvalGatedCommandIds.slice(0, 3).join(",") ||
+                      "none"}
                   </span>
                 ))}
                 {completionGate.remainingTo100.length === 0 ? (

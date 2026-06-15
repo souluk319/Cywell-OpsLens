@@ -3028,8 +3028,18 @@ type CompletionGateArtifact = {
     stage?: string;
     gateId?: string;
     status?: string;
+    lane?: string;
     owner?: string;
+    priority?: string;
     actionId?: string;
+    nextCommand?: string;
+    evidenceNeeded?: string;
+    ticketIds?: string[];
+    readOnlyCommandIds?: string[];
+    setupCommandIds?: string[];
+    approvalGatedCommandIds?: string[];
+    blockedBy?: string[];
+    acceptance?: string[];
     externalStateRequired?: boolean;
     evidenceRequired?: string[];
   }>;
@@ -10019,8 +10029,18 @@ function getCompletionGateSummary(): OpsLensCompletionGateSummary {
         stage: gate.stage ?? "unknown",
         gateId: gate.gateId ?? "unknown",
         status: gate.status ?? "unknown",
+        lane: gate.lane ?? "unknown",
         owner: gate.owner ?? "unknown",
+        priority: gate.priority ?? "high",
         actionId: gate.actionId ?? "unknown",
+        nextCommand: gate.nextCommand ?? "unknown",
+        evidenceNeeded: gate.evidenceNeeded ?? "unknown",
+        ticketIds: gate.ticketIds ?? [],
+        readOnlyCommandIds: gate.readOnlyCommandIds ?? [],
+        setupCommandIds: gate.setupCommandIds ?? [],
+        approvalGatedCommandIds: gate.approvalGatedCommandIds ?? [],
+        blockedBy: gate.blockedBy ?? [],
+        acceptance: gate.acceptance ?? [],
         externalStateRequired: gate.externalStateRequired !== false,
         evidenceRequired: gate.evidenceRequired ?? []
       })),

@@ -3567,8 +3567,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             stage?: string;
             gateId?: string;
             status?: string;
+            lane?: string;
             owner?: string;
+            priority?: string;
             actionId?: string;
+            nextCommand?: string;
+            evidenceNeeded?: string;
+            ticketIds?: string[];
+            readOnlyCommandIds?: string[];
+            setupCommandIds?: string[];
+            approvalGatedCommandIds?: string[];
+            blockedBy?: string[];
+            acceptance?: string[];
             externalStateRequired?: boolean;
             evidenceRequired?: string[];
           }>;
@@ -5948,6 +5958,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       status?: string;
       actionMode?: string;
       readyToClaim100?: boolean;
+      ref?: {
+        worktreeDirty?: boolean;
+      };
       mutationBoundaryPassed?: boolean;
       clusterMutationAttempted?: boolean;
       registryMutationAttempted?: boolean;
@@ -5979,6 +5992,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       };
       remainingTo100?: Array<{
         gateId?: string;
+        lane?: string;
+        owner?: string;
+        priority?: string;
+        actionId?: string;
+        nextCommand?: string;
+        ticketIds?: string[];
+        readOnlyCommandIds?: string[];
+        setupCommandIds?: string[];
+        approvalGatedCommandIds?: string[];
         externalStateRequired?: boolean;
         evidenceRequired?: string[];
       }>;
@@ -6092,6 +6114,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       completionGate.remainingTo100?.every(
         (gate) =>
+          gate.owner &&
+          gate.lane &&
+          gate.priority &&
+          gate.actionId &&
+          gate.nextCommand &&
+          Array.isArray(gate.ticketIds) &&
+          gate.ticketIds.length > 0 &&
+          Array.isArray(gate.readOnlyCommandIds) &&
+          Array.isArray(gate.setupCommandIds) &&
+          Array.isArray(gate.approvalGatedCommandIds) &&
           typeof gate.externalStateRequired === "boolean" &&
           Array.isArray(gate.evidenceRequired) &&
           gate.evidenceRequired.length > 0
@@ -6111,7 +6143,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       artifactStatus: completionGate.status,
       actionMode: "completionEvidenceOnly",
       readyToClaim100: completionGate.readyToClaim100,
-      worktreeDirty: false,
+      worktreeDirty: completionGate.ref?.worktreeDirty === true,
       totalRequirements: completionGate.completion?.totalRequirements,
       passedRequirements: completionGate.completion?.passedRequirements,
       remainingRequirements: completionGate.completion?.remainingRequirements,
@@ -6152,6 +6184,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (gate) => gate.gateId
       )
     ).toEqual(completionGate.remainingTo100?.map((gate) => gate.gateId));
+    expect(
+      body.installReadiness?.completionGate?.remainingTo100?.every(
+        (gate) =>
+          gate.owner &&
+          gate.lane &&
+          gate.actionId &&
+          gate.nextCommand &&
+          Array.isArray(gate.ticketIds) &&
+          gate.ticketIds.length > 0 &&
+          Array.isArray(gate.readOnlyCommandIds) &&
+          Array.isArray(gate.setupCommandIds) &&
+          Array.isArray(gate.approvalGatedCommandIds)
+      )
+    ).toBe(true);
     expect(
       body.installReadiness?.completionGate?.claimRequirements?.map(
         (requirement) => `${requirement.id}:${String(requirement.passed)}`
@@ -10128,6 +10174,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.completionGate?.remainingTo100?.[0]?.gateId ??
         "none"
     );
+    await expect(
+      page.getByTestId("opslens-completion-gate-remaining")
+    ).toContainText("tickets=");
+    await expect(
+      page.getByTestId("opslens-completion-gate-remaining")
+    ).toContainText("readOnly=");
+    await expect(
+      page.getByTestId("opslens-completion-gate-remaining")
+    ).toContainText("approval=");
     await expect(
       page.getByTestId("opslens-completion-gate-claim-requirements")
     ).toContainText("roadmap-complete=");

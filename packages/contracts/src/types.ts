@@ -2507,8 +2507,18 @@ export interface OpsLensCompletionGateSummary {
     stage: string;
     gateId: string;
     status: string;
+    lane: string;
     owner: string;
+    priority: string;
     actionId: string;
+    nextCommand: string;
+    evidenceNeeded: string;
+    ticketIds: string[];
+    readOnlyCommandIds: string[];
+    setupCommandIds: string[];
+    approvalGatedCommandIds: string[];
+    blockedBy: string[];
+    acceptance: string[];
     externalStateRequired: boolean;
     evidenceRequired: string[];
   }>;

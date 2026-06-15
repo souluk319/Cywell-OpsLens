@@ -338,18 +338,50 @@ function criticalPathHandoffs(actionQueue) {
   }));
 }
 
-function remainingTo100(completion) {
+const gateToCriticalPathLanes = new Map([
+  ["ocpConnectivity", ["live-ocp-lightspeed", "ocp-live-reader-rbac"]],
+  ["lightspeedReadiness", ["lightspeed-auth-rbac", "live-ocp-lightspeed"]],
+  ["installPlan", ["install-approval"]],
+  ["certificationReadiness", ["certification-toolchain"]],
+  ["externalRuntime", ["external-runtime-review", "external-runtime-final-evidence"]],
+  ["releasePublish", ["release-publish"]]
+]);
+
+function criticalPathForGate(actionQueue, gateId, closure) {
+  const criticalPath = actionQueue?.criticalPath ?? [];
+  const preferredLanes = gateToCriticalPathLanes.get(gateId) ?? [];
+  return (
+    criticalPath.find((entry) => preferredLanes.includes(entry.lane)) ??
+    criticalPath.find((entry) => entry.actionId === closure?.actionId) ??
+    criticalPath.find((entry) => entry.owner === closure?.owner) ??
+    criticalPath.find((entry) => entry.priority === "blocker") ??
+    criticalPath[0]
+  );
+}
+
+function remainingTo100(completion, actionQueue) {
   const closureByGate = new Map(
     completion.closure.map((item) => [item.gateId, item])
   );
   return completion.remaining.map((item) => {
     const closure = closureByGate.get(item.id) ?? {};
+    const criticalPath = criticalPathForGate(actionQueue, item.id, closure);
     return {
       stage: item.stage ?? "unknown",
       gateId: item.id ?? "unknown",
       status: item.status ?? "unknown",
-      owner: closure.owner ?? "unknown",
-      actionId: closure.actionId ?? "unknown",
+      lane: criticalPath?.lane ?? "unknown",
+      owner: criticalPath?.owner ?? closure.owner ?? "unknown",
+      priority: criticalPath?.priority ?? "high",
+      actionId: criticalPath?.actionId ?? closure.actionId ?? "unknown",
+      nextCommand: criticalPath?.nextCommand ?? "unknown",
+      evidenceNeeded: criticalPath?.evidenceNeeded ?? "unknown",
+      ticketIds: ticketIdsForCriticalPath(criticalPath),
+      readOnlyCommandIds: criticalPath?.readOnlyCommandIds ?? [],
+      setupCommandIds: criticalPath?.setupCommandIds ?? [],
+      approvalGatedCommandIds: criticalPath?.approvalGatedCommandIds ?? [],
+      blockedBy: criticalPath?.blockedBy ?? [],
+      acceptance: criticalPath?.acceptance ?? [],
       externalStateRequired: closure.externalStateRequired !== false,
       evidenceRequired:
         evidenceRequirements[item.id] ?? [
@@ -399,7 +431,9 @@ function buildMarkdown(artifact) {
     "",
     ...(artifact.remainingTo100.length
       ? artifact.remainingTo100.flatMap((gate) => [
-          `- ${gate.gateId}: ${gate.status}, owner=${gate.owner}, action=${gate.actionId}, external=${String(gate.externalStateRequired)}`,
+          `- ${gate.gateId}: ${gate.status}, lane=${gate.lane}, owner=${gate.owner}, action=${gate.actionId}, external=${String(gate.externalStateRequired)}`,
+          `  next=${gate.nextCommand}`,
+          `  tickets=${gate.ticketIds.join(", ") || "none"} readOnly=${gate.readOnlyCommandIds.join(", ") || "none"} setup=${gate.setupCommandIds.join(", ") || "none"} approval=${gate.approvalGatedCommandIds.join(", ") || "none"}`,
           `  evidence=${gate.evidenceRequired.join(" | ")}`
         ])
       : ["- none"]),
@@ -516,7 +550,7 @@ async function main() {
     queueSafety.noMutation;
 
   const decision = releaseBundle?.decision ?? {};
-  const remaining = remainingTo100(completion);
+  const remaining = remainingTo100(completion, actionQueue);
   const claimRequirements = [
     {
       id: "clean-current-head",
