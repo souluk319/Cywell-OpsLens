@@ -3806,6 +3806,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.aiops?.incidentPipeline?.evidence?.join(" ")).toMatch(
       /verify:aiops|AI Ops incident pipeline/i
     );
+    const aiopsEvidenceText = JSON.stringify(body.aiops?.incidentPipeline ?? {});
+    expect(aiopsEvidenceText).not.toMatch(
+      /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/
+    );
+    expect(aiopsEvidenceText).not.toMatch(
+      /\b(?:api|console|oauth)[A-Za-z0-9.-]*(?:ocp|openshift)[A-Za-z0-9.-]*\b/i
+    );
     expect([
       "ready",
       "needs-live-check",

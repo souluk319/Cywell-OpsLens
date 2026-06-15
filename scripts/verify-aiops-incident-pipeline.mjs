@@ -62,7 +62,39 @@ function sanitize(value) {
     .replace(/--token\s+\S+/gi, "--token <redacted>")
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
     .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>")
+    .replace(
+      /(https?:\/\/)(?:api|console|oauth)[^/\s"]*(?:ocp|openshift)[^/\s"]*/gi,
+      "$1<redacted-ocp-api>"
+    )
+    .replace(
+      /(https?:\/\/)(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})(:\d+)?/g,
+      "$1<redacted-private-ip>$2"
+    )
+    .replace(
+      /\b(?:api|console|oauth)[A-Za-z0-9.-]*(?:ocp|openshift)[A-Za-z0-9.-]*\b/gi,
+      "<redacted-ocp-api>"
+    )
+    .replace(
+      /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/g,
+      "<redacted-private-ip>"
+    )
     .replace(/demo-secret/gi, "<redacted>");
+}
+
+function endpointLeakLike(value) {
+  return /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/.test(value) ||
+    /\b(?:api|console|oauth)[A-Za-z0-9.-]*(?:ocp|openshift)[A-Za-z0-9.-]*\b/i.test(value);
+}
+
+function sanitizeArtifact(value) {
+  if (typeof value === "string") return sanitize(value);
+  if (Array.isArray(value)) return value.map((item) => sanitizeArtifact(item));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, sanitizeArtifact(nestedValue)])
+    );
+  }
+  return value;
 }
 
 function record(status, name, detail) {
@@ -884,9 +916,13 @@ async function main() {
     checks
   };
 
-  const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
+  const sanitizedArtifact = sanitizeArtifact(artifact);
+  const serialized = `${JSON.stringify(sanitizedArtifact, null, 2)}\n`;
   if (/demo-secret/i.test(serialized) || /Bearer\s+(?!<redacted>)[A-Za-z0-9._~+/=-]+/i.test(serialized)) {
     throw new Error("AI Ops incident evidence would include unredacted secret material");
+  }
+  if (endpointLeakLike(serialized)) {
+    throw new Error("AI Ops incident evidence would include an unredacted OCP endpoint or private IP");
   }
 
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
