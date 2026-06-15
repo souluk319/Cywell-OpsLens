@@ -3582,6 +3582,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             externalStateRequired?: boolean;
             evidenceRequired?: string[];
           }>;
+          ownerCloseoutPackets?: Array<{
+            owner?: string;
+            status?: string;
+            gateIds?: string[];
+            lanes?: string[];
+            ticketIds?: string[];
+            firstNextCommand?: string;
+            readOnlyCommandIds?: string[];
+            setupCommandIds?: string[];
+            approvalGatedCommandIds?: string[];
+            evidenceRequired?: string[];
+            externalStateRequired?: boolean;
+            approvalRequired?: boolean;
+            blockedBy?: string[];
+            acceptance?: string[];
+          }>;
           claimRequirements?: Array<{
             id?: string;
             passed?: boolean;
@@ -6004,6 +6020,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         externalStateRequired?: boolean;
         evidenceRequired?: string[];
       }>;
+      ownerCloseoutPackets?: Array<{
+        owner?: string;
+        gateIds?: string[];
+        ticketIds?: string[];
+        firstNextCommand?: string;
+        readOnlyCommandIds?: string[];
+        setupCommandIds?: string[];
+        approvalGatedCommandIds?: string[];
+        approvalRequired?: boolean;
+      }>;
       claimRequirements?: Array<{
         id?: string;
         passed?: boolean;
@@ -6130,6 +6156,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       )
     ).toBe(true);
     expect(
+      completionGate.ownerCloseoutPackets?.every(
+        (packet) =>
+          packet.owner &&
+          Array.isArray(packet.gateIds) &&
+          packet.gateIds.length > 0 &&
+          Array.isArray(packet.ticketIds) &&
+          packet.ticketIds.length > 0 &&
+          packet.firstNextCommand &&
+          Array.isArray(packet.readOnlyCommandIds) &&
+          Array.isArray(packet.setupCommandIds) &&
+          Array.isArray(packet.approvalGatedCommandIds) &&
+          typeof packet.approvalRequired === "boolean"
+      )
+    ).toBe(true);
+    expect(
       completionGate.claimRequirements?.find(
         (requirement) => requirement.id === "roadmap-complete"
       )?.passed
@@ -6196,6 +6237,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           Array.isArray(gate.readOnlyCommandIds) &&
           Array.isArray(gate.setupCommandIds) &&
           Array.isArray(gate.approvalGatedCommandIds)
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.completionGate?.ownerCloseoutPackets?.map(
+        (packet) => packet.owner
+      )
+    ).toEqual(completionGate.ownerCloseoutPackets?.map((packet) => packet.owner));
+    expect(
+      body.installReadiness?.completionGate?.ownerCloseoutPackets?.every(
+        (packet) =>
+          packet.owner &&
+          Array.isArray(packet.gateIds) &&
+          packet.gateIds.length > 0 &&
+          Array.isArray(packet.ticketIds) &&
+          packet.ticketIds.length > 0 &&
+          packet.firstNextCommand &&
+          Array.isArray(packet.readOnlyCommandIds) &&
+          Array.isArray(packet.setupCommandIds) &&
+          Array.isArray(packet.approvalGatedCommandIds) &&
+          typeof packet.approvalRequired === "boolean"
       )
     ).toBe(true);
     expect(
@@ -10186,6 +10247,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-completion-gate-claim-requirements")
     ).toContainText("roadmap-complete=");
+    await expect(
+      page.getByTestId("opslens-completion-gate-owner-closeout")
+    ).toContainText(
+      body.installReadiness?.completionGate?.ownerCloseoutPackets?.[0]?.owner ??
+        "none"
+    );
+    await expect(
+      page.getByTestId("opslens-completion-gate-owner-closeout")
+    ).toContainText("tickets=");
+    await expect(
+      page.getByTestId("opslens-completion-gate-owner-closeout")
+    ).toContainText("approvalRequired=");
     await expect(
       page.getByTestId("opslens-completion-gate-boundary")
     ).toContainText(

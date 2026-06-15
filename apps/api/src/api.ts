@@ -3043,6 +3043,22 @@ type CompletionGateArtifact = {
     externalStateRequired?: boolean;
     evidenceRequired?: string[];
   }>;
+  ownerCloseoutPackets?: Array<{
+    owner?: string;
+    status?: string;
+    gateIds?: string[];
+    lanes?: string[];
+    ticketIds?: string[];
+    firstNextCommand?: string;
+    readOnlyCommandIds?: string[];
+    setupCommandIds?: string[];
+    approvalGatedCommandIds?: string[];
+    evidenceRequired?: string[];
+    externalStateRequired?: boolean;
+    approvalRequired?: boolean;
+    blockedBy?: string[];
+    acceptance?: string[];
+  }>;
   claimRequirements?: Array<{
     id?: string;
     passed?: boolean;
@@ -9930,6 +9946,7 @@ function missingCompletionGateSummary(
       unsafeTickets: [reason]
     },
     remainingTo100: [],
+    ownerCloseoutPackets: [],
     claimRequirements: [
       {
         id: "completion-gate-evidence",
@@ -10044,6 +10061,24 @@ function getCompletionGateSummary(): OpsLensCompletionGateSummary {
         externalStateRequired: gate.externalStateRequired !== false,
         evidenceRequired: gate.evidenceRequired ?? []
       })),
+      ownerCloseoutPackets: (artifact.ownerCloseoutPackets ?? []).map(
+        (packet) => ({
+          owner: packet.owner ?? "unknown",
+          status: packet.status ?? "needs-evidence",
+          gateIds: packet.gateIds ?? [],
+          lanes: packet.lanes ?? [],
+          ticketIds: packet.ticketIds ?? [],
+          firstNextCommand: packet.firstNextCommand ?? "unknown",
+          readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
+          setupCommandIds: packet.setupCommandIds ?? [],
+          approvalGatedCommandIds: packet.approvalGatedCommandIds ?? [],
+          evidenceRequired: packet.evidenceRequired ?? [],
+          externalStateRequired: packet.externalStateRequired === true,
+          approvalRequired: packet.approvalRequired === true,
+          blockedBy: packet.blockedBy ?? [],
+          acceptance: packet.acceptance ?? []
+        })
+      ),
       claimRequirements: (artifact.claimRequirements ?? []).map((requirement) => ({
         id: requirement.id ?? "unknown",
         passed: requirement.passed === true,

@@ -1612,6 +1612,26 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-completion-gate-owner-closeout"
+              >
+                {completionGate.ownerCloseoutPackets.map((packet) => (
+                  <span key={packet.owner}>
+                    {packet.owner}:gates={packet.gateIds.join(",") || "none"}
+                    :tickets={packet.ticketIds.join(",") || "none"}:next=
+                    {packet.firstNextCommand}:approvalRequired=
+                    {String(packet.approvalRequired)}:readOnly=
+                    {packet.readOnlyCommandIds.slice(0, 3).join(",") ||
+                      "none"}
+                    :setup=
+                    {packet.setupCommandIds.slice(0, 3).join(",") || "none"}
+                    :approval=
+                    {packet.approvalGatedCommandIds.slice(0, 3).join(",") ||
+                      "none"}
+                  </span>
+                ))}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-completion-gate-boundary"
               >
                 <span>

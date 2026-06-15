@@ -391,6 +391,55 @@ function remainingTo100(completion, actionQueue) {
   });
 }
 
+function ownerCloseoutPackets(remaining) {
+  const byOwner = new Map();
+  for (const gate of remaining) {
+    const current = byOwner.get(gate.owner) ?? {
+      owner: gate.owner,
+      status: "needs-evidence",
+      gateIds: [],
+      lanes: [],
+      ticketIds: [],
+      firstNextCommand: gate.nextCommand,
+      readOnlyCommandIds: [],
+      setupCommandIds: [],
+      approvalGatedCommandIds: [],
+      evidenceRequired: [],
+      externalStateRequired: false,
+      approvalRequired: false,
+      blockedBy: [],
+      acceptance: []
+    };
+    current.gateIds.push(gate.gateId);
+    current.lanes.push(gate.lane);
+    current.ticketIds.push(...gate.ticketIds);
+    current.readOnlyCommandIds.push(...gate.readOnlyCommandIds);
+    current.setupCommandIds.push(...gate.setupCommandIds);
+    current.approvalGatedCommandIds.push(...gate.approvalGatedCommandIds);
+    current.evidenceRequired.push(...gate.evidenceRequired);
+    current.blockedBy.push(...gate.blockedBy);
+    current.acceptance.push(...gate.acceptance);
+    current.externalStateRequired =
+      current.externalStateRequired || gate.externalStateRequired === true;
+    current.approvalRequired =
+      current.approvalRequired || gate.approvalGatedCommandIds.length > 0;
+    byOwner.set(gate.owner, current);
+  }
+
+  return [...byOwner.values()].map((packet) => ({
+    ...packet,
+    gateIds: unique(packet.gateIds),
+    lanes: unique(packet.lanes),
+    ticketIds: unique(packet.ticketIds),
+    readOnlyCommandIds: unique(packet.readOnlyCommandIds),
+    setupCommandIds: unique(packet.setupCommandIds),
+    approvalGatedCommandIds: unique(packet.approvalGatedCommandIds),
+    evidenceRequired: unique(packet.evidenceRequired),
+    blockedBy: unique(packet.blockedBy),
+    acceptance: unique(packet.acceptance)
+  }));
+}
+
 function releaseDecisionReady(decision) {
   return (
     decision?.publishReady === true &&
@@ -435,6 +484,18 @@ function buildMarkdown(artifact) {
           `  next=${gate.nextCommand}`,
           `  tickets=${gate.ticketIds.join(", ") || "none"} readOnly=${gate.readOnlyCommandIds.join(", ") || "none"} setup=${gate.setupCommandIds.join(", ") || "none"} approval=${gate.approvalGatedCommandIds.join(", ") || "none"}`,
           `  evidence=${gate.evidenceRequired.join(" | ")}`
+        ])
+      : ["- none"]),
+    "",
+    "## Owner Closeout Packets",
+    "",
+    ...(artifact.ownerCloseoutPackets.length
+      ? artifact.ownerCloseoutPackets.flatMap((packet) => [
+          `- ${packet.owner}: gates=${packet.gateIds.join(", ") || "none"} tickets=${packet.ticketIds.join(", ") || "none"} approvalRequired=${String(packet.approvalRequired)}`,
+          `  firstNext=${packet.firstNextCommand}`,
+          `  readOnly=${packet.readOnlyCommandIds.join(", ") || "none"}`,
+          `  setup=${packet.setupCommandIds.join(", ") || "none"}`,
+          `  approval=${packet.approvalGatedCommandIds.join(", ") || "none"}`
         ])
       : ["- none"]),
     "",
@@ -551,6 +612,7 @@ async function main() {
 
   const decision = releaseBundle?.decision ?? {};
   const remaining = remainingTo100(completion, actionQueue);
+  const closeoutPackets = ownerCloseoutPackets(remaining);
   const claimRequirements = [
     {
       id: "clean-current-head",
@@ -669,6 +731,7 @@ async function main() {
     sources,
     claimRequirements,
     remainingTo100: remaining,
+    ownerCloseoutPackets: closeoutPackets,
     missingEvidence,
     blockers: internalBlockers,
     evidence: [

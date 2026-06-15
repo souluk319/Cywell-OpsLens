@@ -2522,6 +2522,22 @@ export interface OpsLensCompletionGateSummary {
     externalStateRequired: boolean;
     evidenceRequired: string[];
   }>;
+  ownerCloseoutPackets: Array<{
+    owner: string;
+    status: string;
+    gateIds: string[];
+    lanes: string[];
+    ticketIds: string[];
+    firstNextCommand: string;
+    readOnlyCommandIds: string[];
+    setupCommandIds: string[];
+    approvalGatedCommandIds: string[];
+    evidenceRequired: string[];
+    externalStateRequired: boolean;
+    approvalRequired: boolean;
+    blockedBy: string[];
+    acceptance: string[];
+  }>;
   claimRequirements: Array<{
     id: string;
     passed: boolean;
