@@ -2342,6 +2342,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstBlockedBy: string[];
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    firstExternalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     firstReleasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     firstInstallApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
@@ -2378,6 +2379,7 @@ export interface OpsLensReleaseActionQueueSummary {
     acceptance: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    externalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
@@ -2434,6 +2436,7 @@ export interface OpsLensReleaseActionQueueSummary {
     }>;
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    externalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
@@ -2842,6 +2845,45 @@ export interface OpsLensExternalRuntimeRegistryTicketPacket {
     pullSecretCreatedByVerifier: boolean;
     registryLoginExecutedByVerifier: boolean;
     firstHumanSetupAction: string;
+  };
+  risk: string;
+  rollbackPath: string;
+}
+
+export interface OpsLensExternalRuntimeProductTicketPacket {
+  id: string;
+  owner: "product-owner";
+  title: string;
+  severity: "high";
+  imageName: string;
+  sourceImage: string;
+  classification: string;
+  draftStatus: string;
+  evidenceState: string;
+  finalEvidenceExists: boolean;
+  missingEvidenceCount: number;
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  approvalGatedAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    productDecisionRequiresExplicitApproval: boolean;
   };
   risk: string;
   rollbackPath: string;

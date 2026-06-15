@@ -2643,6 +2643,11 @@ export function OpsLensAdminDashboard() {
                       :extFirst=
                       {entry.externalRuntimeTicketPacket?.firstReadOnlyAction.id ??
                         "none"}
+                      :productTicket=
+                      {entry.externalRuntimeProductTicketPacket?.id ?? "none"}
+                      :productFirst=
+                      {entry.externalRuntimeProductTicketPacket?.firstReadOnlyAction
+                        .id ?? "none"}
                       :certTicket=
                       {entry.certificationToolingTicketPacket?.id ?? "none"}
                       :certFirst=
@@ -2725,6 +2730,11 @@ export function OpsLensAdminDashboard() {
                     :extFirst=
                     {packet.firstExternalRuntimeTicketPacket?.firstReadOnlyAction
                       .id ?? "none"}
+                    :productTicket=
+                    {packet.firstExternalRuntimeProductTicketPacket?.id ?? "none"}
+                    :productFirst=
+                    {packet.firstExternalRuntimeProductTicketPacket
+                      ?.firstReadOnlyAction.id ?? "none"}
                     :certTicket=
                     {packet.firstCertificationToolingTicketPacket?.id ?? "none"}
                     :certFirst=

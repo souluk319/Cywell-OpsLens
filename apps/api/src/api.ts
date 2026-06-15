@@ -43,6 +43,7 @@ import type {
   OpsLensEvidenceCheckpointReadiness,
   OpsLensEvidenceCheckpointSummary,
   OpsLensExternalRuntimeImagesPlanSummary,
+  OpsLensExternalRuntimeProductTicketPacket,
   OpsLensExternalRuntimeReadiness,
   OpsLensExternalRuntimeRegistryTicketPacket,
   OpsLensExternalRuntimeReviewPacketReadiness,
@@ -2633,6 +2634,7 @@ type ReleaseActionQueueArtifact = {
     firstBlockedBy?: string[];
     firstTicketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     firstExternalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    firstExternalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     firstSecurityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     firstReleasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     firstInstallApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
@@ -2669,6 +2671,7 @@ type ReleaseActionQueueArtifact = {
     acceptance?: string[];
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    externalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
@@ -2725,6 +2728,7 @@ type ReleaseActionQueueArtifact = {
     }>;
     ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
     externalRuntimeTicketPacket?: OpsLensExternalRuntimeRegistryTicketPacket;
+    externalRuntimeProductTicketPacket?: OpsLensExternalRuntimeProductTicketPacket;
     securityReviewTicketPacket?: OpsLensSecurityReviewTicketPacket;
     releasePublishTicketPacket?: OpsLensReleasePublishTicketPacket;
     installApprovalTicketPacket?: OpsLensInstallApprovalTicketPacket;
@@ -8254,6 +8258,8 @@ function getReleaseActionQueueReadiness(): {
       firstBlockedBy: packet.firstBlockedBy ?? [],
       firstTicketPacket: packet.firstTicketPacket,
       firstExternalRuntimeTicketPacket: packet.firstExternalRuntimeTicketPacket,
+      firstExternalRuntimeProductTicketPacket:
+        packet.firstExternalRuntimeProductTicketPacket,
       firstSecurityReviewTicketPacket:
         packet.firstSecurityReviewTicketPacket,
       firstReleasePublishTicketPacket:
@@ -8304,6 +8310,8 @@ function getReleaseActionQueueReadiness(): {
       acceptance: entry.acceptance ?? [],
       ticketPacket: entry.ticketPacket,
       externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
+      externalRuntimeProductTicketPacket:
+        entry.externalRuntimeProductTicketPacket,
       securityReviewTicketPacket: entry.securityReviewTicketPacket,
       releasePublishTicketPacket: entry.releasePublishTicketPacket,
       installApprovalTicketPacket: entry.installApprovalTicketPacket,
@@ -8354,6 +8362,8 @@ function getReleaseActionQueueReadiness(): {
       })),
       ticketPacket: entry.ticketPacket,
       externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket,
+      externalRuntimeProductTicketPacket:
+        entry.externalRuntimeProductTicketPacket,
       securityReviewTicketPacket: entry.securityReviewTicketPacket,
       releasePublishTicketPacket: entry.releasePublishTicketPacket,
       installApprovalTicketPacket: entry.installApprovalTicketPacket,

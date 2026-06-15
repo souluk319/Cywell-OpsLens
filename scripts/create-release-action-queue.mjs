@@ -889,6 +889,7 @@ function item({
   diagnostics = [],
   ticketPacket,
   externalRuntimeTicketPacket,
+  externalRuntimeProductTicketPacket,
   securityReviewTicketPacket,
   releasePublishTicketPacket,
   installApprovalTicketPacket,
@@ -943,6 +944,9 @@ function item({
     ticketPacket: ticketPacket ? sanitizeTicketPacket(ticketPacket) : undefined,
     externalRuntimeTicketPacket: externalRuntimeTicketPacket
       ? sanitizeExternalRuntimeTicketPacket(externalRuntimeTicketPacket)
+      : undefined,
+    externalRuntimeProductTicketPacket: externalRuntimeProductTicketPacket
+      ? sanitizeExternalRuntimeProductTicketPacket(externalRuntimeProductTicketPacket)
       : undefined,
     securityReviewTicketPacket: securityReviewTicketPacket
       ? sanitizeSecurityReviewTicketPacket(securityReviewTicketPacket)
@@ -1085,6 +1089,55 @@ function sanitizeExternalRuntimeTicketPacket(packet = {}) {
     rollbackPath: sanitize(
       packet.rollbackPath ??
         "No rollback is required because this packet writes only local evidence."
+    )
+  };
+}
+
+function sanitizeExternalRuntimeProductTicketPacket(packet = {}) {
+  return {
+    id: sanitize(packet.id ?? "product-owner-external-runtime-license-ticket"),
+    owner: "product-owner",
+    title: sanitize(packet.title ?? "External runtime license/support review"),
+    severity: "high",
+    imageName: sanitize(packet.imageName ?? "unknown"),
+    sourceImage: sanitize(packet.sourceImage ?? "unknown"),
+    classification: sanitize(
+      packet.classification ?? "license-support-review-required"
+    ),
+    draftStatus: sanitize(packet.draftStatus ?? "missing"),
+    evidenceState: sanitize(packet.evidenceState ?? "missing"),
+    finalEvidenceExists: packet.finalEvidenceExists === true,
+    missingEvidenceCount: Number.isFinite(packet.missingEvidenceCount)
+      ? packet.missingEvidenceCount
+      : 0,
+    evidenceChecklist: (packet.evidenceChecklist ?? []).map(sanitize),
+    firstReadOnlyAction: sanitizeExternalRuntimeTicketAction(
+      packet.firstReadOnlyAction,
+      "external-runtime-product-review"
+    ),
+    approvalGatedAction: sanitizeExternalRuntimeTicketAction(
+      packet.approvalGatedAction,
+      "record-external-runtime-license-support-approval"
+    ),
+    nextCommands: (packet.nextCommands ?? []).map(sanitize),
+    blockedBy: (packet.blockedBy ?? []).map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      productDecisionRequiresExplicitApproval:
+        packet.mutationBoundary?.productDecisionRequiresExplicitApproval !== false
+    },
+    risk: sanitize(
+      packet.risk ??
+        "External runtime license/support approval blocks release until product owner evidence is explicit."
+    ),
+    rollbackPath: sanitize(
+      packet.rollbackPath ??
+        "If approval is rejected, keep final evidence unapproved and regenerate the draft without license approval."
     )
   };
 }
@@ -1966,6 +2019,87 @@ function checkpointItems(
   return items;
 }
 
+function externalRuntimeProductReviewCommand(imageName) {
+  return {
+    id: `external-runtime-${imageName}-product-review`,
+    phase: "external-runtime-review",
+    command: "npm run evidence:external-runtime:review-packet",
+    purpose:
+      `Regenerate the external runtime reviewer packet before ${imageName} license/support approval.`,
+    mutation: false,
+    writesLocalEvidence: true
+  };
+}
+
+function externalRuntimeProductReadOnlyCommands(commands, imageName, nextCommand) {
+  return uniqueByKey(
+    [
+      externalRuntimeProductReviewCommand(imageName),
+      ...externalRuntimeReadOnlyCommandsFor(commands, imageName, nextCommand)
+    ],
+    (command) => `${command.id ?? "unknown"}:${command.command ?? "unknown"}`
+  );
+}
+
+function externalRuntimeProductTicketPacket(image, request) {
+  const imageName = sanitize(image?.name ?? "unknown");
+  const reviewCommand = externalRuntimeProductReviewCommand(imageName);
+  const approvalNextCommand = request?.nextCommand ??
+    `npm run evidence:external-runtime:draft -- --name ${imageName} --license-status approved --license-evidence <license-review-ticket> --ticket <change-ticket> --force`;
+  return {
+    id: `product-owner-${imageName}-external-runtime-license-ticket`,
+    owner: "product-owner",
+    title: `External runtime license/support review for ${imageName}`,
+    severity: "high",
+    imageName,
+    sourceImage: image?.image ?? "unknown",
+    classification: "license-support-review-required",
+    draftStatus: image?.draftStatus ?? "missing",
+    evidenceState: image?.evidenceState ?? "missing",
+    finalEvidenceExists: image?.finalEvidence?.exists === true,
+    missingEvidenceCount: image?.missingEvidence?.length ?? 0,
+    evidenceChecklist: uniqueStrings([
+      request?.evidenceNeeded ?? "license/support review ticket",
+      `Review license/support boundary for ${imageName}.`,
+      "Confirm approval evidence is citeable and does not contain secrets.",
+      "Record final license approval only after explicit product-owner decision."
+    ]),
+    firstReadOnlyAction: {
+      id: reviewCommand.id,
+      status: "open",
+      nextCommand: reviewCommand.command,
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id: `record-${imageName}-license-support-approval`,
+      status: "approval-required",
+      nextCommand: approvalNextCommand,
+      mutation: false,
+      requiresExplicitApproval: true
+    },
+    nextCommands: uniqueStrings([
+      reviewCommand.command,
+      approvalNextCommand,
+      "npm run verify:external-runtime-plan"
+    ]),
+    blockedBy: uniqueStrings([
+      ...(image?.missingEvidence ?? []),
+      request?.evidenceNeeded ?? "license/support review ticket"
+    ]),
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      productDecisionRequiresExplicitApproval: true
+    },
+    risk:
+      `External runtime ${imageName} cannot be release-approved until license/support evidence is reviewed by product owner.`,
+    rollbackPath:
+      "If approval is rejected, keep final evidence unapproved and regenerate the draft without license approval."
+  };
+}
+
 function externalRuntimeItems(packet) {
   const readOnlyCommands = packet?.readOnlyCommands ?? [];
   const approvalGatedCommands = packet?.approvalGatedCommands ?? [];
@@ -1976,8 +2110,9 @@ function externalRuntimeItems(packet) {
       externalRuntimeReadOnlyCommandsFor(readOnlyCommands, image.name, nextCommand);
     const approvalFor = (role) =>
       externalRuntimeApprovalCommandsForRole(approvalGatedCommands, image.name, role);
-    const reviewerItems = (image.reviewerRequests ?? []).map((request, index) =>
-      item({
+    const reviewerItems = (image.reviewerRequests ?? []).map((request, index) => {
+      const productOwnerReview = request.role === "product-owner";
+      return item({
         id: `external-runtime-${image.name}-${request.role ?? "reviewer"}-${index + 1}`,
         owner: request.role ?? "release-manager",
         priority: image.name === "vllm" && /source digest/i.test(request.request ?? "")
@@ -1988,17 +2123,26 @@ function externalRuntimeItems(packet) {
         evidenceNeeded: request.evidenceNeeded ?? `${image.name} reviewer evidence`,
         nextCommand:
           request.nextCommand ?? "npm run evidence:external-runtime:review-packet",
-        readOnlyCommands: readOnlyFor(request.nextCommand ?? ""),
+        readOnlyCommands: productOwnerReview
+          ? externalRuntimeProductReadOnlyCommands(
+              readOnlyCommands,
+              image.name,
+              request.nextCommand ?? ""
+            )
+          : readOnlyFor(request.nextCommand ?? ""),
         approvalGatedCommands: approvalFor(request.role ?? ""),
         externalRuntimeTicketPacket:
           request.role === "registry-admin"
             ? externalRuntimeTicketFor(image.name)
             : undefined,
+        externalRuntimeProductTicketPacket: productOwnerReview
+          ? externalRuntimeProductTicketPacket(image, request)
+          : undefined,
         blockedBy: image.missingEvidence ?? [],
         diagnostics: externalRuntimeReviewerDiagnostics(image, request),
         acceptance: ["AC-CERT-001"]
-      })
-    );
+      });
+    });
     const candidate = image.candidateMatrix;
     const candidateStatus = candidate?.status ?? "missing";
     const candidateReady = ["candidate-ready-for-review", "current-evidence-release-eligible"].includes(candidateStatus);
@@ -3413,6 +3557,11 @@ function criticalPath(items) {
         externalRuntimeTicketPacket: entry.externalRuntimeTicketPacket
           ? sanitizeExternalRuntimeTicketPacket(entry.externalRuntimeTicketPacket)
           : undefined,
+        externalRuntimeProductTicketPacket: entry.externalRuntimeProductTicketPacket
+          ? sanitizeExternalRuntimeProductTicketPacket(
+              entry.externalRuntimeProductTicketPacket
+            )
+          : undefined,
         securityReviewTicketPacket: entry.securityReviewTicketPacket
           ? sanitizeSecurityReviewTicketPacket(entry.securityReviewTicketPacket)
           : undefined,
@@ -3450,6 +3599,9 @@ function buildOwnerPackets(owners, items) {
     const firstExternalRuntimeTicketPacket = entries.find(
       (entry) => entry.externalRuntimeTicketPacket
     )?.externalRuntimeTicketPacket;
+    const firstExternalRuntimeProductTicketPacket = entries.find(
+      (entry) => entry.externalRuntimeProductTicketPacket
+    )?.externalRuntimeProductTicketPacket;
     const firstSecurityReviewTicketPacket = entries.find(
       (entry) => entry.securityReviewTicketPacket
     )?.securityReviewTicketPacket;
@@ -3492,6 +3644,7 @@ function buildOwnerPackets(owners, items) {
       firstBlockedBy: uniqueStrings(firstAction?.blockedBy ?? []).slice(0, 6),
       firstTicketPacket,
       firstExternalRuntimeTicketPacket,
+      firstExternalRuntimeProductTicketPacket,
       firstSecurityReviewTicketPacket,
       firstReleasePublishTicketPacket,
       firstInstallApprovalTicketPacket,
@@ -3579,7 +3732,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, runtimeTicket=${entry.runtimeEvidenceTicketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}, ragTicket=${entry.ragProductionTicketPacket?.id ?? "none"}, aiopsTicket=${entry.aiopsMonitoringTicketPacket?.id ?? "none"}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, runtimeTicket=${entry.runtimeEvidenceTicketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, productTicket=${entry.externalRuntimeProductTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}, ragTicket=${entry.ragProductionTicketPacket?.id ?? "none"}, aiopsTicket=${entry.aiopsMonitoringTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",
@@ -3591,7 +3744,7 @@ function markdownFor(queue) {
     "## Owner Packets",
     "",
     ...queue.ownerPackets.map((packet) =>
-      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, runtimeTicket=${packet.firstRuntimeEvidenceTicketPacket?.id ?? "none"}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}, ragTicket=${packet.firstRagProductionTicketPacket?.id ?? "none"}, aiopsTicket=${packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}`
+      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, runtimeTicket=${packet.firstRuntimeEvidenceTicketPacket?.id ?? "none"}, productTicket=${packet.firstExternalRuntimeProductTicketPacket?.id ?? "none"}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}, ragTicket=${packet.firstRagProductionTicketPacket?.id ?? "none"}, aiopsTicket=${packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Packet Cleanup",
@@ -3730,6 +3883,23 @@ function ownerPacketMarkdown(queue, packet) {
           `- First read-only command: ${packet.firstExternalRuntimeTicketPacket.firstReadOnlyAction.nextCommand}`,
           `- Approval-gated action: ${packet.firstExternalRuntimeTicketPacket.approvalGatedAction.id}`,
           `- Approval required: ${String(packet.firstExternalRuntimeTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          ""
+        ]
+      : []),
+    ...(packet.firstExternalRuntimeProductTicketPacket
+      ? [
+          "## External Runtime Product Ticket Packet",
+          "",
+          `- ID: ${packet.firstExternalRuntimeProductTicketPacket.id}`,
+          `- Title: ${packet.firstExternalRuntimeProductTicketPacket.title}`,
+          `- Severity: ${packet.firstExternalRuntimeProductTicketPacket.severity}`,
+          `- Image: ${packet.firstExternalRuntimeProductTicketPacket.sourceImage}`,
+          `- Classification: ${packet.firstExternalRuntimeProductTicketPacket.classification}`,
+          `- First read-only action: ${packet.firstExternalRuntimeProductTicketPacket.firstReadOnlyAction.id}`,
+          `- First read-only command: ${packet.firstExternalRuntimeProductTicketPacket.firstReadOnlyAction.nextCommand}`,
+          `- Approval-gated action: ${packet.firstExternalRuntimeProductTicketPacket.approvalGatedAction.id}`,
+          `- Approval required: ${String(packet.firstExternalRuntimeProductTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          `- Product decision requires approval: ${String(packet.firstExternalRuntimeProductTicketPacket.mutationBoundary.productDecisionRequiresExplicitApproval)}`,
           ""
         ]
       : []),
@@ -3918,6 +4088,7 @@ function ownerPacketMarkdown(queue, packet) {
       `- Next command: ${entry.nextCommand}`,
       `- Ticket: ${entry.ticketPacket?.id ?? "none"}`,
       `- External runtime ticket: ${entry.externalRuntimeTicketPacket?.id ?? "none"}`,
+      `- External runtime product ticket: ${entry.externalRuntimeProductTicketPacket?.id ?? "none"}`,
       `- Security review ticket: ${entry.securityReviewTicketPacket?.id ?? "none"}`,
       `- Release publish ticket: ${entry.releasePublishTicketPacket?.id ?? "none"}`,
       `- Install approval ticket: ${entry.installApprovalTicketPacket?.id ?? "none"}`,

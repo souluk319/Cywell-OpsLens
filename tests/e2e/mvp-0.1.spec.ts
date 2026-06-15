@@ -2340,6 +2340,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 firstHumanSetupAction?: string;
               };
             };
+            firstExternalRuntimeProductTicketPacket?: {
+              id?: string;
+              severity?: string;
+              classification?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                productDecisionRequiresExplicitApproval?: boolean;
+              };
+            };
             firstSecurityReviewTicketPacket?: {
               id?: string;
               severity?: string;
@@ -2515,6 +2536,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 pullSecretCreatedByVerifier?: boolean;
                 registryLoginExecutedByVerifier?: boolean;
                 firstHumanSetupAction?: string;
+              };
+            };
+            externalRuntimeProductTicketPacket?: {
+              id?: string;
+              severity?: string;
+              classification?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                productDecisionRequiresExplicitApproval?: boolean;
               };
             };
             securityReviewTicketPacket?: {
@@ -2741,6 +2783,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 pullSecretCreatedByVerifier?: boolean;
                 registryLoginExecutedByVerifier?: boolean;
                 firstHumanSetupAction?: string;
+              };
+            };
+            externalRuntimeProductTicketPacket?: {
+              id?: string;
+              severity?: string;
+              classification?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                productDecisionRequiresExplicitApproval?: boolean;
               };
             };
             securityReviewTicketPacket?: {
@@ -5496,8 +5559,32 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(externalRuntimeLicenseCriticalPath?.nextCommand).toContain(
       "--license-status approved"
     );
+    expect(
+      externalRuntimeLicenseCriticalPath?.externalRuntimeProductTicketPacket
+    ).toMatchObject({
+      id: "product-owner-vllm-external-runtime-license-ticket",
+      severity: "high",
+      classification: "license-support-review-required",
+      firstReadOnlyAction: {
+        id: "external-runtime-vllm-product-review",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id: "record-vllm-license-support-approval",
+        mutation: false,
+        requiresExplicitApproval: true
+      },
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        productDecisionRequiresExplicitApproval: true
+      }
+    });
     expect(externalRuntimeLicenseCriticalPath?.readOnlyCommandIds).toEqual(
       expect.arrayContaining([
+        "external-runtime-vllm-product-review",
         "refresh-external-runtime-drafts",
         "verify-external-runtime-plan"
       ])
@@ -7969,6 +8056,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("--license-status approved");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText(
+      "productTicket=product-owner-vllm-external-runtime-license-ticket"
+    );
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("productFirst=external-runtime-vllm-product-review");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("catalog-registry-auth");
