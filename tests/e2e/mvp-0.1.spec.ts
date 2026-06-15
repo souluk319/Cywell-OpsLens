@@ -1875,6 +1875,28 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               missingEvidence?: string[];
               nextCommands?: string[];
             };
+            runnerEvidenceAction?: {
+              id?: string;
+              owner?: string;
+              status?: string;
+              path?: string;
+              finalEvidencePath?: string;
+              nextCommand?: string;
+              draftCommand?: string;
+              promotionCommand?: string;
+              verificationCommand?: string;
+              evidenceNeeded?: string[];
+              blockedBy?: string[];
+              missingRequiredTools?: string[];
+              mutationAllowed?: boolean;
+              writesLocalEvidence?: boolean;
+              requiresReviewedInput?: boolean;
+              clusterMutationAttempted?: boolean;
+              registryMutationAttempted?: boolean;
+              mutationAllowedByThisVerifier?: boolean;
+              toolingInstallRequiresHumanApproval?: boolean;
+              externalSubmissionRequiresExplicitApproval?: boolean;
+            };
             ticketPacket?: {
               id?: string;
               owner?: string;
@@ -4773,6 +4795,36 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.certificationPlan?.toolingHandoff
         ?.runnerEvidence?.nextCommands?.join(" ")
     ).toContain("evidence:certification:ci-runner:promote");
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.runnerEvidenceAction
+    ).toMatchObject({
+      id: "certification-ci-runner-evidence-handoff",
+      owner: "release-manager",
+      path: "docs/release/evidence/certification/approved-ci-runner.json",
+      finalEvidencePath:
+        "docs/release/evidence/certification/approved-ci-runner.json",
+      mutationAllowed: false,
+      writesLocalEvidence: true,
+      requiresReviewedInput: true,
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      toolingInstallRequiresHumanApproval: true,
+      externalSubmissionRequiresExplicitApproval: true
+    });
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.runnerEvidenceAction?.draftCommand
+    ).toContain("evidence:certification:ci-runner-draft");
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.runnerEvidenceAction?.promotionCommand
+    ).toContain("evidence:certification:ci-runner:promote");
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.runnerEvidenceAction?.verificationCommand
+    ).toContain("verify:certification -- --ci-runner-evidence");
     expect(
       body.installReadiness?.certificationPlan?.toolingHandoff?.ticketPacket
     ).toMatchObject({
@@ -8716,6 +8768,33 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-certification-ci-runner")
     ).toContainText("operator-sdk:");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-action")
+    ).toContainText("certification-ci-runner-evidence-handoff");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-action")
+    ).toContainText("owner=release-manager");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-action")
+    ).toContainText("approved-ci-runner.json");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-action")
+    ).toContainText("evidence:certification:ci-runner-draft");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-action")
+    ).toContainText("evidence:certification:ci-runner:promote");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-action")
+    ).toContainText("verify:certification -- --ci-runner-evidence");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-action")
+    ).toContainText("writesLocalEvidence=true");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-action")
+    ).toContainText("reviewedInput=true");
+    await expect(
+      page.getByTestId("opslens-certification-ci-runner-action")
+    ).toContainText("mutationAllowed=false");
     await expect(
       page.getByTestId("opslens-certification-ci-runner-draft")
     ).toContainText("approved-ci-runner.draft.json");

@@ -2147,6 +2147,28 @@ export interface OpsLensCertificationReadinessSummary {
       risk: string[];
       rollbackPath: string[];
     };
+    runnerEvidenceAction: {
+      id: string;
+      owner: "release-manager";
+      status: string;
+      path: string;
+      finalEvidencePath: string;
+      nextCommand: string;
+      draftCommand: string;
+      promotionCommand: string;
+      verificationCommand: string;
+      evidenceNeeded: string[];
+      blockedBy: string[];
+      missingRequiredTools: string[];
+      mutationAllowed: false;
+      writesLocalEvidence: true;
+      requiresReviewedInput: true;
+      clusterMutationAttempted: boolean;
+      registryMutationAttempted: boolean;
+      mutationAllowedByThisVerifier: boolean;
+      toolingInstallRequiresHumanApproval: boolean;
+      externalSubmissionRequiresExplicitApproval: boolean;
+    };
     ticketPacket: OpsLensCertificationToolingTicketPacket;
     runnerDraft: {
       path: string;

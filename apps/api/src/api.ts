@@ -7433,6 +7433,14 @@ function missingCertificationToolingHandoff(
   reason: string
 ): OpsLensCertificationReadinessSummary["toolingHandoff"] {
   const missingRunnerEvidence = missingCertificationRunnerEvidence(reason);
+  const ticketPacket = missingCertificationToolingTicketPacket(
+    "needs-evidence",
+    "missing",
+    [],
+    missingRunnerEvidence,
+    ["refresh-certification-evidence"],
+    [reason]
+  );
   return {
     actionMode: "humanSetupOnly" as const,
     status: "needs-evidence",
@@ -7440,14 +7448,12 @@ function missingCertificationToolingHandoff(
     requiredTools: [],
     missingRequiredTools: [],
     runnerEvidence: missingRunnerEvidence,
-    ticketPacket: missingCertificationToolingTicketPacket(
-      "needs-evidence",
-      "missing",
-      [],
+    runnerEvidenceAction: buildCertificationRunnerEvidenceAction(
       missingRunnerEvidence,
-      ["refresh-certification-evidence"],
-      [reason]
+      ticketPacket,
+      []
     ),
+    ticketPacket,
     runnerDraft: missingCertificationRunnerDraft(reason),
     freshnessPolicy: {
       requiredHead: "missing",
@@ -7650,6 +7656,63 @@ function mapCertificationToolingTicketPacket(
   };
 }
 
+function buildCertificationRunnerEvidenceAction(
+  runnerEvidence: OpsLensCertificationReadinessSummary["toolingHandoff"]["runnerEvidence"],
+  ticketPacket: OpsLensCertificationToolingTicketPacket,
+  missingRequiredTools: string[]
+): OpsLensCertificationReadinessSummary["toolingHandoff"]["runnerEvidenceAction"] {
+  const draftCommand =
+    runnerEvidence.nextCommands.find((command) =>
+      command.includes("evidence:certification:ci-runner-draft")
+    ) ?? "npm run evidence:certification:ci-runner-draft -- --force";
+  const promotionCommand =
+    runnerEvidence.nextCommands.find((command) =>
+      command.includes("evidence:certification:ci-runner:promote")
+    ) ??
+    "npm run evidence:certification:ci-runner:promote -- --promote-reviewed --reviewer <reviewer> --review-ticket <ticket> --force";
+  const verificationCommand =
+    runnerEvidence.nextCommands.find((command) =>
+      command.includes("verify:certification -- --ci-runner-evidence")
+    ) ??
+    `npm run verify:certification -- --ci-runner-evidence ${runnerEvidence.path}`;
+  const nextCommand =
+    runnerEvidence.status === "ready"
+      ? verificationCommand
+      : runnerEvidence.nextCommands[0] ?? ticketPacket.firstReadOnlyAction.nextCommand;
+  const evidenceNeeded =
+    runnerEvidence.missingEvidence.length > 0
+      ? runnerEvidence.missingEvidence
+      : ticketPacket.evidenceChecklist;
+
+  return {
+    id: "certification-ci-runner-evidence-handoff",
+    owner: "release-manager",
+    status: runnerEvidence.status,
+    path: runnerEvidence.path,
+    finalEvidencePath: ticketPacket.finalEvidencePath,
+    nextCommand,
+    draftCommand,
+    promotionCommand,
+    verificationCommand,
+    evidenceNeeded,
+    blockedBy: ticketPacket.blockedBy,
+    missingRequiredTools,
+    mutationAllowed: false,
+    writesLocalEvidence: true,
+    requiresReviewedInput: true,
+    clusterMutationAttempted:
+      ticketPacket.mutationBoundary.clusterMutationAttempted,
+    registryMutationAttempted:
+      ticketPacket.mutationBoundary.registryMutationAttempted,
+    mutationAllowedByThisVerifier:
+      ticketPacket.mutationBoundary.mutationAllowedByThisVerifier,
+    toolingInstallRequiresHumanApproval:
+      ticketPacket.mutationBoundary.toolingInstallRequiresHumanApproval,
+    externalSubmissionRequiresExplicitApproval:
+      ticketPacket.mutationBoundary.externalSubmissionRequiresExplicitApproval
+  };
+}
+
 function mapCertificationToolingHandoff(
   artifact: CertificationReadinessEvidenceArtifact["toolingHandoff"] | undefined,
   cli: OpsLensCertificationReadinessSummary["cli"],
@@ -7701,9 +7764,15 @@ function mapCertificationToolingHandoff(
             ]
           : ["npm run verify:certification"]
     };
+    const ticketPacket = mapCertificationToolingTicketPacket(undefined, mapped);
     return {
       ...mapped,
-      ticketPacket: mapCertificationToolingTicketPacket(undefined, mapped)
+      ticketPacket,
+      runnerEvidenceAction: buildCertificationRunnerEvidenceAction(
+        mapped.runnerEvidence,
+        ticketPacket,
+        mapped.missingRequiredTools
+      )
     };
   }
 
@@ -7769,9 +7838,15 @@ function mapCertificationToolingHandoff(
     risk: artifact.risk ?? [],
     rollbackPath: artifact.rollbackPath ?? []
   };
+  const ticketPacket = mapCertificationToolingTicketPacket(artifact, mapped);
   return {
     ...mapped,
-    ticketPacket: mapCertificationToolingTicketPacket(artifact, mapped)
+    ticketPacket,
+    runnerEvidenceAction: buildCertificationRunnerEvidenceAction(
+      mapped.runnerEvidence,
+      ticketPacket,
+      mapped.missingRequiredTools
+    )
   };
 }
 
@@ -8018,6 +8093,7 @@ function getCertificationReadiness(): {
           : "all reported external submission CLIs are available",
         `certification tooling handoff ${toolingHandoff.actionMode} status=${toolingHandoff.status} missingRequiredTools=${toolingHandoff.missingRequiredTools.join(", ") || "none"} next=${toolingHandoff.nextCommands[0] ?? "unknown"}`,
         `certification tooling satisfiedBy=${toolingHandoff.toolingSatisfiedBy} ciRunner=${toolingHandoff.runnerEvidence.status} sameHead=${String(toolingHandoff.runnerEvidence.sameHead)} mutation=${String(toolingHandoff.runnerEvidence.mutation)} path=${toolingHandoff.runnerEvidence.path}`,
+        `certification CI runner action=${toolingHandoff.runnerEvidenceAction.id} status=${toolingHandoff.runnerEvidenceAction.status} draft=${toolingHandoff.runnerEvidenceAction.draftCommand} promote=${toolingHandoff.runnerEvidenceAction.promotionCommand} verify=${toolingHandoff.runnerEvidenceAction.verificationCommand} writesLocalEvidence=${String(toolingHandoff.runnerEvidenceAction.writesLocalEvidence)} reviewedInput=${String(toolingHandoff.runnerEvidenceAction.requiresReviewedInput)} mutationAllowed=${String(toolingHandoff.runnerEvidenceAction.mutationAllowed)}`,
         `certification CI runner draft ${toolingHandoff.runnerDraft.evidenceState} sameHead=${String(toolingHandoff.runnerDraft.sameHead)} missing=${toolingHandoff.runnerDraft.missingEvidence.length}`,
         toolingHandoff.executionLanes.length
           ? `certification tooling lanes=${toolingHandoff.executionLanes.map((lane) => `${lane.id}:${lane.status}`).join(", ")}`

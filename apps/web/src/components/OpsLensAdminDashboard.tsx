@@ -3948,6 +3948,71 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-certification-ci-runner-action"
+              >
+                <span>
+                  {certificationPlan.toolingHandoff.runnerEvidenceAction.id}
+                </span>
+                <span>
+                  owner=
+                  {certificationPlan.toolingHandoff.runnerEvidenceAction.owner}
+                </span>
+                <span>
+                  status=
+                  {certificationPlan.toolingHandoff.runnerEvidenceAction.status}
+                </span>
+                <span>
+                  final=
+                  {
+                    certificationPlan.toolingHandoff.runnerEvidenceAction
+                      .finalEvidencePath
+                  }
+                </span>
+                <span>
+                  draft=
+                  {
+                    certificationPlan.toolingHandoff.runnerEvidenceAction
+                      .draftCommand
+                  }
+                </span>
+                <span>
+                  promote=
+                  {
+                    certificationPlan.toolingHandoff.runnerEvidenceAction
+                      .promotionCommand
+                  }
+                </span>
+                <span>
+                  verify=
+                  {
+                    certificationPlan.toolingHandoff.runnerEvidenceAction
+                      .verificationCommand
+                  }
+                </span>
+                <span>
+                  writesLocalEvidence=
+                  {String(
+                    certificationPlan.toolingHandoff.runnerEvidenceAction
+                      .writesLocalEvidence
+                  )}
+                </span>
+                <span>
+                  reviewedInput=
+                  {String(
+                    certificationPlan.toolingHandoff.runnerEvidenceAction
+                      .requiresReviewedInput
+                  )}
+                </span>
+                <span>
+                  mutationAllowed=
+                  {String(
+                    certificationPlan.toolingHandoff.runnerEvidenceAction
+                      .mutationAllowed
+                  )}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-certification-ci-runner-draft"
               >
                 <span>
