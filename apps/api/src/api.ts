@@ -2522,6 +2522,34 @@ type SecurityScanPlanEvidenceArtifact = {
     blockedBy?: string[];
     rollbackPath?: string;
   }>;
+  securityReviewFinalHandoff?: Array<{
+    imageName?: string;
+    status?: string;
+    owner?: string;
+    draftPath?: string;
+    finalEvidenceFile?: string;
+    finalEvidenceExists?: boolean;
+    reviewApproved?: boolean;
+    evidenceState?: string;
+    draftStatus?: string;
+    vulnerabilityReportExists?: boolean;
+    sbomExists?: boolean;
+    reviewerProvided?: boolean;
+    ticketProvided?: boolean;
+    decision?: string;
+    explicitDecisionProvided?: boolean;
+    readyForFinalReview?: boolean;
+    missingEvidenceCount?: number;
+    evidenceChecklist?: string[];
+    promotionCommand?: string;
+    verificationCommand?: string;
+    approvalRequired?: boolean;
+    requiresExplicitApproval?: boolean;
+    mutationAllowed?: boolean;
+    writesLocalEvidence?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
+  }>;
   ticketPackets?: OpsLensSecurityReviewTicketPacket[];
   missingEvidence?: string[];
   risk?: string[];
@@ -8143,6 +8171,7 @@ function missingSecurityScanPlanSummary(
           "No rollback is required for read-only security review preflight."
       }
     ],
+    securityReviewFinalHandoff: [],
     ticketPackets: [],
     missingEvidence: [reason],
     risk: [
@@ -8209,6 +8238,63 @@ function deriveFirstSecurityReviewActions(
     : [];
 
   return [...reviewActions, ...gatedMutationAction];
+}
+
+function deriveSecurityReviewFinalHandoff(
+  images: OpsLensSecurityScanPlanSummary["images"]
+): OpsLensSecurityScanPlanSummary["securityReviewFinalHandoff"] {
+  return images
+    .filter((image) => image.required)
+    .map((image) => {
+      const status = image.reviewExists
+        ? "reviewed-final-present"
+        : image.reviewDraft.readyForFinalReview
+          ? "ready-for-promotion-review"
+          : "needs-reviewed-inputs";
+      return {
+        imageName: image.name,
+        status,
+        owner: "security-reviewer",
+        draftPath: image.reviewDraft.draftPath,
+        finalEvidenceFile: image.reviewDraft.finalEvidenceFile,
+        finalEvidenceExists: image.reviewExists,
+        reviewApproved: image.reviewExists,
+        evidenceState: image.reviewDraft.evidenceState,
+        draftStatus: image.reviewDraft.readyForFinalReview
+          ? "ready-for-final-review"
+          : image.reviewDraft.exists
+            ? "draft-needs-evidence"
+            : "missing",
+        vulnerabilityReportExists: image.vulnerabilityReportExists,
+        sbomExists: image.sbomExists,
+        reviewerProvided: image.reviewDraft.reviewerProvided,
+        ticketProvided: image.reviewDraft.ticketProvided,
+        decision: image.reviewDraft.decision,
+        explicitDecisionProvided: image.reviewDraft.explicitDecisionProvided,
+        readyForFinalReview: image.reviewDraft.readyForFinalReview,
+        missingEvidenceCount: image.reviewDraft.missingEvidence.length,
+        evidenceChecklist: [
+          `${image.name} vulnerability scan evidence is same-head and criticalFindings=0`,
+          `${image.name} SBOM evidence is parseable and reviewed`,
+          `${image.name} security review draft has non-placeholder reviewer and ticket`,
+          `${image.name} security reviewer explicitly records decision=approved`
+        ],
+        promotionCommand: `npm run evidence:security-review:promote -- --name ${image.name} --promote-reviewed --reviewer <security-reviewer> --review-ticket <security-ticket> --force`,
+        verificationCommand: "npm run verify:security-scan-plan",
+        approvalRequired: status !== "reviewed-final-present",
+        requiresExplicitApproval: true,
+        mutationAllowed: false,
+        writesLocalEvidence: true,
+        blockedBy: image.reviewExists
+          ? []
+          : [
+              `${image.name} final security review evidence is not approved`,
+              ...image.reviewDraft.missingEvidence
+            ].slice(0, 10),
+        rollbackPath:
+          `Delete or supersede ${image.name}-security-review.draft.json or ${image.name}-security-review.json if reviewer evidence is rejected; no cluster or registry rollback is required.`
+      };
+    });
 }
 
 function getSecurityScanPlanReadiness(): {
@@ -8335,6 +8421,49 @@ function getSecurityScanPlanReadiness(): {
         action.rollbackPath ??
         "Regenerate security scan evidence before proceeding."
     }));
+    const securityReviewFinalHandoff = (
+      artifact.securityReviewFinalHandoff?.length
+        ? artifact.securityReviewFinalHandoff
+        : deriveSecurityReviewFinalHandoff(images)
+    ).map((handoff) => ({
+      imageName: handoff.imageName ?? "unknown",
+      status: handoff.status ?? "needs-reviewed-inputs",
+      owner: handoff.owner ?? "security-reviewer",
+      draftPath:
+        handoff.draftPath ??
+        `docs/release/evidence/security/${handoff.imageName ?? "unknown"}-security-review.draft.json`,
+      finalEvidenceFile:
+        handoff.finalEvidenceFile ??
+        `docs/release/evidence/security/${handoff.imageName ?? "unknown"}-security-review.json`,
+      finalEvidenceExists: handoff.finalEvidenceExists === true,
+      reviewApproved: handoff.reviewApproved === true,
+      evidenceState: handoff.evidenceState ?? "missing",
+      draftStatus: handoff.draftStatus ?? "missing",
+      vulnerabilityReportExists: handoff.vulnerabilityReportExists === true,
+      sbomExists: handoff.sbomExists === true,
+      reviewerProvided: handoff.reviewerProvided === true,
+      ticketProvided: handoff.ticketProvided === true,
+      decision: handoff.decision ?? "missing",
+      explicitDecisionProvided: handoff.explicitDecisionProvided === true,
+      readyForFinalReview: handoff.readyForFinalReview === true,
+      missingEvidenceCount: Number.isFinite(Number(handoff.missingEvidenceCount))
+        ? Number(handoff.missingEvidenceCount)
+        : 0,
+      evidenceChecklist: handoff.evidenceChecklist ?? [],
+      promotionCommand:
+        handoff.promotionCommand ??
+        `npm run evidence:security-review:promote -- --name ${handoff.imageName ?? "<name>"} --promote-reviewed --reviewer <security-reviewer> --review-ticket <security-ticket> --force`,
+      verificationCommand:
+        handoff.verificationCommand ?? "npm run verify:security-scan-plan",
+      approvalRequired: handoff.approvalRequired !== false,
+      requiresExplicitApproval: handoff.requiresExplicitApproval !== false,
+      mutationAllowed: handoff.mutationAllowed === true,
+      writesLocalEvidence: handoff.writesLocalEvidence !== false,
+      blockedBy: handoff.blockedBy ?? [],
+      rollbackPath:
+        handoff.rollbackPath ??
+        "Delete or supersede unapproved security review evidence if reviewer evidence is rejected."
+    }));
     const ticketPackets = artifact.ticketPackets ?? [];
     const missingTools = cli
       .filter((tool) => !tool.available)
@@ -8363,6 +8492,7 @@ function getSecurityScanPlanReadiness(): {
         setupCommands,
         approvalGatedCommands,
         firstSecurityReviewActions,
+        securityReviewFinalHandoff,
         ticketPackets,
         missingEvidence: artifact.missingEvidence ?? [],
         risk: artifact.risk ?? [],
@@ -8374,6 +8504,7 @@ function getSecurityScanPlanReadiness(): {
         `scanReadOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length} approvalGatedCommands=${approvalGatedCommands.length}`,
         `security scan runner status=${runnerEvidence.status} actionMode=${runnerEvidence.actionMode} evidenceWritten=${String(runnerEvidence.evidenceWritten)} fresh=${String(runnerEvidence.fresh)} dockerFallback=${String(runnerEvidence.executeDockerFallback)} digestPinned=${String(runnerEvidence.scannerDigestsPinned)} missingTargets=${runnerEvidence.missingTargets.join(",") || "none"}`,
         `securityFirstReviewActions=${firstSecurityReviewActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
+        `securityReviewFinalHandoff=${securityReviewFinalHandoff.map((handoff) => `${handoff.imageName}:${handoff.status}:promotion=${handoff.promotionCommand}:mutationAllowed=${String(handoff.mutationAllowed)}`).join(", ") || "missing"}`,
         `securityReviewTicketPackets=${ticketPackets.map((ticket) => `${ticket.id}:${ticket.imageName}:${ticket.firstReadOnlyAction.id}:approval=${ticket.approvalGatedAction.id}`).join(", ") || "missing"}`,
         missingTools ? `missing local scan/sign CLIs=${missingTools}` : "all reported scan/sign CLIs are available",
         `required images missing scan/SBOM/review evidence=${requiredMissingEvidence}`,

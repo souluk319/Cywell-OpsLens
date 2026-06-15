@@ -780,6 +780,81 @@ function securityReviewTicketPackets(images, commands) {
     });
 }
 
+function securityReviewPromoteCommand(imageName) {
+  return `npm run evidence:security-review:promote -- --name ${imageName} --promote-reviewed --reviewer <security-reviewer> --review-ticket <security-ticket> --force`;
+}
+
+function securityReviewFinalHandoff(images) {
+  return images
+    .filter((image) => image.required)
+    .map((image) => {
+      const evidence = image.securityEvidence;
+      const draft = evidence.reviewDraft;
+      const imageName = sanitize(image.name ?? "unknown");
+      const status = evidence.reviewApproved
+        ? "reviewed-final-present"
+        : draft.readyForFinalReview
+          ? "ready-for-promotion-review"
+          : "needs-reviewed-inputs";
+      const blockedBy = uniqueSanitized([
+        ...(evidence.vulnerabilityReportValid === true
+          ? []
+          : [`${imageName} vulnerability scan evidence is missing or invalid`]),
+        ...(evidence.sbomValid === true
+          ? []
+          : [`${imageName} SBOM evidence is missing or invalid`]),
+        ...(evidence.reviewApproved === true
+          ? []
+          : [`${imageName} final security review evidence is not approved`]),
+        ...draft.missingEvidence
+      ]).slice(0, 10);
+
+      return {
+        imageName,
+        status,
+        owner: "security-reviewer",
+        draftPath: sanitize(draft.draftPath),
+        finalEvidenceFile: sanitize(
+          draft.finalEvidenceFile ??
+            `docs/release/evidence/security/${imageName}-security-review.json`
+        ),
+        finalEvidenceExists: evidence.reviewExists === true,
+        reviewApproved: evidence.reviewApproved === true,
+        evidenceState: sanitize(draft.evidenceState ?? "missing"),
+        draftStatus: draft.readyForFinalReview
+          ? "ready-for-final-review"
+          : draft.exists
+            ? "draft-needs-evidence"
+            : "missing",
+        vulnerabilityReportExists: evidence.vulnerabilityReportExists === true,
+        sbomExists: evidence.sbomExists === true,
+        reviewerProvided: draft.reviewerProvided === true,
+        ticketProvided: draft.ticketProvided === true,
+        decision: sanitize(draft.decision ?? "missing"),
+        explicitDecisionProvided: draft.explicitDecisionProvided === true,
+        readyForFinalReview: draft.readyForFinalReview === true,
+        missingEvidenceCount: blockedBy.length,
+        evidenceChecklist: [
+          `${imageName} vulnerability scan evidence is same-head and criticalFindings=0`,
+          `${imageName} SBOM evidence is parseable and reviewed`,
+          `${imageName} security review draft has non-placeholder reviewer and ticket`,
+          `${imageName} security reviewer explicitly records decision=approved`,
+          `${imageName} final review evidence is written only through the promote helper`,
+          `${imageName} signing remains approval-gated and is not run by this verifier`
+        ].map(sanitize),
+        promotionCommand: securityReviewPromoteCommand(imageName),
+        verificationCommand: "npm run verify:security-scan-plan",
+        approvalRequired: status !== "reviewed-final-present",
+        requiresExplicitApproval: true,
+        mutationAllowed: false,
+        writesLocalEvidence: true,
+        blockedBy,
+        rollbackPath:
+          `Delete or supersede ${imageName}-security-review.draft.json or ${imageName}-security-review.json if reviewer evidence is rejected; no cluster or registry rollback is required.`
+      };
+    });
+}
+
 function securityEvidenceReadmeCheck() {
   const readmePath = resolve(options.securityEvidenceDir, "README.md");
   if (!existsSync(readmePath)) {
@@ -901,6 +976,7 @@ async function main() {
   const commands = buildCommands({ ownedImages, externalImages });
   const firstReviewActions = firstSecurityReviewActions(allImages, commands);
   const ticketPackets = securityReviewTicketPackets(allImages, commands);
+  const finalHandoff = securityReviewFinalHandoff(allImages);
   if (
     ticketPackets.every(
       (ticket) =>
@@ -921,6 +997,27 @@ async function main() {
     fail(
       "security review ticket boundary",
       "security review tickets must keep first actions read-only and signing approval-gated"
+    );
+  }
+  if (
+    finalHandoff.length === allImages.filter((image) => image.required).length &&
+    finalHandoff.every(
+      (handoff) =>
+        handoff.requiresExplicitApproval === true &&
+        handoff.mutationAllowed === false &&
+        handoff.writesLocalEvidence === true &&
+        /promote-reviewed/.test(handoff.promotionCommand) &&
+        /verify:security-scan-plan/.test(handoff.verificationCommand)
+    )
+  ) {
+    pass(
+      "security review final handoff boundary",
+      `${finalHandoff.length} final security review handoff(s) require reviewed inputs before local promotion`
+    );
+  } else {
+    fail(
+      "security review final handoff boundary",
+      "final security review handoffs must be local-evidence-only, review-gated, and non-mutating"
     );
   }
   const status = planStatus(missingEvidence);
@@ -953,6 +1050,7 @@ async function main() {
     images: allImages,
     commands,
     firstSecurityReviewActions: firstReviewActions,
+    securityReviewFinalHandoff: finalHandoff,
     ticketPackets,
     missingEvidence,
     risk: [

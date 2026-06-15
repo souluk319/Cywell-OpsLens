@@ -2263,6 +2263,34 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             blockedBy?: string[];
             rollbackPath?: string;
           }>;
+          securityReviewFinalHandoff?: Array<{
+            imageName?: string;
+            status?: string;
+            owner?: string;
+            draftPath?: string;
+            finalEvidenceFile?: string;
+            finalEvidenceExists?: boolean;
+            reviewApproved?: boolean;
+            evidenceState?: string;
+            draftStatus?: string;
+            vulnerabilityReportExists?: boolean;
+            sbomExists?: boolean;
+            reviewerProvided?: boolean;
+            ticketProvided?: boolean;
+            decision?: string;
+            explicitDecisionProvided?: boolean;
+            readyForFinalReview?: boolean;
+            missingEvidenceCount?: number;
+            evidenceChecklist?: string[];
+            promotionCommand?: string;
+            verificationCommand?: string;
+            approvalRequired?: boolean;
+            requiresExplicitApproval?: boolean;
+            mutationAllowed?: boolean;
+            writesLocalEvidence?: boolean;
+            blockedBy?: string[];
+            rollbackPath?: string;
+          }>;
           ticketPackets?: Array<{
             id?: string;
             owner?: string;
@@ -5210,6 +5238,38 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       securityFirstActions.every((action) => Array.isArray(action.blockedBy))
     ).toBe(true);
+    const securityReviewFinalHandoff =
+      body.installReadiness?.securityScanPlan?.securityReviewFinalHandoff ?? [];
+    expect(securityReviewFinalHandoff.length).toBeGreaterThanOrEqual(6);
+    expect(
+      securityReviewFinalHandoff.map((handoff) => handoff.imageName)
+    ).toEqual(
+      expect.arrayContaining(["operator", "api", "dashboard", "bundle", "vllm", "qdrant"])
+    );
+    expect(
+      securityReviewFinalHandoff.every(
+        (handoff) =>
+          handoff.owner === "security-reviewer" &&
+          handoff.promotionCommand?.includes("evidence:security-review:promote") &&
+          handoff.promotionCommand?.includes("--promote-reviewed") &&
+          handoff.promotionCommand?.includes("--review-ticket") &&
+          handoff.verificationCommand === "npm run verify:security-scan-plan" &&
+          handoff.approvalRequired === true &&
+          handoff.requiresExplicitApproval === true &&
+          handoff.mutationAllowed === false &&
+          handoff.writesLocalEvidence === true
+      )
+    ).toBe(true);
+    expect(
+      securityReviewFinalHandoff.map(
+        (handoff) => `${handoff.imageName}:${handoff.status}`
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^operator:(needs-reviewed-inputs|ready-for-promotion-review|reviewed-final-present)$/),
+        expect.stringMatching(/^qdrant:(needs-reviewed-inputs|ready-for-promotion-review|reviewed-final-present)$/)
+      ])
+    );
     const securityReviewTickets =
       body.installReadiness?.securityScanPlan?.ticketPackets ?? [];
     expect(securityReviewTickets.length).toBeGreaterThan(0);
@@ -8720,6 +8780,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-security-review-tickets")
     ).toContainText("requiresApproval=true");
+    await expect(
+      page.getByTestId("opslens-security-review-final-handoff")
+    ).toContainText("evidence:security-review:promote");
+    await expect(
+      page.getByTestId("opslens-security-review-final-handoff")
+    ).toContainText("approvalRequired=true");
+    await expect(
+      page.getByTestId("opslens-security-review-final-handoff")
+    ).toContainText("requiresExplicitApproval=true");
+    await expect(
+      page.getByTestId("opslens-security-review-final-handoff")
+    ).toContainText("mutationAllowed=false");
+    await expect(
+      page.getByTestId("opslens-security-review-final-handoff")
+    ).toContainText("writesLocalEvidence=true");
     await expect(
       page.getByTestId("opslens-security-scan-runner-evidence")
     ).toContainText("evidenceWritten=true");

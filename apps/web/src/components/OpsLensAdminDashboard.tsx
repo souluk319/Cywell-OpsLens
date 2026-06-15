@@ -4522,6 +4522,20 @@ export function OpsLensAdminDashboard() {
                       : "blocked until evidence exists"}
                   </strong>
                 </div>
+                <div>
+                  <span>Final Review</span>
+                  <strong>
+                    {securityScanPlan.securityReviewFinalHandoff.length
+                      ? securityScanPlan.securityReviewFinalHandoff
+                          .slice(0, 6)
+                          .map(
+                            (handoff) =>
+                              `${handoff.imageName}:${handoff.status} approval=${String(handoff.approvalRequired)}`
+                          )
+                          .join(", ")
+                      : "blocked until evidence exists"}
+                  </strong>
+                </div>
               </div>
               <div
                 className="admin-evidence-line"
@@ -4559,6 +4573,34 @@ export function OpsLensAdminDashboard() {
                   ))
                 ) : (
                   <span>security review tickets clear</span>
+                )}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-security-review-final-handoff"
+              >
+                {securityScanPlan.securityReviewFinalHandoff.length ? (
+                  securityScanPlan.securityReviewFinalHandoff
+                    .slice(0, 7)
+                    .map((handoff) => (
+                      <span key={`${handoff.imageName}-security-final`}>
+                        {handoff.imageName}:{handoff.status}:owner=
+                        {handoff.owner}:finalEvidence=
+                        {String(handoff.finalEvidenceExists)}:reviewApproved=
+                        {String(handoff.reviewApproved)}:missing=
+                        {handoff.missingEvidenceCount}:approvalRequired=
+                        {String(handoff.approvalRequired)}
+                        :requiresExplicitApproval=
+                        {String(handoff.requiresExplicitApproval)}
+                        :mutationAllowed={String(handoff.mutationAllowed)}
+                        :writesLocalEvidence=
+                        {String(handoff.writesLocalEvidence)}:next=
+                        {handoff.promotionCommand}:verify=
+                        {handoff.verificationCommand}
+                      </span>
+                    ))
+                ) : (
+                  <span>security review final handoff missing</span>
                 )}
               </div>
               <div
