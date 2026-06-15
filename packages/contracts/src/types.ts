@@ -2744,6 +2744,19 @@ export interface OpsLensExternalRuntimeImagesPlanSummary {
     phase: string;
     requiresExplicitApproval: boolean;
   }>;
+  firstPlanActions: Array<{
+    id: string;
+    owner: string;
+    phase: string;
+    status: string;
+    request: string;
+    evidenceNeeded: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+    blockedBy: string[];
+    rollbackPath: string;
+  }>;
   risk: string[];
   rollbackPath: string[];
   missingEvidence: string[];

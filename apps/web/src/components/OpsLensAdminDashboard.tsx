@@ -4132,6 +4132,25 @@ export function OpsLensAdminDashboard() {
                   </strong>
                 </div>
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-external-runtime-plan-first-actions"
+              >
+                {externalRuntimePlan.firstPlanActions.length ? (
+                  externalRuntimePlan.firstPlanActions
+                    .slice(0, 5)
+                    .map((action) => (
+                      <span key={action.id}>
+                        {action.owner}:{action.id}:{action.status}:mutation=
+                        {String(action.mutation)}:approval=
+                        {String(action.requiresExplicitApproval)}:next=
+                        {action.nextCommand}
+                      </span>
+                    ))
+                ) : (
+                  <span>firstPlanActions=missing</span>
+                )}
+              </div>
               <div className="remediation-notes">
                 <p>
                   {externalRuntimePlan.risk[0] ??

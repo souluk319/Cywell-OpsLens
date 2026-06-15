@@ -284,6 +284,97 @@ function buildCommands(images) {
   ];
 }
 
+function externalRuntimeGapOwner(gap) {
+  if (/external runtime evidence missing at/i.test(gap)) return "release-manager";
+  if (/license|support|product/i.test(gap)) return "product-owner";
+  if (/vulnerability|scan|sbom|provenance|certification|approval/i.test(gap)) {
+    return "security-reviewer";
+  }
+  if (/digest|mirror|registry|unauthorized|manifest|quay|image/i.test(gap)) {
+    return "registry-admin";
+  }
+  return "release-manager";
+}
+
+function externalRuntimeGapNextCommand(gap) {
+  if (/external runtime evidence missing at/i.test(gap)) {
+    return "npm run evidence:external-runtime:review-packet";
+  }
+  const imageMatch = gap.match(/\b(vllm|qdrant)\b/i);
+  const imageName = imageMatch?.[1]?.toLowerCase();
+  if (/license|support|product/i.test(gap) && imageName) {
+    return `npm run evidence:external-runtime:draft -- --name ${imageName} --license-status approved --license-evidence <license-review-ticket> --ticket <change-ticket> --force`;
+  }
+  if (/digest|manifest|unauthorized|quay|registry/i.test(gap)) {
+    return "npm run evidence:external-runtime:draft:digests";
+  }
+  if (imageName) {
+    return `npm run evidence:external-runtime:draft -- --name ${imageName} --force`;
+  }
+  return "npm run verify:external-runtime-plan";
+}
+
+function buildFirstPlanActions(missingEvidence, commands) {
+  const gapActions = missingEvidence.slice(0, 3).map((gap, index) => ({
+    id: `external-runtime-gap-${index + 1}`,
+    owner: externalRuntimeGapOwner(gap),
+    phase: "external-runtime-evidence-preflight",
+    status: "needs-evidence",
+    request:
+      "Resolve external runtime final evidence before mirror, sign, push, or catalog publication.",
+    evidenceNeeded: gap,
+    nextCommand: externalRuntimeGapNextCommand(gap),
+    mutation: false,
+    requiresExplicitApproval: false,
+    blockedBy: [gap],
+    rollbackPath:
+      "No rollback is required for read-only external runtime evidence refresh."
+  }));
+  const preflight = commands.find((entry) => entry.id === "run-external-runtime-preflight");
+  const preflightAction = preflight
+    ? [
+        {
+          id: preflight.id,
+          owner: "release-manager",
+          phase: preflight.phase,
+          status: missingEvidence.length > 0 ? "needs-evidence" : "ready",
+          request:
+            "Regenerate same-HEAD image build, external runtime, and release publish evidence before external registry work.",
+          evidenceNeeded:
+            missingEvidence.length > 0
+              ? "External runtime final evidence gaps remain before approval."
+              : "Current-head external runtime evidence is ready for approval review.",
+          nextCommand: preflight.command,
+          mutation: false,
+          requiresExplicitApproval: false,
+          blockedBy: missingEvidence,
+          rollbackPath: preflight.rollback
+        }
+      ]
+    : [];
+  const firstMutatingCommand = commands.find((entry) => entry.mutation);
+  const gatedMutationAction = firstMutatingCommand
+    ? [
+        {
+          id: `approval-gated-${firstMutatingCommand.id}`,
+          owner: "registry-admin",
+          phase: firstMutatingCommand.phase,
+          status: "approval-gated",
+          request: `Do not run ${firstMutatingCommand.id} until external runtime approvals are explicit.`,
+          evidenceNeeded:
+            "Final vLLM/qdrant certification, scan, SBOM, provenance, license/support, mirror digest, and release approvals are recorded.",
+          nextCommand: firstMutatingCommand.command,
+          mutation: true,
+          requiresExplicitApproval: true,
+          blockedBy: missingEvidence,
+          rollbackPath: firstMutatingCommand.rollback
+        }
+      ]
+    : [];
+
+  return [...gapActions, ...preflightAction, ...gatedMutationAction];
+}
+
 function evidenceTemplateRequirements(image, template) {
   return [
     {
@@ -665,6 +756,8 @@ async function buildPlan() {
   }
 
   const status = planStatus(missingEvidence);
+  const commands = buildCommands(images);
+  const firstPlanActions = buildFirstPlanActions(missingEvidence, commands);
 
   return {
     schema: "cywell.opslens.external-runtime-images-plan.v0.1",
@@ -699,7 +792,8 @@ async function buildPlan() {
       missingEvidence: image.draft.missingEvidence
     })),
     externalImages: externalEvidence,
-    commands: buildCommands(images),
+    commands,
+    firstPlanActions,
     missingEvidence,
     risk: [
       "External runtime image tags can drift unless certification evidence records immutable source and mirror digests.",

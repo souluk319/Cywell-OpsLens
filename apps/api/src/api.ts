@@ -1787,6 +1787,19 @@ type ExternalRuntimeImagesPlanEvidenceArtifact = {
     mutation?: boolean;
     requiresExplicitApproval?: boolean;
   }>;
+  firstPlanActions?: Array<{
+    id?: string;
+    owner?: string;
+    phase?: string;
+    status?: string;
+    request?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    mutation?: boolean;
+    requiresExplicitApproval?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
+  }>;
   risk?: string[];
   rollbackPath?: string[];
   missingEvidence?: string[];
@@ -4348,6 +4361,7 @@ function getExternalRuntimeImagesPlanReadiness(): {
         evidenceTemplates: [],
         evidenceDrafts: [],
         mutatingCommands: [],
+        firstPlanActions: [],
         risk: [
           "No external runtime image evidence plan is available yet; vLLM/Qdrant mirror and certification work remain blocked."
         ],
@@ -4436,6 +4450,24 @@ function getExternalRuntimeImagesPlanReadiness(): {
           missingEvidence: draft.missingEvidence ?? []
         })),
         mutatingCommands,
+        firstPlanActions: (artifact.firstPlanActions ?? []).map((action) => ({
+          id: action.id ?? "unknown",
+          owner: action.owner ?? "release-manager",
+          phase: action.phase ?? "external-runtime-evidence-preflight",
+          status: action.status ?? "needs-evidence",
+          request:
+            action.request ??
+            "Resolve external runtime final evidence before release work.",
+          evidenceNeeded: action.evidenceNeeded ?? "missing evidence",
+          nextCommand:
+            action.nextCommand ?? "npm run verify:external-runtime-plan",
+          mutation: action.mutation === true,
+          requiresExplicitApproval: action.requiresExplicitApproval === true,
+          blockedBy: action.blockedBy ?? [],
+          rollbackPath:
+            action.rollbackPath ??
+            "Regenerate external runtime evidence before proceeding."
+        })),
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? [],
         missingEvidence: artifact.missingEvidence ?? []
@@ -4475,6 +4507,7 @@ function getExternalRuntimeImagesPlanReadiness(): {
         evidenceTemplates: [],
         evidenceDrafts: [],
         mutatingCommands: [],
+        firstPlanActions: [],
         risk: [
           "External runtime images plan evidence is invalid; runtime mirror and certification commands remain blocked."
         ],

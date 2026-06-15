@@ -1998,6 +1998,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           }>;
           evidenceDrafts?: Array<{ name?: string; status?: string }>;
           mutatingCommands?: Array<{ id?: string; requiresExplicitApproval?: boolean }>;
+          firstPlanActions?: Array<{
+            id?: string;
+            owner?: string;
+            phase?: string;
+            status?: string;
+            request?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            mutation?: boolean;
+            requiresExplicitApproval?: boolean;
+            blockedBy?: string[];
+            rollbackPath?: string;
+          }>;
           risk?: string[];
           rollbackPath?: string[];
           missingEvidence?: string[];
@@ -4768,6 +4781,25 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.externalRuntimePlan?.evidenceDrafts).toEqual(
       expect.any(Array)
     );
+    const externalRuntimePlanActions =
+      body.installReadiness?.externalRuntimePlan?.firstPlanActions ?? [];
+    expect(externalRuntimePlanActions.length).toBeGreaterThanOrEqual(2);
+    expect(
+      externalRuntimePlanActions.some(
+        (action) =>
+          action.mutation === false &&
+          action.requiresExplicitApproval === false &&
+          action.nextCommand?.includes("external-runtime")
+      )
+    ).toBe(true);
+    expect(
+      externalRuntimePlanActions.some(
+        (action) =>
+          action.id?.startsWith("approval-gated-") &&
+          action.mutation === true &&
+          action.requiresExplicitApproval === true
+      )
+    ).toBe(true);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /external runtime evidence templates/i
     );
@@ -8365,6 +8397,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-external-runtime-plan")).toContainText(
       "vllm"
     );
+    await expect(
+      page.getByTestId("opslens-external-runtime-plan-first-actions")
+    ).toContainText("external-runtime");
+    await expect(
+      page.getByTestId("opslens-external-runtime-plan-first-actions")
+    ).toContainText("mutation=false");
+    await expect(
+      page.getByTestId("opslens-external-runtime-plan-first-actions")
+    ).toContainText("approval=true");
     await expect(
       page.getByTestId("opslens-external-runtime-review-packet")
     ).toContainText("reviewPacketOnly");
