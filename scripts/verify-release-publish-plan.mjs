@@ -401,9 +401,9 @@ function publishGapOwner(gap) {
 
 function publishGapNextCommand(gap) {
   if (/external runtime|vllm|qdrant/i.test(gap)) return "npm run verify:external-runtime-plan";
-  if (/catalog|registry\.redhat\.io/i.test(gap)) return "npm run verify:catalog-toolchain";
   if (/owned image provenance/i.test(gap)) return "npm run verify:owned-image-provenance";
   if (/image readiness|actual image build|verify:images:build/i.test(gap)) return "npm run verify:images:build";
+  if (/catalog|registry\.redhat\.io/i.test(gap)) return "npm run verify:catalog-toolchain";
   if (/dirty/i.test(gap)) return "git status --short";
   return "npm run verify:release-plan";
 }

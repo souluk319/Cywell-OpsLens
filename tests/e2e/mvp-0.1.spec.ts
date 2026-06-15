@@ -4969,6 +4969,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           action.nextCommand?.match(/verify:|git status/)
       )
     ).toBe(true);
+    const catalogActualBuildAction =
+      body.installReadiness?.releasePlan?.firstPublishActions?.find((action) =>
+        action.evidenceNeeded?.includes("catalog actual image build")
+      );
+    if (catalogActualBuildAction) {
+      expect(catalogActualBuildAction.nextCommand).toBe("npm run verify:images:build");
+    }
     expect(
       body.installReadiness?.releasePlan?.firstPublishActions?.some(
         (action) =>
