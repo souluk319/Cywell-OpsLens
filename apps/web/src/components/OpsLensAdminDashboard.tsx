@@ -2077,6 +2077,41 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-ocp-auth-recovery"
+              >
+                <span>status={ocpConnectivity.authRecovery.status}</span>
+                <span>owner={ocpConnectivity.authRecovery.owner}</span>
+                <span>
+                  diagnosis=
+                  {ocpConnectivity.authRecovery.credentialDiagnosis}
+                </span>
+                <span>
+                  humanApproval=
+                  {String(
+                    ocpConnectivity.authRecovery.mutationBoundary
+                      .credentialRefreshRequiresHumanApproval
+                  )}
+                </span>
+                <span>
+                  tokenRedacted=
+                  {String(
+                    ocpConnectivity.authRecovery.mutationBoundary
+                      .tokenValueRedacted
+                  )}
+                </span>
+                <span>
+                  storedByVerifier=
+                  {String(
+                    ocpConnectivity.authRecovery.mutationBoundary
+                      .credentialStoredByVerifier
+                  )}
+                </span>
+                <span>
+                  next={ocpConnectivity.authRecovery.nextCommands[0] ?? "none"}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-ocp-connectivity-rbac"
               >
                 {ocpConnectivity.diagnostics.rbacAccessReviews.length ? (

@@ -1525,6 +1525,31 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             evidence?: string;
             nextCheck?: string;
           }>;
+          authRecovery?: {
+            status?: string;
+            owner?: string;
+            classification?: string;
+            credentialDiagnosis?: string;
+            ocContextStatus?: string;
+            ocAuthenticationStatus?: string;
+            evidenceNeeded?: string[];
+            humanActions?: string[];
+            nextCommands?: string[];
+            readOnlyChecks?: Array<{
+              id?: string;
+              command?: string;
+              mutation?: boolean;
+              writesEvidence?: boolean;
+            }>;
+            mutationBoundary?: {
+              clusterMutationAttempted?: boolean;
+              registryMutationAttempted?: boolean;
+              mutationAllowedByThisVerifier?: boolean;
+              credentialStoredByVerifier?: boolean;
+              tokenValueRedacted?: boolean;
+              credentialRefreshRequiresHumanApproval?: boolean;
+            };
+          };
           readOnlyTroubleshootingCommands?: Array<{
             id?: string;
             command?: string;
@@ -4068,6 +4093,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       authStatus: expect.any(String),
       serverStatus: expect.any(String)
     });
+    expect(body.installReadiness?.connectivity?.authRecovery).toMatchObject({
+      status: expect.any(String),
+      owner: expect.any(String),
+      classification: expect.any(String),
+      credentialDiagnosis:
+        body.installReadiness?.connectivity?.credentialHygiene
+          ?.credentialDiagnosis ?? expect.any(String),
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        credentialStoredByVerifier: false,
+        tokenValueRedacted: true
+      }
+    });
+    expect(
+      body.installReadiness?.connectivity?.authRecovery?.readOnlyChecks?.every(
+        (check) => check.mutation === false
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.connectivity?.authRecovery?.nextCommands?.join(" ")
+    ).toMatch(/verify:ocp:connectivity|evidence:ocp-auth-rbac-plan|ocp:live-reader-smoke/);
     expect(
       body.installReadiness?.connectivity?.actionHints?.length ?? 0
     ).toBeGreaterThan(0);
@@ -8078,6 +8126,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-ocp-context")).toContainText(
       "server="
+    );
+    await expect(page.getByTestId("opslens-ocp-auth-recovery")).toContainText(
+      "status="
+    );
+    await expect(page.getByTestId("opslens-ocp-auth-recovery")).toContainText(
+      "owner="
+    );
+    await expect(page.getByTestId("opslens-ocp-auth-recovery")).toContainText(
+      "humanApproval="
+    );
+    await expect(page.getByTestId("opslens-ocp-auth-recovery")).toContainText(
+      "tokenRedacted=true"
+    );
+    await expect(page.getByTestId("opslens-ocp-auth-recovery")).toContainText(
+      "storedByVerifier=false"
     );
     await expect(
       page.getByTestId("opslens-ocp-connectivity-rbac")

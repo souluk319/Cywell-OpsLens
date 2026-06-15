@@ -3309,6 +3309,33 @@ type OcpConnectivityDiagnosticArtifact = {
       command?: string;
     }>;
   };
+  authRecovery?: {
+    status?: string;
+    owner?: string;
+    classification?: string;
+    credentialDiagnosis?: string;
+    ocContextStatus?: string;
+    ocAuthenticationStatus?: string;
+    evidenceNeeded?: string[];
+    humanActions?: string[];
+    nextCommands?: string[];
+    readOnlyChecks?: Array<{
+      id?: string;
+      command?: string;
+      purpose?: string;
+      requiresNetwork?: boolean;
+      mutation?: boolean;
+      writesEvidence?: boolean;
+    }>;
+    mutationBoundary?: {
+      clusterMutationAttempted?: boolean;
+      registryMutationAttempted?: boolean;
+      mutationAllowedByThisVerifier?: boolean;
+      credentialStoredByVerifier?: boolean;
+      tokenValueRedacted?: boolean;
+      credentialRefreshRequiresHumanApproval?: boolean;
+    };
+  };
   actionHints?: Array<{
     id?: string;
     severity?: string;
@@ -4115,6 +4142,144 @@ function defaultOcpTroubleshootingCommands(): OpsLensOcpConnectivityDiagnosticSu
       writesEvidence: true
     }
   ];
+}
+
+function defaultOcpAuthRecovery(
+  classification: string,
+  credentialDiagnosis = "missing-evidence"
+): OpsLensOcpConnectivityDiagnosticSummary["authRecovery"] {
+  const requiresAuthRecovery = ["auth-failed", "auth-or-rbac", "token-missing"].includes(
+    classification
+  );
+  const readOnlyChecks = [
+    {
+      id: "verify-ocp-connectivity",
+      command: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
+      purpose:
+        "Reclassify OCP DNS, TCP, TLS, /version, oc context, and RBAC access without mutation.",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: true
+    },
+    {
+      id: "refresh-ocp-auth-rbac-plan",
+      command: "npm run evidence:ocp-auth-rbac-plan",
+      purpose:
+        "Refresh the cluster-admin review packet after credential or RBAC evidence changes.",
+      requiresNetwork: false,
+      mutation: false,
+      writesEvidence: true
+    },
+    {
+      id: "verify-post-approval-live-reader-smoke",
+      command: "npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000",
+      purpose:
+        "Prove OCP and Lightspeed readiness after approved credential/RBAC handling.",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: true
+    }
+  ];
+
+  return {
+    status:
+      classification === "api-ready"
+        ? "not-required"
+        : requiresAuthRecovery
+          ? "requires-credential-refresh"
+          : "not-applicable",
+    owner: requiresAuthRecovery ? "cluster-admin" : "none",
+    classification,
+    credentialDiagnosis,
+    ocContextStatus: "unknown",
+    ocAuthenticationStatus: "unknown",
+    evidenceNeeded: requiresAuthRecovery
+      ? [
+          "Kubernetes /version returns 200 through the configured OCP credential.",
+          "oc whoami succeeds for the target cluster without printing token values.",
+          "Required oc auth can-i checks return yes or an explicit reviewed RBAC decision.",
+          "Lightspeed readiness is rerun after OCP auth/RBAC evidence changes."
+        ]
+      : [],
+    humanActions: requiresAuthRecovery
+      ? [
+          "Refresh the OCP API credential from the target cluster through approved secret handling.",
+          "Confirm the refreshed credential belongs to the intended cluster and has read-only discovery access.",
+          "Do not paste token values into tickets, logs, markdown, shell history, or committed files."
+        ]
+      : [],
+    nextCommands: readOnlyChecks.map((check) => check.command),
+    readOnlyChecks,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      credentialStoredByVerifier: false,
+      tokenValueRedacted: true,
+      credentialRefreshRequiresHumanApproval: requiresAuthRecovery
+    }
+  };
+}
+
+function mapOcpAuthRecovery(
+  artifact: OcpConnectivityDiagnosticArtifact,
+  classification: string,
+  credentialDiagnosis: string,
+  ocContextStatus: string,
+  ocAuthenticationStatus: string
+): OpsLensOcpConnectivityDiagnosticSummary["authRecovery"] {
+  const fallback = defaultOcpAuthRecovery(classification, credentialDiagnosis);
+  const recovery = artifact.authRecovery;
+  if (!recovery) {
+    return {
+      ...fallback,
+      ocContextStatus,
+      ocAuthenticationStatus
+    };
+  }
+
+  const readOnlyChecks = (recovery.readOnlyChecks ?? fallback.readOnlyChecks).map(
+    (check) => ({
+      id: check.id ?? "verify-ocp-connectivity",
+      command: check.command ?? "npm run verify:ocp:connectivity -- --timeout-ms 30000",
+      purpose:
+        check.purpose ??
+        "Collect read-only OCP auth recovery evidence.",
+      requiresNetwork: check.requiresNetwork === true,
+      mutation: check.mutation === true,
+      writesEvidence: check.writesEvidence === true
+    })
+  );
+
+  return {
+    status: recovery.status ?? fallback.status,
+    owner: recovery.owner ?? fallback.owner,
+    classification: recovery.classification ?? classification,
+    credentialDiagnosis: recovery.credentialDiagnosis ?? credentialDiagnosis,
+    ocContextStatus: recovery.ocContextStatus ?? ocContextStatus,
+    ocAuthenticationStatus:
+      recovery.ocAuthenticationStatus ?? ocAuthenticationStatus,
+    evidenceNeeded: recovery.evidenceNeeded ?? fallback.evidenceNeeded,
+    humanActions: recovery.humanActions ?? fallback.humanActions,
+    nextCommands:
+      recovery.nextCommands ?? readOnlyChecks.map((check) => check.command),
+    readOnlyChecks,
+    mutationBoundary: {
+      clusterMutationAttempted:
+        recovery.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        recovery.mutationBoundary?.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        recovery.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      credentialStoredByVerifier:
+        recovery.mutationBoundary?.credentialStoredByVerifier === true,
+      tokenValueRedacted:
+        recovery.mutationBoundary?.tokenValueRedacted !== false,
+      credentialRefreshRequiresHumanApproval:
+        recovery.mutationBoundary?.credentialRefreshRequiresHumanApproval ??
+        fallback.mutationBoundary.credentialRefreshRequiresHumanApproval
+    }
+  };
 }
 
 function getLightspeedMcpReadiness(): {
@@ -5586,6 +5751,7 @@ function getOcpConnectivityDiagnosticReadiness(): {
           },
           rbacAccessReviews: []
         },
+        authRecovery: defaultOcpAuthRecovery("missing", "missing-evidence"),
         actionHints: defaultOcpConnectivityActionHints("missing"),
         readOnlyTroubleshootingCommands: defaultOcpTroubleshootingCommands(),
         missingEvidence: [
@@ -5660,6 +5826,13 @@ function getOcpConnectivityDiagnosticReadiness(): {
     );
     const readOnlyTroubleshootingCommands =
       mapOcpTroubleshootingCommands(artifact);
+    const authRecovery = mapOcpAuthRecovery(
+      artifact,
+      classification,
+      artifact.credentialHygiene?.credentialDiagnosis ?? "unknown",
+      diagnostics.ocContext.contextStatus,
+      diagnostics.ocContext.authStatus
+    );
 
     return {
       status,
@@ -5703,6 +5876,7 @@ function getOcpConnectivityDiagnosticReadiness(): {
             artifact.credentialHygiene?.credentialDiagnosis ?? "unknown"
         },
         diagnostics,
+        authRecovery,
         actionHints,
         readOnlyTroubleshootingCommands,
         missingEvidence: artifact.missingEvidence ?? [],
@@ -5716,6 +5890,7 @@ function getOcpConnectivityDiagnosticReadiness(): {
         diagnostics.rbacAccessReviews.length
           ? `rbacAccessReviews=${diagnostics.rbacAccessReviews.map((review) => `${review.id}:${review.status}`).join(",")}`
           : "rbacAccessReviews=missing",
+        `authRecovery=${authRecovery.status}:${authRecovery.owner}:${authRecovery.credentialDiagnosis}`,
         `actionMode=${artifact.actionMode ?? "unknown"} clusterMutationAttempted=${String(artifact.clusterMutationAttempted ?? "unknown")}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads OCP connectivity evidence only; it does not apply, patch, delete, scale, or mutate cluster resources"
@@ -5770,6 +5945,10 @@ function getOcpConnectivityDiagnosticReadiness(): {
           },
           rbacAccessReviews: []
         },
+        authRecovery: defaultOcpAuthRecovery(
+          "invalid-evidence",
+          "invalid-evidence"
+        ),
         actionHints: defaultOcpConnectivityActionHints("invalid-evidence"),
         readOnlyTroubleshootingCommands: defaultOcpTroubleshootingCommands(),
         missingEvidence: [

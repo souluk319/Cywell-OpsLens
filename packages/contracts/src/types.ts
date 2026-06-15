@@ -1860,6 +1860,33 @@ export interface OpsLensOcpConnectivityDiagnosticSummary {
       command: string;
     }>;
   };
+  authRecovery: {
+    status: string;
+    owner: string;
+    classification: string;
+    credentialDiagnosis: string;
+    ocContextStatus: string;
+    ocAuthenticationStatus: string;
+    evidenceNeeded: string[];
+    humanActions: string[];
+    nextCommands: string[];
+    readOnlyChecks: Array<{
+      id: string;
+      command: string;
+      purpose: string;
+      requiresNetwork: boolean;
+      mutation: boolean;
+      writesEvidence: boolean;
+    }>;
+    mutationBoundary: {
+      clusterMutationAttempted: boolean;
+      registryMutationAttempted: boolean;
+      mutationAllowedByThisVerifier: boolean;
+      credentialStoredByVerifier: boolean;
+      tokenValueRedacted: boolean;
+      credentialRefreshRequiresHumanApproval: boolean;
+    };
+  };
   actionHints: Array<{
     id: string;
     severity: "info" | "warning" | "blocked";

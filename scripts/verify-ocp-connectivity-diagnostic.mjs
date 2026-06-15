@@ -990,6 +990,77 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
   return [...(classified[classification] ?? classified["api-unreachable"]), ...common];
 }
 
+function authRecoveryForClassification(classification, hygiene, credentialDiagnosis, ocContext) {
+  const requiresAuthRecovery = ["auth-failed", "auth-or-rbac", "token-missing"].includes(classification);
+  const status = classification === "api-ready"
+    ? "not-required"
+    : requiresAuthRecovery
+      ? "requires-credential-refresh"
+      : "not-applicable";
+  const readOnlyChecks = [
+    {
+      id: "verify-ocp-connectivity",
+      command: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
+      purpose: "Reclassify OCP DNS, TCP, TLS, /version, oc context, and RBAC access without mutation.",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: true
+    },
+    {
+      id: "refresh-ocp-auth-rbac-plan",
+      command: "npm run evidence:ocp-auth-rbac-plan",
+      purpose: "Refresh the cluster-admin review packet after the credential or RBAC evidence changes.",
+      requiresNetwork: false,
+      mutation: false,
+      writesEvidence: true
+    },
+    {
+      id: "verify-post-approval-live-reader-smoke",
+      command: "npm run verify:ocp:live-reader-smoke -- --timeout-ms 30000",
+      purpose: "Prove OCP and Lightspeed readiness after approved credential/RBAC handling.",
+      requiresNetwork: true,
+      mutation: false,
+      writesEvidence: true
+    }
+  ];
+
+  return {
+    status,
+    owner: requiresAuthRecovery ? "cluster-admin" : "none",
+    classification,
+    credentialDiagnosis,
+    ocContextStatus: ocContext.contextStatus,
+    ocAuthenticationStatus: ocContext.authStatus,
+    evidenceNeeded: requiresAuthRecovery
+      ? [
+          "Kubernetes /version returns 200 through the configured OCP credential.",
+          "oc whoami succeeds for the target cluster without printing token values.",
+          "Required oc auth can-i checks return yes or an explicit reviewed RBAC decision.",
+          "Lightspeed readiness is rerun after OCP auth/RBAC evidence changes."
+        ]
+      : [],
+    humanActions: requiresAuthRecovery
+      ? [
+          hygiene.localFormatIssue
+            ? "Fix local OCP token formatting through approved secret handling before treating the cluster as rejecting a valid credential."
+            : "Refresh the OCP API credential from the target cluster through approved secret handling.",
+          "Confirm the refreshed credential belongs to the intended cluster and has the read-only discovery access needed by OpsLens.",
+          "Do not paste token values into tickets, logs, markdown, shell history, or committed files."
+        ]
+      : [],
+    nextCommands: readOnlyChecks.map((check) => check.command),
+    readOnlyChecks,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      credentialStoredByVerifier: hygiene.credentialStoredByVerifier === true,
+      tokenValueRedacted: hygiene.tokenValueRedacted !== false,
+      credentialRefreshRequiresHumanApproval: requiresAuthRecovery
+    }
+  };
+}
+
 async function main() {
   const config = ocpConfig();
   const hygiene = credentialHygiene(config);
@@ -1089,6 +1160,12 @@ async function main() {
     troubleshootingCommands,
     hygiene
   );
+  const authRecovery = authRecoveryForClassification(
+    classification,
+    hygiene,
+    credentialDiagnosis,
+    ocContextResult
+  );
 
   const artifact = {
     schema: "cywell.opslens.ocp-connectivity-diagnostic.v0.1",
@@ -1147,6 +1224,7 @@ async function main() {
       ocContext: ocContextResult,
       rbacAccessReviews: rbacAccessResult.reviews
     },
+    authRecovery,
     actionHints,
     readOnlyTroubleshootingCommands: troubleshootingCommands,
     missingEvidence,
@@ -1156,7 +1234,8 @@ async function main() {
       "no apply, patch, delete, scale, image push, signing, mirroring, or cluster mutation is attempted",
       "token values are redacted from console output and evidence artifacts",
       `oc context currentContextSet=${String(ocContextResult.currentContextSet)} whoamiAvailable=${String(ocContextResult.whoamiAvailable)}`,
-      `credential hygiene localFormatIssue=${hygiene.localFormatIssue} diagnosis=${credentialDiagnosis}`
+      `credential hygiene localFormatIssue=${hygiene.localFormatIssue} diagnosis=${credentialDiagnosis}`,
+      `auth recovery status=${authRecovery.status} owner=${authRecovery.owner} mutationAllowed=false`
     ],
     risk: [
       "A TCP timeout usually points to VPN, firewall, route, bastion, or API server reachability rather than an OpsLens code defect.",
