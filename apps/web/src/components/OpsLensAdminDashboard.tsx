@@ -4451,6 +4451,63 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-external-runtime-final-evidence-action"
+              >
+                <span>{externalRuntimeReview.finalEvidenceAction.id}</span>
+                <span>
+                  owner={externalRuntimeReview.finalEvidenceAction.owner}
+                </span>
+                <span>
+                  status={externalRuntimeReview.finalEvidenceAction.status}
+                </span>
+                <span>
+                  ready=
+                  {externalRuntimeReview.finalEvidenceAction.finalEvidenceReadyCount}
+                  /{externalRuntimeReview.finalEvidenceAction.imageCount}
+                </span>
+                <span>
+                  requests=
+                  {externalRuntimeReview.finalEvidenceAction.reviewerRequestCount}
+                </span>
+                <span>
+                  missing=
+                  {externalRuntimeReview.finalEvidenceAction.missingEvidenceCount}
+                </span>
+                <span>
+                  first=
+                  {externalRuntimeReview.finalEvidenceAction.firstReadOnlyCommand}
+                </span>
+                <span>
+                  verify=
+                  {externalRuntimeReview.finalEvidenceAction.verificationCommand}
+                </span>
+                <span>
+                  promote=
+                  {externalRuntimeReview.finalEvidenceAction.promotionCommands
+                    .slice(0, 2)
+                    .join(", ")}
+                </span>
+                <span>
+                  writesLocalEvidence=
+                  {String(
+                    externalRuntimeReview.finalEvidenceAction.writesLocalEvidence
+                  )}
+                </span>
+                <span>
+                  reviewedInput=
+                  {String(
+                    externalRuntimeReview.finalEvidenceAction.requiresReviewedInput
+                  )}
+                </span>
+                <span>
+                  mutationAllowed=
+                  {String(
+                    externalRuntimeReview.finalEvidenceAction.mutationAllowed
+                  )}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-external-runtime-candidates"
               >
                 {externalRuntimeReview.images.map((image) => (

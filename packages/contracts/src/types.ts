@@ -2980,6 +2980,27 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
     blockedBy: string[];
     rollbackPath: string;
   }>;
+  finalEvidenceAction: {
+    id: string;
+    owner: "release-manager";
+    status: string;
+    imageCount: number;
+    finalEvidenceReadyCount: number;
+    reviewerRequestCount: number;
+    missingEvidenceCount: number;
+    firstReadOnlyCommand: string;
+    verificationCommand: string;
+    promotionCommands: string[];
+    evidenceNeeded: string[];
+    blockedBy: string[];
+    mutationAllowed: false;
+    writesLocalEvidence: true;
+    requiresReviewedInput: true;
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    finalEvidenceRequiresReviewedInputs: true;
+  };
   readOnlyCommands: Array<{
     id: string;
     phase: string;

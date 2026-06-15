@@ -4834,6 +4834,13 @@ function missingExternalRuntimeReviewPacketSummary(
   detail: string,
   status: OpsLensExternalRuntimeReviewPacketReadiness = "needs-evidence"
 ): OpsLensExternalRuntimeReviewPacketSummary {
+  const finalEvidenceAction = buildExternalRuntimeFinalEvidenceAction(
+    [],
+    [detail],
+    false,
+    false,
+    false
+  );
   return {
     status,
     artifactStatus: "missing",
@@ -4854,6 +4861,7 @@ function missingExternalRuntimeReviewPacketSummary(
     images: [],
     candidateHandoff: [],
     finalEvidenceHandoff: [],
+    finalEvidenceAction,
     readOnlyCommands: [],
     approvalGatedCommands: [],
     missingEvidence: [detail],
@@ -5054,6 +5062,71 @@ function fallbackExternalRuntimeFinalEvidenceHandoff(
   });
 }
 
+function buildExternalRuntimeFinalEvidenceAction(
+  handoff: OpsLensExternalRuntimeReviewPacketSummary["finalEvidenceHandoff"],
+  missingEvidence: string[],
+  clusterMutationAttempted: boolean,
+  registryMutationAttempted: boolean,
+  mutationAllowedByThisVerifier: boolean
+): OpsLensExternalRuntimeReviewPacketSummary["finalEvidenceAction"] {
+  const imageCount = handoff.length;
+  const finalEvidenceReadyCount = handoff.filter(
+    (item) => item.finalEvidenceExists
+  ).length;
+  const reviewerRequestCount = handoff.reduce(
+    (total, item) => total + item.reviewerRequestCount,
+    0
+  );
+  const handoffMissingCount = handoff.reduce(
+    (total, item) => total + item.missingEvidenceCount,
+    0
+  );
+  const blockedBy = Array.from(
+    new Set([
+      ...handoff.flatMap((item) => item.blockedBy),
+      ...missingEvidence
+    ])
+  );
+  const promotionCommands = handoff.map((item) => item.promotionCommand);
+  const verificationCommand =
+    handoff.find((item) => item.verificationCommand)?.verificationCommand ??
+    "npm run verify:external-runtime-plan";
+  const evidenceNeeded =
+    handoff.length > 0
+      ? handoff.flatMap((item) =>
+          item.evidenceChecklist.length > 0
+            ? item.evidenceChecklist
+            : [`${item.imageName}: reviewed final external runtime evidence`]
+        )
+      : missingEvidence;
+  const status =
+    imageCount > 0 && finalEvidenceReadyCount === imageCount && blockedBy.length === 0
+      ? "ready-for-final-verification"
+      : "needs-reviewed-inputs";
+
+  return {
+    id: "external-runtime-final-evidence-handoff",
+    owner: "release-manager",
+    status,
+    imageCount,
+    finalEvidenceReadyCount,
+    reviewerRequestCount,
+    missingEvidenceCount: Math.max(handoffMissingCount, missingEvidence.length),
+    firstReadOnlyCommand: "npm run evidence:external-runtime:review-packet",
+    verificationCommand,
+    promotionCommands,
+    evidenceNeeded,
+    blockedBy,
+    mutationAllowed: false,
+    writesLocalEvidence: true,
+    requiresReviewedInput: true,
+    clusterMutationAttempted,
+    registryMutationAttempted,
+    mutationAllowedByThisVerifier,
+    finalEvidenceRequiresReviewedInputs: true
+  };
+}
+
 function getExternalRuntimeReviewPacketReadiness(): {
   status: OpsLensExternalRuntimeReviewPacketReadiness;
   evidence: string[];
@@ -5174,6 +5247,13 @@ function getExternalRuntimeReviewPacketReadiness(): {
               "If reviewer evidence is rejected, keep final evidence absent or supersede it with a corrected reviewed draft."
           }))
         : fallbackExternalRuntimeFinalEvidenceHandoff(images)
+    );
+    const finalEvidenceAction = buildExternalRuntimeFinalEvidenceAction(
+      finalEvidenceHandoff,
+      artifact.missingEvidence ?? [],
+      artifact.clusterMutationAttempted === true,
+      artifact.registryMutationAttempted === true,
+      artifact.mutationAllowedByThisVerifier === true
     );
     const firstReviewerActions = images.flatMap((image) => {
       const request = image.reviewerRequests[0];
@@ -5300,6 +5380,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
         images,
         candidateHandoff,
         finalEvidenceHandoff,
+        finalEvidenceAction,
         readOnlyCommands,
         approvalGatedCommands,
         missingEvidence: artifact.missingEvidence ?? [],
@@ -5315,6 +5396,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
           : "external runtime review images are not listed",
         `external runtime candidate handoff=${candidateHandoff.map((handoff) => `${handoff.imageName}:${handoff.status}:eligible=${String(handoff.releaseEligible)}:mutationAllowed=${String(handoff.mutationAllowed)}`).join(", ") || "missing"}`,
         `external runtime final evidence handoff=${finalEvidenceHandoff.map((handoff) => `${handoff.imageName}:${handoff.status}:promotion=${handoff.promotionCommand}:mutationAllowed=${String(handoff.mutationAllowed)}`).join(", ") || "missing"}`,
+        `external runtime final evidence action=${finalEvidenceAction.id} status=${finalEvidenceAction.status} ready=${finalEvidenceAction.finalEvidenceReadyCount}/${finalEvidenceAction.imageCount} first=${finalEvidenceAction.firstReadOnlyCommand} verify=${finalEvidenceAction.verificationCommand} writesLocalEvidence=${String(finalEvidenceAction.writesLocalEvidence)} reviewedInput=${String(finalEvidenceAction.requiresReviewedInput)} mutationAllowed=${String(finalEvidenceAction.mutationAllowed)}`,
         `external runtime first reviewer actions=${firstReviewerActions.map((action) => `${action.imageName}:${action.role}:${action.nextCommand}`).join(", ") || "missing"}`,
         `external runtime first registry actions=${firstRegistryActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         `external runtime reviewer missingEvidence=${(artifact.missingEvidence ?? []).length}`,
