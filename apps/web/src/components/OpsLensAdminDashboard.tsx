@@ -2856,6 +2856,14 @@ export function OpsLensAdminDashboard() {
                   </strong>
                 </div>
                 <div>
+                  <span>Roadmap</span>
+                  <strong>
+                    {releaseBundle.roadmapCompletion.percentComplete}%,
+                    remaining=
+                    {releaseBundle.roadmapCompletion.remainingRequirements}
+                  </strong>
+                </div>
+                <div>
                   <span>Open Items</span>
                   <strong>
                     {releaseBundle.missingEvidence.length
@@ -2883,6 +2891,14 @@ export function OpsLensAdminDashboard() {
                   unsafeTickets=
                   {releaseBundle.actionQueueSafety.unsafeTickets.join(", ") ||
                     "none"}
+                </span>
+                <span>
+                  roadmapExternalState=
+                  {releaseBundle.roadmapCompletion.remainingExternalStateCount}
+                </span>
+                <span>
+                  roadmapLocalOnly=
+                  {releaseBundle.roadmapCompletion.remainingLocalOnlyCount}
                 </span>
               </div>
               <div className="remediation-notes">

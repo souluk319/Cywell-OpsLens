@@ -428,6 +428,23 @@ function stageSummary(roadmapPlan) {
   }));
 }
 
+function roadmapCompletionSummary(roadmapPlan) {
+  return {
+    totalRequirements: roadmapPlan?.completion?.totalRequirements ?? 0,
+    passedRequirements: roadmapPlan?.completion?.passedRequirements ?? 0,
+    remainingRequirements: roadmapPlan?.completion?.remainingRequirements ?? 0,
+    percentComplete: roadmapPlan?.completion?.percentComplete ?? 0,
+    remainingExternalStateCount:
+      roadmapPlan?.completion?.remainingExternalStateCount ?? 0,
+    remainingLocalOnlyCount:
+      roadmapPlan?.completion?.remainingLocalOnlyCount ?? 0,
+    remainingExternalStateGateIds:
+      roadmapPlan?.completion?.remainingExternalStateGateIds ?? [],
+    remainingLocalOnlyGateIds:
+      roadmapPlan?.completion?.remainingLocalOnlyGateIds ?? []
+  };
+}
+
 function approvalSummary(artifacts) {
   return {
     release: artifacts.releasePlan?.requiredApprovals ?? [
@@ -745,6 +762,8 @@ function buildMarkdownBundle(artifact) {
       `- Release status: ${artifact.decision?.releaseStatus ?? "unknown"}`,
       `- Install status: ${artifact.decision?.installStatus ?? "unknown"}`,
       `- Roadmap status: ${artifact.decision?.roadmapStatus ?? "unknown"}`,
+      `- Roadmap completion: ${artifact.roadmapCompletion?.passedRequirements ?? 0}/${artifact.roadmapCompletion?.totalRequirements ?? 0} (${artifact.roadmapCompletion?.percentComplete ?? 0}%)`,
+      `- Roadmap closure boundary: externalState=${artifact.roadmapCompletion?.remainingExternalStateCount ?? 0} localOnly=${artifact.roadmapCompletion?.remainingLocalOnlyCount ?? 0}`,
       "",
       "## Evidence Outputs",
       `- JSON: ${artifact.evidenceOut ?? "missing"}`,
@@ -999,6 +1018,7 @@ async function main() {
       "AC-DASH-001"
     ],
     decision,
+    roadmapCompletion: roadmapCompletionSummary(artifacts.roadmapPlan),
     approvals: approvalSummary(artifacts),
     stages: stageSummary(artifacts.roadmapPlan),
     sources,

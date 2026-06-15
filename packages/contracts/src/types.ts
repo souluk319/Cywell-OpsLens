@@ -2431,6 +2431,16 @@ export interface OpsLensReleaseEvidenceBundleSummary {
     installStatus: string;
     roadmapStatus: string;
   };
+  roadmapCompletion: {
+    totalRequirements: number;
+    passedRequirements: number;
+    remainingRequirements: number;
+    percentComplete: number;
+    remainingExternalStateCount: number;
+    remainingLocalOnlyCount: number;
+    remainingExternalStateGateIds: string[];
+    remainingLocalOnlyGateIds: string[];
+  };
   approvals: Record<string, string[]>;
   sourceArtifacts: Array<{
     id: string;

@@ -2545,6 +2545,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             installReady?: boolean;
             roadmapComplete?: boolean;
           };
+          roadmapCompletion?: {
+            totalRequirements?: number;
+            passedRequirements?: number;
+            remainingRequirements?: number;
+            percentComplete?: number;
+            remainingExternalStateCount?: number;
+            remainingLocalOnlyCount?: number;
+            remainingExternalStateGateIds?: string[];
+            remainingLocalOnlyGateIds?: string[];
+          };
           sourceArtifacts?: Array<{
             id?: string;
             status?: string;
@@ -5884,6 +5894,19 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(roadmapActionQueueSafety?.evidence?.join(" ")).toContain(
       "critical path lane"
     );
+    expect(body.installReadiness?.bundle?.roadmapCompletion).toMatchObject({
+      totalRequirements: roadmapPlan.completion?.totalRequirements,
+      passedRequirements: roadmapPlan.completion?.passedRequirements,
+      remainingRequirements: roadmapPlan.completion?.remainingRequirements,
+      percentComplete: roadmapPlan.completion?.percentComplete,
+      remainingExternalStateCount:
+        roadmapPlan.completion?.remainingExternalStateCount,
+      remainingLocalOnlyCount: roadmapPlan.completion?.remainingLocalOnlyCount,
+      remainingExternalStateGateIds:
+        roadmapPlan.completion?.remainingExternalStateGateIds,
+      remainingLocalOnlyGateIds:
+        roadmapPlan.completion?.remainingLocalOnlyGateIds
+    });
     const fallbackRoadmapRequirements = [
       ...(roadmapPlan.globalRequirements ?? []).map((requirement) => ({
         stage: "global",
@@ -9423,6 +9446,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
       "Action Queue"
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      `${body.installReadiness?.bundle?.roadmapCompletion?.percentComplete}%`
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      `roadmapExternalState=${body.installReadiness?.bundle?.roadmapCompletion?.remainingExternalStateCount}`
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      `roadmapLocalOnly=${body.installReadiness?.bundle?.roadmapCompletion?.remainingLocalOnlyCount}`
     );
     await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
       "actionQueueStatus=ACTION_QUEUE_READY"

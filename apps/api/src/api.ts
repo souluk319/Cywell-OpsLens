@@ -2751,6 +2751,16 @@ type ReleaseEvidenceBundleArtifact = {
     missingTickets?: string[];
     unsafeTickets?: string[];
   };
+  roadmapCompletion?: {
+    totalRequirements?: number;
+    passedRequirements?: number;
+    remainingRequirements?: number;
+    percentComplete?: number;
+    remainingExternalStateCount?: number;
+    remainingLocalOnlyCount?: number;
+    remainingExternalStateGateIds?: string[];
+    remainingLocalOnlyGateIds?: string[];
+  };
   missingEvidence?: string[];
   risk?: string[];
   rollbackPath?: string[];
@@ -9376,6 +9386,16 @@ function missingReleaseEvidenceBundleSummary(
       installStatus: "missing",
       roadmapStatus: "missing"
     },
+    roadmapCompletion: {
+      totalRequirements: 0,
+      passedRequirements: 0,
+      remainingRequirements: 0,
+      percentComplete: 0,
+      remainingExternalStateCount: 0,
+      remainingLocalOnlyCount: 0,
+      remainingExternalStateGateIds: [],
+      remainingLocalOnlyGateIds: []
+    },
     approvals: {},
     sourceArtifacts: [],
     commandCounts: {
@@ -9461,6 +9481,21 @@ function getReleaseEvidenceBundleReadiness(): {
       missingTickets: artifact.actionQueueSafety?.missingTickets ?? [],
       unsafeTickets: artifact.actionQueueSafety?.unsafeTickets ?? []
     };
+    const roadmapCompletion = {
+      totalRequirements: artifact.roadmapCompletion?.totalRequirements ?? 0,
+      passedRequirements: artifact.roadmapCompletion?.passedRequirements ?? 0,
+      remainingRequirements:
+        artifact.roadmapCompletion?.remainingRequirements ?? 0,
+      percentComplete: artifact.roadmapCompletion?.percentComplete ?? 0,
+      remainingExternalStateCount:
+        artifact.roadmapCompletion?.remainingExternalStateCount ?? 0,
+      remainingLocalOnlyCount:
+        artifact.roadmapCompletion?.remainingLocalOnlyCount ?? 0,
+      remainingExternalStateGateIds:
+        artifact.roadmapCompletion?.remainingExternalStateGateIds ?? [],
+      remainingLocalOnlyGateIds:
+        artifact.roadmapCompletion?.remainingLocalOnlyGateIds ?? []
+    };
     const sourceSummary = sourceArtifacts
       .slice(0, 6)
       .map((source) => `${source.id}:${source.status}:fresh=${String(source.fresh)}`)
@@ -9486,6 +9521,7 @@ function getReleaseEvidenceBundleReadiness(): {
         sourceArtifacts,
         commandCounts,
         actionQueueSafety,
+        roadmapCompletion,
         mutationBoundaryPassed: artifact.mutationBoundary?.passed === true,
         missingEvidence: artifact.missingEvidence ?? [],
         risk: artifact.risk ?? [],
@@ -9498,6 +9534,7 @@ function getReleaseEvidenceBundleReadiness(): {
         `bundle markdown packet=${markdownPath}`,
         `bundle command counts readOnly=${commandCounts.readOnly} mutatingApprovalRequired=${commandCounts.mutatingApprovalRequired}`,
         `bundle action queue ready=${String(actionQueueSafety.ready)} criticalPath=${actionQueueSafety.criticalPathCount} unsafeTickets=${actionQueueSafety.unsafeTickets.length}`,
+        `bundle roadmap completion=${roadmapCompletion.passedRequirements}/${roadmapCompletion.totalRequirements} (${roadmapCompletion.percentComplete}%) externalState=${roadmapCompletion.remainingExternalStateCount} localOnly=${roadmapCompletion.remainingLocalOnlyCount}`,
         sourceSummary ? `bundle sources=${sourceSummary}` : "bundle sources are not listed",
         `bundle mutationBoundaryPassed=${String(artifact.mutationBoundary?.passed ?? false)}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
