@@ -2356,6 +2356,15 @@ export function OpsLensAdminDashboard() {
                 <span>
                   next={ocpConnectivity.authRecovery.nextCommands[0] ?? "none"}
                 </span>
+                <span>
+                  packet=
+                  {ocpConnectivity.authRecovery.markdownPath
+                    .split(/[\\/]/)
+                    .pop()}
+                </span>
+                <span>
+                  exists={String(ocpConnectivity.authRecovery.exists)}
+                </span>
               </div>
               <div
                 className="admin-evidence-line"

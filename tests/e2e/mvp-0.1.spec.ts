@@ -1558,6 +1558,8 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             credentialDiagnosis?: string;
             ocContextStatus?: string;
             ocAuthenticationStatus?: string;
+            markdownPath?: string;
+            exists?: boolean;
             evidenceNeeded?: string[];
             humanActions?: string[];
             nextCommands?: string[];
@@ -4470,7 +4472,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         mutationAllowedByThisVerifier: false,
         credentialStoredByVerifier: false,
         tokenValueRedacted: true
-      }
+      },
+      markdownPath: expect.stringContaining("cywell-opslens-ocp-auth-recovery.md"),
+      exists: true
     });
     expect(
       body.installReadiness?.connectivity?.authRecovery?.readOnlyChecks?.every(
@@ -9197,6 +9201,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-ocp-network-handoff-api-fallback-cases")
     ).toContainText("tcp-timeout:network-sre:network-sre-ocp-api-reachability-ticket");
+    await expect(page.getByTestId("opslens-ocp-auth-recovery")).toContainText(
+      "packet=cywell-opslens-ocp-auth-recovery.md"
+    );
+    await expect(page.getByTestId("opslens-ocp-auth-recovery")).toContainText(
+      "exists=true"
+    );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Auth/RBAC Plan"
     );

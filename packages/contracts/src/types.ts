@@ -1894,6 +1894,8 @@ export interface OpsLensOcpConnectivityDiagnosticSummary {
     credentialDiagnosis: string;
     ocContextStatus: string;
     ocAuthenticationStatus: string;
+    markdownPath: string;
+    exists: boolean;
     evidenceNeeded: string[];
     humanActions: string[];
     nextCommands: string[];

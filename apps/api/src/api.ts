@@ -3576,6 +3576,8 @@ type OcpConnectivityDiagnosticArtifact = {
     credentialDiagnosis?: string;
     ocContextStatus?: string;
     ocAuthenticationStatus?: string;
+    markdownPath?: string;
+    exists?: boolean;
     evidenceNeeded?: string[];
     humanActions?: string[];
     nextCommands?: string[];
@@ -4460,6 +4462,8 @@ function defaultOcpAuthRecovery(
     credentialDiagnosis,
     ocContextStatus: "unknown",
     ocAuthenticationStatus: "unknown",
+    markdownPath: "missing",
+    exists: false,
     evidenceNeeded: requiresAuthRecovery
       ? [
           "Kubernetes /version returns 200 through the configured OCP credential.",
@@ -4526,6 +4530,10 @@ function mapOcpAuthRecovery(
     ocContextStatus: recovery.ocContextStatus ?? ocContextStatus,
     ocAuthenticationStatus:
       recovery.ocAuthenticationStatus ?? ocAuthenticationStatus,
+    markdownPath: recovery.markdownPath ?? fallback.markdownPath,
+    exists:
+      typeof recovery.markdownPath === "string" &&
+      existsSync(recovery.markdownPath),
     evidenceNeeded: recovery.evidenceNeeded ?? fallback.evidenceNeeded,
     humanActions: recovery.humanActions ?? fallback.humanActions,
     nextCommands:

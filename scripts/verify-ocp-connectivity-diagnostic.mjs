@@ -15,6 +15,7 @@ const execFileAsync = promisify(execFile);
 
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
+  authRecoveryMarkdownOut: "test-results/cywell-opslens-ocp-auth-recovery.md",
   timeoutMs: 15000
 };
 
@@ -38,6 +39,8 @@ function parseArgs(argv) {
 const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  authRecoveryMarkdownOut:
+    parsed.get("auth-recovery-markdown-out") ?? defaults.authRecoveryMarkdownOut,
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
 };
 
@@ -1061,6 +1064,73 @@ function authRecoveryForClassification(classification, hygiene, credentialDiagno
   };
 }
 
+function authRecoveryMarkdown(artifact) {
+  const recovery = artifact.authRecovery;
+  const target = artifact.target ?? {};
+  const lines = [
+    "# Cywell OpsLens OCP Auth Recovery Packet",
+    "",
+    `Generated: ${artifact.generatedAt}`,
+    `Git: ${artifact.ref.branch} ${artifact.ref.headSha} dirty=${artifact.ref.worktreeDirty}`,
+    `Status: ${artifact.status}`,
+    `Classification: ${artifact.classification}`,
+    "",
+    "## Current Finding",
+    "",
+    `- Owner: ${recovery.owner}`,
+    `- Recovery status: ${recovery.status}`,
+    `- Credential diagnosis: ${recovery.credentialDiagnosis}`,
+    `- Redacted target: ${target.redactedBaseUrl ?? "<redacted-ocp-api>"}`,
+    `- Token configured: ${String(target.tokenConfigured === true)}`,
+    `- Token source: ${artifact.credentialHygiene.tokenSource}`,
+    `- Token length class: ${artifact.credentialHygiene.tokenLengthClass}`,
+    `- Local format issue: ${String(artifact.credentialHygiene.localFormatIssue)}`,
+    `- Token value redacted: ${String(recovery.mutationBoundary.tokenValueRedacted)}`,
+    `- Credential stored by verifier: ${String(recovery.mutationBoundary.credentialStoredByVerifier)}`,
+    `- oc context: ${recovery.ocContextStatus}`,
+    `- oc auth: ${recovery.ocAuthenticationStatus}`,
+    "",
+    "## Evidence Needed",
+    "",
+    ...(recovery.evidenceNeeded.length
+      ? recovery.evidenceNeeded.map((item) => `- ${item}`)
+      : ["- none"]),
+    "",
+    "## Human Actions",
+    "",
+    ...(recovery.humanActions.length
+      ? recovery.humanActions.map((item) => `- ${item}`)
+      : ["- none"]),
+    "",
+    "## Read-only Follow-up Checks",
+    "",
+    ...recovery.readOnlyChecks.map(
+      (check) =>
+        `- ${check.id}: ${check.command} mutation=${String(check.mutation)} writesEvidence=${String(check.writesEvidence)}`
+    ),
+    "",
+    "## Missing Evidence",
+    "",
+    ...(artifact.missingEvidence.length
+      ? artifact.missingEvidence.map((item) => `- ${item}`)
+      : ["- none"]),
+    "",
+    "## Boundary",
+    "",
+    `- clusterMutationAttempted=${String(recovery.mutationBoundary.clusterMutationAttempted)}`,
+    `- registryMutationAttempted=${String(recovery.mutationBoundary.registryMutationAttempted)}`,
+    `- mutationAllowedByThisVerifier=${String(recovery.mutationBoundary.mutationAllowedByThisVerifier)}`,
+    `- credentialRefreshRequiresHumanApproval=${String(recovery.mutationBoundary.credentialRefreshRequiresHumanApproval)}`,
+    "- This packet does not create tokens, store credentials, apply RBAC, patch OLSConfig, install Operators, push images, mirror images, sign artifacts, delete, or scale.",
+    "",
+    "## Rollback Path",
+    "",
+    ...artifact.rollbackPath.map((item) => `- ${item}`),
+    ""
+  ];
+  return lines.join("\n");
+}
+
 async function main() {
   const config = ocpConfig();
   const hygiene = credentialHygiene(config);
@@ -1160,12 +1230,17 @@ async function main() {
     troubleshootingCommands,
     hygiene
   );
-  const authRecovery = authRecoveryForClassification(
+  const authRecoveryBase = authRecoveryForClassification(
     classification,
     hygiene,
     credentialDiagnosis,
     ocContextResult
   );
+  const authRecovery = {
+    ...authRecoveryBase,
+    markdownPath: resolve(options.authRecoveryMarkdownOut),
+    exists: true
+  };
 
   const artifact = {
     schema: "cywell.opslens.ocp-connectivity-diagnostic.v0.1",
@@ -1252,15 +1327,24 @@ async function main() {
   };
 
   const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
+  const authRecoveryMarkdownContent = authRecoveryMarkdown(artifact);
   if (secretValuesForLeakCheck().some((secret) => serialized.includes(secret))) {
     throw new Error("OCP connectivity diagnostic would include a configured secret value");
   }
-  if (endpointLeakLike(serialized)) {
+  if (secretValuesForLeakCheck().some((secret) => authRecoveryMarkdownContent.includes(secret))) {
+    throw new Error("OCP auth recovery packet would include a configured secret value");
+  }
+  if (endpointLeakLike(serialized) || endpointLeakLike(authRecoveryMarkdownContent)) {
     throw new Error("OCP connectivity diagnostic would include an unredacted OCP host or private IP");
   }
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
+  await mkdir(dirname(resolve(options.authRecoveryMarkdownOut)), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");
-  pass("OCP connectivity diagnostic export", `${resolve(options.evidenceOut)} written without secret material`);
+  await writeFile(resolve(options.authRecoveryMarkdownOut), authRecoveryMarkdownContent, "utf8");
+  pass(
+    "OCP connectivity diagnostic export",
+    `${resolve(options.evidenceOut)} and ${resolve(options.authRecoveryMarkdownOut)} written without secret material`
+  );
 
   const totals = {
     fail: checks.filter((check) => check.status === "FAIL").length,
