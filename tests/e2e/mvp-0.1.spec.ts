@@ -1835,7 +1835,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               nextCommands?: string[];
             }>;
             readOnlyCommands?: Array<{ id?: string; command?: string; mutation?: boolean }>;
-            setupCommands?: Array<{ id?: string; mutation?: boolean }>;
+            setupCommands?: Array<{
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+              requiresHumanSecretInput?: boolean;
+              credentialSetup?: boolean;
+              credentialStoredByVerifier?: boolean;
+              registryLoginExecutedByVerifier?: boolean;
+            }>;
             approvalGatedCommands?: Array<{ id?: string; mutation?: boolean }>;
             nextCommands?: string[];
           };
@@ -5995,6 +6003,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (item) => item.id === "release-publish-commands"
       )?.value
     ).toContain("approvalGated=");
+    expect(
+      releasePublishAction?.diagnostics?.find(
+        (item) => item.id === "release-publish-commands"
+      )?.value
+    ).toContain("setup=");
+    expect(releasePublishAction?.readOnlyCommands?.map((command) => command.id)).not.toContain(
+      "login-release-registry"
+    );
+    expect(releasePublishAction?.setupCommands?.map((command) => command.id)).toContain(
+      "login-release-registry"
+    );
+    expect(
+      releasePublishAction?.setupCommands?.find(
+        (command) => command.id === "login-release-registry"
+      )
+    ).toMatchObject({
+      mutation: false,
+      requiresExplicitApproval: true,
+      requiresHumanSecretInput: true,
+      credentialSetup: true,
+      credentialStoredByVerifier: false,
+      registryLoginExecutedByVerifier: false
+    });
     const installApprovalAction =
       body.installReadiness?.actionQueue?.items?.find(
         (item) =>

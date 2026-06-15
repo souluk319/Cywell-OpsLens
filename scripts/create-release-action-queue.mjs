@@ -648,7 +648,10 @@ function releasePublishDiagnostics(releasePlan) {
   const ticket = releasePlan?.ticketPacket ?? {};
   const boundary = ticket.mutationBoundary ?? {};
   const commands = releasePlan?.commands ?? [];
-  const readOnly = commands.filter((command) => command.mutation !== true);
+  const setup = commands.filter((command) => command.credentialSetup === true);
+  const readOnly = commands.filter(
+    (command) => command.mutation !== true && command.credentialSetup !== true
+  );
   const approvalGated = commands.filter((command) => command.mutation === true);
   const missingEvidence = releasePlan?.missingEvidence ?? [];
   const requiredApprovals =
@@ -674,6 +677,7 @@ function releasePublishDiagnostics(releasePlan) {
       label: "Command boundary",
       value:
         `readOnly=${readOnly.length} ` +
+        `setup=${setup.length} ` +
         `approvalGated=${approvalGated.length} ` +
         `approval=${approvalGated.map((command) => command.id).slice(0, 6).join(",") || "none"}`
     },
@@ -977,7 +981,12 @@ function item({
       phase: sanitize(command.phase ?? "human-setup"),
       mutation: command.mutation === true,
       requiresNetwork: command.requiresNetwork === true,
-      requiresHumanApproval: command.requiresHumanApproval === true
+      requiresExplicitApproval: command.requiresExplicitApproval === true,
+      requiresHumanApproval: command.requiresHumanApproval === true,
+      requiresHumanSecretInput: command.requiresHumanSecretInput === true,
+      credentialSetup: command.credentialSetup === true,
+      credentialStoredByVerifier: command.credentialStoredByVerifier === true,
+      registryLoginExecutedByVerifier: command.registryLoginExecutedByVerifier === true
     })),
     readOnlyCommands: readOnlyCommands.map((command) => ({
       id: sanitize(command.id ?? "unknown"),
@@ -2108,7 +2117,10 @@ function checkpointItems(
     handoffNextCommands:
       releasePlan?.ticketPacket?.nextCommands ?? [],
     readOnlyCommands: (releasePlan?.commands ?? []).filter(
-      (command) => command.mutation !== true
+      (command) => command.mutation !== true && command.credentialSetup !== true
+    ),
+    setupCommands: (releasePlan?.commands ?? []).filter(
+      (command) => command.credentialSetup === true
     ),
     approvalGatedCommands: (releasePlan?.commands ?? []).filter(
       (command) => command.mutation === true

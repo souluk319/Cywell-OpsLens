@@ -268,13 +268,18 @@ function buildEvidenceGaps(imageEvidence, ownedImageProvenanceEvidence, external
   return gaps;
 }
 
-function command(id, phase, text, rationale, rollback, mutation = true) {
+function command(id, phase, text, rationale, rollback, mutation = true, extra = {}) {
   return {
     id,
     phase,
     command: text,
     mutation,
-    requiresExplicitApproval: mutation,
+    requiresExplicitApproval: extra.requiresExplicitApproval ?? mutation,
+    credentialSetup: extra.credentialSetup === true,
+    requiresHumanSecretInput: extra.requiresHumanSecretInput === true,
+    requiresHumanApproval: extra.requiresHumanApproval === true,
+    credentialStoredByVerifier: extra.credentialStoredByVerifier === true,
+    registryLoginExecutedByVerifier: extra.registryLoginExecutedByVerifier === true,
     rationale,
     rollback
   };
@@ -332,7 +337,15 @@ function buildCommands(publishImages, catalogSource, subscription) {
       "docker login quay.io",
       "Authenticate to the release registry without writing credentials to the repo.",
       "docker logout quay.io",
-      false
+      false,
+      {
+        requiresExplicitApproval: true,
+        requiresHumanApproval: true,
+        requiresHumanSecretInput: true,
+        credentialSetup: true,
+        credentialStoredByVerifier: false,
+        registryLoginExecutedByVerifier: false
+      }
     ),
     ...pushCommands,
     ...signCommands,
