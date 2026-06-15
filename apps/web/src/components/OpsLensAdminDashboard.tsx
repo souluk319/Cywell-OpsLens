@@ -2551,6 +2551,14 @@ export function OpsLensAdminDashboard() {
                   </strong>
                 </div>
                 <div>
+                  <span>Action Queue</span>
+                  <strong>
+                    ready={String(releaseBundle.actionQueueSafety.ready)},
+                    criticalPath=
+                    {releaseBundle.actionQueueSafety.criticalPathCount}
+                  </strong>
+                </div>
+                <div>
                   <span>Open Items</span>
                   <strong>
                     {releaseBundle.missingEvidence.length
@@ -2565,6 +2573,20 @@ export function OpsLensAdminDashboard() {
                     {source.id} fresh={String(source.fresh)}
                   </span>
                 ))}
+              </div>
+              <div className="admin-evidence-line">
+                <span>
+                  actionQueueStatus={releaseBundle.actionQueueSafety.status}
+                </span>
+                <span>
+                  actionQueueFresh=
+                  {String(releaseBundle.actionQueueSafety.fresh)}
+                </span>
+                <span>
+                  unsafeTickets=
+                  {releaseBundle.actionQueueSafety.unsafeTickets.join(", ") ||
+                    "none"}
+                </span>
               </div>
               <div className="remediation-notes">
                 <p>

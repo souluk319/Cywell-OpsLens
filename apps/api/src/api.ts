@@ -2595,6 +2595,16 @@ type ReleaseEvidenceBundleArtifact = {
   mutationBoundary?: {
     passed?: boolean;
   };
+  actionQueueSafety?: {
+    status?: string;
+    fresh?: boolean;
+    ready?: boolean;
+    ownerPacketCount?: number;
+    criticalPathCount?: number;
+    missingDiagnostics?: string[];
+    missingTickets?: string[];
+    unsafeTickets?: string[];
+  };
   missingEvidence?: string[];
   risk?: string[];
   rollbackPath?: string[];
@@ -8059,6 +8069,16 @@ function missingReleaseEvidenceBundleSummary(
       readOnly: 0,
       mutatingApprovalRequired: 0
     },
+    actionQueueSafety: {
+      status: "missing",
+      fresh: false,
+      ready: false,
+      ownerPacketCount: 0,
+      criticalPathCount: 0,
+      missingDiagnostics: [reason],
+      missingTickets: [reason],
+      unsafeTickets: [reason]
+    },
     mutationBoundaryPassed: false,
     missingEvidence: [reason],
     risk: [
@@ -8117,6 +8137,17 @@ function getReleaseEvidenceBundleReadiness(): {
       mutatingApprovalRequired:
         artifact.commands?.mutatingApprovalRequired?.length ?? 0
     };
+    const actionQueueSafety = {
+      status: artifact.actionQueueSafety?.status ?? "missing",
+      fresh: artifact.actionQueueSafety?.fresh === true,
+      ready: artifact.actionQueueSafety?.ready === true,
+      ownerPacketCount: artifact.actionQueueSafety?.ownerPacketCount ?? 0,
+      criticalPathCount: artifact.actionQueueSafety?.criticalPathCount ?? 0,
+      missingDiagnostics:
+        artifact.actionQueueSafety?.missingDiagnostics ?? [],
+      missingTickets: artifact.actionQueueSafety?.missingTickets ?? [],
+      unsafeTickets: artifact.actionQueueSafety?.unsafeTickets ?? []
+    };
     const sourceSummary = sourceArtifacts
       .slice(0, 6)
       .map((source) => `${source.id}:${source.status}:fresh=${String(source.fresh)}`)
@@ -8141,6 +8172,7 @@ function getReleaseEvidenceBundleReadiness(): {
         approvals: artifact.approvals ?? {},
         sourceArtifacts,
         commandCounts,
+        actionQueueSafety,
         mutationBoundaryPassed: artifact.mutationBoundary?.passed === true,
         missingEvidence: artifact.missingEvidence ?? [],
         risk: artifact.risk ?? [],
@@ -8152,6 +8184,7 @@ function getReleaseEvidenceBundleReadiness(): {
         `bundle decision publishReady=${String(decision.publishReady)} installReady=${String(decision.installReady)} roadmapComplete=${String(decision.roadmapComplete)}`,
         `bundle markdown packet=${markdownPath}`,
         `bundle command counts readOnly=${commandCounts.readOnly} mutatingApprovalRequired=${commandCounts.mutatingApprovalRequired}`,
+        `bundle action queue ready=${String(actionQueueSafety.ready)} criticalPath=${actionQueueSafety.criticalPathCount} unsafeTickets=${actionQueueSafety.unsafeTickets.length}`,
         sourceSummary ? `bundle sources=${sourceSummary}` : "bundle sources are not listed",
         `bundle mutationBoundaryPassed=${String(artifact.mutationBoundary?.passed ?? false)}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),

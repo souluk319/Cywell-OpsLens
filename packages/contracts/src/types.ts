@@ -2306,6 +2306,16 @@ export interface OpsLensReleaseEvidenceBundleSummary {
     readOnly: number;
     mutatingApprovalRequired: number;
   };
+  actionQueueSafety: {
+    status: string;
+    fresh: boolean;
+    ready: boolean;
+    ownerPacketCount: number;
+    criticalPathCount: number;
+    missingDiagnostics: string[];
+    missingTickets: string[];
+    unsafeTickets: string[];
+  };
   mutationBoundaryPassed: boolean;
   missingEvidence: string[];
   risk: string[];

@@ -2269,6 +2269,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             readOnly?: number;
             mutatingApprovalRequired?: number;
           };
+          actionQueueSafety?: {
+            status?: string;
+            fresh?: boolean;
+            ready?: boolean;
+            ownerPacketCount?: number;
+            criticalPathCount?: number;
+            missingDiagnostics?: string[];
+            missingTickets?: string[];
+            unsafeTickets?: string[];
+          };
           mutationBoundaryPassed?: boolean;
           missingEvidence?: string[];
           risk?: string[];
@@ -5023,9 +5033,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "communityOperatorSubmission",
         "externalRuntimeReviewPacket",
         "releasePlan",
-        "evidenceCheckpoint"
+        "evidenceCheckpoint",
+        "releaseActionQueue"
       ])
     );
+    expect(body.installReadiness?.bundle?.actionQueueSafety).toMatchObject({
+      status: "ACTION_QUEUE_READY",
+      fresh: true,
+      ready: true
+    });
+    expect(
+      body.installReadiness?.bundle?.actionQueueSafety?.criticalPathCount ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.bundle?.actionQueueSafety?.unsafeTickets
+    ).toEqual([]);
     expect(
       body.installReadiness?.bundle?.commandCounts?.readOnly ?? 0
     ).toBeGreaterThan(0);
@@ -8131,6 +8153,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
       "readOnly="
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      "Action Queue"
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      "actionQueueStatus=ACTION_QUEUE_READY"
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      "unsafeTickets=none"
     );
     await expect(page.getByTestId("opslens-release-action-queue")).toContainText(
       "actionQueueOnly"

@@ -38,6 +38,7 @@ const defaults = {
   operatorRuntimeParity: "test-results/cywell-opslens-operator-runtime-parity.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
+  releaseActionQueue: "test-results/cywell-opslens-release-action-queue.json",
   timeoutMs: 10000
 };
 
@@ -106,6 +107,8 @@ const options = {
   evidenceCheckpoint:
     parsed.get("evidence-checkpoint") ?? defaults.evidenceCheckpoint,
   roadmapPlan: parsed.get("roadmap-plan-evidence") ?? defaults.roadmapPlan,
+  releaseActionQueue:
+    parsed.get("release-action-queue-evidence") ?? defaults.releaseActionQueue,
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
 };
 
@@ -520,11 +523,98 @@ function mutationBoundary(artifacts) {
     ["ocpAuthRbacPlan.mutationAllowedByThisVerifier", artifacts.ocpAuthRbacPlan?.mutationAllowedByThisVerifier],
     ["operatorPackage.clusterMutationAttempted", artifacts.operatorPackage?.clusterMutationAttempted],
     ["operatorPackage.registryMutationAttempted", artifacts.operatorPackage?.registryMutationAttempted],
-    ["operatorPackage.mutationAllowedByThisVerifier", artifacts.operatorPackage?.mutationAllowedByThisVerifier]
+    ["operatorPackage.mutationAllowedByThisVerifier", artifacts.operatorPackage?.mutationAllowedByThisVerifier],
+    ["releaseActionQueue.clusterMutationAttempted", artifacts.releaseActionQueue?.clusterMutationAttempted],
+    ["releaseActionQueue.registryMutationAttempted", artifacts.releaseActionQueue?.registryMutationAttempted],
+    ["releaseActionQueue.mutationAllowedByThisVerifier", artifacts.releaseActionQueue?.mutationAllowedByThisVerifier]
   ];
   return {
     passed: flags.every(([, value]) => value !== true),
     flags: Object.fromEntries(flags.map(([key, value]) => [key, value === true]))
+  };
+}
+
+function actionQueueTicketPackets(entry) {
+  return [
+    entry?.ticketPacket,
+    entry?.externalRuntimeTicketPacket,
+    entry?.externalRuntimeFinalEvidenceTicketPacket,
+    entry?.externalRuntimeProductTicketPacket,
+    entry?.securityReviewTicketPacket,
+    entry?.releasePublishTicketPacket,
+    entry?.installApprovalTicketPacket,
+    entry?.catalogToolchainTicketPacket,
+    entry?.certificationToolingTicketPacket,
+    entry?.ragProductionTicketPacket,
+    entry?.aiopsMonitoringTicketPacket,
+    entry?.runtimeEvidenceTicketPacket
+  ].filter(Boolean);
+}
+
+function unsafeActionQueueTickets(entry) {
+  return actionQueueTicketPackets(entry).flatMap((ticket) => {
+    const reasons = [];
+    const firstReadOnly = ticket.firstReadOnlyAction;
+    const approvalGated = ticket.approvalGatedAction;
+    const boundary = ticket.mutationBoundary ?? {};
+    if (firstReadOnly?.mutation === true) reasons.push("first-read-only-mutates");
+    if (firstReadOnly?.requiresExplicitApproval === true) {
+      reasons.push("first-read-only-requires-approval");
+    }
+    if (boundary.clusterMutationAttempted === true) reasons.push("cluster-mutation-attempted");
+    if (boundary.registryMutationAttempted === true) reasons.push("registry-mutation-attempted");
+    if (boundary.mutationAllowedByThisVerifier === true) {
+      reasons.push("mutation-allowed-by-verifier");
+    }
+    if (boundary.vectorWriteAttempted === true) reasons.push("vector-write-attempted");
+    if (boundary.ingestionJobCreated === true) reasons.push("ingestion-job-created");
+    if (
+      approvalGated?.mutation === true &&
+      approvalGated.requiresExplicitApproval !== true
+    ) {
+      reasons.push("approval-mutation-without-explicit-approval");
+    }
+    return reasons.length > 0
+      ? [`${entry?.lane ?? "unknown"}:${ticket.id ?? "unknown"}:${reasons.join("+")}`]
+      : [];
+  });
+}
+
+function actionQueueSafety(actionQueue, currentHeadSha) {
+  const ref = artifactRef(actionQueue);
+  const criticalPath = actionQueue?.criticalPath ?? [];
+  const missingDiagnostics = criticalPath
+    .filter((entry) => (entry.diagnostics ?? []).length === 0)
+    .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks diagnostics`);
+  const missingTickets = criticalPath
+    .filter((entry) => actionQueueTicketPackets(entry).length === 0)
+    .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks ticket packet`);
+  const unsafeTickets = criticalPath.flatMap(unsafeActionQueueTickets).map(sanitize);
+  const fresh =
+    actionQueue !== undefined &&
+    ref.headSha === currentHeadSha &&
+    ref.worktreeDirty === false;
+  const ready =
+    actionQueue?.status === "ACTION_QUEUE_READY" &&
+    fresh &&
+    criticalPath.length > 0 &&
+    missingDiagnostics.length === 0 &&
+    missingTickets.length === 0 &&
+    unsafeTickets.length === 0 &&
+    actionQueue?.mutationAllowedByThisVerifier !== true &&
+    actionQueue?.clusterMutationAttempted !== true &&
+    actionQueue?.registryMutationAttempted !== true;
+  return {
+    status: actionQueue?.status ?? "missing",
+    headSha: ref.headSha ?? "missing",
+    worktreeDirty: ref.worktreeDirty ?? "unknown",
+    fresh,
+    ready,
+    ownerPacketCount: (actionQueue?.ownerPackets ?? []).length,
+    criticalPathCount: criticalPath.length,
+    missingDiagnostics,
+    missingTickets,
+    unsafeTickets
   };
 }
 
@@ -667,6 +757,16 @@ function buildMarkdownBundle(artifact) {
         "no source artifacts"
       ),
       "",
+      "## Action Queue Safety",
+      `- Status: ${artifact.actionQueueSafety?.status ?? "missing"}`,
+      `- Fresh: ${String(artifact.actionQueueSafety?.fresh ?? false)}`,
+      `- Ready: ${String(artifact.actionQueueSafety?.ready ?? false)}`,
+      `- Owner packets: ${artifact.actionQueueSafety?.ownerPacketCount ?? 0}`,
+      `- Critical path lanes: ${artifact.actionQueueSafety?.criticalPathCount ?? 0}`,
+      `- Missing diagnostics: ${(artifact.actionQueueSafety?.missingDiagnostics ?? []).join(", ") || "none"}`,
+      `- Missing tickets: ${(artifact.actionQueueSafety?.missingTickets ?? []).join(", ") || "none"}`,
+      `- Unsafe tickets: ${(artifact.actionQueueSafety?.unsafeTickets ?? []).join(", ") || "none"}`,
+      "",
       "## Approvals",
       markdownTable(["Scope", "Required Approvers"], approvalRows, "no approvals listed"),
       "",
@@ -786,7 +886,8 @@ async function main() {
     operatorReconcile: loadJson(options.operatorReconcile, "Operator reconcile"),
     operatorRuntimeParity: loadJson(options.operatorRuntimeParity, "Operator runtime parity"),
     evidenceCheckpoint: loadJson(options.evidenceCheckpoint, "evidence checkpoint"),
-    roadmapPlan: loadJson(options.roadmapPlan, "roadmap plan alignment")
+    roadmapPlan: loadJson(options.roadmapPlan, "roadmap plan alignment"),
+    releaseActionQueue: loadJson(options.releaseActionQueue, "release action queue")
   };
 
   const sources = [
@@ -814,7 +915,8 @@ async function main() {
     sourceSummary("operatorReconcile", "Operator reconcile", options.operatorReconcile, artifacts.operatorReconcile, headSha, ["PASS"]),
     sourceSummary("operatorRuntimeParity", "Operator runtime parity", options.operatorRuntimeParity, artifacts.operatorRuntimeParity, headSha, ["PASS"]),
     sourceSummary("evidenceCheckpoint", "evidence checkpoint", options.evidenceCheckpoint, artifacts.evidenceCheckpoint, headSha, ["PASS", "NEEDS_EVIDENCE"]),
-    sourceSummary("roadmapPlan", "roadmap plan alignment", options.roadmapPlan, artifacts.roadmapPlan, headSha, ["PASS", "NEEDS_EVIDENCE"])
+    sourceSummary("roadmapPlan", "roadmap plan alignment", options.roadmapPlan, artifacts.roadmapPlan, headSha, ["PASS", "NEEDS_EVIDENCE"]),
+    sourceSummary("releaseActionQueue", "release action queue", options.releaseActionQueue, artifacts.releaseActionQueue, headSha, ["ACTION_QUEUE_READY"])
   ];
 
   const mutations = mutationBoundary(artifacts);
@@ -834,7 +936,36 @@ async function main() {
     pass("bundle command boundary", `${commands.readOnly.length} read-only command(s), ${commands.mutatingApprovalRequired.length} approval-gated mutating command(s)`);
   }
 
-  const missingEvidence = evidenceGaps(artifacts, sources);
+  const actionQueue = actionQueueSafety(artifacts.releaseActionQueue, headSha);
+  if (actionQueue.ready) {
+    pass(
+      "bundle action queue safety",
+      `${actionQueue.criticalPathCount} critical path lane(s) ready with ${actionQueue.unsafeTickets.length} unsafe ticket(s)`
+    );
+  } else {
+    warn(
+      "bundle action queue safety",
+      [
+        `status=${actionQueue.status}`,
+        `fresh=${String(actionQueue.fresh)}`,
+        `criticalPath=${actionQueue.criticalPathCount}`,
+        `missingDiagnostics=${actionQueue.missingDiagnostics.length}`,
+        `missingTickets=${actionQueue.missingTickets.length}`,
+        `unsafeTickets=${actionQueue.unsafeTickets.length}`
+      ].join(" ")
+    );
+  }
+  const missingEvidence = unique([
+    ...evidenceGaps(artifacts, sources),
+    ...(actionQueue.ready
+      ? []
+      : [
+          `release action queue safety ready=${String(actionQueue.ready)} status=${actionQueue.status}`
+        ]),
+    ...actionQueue.missingDiagnostics,
+    ...actionQueue.missingTickets,
+    ...actionQueue.unsafeTickets
+  ]);
   const decision = releaseDecision(artifacts);
   const status = checks.some((check) => check.status === "FAIL")
     ? "BLOCKED"
@@ -871,6 +1002,7 @@ async function main() {
     approvals: approvalSummary(artifacts),
     stages: stageSummary(artifacts.roadmapPlan),
     sources,
+    actionQueueSafety: actionQueue,
     imageProvenance: {
       status: artifacts.ownedImageProvenance?.status ?? "missing",
       requiredImages: artifacts.ownedImageProvenance?.requiredImages ?? [],
