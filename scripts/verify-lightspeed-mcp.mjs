@@ -330,12 +330,17 @@ function classifyLiveReadFailure(ocError, apiError) {
   } else if (
     lower.includes("unauthorized") ||
     lower.includes("provide credentials") ||
-    lower.includes("you must be logged in") ||
-    lower.includes("forbidden")
+    lower.includes("you must be logged in")
   ) {
+    classification = "auth-failed";
+    evidence =
+      "OCP API was reachable, but the configured credential was rejected before Lightspeed readiness could read live resources";
+    nextCommand = "npm run evidence:ocp-auth-rbac-plan";
+    owner = "cluster-admin";
+  } else if (lower.includes("forbidden")) {
     classification = "auth-or-rbac";
     evidence =
-      "OCP API was reachable, but the configured credential was rejected or lacks read access";
+      "OCP API was reachable, but the configured credential lacks the read access needed for Lightspeed readiness";
     nextCommand = "npm run evidence:ocp-auth-rbac-plan";
     owner = "cluster-admin";
   } else if (

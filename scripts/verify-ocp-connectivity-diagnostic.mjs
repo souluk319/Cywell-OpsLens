@@ -491,9 +491,11 @@ async function diagnoseHttpVersion(endpoint, config, tcpResult, tlsResult, timeo
             });
             return;
           }
-          const classification = statusCode === 401 || statusCode === 403
-            ? "auth-or-rbac"
-            : "api-unhealthy";
+          const classification = statusCode === 401
+            ? "auth-failed"
+            : statusCode === 403
+              ? "auth-or-rbac"
+              : "api-unhealthy";
           warn("Kubernetes /version GET", `status=${statusCode} classification=${classification}`);
           resolvePromise({ status: "needs-evidence", statusCode, durationMs, classification });
         });
@@ -872,7 +874,7 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         id: "refresh-ocp-token-or-rbac",
         severity: "blocked",
         summary: "Refresh the OCP API credential or grant the read-only RBAC needed for discovery.",
-        evidence: "DNS, TCP, and TLS reached the API, but Kubernetes returned 401 or 403.",
+        evidence: "DNS, TCP, and TLS reached the API, but Kubernetes returned 403 or RBAC evidence stayed incomplete.",
         nextCheck: `oc whoami && oc auth can-i get crd olsconfigs.ols.openshift.io && ${boundedConnectivityCheck}`
       }
     ],
@@ -1034,7 +1036,8 @@ async function main() {
     risk: [
       "A TCP timeout usually points to VPN, firewall, route, bastion, or API server reachability rather than an OpsLens code defect.",
       "A TLS failure can be caused by self-signed or enterprise CA trust configuration; use explicit OCP TLS variables rather than Lightspeed TLS variables.",
-      "A 401 or 403 from /version means network reachability exists but token/authentication evidence is still incomplete."
+      "A 401 from /version means the configured token or kubeconfig credential was rejected before RBAC could be trusted.",
+      "A 403 from /version means network reachability exists but the credential or read-only RBAC evidence is still incomplete."
     ],
     rollbackPath: [
       "No rollback is required because this verifier is read-only.",

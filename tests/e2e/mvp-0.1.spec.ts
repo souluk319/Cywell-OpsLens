@@ -6441,7 +6441,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           ])
         );
         expect(lightspeedReadinessAction.blockedBy?.join(" ")).toMatch(
-          /auth-or-rbac|OLSConfig|credentials/
+          /auth-or-rbac|auth-failed|OLSConfig|credentials/
         );
         const lightspeedAuthCriticalPath =
           body.installReadiness?.actionQueue?.criticalPath?.find(
