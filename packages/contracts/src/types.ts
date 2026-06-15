@@ -3949,6 +3949,59 @@ export interface OpsBrainSystemSummary {
     nextImplementation: string;
     passFail: string;
   }>;
+  architectureModules: Array<{
+    id:
+      | "tool-layer"
+      | "memory-failure-journal"
+      | "graphrag-knowledge-graph"
+      | "evaluator"
+      | "self-improver"
+      | "risk-gate"
+      | "model-ensemble";
+    label: string;
+    role: string;
+    minimumImplementation: string;
+    currentImplementation: string;
+    nextImplementation: string;
+    status: "active" | "mvp" | "planned" | "needs-evidence";
+    acceptanceSignals: string[];
+    evidence: string[];
+    missingEvidence: string[];
+  }>;
+  growthGovernance: {
+    currentStateEvidenceTargetPercent: 80;
+    repeatedCaseReuseRequired: true;
+    unauthorizedDangerousExecutionTarget: 0;
+    evalBeforePromotionRequired: true;
+    memoryPromotionMode: "reviewed-proposals-only";
+    evidence: string[];
+    missingEvidence: string[];
+  };
+  modelStrategy: {
+    defaultMode: "fixture-local" | "local-runtime" | "private-gateway" | "external-provider";
+    routingPlanned: boolean;
+    externalProviderCallAllowedByDefault: false;
+    providers: Array<{
+      id: string;
+      label: string;
+      role: string;
+      configured: boolean;
+      status: "active" | "optional" | "missing" | "approval-required";
+      secretValueExposed: false;
+      evidence: string[];
+      missingEvidence: string[];
+    }>;
+    evidence: string[];
+    missingEvidence: string[];
+  };
+  observability: {
+    traceStages: string[];
+    currentImplementation: string;
+    nextImplementation: string;
+    status: "mvp" | "planned" | "needs-evidence";
+    evidence: string[];
+    missingEvidence: string[];
+  };
   acceptanceCriteria: Array<{
     id: string;
     sourceCriterion: string;

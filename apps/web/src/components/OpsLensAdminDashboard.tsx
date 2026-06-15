@@ -608,6 +608,98 @@ export function OpsLensAdminDashboard() {
             </article>
           </div>
 
+          <div className="opsbrain-module-row">
+            <article
+              className="opsbrain-panel opsbrain-module-panel"
+              data-testid="opslens-opsbrain-architecture"
+            >
+              <div className="card-title-row">
+                <h4>
+                  <BrainCircuit size={16} aria-hidden="true" />
+                  System Modules
+                </h4>
+                <span>{opsBrain.architectureModules.length} modules</span>
+              </div>
+              <div className="opsbrain-module-list">
+                {opsBrain.architectureModules.map((module) => (
+                  <div key={module.id}>
+                    <span className={`freshness ${statusClass(module.status)}`}>
+                      {module.status}
+                    </span>
+                    <strong>{module.label}</strong>
+                    <small>{module.currentImplementation}</small>
+                    <small>next={module.nextImplementation}</small>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article
+              className="opsbrain-panel"
+              data-testid="opslens-opsbrain-growth-governance"
+            >
+              <div className="card-title-row">
+                <h4>
+                  <ShieldCheck size={16} aria-hidden="true" />
+                  Growth Governance
+                </h4>
+                <span>{opsBrain.growthGovernance.memoryPromotionMode}</span>
+              </div>
+              <div className="opsbrain-governance-grid">
+                <span>
+                  groundedTarget={opsBrain.growthGovernance.currentStateEvidenceTargetPercent}%
+                </span>
+                <span>
+                  dangerousExecTarget={opsBrain.growthGovernance.unauthorizedDangerousExecutionTarget}
+                </span>
+                <span>
+                  repeatReuse={String(opsBrain.growthGovernance.repeatedCaseReuseRequired)}
+                </span>
+                <span>
+                  evalBeforePromotion={String(opsBrain.growthGovernance.evalBeforePromotionRequired)}
+                </span>
+              </div>
+              <div className="opsbrain-chip-list">
+                {opsBrain.growthGovernance.missingEvidence.slice(0, 4).map((gap) => (
+                  <span key={gap}>{gap}</span>
+                ))}
+              </div>
+            </article>
+
+            <article
+              className="opsbrain-panel"
+              data-testid="opslens-opsbrain-model-strategy"
+            >
+              <div className="card-title-row">
+                <h4>
+                  <Gauge size={16} aria-hidden="true" />
+                  Model Strategy
+                </h4>
+                <span>{opsBrain.modelStrategy.defaultMode}</span>
+              </div>
+              <div className="opsbrain-safety-grid">
+                <span>
+                  routingPlanned={String(opsBrain.modelStrategy.routingPlanned)}
+                </span>
+                <span>
+                  externalProviderDefault=
+                  {String(opsBrain.modelStrategy.externalProviderCallAllowedByDefault)}
+                </span>
+              </div>
+              <div className="opsbrain-model-list">
+                {opsBrain.modelStrategy.providers.map((provider) => (
+                  <div key={provider.id}>
+                    <span className={`status-pill ${provider.status === "active" ? "ready" : provider.status === "missing" ? "danger" : "read-only"}`}>
+                      {provider.status}
+                    </span>
+                    <strong>{provider.label}</strong>
+                    <small>{provider.role}</small>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+
           <div className="opsbrain-contract-row">
             <article className="opsbrain-panel">
               <div className="card-title-row">

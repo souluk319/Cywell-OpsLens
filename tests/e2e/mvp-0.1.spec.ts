@@ -1271,6 +1271,31 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         actionMode?: string;
         phases?: Array<{ id?: string; status?: string }>;
         memoryTiers?: Array<{ tier?: string; writePolicy?: string }>;
+        architectureModules?: Array<{
+          id?: string;
+          label?: string;
+          status?: string;
+          acceptanceSignals?: string[];
+        }>;
+        growthGovernance?: {
+          currentStateEvidenceTargetPercent?: number;
+          unauthorizedDangerousExecutionTarget?: number;
+          memoryPromotionMode?: string;
+          evalBeforePromotionRequired?: boolean;
+        };
+        modelStrategy?: {
+          defaultMode?: string;
+          routingPlanned?: boolean;
+          externalProviderCallAllowedByDefault?: boolean;
+          providers?: Array<{
+            id?: string;
+            status?: string;
+            secretValueExposed?: boolean;
+          }>;
+        };
+        observability?: {
+          traceStages?: string[];
+        };
         credentialRequirements?: Array<{
           id?: string;
           keyNames?: string[];
@@ -4032,6 +4057,37 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.opsBrain?.toolLayer?.blockedVerbs).toEqual(
       expect.arrayContaining(["apply", "delete", "patch", "scale"])
     );
+    expect(body.opsBrain?.architectureModules?.length).toBe(7);
+    expect(body.opsBrain?.architectureModules?.map((module) => module.id)).toEqual(
+      expect.arrayContaining([
+        "tool-layer",
+        "memory-failure-journal",
+        "graphrag-knowledge-graph",
+        "evaluator",
+        "self-improver",
+        "risk-gate",
+        "model-ensemble"
+      ])
+    );
+    expect(body.opsBrain?.growthGovernance).toMatchObject({
+      currentStateEvidenceTargetPercent: 80,
+      unauthorizedDangerousExecutionTarget: 0,
+      memoryPromotionMode: "reviewed-proposals-only",
+      evalBeforePromotionRequired: true
+    });
+    expect(body.opsBrain?.modelStrategy).toMatchObject({
+      defaultMode: "fixture-local",
+      routingPlanned: true,
+      externalProviderCallAllowedByDefault: false
+    });
+    expect(
+      body.opsBrain?.modelStrategy?.providers?.every(
+        (provider) => provider.secretValueExposed === false
+      )
+    ).toBe(true);
+    expect(body.opsBrain?.observability?.traceStages).toEqual(
+      expect.arrayContaining(["tool-call", "retrieval", "generation", "evaluation"])
+    );
     expect(body.opsBrain?.credentialRequirements?.length).toBeGreaterThanOrEqual(4);
     expect(
       body.opsBrain?.credentialRequirements?.find(
@@ -4045,6 +4101,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toBe(true);
     await expect(page.getByTestId("opslens-opsbrain-system")).toContainText(
       "fineTuningRequired=false"
+    );
+    await expect(page.getByTestId("opslens-opsbrain-architecture")).toContainText(
+      "Read-only OCP Tool Layer"
+    );
+    await expect(page.getByTestId("opslens-opsbrain-growth-governance")).toContainText(
+      "groundedTarget=80%"
+    );
+    await expect(page.getByTestId("opslens-opsbrain-model-strategy")).toContainText(
+      "externalProviderDefault=false"
     );
     await expect(page.getByTestId("opslens-opsbrain-credentials")).toContainText(
       "OCP_API_BASE_URL"

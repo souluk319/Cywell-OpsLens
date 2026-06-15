@@ -13666,6 +13666,256 @@ function getOpsBrainSystemSummary(): OpsLensAdminOverviewResponse["opsBrain"] {
         passFail: "PASS when unapproved delete/patch/scale/apply/admission actions are blocked"
       }
     ],
+    architectureModules: [
+      {
+        id: "tool-layer",
+        label: "Read-only OCP Tool Layer",
+        role: "Collects live cluster evidence through approved read APIs before any diagnosis is trusted.",
+        minimumImplementation: "oc/Kubernetes API read wrapper plus SSAR evidence",
+        currentImplementation: "OCP Resource Explorer, console overview, coverage matrix, logs, events, and auth review endpoints",
+        nextImplementation: "dedicated service-account RBAC proof against the target cluster",
+        status: ocpApiConfigured ? "needs-evidence" : "planned",
+        acceptanceSignals: [
+          "80% or more grounded answers include oc/API evidence",
+          "get/list/watch/log/event routes keep mutationAllowed=false"
+        ],
+        evidence: [
+          "GET /api/ocp/resources",
+          "GET /api/ocp/console-overview",
+          "GET /api/ocp/access-review"
+        ],
+        missingEvidence: [
+          "live service-account can-i proof",
+          "target cluster 401/403-free read smoke evidence"
+        ]
+      },
+      {
+        id: "memory-failure-journal",
+        label: "Reviewed Memory / Failure Journal",
+        role: "Turns incidents, playbooks, policies, and failures into reusable operating memory without raw secret leakage.",
+        minimumImplementation: "Markdown wiki, incident log, and metadata-only approval queue",
+        currentImplementation: "tenant-scoped local RAG, validate-only intake, metadata-only approval review, and plan-only ingestion artifacts",
+        nextImplementation: "production Postgres/pgvector store with reviewer identity and append-only write audit",
+        status: memoryStoreConfigured ? "needs-evidence" : "mvp",
+        acceptanceSignals: [
+          "every memory write has provenance and review state",
+          "raw customer documents and secret values are never returned"
+        ],
+        evidence: [
+          "npm run verify:rag",
+          "npm run verify:rag:approval-queue",
+          "opsBrain.memoryWriteGuard"
+        ],
+        missingEvidence: [
+          "production memory reviewer identity",
+          "append-only vector write audit sink"
+        ]
+      },
+      {
+        id: "graphrag-knowledge-graph",
+        label: "Selective GraphRAG / Knowledge Graph",
+        role: "Adds relationship-heavy and global corpus reasoning only after wiki/vector baselines show a real gap.",
+        minimumImplementation: "document links, tags, entity table, and source provenance",
+        currentImplementation: "GraphRAG is intentionally not in the MVP write path; graph/vector writes are blocked by default",
+        nextImplementation: "poisoning-reviewed GraphRAG parquet or Neo4j outputs for selected question families",
+        status: "planned",
+        acceptanceSignals: [
+          "graph search improves selected multi-document evals over wiki-only baseline",
+          "global search cost and latency policy is enforced"
+        ],
+        evidence: [
+          "kugnus-idea/Cywell-OpsBrain/cywell-opsbrain.md",
+          "memoryWriteGuard.graphWriteAllowed=false"
+        ],
+        missingEvidence: [
+          "GraphRAG poisoning/provenance review",
+          "graph-query benchmark against wiki-only baseline"
+        ]
+      },
+      {
+        id: "evaluator",
+        label: "Evaluator",
+        role: "Blocks regressions in correctness, citations, tool use, missing-evidence honesty, and safety.",
+        minimumImplementation: "manual golden set with pass/fail scoring",
+        currentImplementation: "acceptance, completion, RAG, Lightspeed, AI Ops, and release evidence verifiers fail closed",
+        nextImplementation: "20 scored OpsBrain golden cases plus Ragas/OpenAI Evals/custom tool-call scoring",
+        status: "planned",
+        acceptanceSignals: [
+          "fixed eval set passes before any improvement promotion",
+          "dangerous-command block rate remains 100%"
+        ],
+        evidence: [
+          "npm run verify:completion",
+          "npm run verify:mvp",
+          "npm run verify:opsbrain"
+        ],
+        missingEvidence: [
+          "20 scored OpsBrain cases",
+          "Ragas/OpenAI Evals/custom tool evaluator output"
+        ]
+      },
+      {
+        id: "self-improver",
+        label: "Proposal-only Self-Improver",
+        role: "Uses incident failures and eval results to propose retrieval, prompt, rule, and eval updates without mutating production state.",
+        minimumImplementation: "reviewed batch proposals",
+        currentImplementation: "release action queue and owner packets create non-mutating next actions",
+        nextImplementation: "nightly DSPy-style proposal generator behind reviewer promotion",
+        status: "planned",
+        acceptanceSignals: [
+          "candidate outputs are review artifacts only",
+          "automatic fine-tuning and automatic policy mutation stay false"
+        ],
+        evidence: [
+          "opsBrain.selfImprover.mode=proposal-only",
+          "release action queue mutation boundary"
+        ],
+        missingEvidence: [
+          "nightly proposal runner",
+          "reviewed promotion workflow"
+        ]
+      },
+      {
+        id: "risk-gate",
+        label: "Command Risk Gate",
+        role: "Classifies read, safe-change, and dangerous-change actions before any operational output is trusted.",
+        minimumImplementation: "local READ/SAFE_CHANGE/DANGEROUS_CHANGE rule table",
+        currentImplementation: "MVP APIs return read-only or plan-only outputs and block apply/delete/scale paths",
+        nextImplementation: "OPA/Rego policy plus human approval queue for SAFE_CHANGE and DANGEROUS_CHANGE",
+        status: "mvp",
+        acceptanceSignals: [
+          "unauthorized dangerous execution count remains 0",
+          "approval-gated commands are rendered as not run"
+        ],
+        evidence: [
+          "AC-SAFE-001",
+          "operator runtime boundary",
+          "install and release approval plans"
+        ],
+        missingEvidence: [
+          "OPA policy runtime",
+          "production human approval channel"
+        ]
+      },
+      {
+        id: "model-ensemble",
+        label: "Model Ensemble / Router",
+        role: "Keeps cost, latency, data residency, and fallback policy separate from the operating-memory design.",
+        minimumImplementation: "fixture/local route for MVP and optional local/private model endpoint detection",
+        currentImplementation: "no external provider call is made by default; local/vLLM/LiteLLM configuration is surfaced as redacted readiness only",
+        nextImplementation: "LiteLLM routing, fallback, budget, and provider health checks after data-residency approval",
+        status: localModelConfigured || litellmConfigured ? "needs-evidence" : "planned",
+        acceptanceSignals: [
+          "external provider calls require explicit policy approval",
+          "fallback and budget evidence are visible before production use"
+        ],
+        evidence: [
+          "opsBrain.modelStrategy",
+          "credentialRequirements.local-or-private-model",
+          "credentialRequirements.model-gateway"
+        ],
+        missingEvidence: [
+          "provider/data-residency approval",
+          "LiteLLM health and budget evidence"
+        ]
+      }
+    ],
+    growthGovernance: {
+      currentStateEvidenceTargetPercent: 80,
+      repeatedCaseReuseRequired: true,
+      unauthorizedDangerousExecutionTarget: 0,
+      evalBeforePromotionRequired: true,
+      memoryPromotionMode: "reviewed-proposals-only",
+      evidence: [
+        "OpsBrain document defines live evidence, reusable memory, risk control, and regression prevention as core goals",
+        "MVP contracts require citations, missing evidence, risk, rollback path, and mutationAllowed=false",
+        "Completion gate prevents 100% claims while external-state evidence is missing"
+      ],
+      missingEvidence: [
+        "answer-level groundedness scoring across 20 OpsBrain golden cases",
+        "repeat-incident memory reuse proof",
+        "nightly proposal promotion review evidence"
+      ]
+    },
+    modelStrategy: {
+      defaultMode: "fixture-local",
+      routingPlanned: true,
+      externalProviderCallAllowedByDefault: false,
+      providers: [
+        {
+          id: "fixture-local",
+          label: "Fixture/local contract mode",
+          role: "Keeps MVP demos and verifiers deterministic without external LLM calls.",
+          configured: true,
+          status: "active",
+          secretValueExposed: false,
+          evidence: [
+            "mock-local-search-mode/triage",
+            "CYWELL_OPSLENS_RAG_RUNTIME_MODE defaults to local"
+          ],
+          missingEvidence: []
+        },
+        {
+          id: "ollama-vllm",
+          label: "Local/private runtime",
+          role: "Supports on-prem generation or embeddings when approved runtime endpoints exist.",
+          configured: localModelConfigured,
+          status: localModelConfigured ? "optional" : "missing",
+          secretValueExposed: false,
+          evidence: ["OLLAMA_BASE_URL or VLLM_BASE_URL is checked by key presence only"],
+          missingEvidence: localModelConfigured
+            ? ["live runtime quality and latency evidence"]
+            : ["approved local/private model endpoint"]
+        },
+        {
+          id: "litellm-gateway",
+          label: "LiteLLM gateway",
+          role: "Provides model routing, fallback, budget, and provider health policy.",
+          configured: litellmConfigured,
+          status: litellmConfigured ? "optional" : "approval-required",
+          secretValueExposed: false,
+          evidence: ["LITELLM_BASE_URL and LITELLM_API_KEY are checked by key presence only"],
+          missingEvidence: [
+            "data-residency approval",
+            "budget policy",
+            "provider fallback drill"
+          ]
+        }
+      ],
+      evidence: [
+        "OpsBrain treats model selection as a router policy, not fine-tuning",
+        "externalProviderCallAllowedByDefault=false"
+      ],
+      missingEvidence: [
+        "final provider/API policy",
+        "production model routing and fallback drill"
+      ]
+    },
+    observability: {
+      traceStages: [
+        "intent-classification",
+        "tool-call",
+        "retrieval",
+        "generation",
+        "approval",
+        "evaluation",
+        "memory-proposal"
+      ],
+      currentImplementation:
+        "request ids, audit envelopes, generated evidence artifacts, release bundle, and completion gate",
+      nextImplementation:
+        "OpenTelemetry/OpenLIT spans for tool, retrieval, generation, approval, and evaluation stages",
+      status: "planned",
+      evidence: [
+        "API responses include requestId, audit, citations, missingEvidence, risk, and rollbackPath",
+        "release evidence artifacts include branch/head/base/dirty stamps"
+      ],
+      missingEvidence: [
+        "live trace backend",
+        "cost/latency span export",
+        "provider fallback trace"
+      ]
+    },
     acceptanceCriteria: [
       {
         id: "AC-OPSBRAIN-001",

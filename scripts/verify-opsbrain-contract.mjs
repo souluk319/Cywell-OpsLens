@@ -159,6 +159,10 @@ for (const [id, needles] of [
 
 for (const needle of [
   "sourceDocuments",
+  "architectureModules",
+  "growthGovernance",
+  "modelStrategy",
+  "observability",
   "acceptanceCriteria",
   "memoryWriteGuard",
   "selfImprover",
@@ -176,7 +180,12 @@ for (const needle of [
   "fineTuningRequired: false",
   "actionMode: \"readOnly\"",
   "mutationAllowed: false",
+  "currentStateEvidenceTargetPercent: 80",
+  "unauthorizedDangerousExecutionTarget: 0",
+  "externalProviderCallAllowedByDefault: false",
   "reviewed-writes-only",
+  "reviewed-proposals-only",
+  "fixture-local",
   "proposal-only",
   "AC-OPSBRAIN-001",
   "test-results/cywell-opslens-opsbrain-contract.json"
@@ -186,9 +195,15 @@ for (const needle of [
 
 for (const needle of [
   "opslens-opsbrain-system",
+  "opslens-opsbrain-architecture",
+  "opslens-opsbrain-growth-governance",
+  "opslens-opsbrain-model-strategy",
   "Acceptance",
   "Memory Write Guard",
   "Self-Improver",
+  "opsBrain.architectureModules",
+  "opsBrain.growthGovernance",
+  "opsBrain.modelStrategy",
   "opsBrain.acceptanceCriteria",
   "opsBrain.memoryWriteGuard",
   "opsBrain.selfImprover"
@@ -197,6 +212,10 @@ for (const needle of [
 }
 
 for (const needle of [
+  ".opsbrain-module-row",
+  ".opsbrain-module-list",
+  ".opsbrain-model-list",
+  ".opsbrain-governance-grid",
   ".opsbrain-contract-row",
   ".opsbrain-contract-list",
   ".opsbrain-safety-grid"
@@ -273,6 +292,25 @@ const artifact = {
     fineTuningAttempted: false,
     mutationAllowedByThisVerifier: false
   },
+  growthSystem: {
+    architectureModuleCount: 7,
+    currentStateEvidenceTargetPercent: 80,
+    repeatedCaseReuseRequired: true,
+    unauthorizedDangerousExecutionTarget: 0,
+    evalBeforePromotionRequired: true,
+    memoryPromotionMode: "reviewed-proposals-only",
+    externalProviderCallAllowedByDefault: false,
+    defaultModelMode: "fixture-local",
+    traceStages: [
+      "intent-classification",
+      "tool-call",
+      "retrieval",
+      "generation",
+      "approval",
+      "evaluation",
+      "memory-proposal"
+    ]
+  },
   checks,
   missingEvidence,
   risk: [
@@ -308,6 +346,15 @@ const markdown = [
   `- vectorWriteAttempted: ${artifact.mutationBoundary.vectorWriteAttempted}`,
   `- graphWriteAttempted: ${artifact.mutationBoundary.graphWriteAttempted}`,
   `- fineTuningAttempted: ${artifact.mutationBoundary.fineTuningAttempted}`,
+  "",
+  "## Growth System",
+  "",
+  `- architectureModuleCount: ${artifact.growthSystem.architectureModuleCount}`,
+  `- currentStateEvidenceTargetPercent: ${artifact.growthSystem.currentStateEvidenceTargetPercent}`,
+  `- unauthorizedDangerousExecutionTarget: ${artifact.growthSystem.unauthorizedDangerousExecutionTarget}`,
+  `- memoryPromotionMode: ${artifact.growthSystem.memoryPromotionMode}`,
+  `- externalProviderCallAllowedByDefault: ${artifact.growthSystem.externalProviderCallAllowedByDefault}`,
+  `- defaultModelMode: ${artifact.growthSystem.defaultModelMode}`,
   "",
   "## Checks",
   "",
