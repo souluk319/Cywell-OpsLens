@@ -156,15 +156,123 @@ function joinEndpoint(baseUrl, path) {
   return `${baseUrl.replace(/\/+$/, "")}${normalizePath(path)}`;
 }
 
+function redactRuntimeUrl(value) {
+  try {
+    const url = new URL(value);
+    const privateIp = /\b10(?:\.\d{1,3}){3}\b/.test(url.hostname) ||
+      /\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b/.test(url.hostname) ||
+      /\b192\.168(?:\.\d{1,3}){2}\b/.test(url.hostname);
+    const host = privateIp ? "<redacted-private-ip>" : url.hostname;
+    const port = url.port ? `:${url.port}` : "";
+    const path = url.pathname === "/" ? "" : url.pathname;
+    return `${url.protocol}//${host}${port}${path}`;
+  } catch {
+    return sanitize(value);
+  }
+}
+
+function classifyProbeError(error) {
+  const code = String(error?.cause?.code ?? error?.code ?? "").toUpperCase();
+  const name = String(error?.name ?? "");
+  const message = String(error?.message ?? error ?? "").toLowerCase();
+  if (name === "AbortError" || code === "ABORT_ERR" || message.includes("abort")) {
+    return "timeout";
+  }
+  if (["ENOTFOUND", "EAI_AGAIN"].includes(code) || message.includes("getaddrinfo")) {
+    return "dns-unresolved";
+  }
+  if (code === "ECONNREFUSED" || message.includes("econnrefused")) {
+    return "tcp-refused";
+  }
+  if (["ETIMEDOUT", "ESOCKETTIMEDOUT"].includes(code) || message.includes("timed out")) {
+    return "tcp-timeout";
+  }
+  if (["EHOSTUNREACH", "ENETUNREACH"].includes(code)) {
+    return "network-unreachable";
+  }
+  if (message.includes("certificate") || message.includes("tls") || message.includes("self-signed")) {
+    return "tls-failed";
+  }
+  return "runtime-unreachable";
+}
+
+function classifyHttpStatus(statusCode) {
+  if (statusCode === 401 || statusCode === 403) return "runtime-auth-required";
+  if (statusCode >= 500) return "runtime-service-unhealthy";
+  if (statusCode >= 400) return "runtime-endpoint-not-ready";
+  return "runtime-http-unexpected";
+}
+
+function probeAction(name, classification) {
+  const runtimeName = name === "qdrant" ? "Qdrant" : "vLLM";
+  const endpointEnv =
+    name === "qdrant"
+      ? "CYWELL_OPSLENS_VECTOR_URL"
+      : "CYWELL_OPSLENS_MODEL_URL";
+  const command = "npm run verify:runtime -- --live --timeout-ms 30000";
+  const byClassification = {
+    "dns-unresolved": {
+      owner: "runtime-platform",
+      summary: `Set ${endpointEnv} to an approved reachable ${runtimeName} endpoint or run the verifier from a network context that can resolve the in-cluster service.`,
+      nextCommand: command
+    },
+    "tcp-refused": {
+      owner: "runtime-platform",
+      summary: `${runtimeName} endpoint resolved, but the TCP port refused the read-only health probe.`,
+      nextCommand: command
+    },
+    "tcp-timeout": {
+      owner: "runtime-platform",
+      summary: `${runtimeName} endpoint did not answer before the bounded timeout; check service, route, NetworkPolicy, or port-forward state.`,
+      nextCommand: command
+    },
+    "network-unreachable": {
+      owner: "runtime-platform",
+      summary: `${runtimeName} endpoint is not reachable from this execution environment.`,
+      nextCommand: command
+    },
+    "tls-failed": {
+      owner: "runtime-platform",
+      summary: `${runtimeName} TLS validation failed; confirm the approved runtime endpoint and trust bundle before treating live evidence as valid.`,
+      nextCommand: command
+    },
+    "runtime-auth-required": {
+      owner: "runtime-platform",
+      summary: `${runtimeName} endpoint requires authentication or authorization evidence before live readiness can pass.`,
+      nextCommand: command
+    },
+    "runtime-service-unhealthy": {
+      owner: "runtime-platform",
+      summary: `${runtimeName} endpoint is reachable but reports a server-side error.`,
+      nextCommand: command
+    },
+    "runtime-endpoint-not-ready": {
+      owner: "runtime-platform",
+      summary: `${runtimeName} endpoint is reachable but the configured health path is not ready.`,
+      nextCommand: command
+    },
+    "runtime-unreachable": {
+      owner: "runtime-platform",
+      summary: `${runtimeName} live probe failed before a useful HTTP response was available.`,
+      nextCommand: command
+    }
+  };
+  return byClassification[classification] ?? byClassification["runtime-unreachable"];
+}
+
 async function probe(name, url, path) {
+  const redactedUrl = redactRuntimeUrl(url);
   if (!options.live) {
     warn(`${name} live probe`, "skipped because --live was not provided");
     return {
       name,
       status: "needs-live-check",
+      classification: "not-requested",
       liveProbeEnabled: false,
-      url,
+      url: redactedUrl,
       path,
+      owner: "runtime-platform",
+      nextCommand: "npm run verify:runtime -- --live --timeout-ms 30000",
       missingEvidence: [`${name} live probe was not requested`]
     };
   }
@@ -184,33 +292,50 @@ async function probe(name, url, path) {
       return {
         name,
         status: "ready",
+        classification: "ready",
         liveProbeEnabled: true,
-        url,
+        url: redactedUrl,
         path,
         latencyMs,
+        httpStatus: response.status,
+        owner: "runtime-platform",
+        nextCommand: "none",
         missingEvidence: []
       };
     }
-    warn(`${name} live probe`, `httpStatus=${response.status} latencyMs=${latencyMs}`);
+    const classification = classifyHttpStatus(response.status);
+    const action = probeAction(name, classification);
+    warn(`${name} live probe`, `httpStatus=${response.status} classification=${classification} latencyMs=${latencyMs}`);
     return {
       name,
       status: "degraded",
+      classification,
       liveProbeEnabled: true,
-      url,
+      url: redactedUrl,
       path,
       latencyMs,
-      missingEvidence: [`${name} returned HTTP ${response.status}`]
+      httpStatus: response.status,
+      owner: action.owner,
+      nextCommand: action.nextCommand,
+      actionSummary: action.summary,
+      missingEvidence: [`${name} live probe classification=${classification}; httpStatus=${response.status}; ${action.summary}`]
     };
   } catch (error) {
-    fail(`${name} live probe`, error instanceof Error ? error.message : String(error));
+    const classification = classifyProbeError(error);
+    const action = probeAction(name, classification);
+    fail(`${name} live probe`, `classification=${classification}; ${error instanceof Error ? error.message : String(error)}`);
     return {
       name,
       status: "failed",
+      classification,
       liveProbeEnabled: true,
-      url,
+      url: redactedUrl,
       path,
       latencyMs: Math.max(1, Date.now() - started),
-      missingEvidence: [`${name} live probe failed: ${error instanceof Error ? error.message : String(error)}`]
+      owner: action.owner,
+      nextCommand: action.nextCommand,
+      actionSummary: action.summary,
+      missingEvidence: [`${name} live probe classification=${classification}; ${action.summary}`]
     };
   } finally {
     clearTimeout(timeout);

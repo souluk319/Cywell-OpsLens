@@ -2822,13 +2822,13 @@ function runtimeReadinessDiagnostics(runtimeReadiness) {
       id: "runtime-readiness-qdrant",
       label: "Qdrant",
       value:
-        `status=${vector.status ?? "missing"} liveProbe=${String(vector.liveProbeEnabled === true)} url=${vector.url ?? "missing"}`
+        `status=${vector.status ?? "missing"} classification=${vector.classification ?? "missing"} liveProbe=${String(vector.liveProbeEnabled === true)} url=${vector.url ?? "missing"} next=${vector.nextCommand ?? "missing"}`
     },
     {
       id: "runtime-readiness-vllm",
       label: "vLLM",
       value:
-        `status=${model.status ?? "missing"} liveProbe=${String(model.liveProbeEnabled === true)} url=${model.url ?? "missing"}`
+        `status=${model.status ?? "missing"} classification=${model.classification ?? "missing"} liveProbe=${String(model.liveProbeEnabled === true)} url=${model.url ?? "missing"} next=${model.nextCommand ?? "missing"}`
     }
   ];
 }

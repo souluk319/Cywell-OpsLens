@@ -6721,6 +6721,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           "runtime-readiness-vllm"
         ])
       );
+      expect(runtimeLiveAction?.diagnostics?.map((item) => item.value).join(" ")).toMatch(
+        /classification=.*next=/
+      );
       expect(
         runtimeLiveAction?.diagnostics
           ?.find((item) => item.id === "runtime-readiness-status")
