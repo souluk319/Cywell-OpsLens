@@ -1957,6 +1957,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 externalSubmissionRequiresExplicitApproval?: boolean;
               };
             };
+            releaseManagerPacket?: {
+              owner?: string;
+              markdownPath?: string;
+              exists?: boolean;
+              ticketId?: string;
+              status?: string;
+              toolingSatisfiedBy?: string;
+              missingRequiredTools?: string[];
+              runnerEvidenceStatus?: string;
+              runnerEvidencePath?: string;
+              firstReadOnlyActionId?: string;
+              setupActionIds?: string[];
+              approvalGatedActionIds?: string[];
+              credentialStoredByVerifier?: boolean;
+              externalSubmissionExecutedByVerifier?: boolean;
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                toolingInstallRequiresHumanApproval?: boolean;
+                externalSubmissionRequiresExplicitApproval?: boolean;
+              };
+            };
             freshnessPolicy?: {
               requiredHead?: string;
               worktreeRequirement?: string;
@@ -5078,6 +5101,37 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.certificationPlan?.toolingHandoff?.ticketPacket
         ?.evidenceChecklist?.join(" ")
     ).toMatch(/runnerEvidence|missingRequiredTools|approved CI runner/);
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.releaseManagerPacket
+    ).toMatchObject({
+      owner: "release-manager",
+      markdownPath: expect.stringContaining(
+        "cywell-opslens-certification-tooling-release-manager.md"
+      ),
+      exists: true,
+      ticketId: "release-manager-certification-tooling-ticket",
+      firstReadOnlyActionId: "refresh-certification-evidence",
+      credentialStoredByVerifier: false,
+      externalSubmissionExecutedByVerifier: false,
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false,
+        toolingInstallRequiresHumanApproval: true,
+        externalSubmissionRequiresExplicitApproval: true
+      }
+    });
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.releaseManagerPacket?.setupActionIds
+    ).toEqual(expect.arrayContaining(["install-opm", "install-operator-sdk"]));
+    expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.releaseManagerPacket?.approvalGatedActionIds
+    ).toEqual(
+      expect.arrayContaining(["partner-connect-submit", "operatorhub-submit"])
+    );
     expect(
       body.installReadiness?.certificationPlan?.toolingHandoff?.runnerDraft
     ).toMatchObject({
@@ -9492,6 +9546,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("reviewedInput=true");
     await expect(
       page.getByTestId("opslens-certification-ci-runner-action")
+    ).toContainText("mutationAllowed=false");
+    await expect(
+      page.getByTestId("opslens-certification-tooling-release-manager-packet")
+    ).toContainText(
+      "packet=cywell-opslens-certification-tooling-release-manager.md"
+    );
+    await expect(
+      page.getByTestId("opslens-certification-tooling-release-manager-packet")
+    ).toContainText("exists=true");
+    await expect(
+      page.getByTestId("opslens-certification-tooling-release-manager-packet")
+    ).toContainText("ticket=release-manager-certification-tooling-ticket");
+    await expect(
+      page.getByTestId("opslens-certification-tooling-release-manager-packet")
+    ).toContainText("first=refresh-certification-evidence");
+    await expect(
+      page.getByTestId("opslens-certification-tooling-release-manager-packet")
+    ).toContainText("approval=partner-connect-submit, operatorhub-submit");
+    await expect(
+      page.getByTestId("opslens-certification-tooling-release-manager-packet")
+    ).toContainText("submissionExecuted=false");
+    await expect(
+      page.getByTestId("opslens-certification-tooling-release-manager-packet")
     ).toContainText("mutationAllowed=false");
     await expect(
       page.getByTestId("opslens-certification-ci-runner-draft")

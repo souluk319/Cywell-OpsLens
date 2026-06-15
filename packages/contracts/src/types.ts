@@ -2177,6 +2177,29 @@ export interface OpsLensCertificationReadinessSummary {
       externalSubmissionRequiresExplicitApproval: boolean;
     };
     ticketPacket: OpsLensCertificationToolingTicketPacket;
+    releaseManagerPacket: {
+      owner: "release-manager";
+      markdownPath: string;
+      exists: boolean;
+      ticketId: string;
+      status: string;
+      toolingSatisfiedBy: string;
+      missingRequiredTools: string[];
+      runnerEvidenceStatus: string;
+      runnerEvidencePath: string;
+      firstReadOnlyActionId: string;
+      setupActionIds: string[];
+      approvalGatedActionIds: string[];
+      credentialStoredByVerifier: boolean;
+      externalSubmissionExecutedByVerifier: boolean;
+      mutationBoundary: {
+        clusterMutationAttempted: boolean;
+        registryMutationAttempted: boolean;
+        mutationAllowedByThisVerifier: boolean;
+        toolingInstallRequiresHumanApproval: boolean;
+        externalSubmissionRequiresExplicitApproval: boolean;
+      };
+    };
     runnerDraft: {
       path: string;
       finalEvidenceFile: string;

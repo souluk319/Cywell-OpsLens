@@ -9,6 +9,8 @@ const execFileAsync = promisify(execFile);
 
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-certification-readiness.json",
+  toolingMarkdownOut:
+    "test-results/cywell-opslens-certification-tooling-release-manager.md",
   ciRunnerEvidence: "docs/release/evidence/certification/approved-ci-runner.json",
   timeoutMs: 10000
 };
@@ -50,6 +52,8 @@ function parseArgs(argv) {
 const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  toolingMarkdownOut:
+    parsed.get("tooling-markdown-out") ?? defaults.toolingMarkdownOut,
   ciRunnerEvidence: parsed.get("ci-runner-evidence") ?? defaults.ciRunnerEvidence,
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
 };
@@ -1025,6 +1029,111 @@ function buildCertificationToolingTicketPacket(toolingHandoff) {
   };
 }
 
+function buildReleaseManagerToolingPacket(toolingHandoff) {
+  const ticket = toolingHandoff.ticketPacket;
+  return {
+    owner: "release-manager",
+    markdownPath: resolve(options.toolingMarkdownOut),
+    exists: true,
+    ticketId: ticket?.id ?? "release-manager-certification-tooling-ticket",
+    status: toolingHandoff.status,
+    toolingSatisfiedBy: toolingHandoff.toolingSatisfiedBy,
+    missingRequiredTools: toolingHandoff.missingRequiredTools.map(sanitize),
+    runnerEvidenceStatus: toolingHandoff.runnerEvidence?.status ?? "missing",
+    runnerEvidencePath:
+      toolingHandoff.runnerEvidence?.path ?? options.ciRunnerEvidence,
+    firstReadOnlyActionId:
+      ticket?.firstReadOnlyAction?.id ?? "refresh-certification-evidence",
+    setupActionIds: toolingHandoff.setupCommands.map((command) => command.id),
+    approvalGatedActionIds: toolingHandoff.approvalGatedCommands.map(
+      (command) => command.id
+    ),
+    credentialStoredByVerifier: false,
+    externalSubmissionExecutedByVerifier: false,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      toolingInstallRequiresHumanApproval: true,
+      externalSubmissionRequiresExplicitApproval: true
+    }
+  };
+}
+
+function toolingMarkdownFor(artifact) {
+  const handoff = artifact.toolingHandoff;
+  const packet = handoff.releaseManagerPacket;
+  const ticket = handoff.ticketPacket;
+  const draftEvidencePath = options.ciRunnerEvidence.replace(
+    /\.json$/i,
+    ".draft.json"
+  );
+  const lines = [
+    "# Cywell OpsLens Certification Tooling Release Manager Packet",
+    "",
+    `Generated: ${artifact.generatedAt}`,
+    `Git: ${artifact.ref.branch} ${artifact.ref.headSha} dirty=${artifact.ref.worktreeDirty}`,
+    `Status: ${artifact.status}`,
+    "",
+    "## Tooling Summary",
+    "",
+    `- Owner: ${packet.owner}`,
+    `- Ticket: ${packet.ticketId}`,
+    `- Tooling status: ${packet.status}`,
+    `- Tooling satisfied by: ${packet.toolingSatisfiedBy}`,
+    `- Missing required tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
+    `- Runner evidence status: ${packet.runnerEvidenceStatus}`,
+    `- Runner evidence path: ${packet.runnerEvidencePath}`,
+    `- First read-only action: ${packet.firstReadOnlyActionId}`,
+    "",
+    "## Runner Evidence",
+    "",
+    `- Approved: ${String(handoff.runnerEvidence.approved)}`,
+    `- Same head: ${String(handoff.runnerEvidence.sameHead)}`,
+    `- Mutation: ${String(handoff.runnerEvidence.mutation)}`,
+    `- Required schema: ${handoff.runnerEvidence.requiredSchema}`,
+    `- Draft path: ${draftEvidencePath}`,
+    `- Final path: ${handoff.runnerEvidence.path}`,
+    "",
+    "## Next Commands",
+    "",
+    ...ticket.nextCommands.map((command) => `- ${command}`),
+    "",
+    "## Human Setup",
+    "",
+    ...handoff.setupCommands.map(
+      (command) =>
+        `- ${command.id}: ${command.command} requiresHumanApproval=${String(command.requiresHumanApproval)}`
+    ),
+    "",
+    "## Approval-gated Submission",
+    "",
+    ...handoff.approvalGatedCommands.map(
+      (command) =>
+        `- ${command.id}: ${command.command} mutation=${String(command.mutation)} requiresExplicitApproval=${String(command.requiresExplicitApproval)}`
+    ),
+    "",
+    "## Boundary",
+    "",
+    `- clusterMutationAttempted=${String(packet.mutationBoundary.clusterMutationAttempted)}`,
+    `- registryMutationAttempted=${String(packet.mutationBoundary.registryMutationAttempted)}`,
+    `- mutationAllowedByThisVerifier=${String(packet.mutationBoundary.mutationAllowedByThisVerifier)}`,
+    `- toolingInstallRequiresHumanApproval=${String(packet.mutationBoundary.toolingInstallRequiresHumanApproval)}`,
+    `- externalSubmissionRequiresExplicitApproval=${String(packet.mutationBoundary.externalSubmissionRequiresExplicitApproval)}`,
+    "- This packet does not install opm/operator-sdk, submit to Partner Connect or OperatorHub, login to registries, push images, mirror images, sign artifacts, apply, delete, or scale.",
+    "",
+    "## Blocked By",
+    "",
+    ...(ticket.blockedBy.length ? ticket.blockedBy.map((item) => `- ${item}`) : ["- none"]),
+    "",
+    "## Rollback Path",
+    "",
+    ...artifact.rollbackPath.map((item) => `- ${item}`),
+    ""
+  ];
+  return lines.join("\n");
+}
+
 function buildToolingHandoff(ciRunnerEvidence) {
   const requiredTools = cli
     .filter((entry) => entry.requiredForExternalSubmission)
@@ -1269,9 +1378,14 @@ function buildToolingHandoff(ciRunnerEvidence) {
     ]
   };
 
-  return {
+  const ticketPacket = buildCertificationToolingTicketPacket(handoff);
+  const toolingHandoff = {
     ...handoff,
-    ticketPacket: buildCertificationToolingTicketPacket(handoff)
+    ticketPacket
+  };
+  return {
+    ...toolingHandoff,
+    releaseManagerPacket: buildReleaseManagerToolingPacket(toolingHandoff)
   };
 }
 
@@ -1415,12 +1529,20 @@ async function writeEvidence() {
   };
 
   const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
-  if (/Bearer\s+(?!<redacted>)[A-Za-z0-9._~+/=-]+|--token\s+(?!<redacted>)[^\s]+/i.test(serialized)) {
+  const toolingMarkdown = toolingMarkdownFor(artifact);
+  const secretLikePattern =
+    /Bearer\s+(?!<redacted>)[A-Za-z0-9._~+/=-]+|--token\s+(?!<redacted>)[^\s]+/i;
+  if (secretLikePattern.test(serialized) || secretLikePattern.test(toolingMarkdown)) {
     throw new Error("certification readiness evidence would include secret-like material");
   }
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
+  await mkdir(dirname(resolve(options.toolingMarkdownOut)), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");
-  pass("certification readiness export", `${resolve(options.evidenceOut)} written without secret material`);
+  await writeFile(resolve(options.toolingMarkdownOut), toolingMarkdown, "utf8");
+  pass(
+    "certification readiness export",
+    `${resolve(options.evidenceOut)} and ${resolve(options.toolingMarkdownOut)} written without secret material`
+  );
   return artifact;
 }
 

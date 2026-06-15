@@ -4273,6 +4273,62 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-certification-tooling-release-manager-packet"
+              >
+                <span>
+                  packet=
+                  {certificationPlan.toolingHandoff.releaseManagerPacket.markdownPath
+                    .split(/[\\/]/)
+                    .pop() ??
+                    certificationPlan.toolingHandoff.releaseManagerPacket
+                      .markdownPath}
+                </span>
+                <span>
+                  exists=
+                  {String(
+                    certificationPlan.toolingHandoff.releaseManagerPacket.exists
+                  )}
+                </span>
+                <span>
+                  ticket=
+                  {certificationPlan.toolingHandoff.releaseManagerPacket.ticketId}
+                </span>
+                <span>
+                  first=
+                  {
+                    certificationPlan.toolingHandoff.releaseManagerPacket
+                      .firstReadOnlyActionId
+                  }
+                </span>
+                <span>
+                  setup=
+                  {certificationPlan.toolingHandoff.releaseManagerPacket.setupActionIds.join(
+                    ", "
+                  ) || "none"}
+                </span>
+                <span>
+                  approval=
+                  {certificationPlan.toolingHandoff.releaseManagerPacket.approvalGatedActionIds.join(
+                    ", "
+                  ) || "none"}
+                </span>
+                <span>
+                  submissionExecuted=
+                  {String(
+                    certificationPlan.toolingHandoff.releaseManagerPacket
+                      .externalSubmissionExecutedByVerifier
+                  )}
+                </span>
+                <span>
+                  mutationAllowed=
+                  {String(
+                    certificationPlan.toolingHandoff.releaseManagerPacket
+                      .mutationBoundary.mutationAllowedByThisVerifier
+                  )}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-certification-ci-runner-draft"
               >
                 <span>

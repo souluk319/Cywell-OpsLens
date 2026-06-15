@@ -2405,6 +2405,29 @@ type CertificationReadinessEvidenceArtifact = {
       rollbackPath?: string[];
     };
     ticketPacket?: OpsLensCertificationToolingTicketPacket;
+    releaseManagerPacket?: {
+      owner?: string;
+      markdownPath?: string;
+      exists?: boolean;
+      ticketId?: string;
+      status?: string;
+      toolingSatisfiedBy?: string;
+      missingRequiredTools?: string[];
+      runnerEvidenceStatus?: string;
+      runnerEvidencePath?: string;
+      firstReadOnlyActionId?: string;
+      setupActionIds?: string[];
+      approvalGatedActionIds?: string[];
+      credentialStoredByVerifier?: boolean;
+      externalSubmissionExecutedByVerifier?: boolean;
+      mutationBoundary?: {
+        clusterMutationAttempted?: boolean;
+        registryMutationAttempted?: boolean;
+        mutationAllowedByThisVerifier?: boolean;
+        toolingInstallRequiresHumanApproval?: boolean;
+        externalSubmissionRequiresExplicitApproval?: boolean;
+      };
+    };
     freshnessPolicy?: {
       requiredHead?: string;
       worktreeRequirement?: string;
@@ -8113,6 +8136,26 @@ function missingCertificationToolingHandoff(
       []
     ),
     ticketPacket,
+    releaseManagerPacket: {
+      owner: "release-manager",
+      markdownPath:
+        "test-results/cywell-opslens-certification-tooling-release-manager.md",
+      exists: existsSync(
+        "test-results/cywell-opslens-certification-tooling-release-manager.md"
+      ),
+      ticketId: ticketPacket.id,
+      status: "needs-evidence",
+      toolingSatisfiedBy: "missing",
+      missingRequiredTools: [],
+      runnerEvidenceStatus: missingRunnerEvidence.status,
+      runnerEvidencePath: missingRunnerEvidence.path,
+      firstReadOnlyActionId: ticketPacket.firstReadOnlyAction.id,
+      setupActionIds: [],
+      approvalGatedActionIds: [],
+      credentialStoredByVerifier: false,
+      externalSubmissionExecutedByVerifier: false,
+      mutationBoundary: ticketPacket.mutationBoundary
+    },
     runnerDraft: missingCertificationRunnerDraft(reason),
     freshnessPolicy: {
       requiredHead: "missing",
@@ -8315,6 +8358,67 @@ function mapCertificationToolingTicketPacket(
   };
 }
 
+function mapCertificationReleaseManagerPacket(
+  artifact: CertificationReadinessEvidenceArtifact["toolingHandoff"] | undefined,
+  mapped: Pick<
+    OpsLensCertificationReadinessSummary["toolingHandoff"],
+    | "status"
+    | "toolingSatisfiedBy"
+    | "missingRequiredTools"
+    | "runnerEvidence"
+    | "setupCommands"
+    | "approvalGatedCommands"
+  >,
+  ticketPacket: OpsLensCertificationToolingTicketPacket
+): OpsLensCertificationReadinessSummary["toolingHandoff"]["releaseManagerPacket"] {
+  const packet = artifact?.releaseManagerPacket;
+  const markdownPath =
+    packet?.markdownPath ??
+    "test-results/cywell-opslens-certification-tooling-release-manager.md";
+
+  return {
+    owner: "release-manager",
+    markdownPath,
+    exists: markdownPath !== "missing" && existsSync(markdownPath),
+    ticketId: packet?.ticketId ?? ticketPacket.id,
+    status: packet?.status ?? mapped.status,
+    toolingSatisfiedBy:
+      packet?.toolingSatisfiedBy ?? mapped.toolingSatisfiedBy,
+    missingRequiredTools:
+      packet?.missingRequiredTools ?? mapped.missingRequiredTools,
+    runnerEvidenceStatus:
+      packet?.runnerEvidenceStatus ?? mapped.runnerEvidence.status,
+    runnerEvidencePath:
+      packet?.runnerEvidencePath ?? mapped.runnerEvidence.path,
+    firstReadOnlyActionId:
+      packet?.firstReadOnlyActionId ?? ticketPacket.firstReadOnlyAction.id,
+    setupActionIds:
+      packet?.setupActionIds ??
+      mapped.setupCommands.map((command) => command.id),
+    approvalGatedActionIds:
+      packet?.approvalGatedActionIds ??
+      mapped.approvalGatedCommands.map((command) => command.id),
+    credentialStoredByVerifier:
+      packet?.credentialStoredByVerifier === true,
+    externalSubmissionExecutedByVerifier:
+      packet?.externalSubmissionExecutedByVerifier === true,
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet?.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet?.mutationBoundary?.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        packet?.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      toolingInstallRequiresHumanApproval:
+        packet?.mutationBoundary?.toolingInstallRequiresHumanApproval ??
+        ticketPacket.mutationBoundary.toolingInstallRequiresHumanApproval,
+      externalSubmissionRequiresExplicitApproval:
+        packet?.mutationBoundary?.externalSubmissionRequiresExplicitApproval ??
+        ticketPacket.mutationBoundary.externalSubmissionRequiresExplicitApproval
+    }
+  };
+}
+
 function buildCertificationRunnerEvidenceAction(
   runnerEvidence: OpsLensCertificationReadinessSummary["toolingHandoff"]["runnerEvidence"],
   ticketPacket: OpsLensCertificationToolingTicketPacket,
@@ -8427,6 +8531,11 @@ function mapCertificationToolingHandoff(
     return {
       ...mapped,
       ticketPacket,
+      releaseManagerPacket: mapCertificationReleaseManagerPacket(
+        undefined,
+        mapped,
+        ticketPacket
+      ),
       runnerEvidenceAction: buildCertificationRunnerEvidenceAction(
         mapped.runnerEvidence,
         ticketPacket,
@@ -8501,6 +8610,11 @@ function mapCertificationToolingHandoff(
   return {
     ...mapped,
     ticketPacket,
+    releaseManagerPacket: mapCertificationReleaseManagerPacket(
+      artifact,
+      mapped,
+      ticketPacket
+    ),
     runnerEvidenceAction: buildCertificationRunnerEvidenceAction(
       mapped.runnerEvidence,
       ticketPacket,
@@ -8754,6 +8868,7 @@ function getCertificationReadiness(): {
         `certification tooling satisfiedBy=${toolingHandoff.toolingSatisfiedBy} ciRunner=${toolingHandoff.runnerEvidence.status} sameHead=${String(toolingHandoff.runnerEvidence.sameHead)} mutation=${String(toolingHandoff.runnerEvidence.mutation)} path=${toolingHandoff.runnerEvidence.path}`,
         `certification CI runner action=${toolingHandoff.runnerEvidenceAction.id} status=${toolingHandoff.runnerEvidenceAction.status} draft=${toolingHandoff.runnerEvidenceAction.draftCommand} promote=${toolingHandoff.runnerEvidenceAction.promotionCommand} verify=${toolingHandoff.runnerEvidenceAction.verificationCommand} writesLocalEvidence=${String(toolingHandoff.runnerEvidenceAction.writesLocalEvidence)} reviewedInput=${String(toolingHandoff.runnerEvidenceAction.requiresReviewedInput)} mutationAllowed=${String(toolingHandoff.runnerEvidenceAction.mutationAllowed)}`,
         `certification CI runner draft ${toolingHandoff.runnerDraft.evidenceState} sameHead=${String(toolingHandoff.runnerDraft.sameHead)} missing=${toolingHandoff.runnerDraft.missingEvidence.length}`,
+        `certification release-manager packet=${toolingHandoff.releaseManagerPacket.markdownPath} exists=${String(toolingHandoff.releaseManagerPacket.exists)} externalSubmissionExecuted=${String(toolingHandoff.releaseManagerPacket.externalSubmissionExecutedByVerifier)}`,
         toolingHandoff.executionLanes.length
           ? `certification tooling lanes=${toolingHandoff.executionLanes.map((lane) => `${lane.id}:${lane.status}`).join(", ")}`
           : "certification tooling execution lanes are not listed",
