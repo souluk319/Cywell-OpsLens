@@ -502,6 +502,71 @@ function candidateHandoffItems(images) {
   });
 }
 
+function promotionCommand(name) {
+  return `npm run evidence:external-runtime:promote -- --name ${name} --promote-reviewed --reviewer <reviewer> --review-ticket <change-ticket> --force`;
+}
+
+function finalEvidenceHandoffStatus(image) {
+  if (image.finalEvidence?.exists === true) return "reviewed-final-present";
+  if (
+    image.evidenceState === "draft-review-ready" ||
+    image.evidenceState === "DRAFT_REVIEW_READY" ||
+    (image.missingEvidence ?? []).length === 0
+  ) {
+    return "ready-for-promotion-review";
+  }
+  return "needs-reviewed-inputs";
+}
+
+function finalEvidenceHandoffItems(images) {
+  const requiredReviewerRoles = [
+    "registry-admin",
+    "security-reviewer",
+    "release-manager",
+    "product-owner"
+  ];
+  return images.map((image) => {
+    const status = finalEvidenceHandoffStatus(image);
+    const finalEvidenceMissing = image.finalEvidence?.exists !== true;
+    const blockedBy = unique([
+      finalEvidenceMissing
+        ? `${image.name}: final reviewed evidence file is missing at ${image.finalEvidenceFile}`
+        : "",
+      ...image.missingEvidence.map((item) => `${image.name}: ${item}`)
+    ].filter(Boolean));
+
+    return {
+      imageName: image.name,
+      status,
+      owner: "release-manager",
+      draftFile: image.draftFile,
+      finalEvidenceFile: image.finalEvidenceFile,
+      finalEvidenceExists: image.finalEvidence?.exists === true,
+      evidenceState: image.evidenceState,
+      draftStatus: image.draftStatus,
+      reviewerRequestCount: image.reviewerRequests.length,
+      missingEvidenceCount: image.missingEvidence.length,
+      requiredReviewerRoles,
+      evidenceChecklist: unique([
+        `Review ignored draft evidence at ${image.draftFile}.`,
+        `Confirm ${image.finalEvidenceFile} is written only through the promote helper.`,
+        "Confirm registry, security, release-manager, and product-owner evidence is reviewed before promotion.",
+        "Rerun verify:external-runtime-plan after final reviewed evidence is present.",
+        ...image.promotionRequirements
+      ]),
+      promotionCommand: promotionCommand(image.name),
+      verificationCommand: "npm run verify:external-runtime-plan",
+      approvalRequired: status !== "reviewed-final-present",
+      requiresExplicitApproval: true,
+      mutationAllowed: false,
+      writesLocalEvidence: true,
+      blockedBy,
+      rollbackPath:
+        "If reviewer evidence is rejected, keep the final evidence file absent or supersede it with a corrected reviewed draft; no cluster or registry rollback is required from this handoff."
+    };
+  });
+}
+
 function imagePackets(externalRuntime, candidateMatrix) {
   const images = Array.isArray(externalRuntime?.externalImages)
     ? externalRuntime.externalImages
@@ -925,6 +990,30 @@ function markdownFor(packet) {
       ""
     ].join("\n")),
     "",
+    "## Final Evidence Promotion Handoff",
+    "",
+    ...packet.finalEvidenceHandoff.map((handoff) => [
+      `### ${handoff.imageName}`,
+      "",
+      `- Status: ${handoff.status}`,
+      `- Owner: ${handoff.owner}`,
+      `- Draft: ${handoff.draftFile}`,
+      `- Final evidence: ${handoff.finalEvidenceFile}`,
+      `- Final evidence exists: ${String(handoff.finalEvidenceExists)}`,
+      `- Reviewer requests: ${handoff.reviewerRequestCount}`,
+      `- Missing evidence: ${handoff.missingEvidenceCount}`,
+      `- Approval required: ${String(handoff.approvalRequired)}`,
+      `- Requires explicit approval: ${String(handoff.requiresExplicitApproval)}`,
+      `- Mutation allowed: ${String(handoff.mutationAllowed)}`,
+      `- Blocked by: ${handoff.blockedBy.length ? handoff.blockedBy.join("; ") : "reviewed final evidence is present"}`,
+      "",
+      "```powershell",
+      handoff.promotionCommand,
+      handoff.verificationCommand,
+      "```",
+      ""
+    ].join("\n")),
+    "",
     "## Per Image Review Requests",
     ""
   ];
@@ -1032,6 +1121,7 @@ async function main() {
 
   const images = imagePackets(artifacts.externalRuntime, artifacts.candidateMatrix);
   const candidateHandoff = candidateHandoffItems(images);
+  const finalEvidenceHandoff = finalEvidenceHandoffItems(images);
   const readOnly = readOnlyCommands(images, artifacts.candidateMatrix);
   const approvalGated = approvalGatedCommands(artifacts.externalRuntime);
   const firstRegistryActions = buildFirstRegistryActions(images, approvalGated);
@@ -1103,6 +1193,21 @@ async function main() {
   ) {
     pass("external runtime candidate handoff boundary", `${readyCandidateHandoffs.length} ready candidate handoff(s) remain approval-gated and non-mutating`);
   }
+  if (
+    finalEvidenceHandoff.length === images.length &&
+    finalEvidenceHandoff.every(
+      (handoff) =>
+        handoff.requiresExplicitApproval === true &&
+        handoff.mutationAllowed === false &&
+        handoff.writesLocalEvidence === true &&
+        /promote-reviewed/.test(handoff.promotionCommand) &&
+        /verify:external-runtime-plan/.test(handoff.verificationCommand)
+    )
+  ) {
+    pass("external runtime final evidence handoff boundary", `${finalEvidenceHandoff.length} final evidence handoff(s) require reviewed inputs before local promotion`);
+  } else {
+    fail("external runtime final evidence handoff boundary", "final evidence handoffs must be local-evidence-only, review-gated, and non-mutating");
+  }
 
   const mutationViolations = [
     ["externalRuntime.registryMutationAttempted", artifacts.externalRuntime?.registryMutationAttempted],
@@ -1172,6 +1277,7 @@ async function main() {
     sourceArtifacts,
     images,
     candidateHandoff,
+    finalEvidenceHandoff,
     readOnlyCommands: readOnly,
     approvalGatedCommands: approvalGated,
     firstRegistryActions,
@@ -1180,6 +1286,7 @@ async function main() {
     evidence: [
       "This packet consolidates external runtime draft intake, source digest inspection state, scan/SBOM plan state, candidate comparison evidence, and approval-gated mirror/sign commands.",
       "It is a reviewer packet only; it does not promote drafts, mirror images, sign images, push images, install Operators, patch OLSConfig, or mutate the cluster.",
+      "Final evidence promotion handoff is review-gated local evidence only; it records promote-reviewed commands but does not run them.",
       "Final release readiness still requires reviewed docs/release/evidence/external-runtime/vllm.json and qdrant.json files."
     ],
     risk: unique([

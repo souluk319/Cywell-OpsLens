@@ -2121,6 +2121,28 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             blockedBy?: string[];
             rollbackPath?: string;
           }>;
+          finalEvidenceHandoff?: Array<{
+            imageName?: string;
+            status?: string;
+            owner?: string;
+            draftFile?: string;
+            finalEvidenceFile?: string;
+            finalEvidenceExists?: boolean;
+            evidenceState?: string;
+            draftStatus?: string;
+            reviewerRequestCount?: number;
+            missingEvidenceCount?: number;
+            requiredReviewerRoles?: string[];
+            evidenceChecklist?: string[];
+            promotionCommand?: string;
+            verificationCommand?: string;
+            approvalRequired?: boolean;
+            requiresExplicitApproval?: boolean;
+            mutationAllowed?: boolean;
+            writesLocalEvidence?: boolean;
+            blockedBy?: string[];
+            rollbackPath?: string;
+          }>;
           images?: Array<{
             name?: string;
             sourceDigestInspectionStatus?: string;
@@ -5044,6 +5066,35 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       approvalRequired: true,
       mutationAllowed: false
     });
+    const externalRuntimeFinalEvidenceHandoff =
+      body.installReadiness?.externalRuntimeReview?.finalEvidenceHandoff ?? [];
+    expect(
+      externalRuntimeFinalEvidenceHandoff.map((handoff) => handoff.imageName)
+    ).toEqual(expect.arrayContaining(["vllm", "qdrant"]));
+    expect(
+      externalRuntimeFinalEvidenceHandoff.every(
+        (handoff) =>
+          handoff.owner === "release-manager" &&
+          handoff.promotionCommand?.includes("evidence:external-runtime:promote") &&
+          handoff.promotionCommand?.includes("--promote-reviewed") &&
+          handoff.promotionCommand?.includes("--review-ticket") &&
+          handoff.verificationCommand === "npm run verify:external-runtime-plan" &&
+          handoff.approvalRequired === true &&
+          handoff.requiresExplicitApproval === true &&
+          handoff.mutationAllowed === false &&
+          handoff.writesLocalEvidence === true
+      )
+    ).toBe(true);
+    expect(
+      externalRuntimeFinalEvidenceHandoff.map(
+        (handoff) => `${handoff.imageName}:${handoff.status}`
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^vllm:(needs-reviewed-inputs|ready-for-promotion-review|reviewed-final-present)$/),
+        expect.stringMatching(/^qdrant:(needs-reviewed-inputs|ready-for-promotion-review|reviewed-final-present)$/)
+      ])
+    );
     const externalRuntimeReviewerCommands =
       body.installReadiness?.externalRuntimeReview?.images
         ?.flatMap((image) => image.reviewerRequests ?? [])
@@ -8603,6 +8654,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-external-runtime-candidate-handoff")
     ).toContainText("vllm:blocked-by-remediation");
+    await expect(
+      page.getByTestId("opslens-external-runtime-final-evidence-handoff")
+    ).toContainText("evidence:external-runtime:promote");
+    await expect(
+      page.getByTestId("opslens-external-runtime-final-evidence-handoff")
+    ).toContainText("approvalRequired=true");
+    await expect(
+      page.getByTestId("opslens-external-runtime-final-evidence-handoff")
+    ).toContainText("requiresExplicitApproval=true");
+    await expect(
+      page.getByTestId("opslens-external-runtime-final-evidence-handoff")
+    ).toContainText("mutationAllowed=false");
+    await expect(
+      page.getByTestId("opslens-external-runtime-final-evidence-handoff")
+    ).toContainText("writesLocalEvidence=true");
     await expect(
       page.getByTestId("opslens-external-runtime-reviewer-actions")
     ).toContainText("evidence:external-runtime:draft");

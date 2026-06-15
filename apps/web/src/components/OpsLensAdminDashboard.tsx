@@ -4300,6 +4300,17 @@ export function OpsLensAdminDashboard() {
                       .join(", ") || "missing"}
                   </strong>
                 </div>
+                <div>
+                  <span>Final Handoff</span>
+                  <strong>
+                    {externalRuntimeReview.finalEvidenceHandoff
+                      .map(
+                        (handoff) =>
+                          `${handoff.imageName}:${handoff.status} approval=${String(handoff.approvalRequired)}`
+                      )
+                      .join(", ") || "missing"}
+                  </strong>
+                </div>
               </div>
               <div
                 className="admin-evidence-line"
@@ -4308,6 +4319,16 @@ export function OpsLensAdminDashboard() {
                 {externalRuntimeReview.candidateHandoff.map((handoff) => (
                   <span key={`${handoff.imageName}-candidate-handoff`}>
                     {`${handoff.imageName}:${handoff.status}:owner=${handoff.owner}:candidate=${handoff.candidateImage}:critical=${handoff.criticalFindings}:high=${handoff.highFindings}:releaseEligible=${String(handoff.releaseEligible)}:approvalRequired=${String(handoff.approvalRequired)}:mutationAllowed=${String(handoff.mutationAllowed)}:next=${handoff.nextCommand}`}
+                  </span>
+                ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-external-runtime-final-evidence-handoff"
+              >
+                {externalRuntimeReview.finalEvidenceHandoff.map((handoff) => (
+                  <span key={`${handoff.imageName}-final-handoff`}>
+                    {`${handoff.imageName}:${handoff.status}:owner=${handoff.owner}:finalEvidence=${String(handoff.finalEvidenceExists)}:requests=${handoff.reviewerRequestCount}:missing=${handoff.missingEvidenceCount}:approvalRequired=${String(handoff.approvalRequired)}:requiresExplicitApproval=${String(handoff.requiresExplicitApproval)}:mutationAllowed=${String(handoff.mutationAllowed)}:writesLocalEvidence=${String(handoff.writesLocalEvidence)}:next=${handoff.promotionCommand}:verify=${handoff.verificationCommand}`}
                   </span>
                 ))}
               </div>

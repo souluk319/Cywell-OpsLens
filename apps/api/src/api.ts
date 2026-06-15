@@ -1881,6 +1881,28 @@ type ExternalRuntimeReviewPacketEvidenceArtifact = {
     blockedBy?: string[];
     rollbackPath?: string;
   }>;
+  finalEvidenceHandoff?: Array<{
+    imageName?: string;
+    status?: string;
+    owner?: string;
+    draftFile?: string;
+    finalEvidenceFile?: string;
+    finalEvidenceExists?: boolean;
+    evidenceState?: string;
+    draftStatus?: string;
+    reviewerRequestCount?: number;
+    missingEvidenceCount?: number;
+    requiredReviewerRoles?: string[];
+    evidenceChecklist?: string[];
+    promotionCommand?: string;
+    verificationCommand?: string;
+    approvalRequired?: boolean;
+    requiresExplicitApproval?: boolean;
+    mutationAllowed?: boolean;
+    writesLocalEvidence?: boolean;
+    blockedBy?: string[];
+    rollbackPath?: string;
+  }>;
   readOnlyCommands?: Array<{
     id?: string;
     phase?: string;
@@ -4735,6 +4757,7 @@ function missingExternalRuntimeReviewPacketSummary(
     ticketPackets: [],
     images: [],
     candidateHandoff: [],
+    finalEvidenceHandoff: [],
     readOnlyCommands: [],
     approvalGatedCommands: [],
     missingEvidence: [detail],
@@ -4884,6 +4907,57 @@ function fallbackExternalRuntimeFirstRegistryActions(
   return [...registryRequests, ...gatedRegistryActions];
 }
 
+function fallbackExternalRuntimeFinalEvidenceHandoff(
+  images: OpsLensExternalRuntimeReviewPacketSummary["images"]
+): OpsLensExternalRuntimeReviewPacketSummary["finalEvidenceHandoff"] {
+  const requiredReviewerRoles = [
+    "registry-admin",
+    "security-reviewer",
+    "release-manager",
+    "product-owner"
+  ];
+  return images.map((image) => {
+    const status = image.finalEvidenceExists
+      ? "reviewed-final-present"
+      : image.evidenceState === "draft-review-ready" ||
+          image.evidenceState === "DRAFT_REVIEW_READY" ||
+          image.missingEvidenceCount === 0
+        ? "ready-for-promotion-review"
+        : "needs-reviewed-inputs";
+    const finalEvidenceFile = `docs/release/evidence/external-runtime/${image.name}.json`;
+    const draftFile = `docs/release/evidence/external-runtime/${image.name}.draft.json`;
+    return {
+      imageName: image.name,
+      status,
+      owner: "release-manager",
+      draftFile,
+      finalEvidenceFile,
+      finalEvidenceExists: image.finalEvidenceExists,
+      evidenceState: image.evidenceState,
+      draftStatus: image.draftStatus,
+      reviewerRequestCount: image.reviewerRequests.length,
+      missingEvidenceCount: image.missingEvidenceCount,
+      requiredReviewerRoles,
+      evidenceChecklist: [
+        `Review ignored draft evidence at ${draftFile}.`,
+        `Confirm ${finalEvidenceFile} is written only through the promote helper.`,
+        "Rerun verify:external-runtime-plan after final reviewed evidence is present."
+      ],
+      promotionCommand: `npm run evidence:external-runtime:promote -- --name ${image.name} --promote-reviewed --reviewer <reviewer> --review-ticket <change-ticket> --force`,
+      verificationCommand: "npm run verify:external-runtime-plan",
+      approvalRequired: status !== "reviewed-final-present",
+      requiresExplicitApproval: true,
+      mutationAllowed: false,
+      writesLocalEvidence: true,
+      blockedBy: image.finalEvidenceExists
+        ? []
+        : [`${image.name}: final reviewed runtime evidence is missing at ${finalEvidenceFile}`],
+      rollbackPath:
+        "If reviewer evidence is rejected, keep final evidence absent or supersede it with a corrected reviewed draft; no cluster or registry rollback is required."
+    };
+  });
+}
+
 function getExternalRuntimeReviewPacketReadiness(): {
   status: OpsLensExternalRuntimeReviewPacketReadiness;
   evidence: string[];
@@ -4965,6 +5039,45 @@ function getExternalRuntimeReviewPacketReadiness(): {
               "No cluster or registry rollback is required from this handoff."
           }))
         : fallbackExternalRuntimeCandidateHandoff(images)
+    );
+    const finalEvidenceHandoff = (
+      artifact.finalEvidenceHandoff?.length
+        ? artifact.finalEvidenceHandoff.map((handoff) => ({
+            imageName: handoff.imageName ?? "unknown",
+            status: handoff.status ?? "needs-reviewed-inputs",
+            owner: handoff.owner ?? "release-manager",
+            draftFile:
+              handoff.draftFile ??
+              `docs/release/evidence/external-runtime/${handoff.imageName ?? "unknown"}.draft.json`,
+            finalEvidenceFile:
+              handoff.finalEvidenceFile ??
+              `docs/release/evidence/external-runtime/${handoff.imageName ?? "unknown"}.json`,
+            finalEvidenceExists: handoff.finalEvidenceExists === true,
+            evidenceState: handoff.evidenceState ?? "missing",
+            draftStatus: handoff.draftStatus ?? "missing",
+            reviewerRequestCount: Number.isFinite(Number(handoff.reviewerRequestCount))
+              ? Number(handoff.reviewerRequestCount)
+              : 0,
+            missingEvidenceCount: Number.isFinite(Number(handoff.missingEvidenceCount))
+              ? Number(handoff.missingEvidenceCount)
+              : 0,
+            requiredReviewerRoles: handoff.requiredReviewerRoles ?? [],
+            evidenceChecklist: handoff.evidenceChecklist ?? [],
+            promotionCommand:
+              handoff.promotionCommand ??
+              `npm run evidence:external-runtime:promote -- --name ${handoff.imageName ?? "<name>"} --promote-reviewed --reviewer <reviewer> --review-ticket <change-ticket> --force`,
+            verificationCommand:
+              handoff.verificationCommand ?? "npm run verify:external-runtime-plan",
+            approvalRequired: handoff.approvalRequired !== false,
+            requiresExplicitApproval: handoff.requiresExplicitApproval !== false,
+            mutationAllowed: handoff.mutationAllowed === true,
+            writesLocalEvidence: handoff.writesLocalEvidence !== false,
+            blockedBy: handoff.blockedBy ?? [],
+            rollbackPath:
+              handoff.rollbackPath ??
+              "If reviewer evidence is rejected, keep final evidence absent or supersede it with a corrected reviewed draft."
+          }))
+        : fallbackExternalRuntimeFinalEvidenceHandoff(images)
     );
     const firstReviewerActions = images.flatMap((image) => {
       const request = image.reviewerRequests[0];
@@ -5090,6 +5203,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
         ticketPackets,
         images,
         candidateHandoff,
+        finalEvidenceHandoff,
         readOnlyCommands,
         approvalGatedCommands,
         missingEvidence: artifact.missingEvidence ?? [],
@@ -5104,6 +5218,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
           ? `external runtime review images=${imageSummary}`
           : "external runtime review images are not listed",
         `external runtime candidate handoff=${candidateHandoff.map((handoff) => `${handoff.imageName}:${handoff.status}:eligible=${String(handoff.releaseEligible)}:mutationAllowed=${String(handoff.mutationAllowed)}`).join(", ") || "missing"}`,
+        `external runtime final evidence handoff=${finalEvidenceHandoff.map((handoff) => `${handoff.imageName}:${handoff.status}:promotion=${handoff.promotionCommand}:mutationAllowed=${String(handoff.mutationAllowed)}`).join(", ") || "missing"}`,
         `external runtime first reviewer actions=${firstReviewerActions.map((action) => `${action.imageName}:${action.role}:${action.nextCommand}`).join(", ") || "missing"}`,
         `external runtime first registry actions=${firstRegistryActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         `external runtime reviewer missingEvidence=${(artifact.missingEvidence ?? []).length}`,

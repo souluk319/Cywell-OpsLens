@@ -2886,6 +2886,28 @@ export interface OpsLensExternalRuntimeReviewPacketSummary {
     blockedBy: string[];
     rollbackPath: string;
   }>;
+  finalEvidenceHandoff: Array<{
+    imageName: string;
+    status: string;
+    owner: string;
+    draftFile: string;
+    finalEvidenceFile: string;
+    finalEvidenceExists: boolean;
+    evidenceState: string;
+    draftStatus: string;
+    reviewerRequestCount: number;
+    missingEvidenceCount: number;
+    requiredReviewerRoles: string[];
+    evidenceChecklist: string[];
+    promotionCommand: string;
+    verificationCommand: string;
+    approvalRequired: boolean;
+    requiresExplicitApproval: boolean;
+    mutationAllowed: boolean;
+    writesLocalEvidence: boolean;
+    blockedBy: string[];
+    rollbackPath: string;
+  }>;
   readOnlyCommands: Array<{
     id: string;
     phase: string;
