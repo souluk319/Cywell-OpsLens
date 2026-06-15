@@ -1803,6 +1803,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               installRequiresExplicitApproval?: boolean;
             };
           };
+          installDecisionAction?: {
+            id?: string;
+            owner?: string;
+            status?: string;
+            requiredApprovals?: string[];
+            readOnlyPreflightCommandId?: string;
+            readOnlyPreflightCommand?: string;
+            lightspeedPreviewCommandId?: string;
+            ragIngestionReviewCommand?: string;
+            approvalGatedCommandIds?: string[];
+            nextCommand?: string;
+            evidenceNeeded?: string[];
+            blockedBy?: string[];
+            lightspeedRegistrationMode?: string;
+            ragIngestionStatus?: string;
+            mutationAllowed?: boolean;
+            writesLocalEvidence?: boolean;
+            requiresExplicitApproval?: boolean;
+            clusterMutationAttempted?: boolean;
+            vectorWriteAttempted?: boolean;
+            ingestionJobCreated?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+            installRequiresExplicitApproval?: boolean;
+          };
           risk?: string[];
           rollbackPath?: string[];
         };
@@ -4704,6 +4728,36 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         installRequiresExplicitApproval: true
       }
     });
+    expect(body.installReadiness?.approvalPlan?.installDecisionAction).toMatchObject({
+      id: "cluster-admin-install-approval-decision",
+      owner: "cluster-admin",
+      readOnlyPreflightCommandId: "run-operator-server-dry-run",
+      lightspeedPreviewCommandId: "preview-lightspeed-patch",
+      ragIngestionReviewCommand: "npm run verify:rag:approval-queue",
+      approvalGatedCommandIds: expect.arrayContaining([
+        "apply-operator-namespace"
+      ]),
+      lightspeedRegistrationMode: "PatchOLSConfig",
+      mutationAllowed: false,
+      writesLocalEvidence: true,
+      requiresExplicitApproval: true,
+      clusterMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false,
+      installRequiresExplicitApproval: true
+    });
+    expect(
+      body.installReadiness?.approvalPlan?.installDecisionAction
+        ?.readOnlyPreflightCommand
+    ).toContain("verify:operator:dry-run");
+    const installDecisionBlockedBy =
+      body.installReadiness?.approvalPlan?.installDecisionAction?.blockedBy ?? [];
+    if (installDecisionBlockedBy.length > 0) {
+      expect(installDecisionBlockedBy.join(" ")).toMatch(
+        /lightspeed|install|approval|evidence/i
+      );
+    }
     expect(
       body.installReadiness?.approvalPlan?.lightspeedRegistration
     ).toMatchObject({
@@ -8797,6 +8851,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-install-approval-ticket")
     ).toContainText("requiresApproval=true");
+    await expect(
+      page.getByTestId("opslens-install-decision-action")
+    ).toContainText("cluster-admin-install-approval-decision");
+    await expect(
+      page.getByTestId("opslens-install-decision-action")
+    ).toContainText("first=run-operator-server-dry-run");
+    await expect(
+      page.getByTestId("opslens-install-decision-action")
+    ).toContainText("lightspeed=preview-lightspeed-patch");
+    await expect(
+      page.getByTestId("opslens-install-decision-action")
+    ).toContainText("rag=npm run verify:rag:approval-queue");
+    await expect(
+      page.getByTestId("opslens-install-decision-action")
+    ).toContainText("approval=apply-operator-namespace");
+    await expect(
+      page.getByTestId("opslens-install-decision-action")
+    ).toContainText("mutationAllowed=false");
+    await expect(
+      page.getByTestId("opslens-install-decision-action")
+    ).toContainText("vectorWriteAttempted=false");
+    await expect(
+      page.getByTestId("opslens-install-decision-action")
+    ).toContainText("installRequiresExplicitApproval=true");
     await expect(
       page.getByTestId("opslens-lightspeed-registration-commands")
     ).toContainText("verify:lightspeed:patch-preview");

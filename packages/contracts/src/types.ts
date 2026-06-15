@@ -2759,6 +2759,30 @@ export interface OpsLensInstallApprovalPlanSummary {
   lightspeedRegistration: OpsLensLightspeedRegistrationApprovalPlanSummary;
   ragIngestion: OpsLensRagIngestionApprovalPlanSummary;
   ticketPacket: OpsLensInstallApprovalTicketPacket;
+  installDecisionAction: {
+    id: string;
+    owner: string;
+    status: string;
+    requiredApprovals: string[];
+    readOnlyPreflightCommandId: string;
+    readOnlyPreflightCommand: string;
+    lightspeedPreviewCommandId: string;
+    ragIngestionReviewCommand: string;
+    approvalGatedCommandIds: string[];
+    nextCommand: string;
+    evidenceNeeded: string[];
+    blockedBy: string[];
+    lightspeedRegistrationMode: string;
+    ragIngestionStatus: string;
+    mutationAllowed: boolean;
+    writesLocalEvidence: boolean;
+    requiresExplicitApproval: boolean;
+    clusterMutationAttempted: boolean;
+    vectorWriteAttempted: boolean;
+    ingestionJobCreated: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    installRequiresExplicitApproval: boolean;
+  };
 }
 
 export interface OpsLensReleasePublishPlanSummary {

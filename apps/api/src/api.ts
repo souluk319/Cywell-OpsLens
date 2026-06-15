@@ -2115,6 +2115,14 @@ type OperatorRuntimeParityEvidenceArtifact = {
   rollbackPath?: string[];
 };
 
+type InstallApprovalPlanCommandArtifact = {
+  id?: string;
+  phase?: string;
+  command?: string;
+  mutation?: boolean;
+  requiresExplicitApproval?: boolean;
+};
+
 type InstallApprovalPlanEvidenceArtifact = {
   artifactType?: string;
   status?: string;
@@ -2190,12 +2198,8 @@ type InstallApprovalPlanEvidenceArtifact = {
     rollbackPath?: string;
   }>;
   ticketPacket?: OpsLensInstallApprovalTicketPacket;
-  commands?: Array<{
-    id?: string;
-    phase?: string;
-    mutation?: boolean;
-    requiresExplicitApproval?: boolean;
-  }>;
+  installDecisionAction?: OpsLensInstallApprovalPlanSummary["installDecisionAction"];
+  commands?: InstallApprovalPlanCommandArtifact[];
   risk?: string[];
   rollbackPath?: string[];
   missingEvidence?: string[];
@@ -6519,6 +6523,114 @@ function fallbackInstallApprovalTicketPacket({
   };
 }
 
+function buildInstallDecisionActionSummary({
+  requiredApprovals,
+  firstApprovalActions,
+  ticketPacket,
+  commands,
+  missingEvidence,
+  lightspeedRegistration,
+  ragIngestion,
+  artifactDecisionAction
+}: {
+  requiredApprovals: string[];
+  firstApprovalActions: OpsLensInstallApprovalPlanSummary["firstApprovalActions"];
+  ticketPacket?: OpsLensInstallApprovalTicketPacket;
+  commands?: InstallApprovalPlanCommandArtifact[];
+  missingEvidence: string[];
+  lightspeedRegistration: OpsLensLightspeedRegistrationApprovalPlanSummary;
+  ragIngestion: OpsLensRagIngestionApprovalPlanSummary;
+  artifactDecisionAction?: OpsLensInstallApprovalPlanSummary["installDecisionAction"];
+}): OpsLensInstallApprovalPlanSummary["installDecisionAction"] {
+  const commandList = commands ?? [];
+  const readOnlyPreflight =
+    commandList.find((command) => command.id === "run-operator-server-dry-run") ??
+    commandList.find((command) => command.mutation !== true);
+  const lightspeedPreview =
+    commandList.find((command) => command.id === "preview-lightspeed-patch") ??
+    commandList.find((command) => /lightspeed/i.test(command.id ?? ""));
+  const approvalGatedCommandIds = uniqueStrings(
+    commandList
+      .filter(
+        (command) =>
+          command.mutation === true && command.requiresExplicitApproval !== false
+      )
+      .map((command) => command.id ?? "unknown")
+  );
+  const firstReadOnlyAction =
+    firstApprovalActions.find((action) => action.id === "run-operator-server-dry-run") ??
+    firstApprovalActions.find((action) => action.mutation === false);
+  const requiredApprovalList = uniqueStrings([
+    ...requiredApprovals,
+    ...(ticketPacket?.requiredApprovals ?? []),
+    ...(artifactDecisionAction?.requiredApprovals ?? [])
+  ]);
+  const evidenceNeeded = uniqueStrings([
+    ...missingEvidence,
+    ...(artifactDecisionAction?.evidenceNeeded ?? [])
+  ]).slice(0, 8);
+  const blockedBy = uniqueStrings([
+    ...missingEvidence,
+    ...(ticketPacket?.blockedBy ?? []),
+    ...(artifactDecisionAction?.blockedBy ?? [])
+  ]).slice(0, 8);
+
+  return {
+    id:
+      artifactDecisionAction?.id ??
+      "cluster-admin-install-approval-decision",
+    owner: artifactDecisionAction?.owner ?? "cluster-admin",
+    status:
+      artifactDecisionAction?.status ??
+      (missingEvidence.length > 0 ? "needs-evidence" : "approval-required"),
+    requiredApprovals: requiredApprovalList,
+    readOnlyPreflightCommandId:
+      readOnlyPreflight?.id ??
+      artifactDecisionAction?.readOnlyPreflightCommandId ??
+      ticketPacket?.firstReadOnlyAction.id ??
+      firstReadOnlyAction?.id ??
+      "run-operator-server-dry-run",
+    readOnlyPreflightCommand:
+      readOnlyPreflight?.command ??
+      artifactDecisionAction?.readOnlyPreflightCommand ??
+      ticketPacket?.firstReadOnlyAction.nextCommand ??
+      firstReadOnlyAction?.nextCommand ??
+      "npm run verify:operator:dry-run",
+    lightspeedPreviewCommandId:
+      lightspeedPreview?.id ??
+      artifactDecisionAction?.lightspeedPreviewCommandId ??
+      "preview-lightspeed-patch",
+    ragIngestionReviewCommand:
+      artifactDecisionAction?.ragIngestionReviewCommand ??
+      "npm run verify:rag:approval-queue",
+    approvalGatedCommandIds:
+      approvalGatedCommandIds.length > 0
+        ? approvalGatedCommandIds
+        : artifactDecisionAction?.approvalGatedCommandIds ?? [],
+    nextCommand:
+      readOnlyPreflight?.command ??
+      artifactDecisionAction?.nextCommand ??
+      ticketPacket?.firstReadOnlyAction.nextCommand ??
+      firstReadOnlyAction?.nextCommand ??
+      "npm run verify:install-plan",
+    evidenceNeeded,
+    blockedBy,
+    lightspeedRegistrationMode:
+      artifactDecisionAction?.lightspeedRegistrationMode ??
+      lightspeedRegistration.mode,
+    ragIngestionStatus:
+      artifactDecisionAction?.ragIngestionStatus ?? ragIngestion.status,
+    mutationAllowed: false,
+    writesLocalEvidence: true,
+    requiresExplicitApproval: true,
+    clusterMutationAttempted: false,
+    vectorWriteAttempted: false,
+    ingestionJobCreated: false,
+    mutationAllowedByThisVerifier: false,
+    installRequiresExplicitApproval: true
+  };
+}
+
 function getInstallApprovalPlanReadiness(): {
   status: OpsLensInstallPlanReadiness;
   evidence: string[];
@@ -6586,7 +6698,40 @@ function getInstallApprovalPlanReadiness(): {
           missingEvidence: [
             `install approval plan evidence is missing at ${evidencePath}`
           ]
-        })
+        }),
+        installDecisionAction: {
+          id: "cluster-admin-install-approval-decision",
+          owner: "cluster-admin",
+          status: "needs-evidence",
+          requiredApprovals: [
+            "cluster-admin",
+            "cluster-sre",
+            "security-reviewer",
+            "product-owner"
+          ],
+          readOnlyPreflightCommandId: "generate-install-approval-plan",
+          readOnlyPreflightCommand: "npm run verify:install-plan",
+          lightspeedPreviewCommandId: "preview-lightspeed-patch",
+          ragIngestionReviewCommand: "npm run verify:rag:approval-queue",
+          approvalGatedCommandIds: ["approval-gated-apply-operator-namespace"],
+          nextCommand: "npm run verify:install-plan",
+          evidenceNeeded: [
+            `install approval plan evidence is missing at ${evidencePath}`
+          ],
+          blockedBy: [
+            `install approval plan evidence is missing at ${evidencePath}`
+          ],
+          lightspeedRegistrationMode: "unknown",
+          ragIngestionStatus: "needs-evidence",
+          mutationAllowed: false,
+          writesLocalEvidence: true,
+          requiresExplicitApproval: true,
+          clusterMutationAttempted: false,
+          vectorWriteAttempted: false,
+          ingestionJobCreated: false,
+          mutationAllowedByThisVerifier: false,
+          installRequiresExplicitApproval: true
+        }
       },
       evidence: [
         "run npm run verify:install-plan to create install approval plan evidence",
@@ -6652,6 +6797,16 @@ function getInstallApprovalPlanReadiness(): {
         requiredApprovals: artifact.requiredApprovals,
         missingEvidence: artifact.missingEvidence ?? []
       });
+    const installDecisionAction = buildInstallDecisionActionSummary({
+      requiredApprovals: artifact.requiredApprovals ?? [],
+      firstApprovalActions,
+      ticketPacket,
+      commands: artifact.commands,
+      missingEvidence: artifact.missingEvidence ?? [],
+      lightspeedRegistration,
+      ragIngestion,
+      artifactDecisionAction: artifact.installDecisionAction
+    });
 
     return {
       status,
@@ -6669,7 +6824,8 @@ function getInstallApprovalPlanReadiness(): {
         missingEvidence: artifact.missingEvidence ?? [],
         lightspeedRegistration,
         ragIngestion,
-        ticketPacket
+        ticketPacket,
+        installDecisionAction
       },
       evidence: [
         `Install approval plan evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
@@ -6678,6 +6834,7 @@ function getInstallApprovalPlanReadiness(): {
         `required approvals=${(artifact.requiredApprovals ?? []).join(", ") || "unknown"}`,
         `install first approval actions=${firstApprovalActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         `install approval ticket=${ticketPacket.id}:${ticketPacket.firstReadOnlyAction.id}:approval=${ticketPacket.approvalGatedAction.id}`,
+        `install decision action=${installDecisionAction.id}:first=${installDecisionAction.readOnlyPreflightCommandId}:lightspeed=${installDecisionAction.lightspeedPreviewCommandId}:rag=${installDecisionAction.ragIngestionReviewCommand}:approval=${installDecisionAction.approvalGatedCommandIds.slice(0, 3).join(",") || "none"}:mutationAllowed=${String(installDecisionAction.mutationAllowed)}:installRequiresExplicitApproval=${String(installDecisionAction.installRequiresExplicitApproval)}`,
         mutatingCommandNames
           ? `mutating commands require explicit approval: ${mutatingCommandNames}`
           : "mutating commands are not listed in latest approval plan",
@@ -6729,7 +6886,40 @@ function getInstallApprovalPlanReadiness(): {
           missingEvidence: [
             error instanceof Error ? error.message : "unknown evidence parse error"
           ]
-        })
+        }),
+        installDecisionAction: {
+          id: "cluster-admin-install-approval-decision",
+          owner: "cluster-admin",
+          status: "failed",
+          requiredApprovals: [
+            "cluster-admin",
+            "cluster-sre",
+            "security-reviewer",
+            "product-owner"
+          ],
+          readOnlyPreflightCommandId: "generate-install-approval-plan",
+          readOnlyPreflightCommand: "npm run verify:install-plan",
+          lightspeedPreviewCommandId: "preview-lightspeed-patch",
+          ragIngestionReviewCommand: "npm run verify:rag:approval-queue",
+          approvalGatedCommandIds: ["approval-gated-apply-operator-namespace"],
+          nextCommand: "npm run verify:install-plan",
+          evidenceNeeded: [
+            error instanceof Error ? error.message : "unknown evidence parse error"
+          ],
+          blockedBy: [
+            error instanceof Error ? error.message : "unknown evidence parse error"
+          ],
+          lightspeedRegistrationMode: "unknown",
+          ragIngestionStatus: "failed",
+          mutationAllowed: false,
+          writesLocalEvidence: true,
+          requiresExplicitApproval: true,
+          clusterMutationAttempted: false,
+          vectorWriteAttempted: false,
+          ingestionJobCreated: false,
+          mutationAllowedByThisVerifier: false,
+          installRequiresExplicitApproval: true
+        }
       },
       evidence: [
         `Install approval plan evidence could not be parsed from ${evidencePath}`,

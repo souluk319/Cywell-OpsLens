@@ -3649,6 +3649,46 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-install-decision-action"
+              >
+                <span>
+                  {approvalPlan.installDecisionAction.id}:
+                  {approvalPlan.installDecisionAction.owner}:status=
+                  {approvalPlan.installDecisionAction.status}:first=
+                  {approvalPlan.installDecisionAction.readOnlyPreflightCommandId}
+                  :lightspeed=
+                  {approvalPlan.installDecisionAction.lightspeedPreviewCommandId}
+                  :rag=
+                  {approvalPlan.installDecisionAction.ragIngestionReviewCommand}
+                  :approval=
+                  {approvalPlan.installDecisionAction.approvalGatedCommandIds
+                    .slice(0, 3)
+                    .join(",") || "none"}
+                  :mode=
+                  {approvalPlan.installDecisionAction.lightspeedRegistrationMode}
+                  :ragStatus=
+                  {approvalPlan.installDecisionAction.ragIngestionStatus}
+                  :mutationAllowed=
+                  {String(approvalPlan.installDecisionAction.mutationAllowed)}
+                  :writesLocalEvidence=
+                  {String(approvalPlan.installDecisionAction.writesLocalEvidence)}
+                  :clusterMutationAttempted=
+                  {String(
+                    approvalPlan.installDecisionAction.clusterMutationAttempted
+                  )}
+                  :vectorWriteAttempted=
+                  {String(approvalPlan.installDecisionAction.vectorWriteAttempted)}
+                  :ingestionJobCreated=
+                  {String(approvalPlan.installDecisionAction.ingestionJobCreated)}
+                  :installRequiresExplicitApproval=
+                  {String(
+                    approvalPlan.installDecisionAction
+                      .installRequiresExplicitApproval
+                  )}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-lightspeed-registration-commands"
               >
                 {approvalPlan.lightspeedRegistration.readOnlyCommands.map(

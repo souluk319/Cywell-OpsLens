@@ -712,6 +712,67 @@ function buildInstallApprovalTicketPacket({ status, checklist, commands, firstAc
   };
 }
 
+function buildInstallDecisionAction({
+  status,
+  checklist,
+  commands,
+  ticketPacket,
+  lightspeedRegistration,
+  ragIngestionStatus
+}) {
+  const openChecklistItems = checklist.filter((item) => item.status !== "pass");
+  const readOnlyPreflight =
+    commands.find((entry) => entry.id === "run-operator-server-dry-run") ??
+    commands.find((entry) => entry.mutation === false);
+  const lightspeedPreview =
+    commands.find((entry) => entry.id === "preview-lightspeed-patch") ??
+    commands.find((entry) => /lightspeed/i.test(entry.id));
+  const approvalGatedCommands = commands.filter(
+    (entry) => entry.mutation === true && entry.requiresExplicitApproval === true
+  );
+  const ragChecklist = checklist.find(
+    (item) => item.id === "rag-ingestion-plan-evidence"
+  );
+
+  return {
+    id: "cluster-admin-install-approval-decision",
+    owner: "cluster-admin",
+    status: openChecklistItems.length > 0 ? "needs-evidence" : "approval-required",
+    requiredApprovals: ticketPacket.requiredApprovals,
+    readOnlyPreflightCommandId:
+      readOnlyPreflight?.id ?? ticketPacket.firstReadOnlyAction.id,
+    readOnlyPreflightCommand:
+      readOnlyPreflight?.command ?? ticketPacket.firstReadOnlyAction.nextCommand,
+    lightspeedPreviewCommandId: lightspeedPreview?.id ?? "preview-lightspeed-patch",
+    ragIngestionReviewCommand:
+      checklistActionFor(ragChecklist ?? { id: "rag-ingestion-plan-evidence" })
+        ?.nextCommand ?? "npm run verify:rag:approval-queue",
+    approvalGatedCommandIds: uniqueStrings(
+      approvalGatedCommands.map((entry) => entry.id)
+    ),
+    nextCommand:
+      readOnlyPreflight?.command ??
+      ticketPacket.firstReadOnlyAction.nextCommand ??
+      "npm run verify:install-plan",
+    evidenceNeeded: uniqueStrings(
+      openChecklistItems.map((item) => `${item.id}: ${item.evidence}`)
+    ).slice(0, 8),
+    blockedBy: uniqueStrings(
+      openChecklistItems.map((item) => `${item.id}: ${item.evidence}`)
+    ).slice(0, 8),
+    lightspeedRegistrationMode: lightspeedRegistration.mode,
+    ragIngestionStatus,
+    mutationAllowed: false,
+    writesLocalEvidence: true,
+    requiresExplicitApproval: true,
+    clusterMutationAttempted: false,
+    vectorWriteAttempted: false,
+    ingestionJobCreated: false,
+    mutationAllowedByThisVerifier: false,
+    installRequiresExplicitApproval: true
+  };
+}
+
 function secretValuesForLeakCheck() {
   return [
     "OCP_API_TOKEN",
@@ -822,6 +883,14 @@ async function buildPlan() {
     commands,
     firstActions
   });
+  const installDecisionAction = buildInstallDecisionAction({
+    status,
+    checklist,
+    commands,
+    ticketPacket,
+    lightspeedRegistration,
+    ragIngestionStatus
+  });
   if (
     ticketPacket.firstReadOnlyAction.mutation === false &&
     ticketPacket.firstReadOnlyAction.requiresExplicitApproval === false &&
@@ -835,6 +904,24 @@ async function buildPlan() {
     pass("install approval ticket boundary", "install handoff is read-only first and approval-gated for cluster mutation");
   } else {
     fail("install approval ticket boundary", "install handoff must separate read-only preflight from approval-gated cluster mutation");
+  }
+  if (
+    installDecisionAction.readOnlyPreflightCommandId === "run-operator-server-dry-run" &&
+    installDecisionAction.lightspeedPreviewCommandId === "preview-lightspeed-patch" &&
+    installDecisionAction.ragIngestionReviewCommand.includes("verify:rag:approval-queue") &&
+    installDecisionAction.approvalGatedCommandIds.includes("apply-operator-namespace") &&
+    installDecisionAction.mutationAllowed === false &&
+    installDecisionAction.writesLocalEvidence === true &&
+    installDecisionAction.requiresExplicitApproval === true &&
+    installDecisionAction.clusterMutationAttempted === false &&
+    installDecisionAction.vectorWriteAttempted === false &&
+    installDecisionAction.ingestionJobCreated === false &&
+    installDecisionAction.mutationAllowedByThisVerifier === false &&
+    installDecisionAction.installRequiresExplicitApproval === true
+  ) {
+    pass("install approval decision action", "cluster-admin decision handoff separates dry-run, Lightspeed preview, RAG review, and approval-gated install commands");
+  } else {
+    fail("install approval decision action", "install decision handoff must expose dry-run, Lightspeed preview, RAG review, approval-gated install commands, and no-mutation boundary");
   }
 
   return {
@@ -920,6 +1007,7 @@ async function buildPlan() {
     checklist,
     firstApprovalActions: firstActions,
     ticketPacket,
+    installDecisionAction,
     commands,
     risk: [
       "Applying the OpsLensInstallation sample allows the Operator to patch OLSConfig because mode=PatchOLSConfig is explicit.",
