@@ -3160,6 +3160,29 @@ type CompletionGateArtifact = {
     passed?: boolean;
     detail?: string;
   }>;
+  claimPacket?: {
+    owner?: string;
+    status?: string;
+    markdownPath?: string;
+    exists?: boolean;
+    readyToClaim100?: boolean;
+    totalRequirements?: number;
+    passedRequirements?: number;
+    remainingRequirements?: number;
+    percentComplete?: number;
+    remainingGateIds?: string[];
+    remainingExternalStateGateIds?: string[];
+    remainingLocalOnlyGateIds?: string[];
+    ownerCloseoutPacketPaths?: string[];
+    claimRequirementIds?: string[];
+    failedClaimRequirementIds?: string[];
+    releaseBundleStatus?: string;
+    actionQueueCriticalPathCount?: number;
+    mutationBoundaryPassed?: boolean;
+    clusterMutationAttempted?: boolean;
+    registryMutationAttempted?: boolean;
+    mutationAllowedByThisVerifier?: boolean;
+  };
   missingEvidence?: string[];
   risk?: string[];
   rollbackPath?: string[];
@@ -10519,6 +10542,29 @@ function missingCompletionGateSummary(
         detail: reason
       }
     ],
+    claimPacket: {
+      owner: "release-manager",
+      status: "needs-evidence",
+      markdownPath: "missing",
+      exists: false,
+      readyToClaim100: false,
+      totalRequirements: 0,
+      passedRequirements: 0,
+      remainingRequirements: 0,
+      percentComplete: 0,
+      remainingGateIds: [],
+      remainingExternalStateGateIds: [],
+      remainingLocalOnlyGateIds: [],
+      ownerCloseoutPacketPaths: [],
+      claimRequirementIds: ["completion-gate-evidence"],
+      failedClaimRequirementIds: ["completion-gate-evidence"],
+      releaseBundleStatus: "missing",
+      actionQueueCriticalPathCount: 0,
+      mutationBoundaryPassed: false,
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false
+    },
     clusterMutationAttempted: false,
     registryMutationAttempted: false,
     vectorWriteAttempted: false,
@@ -10660,6 +10706,46 @@ function getCompletionGateSummary(): OpsLensCompletionGateSummary {
         passed: requirement.passed === true,
         detail: requirement.detail ?? "missing"
       })),
+      claimPacket: {
+        owner: artifact.claimPacket?.owner ?? "release-manager",
+        status:
+          artifact.claimPacket?.status === "ready" ? "ready" : "needs-evidence",
+        markdownPath: artifact.claimPacket?.markdownPath ?? "missing",
+        exists:
+          typeof artifact.claimPacket?.markdownPath === "string" &&
+          existsSync(artifact.claimPacket.markdownPath),
+        readyToClaim100: artifact.claimPacket?.readyToClaim100 === true,
+        totalRequirements: artifact.claimPacket?.totalRequirements ?? 0,
+        passedRequirements: artifact.claimPacket?.passedRequirements ?? 0,
+        remainingRequirements: artifact.claimPacket?.remainingRequirements ?? 0,
+        percentComplete: artifact.claimPacket?.percentComplete ?? 0,
+        remainingGateIds: artifact.claimPacket?.remainingGateIds ?? [],
+        remainingExternalStateGateIds:
+          artifact.claimPacket?.remainingExternalStateGateIds ?? [],
+        remainingLocalOnlyGateIds:
+          artifact.claimPacket?.remainingLocalOnlyGateIds ?? [],
+        ownerCloseoutPacketPaths:
+          artifact.claimPacket?.ownerCloseoutPacketPaths ?? [],
+        claimRequirementIds: artifact.claimPacket?.claimRequirementIds ?? [],
+        failedClaimRequirementIds:
+          artifact.claimPacket?.failedClaimRequirementIds ?? [],
+        releaseBundleStatus:
+          artifact.claimPacket?.releaseBundleStatus ??
+          artifact.releaseEvidenceBundle?.status ??
+          "missing",
+        actionQueueCriticalPathCount:
+          artifact.claimPacket?.actionQueueCriticalPathCount ??
+          artifact.actionQueue?.criticalPathCount ??
+          0,
+        mutationBoundaryPassed:
+          artifact.claimPacket?.mutationBoundaryPassed === true,
+        clusterMutationAttempted:
+          artifact.claimPacket?.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          artifact.claimPacket?.registryMutationAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.claimPacket?.mutationAllowedByThisVerifier === true
+      },
       clusterMutationAttempted: artifact.clusterMutationAttempted === true,
       registryMutationAttempted: artifact.registryMutationAttempted === true,
       vectorWriteAttempted: artifact.vectorWriteAttempted === true,
@@ -10672,6 +10758,7 @@ function getCompletionGateSummary(): OpsLensCompletionGateSummary {
       evidence: [
         `Completion gate ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"} readyToClaim100=${String(artifact.readyToClaim100 === true)}`,
         `completion gate ${artifact.completion?.passedRequirements ?? 0}/${artifact.completion?.totalRequirements ?? 0} requirements pass (${artifact.completion?.percentComplete ?? 0}%)`,
+        `completion claim packet ${artifact.claimPacket?.status ?? "missing"} path=${artifact.claimPacket?.markdownPath ?? "missing"} exists=${String(typeof artifact.claimPacket?.markdownPath === "string" && existsSync(artifact.claimPacket.markdownPath))}`,
         `completion gate remaining externalState=${artifact.completion?.remainingExternalStateCount ?? 0} localOnly=${artifact.completion?.remainingLocalOnlyCount ?? 0}`,
         `completion gate actionQueue criticalPath=${artifact.actionQueue?.criticalPathCount ?? 0} unsafeTickets=${artifact.actionQueue?.unsafeTickets?.length ?? 0}`,
         "completion gate reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions",

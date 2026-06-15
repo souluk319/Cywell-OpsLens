@@ -15,6 +15,7 @@ const execFileAsync = promisify(execFile);
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-completion-gate.json",
   markdownOut: "test-results/cywell-opslens-completion-gate.md",
+  claimPacketOut: "test-results/cywell-opslens-100-claim-packet.md",
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   releaseEvidenceBundle: "test-results/cywell-opslens-release-evidence-bundle.json",
   releaseActionQueue: "test-results/cywell-opslens-release-action-queue.json",
@@ -85,6 +86,7 @@ const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
+  claimPacketOut: parsed.get("claim-packet-out") ?? defaults.claimPacketOut,
   roadmapPlan: parsed.get("roadmap-plan-evidence") ?? defaults.roadmapPlan,
   releaseEvidenceBundle:
     parsed.get("release-evidence-bundle") ?? defaults.releaseEvidenceBundle,
@@ -560,6 +562,79 @@ function ownerPacketMarkdown(artifact, packet) {
   return lines.join("\n");
 }
 
+function completionClaimPacketMarkdown(artifact) {
+  const packet = artifact.claimPacket;
+  const lines = [
+    "# Cywell OpsLens 100% Claim Packet",
+    "",
+    `Generated: ${artifact.generatedAt}`,
+    `Git: ${artifact.ref.branch} ${artifact.ref.headSha} dirty=${artifact.ref.worktreeDirty}`,
+    `Claim packet status: ${packet.status}`,
+    `Ready to claim 100: ${String(packet.readyToClaim100)}`,
+    "",
+    "## Completion Decision",
+    "",
+    `- Percent complete: ${packet.percentComplete}%`,
+    `- Passed requirements: ${packet.passedRequirements}/${packet.totalRequirements}`,
+    `- Remaining requirements: ${packet.remainingRequirements}`,
+    `- Remaining external-state gates: ${packet.remainingExternalStateGateIds.join(", ") || "none"}`,
+    `- Remaining local-only gates: ${packet.remainingLocalOnlyGateIds.join(", ") || "none"}`,
+    `- Release bundle status: ${packet.releaseBundleStatus}`,
+    `- Action queue critical path: ${packet.actionQueueCriticalPathCount}`,
+    `- Mutation boundary passed: ${String(packet.mutationBoundaryPassed)}`,
+    "",
+    "## Failed Claim Requirements",
+    "",
+    ...(packet.failedClaimRequirementIds.length
+      ? packet.failedClaimRequirementIds.map((id) => `- ${id}`)
+      : ["- none"]),
+    "",
+    "## Remaining Gates",
+    "",
+    ...(artifact.remainingTo100.length
+      ? artifact.remainingTo100.flatMap((gate) => [
+          `- ${gate.gateId}: owner=${gate.owner} lane=${gate.lane} action=${gate.actionId}`,
+          `  tickets=${gate.ticketIds.join(", ") || "none"}`,
+          `  readOnly=${gate.readOnlyCommandIds.join(", ") || "none"}`,
+          `  setup=${gate.setupCommandIds.join(", ") || "none"}`,
+          `  approval=${gate.approvalGatedCommandIds.join(", ") || "none"}`,
+          `  evidence=${gate.evidenceRequired.join(" | ") || "same-HEAD evidence required"}`
+        ])
+      : ["- none"]),
+    "",
+    "## Owner Closeout Packets",
+    "",
+    ...(artifact.ownerCloseoutPackets.length
+      ? artifact.ownerCloseoutPackets.map(
+          (ownerPacket) =>
+            `- ${ownerPacket.owner}: ${ownerPacket.markdownPath} exists=${String(ownerPacket.exists)}`
+        )
+      : ["- none"]),
+    "",
+    "## Claim Requirements",
+    "",
+    ...artifact.claimRequirements.map((item) =>
+      `- ${item.id}: ${item.passed ? "PASS" : "NEEDS_EVIDENCE"} - ${item.detail}`
+    ),
+    "",
+    "## Boundary",
+    "",
+    "- This packet is read-only evidence guidance for the 100% claim.",
+    "- It does not approve install plans, push images, mirror images, sign artifacts, publish catalogs, patch OLSConfig, apply, delete, or scale.",
+    "- Any approval-gated command referenced by owner packets remains a separate human decision outside this verifier.",
+    "",
+    "## Risk",
+    "",
+    ...artifact.risk.map((item) => `- ${item}`),
+    "",
+    "## Rollback Path",
+    "",
+    ...artifact.rollbackPath.map((item) => `- ${item}`),
+    ""
+  ];
+  return lines.join("\n");
+}
+
 function buildMarkdown(artifact) {
   const lines = [
     "# Cywell OpsLens Completion Gate",
@@ -777,6 +852,31 @@ async function main() {
     }
   ];
   const readyToClaim100 = claimRequirements.every((item) => item.passed);
+  const claimPacket = {
+    owner: "release-manager",
+    status: readyToClaim100 ? "ready" : "needs-evidence",
+    markdownPath: resolve(options.claimPacketOut),
+    exists: true,
+    readyToClaim100,
+    totalRequirements: completion.totalRequirements,
+    passedRequirements: completion.passedRequirements,
+    remainingRequirements: completion.remainingRequirements,
+    percentComplete: completion.percentComplete,
+    remainingGateIds: remaining.map((gate) => gate.gateId),
+    remainingExternalStateGateIds: completion.remainingExternalStateGateIds,
+    remainingLocalOnlyGateIds: completion.remainingLocalOnlyGateIds,
+    ownerCloseoutPacketPaths: closeoutPackets.map((packet) => packet.markdownPath),
+    claimRequirementIds: claimRequirements.map((item) => item.id),
+    failedClaimRequirementIds: claimRequirements
+      .filter((item) => !item.passed)
+      .map((item) => item.id),
+    releaseBundleStatus: releaseBundle?.status ?? "missing",
+    actionQueueCriticalPathCount: queueSafety.criticalPathCount,
+    mutationBoundaryPassed,
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    mutationAllowedByThisVerifier: false
+  };
 
   const internalBlockers = unique([
     ...sources
@@ -850,6 +950,7 @@ async function main() {
     remainingTo100: remaining,
     ownerCloseoutPackets: closeoutPackets,
     ownerPacketCleanup,
+    claimPacket,
     missingEvidence,
     blockers: internalBlockers,
     evidence: [
@@ -873,6 +974,7 @@ async function main() {
   const sanitizedArtifact = sanitizeArtifact(artifact, sanitize);
   const serialized = `${JSON.stringify(sanitizedArtifact, null, 2)}\n`;
   const markdown = sanitize(buildMarkdown(sanitizedArtifact));
+  const claimMarkdown = sanitize(completionClaimPacketMarkdown(sanitizedArtifact));
   const ownerPacketMarkdowns = sanitizedArtifact.ownerCloseoutPackets.map((packet) => ({
     path: packet.markdownPath,
     markdown: sanitize(ownerPacketMarkdown(sanitizedArtifact, packet))
@@ -882,6 +984,7 @@ async function main() {
   if (
     secretPattern.test(serialized) ||
     secretPattern.test(markdown) ||
+    secretPattern.test(claimMarkdown) ||
     ownerPacketMarkdowns.some((packet) => secretPattern.test(packet.markdown))
   ) {
     throw new Error("completion gate would include unredacted secret material");
@@ -889,6 +992,7 @@ async function main() {
   if (
     sensitiveEndpointLeakLike(serialized) ||
     sensitiveEndpointLeakLike(markdown) ||
+    sensitiveEndpointLeakLike(claimMarkdown) ||
     ownerPacketMarkdowns.some((packet) => sensitiveEndpointLeakLike(packet.markdown))
   ) {
     throw new Error("completion gate would include an unredacted configured endpoint or private IP");
@@ -896,14 +1000,16 @@ async function main() {
 
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
   await mkdir(dirname(resolve(options.markdownOut)), { recursive: true });
+  await mkdir(dirname(resolve(options.claimPacketOut)), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");
   await writeFile(resolve(options.markdownOut), markdown, "utf8");
+  await writeFile(resolve(options.claimPacketOut), claimMarkdown, "utf8");
   for (const packet of ownerPacketMarkdowns) {
     await writeFile(packet.path, packet.markdown, "utf8");
   }
   pass(
     "completion gate export",
-    `${resolve(options.evidenceOut)}, ${resolve(options.markdownOut)}, and ${ownerPacketMarkdowns.length} owner packet(s) written without secret material`
+    `${resolve(options.evidenceOut)}, ${resolve(options.markdownOut)}, ${resolve(options.claimPacketOut)}, and ${ownerPacketMarkdowns.length} owner packet(s) written without secret material`
   );
 
   const totals = {

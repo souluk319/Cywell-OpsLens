@@ -1612,6 +1612,46 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-completion-gate-claim-packet"
+              >
+                <span>owner={completionGate.claimPacket.owner}</span>
+                <span>status={completionGate.claimPacket.status}</span>
+                <span>
+                  packet=
+                  {completionGate.claimPacket.markdownPath
+                    .split(/[\\/]/)
+                    .pop()}
+                </span>
+                <span>exists={String(completionGate.claimPacket.exists)}</span>
+                <span>
+                  readyToClaim100=
+                  {String(completionGate.claimPacket.readyToClaim100)}
+                </span>
+                <span>
+                  remaining={completionGate.claimPacket.remainingRequirements}
+                </span>
+                <span>
+                  gates=
+                  {completionGate.claimPacket.remainingGateIds.join(",") ||
+                    "none"}
+                </span>
+                <span>
+                  failed=
+                  {completionGate.claimPacket.failedClaimRequirementIds.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
+                  criticalPath=
+                  {completionGate.claimPacket.actionQueueCriticalPathCount}
+                </span>
+                <span>
+                  mutationBoundaryPassed=
+                  {String(completionGate.claimPacket.mutationBoundaryPassed)}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-completion-gate-owner-closeout"
               >
                 {completionGate.ownerCloseoutPackets.map((packet) => (
