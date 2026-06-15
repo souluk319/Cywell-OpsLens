@@ -1589,7 +1589,14 @@ export function OpsLensAdminDashboard() {
                   <span key={`${entry.stage}-${entry.gateId}-${entry.actionId}`}>
                     {entry.gateId}:{entry.owner}:{entry.priority}:
                     {entry.actionId}:next={entry.nextCommand}:external=
-                    {String(entry.externalStateRequired)}
+                    {String(entry.externalStateRequired)}:tickets=
+                    {entry.ticketIds.join(",") || "none"}:readOnly=
+                    {entry.readOnlyCommandIds.slice(0, 3).join(",") || "none"}
+                    :setup=
+                    {entry.setupCommandIds.slice(0, 3).join(",") || "none"}
+                    :approval=
+                    {entry.approvalGatedCommandIds.slice(0, 3).join(",") ||
+                      "none"}
                   </span>
                 ))}
                 {roadmapCompletion.remainingHandoffs.length === 0 ? (

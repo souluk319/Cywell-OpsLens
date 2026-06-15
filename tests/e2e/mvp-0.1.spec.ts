@@ -3491,6 +3491,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             actionId?: string;
             nextCommand?: string;
             evidenceNeeded?: string;
+            ticketIds?: string[];
+            setupCommandIds?: string[];
+            readOnlyCommandIds?: string[];
+            approvalGatedCommandIds?: string[];
             acceptance?: string[];
             blockedBy?: string[];
           }>;
@@ -3503,6 +3507,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             actionId?: string;
             nextCommand?: string;
             evidenceNeeded?: string;
+            ticketIds?: string[];
+            setupCommandIds?: string[];
+            readOnlyCommandIds?: string[];
+            approvalGatedCommandIds?: string[];
             externalStateRequired?: boolean;
             blockedBy?: string[];
           }>;
@@ -5895,6 +5903,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           entry.actionId &&
           entry.nextCommand &&
           entry.evidenceNeeded &&
+          Array.isArray(entry.ticketIds) &&
+          entry.ticketIds.length > 0 &&
+          Array.isArray(entry.setupCommandIds) &&
+          Array.isArray(entry.readOnlyCommandIds) &&
+          Array.isArray(entry.approvalGatedCommandIds) &&
           typeof entry.externalStateRequired === "boolean"
       )
     ).toBe(true);
@@ -5906,7 +5919,17 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       owner: "cluster-admin",
       actionId: "cluster-admin-fix-ocp-auth-rbac",
       nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+      ticketIds: expect.arrayContaining(["cluster-admin-ocp-auth-rbac-ticket"]),
       externalStateRequired: true
+    });
+    expect(
+      body.installReadiness?.roadmapCompletion?.remainingHandoffs?.find(
+        (entry) => entry.gateId === "releasePublish"
+      )
+    ).toMatchObject({
+      ticketIds: expect.arrayContaining(["release-manager-release-publish-ticket"]),
+      setupCommandIds: expect.arrayContaining(["login-release-registry"]),
+      approvalGatedCommandIds: expect.arrayContaining(["push-operator"])
     });
     expect(
       body.installReadiness?.roadmapCompletion?.criticalPathBlockers?.map(
@@ -5919,7 +5942,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     expect(
       body.installReadiness?.roadmapCompletion?.criticalPathBlockers?.every(
-        (entry) => entry.owner && entry.nextCommand && entry.evidenceNeeded
+        (entry) =>
+          entry.owner &&
+          entry.nextCommand &&
+          entry.evidenceNeeded &&
+          Array.isArray(entry.ticketIds) &&
+          entry.ticketIds.length > 0 &&
+          Array.isArray(entry.readOnlyCommandIds) &&
+          Array.isArray(entry.setupCommandIds) &&
+          Array.isArray(entry.approvalGatedCommandIds)
       )
     ).toBe(true);
     expect(
@@ -9783,6 +9814,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-roadmap-remaining-handoffs")
     ).toContainText("external=");
+    await expect(
+      page.getByTestId("opslens-roadmap-remaining-handoffs")
+    ).toContainText("tickets=");
+    await expect(
+      page.getByTestId("opslens-roadmap-remaining-handoffs")
+    ).toContainText("readOnly=");
+    await expect(
+      page.getByTestId("opslens-roadmap-remaining-handoffs")
+    ).toContainText("setup=");
+    await expect(
+      page.getByTestId("opslens-roadmap-remaining-handoffs")
+    ).toContainText("approval=");
     await expect(
       page.getByTestId("opslens-roadmap-critical-path-blockers")
     ).toContainText(

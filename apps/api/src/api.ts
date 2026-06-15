@@ -9571,6 +9571,25 @@ function getRoadmapCompletionSummary(
         : "needs-evidence";
     const mutationBoundaryPassed = true;
     const criticalPathEntries = actionQueue?.criticalPath ?? [];
+    const ticketIdsFor = (
+      entry: OpsLensReleaseActionQueueSummary["criticalPath"][number] | undefined
+    ) =>
+      entry
+        ? [
+            entry.ticketPacket?.id,
+            entry.externalRuntimeTicketPacket?.id,
+            entry.externalRuntimeFinalEvidenceTicketPacket?.id,
+            entry.externalRuntimeProductTicketPacket?.id,
+            entry.securityReviewTicketPacket?.id,
+            entry.releasePublishTicketPacket?.id,
+            entry.installApprovalTicketPacket?.id,
+            entry.catalogToolchainTicketPacket?.id,
+            entry.certificationToolingTicketPacket?.id,
+            entry.ragProductionTicketPacket?.id,
+            entry.aiopsMonitoringTicketPacket?.id,
+            entry.runtimeEvidenceTicketPacket?.id
+          ].filter((id): id is string => Boolean(id))
+        : [];
     const criticalPathBlockers = criticalPathEntries.map(
       (entry) => ({
         lane: entry.lane,
@@ -9580,6 +9599,10 @@ function getRoadmapCompletionSummary(
         actionId: entry.actionId,
         nextCommand: entry.nextCommand,
         evidenceNeeded: entry.evidenceNeeded,
+        ticketIds: ticketIdsFor(entry),
+        setupCommandIds: entry.setupCommandIds,
+        readOnlyCommandIds: entry.readOnlyCommandIds,
+        approvalGatedCommandIds: entry.approvalGatedCommandIds,
         acceptance: entry.acceptance,
         blockedBy: entry.blockedBy
       })
@@ -9615,6 +9638,10 @@ function getRoadmapCompletionSummary(
         evidenceNeeded:
           blocker?.evidenceNeeded ??
           `Refresh evidence for roadmap gate ${gate.stage}/${gate.id}.`,
+        ticketIds: ticketIdsFor(blocker),
+        setupCommandIds: blocker?.setupCommandIds ?? [],
+        readOnlyCommandIds: blocker?.readOnlyCommandIds ?? [],
+        approvalGatedCommandIds: blocker?.approvalGatedCommandIds ?? [],
         externalStateRequired:
           blocker
             ? blocker.approvalGatedCommandIds.length > 0 ||
@@ -9663,7 +9690,10 @@ function getRoadmapCompletionSummary(
         remainingHandoffs.length
           ? `remaining handoffs=${remainingHandoffs
               .slice(0, 8)
-              .map((item) => `${item.gateId}->${item.owner}/${item.actionId}`)
+              .map(
+                (item) =>
+                  `${item.gateId}->${item.owner}/${item.actionId}:tickets=${item.ticketIds.join("|") || "none"}`
+              )
               .join(", ")}`
           : "remaining handoffs=none",
         "roadmap completion reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"

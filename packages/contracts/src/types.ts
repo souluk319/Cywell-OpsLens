@@ -3546,6 +3546,10 @@ export interface OpsLensRoadmapCompletionSummary {
     actionId: string;
     nextCommand: string;
     evidenceNeeded: string;
+    ticketIds: string[];
+    setupCommandIds: string[];
+    readOnlyCommandIds: string[];
+    approvalGatedCommandIds: string[];
     acceptance: string[];
     blockedBy: string[];
   }>;
@@ -3558,6 +3562,10 @@ export interface OpsLensRoadmapCompletionSummary {
     actionId: string;
     nextCommand: string;
     evidenceNeeded: string;
+    ticketIds: string[];
+    setupCommandIds: string[];
+    readOnlyCommandIds: string[];
+    approvalGatedCommandIds: string[];
     externalStateRequired: boolean;
     blockedBy: string[];
   }>;
