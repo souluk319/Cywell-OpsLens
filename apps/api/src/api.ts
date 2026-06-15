@@ -8254,6 +8254,8 @@ function missingRoadmapCompletionSummary(
     remainingRequirements: 0,
     percentComplete: 0,
     remaining: [],
+    criticalPathBlockerCount: 0,
+    criticalPathBlockers: [],
     mutationBoundaryPassed: false,
     missingEvidence: [reason],
     risk: [
@@ -8269,7 +8271,9 @@ function missingRoadmapCompletionSummary(
   };
 }
 
-function getRoadmapCompletionSummary(): OpsLensRoadmapCompletionSummary {
+function getRoadmapCompletionSummary(
+  actionQueue?: OpsLensReleaseActionQueueSummary
+): OpsLensRoadmapCompletionSummary {
   const evidencePath = roadmapPlanAlignmentPath();
 
   if (!existsSync(evidencePath)) {
@@ -8308,6 +8312,19 @@ function getRoadmapCompletionSummary(): OpsLensRoadmapCompletionSummary {
         ? "ready"
         : "needs-evidence";
     const mutationBoundaryPassed = true;
+    const criticalPathBlockers = (actionQueue?.criticalPath ?? []).map(
+      (entry) => ({
+        lane: entry.lane,
+        label: entry.label,
+        owner: entry.owner,
+        priority: entry.priority,
+        actionId: entry.actionId,
+        nextCommand: entry.nextCommand,
+        evidenceNeeded: entry.evidenceNeeded,
+        acceptance: entry.acceptance,
+        blockedBy: entry.blockedBy
+      })
+    );
 
     return {
       status,
@@ -8320,6 +8337,8 @@ function getRoadmapCompletionSummary(): OpsLensRoadmapCompletionSummary {
       remainingRequirements: remaining.length,
       percentComplete,
       remaining,
+      criticalPathBlockerCount: criticalPathBlockers.length,
+      criticalPathBlockers,
       mutationBoundaryPassed,
       missingEvidence: artifact.missingEvidence ?? [],
       risk: artifact.risk ?? [],
@@ -8333,6 +8352,12 @@ function getRoadmapCompletionSummary(): OpsLensRoadmapCompletionSummary {
               .map((item) => `${item.stage}/${item.id}:${item.status}`)
               .join(", ")}`
           : "remaining roadmap gates=none",
+        criticalPathBlockers.length
+          ? `critical path blockers=${criticalPathBlockers
+              .slice(0, 8)
+              .map((item) => `${item.owner}/${item.actionId}`)
+              .join(", ")}`
+          : "critical path blockers=none",
         "roadmap completion reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
       ]
     };
@@ -10937,7 +10962,9 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const releaseEvidenceRefreshReadiness = getReleaseEvidenceRefreshReadiness();
   const releaseEvidenceBundleReadiness = getReleaseEvidenceBundleReadiness();
   const releaseActionQueueReadiness = getReleaseActionQueueReadiness();
-  const roadmapCompletion = getRoadmapCompletionSummary();
+  const roadmapCompletion = getRoadmapCompletionSummary(
+    releaseActionQueueReadiness.actionQueue
+  );
   const runtimeLiveHandoff = buildRuntimeLiveHandoffSummary(
     runtimeReadiness,
     releaseActionQueueReadiness.actionQueue

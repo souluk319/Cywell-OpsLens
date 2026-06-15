@@ -3293,6 +3293,18 @@ export interface OpsLensRoadmapCompletionSummary {
     id: string;
     status: string;
   }>;
+  criticalPathBlockerCount: number;
+  criticalPathBlockers: Array<{
+    lane: string;
+    label: string;
+    owner: string;
+    priority: string;
+    actionId: string;
+    nextCommand: string;
+    evidenceNeeded: string;
+    acceptance: string[];
+    blockedBy: string[];
+  }>;
   mutationBoundaryPassed: boolean;
   missingEvidence: string[];
   risk: string[];

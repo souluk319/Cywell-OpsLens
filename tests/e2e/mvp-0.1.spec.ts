@@ -3142,6 +3142,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             id?: string;
             status?: string;
           }>;
+          criticalPathBlockerCount?: number;
+          criticalPathBlockers?: Array<{
+            lane?: string;
+            label?: string;
+            owner?: string;
+            priority?: string;
+            actionId?: string;
+            nextCommand?: string;
+            evidenceNeeded?: string;
+            acceptance?: string[];
+            blockedBy?: string[];
+          }>;
           mutationBoundaryPassed?: boolean;
           missingEvidence?: string[];
           risk?: string[];
@@ -5122,16 +5134,35 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       passedRequirements: roadmapPassed.length,
       remainingRequirements: roadmapRemaining.length,
       percentComplete: roadmapPercent,
+      criticalPathBlockerCount:
+        body.installReadiness?.actionQueue?.criticalPath?.length ?? 0,
       mutationBoundaryPassed: true
     });
     expect(body.installReadiness?.roadmapCompletion?.remaining).toEqual(
       roadmapRemaining
     );
     expect(
+      body.installReadiness?.roadmapCompletion?.criticalPathBlockers?.map(
+        (entry) => entry.actionId
+      )
+    ).toEqual(
+      body.installReadiness?.actionQueue?.criticalPath?.map(
+        (entry) => entry.actionId
+      )
+    );
+    expect(
+      body.installReadiness?.roadmapCompletion?.criticalPathBlockers?.every(
+        (entry) => entry.owner && entry.nextCommand && entry.evidenceNeeded
+      )
+    ).toBe(true);
+    expect(
       body.installReadiness?.roadmapCompletion?.evidence?.join(" ")
     ).toContain(
       `Roadmap completion ${roadmapPassed.length}/${roadmapRequirements.length}`
     );
+    expect(
+      body.installReadiness?.roadmapCompletion?.evidence?.join(" ")
+    ).toContain("critical path blockers=");
     expect(
       body.installReadiness?.bundle?.commandCounts?.readOnly ?? 0
     ).toBeGreaterThan(0);
@@ -8679,10 +8710,25 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
       `${body.installReadiness?.roadmapCompletion?.passedRequirements}/`
     );
+    await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
+      `${body.installReadiness?.roadmapCompletion?.criticalPathBlockerCount}`
+    );
     await expect(
       page.getByTestId("opslens-roadmap-remaining-gates")
     ).toContainText(
       body.installReadiness?.roadmapCompletion?.remaining?.[0]?.id ?? "none"
+    );
+    await expect(
+      page.getByTestId("opslens-roadmap-critical-path-blockers")
+    ).toContainText(
+      body.installReadiness?.roadmapCompletion?.criticalPathBlockers?.[0]
+        ?.actionId ?? "none"
+    );
+    await expect(
+      page.getByTestId("opslens-roadmap-critical-path-blockers")
+    ).toContainText(
+      body.installReadiness?.roadmapCompletion?.criticalPathBlockers?.[0]
+        ?.nextCommand ?? "none"
     );
     await expect(page.getByTestId("opslens-evidence-checkpoint")).toContainText(
       /PASS|NEEDS_EVIDENCE|BLOCKED|missing/

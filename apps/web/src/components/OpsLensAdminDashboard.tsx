@@ -1502,6 +1502,10 @@ export function OpsLensAdminDashboard() {
                   <strong>{roadmapCompletion.remainingRequirements}</strong>
                 </div>
                 <div>
+                  <span>Blockers</span>
+                  <strong>{roadmapCompletion.criticalPathBlockerCount}</strong>
+                </div>
+                <div>
                   <span>Status</span>
                   <strong
                     className={`freshness ${statusClass(
@@ -1522,6 +1526,21 @@ export function OpsLensAdminDashboard() {
                   </span>
                 ))}
                 {roadmapCompletion.remaining.length === 0 ? (
+                  <span>none</span>
+                ) : null}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-roadmap-critical-path-blockers"
+              >
+                {roadmapCompletion.criticalPathBlockers
+                  .slice(0, 6)
+                  .map((entry) => (
+                    <span key={`${entry.lane}-${entry.actionId}`}>
+                      {entry.owner}:{entry.actionId}:next={entry.nextCommand}
+                    </span>
+                  ))}
+                {roadmapCompletion.criticalPathBlockers.length === 0 ? (
                   <span>none</span>
                 ) : null}
               </div>
