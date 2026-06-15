@@ -4849,6 +4849,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect.arrayContaining([
         "live-ocp-lightspeed",
         "lightspeed-auth-rbac",
+        "ocp-live-reader-rbac",
         "runtime-live",
         "runtime-rag-quality",
         "external-runtime-review",
@@ -5827,6 +5828,35 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           (item) => item.id === "ocp-auth-rbac-boundary"
         )?.value
       ).toContain("mutationAllowed=false");
+      const ocpLiveReaderRbacCriticalPath =
+        body.installReadiness?.actionQueue?.criticalPath?.find(
+          (entry) => entry.lane === "ocp-live-reader-rbac"
+        );
+      expect(ocpLiveReaderRbacCriticalPath).toMatchObject({
+        owner: "cluster-admin",
+        actionId: ocpAuthRbacPlanAction.id,
+        source: "ocpAuthRbacPlan"
+      });
+      expect(ocpLiveReaderRbacCriticalPath?.readOnlyCommandIds).toEqual(
+        expect.arrayContaining([
+          "refresh-ocp-auth-rbac-plan",
+          "verify-post-approval-live-reader-smoke",
+          "server-dry-run-live-reader-rbac"
+        ])
+      );
+      expect(ocpLiveReaderRbacCriticalPath?.approvalGatedCommandIds).toEqual(
+        expect.arrayContaining([
+          "apply-live-evidence-reader-rbac",
+          "create-short-lived-live-reader-token"
+        ])
+      );
+      expect(ocpLiveReaderRbacCriticalPath?.diagnostics).toEqual(
+        expect.arrayContaining([
+          "ocp-auth-rbac-status",
+          "ocp-auth-rbac-rules",
+          "ocp-auth-rbac-boundary"
+        ])
+      );
     }
     const lightspeedReadinessAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -7695,6 +7725,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("post-approval-rbac");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("ocp-live-reader-rbac");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText(
+      /cluster-admin-approve-ocp-live-reader-rbac|cluster-admin-review-ocp-auth-rbac-plan-gap/
+    );
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("refresh-ocp-auth-rbac-plan");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("ocp-auth-rbac-boundary");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText(/external-runtime-review|release-publish|install-approval/);

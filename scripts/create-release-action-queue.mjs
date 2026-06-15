@@ -3151,6 +3151,7 @@ function firstOwnerAction(entries) {
 const criticalPathLaneOrder = [
   "live-ocp-lightspeed",
   "lightspeed-auth-rbac",
+  "ocp-live-reader-rbac",
   "runtime-live",
   "runtime-rag-quality",
   "external-runtime-review",
@@ -3168,6 +3169,7 @@ const criticalPathLaneOrder = [
 const criticalPathLabels = {
   "live-ocp-lightspeed": "Live OCP and Lightspeed reachability",
   "lightspeed-auth-rbac": "Lightspeed auth/RBAC readiness",
+  "ocp-live-reader-rbac": "OCP live-reader RBAC approval",
   "runtime-live": "Runtime live probes",
   "runtime-rag-quality": "Runtime RAG live quality",
   "external-runtime-review": "External runtime evidence and mirroring",
@@ -3184,7 +3186,14 @@ const criticalPathLabels = {
 
 function criticalPathLane(entry) {
   const text = `${entry.id} ${entry.source} ${entry.owner}`.toLowerCase();
+  const source = String(entry.source ?? "").toLowerCase();
   if (/lightspeed-readiness|lightspeedreadiness/.test(text)) return "lightspeed-auth-rbac";
+  if (
+    source === "ocpauthrbacplan" ||
+    /approve-ocp-live-reader-rbac|review-ocp-auth-rbac-plan-gap/.test(text)
+  ) {
+    return "ocp-live-reader-rbac";
+  }
   if (/(ocp|lightspeed|network|live-handoff)/.test(text)) return "live-ocp-lightspeed";
   if (/data-ml-engineer|runtime-rag/.test(text)) return "runtime-rag-quality";
   if (/runtime-platform|runtime-readiness|runtimeprobe|runtime-readiness-live/.test(text)) return "runtime-live";
