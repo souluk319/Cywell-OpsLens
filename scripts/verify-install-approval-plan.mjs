@@ -10,6 +10,7 @@ const execFileAsync = promisify(execFile);
 
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-install-approval-plan.json",
+  markdownOut: "test-results/cywell-opslens-install-approval-cluster-admin.md",
   catalogSource: "deploy/catalog/openshift/catalogsource.yaml",
   subscription: "deploy/catalog/openshift/subscription.yaml",
   installation: "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation.yaml",
@@ -47,6 +48,7 @@ function parseArgs(argv) {
 const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.values.get("evidence-out") ?? defaults.evidenceOut,
+  markdownOut: parsed.values.get("markdown-out") ?? defaults.markdownOut,
   catalogSource: parsed.values.get("catalog-source") ?? defaults.catalogSource,
   subscription: parsed.values.get("subscription") ?? defaults.subscription,
   installation: parsed.values.get("installation") ?? defaults.installation,
@@ -773,6 +775,126 @@ function buildInstallDecisionAction({
   };
 }
 
+function buildClusterAdminInstallPacket({
+  status,
+  firstActions,
+  ticketPacket,
+  installDecisionAction,
+  commands,
+  missingEvidence
+}) {
+  const mutatingCommandIds = commands
+    .filter((command) => command.mutation === true)
+    .map((command) => command.id);
+
+  return {
+    owner: "cluster-admin",
+    markdownPath: resolve(options.markdownOut),
+    exists: true,
+    ticketId: ticketPacket.id,
+    installDecisionActionId: installDecisionAction.id,
+    status,
+    requiredApprovals: ticketPacket.requiredApprovals,
+    firstReadOnlyActionId: ticketPacket.firstReadOnlyAction.id,
+    lightspeedPreviewCommandId: installDecisionAction.lightspeedPreviewCommandId,
+    ragIngestionReviewCommand: installDecisionAction.ragIngestionReviewCommand,
+    approvalGatedActionId: ticketPacket.approvalGatedAction.id,
+    approvalGatedCommandIds: installDecisionAction.approvalGatedCommandIds,
+    firstApprovalActionIds: firstActions.map((action) => action.id),
+    mutatingCommandIds,
+    missingEvidence,
+    credentialStoredByVerifier: false,
+    installExecutedByVerifier: false,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false,
+      installRequiresExplicitApproval: true
+    }
+  };
+}
+
+function installApprovalMarkdownFor(plan) {
+  const packet = plan.clusterAdminPacket;
+  const ticket = plan.ticketPacket;
+  const decision = plan.installDecisionAction;
+  const readOnlyCommands = plan.commands.filter(
+    (command) => command.mutation === false
+  );
+  const approvalGatedCommands = plan.commands.filter(
+    (command) => command.mutation === true
+  );
+  const lines = [
+    "# Cywell OpsLens Install Approval Cluster Admin Packet",
+    "",
+    `Generated: ${plan.generatedAt}`,
+    `Git: ${plan.ref.branch} ${plan.ref.headSha} dirty=${plan.ref.worktreeDirty}`,
+    `Status: ${plan.status}`,
+    "",
+    "## Approval Summary",
+    "",
+    `- Owner: ${packet.owner}`,
+    `- Ticket: ${packet.ticketId}`,
+    `- Decision action: ${packet.installDecisionActionId}`,
+    `- Required approvals: ${packet.requiredApprovals.join(", ")}`,
+    `- First read-only action: ${packet.firstReadOnlyActionId}`,
+    `- Lightspeed preview: ${packet.lightspeedPreviewCommandId}`,
+    `- RAG ingestion review: ${packet.ragIngestionReviewCommand}`,
+    `- First approval-gated action: ${packet.approvalGatedActionId}`,
+    "",
+    "## Read-only Preflight",
+    "",
+    ...readOnlyCommands.map(
+      (command) =>
+        `- ${command.id}: ${command.command} mutation=${String(command.mutation)}`
+    ),
+    "",
+    "## Approval-gated Install Commands",
+    "",
+    ...approvalGatedCommands.map(
+      (command) =>
+        `- ${command.id}: ${command.command} mutation=${String(command.mutation)} requiresExplicitApproval=${String(command.requiresExplicitApproval)}`
+    ),
+    "",
+    "## Decision Boundary",
+    "",
+    `- decisionStatus=${decision.status}`,
+    `- mutationAllowed=${String(decision.mutationAllowed)}`,
+    `- writesLocalEvidence=${String(decision.writesLocalEvidence)}`,
+    `- clusterMutationAttempted=${String(packet.mutationBoundary.clusterMutationAttempted)}`,
+    `- registryMutationAttempted=${String(packet.mutationBoundary.registryMutationAttempted)}`,
+    `- vectorWriteAttempted=${String(packet.mutationBoundary.vectorWriteAttempted)}`,
+    `- ingestionJobCreated=${String(packet.mutationBoundary.ingestionJobCreated)}`,
+    `- mutationAllowedByThisVerifier=${String(packet.mutationBoundary.mutationAllowedByThisVerifier)}`,
+    `- installRequiresExplicitApproval=${String(packet.mutationBoundary.installRequiresExplicitApproval)}`,
+    `- installExecutedByVerifier=${String(packet.installExecutedByVerifier)}`,
+    `- credentialStoredByVerifier=${String(packet.credentialStoredByVerifier)}`,
+    "- This packet does not create namespaces, apply CatalogSource or Subscription, approve InstallPlans, apply OpsLensInstallation, patch OLSConfig, create RAG ingestion jobs, write vectors, or store credentials.",
+    "",
+    "## Ticket Checklist",
+    "",
+    ...ticket.evidenceChecklist.map((item) => `- ${item}`),
+    "",
+    "## Blocked By",
+    "",
+    ...(packet.missingEvidence.length
+      ? packet.missingEvidence.map((item) => `- ${item}`)
+      : ["- none"]),
+    "",
+    "## Risk",
+    "",
+    ...plan.risk.map((item) => `- ${item}`),
+    "",
+    "## Rollback Path",
+    "",
+    ...plan.rollbackPath.map((item) => `- ${item}`),
+    ""
+  ];
+  return lines.join("\n");
+}
+
 function secretValuesForLeakCheck() {
   return [
     "OCP_API_TOKEN",
@@ -891,6 +1013,17 @@ async function buildPlan() {
     lightspeedRegistration,
     ragIngestionStatus
   });
+  const missingEvidence = checklist
+    .filter((item) => item.status === "needs-evidence")
+    .map((item) => `${item.id}: ${item.evidence}`);
+  const clusterAdminPacket = buildClusterAdminInstallPacket({
+    status,
+    firstActions,
+    ticketPacket,
+    installDecisionAction,
+    commands,
+    missingEvidence
+  });
   if (
     ticketPacket.firstReadOnlyAction.mutation === false &&
     ticketPacket.firstReadOnlyAction.requiresExplicitApproval === false &&
@@ -1008,6 +1141,7 @@ async function buildPlan() {
     firstApprovalActions: firstActions,
     ticketPacket,
     installDecisionAction,
+    clusterAdminPacket,
     commands,
     risk: [
       "Applying the OpsLensInstallation sample allows the Operator to patch OLSConfig because mode=PatchOLSConfig is explicit.",
@@ -1030,28 +1164,36 @@ async function buildPlan() {
       mvp: resolve(options.mvpEvidence),
       ragApprovalQueue: resolve(options.ragApprovalQueueEvidence)
     },
-    missingEvidence: checklist
-      .filter((item) => item.status === "needs-evidence")
-      .map((item) => `${item.id}: ${item.evidence}`),
+    missingEvidence,
     checks
   };
 }
 
 async function writePlan(plan) {
   const reportPath = resolve(options.evidenceOut);
+  const markdownPath = resolve(options.markdownOut);
   const initialSerialized = `${JSON.stringify(plan, null, 2)}\n`;
-  const leakedSecret = secretValuesForLeakCheck().some((secret) => initialSerialized.includes(secret));
+  const markdown = installApprovalMarkdownFor(plan);
+  const leakedSecret = secretValuesForLeakCheck().some(
+    (secret) => initialSerialized.includes(secret) || markdown.includes(secret)
+  );
   if (leakedSecret) {
     throw new Error("install approval plan would include a configured secret value");
   }
-  pass("install approval plan evidence export", `${reportPath} written without secret material`);
+  pass("install approval plan evidence export", `${reportPath} and ${markdownPath} written without secret material`);
   const serialized = `${JSON.stringify(plan, null, 2)}\n`;
-  if (secretValuesForLeakCheck().some((secret) => serialized.includes(secret))) {
+  if (
+    secretValuesForLeakCheck().some(
+      (secret) => serialized.includes(secret) || markdown.includes(secret)
+    )
+  ) {
     throw new Error("install approval plan would include a configured secret value");
   }
 
   await mkdir(dirname(reportPath), { recursive: true });
+  await mkdir(dirname(markdownPath), { recursive: true });
   await writeFile(reportPath, serialized);
+  await writeFile(markdownPath, markdown);
 }
 
 function printSummary() {

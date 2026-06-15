@@ -2911,6 +2911,33 @@ export interface OpsLensInstallApprovalPlanSummary {
     mutationAllowedByThisVerifier: boolean;
     installRequiresExplicitApproval: boolean;
   };
+  clusterAdminPacket: {
+    owner: "cluster-admin";
+    markdownPath: string;
+    exists: boolean;
+    ticketId: string;
+    installDecisionActionId: string;
+    status: string;
+    requiredApprovals: string[];
+    firstReadOnlyActionId: string;
+    lightspeedPreviewCommandId: string;
+    ragIngestionReviewCommand: string;
+    approvalGatedActionId: string;
+    approvalGatedCommandIds: string[];
+    firstApprovalActionIds: string[];
+    mutatingCommandIds: string[];
+    missingEvidence: string[];
+    credentialStoredByVerifier: boolean;
+    installExecutedByVerifier: boolean;
+    mutationBoundary: {
+      clusterMutationAttempted: boolean;
+      registryMutationAttempted: boolean;
+      vectorWriteAttempted: boolean;
+      ingestionJobCreated: boolean;
+      mutationAllowedByThisVerifier: boolean;
+      installRequiresExplicitApproval: boolean;
+    };
+  };
 }
 
 export interface OpsLensReleasePublishPlanSummary {

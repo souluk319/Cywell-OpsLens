@@ -2211,6 +2211,33 @@ type InstallApprovalPlanEvidenceArtifact = {
   }>;
   ticketPacket?: OpsLensInstallApprovalTicketPacket;
   installDecisionAction?: OpsLensInstallApprovalPlanSummary["installDecisionAction"];
+  clusterAdminPacket?: {
+    owner?: string;
+    markdownPath?: string;
+    exists?: boolean;
+    ticketId?: string;
+    installDecisionActionId?: string;
+    status?: string;
+    requiredApprovals?: string[];
+    firstReadOnlyActionId?: string;
+    lightspeedPreviewCommandId?: string;
+    ragIngestionReviewCommand?: string;
+    approvalGatedActionId?: string;
+    approvalGatedCommandIds?: string[];
+    firstApprovalActionIds?: string[];
+    mutatingCommandIds?: string[];
+    missingEvidence?: string[];
+    credentialStoredByVerifier?: boolean;
+    installExecutedByVerifier?: boolean;
+    mutationBoundary?: {
+      clusterMutationAttempted?: boolean;
+      registryMutationAttempted?: boolean;
+      vectorWriteAttempted?: boolean;
+      ingestionJobCreated?: boolean;
+      mutationAllowedByThisVerifier?: boolean;
+      installRequiresExplicitApproval?: boolean;
+    };
+  };
   commands?: InstallApprovalPlanCommandArtifact[];
   risk?: string[];
   rollbackPath?: string[];
@@ -6839,6 +6866,83 @@ function buildInstallDecisionActionSummary({
   };
 }
 
+function mapInstallClusterAdminPacket({
+  artifactPacket,
+  status,
+  requiredApprovals,
+  ticketPacket,
+  installDecisionAction,
+  firstApprovalActions,
+  mutatingCommands,
+  missingEvidence
+}: {
+  artifactPacket?: InstallApprovalPlanEvidenceArtifact["clusterAdminPacket"];
+  status: string;
+  requiredApprovals: string[];
+  ticketPacket: OpsLensInstallApprovalTicketPacket;
+  installDecisionAction: OpsLensInstallApprovalPlanSummary["installDecisionAction"];
+  firstApprovalActions: OpsLensInstallApprovalPlanSummary["firstApprovalActions"];
+  mutatingCommands: OpsLensInstallApprovalPlanSummary["mutatingCommands"];
+  missingEvidence: string[];
+}): OpsLensInstallApprovalPlanSummary["clusterAdminPacket"] {
+  const markdownPath =
+    artifactPacket?.markdownPath ??
+    "test-results/cywell-opslens-install-approval-cluster-admin.md";
+
+  return {
+    owner: "cluster-admin",
+    markdownPath,
+    exists: markdownPath !== "missing" && existsSync(markdownPath),
+    ticketId: artifactPacket?.ticketId ?? ticketPacket.id,
+    installDecisionActionId:
+      artifactPacket?.installDecisionActionId ?? installDecisionAction.id,
+    status: artifactPacket?.status ?? status,
+    requiredApprovals:
+      artifactPacket?.requiredApprovals ?? requiredApprovals,
+    firstReadOnlyActionId:
+      artifactPacket?.firstReadOnlyActionId ??
+      ticketPacket.firstReadOnlyAction.id,
+    lightspeedPreviewCommandId:
+      artifactPacket?.lightspeedPreviewCommandId ??
+      installDecisionAction.lightspeedPreviewCommandId,
+    ragIngestionReviewCommand:
+      artifactPacket?.ragIngestionReviewCommand ??
+      installDecisionAction.ragIngestionReviewCommand,
+    approvalGatedActionId:
+      artifactPacket?.approvalGatedActionId ??
+      ticketPacket.approvalGatedAction.id,
+    approvalGatedCommandIds:
+      artifactPacket?.approvalGatedCommandIds ??
+      installDecisionAction.approvalGatedCommandIds,
+    firstApprovalActionIds:
+      artifactPacket?.firstApprovalActionIds ??
+      firstApprovalActions.map((action) => action.id),
+    mutatingCommandIds:
+      artifactPacket?.mutatingCommandIds ??
+      mutatingCommands.map((command) => command.id),
+    missingEvidence: artifactPacket?.missingEvidence ?? missingEvidence,
+    credentialStoredByVerifier:
+      artifactPacket?.credentialStoredByVerifier === true,
+    installExecutedByVerifier:
+      artifactPacket?.installExecutedByVerifier === true,
+    mutationBoundary: {
+      clusterMutationAttempted:
+        artifactPacket?.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        artifactPacket?.mutationBoundary?.registryMutationAttempted === true,
+      vectorWriteAttempted:
+        artifactPacket?.mutationBoundary?.vectorWriteAttempted === true,
+      ingestionJobCreated:
+        artifactPacket?.mutationBoundary?.ingestionJobCreated === true,
+      mutationAllowedByThisVerifier:
+        artifactPacket?.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      installRequiresExplicitApproval:
+        artifactPacket?.mutationBoundary?.installRequiresExplicitApproval ??
+        ticketPacket.mutationBoundary.installRequiresExplicitApproval
+    }
+  };
+}
+
 function getInstallApprovalPlanReadiness(): {
   status: OpsLensInstallPlanReadiness;
   evidence: string[];
@@ -6939,6 +7043,44 @@ function getInstallApprovalPlanReadiness(): {
           ingestionJobCreated: false,
           mutationAllowedByThisVerifier: false,
           installRequiresExplicitApproval: true
+        },
+        clusterAdminPacket: {
+          owner: "cluster-admin",
+          markdownPath:
+            "test-results/cywell-opslens-install-approval-cluster-admin.md",
+          exists: existsSync(
+            "test-results/cywell-opslens-install-approval-cluster-admin.md"
+          ),
+          ticketId: "cluster-admin-install-approval-ticket",
+          installDecisionActionId:
+            "cluster-admin-install-approval-decision",
+          status: "needs-evidence",
+          requiredApprovals: [
+            "cluster-admin",
+            "cluster-sre",
+            "security-reviewer",
+            "product-owner"
+          ],
+          firstReadOnlyActionId: "generate-install-approval-plan",
+          lightspeedPreviewCommandId: "preview-lightspeed-patch",
+          ragIngestionReviewCommand: "npm run verify:rag:approval-queue",
+          approvalGatedActionId: "approval-gated-apply-operator-namespace",
+          approvalGatedCommandIds: ["approval-gated-apply-operator-namespace"],
+          firstApprovalActionIds: ["generate-install-approval-plan"],
+          mutatingCommandIds: [],
+          missingEvidence: [
+            `install approval plan evidence is missing at ${evidencePath}`
+          ],
+          credentialStoredByVerifier: false,
+          installExecutedByVerifier: false,
+          mutationBoundary: {
+            clusterMutationAttempted: false,
+            registryMutationAttempted: false,
+            vectorWriteAttempted: false,
+            ingestionJobCreated: false,
+            mutationAllowedByThisVerifier: false,
+            installRequiresExplicitApproval: true
+          }
         }
       },
       evidence: [
@@ -7015,6 +7157,16 @@ function getInstallApprovalPlanReadiness(): {
       ragIngestion,
       artifactDecisionAction: artifact.installDecisionAction
     });
+    const clusterAdminPacket = mapInstallClusterAdminPacket({
+      artifactPacket: artifact.clusterAdminPacket,
+      status,
+      requiredApprovals: artifact.requiredApprovals ?? [],
+      ticketPacket,
+      installDecisionAction,
+      firstApprovalActions,
+      mutatingCommands,
+      missingEvidence: artifact.missingEvidence ?? []
+    });
 
     return {
       status,
@@ -7033,7 +7185,8 @@ function getInstallApprovalPlanReadiness(): {
         lightspeedRegistration,
         ragIngestion,
         ticketPacket,
-        installDecisionAction
+        installDecisionAction,
+        clusterAdminPacket
       },
       evidence: [
         `Install approval plan evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
@@ -7043,6 +7196,7 @@ function getInstallApprovalPlanReadiness(): {
         `install first approval actions=${firstApprovalActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         `install approval ticket=${ticketPacket.id}:${ticketPacket.firstReadOnlyAction.id}:approval=${ticketPacket.approvalGatedAction.id}`,
         `install decision action=${installDecisionAction.id}:first=${installDecisionAction.readOnlyPreflightCommandId}:lightspeed=${installDecisionAction.lightspeedPreviewCommandId}:rag=${installDecisionAction.ragIngestionReviewCommand}:approval=${installDecisionAction.approvalGatedCommandIds.slice(0, 3).join(",") || "none"}:mutationAllowed=${String(installDecisionAction.mutationAllowed)}:installRequiresExplicitApproval=${String(installDecisionAction.installRequiresExplicitApproval)}`,
+        `install cluster-admin packet=${clusterAdminPacket.markdownPath} exists=${String(clusterAdminPacket.exists)} installExecuted=${String(clusterAdminPacket.installExecutedByVerifier)} mutationAllowed=${String(clusterAdminPacket.mutationBoundary.mutationAllowedByThisVerifier)}`,
         mutatingCommandNames
           ? `mutating commands require explicit approval: ${mutatingCommandNames}`
           : "mutating commands are not listed in latest approval plan",
@@ -7127,6 +7281,44 @@ function getInstallApprovalPlanReadiness(): {
           ingestionJobCreated: false,
           mutationAllowedByThisVerifier: false,
           installRequiresExplicitApproval: true
+        },
+        clusterAdminPacket: {
+          owner: "cluster-admin",
+          markdownPath:
+            "test-results/cywell-opslens-install-approval-cluster-admin.md",
+          exists: existsSync(
+            "test-results/cywell-opslens-install-approval-cluster-admin.md"
+          ),
+          ticketId: "cluster-admin-install-approval-ticket",
+          installDecisionActionId:
+            "cluster-admin-install-approval-decision",
+          status: "failed",
+          requiredApprovals: [
+            "cluster-admin",
+            "cluster-sre",
+            "security-reviewer",
+            "product-owner"
+          ],
+          firstReadOnlyActionId: "generate-install-approval-plan",
+          lightspeedPreviewCommandId: "preview-lightspeed-patch",
+          ragIngestionReviewCommand: "npm run verify:rag:approval-queue",
+          approvalGatedActionId: "approval-gated-apply-operator-namespace",
+          approvalGatedCommandIds: ["approval-gated-apply-operator-namespace"],
+          firstApprovalActionIds: ["generate-install-approval-plan"],
+          mutatingCommandIds: [],
+          missingEvidence: [
+            error instanceof Error ? error.message : "unknown evidence parse error"
+          ],
+          credentialStoredByVerifier: false,
+          installExecutedByVerifier: false,
+          mutationBoundary: {
+            clusterMutationAttempted: false,
+            registryMutationAttempted: false,
+            vectorWriteAttempted: false,
+            ingestionJobCreated: false,
+            mutationAllowedByThisVerifier: false,
+            installRequiresExplicitApproval: true
+          }
         }
       },
       evidence: [

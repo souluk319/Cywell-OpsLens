@@ -3869,6 +3869,49 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-install-cluster-admin-packet"
+              >
+                <span>
+                  packet=
+                  {approvalPlan.clusterAdminPacket.markdownPath
+                    .split(/[\\/]/)
+                    .pop() ?? approvalPlan.clusterAdminPacket.markdownPath}
+                </span>
+                <span>
+                  exists={String(approvalPlan.clusterAdminPacket.exists)}
+                </span>
+                <span>
+                  ticket={approvalPlan.clusterAdminPacket.ticketId}
+                </span>
+                <span>
+                  decision=
+                  {approvalPlan.clusterAdminPacket.installDecisionActionId}
+                </span>
+                <span>
+                  first={approvalPlan.clusterAdminPacket.firstReadOnlyActionId}
+                </span>
+                <span>
+                  approval=
+                  {approvalPlan.clusterAdminPacket.approvalGatedCommandIds
+                    .slice(0, 3)
+                    .join(",") || "none"}
+                </span>
+                <span>
+                  installExecuted=
+                  {String(
+                    approvalPlan.clusterAdminPacket.installExecutedByVerifier
+                  )}
+                </span>
+                <span>
+                  mutationAllowed=
+                  {String(
+                    approvalPlan.clusterAdminPacket.mutationBoundary
+                      .mutationAllowedByThisVerifier
+                  )}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-install-decision-action"
               >
                 <span>

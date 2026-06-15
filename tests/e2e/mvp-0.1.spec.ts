@@ -1829,6 +1829,33 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             mutationAllowedByThisVerifier?: boolean;
             installRequiresExplicitApproval?: boolean;
           };
+          clusterAdminPacket?: {
+            owner?: string;
+            markdownPath?: string;
+            exists?: boolean;
+            ticketId?: string;
+            installDecisionActionId?: string;
+            status?: string;
+            requiredApprovals?: string[];
+            firstReadOnlyActionId?: string;
+            lightspeedPreviewCommandId?: string;
+            ragIngestionReviewCommand?: string;
+            approvalGatedActionId?: string;
+            approvalGatedCommandIds?: string[];
+            firstApprovalActionIds?: string[];
+            mutatingCommandIds?: string[];
+            missingEvidence?: string[];
+            credentialStoredByVerifier?: boolean;
+            installExecutedByVerifier?: boolean;
+            mutationBoundary?: {
+              clusterMutationAttempted?: boolean;
+              registryMutationAttempted?: boolean;
+              vectorWriteAttempted?: boolean;
+              ingestionJobCreated?: boolean;
+              mutationAllowedByThisVerifier?: boolean;
+              installRequiresExplicitApproval?: boolean;
+            };
+          };
           risk?: string[];
           rollbackPath?: string[];
         };
@@ -4898,6 +4925,35 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.approvalPlan?.installDecisionAction
         ?.readOnlyPreflightCommand
     ).toContain("verify:operator:dry-run");
+    expect(
+      body.installReadiness?.approvalPlan?.clusterAdminPacket
+    ).toMatchObject({
+      owner: "cluster-admin",
+      markdownPath: expect.stringContaining(
+        "cywell-opslens-install-approval-cluster-admin.md"
+      ),
+      exists: true,
+      ticketId: "cluster-admin-install-approval-ticket",
+      installDecisionActionId: "cluster-admin-install-approval-decision",
+      firstReadOnlyActionId: "run-operator-server-dry-run",
+      lightspeedPreviewCommandId: "preview-lightspeed-patch",
+      ragIngestionReviewCommand: "npm run verify:rag:approval-queue",
+      approvalGatedActionId: "approval-gated-apply-operator-namespace",
+      credentialStoredByVerifier: false,
+      installExecutedByVerifier: false,
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        vectorWriteAttempted: false,
+        ingestionJobCreated: false,
+        mutationAllowedByThisVerifier: false,
+        installRequiresExplicitApproval: true
+      }
+    });
+    expect(
+      body.installReadiness?.approvalPlan?.clusterAdminPacket
+        ?.approvalGatedCommandIds
+    ).toEqual(expect.arrayContaining(["apply-operator-namespace"]));
     const installDecisionBlockedBy =
       body.installReadiness?.approvalPlan?.installDecisionAction?.blockedBy ?? [];
     if (installDecisionBlockedBy.length > 0) {
@@ -9454,6 +9510,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-install-decision-action")
     ).toContainText("installRequiresExplicitApproval=true");
+    await expect(
+      page.getByTestId("opslens-install-cluster-admin-packet")
+    ).toContainText("packet=cywell-opslens-install-approval-cluster-admin.md");
+    await expect(
+      page.getByTestId("opslens-install-cluster-admin-packet")
+    ).toContainText("exists=true");
+    await expect(
+      page.getByTestId("opslens-install-cluster-admin-packet")
+    ).toContainText("ticket=cluster-admin-install-approval-ticket");
+    await expect(
+      page.getByTestId("opslens-install-cluster-admin-packet")
+    ).toContainText("decision=cluster-admin-install-approval-decision");
+    await expect(
+      page.getByTestId("opslens-install-cluster-admin-packet")
+    ).toContainText("first=run-operator-server-dry-run");
+    await expect(
+      page.getByTestId("opslens-install-cluster-admin-packet")
+    ).toContainText("approval=apply-operator-namespace");
+    await expect(
+      page.getByTestId("opslens-install-cluster-admin-packet")
+    ).toContainText("installExecuted=false");
+    await expect(
+      page.getByTestId("opslens-install-cluster-admin-packet")
+    ).toContainText("mutationAllowed=false");
     await expect(
       page.getByTestId("opslens-lightspeed-registration-commands")
     ).toContainText("verify:lightspeed:patch-preview");
