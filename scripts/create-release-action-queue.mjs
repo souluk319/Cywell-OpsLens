@@ -896,6 +896,7 @@ function item({
   certificationToolingTicketPacket,
   ragProductionTicketPacket,
   aiopsMonitoringTicketPacket,
+  runtimeEvidenceTicketPacket,
   acceptance = []
 }) {
   return {
@@ -963,6 +964,9 @@ function item({
       : undefined,
     aiopsMonitoringTicketPacket: aiopsMonitoringTicketPacket
       ? sanitizeAiopsMonitoringTicketPacket(aiopsMonitoringTicketPacket)
+      : undefined,
+    runtimeEvidenceTicketPacket: runtimeEvidenceTicketPacket
+      ? sanitizeRuntimeEvidenceTicketPacket(runtimeEvidenceTicketPacket)
       : undefined,
     acceptance
   };
@@ -1448,6 +1452,48 @@ function sanitizeAiopsMonitoringTicketPacket(packet = {}) {
     rollbackPath: sanitize(
       packet.rollbackPath ??
         "Unset OCP_ENABLE_MONITORING_PROXY or keep it false to return to log/event/runbook-only incident analysis."
+    )
+  };
+}
+
+function sanitizeRuntimeEvidenceTicketPacket(packet = {}) {
+  return {
+    id: sanitize(packet.id ?? "runtime-platform-live-evidence-ticket"),
+    owner: sanitize(packet.owner ?? "runtime-platform"),
+    title: sanitize(packet.title ?? "Runtime live evidence handoff"),
+    severity: "high",
+    classification: sanitize(packet.classification ?? "runtime-live-evidence-required"),
+    runtimeStatus: sanitize(packet.runtimeStatus ?? "needs-live-evidence"),
+    evidenceChecklist: (packet.evidenceChecklist ?? []).map(sanitize),
+    firstReadOnlyAction: sanitizeExternalRuntimeTicketAction(
+      packet.firstReadOnlyAction,
+      "runtime-readiness-live"
+    ),
+    approvalGatedAction: sanitizeExternalRuntimeTicketAction(
+      packet.approvalGatedAction,
+      "none"
+    ),
+    nextCommands: (packet.nextCommands ?? []).map(sanitize),
+    blockedBy: (packet.blockedBy ?? []).map(sanitize),
+    mutationBoundary: {
+      clusterMutationAttempted:
+        packet.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        packet.mutationBoundary?.registryMutationAttempted === true,
+      vectorWriteAttempted:
+        packet.mutationBoundary?.vectorWriteAttempted === true,
+      mutationAllowedByThisVerifier:
+        packet.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      liveProbeRequiresExplicitApproval:
+        packet.mutationBoundary?.liveProbeRequiresExplicitApproval === true
+    },
+    risk: sanitize(
+      packet.risk ??
+        "Runtime live evidence requires approved endpoints but this verifier does not mutate cluster or registry state."
+    ),
+    rollbackPath: sanitize(
+      packet.rollbackPath ??
+        "Unset local runtime endpoint variables and rerun the local fallback verifier."
     )
   };
 }
@@ -2590,6 +2636,56 @@ function prefixedEvidence(source, values) {
   return normalizedEvidence(values).map((entry) => `${source}: ${entry}`);
 }
 
+function runtimeEvidenceTicketPacket({
+  id,
+  owner,
+  title,
+  classification,
+  runtimeStatus,
+  firstReadOnlyAction,
+  blockedBy,
+  evidenceChecklist,
+  nextCommands,
+  liveProbeRequiresExplicitApproval,
+  risk,
+  rollbackPath
+}) {
+  return {
+    id,
+    owner,
+    title,
+    severity: "high",
+    classification,
+    runtimeStatus,
+    evidenceChecklist,
+    firstReadOnlyAction: {
+      id: firstReadOnlyAction.id,
+      status: "open",
+      nextCommand: firstReadOnlyAction.nextCommand,
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id: "none",
+      status: "not-required",
+      nextCommand: "none",
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    nextCommands,
+    blockedBy,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      liveProbeRequiresExplicitApproval
+    },
+    risk,
+    rollbackPath
+  };
+}
+
 function runtimeLiveItems(
   runtimeReadiness,
   runtimeRagContract,
@@ -2639,6 +2735,34 @@ function runtimeLiveItems(
       ],
       blockedBy: runtimeProbeGaps,
       diagnostics: runtimeReadinessDiagnostics(runtimeReadiness),
+      runtimeEvidenceTicketPacket: runtimeEvidenceTicketPacket({
+        id: "runtime-platform-live-runtime-evidence-ticket",
+        owner: "runtime-platform",
+        title: "Runtime vLLM/Qdrant live evidence handoff",
+        classification: "runtime-live-probes-required",
+        runtimeStatus: runtimeReadiness?.status ?? "missing",
+        firstReadOnlyAction: {
+          id: "runtime-readiness-live",
+          nextCommand: "npm run verify:runtime -- --live --timeout-ms 30000"
+        },
+        blockedBy: runtimeProbeGaps,
+        evidenceChecklist: [
+          `runtimeReadiness=${runtimeReadiness?.status ?? "missing"}`,
+          "qdrantLiveProbe=required",
+          "vllmLiveProbe=required",
+          "clusterMutationAttempted=false",
+          "registryMutationAttempted=false"
+        ],
+        nextCommands: [
+          "set CYWELL_OPSLENS_VECTOR_URL and CYWELL_OPSLENS_MODEL_URL to approved runtime endpoints",
+          "npm run verify:runtime -- --live --timeout-ms 30000"
+        ],
+        liveProbeRequiresExplicitApproval: true,
+        risk:
+          "Runtime live probes require approved vLLM/Qdrant endpoints and must not be confused with deploying or scaling runtime services.",
+        rollbackPath:
+          "Unset local runtime endpoint variables and rerun npm run verify:runtime to return to local fallback evidence."
+      }),
       acceptance: ["AC-LS-001", "AC-RAG-001"]
     }));
   }
@@ -2679,6 +2803,36 @@ function runtimeLiveItems(
       ],
       blockedBy: runtimeRagGaps,
       diagnostics: runtimeRagDiagnostics(runtimeRagContract, runtimeRagFixture),
+      runtimeEvidenceTicketPacket: runtimeEvidenceTicketPacket({
+        id: "data-ml-runtime-rag-quality-ticket",
+        owner: "data-ml-engineer",
+        title: "Runtime RAG live quality evidence handoff",
+        classification: "runtime-rag-quality-evidence-required",
+        runtimeStatus:
+          `${runtimeRagContract?.status ?? "missing"}/${runtimeRagFixture?.status ?? "missing"}`,
+        firstReadOnlyAction: {
+          id: "runtime-rag-fixture",
+          nextCommand: "npm run verify:runtime-rag:fixture"
+        },
+        blockedBy: runtimeRagGaps,
+        evidenceChecklist: [
+          `runtimeRag=${runtimeRagContract?.status ?? "missing"}`,
+          `runtimeRagFixture=${runtimeRagFixture?.status ?? "missing"}`,
+          "liveEmbeddingsEvidence=required",
+          "liveQdrantSearchEvidence=required",
+          "citationQualityEvidence=required"
+        ],
+        nextCommands: [
+          "npm run verify:runtime-rag",
+          "npm run verify:runtime-rag:fixture",
+          "run live quality evaluation only after approved runtime endpoints are configured"
+        ],
+        liveProbeRequiresExplicitApproval: true,
+        risk:
+          "Runtime RAG fixture success proves adapter behavior but does not prove production citation quality until live endpoint evidence is collected.",
+        rollbackPath:
+          "Return CYWELL_OPSLENS_RAG_RUNTIME_MODE to local fallback and rerun runtime RAG contract verification."
+      }),
       acceptance: ["AC-LS-001", "AC-RAG-001", "AC-AIOPS-001"]
     }));
   }
@@ -3279,6 +3433,9 @@ function criticalPath(items) {
           : undefined,
         aiopsMonitoringTicketPacket: entry.aiopsMonitoringTicketPacket
           ? sanitizeAiopsMonitoringTicketPacket(entry.aiopsMonitoringTicketPacket)
+          : undefined,
+        runtimeEvidenceTicketPacket: entry.runtimeEvidenceTicketPacket
+          ? sanitizeRuntimeEvidenceTicketPacket(entry.runtimeEvidenceTicketPacket)
           : undefined
       };
     })
@@ -3314,6 +3471,9 @@ function buildOwnerPackets(owners, items) {
     const firstAiopsMonitoringTicketPacket = entries.find(
       (entry) => entry.aiopsMonitoringTicketPacket
     )?.aiopsMonitoringTicketPacket;
+    const firstRuntimeEvidenceTicketPacket = entries.find(
+      (entry) => entry.runtimeEvidenceTicketPacket
+    )?.runtimeEvidenceTicketPacket;
     return {
       owner: owner.owner,
       status: owner.blocker > 0 ? "blocker" : owner.open > 0 ? "open" : "clear",
@@ -3339,6 +3499,7 @@ function buildOwnerPackets(owners, items) {
       firstCertificationToolingTicketPacket,
       firstRagProductionTicketPacket,
       firstAiopsMonitoringTicketPacket,
+      firstRuntimeEvidenceTicketPacket,
       nextCommands: uniqueStrings(
         entries.flatMap((entry) => [
           entry.nextCommand,
@@ -3418,7 +3579,7 @@ function markdownFor(queue) {
     "## Release Critical Path",
     "",
     ...queue.criticalPath.map((entry) =>
-      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}, ragTicket=${entry.ragProductionTicketPacket?.id ?? "none"}, aiopsTicket=${entry.aiopsMonitoringTicketPacket?.id ?? "none"}`
+      `- ${entry.lane}: owner=${entry.owner}, priority=${entry.priority}, action=${entry.actionId}, next=${entry.nextCommand}, tools=${entry.missingRequiredTools.join(",") || "none"}, setup=${entry.setupCommandIds.join(",") || "none"}, readOnly=${entry.readOnlyCommandIds.join(",") || "none"}, approval=${entry.approvalGatedCommandIds.join(",") || "none"}, ticket=${entry.ticketPacket?.id ?? "none"}, runtimeTicket=${entry.runtimeEvidenceTicketPacket?.id ?? "none"}, extTicket=${entry.externalRuntimeTicketPacket?.id ?? "none"}, securityTicket=${entry.securityReviewTicketPacket?.id ?? "none"}, publishTicket=${entry.releasePublishTicketPacket?.id ?? "none"}, installTicket=${entry.installApprovalTicketPacket?.id ?? "none"}, catalogTicket=${entry.catalogToolchainTicketPacket?.id ?? "none"}, certTicket=${entry.certificationToolingTicketPacket?.id ?? "none"}, ragTicket=${entry.ragProductionTicketPacket?.id ?? "none"}, aiopsTicket=${entry.aiopsMonitoringTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Summary",
@@ -3430,7 +3591,7 @@ function markdownFor(queue) {
     "## Owner Packets",
     "",
     ...queue.ownerPackets.map((packet) =>
-      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}, ragTicket=${packet.firstRagProductionTicketPacket?.id ?? "none"}, aiopsTicket=${packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}`
+      `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, runtimeTicket=${packet.firstRuntimeEvidenceTicketPacket?.id ?? "none"}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}, ragTicket=${packet.firstRagProductionTicketPacket?.id ?? "none"}, aiopsTicket=${packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}`
     ),
     "",
     "## Owner Packet Cleanup",
@@ -3531,6 +3692,7 @@ function ownerPacketMarkdown(queue, packet) {
     `- First certification tooling ticket: ${packet.firstCertificationToolingTicketPacket?.id ?? "none"}`,
     `- First RAG production ticket: ${packet.firstRagProductionTicketPacket?.id ?? "none"}`,
     `- First AI Ops monitoring ticket: ${packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}`,
+    `- First runtime evidence ticket: ${packet.firstRuntimeEvidenceTicketPacket?.id ?? "none"}`,
     `- Missing tools: ${packet.missingRequiredTools.join(", ") || "none"}`,
     `- Acceptance: ${packet.acceptance.join(", ") || "none"}`,
     "",
@@ -3702,6 +3864,23 @@ function ownerPacketMarkdown(queue, packet) {
           ""
         ]
       : []),
+    ...(packet.firstRuntimeEvidenceTicketPacket
+      ? [
+          "## Runtime Evidence Ticket Packet",
+          "",
+          `- ID: ${packet.firstRuntimeEvidenceTicketPacket.id}`,
+          `- Title: ${packet.firstRuntimeEvidenceTicketPacket.title}`,
+          `- Severity: ${packet.firstRuntimeEvidenceTicketPacket.severity}`,
+          `- Classification: ${packet.firstRuntimeEvidenceTicketPacket.classification}`,
+          `- Runtime status: ${packet.firstRuntimeEvidenceTicketPacket.runtimeStatus}`,
+          `- First read-only action: ${packet.firstRuntimeEvidenceTicketPacket.firstReadOnlyAction.id}`,
+          `- First read-only command: ${packet.firstRuntimeEvidenceTicketPacket.firstReadOnlyAction.nextCommand}`,
+          `- Approval-gated action: ${packet.firstRuntimeEvidenceTicketPacket.approvalGatedAction.id}`,
+          `- Approval required: ${String(packet.firstRuntimeEvidenceTicketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+          `- Live probe requires approval: ${String(packet.firstRuntimeEvidenceTicketPacket.mutationBoundary.liveProbeRequiresExplicitApproval)}`,
+          ""
+        ]
+      : []),
     "## Next Commands",
     "",
     ...(packet.nextCommands.length
@@ -3746,6 +3925,7 @@ function ownerPacketMarkdown(queue, packet) {
       `- Certification tooling ticket: ${entry.certificationToolingTicketPacket?.id ?? "none"}`,
       `- RAG production ticket: ${entry.ragProductionTicketPacket?.id ?? "none"}`,
       `- AI Ops monitoring ticket: ${entry.aiopsMonitoringTicketPacket?.id ?? "none"}`,
+      `- Runtime evidence ticket: ${entry.runtimeEvidenceTicketPacket?.id ?? "none"}`,
       `- Blocked by: ${entry.blockedBy.length ? entry.blockedBy.join("; ") : "none"}`,
       ""
     );

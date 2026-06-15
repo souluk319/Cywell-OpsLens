@@ -1250,6 +1250,41 @@ export interface OpsLensAiopsMonitoringProxyTicketPacket {
   rollbackPath: string;
 }
 
+export interface OpsLensRuntimeEvidenceTicketPacket {
+  id: string;
+  owner: "runtime-platform" | "data-ml-engineer";
+  title: string;
+  severity: "high";
+  classification: string;
+  runtimeStatus: string;
+  evidenceChecklist: string[];
+  firstReadOnlyAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  approvalGatedAction: {
+    id: string;
+    status: string;
+    nextCommand: string;
+    mutation: boolean;
+    requiresExplicitApproval: boolean;
+  };
+  nextCommands: string[];
+  blockedBy: string[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    vectorWriteAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+    liveProbeRequiresExplicitApproval: boolean;
+  };
+  risk: string;
+  rollbackPath: string;
+}
+
 export type OpsLensAiopsIncidentPipelineReadiness =
   | "ready"
   | "needs-live-evidence"
@@ -2314,6 +2349,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     firstRagProductionTicketPacket?: OpsLensRagProductionTicketPacket;
     firstAiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
+    firstRuntimeEvidenceTicketPacket?: OpsLensRuntimeEvidenceTicketPacket;
     nextCommands: string[];
     setupCommandIds: string[];
     readOnlyCommandIds: string[];
@@ -2349,6 +2385,7 @@ export interface OpsLensReleaseActionQueueSummary {
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
     aiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
+    runtimeEvidenceTicketPacket?: OpsLensRuntimeEvidenceTicketPacket;
   }>;
   ownerPacketCleanup: {
     dir: string;
@@ -2404,6 +2441,7 @@ export interface OpsLensReleaseActionQueueSummary {
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
     aiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
+    runtimeEvidenceTicketPacket?: OpsLensRuntimeEvidenceTicketPacket;
   }>;
   sourceArtifacts: Array<{
     id: string;

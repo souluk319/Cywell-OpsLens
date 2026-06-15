@@ -90,6 +90,7 @@ import type {
   OpsLensSecurityReviewTicketPacket,
   OpsLensRagIngestionApprovalPlanSummary,
   OpsLensRuntimeDependencyReadiness,
+  OpsLensRuntimeEvidenceTicketPacket,
   OpsLensRuntimeLiveHandoffAction,
   OpsLensRuntimeLiveHandoffSummary,
   OpsLensRuntimeReadiness,
@@ -2639,6 +2640,7 @@ type ReleaseActionQueueArtifact = {
     firstCertificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     firstRagProductionTicketPacket?: OpsLensRagProductionTicketPacket;
     firstAiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
+    firstRuntimeEvidenceTicketPacket?: OpsLensRuntimeEvidenceTicketPacket;
     nextCommands?: string[];
     setupCommandIds?: string[];
     readOnlyCommandIds?: string[];
@@ -2674,6 +2676,7 @@ type ReleaseActionQueueArtifact = {
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
     aiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
+    runtimeEvidenceTicketPacket?: OpsLensRuntimeEvidenceTicketPacket;
   }>;
   ownerPacketCleanup?: {
     dir?: string;
@@ -2729,6 +2732,7 @@ type ReleaseActionQueueArtifact = {
     certificationToolingTicketPacket?: OpsLensCertificationToolingTicketPacket;
     ragProductionTicketPacket?: OpsLensRagProductionTicketPacket;
     aiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
+    runtimeEvidenceTicketPacket?: OpsLensRuntimeEvidenceTicketPacket;
   }>;
   sourceArtifacts?: Array<{
     id?: string;
@@ -8263,6 +8267,8 @@ function getReleaseActionQueueReadiness(): {
       firstRagProductionTicketPacket: packet.firstRagProductionTicketPacket,
       firstAiopsMonitoringTicketPacket:
         packet.firstAiopsMonitoringTicketPacket,
+      firstRuntimeEvidenceTicketPacket:
+        packet.firstRuntimeEvidenceTicketPacket,
       nextCommands: packet.nextCommands ?? [],
       setupCommandIds: packet.setupCommandIds ?? [],
       readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
@@ -8304,7 +8310,8 @@ function getReleaseActionQueueReadiness(): {
       catalogToolchainTicketPacket: entry.catalogToolchainTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket,
       ragProductionTicketPacket: entry.ragProductionTicketPacket,
-      aiopsMonitoringTicketPacket: entry.aiopsMonitoringTicketPacket
+      aiopsMonitoringTicketPacket: entry.aiopsMonitoringTicketPacket,
+      runtimeEvidenceTicketPacket: entry.runtimeEvidenceTicketPacket
     }));
     const items = (artifact.items ?? []).map((entry) => ({
       id: entry.id ?? "unknown",
@@ -8353,7 +8360,8 @@ function getReleaseActionQueueReadiness(): {
       catalogToolchainTicketPacket: entry.catalogToolchainTicketPacket,
       certificationToolingTicketPacket: entry.certificationToolingTicketPacket,
       ragProductionTicketPacket: entry.ragProductionTicketPacket,
-      aiopsMonitoringTicketPacket: entry.aiopsMonitoringTicketPacket
+      aiopsMonitoringTicketPacket: entry.aiopsMonitoringTicketPacket,
+      runtimeEvidenceTicketPacket: entry.runtimeEvidenceTicketPacket
     }));
     const sourceArtifacts = (artifact.sourceArtifacts ?? []).map((source) => ({
       id: source.id ?? "unknown",

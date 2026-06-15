@@ -2652,6 +2652,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 monitoringProxyEnableRequiresApproval?: boolean;
               };
             };
+            runtimeEvidenceTicketPacket?: {
+              id?: string;
+              owner?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                vectorWriteAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                liveProbeRequiresExplicitApproval?: boolean;
+              };
+            };
           }>;
           ownerPacketCleanup?: {
             dir?: string;
@@ -2846,6 +2867,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 ingestionJobCreated?: boolean;
                 mutationAllowedByThisVerifier?: boolean;
                 monitoringProxyEnableRequiresApproval?: boolean;
+              };
+            };
+            runtimeEvidenceTicketPacket?: {
+              id?: string;
+              owner?: string;
+              firstReadOnlyAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              approvalGatedAction?: {
+                id?: string;
+                mutation?: boolean;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                clusterMutationAttempted?: boolean;
+                registryMutationAttempted?: boolean;
+                vectorWriteAttempted?: boolean;
+                mutationAllowedByThisVerifier?: boolean;
+                liveProbeRequiresExplicitApproval?: boolean;
               };
             };
           }>;
@@ -4895,6 +4937,64 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (entry) => (entry.diagnostics?.length ?? 0) > 0
       )
     ).toBe(true);
+    const runtimeLiveCriticalPath =
+      body.installReadiness?.actionQueue?.criticalPath?.find(
+        (entry) => entry.lane === "runtime-live"
+      );
+    expect(runtimeLiveCriticalPath).toMatchObject({
+      owner: "runtime-platform",
+      actionId: "runtime-platform-run-live-vllm-qdrant-probes",
+      runtimeEvidenceTicketPacket: {
+        id: "runtime-platform-live-runtime-evidence-ticket",
+        owner: "runtime-platform",
+        firstReadOnlyAction: {
+          id: "runtime-readiness-live",
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        approvalGatedAction: {
+          id: "none",
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        mutationBoundary: {
+          clusterMutationAttempted: false,
+          registryMutationAttempted: false,
+          vectorWriteAttempted: false,
+          mutationAllowedByThisVerifier: false,
+          liveProbeRequiresExplicitApproval: true
+        }
+      }
+    });
+    const runtimeRagCriticalPath =
+      body.installReadiness?.actionQueue?.criticalPath?.find(
+        (entry) => entry.lane === "runtime-rag-quality"
+      );
+    expect(runtimeRagCriticalPath).toMatchObject({
+      owner: "data-ml-engineer",
+      actionId: "data-ml-engineer-prove-runtime-rag-live-quality",
+      runtimeEvidenceTicketPacket: {
+        id: "data-ml-runtime-rag-quality-ticket",
+        owner: "data-ml-engineer",
+        firstReadOnlyAction: {
+          id: "runtime-rag-fixture",
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        approvalGatedAction: {
+          id: "none",
+          mutation: false,
+          requiresExplicitApproval: false
+        },
+        mutationBoundary: {
+          clusterMutationAttempted: false,
+          registryMutationAttempted: false,
+          vectorWriteAttempted: false,
+          mutationAllowedByThisVerifier: false,
+          liveProbeRequiresExplicitApproval: true
+        }
+      }
+    });
     const liveOcpCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "live-ocp-lightspeed"
@@ -7817,6 +7917,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("ocp-auth-rbac-boundary");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("runtime-platform-live-runtime-evidence-ticket");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("runtimeFirst=runtime-readiness-live");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("data-ml-runtime-rag-quality-ticket");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("runtimeFirst=runtime-rag-fixture");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText(/external-runtime-review|release-publish|install-approval/);

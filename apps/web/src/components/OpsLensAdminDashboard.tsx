@@ -2678,6 +2678,11 @@ export function OpsLensAdminDashboard() {
                       :aiopsFirst=
                       {entry.aiopsMonitoringTicketPacket?.firstReadOnlyAction.id ??
                         "none"}
+                      :runtimeTicket=
+                      {entry.runtimeEvidenceTicketPacket?.id ?? "none"}
+                      :runtimeFirst=
+                      {entry.runtimeEvidenceTicketPacket?.firstReadOnlyAction.id ??
+                        "none"}
                       :tools={entry.missingRequiredTools.join(",") || "none"}
                       :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
                       {entry.readOnlyCommandIds.join(",") || "none"}:approval=
@@ -2754,6 +2759,11 @@ export function OpsLensAdminDashboard() {
                     {packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}
                     :aiopsFirst=
                     {packet.firstAiopsMonitoringTicketPacket?.firstReadOnlyAction
+                      .id ?? "none"}
+                    :runtimeTicket=
+                    {packet.firstRuntimeEvidenceTicketPacket?.id ?? "none"}
+                    :runtimeFirst=
+                    {packet.firstRuntimeEvidenceTicketPacket?.firstReadOnlyAction
                       .id ?? "none"}
                   </span>
                 ))}
