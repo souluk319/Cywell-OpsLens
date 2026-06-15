@@ -124,6 +124,26 @@ function redactedDiagnostics(diagnostics = {}) {
   };
 }
 
+function credentialHygieneFromConnectivity(artifact) {
+  const hygiene = artifact?.credentialHygiene ?? {};
+  return {
+    tokenConfigured: hygiene.tokenConfigured === true,
+    tokenSource: sanitize(hygiene.tokenSource ?? artifact?.target?.tokenSource ?? "unknown"),
+    tokenCandidateCount: Number.isFinite(Number(hygiene.tokenCandidateCount))
+      ? Number(hygiene.tokenCandidateCount)
+      : Number(artifact?.target?.tokenCandidateCount ?? 0),
+    tokenLengthClass: sanitize(hygiene.tokenLengthClass ?? "unknown"),
+    tokenLooksPlaceholder: hygiene.tokenLooksPlaceholder === true,
+    tokenHasWhitespace: hygiene.tokenHasWhitespace === true,
+    tokenStartsWithBearer: hygiene.tokenStartsWithBearer === true,
+    tokenLooksOpenShiftSha: hygiene.tokenLooksOpenShiftSha === true,
+    localFormatIssue: hygiene.localFormatIssue === true,
+    credentialStoredByVerifier: hygiene.credentialStoredByVerifier === true,
+    tokenValueRedacted: hygiene.tokenValueRedacted !== false,
+    credentialDiagnosis: sanitize(hygiene.credentialDiagnosis ?? "unknown")
+  };
+}
+
 async function runCapture(command, args) {
   try {
     const { stdout } = await execFileAsync(command, args, {
@@ -277,7 +297,14 @@ function commandById(commands, id, fallbackCommand, fallbackPurpose) {
   };
 }
 
-function buildFirstNetworkActions(target, classification, addresses, commands, missingEvidence) {
+function buildFirstNetworkActions(
+  target,
+  classification,
+  addresses,
+  commands,
+  missingEvidence,
+  credentialHygiene
+) {
   const host = sanitize(target.host ?? "unknown");
   const port = target.port ?? "6443";
   const addressText = redactedAddressText(addresses);
@@ -386,7 +413,7 @@ function buildFirstNetworkActions(target, classification, addresses, commands, m
       request:
         "Confirm the configured OCP credential is current and the least-privilege live evidence reader RBAC plan is ready for approval.",
       evidenceNeeded:
-        "cywell-opslens-ocp-auth-rbac-plan.json shows AUTH_RBAC_APPROVAL_REQUIRED or approved reader evidence, with Secrets excluded and mutation flags false.",
+        `cywell-opslens-ocp-auth-rbac-plan.json shows AUTH_RBAC_APPROVAL_REQUIRED or approved reader evidence, with Secrets excluded, mutation flags false, and credentialDiagnosis=${credentialHygiene.credentialDiagnosis}.`,
       nextCommand: "npm run evidence:ocp-auth-rbac-plan",
       mutation: false,
       requiresExplicitApproval: false,
@@ -418,13 +445,18 @@ function buildFirstNetworkActions(target, classification, addresses, commands, m
   return actions;
 }
 
-function adminRequests(target, classification, addresses) {
+function adminRequests(target, classification, addresses, credentialHygiene) {
   const host = sanitize(target.host ?? "unknown");
   const port = target.port ?? "unknown";
   const addressText = redactedAddressText(addresses);
   if (authLikeClassification(classification)) {
+    const credentialRequest = credentialHygiene.credentialDiagnosis === "credential-rejected-or-expired"
+      ? `Refresh the OCP token from the target cluster for ${host}:${port}; local hygiene shows no placeholder, whitespace, Bearer-prefix, or short-token issue, so treat 401 as rejected/expired/wrong-cluster credential until proven otherwise.`
+      : credentialHygiene.localFormatIssue
+        ? `Fix local OCP token formatting for ${host}:${port} before approving fallback RBAC; hygiene indicates a placeholder, whitespace, Bearer-prefix, missing, or short-token issue without exposing the token value.`
+        : `Confirm the configured OCP credential is current for ${host}:${port}; DNS/TCP/TLS already passed from this verifier.`;
     return [
-      `Confirm the configured OCP credential is current for ${host}:${port}; DNS/TCP/TLS already passed from this verifier.`,
+      credentialRequest,
       "Grant or bind the read-only RBAC needed for /version and OLSConfig CRD discovery, then verify with oc whoami and oc auth can-i get crd olsconfigs.ols.openshift.io.",
       "Do not route this as a firewall issue unless DNS/TCP/TLS evidence regresses.",
       `After classification changes from ${classification} to api-ready, rerun npm run verify:lightspeed and npm run verify:operator:dry-run.`
@@ -490,6 +522,7 @@ function compactAction(action, fallbackId) {
 function buildTicketPacket({
   target,
   classification,
+  credentialHygiene,
   firstNetworkActions,
   sourceArtifacts,
   missingEvidence,
@@ -534,6 +567,9 @@ function buildTicketPacket({
     evidenceChecklist: [
       `classification=${classification}`,
       `target=${redactedOcpTarget(target)}`,
+      `credentialDiagnosis=${credentialHygiene.credentialDiagnosis}`,
+      `credentialLocalFormatIssue=${String(credentialHygiene.localFormatIssue)}`,
+      `tokenValueRedacted=${String(credentialHygiene.tokenValueRedacted)}`,
       ...sourceSummary,
       ...adminRequests.slice(0, 3)
     ].map(sanitize),
@@ -568,6 +604,9 @@ function markdownFor(packet) {
     "",
     `- Status: ${packet.status}`,
     `- Classification: ${diagnostics.classification}`,
+    `- Credential diagnosis: ${packet.credentialHygiene.credentialDiagnosis}`,
+    `- Credential local format issue: ${String(packet.credentialHygiene.localFormatIssue)}`,
+    `- Token value redacted: ${String(packet.credentialHygiene.tokenValueRedacted)}`,
     `- Target: ${redactedOcpTarget(target)}`,
     `- DNS: ${redactedAddressText(diagnostics.dns?.addresses ?? [])}`,
     `- TCP: ${diagnostics.tcp?.status ?? "missing"} ${diagnostics.tcp?.error ? `(${diagnostics.tcp.error})` : ""}`,
@@ -673,6 +712,7 @@ async function main() {
   const target = artifacts.ocpConnectivity?.target ?? {};
   const diagnostics = redactedDiagnostics(artifacts.ocpConnectivity?.diagnostics ?? {});
   const classification = diagnostics.classification ?? "missing";
+  const credentialHygiene = credentialHygieneFromConnectivity(artifacts.ocpConnectivity);
   const commands = readOnlyCommands(artifacts.ocpConnectivity, artifacts.liveHandoff);
   const unsafeCommands = commandBoundary(commands);
   if (unsafeCommands.length > 0) {
@@ -699,17 +739,24 @@ async function main() {
     classification,
     diagnostics.dns?.addresses ?? [],
     commands,
-    missingEvidence
+    missingEvidence,
+    credentialHygiene
   );
   const risk = riskForClassification(classification);
   const rollbackPath = [
     "No rollback is required because this packet writes only local evidence.",
     "After network changes, rerun the listed read-only verifiers and regenerate the release evidence chain."
   ];
-  const adminRequestList = adminRequests(target, classification, diagnostics.dns?.addresses ?? []);
+  const adminRequestList = adminRequests(
+    target,
+    classification,
+    diagnostics.dns?.addresses ?? [],
+    credentialHygiene
+  );
   const ticketPacket = buildTicketPacket({
     target,
     classification,
+    credentialHygiene,
     firstNetworkActions,
     sourceArtifacts: sources,
     missingEvidence,
@@ -753,6 +800,7 @@ async function main() {
       worktreeStatus
     },
     target,
+    credentialHygiene,
     diagnostics,
     ownerHint: handoffAudience(classification),
     adminRequests: adminRequestList,

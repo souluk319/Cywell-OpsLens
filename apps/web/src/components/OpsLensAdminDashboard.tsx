@@ -3040,7 +3040,7 @@ export function OpsLensAdminDashboard() {
                       {entry.id}:{entry.owner}:next={entry.nextCommand}
                       :diagnostics=
                       {entry.diagnostics
-                        .slice(0, 6)
+                        .slice(0, 8)
                         .map(
                           (diagnostic) =>
                             `${diagnostic.id}=${diagnostic.value}`
@@ -3114,7 +3114,7 @@ export function OpsLensAdminDashboard() {
                         .join(", ")}
                       :diagnostics=
                       {entry.diagnostics
-                        .slice(0, 6)
+                        .slice(0, 8)
                         .map(
                           (diagnostic) =>
                             `${diagnostic.id}=${diagnostic.value}`

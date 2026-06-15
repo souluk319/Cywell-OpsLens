@@ -1449,6 +1449,21 @@ export type OpsLensOcpAuthRbacPlanReadiness =
   | "needs-evidence"
   | "blocked";
 
+export interface OpsLensOcpCredentialHygieneSummary {
+  tokenConfigured: boolean;
+  tokenSource: string;
+  tokenCandidateCount: number;
+  tokenLengthClass: string;
+  tokenLooksPlaceholder: boolean;
+  tokenHasWhitespace: boolean;
+  tokenStartsWithBearer: boolean;
+  tokenLooksOpenShiftSha: boolean;
+  localFormatIssue: boolean;
+  credentialStoredByVerifier: boolean;
+  tokenValueRedacted: boolean;
+  credentialDiagnosis: string;
+}
+
 export type OpsLensEnvContractReadiness =
   | "ready"
   | "needs-evidence"
@@ -1642,6 +1657,7 @@ export interface OpsLensOcpNetworkHandoffSummary {
     tokenConfigured: boolean;
     tlsVerify: boolean;
   };
+  credentialHygiene: OpsLensOcpCredentialHygieneSummary;
   markdownPath: string;
   adminRequests: string[];
   readOnlyCommands: Array<{
@@ -1756,6 +1772,7 @@ export interface OpsLensOcpAuthRbacPlanSummary {
     tokenConfigured: boolean;
     tlsVerify: boolean;
   };
+  credentialHygiene: OpsLensOcpCredentialHygieneSummary;
   markdownPath: string;
   requiredApprovals: string[];
   rbac: {
@@ -1805,20 +1822,7 @@ export interface OpsLensOcpConnectivityDiagnosticSummary {
     tokenConfigured: boolean;
     tlsVerify: boolean;
   };
-  credentialHygiene: {
-    tokenConfigured: boolean;
-    tokenSource: string;
-    tokenCandidateCount: number;
-    tokenLengthClass: string;
-    tokenLooksPlaceholder: boolean;
-    tokenHasWhitespace: boolean;
-    tokenStartsWithBearer: boolean;
-    tokenLooksOpenShiftSha: boolean;
-    localFormatIssue: boolean;
-    credentialStoredByVerifier: boolean;
-    tokenValueRedacted: boolean;
-    credentialDiagnosis: string;
-  };
+  credentialHygiene: OpsLensOcpCredentialHygieneSummary;
   diagnostics: {
     dns: string;
     tcp: string;

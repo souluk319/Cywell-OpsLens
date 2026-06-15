@@ -1539,6 +1539,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             tokenConfigured?: boolean;
             tlsVerify?: boolean;
           };
+          credentialHygiene?: {
+            tokenConfigured?: boolean;
+            tokenSource?: string;
+            tokenCandidateCount?: number;
+            tokenLengthClass?: string;
+            tokenLooksPlaceholder?: boolean;
+            tokenHasWhitespace?: boolean;
+            tokenStartsWithBearer?: boolean;
+            tokenLooksOpenShiftSha?: boolean;
+            localFormatIssue?: boolean;
+            credentialStoredByVerifier?: boolean;
+            tokenValueRedacted?: boolean;
+            credentialDiagnosis?: string;
+          };
           markdownPath?: string;
           adminRequests?: string[];
           readOnlyCommands?: Array<{
@@ -3119,6 +3133,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           clusterMutationAttempted?: boolean;
           registryMutationAttempted?: boolean;
           mutationAllowedByThisVerifier?: boolean;
+          target?: {
+            host?: string;
+            port?: number | string;
+            redactedBaseUrl?: string;
+            tokenConfigured?: boolean;
+            tlsVerify?: boolean;
+          };
+          credentialHygiene?: {
+            tokenConfigured?: boolean;
+            tokenSource?: string;
+            tokenCandidateCount?: number;
+            tokenLengthClass?: string;
+            tokenLooksPlaceholder?: boolean;
+            tokenHasWhitespace?: boolean;
+            tokenStartsWithBearer?: boolean;
+            tokenLooksOpenShiftSha?: boolean;
+            localFormatIssue?: boolean;
+            credentialStoredByVerifier?: boolean;
+            tokenValueRedacted?: boolean;
+            credentialDiagnosis?: string;
+          };
           rbac?: {
             namespace?: string;
             serviceAccount?: string;
@@ -3135,9 +3170,31 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           }>;
           approvalGatedCommands?: Array<{
             id?: string;
+            command?: string;
             mutation?: boolean;
             requiresExplicitApproval?: boolean;
           }>;
+          ticketPacket?: {
+            id?: string;
+            owner?: string;
+            classification?: string;
+            evidenceChecklist?: string[];
+            firstReadOnlyAction?: {
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            approvalGatedAction?: {
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            mutationBoundary?: {
+              clusterMutationAttempted?: boolean;
+              registryMutationAttempted?: boolean;
+              mutationAllowedByThisVerifier?: boolean;
+            };
+          };
           missingEvidence?: string[];
           risk?: string[];
           rollbackPath?: string[];
@@ -3951,6 +4008,8 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       tokenValueRedacted: true,
       credentialDiagnosis: expect.any(String)
     });
+    const ocpCredentialHygiene =
+      body.installReadiness?.connectivity?.credentialHygiene;
     expect(
       body.installReadiness?.connectivity?.actionHints?.length ?? 0
     ).toBeGreaterThan(0);
@@ -3997,6 +4056,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.networkHandoff?.target?.redactedBaseUrl
     ).toContain("<redacted-ocp-api>");
+    expect(body.installReadiness?.networkHandoff?.credentialHygiene).toMatchObject({
+      tokenConfigured: ocpCredentialHygiene?.tokenConfigured,
+      credentialDiagnosis: ocpCredentialHygiene?.credentialDiagnosis,
+      credentialStoredByVerifier: false,
+      tokenValueRedacted: true
+    });
     expect(
       body.installReadiness?.networkHandoff?.sourceArtifacts?.map(
         (source) => source.id
@@ -4048,6 +4113,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         " "
       )
     ).toContain("classification=");
+    expect(
+      body.installReadiness?.networkHandoff?.ticketPacket?.evidenceChecklist?.join(
+        " "
+      )
+    ).toContain(`credentialDiagnosis=${ocpCredentialHygiene?.credentialDiagnosis}`);
     expect(
       body.installReadiness?.networkHandoff?.ticketPacket?.firstReadOnlyAction
     ).toMatchObject({
@@ -6439,6 +6509,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             command.mutation === true && command.requiresExplicitApproval === true
         )
       ).toBe(true);
+      expect(ocpAuthAction.diagnostics?.map((item) => item.id)).toEqual(
+        expect.arrayContaining(["ocp-network-credential"])
+      );
+      expect(
+        ocpAuthAction.diagnostics?.find(
+          (item) => item.id === "ocp-network-credential"
+        )?.value
+      ).toContain(`diagnosis=${ocpCredentialHygiene?.credentialDiagnosis}`);
     }
     const ocpAuthRbacPlanAction =
       body.installReadiness?.actionQueue?.items?.find(
@@ -6451,6 +6529,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         expect.arrayContaining([
           "ocp-auth-rbac-status",
           "ocp-auth-rbac-target",
+          "ocp-auth-rbac-credential",
           "ocp-auth-rbac-rules",
           "ocp-auth-rbac-commands",
           "ocp-auth-rbac-boundary"
@@ -6461,6 +6540,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           (item) => item.id === "ocp-auth-rbac-target"
         )?.value
       ).toContain("<redacted-ocp-api>");
+      expect(
+        ocpAuthRbacPlanAction.diagnostics?.find(
+          (item) => item.id === "ocp-auth-rbac-credential"
+        )?.value
+      ).toContain(`diagnosis=${ocpCredentialHygiene?.credentialDiagnosis}`);
       expect(
         ocpAuthRbacPlanAction.diagnostics?.find(
           (item) => item.id === "ocp-auth-rbac-rules"
@@ -6509,6 +6593,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(ocpLiveReaderRbacCriticalPath?.diagnostics).toEqual(
         expect.arrayContaining([
           "ocp-auth-rbac-status",
+          "ocp-auth-rbac-credential",
           "ocp-auth-rbac-rules",
           "ocp-auth-rbac-boundary"
         ])
@@ -7069,6 +7154,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       registryMutationAttempted: false,
       mutationAllowedByThisVerifier: false
     });
+    expect(body.installReadiness?.authRbacPlan?.credentialHygiene).toMatchObject({
+      tokenConfigured: ocpCredentialHygiene?.tokenConfigured,
+      credentialDiagnosis: ocpCredentialHygiene?.credentialDiagnosis,
+      credentialStoredByVerifier: false,
+      tokenValueRedacted: true
+    });
     expect(body.installReadiness?.authRbacPlan?.rbac).toMatchObject({
       namespace: "cywell-opslens",
       serviceAccount: "cywell-opslens/cywell-opslens-live-evidence-reader",
@@ -7120,6 +7211,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         mutationAllowedByThisVerifier: false
       }
     });
+    expect(
+      body.installReadiness?.authRbacPlan?.ticketPacket?.evidenceChecklist?.join(
+        " "
+      )
+    ).toContain(`credentialDiagnosis=${ocpCredentialHygiene?.credentialDiagnosis}`);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /auth\/RBAC plan/i
     );

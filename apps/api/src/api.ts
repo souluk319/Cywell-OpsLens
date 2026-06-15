@@ -64,6 +64,7 @@ import type {
   OpsLensMcpToolSurfaceItem,
   OpsLensOcpConnectivityDiagnosticSummary,
   OpsLensOcpConnectivityReadiness,
+  OpsLensOcpCredentialHygieneSummary,
   OpsLensOcpAuthRbacPlanReadiness,
   OpsLensOcpAuthRbacPlanSummary,
   OpsLensOcpNetworkHandoffApiFallbackReadiness,
@@ -3025,6 +3026,21 @@ type LiveEvidenceHandoffArtifact = {
   rollbackPath?: string[];
 };
 
+type OcpCredentialHygieneArtifact = {
+  tokenConfigured?: boolean;
+  tokenSource?: string;
+  tokenCandidateCount?: number;
+  tokenLengthClass?: string;
+  tokenLooksPlaceholder?: boolean;
+  tokenHasWhitespace?: boolean;
+  tokenStartsWithBearer?: boolean;
+  tokenLooksOpenShiftSha?: boolean;
+  localFormatIssue?: boolean;
+  credentialStoredByVerifier?: boolean;
+  tokenValueRedacted?: boolean;
+  credentialDiagnosis?: string;
+};
+
 type OcpNetworkHandoffArtifact = {
   artifactType?: string;
   status?: string;
@@ -3039,6 +3055,7 @@ type OcpNetworkHandoffArtifact = {
     tokenConfigured?: boolean;
     tlsVerify?: boolean;
   };
+  credentialHygiene?: OcpCredentialHygieneArtifact;
   diagnostics?: {
     classification?: string;
   };
@@ -3164,8 +3181,11 @@ type OcpAuthRbacPlanArtifact = {
     tokenConfigured?: boolean;
     tlsVerify?: boolean;
   };
+  credentialHygiene?: OcpCredentialHygieneArtifact;
   diagnostics?: {
     classification?: string;
+    credentialDiagnosis?: string;
+    credentialLocalFormatIssue?: boolean;
   };
   requiredApprovals?: string[];
   rbac?: {
@@ -3224,20 +3244,7 @@ type OcpConnectivityDiagnosticArtifact = {
     tokenConfigured?: boolean;
     tlsVerify?: boolean;
   };
-  credentialHygiene?: {
-    tokenConfigured?: boolean;
-    tokenSource?: string;
-    tokenCandidateCount?: number;
-    tokenLengthClass?: string;
-    tokenLooksPlaceholder?: boolean;
-    tokenHasWhitespace?: boolean;
-    tokenStartsWithBearer?: boolean;
-    tokenLooksOpenShiftSha?: boolean;
-    localFormatIssue?: boolean;
-    credentialStoredByVerifier?: boolean;
-    tokenValueRedacted?: boolean;
-    credentialDiagnosis?: string;
-  };
+  credentialHygiene?: OcpCredentialHygieneArtifact;
   diagnostics?: {
     classification?: string;
     dns?: { status?: string };
@@ -3696,6 +3703,41 @@ function mapOcpConnectivityReadinessStatus(
     return "ready";
   }
   return "needs-evidence";
+}
+
+function mapOcpCredentialHygiene(
+  hygiene?: OcpCredentialHygieneArtifact,
+  fallback: Partial<OpsLensOcpCredentialHygieneSummary> = {}
+): OpsLensOcpCredentialHygieneSummary {
+  return {
+    tokenConfigured:
+      hygiene?.tokenConfigured === true || fallback.tokenConfigured === true,
+    tokenSource: hygiene?.tokenSource ?? fallback.tokenSource ?? "unknown",
+    tokenCandidateCount:
+      hygiene?.tokenCandidateCount ?? fallback.tokenCandidateCount ?? 0,
+    tokenLengthClass:
+      hygiene?.tokenLengthClass ?? fallback.tokenLengthClass ?? "unknown",
+    tokenLooksPlaceholder:
+      hygiene?.tokenLooksPlaceholder === true ||
+      fallback.tokenLooksPlaceholder === true,
+    tokenHasWhitespace:
+      hygiene?.tokenHasWhitespace === true || fallback.tokenHasWhitespace === true,
+    tokenStartsWithBearer:
+      hygiene?.tokenStartsWithBearer === true ||
+      fallback.tokenStartsWithBearer === true,
+    tokenLooksOpenShiftSha:
+      hygiene?.tokenLooksOpenShiftSha === true ||
+      fallback.tokenLooksOpenShiftSha === true,
+    localFormatIssue:
+      hygiene?.localFormatIssue === true || fallback.localFormatIssue === true,
+    credentialStoredByVerifier:
+      hygiene?.credentialStoredByVerifier === true ||
+      fallback.credentialStoredByVerifier === true,
+    tokenValueRedacted:
+      hygiene?.tokenValueRedacted ?? fallback.tokenValueRedacted ?? true,
+    credentialDiagnosis:
+      hygiene?.credentialDiagnosis ?? fallback.credentialDiagnosis ?? "unknown"
+  };
 }
 
 function mapInstallApprovalPlanReadinessStatus(
@@ -9459,6 +9501,13 @@ function missingOcpNetworkHandoffSummary(
       tokenConfigured: false,
       tlsVerify: false
     },
+    credentialHygiene: mapOcpCredentialHygiene(undefined, {
+      tokenConfigured: false,
+      tokenSource: "missing",
+      tokenLengthClass: "missing",
+      localFormatIssue: true,
+      credentialDiagnosis: "missing-evidence"
+    }),
     markdownPath: "missing",
     adminRequests: [
       "Generate the OCP network handoff before opening a network or SRE review ticket."
@@ -9722,6 +9771,13 @@ function missingOcpAuthRbacPlanSummary(
       tokenConfigured: false,
       tlsVerify: false
     },
+    credentialHygiene: mapOcpCredentialHygiene(undefined, {
+      tokenConfigured: false,
+      tokenSource: "missing",
+      tokenLengthClass: "missing",
+      localFormatIssue: true,
+      credentialDiagnosis: "missing-evidence"
+    }),
     markdownPath: "missing",
     requiredApprovals: ["cluster-admin", "security-reviewer"],
     rbac: {
@@ -9948,6 +10004,13 @@ function getOcpNetworkHandoffReadiness(): {
       tokenConfigured: target.tokenConfigured === true,
       tlsVerify: target.tlsVerify === true
     };
+    const credentialHygiene = mapOcpCredentialHygiene(
+      artifact.credentialHygiene,
+      {
+        tokenConfigured: mappedTarget.tokenConfigured,
+        credentialDiagnosis: "unknown"
+      }
+    );
     const classification = artifact.diagnostics?.classification ?? "unknown";
     const missingEvidence = artifact.missingEvidence ?? [];
     const firstNetworkActions = (
@@ -10096,6 +10159,7 @@ function getOcpNetworkHandoffReadiness(): {
         mutationAllowedByThisVerifier:
           artifact.mutationAllowedByThisVerifier === true,
         target: mappedTarget,
+        credentialHygiene,
         markdownPath: artifact.markdownOut ?? "unknown",
         adminRequests: artifact.adminRequests ?? [],
         readOnlyCommands,
@@ -10269,6 +10333,15 @@ function getOcpAuthRbacPlanReadiness(): {
       mutation: command.mutation === true,
       requiresExplicitApproval: command.requiresExplicitApproval === true
     }));
+    const credentialHygiene = mapOcpCredentialHygiene(
+      artifact.credentialHygiene,
+      {
+        tokenConfigured: target.tokenConfigured === true,
+        localFormatIssue: artifact.diagnostics?.credentialLocalFormatIssue === true,
+        credentialDiagnosis:
+          artifact.diagnostics?.credentialDiagnosis ?? "unknown"
+      }
+    );
     const rawTicketPacket = artifact.ticketPacket;
     const ticketPacket = rawTicketPacket
       ? {
@@ -10359,6 +10432,7 @@ function getOcpAuthRbacPlanReadiness(): {
           tokenConfigured: target.tokenConfigured === true,
           tlsVerify: target.tlsVerify === true
         },
+        credentialHygiene,
         markdownPath: artifact.markdownOut ?? "unknown",
         requiredApprovals: artifact.requiredApprovals ?? [
           "cluster-admin",
@@ -10386,6 +10460,7 @@ function getOcpAuthRbacPlanReadiness(): {
       evidence: [
         `OCP auth/RBAC plan ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `auth/RBAC classification=${artifact.diagnostics?.classification ?? "unknown"} serviceAccount=${serviceAccount.namespace ?? "unknown"}/${serviceAccount.name ?? "unknown"} readOnlyCommands=${readOnlyCommands.length} approvalGated=${approvalGatedCommands.length}`,
+        `auth/RBAC credentialDiagnosis=${credentialHygiene.credentialDiagnosis} tokenRedacted=${String(credentialHygiene.tokenValueRedacted)}`,
         `auth/RBAC markdown=${artifact.markdownOut ?? "unknown"} secretsIncluded=${String(clusterRole.secretsIncluded ?? "unknown")} readOnlyOnly=${String(clusterRole.readOnlyOnly ?? "unknown")}`,
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads OCP auth/RBAC plan evidence only; it does not apply RBAC or create tokens"

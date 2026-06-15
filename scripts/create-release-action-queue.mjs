@@ -1689,6 +1689,7 @@ function ocpClassification(networkHandoff) {
 function ocpNetworkDiagnostics(networkHandoff) {
   const diagnostics = networkHandoff?.diagnostics ?? {};
   const target = networkHandoff?.target ?? {};
+  const credentialHygiene = networkHandoff?.credentialHygiene ?? {};
   const ticket = networkHandoff?.ticketPacket;
   const dnsAddresses = Array.isArray(diagnostics.dns?.addresses)
     ? diagnostics.dns.addresses.map(sanitize).join(",")
@@ -1713,6 +1714,18 @@ function ocpNetworkDiagnostics(networkHandoff) {
       label: "OCP target",
       value:
         `target=${redactedOcpTarget(target)} port=${target.port ?? "missing"} tokenConfigured=${String(target.tokenConfigured === true)} tlsVerify=${String(target.tlsVerify === true)}`
+    },
+    {
+      id: "ocp-network-credential",
+      label: "Credential hygiene",
+      value:
+        `diagnosis=${credentialHygiene.credentialDiagnosis ?? "unknown"} ` +
+        `localFormatIssue=${String(credentialHygiene.localFormatIssue === true)} ` +
+        `tokenSource=${credentialHygiene.tokenSource ?? "unknown"} ` +
+        `tokenLengthClass=${credentialHygiene.tokenLengthClass ?? "unknown"} ` +
+        `openShiftSha=${String(credentialHygiene.tokenLooksOpenShiftSha === true)} ` +
+        `storedByVerifier=${String(credentialHygiene.credentialStoredByVerifier === true)} ` +
+        `tokenRedacted=${String(credentialHygiene.tokenValueRedacted !== false)}`
     },
     {
       id: "ocp-network-dns",
@@ -3415,6 +3428,7 @@ function networkItems(networkHandoff) {
 function ocpAuthRbacDiagnostics(authRbacPlan) {
   const diagnostics = authRbacPlan?.diagnostics ?? {};
   const target = authRbacPlan?.target ?? {};
+  const credentialHygiene = authRbacPlan?.credentialHygiene ?? {};
   const clusterRole = authRbacPlan?.rbac?.clusterRole ?? {};
   const readOnlyCommands = authRbacPlan?.readOnlyCommands ?? [];
   const approvalCommands = authRbacPlan?.approvalGatedCommands ?? [];
@@ -3434,6 +3448,17 @@ function ocpAuthRbacDiagnostics(authRbacPlan) {
         `target=${target.redactedBaseUrl ?? redactedOcpTarget(target)} ` +
         `tokenConfigured=${String(target.tokenConfigured === true)} ` +
         `tlsVerify=${String(target.tlsVerify === true)}`
+    },
+    {
+      id: "ocp-auth-rbac-credential",
+      label: "Credential hygiene",
+      value:
+        `diagnosis=${credentialHygiene.credentialDiagnosis ?? diagnostics.credentialDiagnosis ?? "unknown"} ` +
+        `localFormatIssue=${String(credentialHygiene.localFormatIssue === true || diagnostics.credentialLocalFormatIssue === true)} ` +
+        `tokenSource=${credentialHygiene.tokenSource ?? "unknown"} ` +
+        `tokenLengthClass=${credentialHygiene.tokenLengthClass ?? "unknown"} ` +
+        `storedByVerifier=${String(credentialHygiene.credentialStoredByVerifier === true)} ` +
+        `tokenRedacted=${String(credentialHygiene.tokenValueRedacted !== false)}`
     },
     {
       id: "ocp-auth-rbac-rules",

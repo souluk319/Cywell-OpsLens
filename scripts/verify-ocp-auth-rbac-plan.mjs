@@ -324,6 +324,26 @@ function authLikeClassification(classification) {
   return ["auth-or-rbac", "auth-failed", "token-missing"].includes(classification);
 }
 
+function credentialHygieneFromConnectivity(artifact) {
+  const hygiene = artifact?.credentialHygiene ?? {};
+  return {
+    tokenConfigured: hygiene.tokenConfigured === true,
+    tokenSource: sanitize(hygiene.tokenSource ?? artifact?.target?.tokenSource ?? "unknown"),
+    tokenCandidateCount: Number.isFinite(Number(hygiene.tokenCandidateCount))
+      ? Number(hygiene.tokenCandidateCount)
+      : Number(artifact?.target?.tokenCandidateCount ?? 0),
+    tokenLengthClass: sanitize(hygiene.tokenLengthClass ?? "unknown"),
+    tokenLooksPlaceholder: hygiene.tokenLooksPlaceholder === true,
+    tokenHasWhitespace: hygiene.tokenHasWhitespace === true,
+    tokenStartsWithBearer: hygiene.tokenStartsWithBearer === true,
+    tokenLooksOpenShiftSha: hygiene.tokenLooksOpenShiftSha === true,
+    localFormatIssue: hygiene.localFormatIssue === true,
+    credentialStoredByVerifier: hygiene.credentialStoredByVerifier === true,
+    tokenValueRedacted: hygiene.tokenValueRedacted !== false,
+    credentialDiagnosis: sanitize(hygiene.credentialDiagnosis ?? "unknown")
+  };
+}
+
 function statusFor(classification, hasFailures) {
   if (hasFailures) return "BLOCKED";
   if (classification === "api-ready") return "READY_FOR_LIVE_CHECK";
@@ -441,6 +461,7 @@ function buildTicketPacket({
   status,
   classification,
   target,
+  credentialHygiene,
   rbac,
   readOnly,
   approvalGated,
@@ -467,6 +488,9 @@ function buildTicketPacket({
       `rules=${rbac.clusterRole.ruleCount}`,
       `readOnlyOnly=${String(rbac.clusterRole.readOnlyOnly === true)}`,
       `secretsIncluded=${String(rbac.clusterRole.secretsIncluded === true)}`,
+      `credentialDiagnosis=${credentialHygiene.credentialDiagnosis}`,
+      `credentialLocalFormatIssue=${String(credentialHygiene.localFormatIssue)}`,
+      `tokenValueRedacted=${String(credentialHygiene.tokenValueRedacted)}`,
       "approvalCommandsNotRun=true"
     ],
     firstReadOnlyAction: {
@@ -506,9 +530,15 @@ function buildTicketPacket({
   };
 }
 
-function adminRequests(classification) {
+function adminRequests(classification, credentialHygiene) {
   if (authLikeClassification(classification)) {
+    const credentialRequest = credentialHygiene.credentialDiagnosis === "credential-rejected-or-expired"
+      ? "Refresh the OCP token from the target cluster; local hygiene shows no placeholder, whitespace, Bearer-prefix, or short-token issue, so treat 401 as rejected/expired/wrong-cluster credential until proven otherwise."
+      : credentialHygiene.localFormatIssue
+        ? "Fix local OCP token formatting before approving fallback RBAC; hygiene indicates a placeholder, whitespace, Bearer-prefix, missing, or short-token issue without exposing the token value."
+        : "Confirm the configured OCP credential is current before approving fallback RBAC.";
     return [
+      credentialRequest,
       `Review ${options.manifest} as the fallback read-only live evidence reader for the current OCP auth/RBAC gap.`,
       "Prefer user-token passthrough for normal ConsolePlugin/API reads; use this ServiceAccount only when shared diagnostic evidence is explicitly approved.",
       "Apply the manifest only after confirming it excludes Secrets and only grants get/list/watch.",
@@ -540,6 +570,9 @@ function markdownFor(packet) {
     `- Status: ${packet.status}`,
     `- Action mode: ${packet.actionMode}`,
     `- OCP classification: ${packet.diagnostics.classification}`,
+    `- Credential diagnosis: ${packet.credentialHygiene.credentialDiagnosis}`,
+    `- Credential local format issue: ${String(packet.credentialHygiene.localFormatIssue)}`,
+    `- Token value redacted: ${String(packet.credentialHygiene.tokenValueRedacted)}`,
     `- Target: ${redactedOcpTarget(target)}`,
     `- Manifest: ${packet.rbac.path}`,
     `- Namespace: ${packet.rbac.namespace.name}`,
@@ -631,6 +664,7 @@ async function main() {
   const manifest = loadManifest(options.manifest);
   const rbac = validateManifest(manifest.documents, manifest.absolutePath);
   const classification = ocpConnectivity?.diagnostics?.classification ?? "missing";
+  const credentialHygiene = credentialHygieneFromConnectivity(ocpConnectivity);
   const status = statusFor(
     classification,
     checks.some((check) => check.status === "FAIL") || rbac.violations.length > 0
@@ -644,6 +678,9 @@ async function main() {
       : []),
     ...(status === "AUTH_RBAC_APPROVAL_REQUIRED"
       ? [`cluster-admin approval is required because OCP connectivity classification=${classification}`]
+      : []),
+    ...(classification === "auth-failed"
+      ? [`OCP credential hygiene diagnosis=${credentialHygiene.credentialDiagnosis}`]
       : []),
     ...(status === "WAITING_FOR_CONNECTIVITY"
       ? [`OCP connectivity classification=${classification}; resolve DNS/TCP/TLS/API reachability before using fallback RBAC`]
@@ -687,8 +724,11 @@ async function main() {
       tokenConfigured: ocpConnectivity?.target?.tokenConfigured === true,
       tlsVerify: ocpConnectivity?.target?.tlsVerify === true
     },
+    credentialHygiene,
     diagnostics: {
       classification,
+      credentialDiagnosis: credentialHygiene.credentialDiagnosis,
+      credentialLocalFormatIssue: credentialHygiene.localFormatIssue,
       dns: ocpConnectivity?.diagnostics?.dns?.status ?? "missing",
       tcp: ocpConnectivity?.diagnostics?.tcp?.status ?? "missing",
       tls: ocpConnectivity?.diagnostics?.tls?.status ?? "missing",
@@ -703,7 +743,7 @@ async function main() {
     readOnlyCommands: readOnly,
     approvalGatedCommands: approvalGated,
     sourceArtifacts,
-    adminRequests: adminRequests(classification),
+    adminRequests: adminRequests(classification, credentialHygiene),
     missingEvidence,
     ticketPacket: buildTicketPacket({
       status,
@@ -712,6 +752,7 @@ async function main() {
         port: ocpConnectivity?.target?.port ?? "missing",
         redactedBaseUrl: ocpConnectivity?.target?.redactedBaseUrl ?? "missing"
       },
+      credentialHygiene,
       rbac,
       readOnly,
       approvalGated,
