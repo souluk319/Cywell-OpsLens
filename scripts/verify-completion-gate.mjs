@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import {
   sanitizeArtifact,
@@ -18,6 +18,7 @@ const defaults = {
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   releaseEvidenceBundle: "test-results/cywell-opslens-release-evidence-bundle.json",
   releaseActionQueue: "test-results/cywell-opslens-release-action-queue.json",
+  ownerPacketsDir: "test-results/completion-closeout-owners",
   timeoutMs: 10000
 };
 
@@ -89,6 +90,7 @@ const options = {
     parsed.get("release-evidence-bundle") ?? defaults.releaseEvidenceBundle,
   releaseActionQueue:
     parsed.get("release-action-queue") ?? defaults.releaseActionQueue,
+  ownerPacketsDir: parsed.get("owner-packets-dir") ?? defaults.ownerPacketsDir,
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
 };
 
@@ -452,6 +454,112 @@ function unique(values) {
   return Array.from(new Set(values.filter(Boolean).map(sanitize)));
 }
 
+function insideWorkspace(path) {
+  const workspace = resolve(".");
+  const target = resolve(path);
+  const rel = relative(workspace, target);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+function ownerSlug(owner) {
+  return String(owner ?? "unknown")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "unknown";
+}
+
+async function cleanupOwnerPacketDirectory(expectedPaths) {
+  const ownerPacketsDir = resolve(options.ownerPacketsDir);
+  const expectedNames = new Set(expectedPaths.map((path) => basename(path)));
+  if (!insideWorkspace(ownerPacketsDir)) {
+    fail("completion owner packet cleanup", `${ownerPacketsDir} is outside workspace`);
+    return {
+      dir: ownerPacketsDir,
+      expectedFiles: [...expectedNames],
+      staleRemoved: [],
+      deletionAllowed: false
+    };
+  }
+
+  await mkdir(ownerPacketsDir, { recursive: true });
+  const staleRemoved = [];
+  const entries = await readdir(ownerPacketsDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".md") || expectedNames.has(entry.name)) {
+      continue;
+    }
+    await unlink(resolve(ownerPacketsDir, entry.name));
+    staleRemoved.push(entry.name);
+  }
+  pass(
+    "completion owner packet cleanup",
+    staleRemoved.length > 0
+      ? `removed stale owner packet(s): ${staleRemoved.join(", ")}`
+      : "no stale owner packets found"
+  );
+  return {
+    dir: ownerPacketsDir,
+    expectedFiles: [...expectedNames],
+    staleRemoved,
+    deletionAllowed: true
+  };
+}
+
+function ownerPacketMarkdown(artifact, packet) {
+  const gates = artifact.remainingTo100.filter((gate) =>
+    packet.gateIds.includes(gate.gateId)
+  );
+  const lines = [
+    `# Cywell OpsLens Completion Closeout: ${packet.owner}`,
+    "",
+    `Generated: ${artifact.generatedAt}`,
+    `Git: ${artifact.ref.branch} ${artifact.ref.headSha} dirty=${artifact.ref.worktreeDirty}`,
+    `Completion status: ${artifact.status}`,
+    `Ready to claim 100: ${String(artifact.readyToClaim100)}`,
+    "",
+    "## Owner Summary",
+    "",
+    `- Owner: ${packet.owner}`,
+    `- Status: ${packet.status}`,
+    `- Gates: ${packet.gateIds.join(", ") || "none"}`,
+    `- Lanes: ${packet.lanes.join(", ") || "none"}`,
+    `- Tickets: ${packet.ticketIds.join(", ") || "none"}`,
+    `- First next command: ${packet.firstNextCommand}`,
+    `- External state required: ${String(packet.externalStateRequired)}`,
+    `- Approval required: ${String(packet.approvalRequired)}`,
+    "",
+    "## Commands",
+    "",
+    `- Read-only: ${packet.readOnlyCommandIds.join(", ") || "none"}`,
+    `- Setup: ${packet.setupCommandIds.join(", ") || "none"}`,
+    `- Approval-gated: ${packet.approvalGatedCommandIds.join(", ") || "none"}`,
+    "",
+    "## Gates",
+    "",
+    ...(gates.length
+      ? gates.flatMap((gate) => [
+          `- ${gate.gateId}: lane=${gate.lane} priority=${gate.priority}`,
+          `  next=${gate.nextCommand}`,
+          `  tickets=${gate.ticketIds.join(", ") || "none"}`,
+          `  evidence=${gate.evidenceRequired.join(" | ") || "same-HEAD evidence required"}`,
+          `  blockedBy=${gate.blockedBy.join(" | ") || "none"}`
+        ])
+      : ["- none"]),
+    "",
+    "## Boundary",
+    "",
+    "- This packet is read-only evidence guidance.",
+    "- It does not patch OLSConfig, install Operators, push images, mirror images, sign artifacts, apply, delete, or scale.",
+    "- Approval-gated commands listed here require explicit human approval outside this verifier.",
+    "",
+    "## Rollback Path",
+    "",
+    ...artifact.rollbackPath.map((item) => `- ${item}`),
+    ""
+  ];
+  return lines.join("\n");
+}
+
 function buildMarkdown(artifact) {
   const lines = [
     "# Cywell OpsLens Completion Gate",
@@ -492,12 +600,14 @@ function buildMarkdown(artifact) {
     ...(artifact.ownerCloseoutPackets.length
       ? artifact.ownerCloseoutPackets.flatMap((packet) => [
           `- ${packet.owner}: gates=${packet.gateIds.join(", ") || "none"} tickets=${packet.ticketIds.join(", ") || "none"} approvalRequired=${String(packet.approvalRequired)}`,
+          `  packet=${packet.markdownPath} exists=${String(packet.exists)}`,
           `  firstNext=${packet.firstNextCommand}`,
           `  readOnly=${packet.readOnlyCommandIds.join(", ") || "none"}`,
           `  setup=${packet.setupCommandIds.join(", ") || "none"}`,
           `  approval=${packet.approvalGatedCommandIds.join(", ") || "none"}`
         ])
       : ["- none"]),
+    `- cleanupDeletionAllowed=${String(artifact.ownerPacketCleanup.deletionAllowed)} expected=${artifact.ownerPacketCleanup.expectedFiles.join(", ") || "none"} staleRemoved=${artifact.ownerPacketCleanup.staleRemoved.join(", ") || "none"}`,
     "",
     "## Claim Requirements",
     "",
@@ -612,7 +722,14 @@ async function main() {
 
   const decision = releaseBundle?.decision ?? {};
   const remaining = remainingTo100(completion, actionQueue);
-  const closeoutPackets = ownerCloseoutPackets(remaining);
+  const closeoutPackets = ownerCloseoutPackets(remaining).map((packet) => ({
+    ...packet,
+    markdownPath: resolve(options.ownerPacketsDir, `${ownerSlug(packet.owner)}.md`),
+    exists: true
+  }));
+  const ownerPacketCleanup = await cleanupOwnerPacketDirectory(
+    closeoutPackets.map((packet) => packet.markdownPath)
+  );
   const claimRequirements = [
     {
       id: "clean-current-head",
@@ -732,6 +849,7 @@ async function main() {
     claimRequirements,
     remainingTo100: remaining,
     ownerCloseoutPackets: closeoutPackets,
+    ownerPacketCleanup,
     missingEvidence,
     blockers: internalBlockers,
     evidence: [
@@ -755,12 +873,24 @@ async function main() {
   const sanitizedArtifact = sanitizeArtifact(artifact, sanitize);
   const serialized = `${JSON.stringify(sanitizedArtifact, null, 2)}\n`;
   const markdown = sanitize(buildMarkdown(sanitizedArtifact));
+  const ownerPacketMarkdowns = sanitizedArtifact.ownerCloseoutPackets.map((packet) => ({
+    path: packet.markdownPath,
+    markdown: sanitize(ownerPacketMarkdown(sanitizedArtifact, packet))
+  }));
   const secretPattern =
     /--token\s+(?!<redacted>)\S+|Bearer\s+(?!<redacted>)[A-Za-z0-9._~+/=-]+/i;
-  if (secretPattern.test(serialized) || secretPattern.test(markdown)) {
+  if (
+    secretPattern.test(serialized) ||
+    secretPattern.test(markdown) ||
+    ownerPacketMarkdowns.some((packet) => secretPattern.test(packet.markdown))
+  ) {
     throw new Error("completion gate would include unredacted secret material");
   }
-  if (sensitiveEndpointLeakLike(serialized) || sensitiveEndpointLeakLike(markdown)) {
+  if (
+    sensitiveEndpointLeakLike(serialized) ||
+    sensitiveEndpointLeakLike(markdown) ||
+    ownerPacketMarkdowns.some((packet) => sensitiveEndpointLeakLike(packet.markdown))
+  ) {
     throw new Error("completion gate would include an unredacted configured endpoint or private IP");
   }
 
@@ -768,9 +898,12 @@ async function main() {
   await mkdir(dirname(resolve(options.markdownOut)), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");
   await writeFile(resolve(options.markdownOut), markdown, "utf8");
+  for (const packet of ownerPacketMarkdowns) {
+    await writeFile(packet.path, packet.markdown, "utf8");
+  }
   pass(
     "completion gate export",
-    `${resolve(options.evidenceOut)} and ${resolve(options.markdownOut)} written without secret material`
+    `${resolve(options.evidenceOut)}, ${resolve(options.markdownOut)}, and ${ownerPacketMarkdowns.length} owner packet(s) written without secret material`
   );
 
   const totals = {

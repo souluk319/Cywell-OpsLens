@@ -3597,7 +3597,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             approvalRequired?: boolean;
             blockedBy?: string[];
             acceptance?: string[];
+            markdownPath?: string;
+            exists?: boolean;
           }>;
+          ownerPacketCleanup?: {
+            dir?: string;
+            expectedFiles?: string[];
+            staleRemoved?: string[];
+            deletionAllowed?: boolean;
+          };
           claimRequirements?: Array<{
             id?: string;
             passed?: boolean;
@@ -6029,7 +6037,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         setupCommandIds?: string[];
         approvalGatedCommandIds?: string[];
         approvalRequired?: boolean;
+        markdownPath?: string;
+        exists?: boolean;
       }>;
+      ownerPacketCleanup?: {
+        dir?: string;
+        expectedFiles?: string[];
+        staleRemoved?: string[];
+        deletionAllowed?: boolean;
+      };
       claimRequirements?: Array<{
         id?: string;
         passed?: boolean;
@@ -6167,9 +6183,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           Array.isArray(packet.readOnlyCommandIds) &&
           Array.isArray(packet.setupCommandIds) &&
           Array.isArray(packet.approvalGatedCommandIds) &&
-          typeof packet.approvalRequired === "boolean"
+          typeof packet.approvalRequired === "boolean" &&
+          packet.markdownPath?.includes("completion-closeout-owners") &&
+          packet.markdownPath?.endsWith(".md") &&
+          packet.exists === true
       )
     ).toBe(true);
+    expect(completionGate.ownerPacketCleanup).toMatchObject({
+      deletionAllowed: true
+    });
+    expect(completionGate.ownerPacketCleanup?.expectedFiles?.sort()).toEqual(
+      completionGate.ownerCloseoutPackets
+        ?.map((packet) => packet.markdownPath?.split(/[\\/]/).pop())
+        .sort()
+    );
     expect(
       completionGate.claimRequirements?.find(
         (requirement) => requirement.id === "roadmap-complete"
@@ -6256,9 +6283,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           Array.isArray(packet.readOnlyCommandIds) &&
           Array.isArray(packet.setupCommandIds) &&
           Array.isArray(packet.approvalGatedCommandIds) &&
-          typeof packet.approvalRequired === "boolean"
+          typeof packet.approvalRequired === "boolean" &&
+          packet.markdownPath?.includes("completion-closeout-owners") &&
+          packet.markdownPath?.endsWith(".md") &&
+          packet.exists === true
       )
     ).toBe(true);
+    expect(
+      body.installReadiness?.completionGate?.ownerPacketCleanup
+    ).toMatchObject({
+      deletionAllowed: true
+    });
+    expect(
+      body.installReadiness?.completionGate?.ownerPacketCleanup?.expectedFiles?.sort()
+    ).toEqual(
+      completionGate.ownerPacketCleanup?.expectedFiles?.sort()
+    );
     expect(
       body.installReadiness?.completionGate?.claimRequirements?.map(
         (requirement) => `${requirement.id}:${String(requirement.passed)}`
@@ -10259,6 +10299,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-completion-gate-owner-closeout")
     ).toContainText("approvalRequired=");
+    await expect(
+      page.getByTestId("opslens-completion-gate-owner-closeout")
+    ).toContainText("packet=");
+    await expect(
+      page.getByTestId("opslens-completion-gate-owner-closeout")
+    ).toContainText("exists=true");
+    await expect(
+      page.getByTestId("opslens-completion-gate-owner-closeout")
+    ).toContainText("cleanupDeletionAllowed=true");
     await expect(
       page.getByTestId("opslens-completion-gate-boundary")
     ).toContainText(

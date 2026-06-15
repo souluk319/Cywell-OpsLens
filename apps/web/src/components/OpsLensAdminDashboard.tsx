@@ -1626,9 +1626,15 @@ export function OpsLensAdminDashboard() {
                     {packet.setupCommandIds.slice(0, 3).join(",") || "none"}
                     :approval=
                     {packet.approvalGatedCommandIds.slice(0, 3).join(",") ||
-                      "none"}
+                      "none"}:packet=
+                    {packet.markdownPath.split(/[\\/]/).pop()}:exists=
+                    {String(packet.exists)}
                   </span>
                 ))}
+                <span>
+                  cleanupDeletionAllowed=
+                  {String(completionGate.ownerPacketCleanup.deletionAllowed)}
+                </span>
               </div>
               <div
                 className="admin-evidence-line"

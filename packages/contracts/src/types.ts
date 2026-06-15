@@ -2537,7 +2537,15 @@ export interface OpsLensCompletionGateSummary {
     approvalRequired: boolean;
     blockedBy: string[];
     acceptance: string[];
+    markdownPath: string;
+    exists: boolean;
   }>;
+  ownerPacketCleanup: {
+    dir: string;
+    expectedFiles: string[];
+    staleRemoved: string[];
+    deletionAllowed: boolean;
+  };
   claimRequirements: Array<{
     id: string;
     passed: boolean;

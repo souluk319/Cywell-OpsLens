@@ -3058,7 +3058,15 @@ type CompletionGateArtifact = {
     approvalRequired?: boolean;
     blockedBy?: string[];
     acceptance?: string[];
+    markdownPath?: string;
+    exists?: boolean;
   }>;
+  ownerPacketCleanup?: {
+    dir?: string;
+    expectedFiles?: string[];
+    staleRemoved?: string[];
+    deletionAllowed?: boolean;
+  };
   claimRequirements?: Array<{
     id?: string;
     passed?: boolean;
@@ -9947,6 +9955,12 @@ function missingCompletionGateSummary(
     },
     remainingTo100: [],
     ownerCloseoutPackets: [],
+    ownerPacketCleanup: {
+      dir: "missing",
+      expectedFiles: [],
+      staleRemoved: [],
+      deletionAllowed: false
+    },
     claimRequirements: [
       {
         id: "completion-gate-evidence",
@@ -10076,9 +10090,20 @@ function getCompletionGateSummary(): OpsLensCompletionGateSummary {
           externalStateRequired: packet.externalStateRequired === true,
           approvalRequired: packet.approvalRequired === true,
           blockedBy: packet.blockedBy ?? [],
-          acceptance: packet.acceptance ?? []
+          acceptance: packet.acceptance ?? [],
+          markdownPath: packet.markdownPath ?? "missing",
+          exists:
+            typeof packet.markdownPath === "string" &&
+            existsSync(packet.markdownPath)
         })
       ),
+      ownerPacketCleanup: {
+        dir: artifact.ownerPacketCleanup?.dir ?? "missing",
+        expectedFiles: artifact.ownerPacketCleanup?.expectedFiles ?? [],
+        staleRemoved: artifact.ownerPacketCleanup?.staleRemoved ?? [],
+        deletionAllowed:
+          artifact.ownerPacketCleanup?.deletionAllowed === true
+      },
       claimRequirements: (artifact.claimRequirements ?? []).map((requirement) => ({
         id: requirement.id ?? "unknown",
         passed: requirement.passed === true,
