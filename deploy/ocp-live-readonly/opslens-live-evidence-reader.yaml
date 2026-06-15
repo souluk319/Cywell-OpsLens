@@ -37,6 +37,7 @@ rules:
       - services
       - endpoints
       - persistentvolumeclaims
+      - persistentvolumes
       - configmaps
     verbs:
       - get
@@ -54,6 +55,14 @@ rules:
       - list
       - watch
   - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
       - batch
     resources:
       - jobs
@@ -66,6 +75,40 @@ rules:
       - route.openshift.io
     resources:
       - routes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - image.openshift.io
+    resources:
+      - imagestreams
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - build.openshift.io
+    resources:
+      - builds
+      - buildconfigs
     verbs:
       - get
       - list

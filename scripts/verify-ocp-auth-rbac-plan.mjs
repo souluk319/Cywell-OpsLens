@@ -35,6 +35,40 @@ const mutatingVerbs = new Set([
   "scale"
 ]);
 
+const requiredReadCoverage = [
+  { apiGroup: "", resource: "namespaces", surface: "Home/Overview namespace scope" },
+  { apiGroup: "", resource: "nodes", surface: "OpenShift overview node health" },
+  { apiGroup: "", resource: "pods", surface: "Workloads and pod status" },
+  { apiGroup: "", resource: "pods/log", surface: "Logs evidence pane" },
+  { apiGroup: "", resource: "events", surface: "Events evidence" },
+  { apiGroup: "", resource: "services", surface: "Networking services" },
+  { apiGroup: "", resource: "endpoints", surface: "Networking endpoint diagnosis" },
+  { apiGroup: "", resource: "persistentvolumeclaims", surface: "Storage PVCs" },
+  { apiGroup: "", resource: "persistentvolumes", surface: "Storage PVs" },
+  { apiGroup: "apps", resource: "deployments", surface: "Workloads deployments" },
+  { apiGroup: "apps", resource: "replicasets", surface: "Workloads replica history" },
+  { apiGroup: "apps", resource: "statefulsets", surface: "Workloads stateful apps" },
+  { apiGroup: "apps", resource: "daemonsets", surface: "Workloads node agents" },
+  { apiGroup: "autoscaling", resource: "horizontalpodautoscalers", surface: "Workload scaling context" },
+  { apiGroup: "batch", resource: "jobs", surface: "Batch workloads" },
+  { apiGroup: "batch", resource: "cronjobs", surface: "Scheduled workloads" },
+  { apiGroup: "route.openshift.io", resource: "routes", surface: "OpenShift routes" },
+  { apiGroup: "networking.k8s.io", resource: "ingresses", surface: "Kubernetes ingresses" },
+  { apiGroup: "networking.k8s.io", resource: "networkpolicies", surface: "Network policy context" },
+  { apiGroup: "storage.k8s.io", resource: "storageclasses", surface: "StorageClass context" },
+  { apiGroup: "image.openshift.io", resource: "imagestreams", surface: "OpenShift image streams" },
+  { apiGroup: "build.openshift.io", resource: "builds", surface: "OpenShift builds" },
+  { apiGroup: "build.openshift.io", resource: "buildconfigs", surface: "OpenShift build configs" },
+  { apiGroup: "console.openshift.io", resource: "consoleplugins", surface: "ConsolePlugin install proof" },
+  { apiGroup: "ols.openshift.io", resource: "olsconfigs", surface: "Lightspeed OLSConfig discovery" },
+  { apiGroup: "config.openshift.io", resource: "clusterversions", surface: "ClusterVersion upgrade evidence" },
+  { apiGroup: "config.openshift.io", resource: "clusteroperators", surface: "ClusterOperator health" },
+  { apiGroup: "apiextensions.k8s.io", resource: "customresourcedefinitions", surface: "CRD discovery" },
+  { apiGroup: "monitoring.coreos.com", resource: "prometheusrules", surface: "Monitoring rule context" },
+  { apiGroup: "monitoring.coreos.com", resource: "servicemonitors", surface: "Monitoring service discovery" },
+  { apiGroup: "monitoring.coreos.com", resource: "podmonitors", surface: "Monitoring pod discovery" }
+];
+
 function parseArgs(argv) {
   const values = new Map();
   for (let index = 0; index < argv.length; index += 1) {
@@ -209,6 +243,23 @@ function flattenRuleValues(rules, key) {
   );
 }
 
+function ruleCoversRead(rule, requirement) {
+  const apiGroups = Array.isArray(rule?.apiGroups)
+    ? rule.apiGroups.map((value) => String(value))
+    : [];
+  const resources = Array.isArray(rule?.resources)
+    ? rule.resources.map((value) => String(value).toLowerCase())
+    : [];
+  const verbs = Array.isArray(rule?.verbs)
+    ? rule.verbs.map((value) => String(value).toLowerCase())
+    : [];
+  return (
+    apiGroups.includes(requirement.apiGroup) &&
+    resources.includes(requirement.resource.toLowerCase()) &&
+    ["get", "list", "watch"].every((verb) => verbs.includes(verb))
+  );
+}
+
 function validateManifest(documents, manifestPath) {
   const namespace = findResource(documents, "Namespace", expected.namespace);
   const serviceAccount = findResource(documents, "ServiceAccount", expected.serviceAccount);
@@ -260,6 +311,11 @@ function validateManifest(documents, manifestPath) {
   const forbiddenResourceHits = resources.filter((resource) =>
     forbiddenResources.has(resource)
   );
+  const coverage = requiredReadCoverage.map((requirement) => ({
+    ...requirement,
+    covered: rules.some((rule) => ruleCoversRead(rule, requirement))
+  }));
+  const missingCoverage = coverage.filter((requirement) => !requirement.covered);
   const emptyRules = rules
     .map((rule, index) => ({ rule, index }))
     .filter(({ rule }) =>
@@ -277,6 +333,13 @@ function validateManifest(documents, manifestPath) {
   if (forbiddenResourceHits.length > 0) {
     violations.push(`forbiddenResources=${Array.from(new Set(forbiddenResourceHits)).join(",")}`);
   }
+  if (missingCoverage.length > 0) {
+    violations.push(
+      `missingCoverage=${missingCoverage
+        .map((requirement) => `${requirement.apiGroup || "core"}/${requirement.resource}`)
+        .join(",")}`
+    );
+  }
   if (emptyRules.length > 0) {
     violations.push(`emptyRules=${emptyRules.join(",")}`);
   }
@@ -286,7 +349,7 @@ function validateManifest(documents, manifestPath) {
   } else {
     pass(
       "RBAC manifest safety",
-      `${expected.serviceAccount} binds ${rules.length} rule(s), verbs=${Array.from(new Set(verbs)).join(",")}, secrets=false`
+      `${expected.serviceAccount} binds ${rules.length} rule(s), verbs=${Array.from(new Set(verbs)).join(",")}, secrets=false, coverage=${coverage.filter((item) => item.covered).length}/${coverage.length}`
     );
   }
 
@@ -309,7 +372,8 @@ function validateManifest(documents, manifestPath) {
       forbiddenVerbs: Array.from(new Set(forbiddenVerbHits)).sort(),
       forbiddenResources: Array.from(new Set(forbiddenResourceHits)).sort(),
       secretsIncluded: forbiddenResourceHits.length > 0,
-      readOnlyOnly: forbiddenVerbHits.length === 0
+      readOnlyOnly: forbiddenVerbHits.length === 0,
+      requiredCoverage: coverage
     },
     clusterRoleBinding: {
       name: clusterRoleBinding?.metadata?.name ?? "missing",
@@ -605,6 +669,14 @@ function markdownFor(packet) {
     `- Verbs: ${packet.rbac.clusterRole.verbs.join(", ") || "missing"}`,
     `- Secrets included: ${String(packet.rbac.clusterRole.secretsIncluded)}`,
     `- Read-only only: ${String(packet.rbac.clusterRole.readOnlyOnly)}`,
+    `- Required console coverage: ${packet.rbac.clusterRole.requiredCoverage.filter((item) => item.covered).length}/${packet.rbac.clusterRole.requiredCoverage.length}`,
+    "",
+    "## Required Console Surface Coverage",
+    "",
+    ...packet.rbac.clusterRole.requiredCoverage.map(
+      (item) =>
+        `- ${item.covered ? "PASS" : "MISSING"} ${item.apiGroup || "core"}/${item.resource}: ${item.surface}`
+    ),
     "",
     "## Cluster Admin Requests",
     "",
