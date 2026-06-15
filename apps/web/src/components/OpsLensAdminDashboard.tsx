@@ -223,6 +223,7 @@ export function OpsLensAdminDashboard() {
     releaseBundle?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const releaseActionQueue = overview?.installReadiness.actionQueue;
   const roadmapCompletion = overview?.installReadiness.roadmapCompletion;
+  const completionGate = overview?.installReadiness.completionGate;
   const runtimeLiveHandoff = overview?.runtime.liveHandoff;
   const runtimeLiveEvidenceHandoff =
     overview?.runtime.readiness.liveEvidenceHandoff ?? [];
@@ -1483,6 +1484,8 @@ export function OpsLensAdminDashboard() {
                   "Release Action": overview.installReadiness.releaseActionQueue,
                   "Roadmap Completion":
                     overview.installReadiness.roadmapCompletion.status,
+                  "Completion Gate":
+                    overview.installReadiness.completionGate.status,
                   "Evidence Checkpoint":
                     overview.installReadiness.evidenceCheckpoint,
                   "Live Handoff": overview.installReadiness.liveHandoff,
@@ -1516,6 +1519,138 @@ export function OpsLensAdminDashboard() {
               {item}
             </p>
           ))}
+          {completionGate ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-completion-gate"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Completion Gate</h4>
+                  <small>{completionGate.actionMode}</small>
+                </div>
+                <Gauge size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{completionGate.artifactStatus}</span>
+                <span>head={completionGate.headSha}</span>
+                <span>dirty={String(completionGate.worktreeDirty)}</span>
+                <span>
+                  readyToClaim100={String(completionGate.readyToClaim100)}
+                </span>
+                <span>
+                  mutationBoundaryPassed=
+                  {String(completionGate.mutationBoundaryPassed)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Complete</span>
+                  <strong>{completionGate.percentComplete}%</strong>
+                </div>
+                <div>
+                  <span>Passed</span>
+                  <strong>
+                    {completionGate.passedRequirements}/
+                    {completionGate.totalRequirements}
+                  </strong>
+                </div>
+                <div>
+                  <span>Remaining</span>
+                  <strong>{completionGate.remainingRequirements}</strong>
+                </div>
+                <div>
+                  <span>External</span>
+                  <strong>{completionGate.remainingExternalStateCount}</strong>
+                </div>
+                <div>
+                  <span>Local</span>
+                  <strong>{completionGate.remainingLocalOnlyCount}</strong>
+                </div>
+                <div>
+                  <span>Status</span>
+                  <strong
+                    className={`freshness ${statusClass(
+                      completionGate.status
+                    )}`}
+                  >
+                    {completionGate.status}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-completion-gate-remaining"
+              >
+                {completionGate.remainingTo100.slice(0, 8).map((gate) => (
+                  <span key={`${gate.stage}-${gate.gateId}`}>
+                    {gate.gateId}:{gate.owner}:{gate.actionId}:external=
+                    {String(gate.externalStateRequired)}
+                  </span>
+                ))}
+                {completionGate.remainingTo100.length === 0 ? (
+                  <span>none</span>
+                ) : null}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-completion-gate-claim-requirements"
+              >
+                {completionGate.claimRequirements.map((requirement) => (
+                  <span key={requirement.id}>
+                    {requirement.id}={String(requirement.passed)}
+                  </span>
+                ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-completion-gate-boundary"
+              >
+                <span>
+                  bundleStatus={completionGate.releaseEvidenceBundle.status}
+                </span>
+                <span>
+                  bundleMatchesRoadmap=
+                  {String(
+                    completionGate.releaseEvidenceBundle.bundleMatchesRoadmap
+                  )}
+                </span>
+                <span>
+                  publishReady=
+                  {String(
+                    completionGate.releaseEvidenceBundle.decision.publishReady
+                  )}
+                </span>
+                <span>
+                  installReady=
+                  {String(
+                    completionGate.releaseEvidenceBundle.decision.installReady
+                  )}
+                </span>
+                <span>
+                  actionQueueReady={String(completionGate.actionQueue.ready)}
+                </span>
+                <span>
+                  criticalPath={completionGate.actionQueue.criticalPathCount}
+                </span>
+                <span>
+                  unsafeTickets=
+                  {completionGate.actionQueue.unsafeTickets.join(",") ||
+                    "none"}
+                </span>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {completionGate.risk[0] ??
+                    "Completion gate is evidence-only and cannot approve mutation."}
+                </p>
+                <p>
+                  {completionGate.rollbackPath[0] ??
+                    "Regenerate completion evidence after release evidence changes."}
+                </p>
+              </div>
+            </div>
+          ) : null}
           {roadmapCompletion ? (
             <div
               className="install-approval-summary"

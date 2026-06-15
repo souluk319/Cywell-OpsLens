@@ -87,6 +87,7 @@ import type {
   OpsLensReleaseEvidenceRefreshSummary,
   OpsLensReleaseEvidenceBundleReadiness,
   OpsLensReleaseEvidenceBundleSummary,
+  OpsLensCompletionGateSummary,
   OpsLensRoadmapCompletionSummary,
   OpsLensRemediationProposal,
   OpsLensSecurityScanPlanSummary,
@@ -2983,6 +2984,66 @@ type ReleaseActionQueueArtifact = {
   rollbackPath?: string[];
 };
 
+type CompletionGateArtifact = {
+  artifactType?: string;
+  status?: string;
+  actionMode?: string;
+  readyToClaim100?: boolean;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  vectorWriteAttempted?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  mutationBoundaryPassed?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  completion?: {
+    totalRequirements?: number;
+    passedRequirements?: number;
+    remainingRequirements?: number;
+    percentComplete?: number;
+    remainingExternalStateCount?: number;
+    remainingLocalOnlyCount?: number;
+    remainingExternalStateGateIds?: string[];
+    remainingLocalOnlyGateIds?: string[];
+  };
+  releaseEvidenceBundle?: {
+    status?: string;
+    bundleMatchesRoadmap?: boolean;
+    decision?: {
+      publishReady?: boolean;
+      installReady?: boolean;
+      roadmapComplete?: boolean;
+    };
+  };
+  actionQueue?: {
+    ready?: boolean;
+    criticalPathCount?: number;
+    unsafeTickets?: string[];
+  };
+  remainingTo100?: Array<{
+    stage?: string;
+    gateId?: string;
+    status?: string;
+    owner?: string;
+    actionId?: string;
+    externalStateRequired?: boolean;
+    evidenceRequired?: string[];
+  }>;
+  claimRequirements?: Array<{
+    id?: string;
+    passed?: boolean;
+    detail?: string;
+  }>;
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+  evidence?: string[];
+};
+
 type RagProductionReadinessArtifact = {
   artifactType?: string;
   status?: string;
@@ -3694,6 +3755,13 @@ function roadmapPlanAlignmentPath() {
   return (
     process.env.CYWELL_OPSLENS_ROADMAP_PLAN_ALIGNMENT ??
     join(repoRoot, "test-results", "cywell-opslens-roadmap-plan-alignment.json")
+  );
+}
+
+function completionGatePath() {
+  return (
+    process.env.CYWELL_OPSLENS_COMPLETION_GATE ??
+    join(repoRoot, "test-results", "cywell-opslens-completion-gate.json")
   );
 }
 
@@ -9818,6 +9886,175 @@ function getRoadmapCompletionSummary(
   }
 }
 
+function missingCompletionGateSummary(
+  reason: string,
+  status: OpsLensCompletionGateSummary["status"] = "needs-evidence"
+): OpsLensCompletionGateSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "completionEvidenceOnly",
+    readyToClaim100: false,
+    headSha: "missing",
+    worktreeDirty: false,
+    totalRequirements: 0,
+    passedRequirements: 0,
+    remainingRequirements: 0,
+    percentComplete: 0,
+    remainingExternalStateCount: 0,
+    remainingLocalOnlyCount: 0,
+    remainingExternalStateGateIds: [],
+    remainingLocalOnlyGateIds: [],
+    releaseEvidenceBundle: {
+      status: "missing",
+      bundleMatchesRoadmap: false,
+      decision: {
+        publishReady: false,
+        installReady: false,
+        roadmapComplete: false
+      }
+    },
+    actionQueue: {
+      ready: false,
+      criticalPathCount: 0,
+      unsafeTickets: [reason]
+    },
+    remainingTo100: [],
+    claimRequirements: [
+      {
+        id: "completion-gate-evidence",
+        passed: false,
+        detail: reason
+      }
+    ],
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    vectorWriteAttempted: false,
+    mutationAllowedByThisVerifier: false,
+    mutationBoundaryPassed: false,
+    missingEvidence: [reason],
+    risk: [
+      "Without completion gate evidence, the dashboard cannot prove whether 100 percent can be claimed."
+    ],
+    rollbackPath: [
+      "Run npm run verify:completion after refreshing roadmap, release bundle, and action queue evidence."
+    ],
+    evidence: [
+      reason,
+      "completion gate is evidence-only and does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
+    ]
+  };
+}
+
+function mapCompletionGateStatus(
+  artifact: CompletionGateArtifact
+): OpsLensCompletionGateSummary["status"] {
+  if (
+    artifact.status === "BLOCKED" ||
+    artifact.clusterMutationAttempted === true ||
+    artifact.registryMutationAttempted === true ||
+    artifact.vectorWriteAttempted === true ||
+    artifact.mutationAllowedByThisVerifier === true ||
+    artifact.mutationBoundaryPassed === false
+  ) {
+    return "blocked";
+  }
+  return artifact.readyToClaim100 === true && artifact.status === "PASS"
+    ? "ready"
+    : "needs-evidence";
+}
+
+function getCompletionGateSummary(): OpsLensCompletionGateSummary {
+  const evidencePath = completionGatePath();
+
+  if (!existsSync(evidencePath)) {
+    return missingCompletionGateSummary(
+      `completion gate evidence is missing at ${evidencePath}`
+    );
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as CompletionGateArtifact;
+    const status = mapCompletionGateStatus(artifact);
+    return {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode: "completionEvidenceOnly",
+      readyToClaim100: artifact.readyToClaim100 === true,
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      totalRequirements: artifact.completion?.totalRequirements ?? 0,
+      passedRequirements: artifact.completion?.passedRequirements ?? 0,
+      remainingRequirements: artifact.completion?.remainingRequirements ?? 0,
+      percentComplete: artifact.completion?.percentComplete ?? 0,
+      remainingExternalStateCount:
+        artifact.completion?.remainingExternalStateCount ?? 0,
+      remainingLocalOnlyCount:
+        artifact.completion?.remainingLocalOnlyCount ?? 0,
+      remainingExternalStateGateIds:
+        artifact.completion?.remainingExternalStateGateIds ?? [],
+      remainingLocalOnlyGateIds:
+        artifact.completion?.remainingLocalOnlyGateIds ?? [],
+      releaseEvidenceBundle: {
+        status: artifact.releaseEvidenceBundle?.status ?? "missing",
+        bundleMatchesRoadmap:
+          artifact.releaseEvidenceBundle?.bundleMatchesRoadmap === true,
+        decision: {
+          publishReady:
+            artifact.releaseEvidenceBundle?.decision?.publishReady === true,
+          installReady:
+            artifact.releaseEvidenceBundle?.decision?.installReady === true,
+          roadmapComplete:
+            artifact.releaseEvidenceBundle?.decision?.roadmapComplete === true
+        }
+      },
+      actionQueue: {
+        ready: artifact.actionQueue?.ready === true,
+        criticalPathCount: artifact.actionQueue?.criticalPathCount ?? 0,
+        unsafeTickets: artifact.actionQueue?.unsafeTickets ?? []
+      },
+      remainingTo100: (artifact.remainingTo100 ?? []).map((gate) => ({
+        stage: gate.stage ?? "unknown",
+        gateId: gate.gateId ?? "unknown",
+        status: gate.status ?? "unknown",
+        owner: gate.owner ?? "unknown",
+        actionId: gate.actionId ?? "unknown",
+        externalStateRequired: gate.externalStateRequired !== false,
+        evidenceRequired: gate.evidenceRequired ?? []
+      })),
+      claimRequirements: (artifact.claimRequirements ?? []).map((requirement) => ({
+        id: requirement.id ?? "unknown",
+        passed: requirement.passed === true,
+        detail: requirement.detail ?? "missing"
+      })),
+      clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+      registryMutationAttempted: artifact.registryMutationAttempted === true,
+      vectorWriteAttempted: artifact.vectorWriteAttempted === true,
+      mutationAllowedByThisVerifier:
+        artifact.mutationAllowedByThisVerifier === true,
+      mutationBoundaryPassed: artifact.mutationBoundaryPassed === true,
+      missingEvidence: artifact.missingEvidence ?? [],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? [],
+      evidence: [
+        `Completion gate ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"} readyToClaim100=${String(artifact.readyToClaim100 === true)}`,
+        `completion gate ${artifact.completion?.passedRequirements ?? 0}/${artifact.completion?.totalRequirements ?? 0} requirements pass (${artifact.completion?.percentComplete ?? 0}%)`,
+        `completion gate remaining externalState=${artifact.completion?.remainingExternalStateCount ?? 0} localOnly=${artifact.completion?.remainingLocalOnlyCount ?? 0}`,
+        `completion gate actionQueue criticalPath=${artifact.actionQueue?.criticalPathCount ?? 0} unsafeTickets=${artifact.actionQueue?.unsafeTickets?.length ?? 0}`,
+        "completion gate reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions",
+        ...(artifact.evidence ?? []).slice(0, 2)
+      ]
+    };
+  } catch (error) {
+    return missingCompletionGateSummary(
+      error instanceof Error ? error.message : "unknown evidence parse error",
+      "blocked"
+    );
+  }
+}
+
 function missingReleaseActionQueueSummary(
   reason: string,
   status: OpsLensReleaseActionQueueReadiness = "needs-evidence"
@@ -12477,6 +12714,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const roadmapCompletion = getRoadmapCompletionSummary(
     releaseActionQueueReadiness.actionQueue
   );
+  const completionGate = getCompletionGateSummary();
   const runtimeLiveHandoff = buildRuntimeLiveHandoffSummary(
     runtimeReadiness,
     releaseActionQueueReadiness.actionQueue
@@ -12517,6 +12755,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     releaseEvidenceBundleReadiness.evidence[0],
     releaseActionQueueReadiness.evidence[0],
     roadmapCompletion.evidence[0],
+    completionGate.evidence[0],
     runtimeLiveHandoff.evidence[0],
     ragProductionReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
@@ -12540,6 +12779,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...releaseEvidenceBundleReadiness.evidence.slice(1),
     ...releaseActionQueueReadiness.evidence.slice(1),
     ...roadmapCompletion.evidence.slice(1),
+    ...completionGate.evidence.slice(1),
     ...runtimeLiveHandoff.evidence.slice(1),
     ...ragProductionReadiness.evidence.slice(1),
     ...aiopsIncidentPipelineReadiness.evidence.slice(1),
@@ -12768,6 +13008,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       releaseActionQueue: releaseActionQueueReadiness.status,
       actionQueue: releaseActionQueueReadiness.actionQueue,
       roadmapCompletion,
+      completionGate,
       evidenceCheckpoint: evidenceCheckpointReadiness.status,
       checkpoint: evidenceCheckpointReadiness.checkpoint,
       liveHandoff: liveHandoffReadiness.status,

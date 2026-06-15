@@ -1441,6 +1441,11 @@ export type OpsLensReleaseEvidenceBundleReadiness =
   | "needs-evidence"
   | "blocked";
 
+export type OpsLensCompletionGateReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "blocked";
+
 export type OpsLensReleaseActionQueueReadiness =
   | "ready"
   | "needs-evidence"
@@ -2467,6 +2472,60 @@ export interface OpsLensReleaseEvidenceBundleSummary {
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];
+}
+
+export interface OpsLensCompletionGateSummary {
+  status: OpsLensCompletionGateReadiness;
+  artifactStatus: string;
+  actionMode: "completionEvidenceOnly";
+  readyToClaim100: boolean;
+  headSha: string;
+  worktreeDirty: boolean;
+  totalRequirements: number;
+  passedRequirements: number;
+  remainingRequirements: number;
+  percentComplete: number;
+  remainingExternalStateCount: number;
+  remainingLocalOnlyCount: number;
+  remainingExternalStateGateIds: string[];
+  remainingLocalOnlyGateIds: string[];
+  releaseEvidenceBundle: {
+    status: string;
+    bundleMatchesRoadmap: boolean;
+    decision: {
+      publishReady: boolean;
+      installReady: boolean;
+      roadmapComplete: boolean;
+    };
+  };
+  actionQueue: {
+    ready: boolean;
+    criticalPathCount: number;
+    unsafeTickets: string[];
+  };
+  remainingTo100: Array<{
+    stage: string;
+    gateId: string;
+    status: string;
+    owner: string;
+    actionId: string;
+    externalStateRequired: boolean;
+    evidenceRequired: string[];
+  }>;
+  claimRequirements: Array<{
+    id: string;
+    passed: boolean;
+    detail: string;
+  }>;
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  vectorWriteAttempted: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  mutationBoundaryPassed: boolean;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+  evidence: string[];
 }
 
 export interface OpsLensReleaseActionQueueSummary {
@@ -3654,6 +3713,7 @@ export interface OpsLensAdminOverviewResponse {
     releaseActionQueue: OpsLensReleaseActionQueueReadiness;
     actionQueue: OpsLensReleaseActionQueueSummary;
     roadmapCompletion: OpsLensRoadmapCompletionSummary;
+    completionGate: OpsLensCompletionGateSummary;
     evidenceCheckpoint: OpsLensEvidenceCheckpointReadiness;
     checkpoint: OpsLensEvidenceCheckpointSummary;
     liveHandoff: OpsLensLiveEvidenceHandoffReadiness;

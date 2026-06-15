@@ -3534,6 +3534,59 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
           evidence?: string[];
         };
+        completionGate?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          readyToClaim100?: boolean;
+          headSha?: string;
+          worktreeDirty?: boolean;
+          totalRequirements?: number;
+          passedRequirements?: number;
+          remainingRequirements?: number;
+          percentComplete?: number;
+          remainingExternalStateCount?: number;
+          remainingLocalOnlyCount?: number;
+          remainingExternalStateGateIds?: string[];
+          remainingLocalOnlyGateIds?: string[];
+          releaseEvidenceBundle?: {
+            status?: string;
+            bundleMatchesRoadmap?: boolean;
+            decision?: {
+              publishReady?: boolean;
+              installReady?: boolean;
+              roadmapComplete?: boolean;
+            };
+          };
+          actionQueue?: {
+            ready?: boolean;
+            criticalPathCount?: number;
+            unsafeTickets?: string[];
+          };
+          remainingTo100?: Array<{
+            stage?: string;
+            gateId?: string;
+            status?: string;
+            owner?: string;
+            actionId?: string;
+            externalStateRequired?: boolean;
+            evidenceRequired?: string[];
+          }>;
+          claimRequirements?: Array<{
+            id?: string;
+            passed?: boolean;
+            detail?: string;
+          }>;
+          clusterMutationAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          vectorWriteAttempted?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          mutationBoundaryPassed?: boolean;
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+          evidence?: string[];
+        };
         evidenceCheckpoint?: string;
         checkpoint?: {
           status?: string;
@@ -6052,6 +6105,64 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       roadmapPlan.status === "PASS" &&
         roadmapRemainingRequirements === 0 &&
         roadmapPercent === 100
+    );
+    expect(body.installReadiness?.completionGate).toMatchObject({
+      status: completionGate.readyToClaim100 ? "ready" : "needs-evidence",
+      artifactStatus: completionGate.status,
+      actionMode: "completionEvidenceOnly",
+      readyToClaim100: completionGate.readyToClaim100,
+      worktreeDirty: false,
+      totalRequirements: completionGate.completion?.totalRequirements,
+      passedRequirements: completionGate.completion?.passedRequirements,
+      remainingRequirements: completionGate.completion?.remainingRequirements,
+      percentComplete: completionGate.completion?.percentComplete,
+      remainingExternalStateCount:
+        completionGate.completion?.remainingExternalStateCount,
+      remainingLocalOnlyCount: completionGate.completion?.remainingLocalOnlyCount,
+      remainingExternalStateGateIds:
+        completionGate.completion?.remainingExternalStateGateIds,
+      remainingLocalOnlyGateIds:
+        completionGate.completion?.remainingLocalOnlyGateIds,
+      releaseEvidenceBundle: {
+        status: completionGate.releaseEvidenceBundle?.status,
+        bundleMatchesRoadmap:
+          completionGate.releaseEvidenceBundle?.bundleMatchesRoadmap,
+        decision: {
+          publishReady:
+            completionGate.releaseEvidenceBundle?.decision?.publishReady,
+          installReady:
+            completionGate.releaseEvidenceBundle?.decision?.installReady,
+          roadmapComplete:
+            completionGate.releaseEvidenceBundle?.decision?.roadmapComplete
+        }
+      },
+      actionQueue: {
+        ready: completionGate.actionQueue?.ready,
+        criticalPathCount: completionGate.actionQueue?.criticalPathCount,
+        unsafeTickets: completionGate.actionQueue?.unsafeTickets
+      },
+      mutationBoundaryPassed: true,
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.completionGate?.remainingTo100?.map(
+        (gate) => gate.gateId
+      )
+    ).toEqual(completionGate.remainingTo100?.map((gate) => gate.gateId));
+    expect(
+      body.installReadiness?.completionGate?.claimRequirements?.map(
+        (requirement) => `${requirement.id}:${String(requirement.passed)}`
+      )
+    ).toEqual(
+      completionGate.claimRequirements?.map(
+        (requirement) => `${requirement.id}:${String(requirement.passed)}`
+      )
+    );
+    expect(body.installReadiness?.evidence?.join(" ")).toContain(
+      "Completion gate"
     );
     const roadmapRemainingHandoffs =
       body.installReadiness?.roadmapCompletion?.remainingHandoffs ?? [];
@@ -9997,6 +10108,45 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-refresh-owner-packet-cleanup")
     ).toContainText("cluster-admin.md");
+    await expect(page.getByTestId("opslens-completion-gate")).toContainText(
+      "completionEvidenceOnly"
+    );
+    await expect(page.getByTestId("opslens-completion-gate")).toContainText(
+      `readyToClaim100=${String(
+        body.installReadiness?.completionGate?.readyToClaim100
+      )}`
+    );
+    await expect(page.getByTestId("opslens-completion-gate")).toContainText(
+      `${body.installReadiness?.completionGate?.percentComplete}%`
+    );
+    await expect(page.getByTestId("opslens-completion-gate")).toContainText(
+      `${body.installReadiness?.completionGate?.passedRequirements}/`
+    );
+    await expect(
+      page.getByTestId("opslens-completion-gate-remaining")
+    ).toContainText(
+      body.installReadiness?.completionGate?.remainingTo100?.[0]?.gateId ??
+        "none"
+    );
+    await expect(
+      page.getByTestId("opslens-completion-gate-claim-requirements")
+    ).toContainText("roadmap-complete=");
+    await expect(
+      page.getByTestId("opslens-completion-gate-boundary")
+    ).toContainText(
+      `bundleMatchesRoadmap=${String(
+        body.installReadiness?.completionGate?.releaseEvidenceBundle
+          ?.bundleMatchesRoadmap
+      )}`
+    );
+    await expect(
+      page.getByTestId("opslens-completion-gate-boundary")
+    ).toContainText(
+      `criticalPath=${body.installReadiness?.completionGate?.actionQueue?.criticalPathCount}`
+    );
+    await expect(
+      page.getByTestId("opslens-completion-gate-boundary")
+    ).toContainText("unsafeTickets=none");
     await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
       "roadmapEvidenceOnly"
     );
