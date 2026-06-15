@@ -720,6 +720,13 @@ button {
   gap: 10px;
 }
 
+.opsbrain-contract-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
 .opsbrain-panel,
 .opsbrain-credential-panel {
   min-width: 0;
@@ -751,6 +758,7 @@ button {
 .opsbrain-step-list li,
 .opsbrain-risk-list div,
 .opsbrain-memory-list div,
+.opsbrain-contract-list div,
 .opsbrain-credential-list div {
   min-width: 0;
 }
@@ -764,6 +772,7 @@ button {
 .opsbrain-step-list strong,
 .opsbrain-risk-list strong,
 .opsbrain-memory-list strong,
+.opsbrain-contract-list strong,
 .opsbrain-credential-list strong {
   color: #151515;
   font-size: 0.78rem;
@@ -775,6 +784,7 @@ button {
 .opsbrain-risk-list span,
 .opsbrain-risk-list small,
 .opsbrain-memory-list small,
+.opsbrain-contract-list small,
 .opsbrain-credential-list small {
   color: #6a6e73;
   font-size: 0.72rem;
@@ -784,6 +794,7 @@ button {
 
 .opsbrain-memory-list,
 .opsbrain-risk-list,
+.opsbrain-contract-list,
 .opsbrain-credential-list {
   display: grid;
   gap: 8px;
@@ -791,6 +802,7 @@ button {
 
 .opsbrain-memory-list div,
 .opsbrain-risk-list div,
+.opsbrain-contract-list div,
 .opsbrain-credential-list div {
   display: grid;
   gap: 4px;
@@ -814,6 +826,24 @@ button {
   color: #004b95;
   font-size: 0.72rem;
   font-weight: 800;
+}
+
+.opsbrain-safety-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.opsbrain-safety-grid span {
+  padding: 6px 7px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+  color: #3c3f42;
+  font-size: 0.72rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .opsbrain-credential-list {
@@ -2163,6 +2193,10 @@ button {
     grid-template-columns: repeat(2, minmax(260px, 1fr));
   }
 
+  .opsbrain-contract-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .resource-inspector-grid .console-panel:first-child {
     grid-row: auto;
   }
@@ -2285,6 +2319,7 @@ button {
   .source-row,
   .two-column-list,
   .opsbrain-grid,
+  .opsbrain-contract-row,
   .opsbrain-headline,
   .resource-query-controls,
   .route-usage-row,

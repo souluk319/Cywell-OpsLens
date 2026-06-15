@@ -3918,6 +3918,11 @@ export interface OpsBrainSystemSummary {
   productDefinition: string;
   fineTuningRequired: false;
   actionMode: "readOnly" | "planOnly";
+  sourceDocuments: Array<{
+    path: string;
+    role: "product-contract" | "acceptance-contract" | "implementation-contract";
+    required: boolean;
+  }>;
   phases: Array<{
     id: string;
     label: string;
@@ -3944,6 +3949,15 @@ export interface OpsBrainSystemSummary {
     nextImplementation: string;
     passFail: string;
   }>;
+  acceptanceCriteria: Array<{
+    id: string;
+    sourceCriterion: string;
+    pass: string;
+    measurement: string;
+    evidence: string[];
+    currentGap: string;
+    status: "pass" | "needs-evidence" | "planned";
+  }>;
   toolLayer: {
     defaultMode: "readOnly";
     allowedVerbs: string[];
@@ -3968,6 +3982,28 @@ export interface OpsBrainSystemSummary {
     policyEngine: "local-rule-table" | "opa-planned";
     mutationAllowed: false;
     evidence: string[];
+  };
+  memoryWriteGuard: {
+    mode: "reviewed-writes-only";
+    rawMemoryWriteAllowed: false;
+    vectorWriteAllowed: false;
+    graphWriteAllowed: false;
+    provenanceRequired: true;
+    reviewerRequired: true;
+    allowedTargets: string[];
+    blockedTargets: string[];
+    evidence: string[];
+    missingEvidence: string[];
+  };
+  selfImprover: {
+    mode: "proposal-only";
+    automaticFineTuningAllowed: false;
+    automaticPolicyMutationAllowed: false;
+    nightlyLoopPlanned: boolean;
+    candidateOutputs: string[];
+    reviewGate: string[];
+    evidence: string[];
+    missingEvidence: string[];
   };
   credentialRequirements: Array<{
     id: string;

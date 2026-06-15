@@ -13497,6 +13497,23 @@ function getOpsBrainSystemSummary(): OpsLensAdminOverviewResponse["opsBrain"] {
       "Cywell OpsBrain is the no-fine-tuning growth loop inside OpsLens: live OCP read tools, reviewed operating memory, retrieval, evaluation, and approval gates.",
     fineTuningRequired: false,
     actionMode: "readOnly",
+    sourceDocuments: [
+      {
+        path: "kugnus-idea/Cywell-OpsBrain/cywell-opsbrain.md",
+        role: "product-contract",
+        required: true
+      },
+      {
+        path: "docs/acceptance/mvp-0.1.md",
+        role: "acceptance-contract",
+        required: true
+      },
+      {
+        path: "apps/api/src/api.ts#getOpsBrainSystemSummary",
+        role: "implementation-contract",
+        required: true
+      }
+    ],
     phases: [
       {
         id: "opsbrain-mvp",
@@ -13649,6 +13666,51 @@ function getOpsBrainSystemSummary(): OpsLensAdminOverviewResponse["opsBrain"] {
         passFail: "PASS when unapproved delete/patch/scale/apply/admission actions are blocked"
       }
     ],
+    acceptanceCriteria: [
+      {
+        id: "AC-OPSBRAIN-001",
+        sourceCriterion: "No-fine-tuning growth system",
+        pass:
+          "OpsBrain exposes Tool Layer, memory tiers, evaluator, self-improver, and risk gate as one read-only/plan-only system contract.",
+        measurement:
+          "npm run verify:opsbrain checks the product document, API summary, dashboard surface, acceptance matrix, mutation boundary, and secret redaction.",
+        evidence: [
+          "kugnus-idea/Cywell-OpsBrain/cywell-opsbrain.md",
+          "GET /api/opslens/admin/overview opsBrain",
+          "test-results/cywell-opslens-opsbrain-contract.json"
+        ],
+        currentGap:
+          "Live OCP RBAC proof, production memory store, and 20 scored golden cases remain external/local evidence gates.",
+        status: "needs-evidence"
+      },
+      {
+        id: "AC-OPSBRAIN-002",
+        sourceCriterion: "Reviewed operating memory",
+        pass:
+          "Memory writes require provenance, human review, redaction, and cannot write raw documents, vectors, or graph state by default.",
+        measurement:
+          "Admin overview memoryWriteGuard plus RAG approval queue evidence must report rawMemoryWriteAllowed=false, vectorWriteAllowed=false, graphWriteAllowed=false.",
+        evidence: [
+          "RAG approval queue metadata-only contract",
+          "opsBrain.memoryWriteGuard"
+        ],
+        currentGap:
+          "Production DB-backed approval queue and vector write audit sink are not live yet.",
+        status: "needs-evidence"
+      },
+      {
+        id: "AC-OPSBRAIN-003",
+        sourceCriterion: "Evaluator-gated self improvement",
+        pass:
+          "Self-improver outputs candidate prompt, retrieval, rule, and eval updates only; no automatic fine-tuning or policy mutation is allowed.",
+        measurement:
+          "verify:opsbrain checks selfImprover.mode=proposal-only, automaticFineTuningAllowed=false, and automaticPolicyMutationAllowed=false.",
+        evidence: ["opsBrain.selfImprover", "verify:completion"],
+        currentGap:
+          "Nightly DSPy/Ragas/OpenAI Evals pipeline and 20-case golden set are planned, not production evidence.",
+        status: "planned"
+      }
+    ],
     toolLayer: {
       defaultMode: "readOnly",
       allowedVerbs: ["get", "list", "watch", "describe", "logs", "events", "auth can-i"],
@@ -13711,6 +13773,66 @@ function getOpsBrainSystemSummary(): OpsLensAdminOverviewResponse["opsBrain"] {
       evidence: [
         "MVP responses are read-only or plan-only",
         "Operator runtime boundary keeps live mutations behind explicit approval"
+      ]
+    },
+    memoryWriteGuard: {
+      mode: "reviewed-writes-only",
+      rawMemoryWriteAllowed: false,
+      vectorWriteAllowed: false,
+      graphWriteAllowed: false,
+      provenanceRequired: true,
+      reviewerRequired: true,
+      allowedTargets: [
+        "metadata-only approval queue items",
+        "redacted validation evidence exports",
+        "plan-only ingestion job artifacts",
+        "reviewed Markdown incident/playbook proposals"
+      ],
+      blockedTargets: [
+        "raw customer documents",
+        "unreviewed vector writes",
+        "unreviewed GraphRAG/Neo4j graph writes",
+        "secret values or kubeconfig material",
+        "cluster resources"
+      ],
+      evidence: [
+        "RAG validation returns metadata/redacted chunks only",
+        "approval queue submission defaults to designOnly",
+        "ingestion plans are plan-only and keep vectorWriteAllowed=false"
+      ],
+      missingEvidence: [
+        "production memory store reviewer identity",
+        "append-only vector write audit sink",
+        "GraphRAG poisoning/provenance review workflow"
+      ]
+    },
+    selfImprover: {
+      mode: "proposal-only",
+      automaticFineTuningAllowed: false,
+      automaticPolicyMutationAllowed: false,
+      nightlyLoopPlanned: true,
+      candidateOutputs: [
+        "retrieval query rewrite candidates",
+        "tool ordering candidates",
+        "prompt/instruction candidates",
+        "risk rule candidates",
+        "new golden eval cases from incident failures"
+      ],
+      reviewGate: [
+        "fixed eval set must pass",
+        "dangerous-command block rate must remain 100%",
+        "human reviewer must approve policy/retrieval changes",
+        "release evidence bundle must remain same-head and clean"
+      ],
+      evidence: [
+        "release action queue is owner-scoped and non-mutating",
+        "completion gate fails closed until evidence is current",
+        "OpsBrain does not require or trigger fine-tuning"
+      ],
+      missingEvidence: [
+        "nightly batch runner",
+        "DSPy/Ragas/OpenAI Evals scoring output",
+        "approved prompt/retrieval/rule promotion workflow"
       ]
     },
     credentialRequirements: [

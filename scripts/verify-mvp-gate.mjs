@@ -85,6 +85,14 @@ const steps = [
     purpose: "Verify the hybrid runtime RAG success path against mock vLLM embeddings and Qdrant redacted snippet search."
   },
   {
+    id: "OPSBRAIN",
+    command: "npm",
+    args: ["run", "verify:opsbrain"],
+    acceptance: ["AC-OPSBRAIN-001", "AC-DASH-001", "AC-SAFE-001"],
+    purpose:
+      "Verify the no-fine-tuning OpsBrain growth contract across the source plan, API summary, dashboard surface, acceptance matrix, and read-only safety boundary."
+  },
+  {
     id: "AIOPS-INCIDENT-PIPELINE",
     command: "npm",
     args: ["run", "verify:aiops"],

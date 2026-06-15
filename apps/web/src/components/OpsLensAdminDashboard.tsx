@@ -608,6 +608,75 @@ export function OpsLensAdminDashboard() {
             </article>
           </div>
 
+          <div className="opsbrain-contract-row">
+            <article className="opsbrain-panel">
+              <div className="card-title-row">
+                <h4>
+                  <CheckCircle2 size={16} aria-hidden="true" />
+                  Acceptance
+                </h4>
+                <span>{opsBrain.acceptanceCriteria.length} gates</span>
+              </div>
+              <div className="opsbrain-contract-list">
+                {opsBrain.acceptanceCriteria.map((criterion) => (
+                  <div key={criterion.id}>
+                    <span className={`status-pill ${criterion.status === "pass" ? "ready" : criterion.status === "needs-evidence" ? "warning" : "read-only"}`}>
+                      {criterion.status}
+                    </span>
+                    <strong>{criterion.id}</strong>
+                    <small>{criterion.pass}</small>
+                    <small>{criterion.measurement}</small>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="opsbrain-panel">
+              <div className="card-title-row">
+                <h4>
+                  <FileDiff size={16} aria-hidden="true" />
+                  Memory Write Guard
+                </h4>
+                <span>{opsBrain.memoryWriteGuard.mode}</span>
+              </div>
+              <div className="opsbrain-safety-grid">
+                <span>rawMemoryWrite={String(opsBrain.memoryWriteGuard.rawMemoryWriteAllowed)}</span>
+                <span>vectorWrite={String(opsBrain.memoryWriteGuard.vectorWriteAllowed)}</span>
+                <span>graphWrite={String(opsBrain.memoryWriteGuard.graphWriteAllowed)}</span>
+                <span>reviewerRequired={String(opsBrain.memoryWriteGuard.reviewerRequired)}</span>
+              </div>
+              <div className="opsbrain-chip-list">
+                {opsBrain.memoryWriteGuard.blockedTargets.slice(0, 5).map((target) => (
+                  <span key={target}>{target}</span>
+                ))}
+              </div>
+            </article>
+
+            <article className="opsbrain-panel">
+              <div className="card-title-row">
+                <h4>
+                  <Activity size={16} aria-hidden="true" />
+                  Self-Improver
+                </h4>
+                <span>{opsBrain.selfImprover.mode}</span>
+              </div>
+              <div className="opsbrain-safety-grid">
+                <span>
+                  fineTuning={String(opsBrain.selfImprover.automaticFineTuningAllowed)}
+                </span>
+                <span>
+                  policyMutation={String(opsBrain.selfImprover.automaticPolicyMutationAllowed)}
+                </span>
+                <span>nightlyLoop={String(opsBrain.selfImprover.nightlyLoopPlanned)}</span>
+              </div>
+              <div className="opsbrain-chip-list">
+                {opsBrain.selfImprover.candidateOutputs.slice(0, 5).map((output) => (
+                  <span key={output}>{output}</span>
+                ))}
+              </div>
+            </article>
+          </div>
+
           <div className="opsbrain-credential-panel">
             <div className="card-title-row">
               <h4>
