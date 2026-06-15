@@ -3738,6 +3738,62 @@ function criticalPathTicketIds(entry) {
   ].filter(Boolean));
 }
 
+function criticalPathTicketPackets(entry) {
+  return [
+    entry.ticketPacket,
+    entry.externalRuntimeTicketPacket,
+    entry.externalRuntimeFinalEvidenceTicketPacket,
+    entry.externalRuntimeProductTicketPacket,
+    entry.securityReviewTicketPacket,
+    entry.releasePublishTicketPacket,
+    entry.installApprovalTicketPacket,
+    entry.catalogToolchainTicketPacket,
+    entry.certificationToolingTicketPacket,
+    entry.ragProductionTicketPacket,
+    entry.aiopsMonitoringTicketPacket,
+    entry.runtimeEvidenceTicketPacket
+  ].filter(Boolean);
+}
+
+function criticalPathUnsafeTicketBoundaries(entry) {
+  return criticalPathTicketPackets(entry).flatMap((ticket) => {
+    const reasons = [];
+    const firstReadOnly = ticket.firstReadOnlyAction;
+    const approvalGated = ticket.approvalGatedAction;
+    const boundary = ticket.mutationBoundary ?? {};
+    if (firstReadOnly?.mutation === true) {
+      reasons.push("first-read-only-mutates");
+    }
+    if (firstReadOnly?.requiresExplicitApproval === true) {
+      reasons.push("first-read-only-requires-approval");
+    }
+    if (boundary.clusterMutationAttempted === true) {
+      reasons.push("cluster-mutation-attempted");
+    }
+    if (boundary.registryMutationAttempted === true) {
+      reasons.push("registry-mutation-attempted");
+    }
+    if (boundary.mutationAllowedByThisVerifier === true) {
+      reasons.push("mutation-allowed-by-verifier");
+    }
+    if (boundary.vectorWriteAttempted === true) {
+      reasons.push("vector-write-attempted");
+    }
+    if (boundary.ingestionJobCreated === true) {
+      reasons.push("ingestion-job-created");
+    }
+    if (
+      approvalGated?.mutation === true &&
+      approvalGated.requiresExplicitApproval !== true
+    ) {
+      reasons.push("approval-mutation-without-explicit-approval");
+    }
+    return reasons.length > 0
+      ? [`${entry.lane}:${ticket.id ?? "unknown"}:${reasons.join("+")}`]
+      : [];
+  });
+}
+
 function buildOwnerPackets(owners, items) {
   return owners.map((owner) => {
     const entries = items.filter((entry) => entry.owner === owner.owner);
@@ -4414,6 +4470,20 @@ async function main() {
     pass(
       "release action queue ticket coverage",
       `${releaseCriticalPath.length} critical path lane(s) carry ticket packet(s)`
+    );
+  }
+  const unsafeCriticalPathTicketBoundaries = releaseCriticalPath.flatMap((entry) =>
+    criticalPathUnsafeTicketBoundaries(entry)
+  );
+  if (unsafeCriticalPathTicketBoundaries.length > 0) {
+    fail(
+      "release action queue ticket boundary",
+      unsafeCriticalPathTicketBoundaries.join(",")
+    );
+  } else {
+    pass(
+      "release action queue ticket boundary",
+      `${releaseCriticalPath.length} critical path lane(s) keep ticket first actions read-only and mutations approval-gated`
     );
   }
 

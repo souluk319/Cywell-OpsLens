@@ -5082,6 +5082,57 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       ) ?? [];
     expect(criticalPathTicketIds.length).toBeGreaterThan(0);
     expect(criticalPathTicketIds.every((ids) => ids.length > 0)).toBe(true);
+    const criticalPathTicketPackets = (body.installReadiness?.actionQueue?.criticalPath?.flatMap(
+      (entry) =>
+        [
+          entry.ticketPacket,
+          entry.externalRuntimeTicketPacket,
+          entry.externalRuntimeFinalEvidenceTicketPacket,
+          entry.externalRuntimeProductTicketPacket,
+          entry.securityReviewTicketPacket,
+          entry.releasePublishTicketPacket,
+          entry.installApprovalTicketPacket,
+          entry.catalogToolchainTicketPacket,
+          entry.certificationToolingTicketPacket,
+          entry.ragProductionTicketPacket,
+          entry.aiopsMonitoringTicketPacket,
+          entry.runtimeEvidenceTicketPacket
+        ].filter(Boolean)
+    ) ?? []) as Array<{
+      firstReadOnlyAction?: {
+        mutation?: boolean;
+        requiresExplicitApproval?: boolean;
+      };
+      approvalGatedAction?: {
+        mutation?: boolean;
+        requiresExplicitApproval?: boolean;
+      };
+      mutationBoundary?: {
+        clusterMutationAttempted?: boolean;
+        registryMutationAttempted?: boolean;
+        mutationAllowedByThisVerifier?: boolean;
+        vectorWriteAttempted?: boolean;
+        ingestionJobCreated?: boolean;
+      };
+    }>;
+    expect(criticalPathTicketPackets.length).toBeGreaterThan(0);
+    expect(
+      criticalPathTicketPackets.every((ticket) => {
+        const boundary = ticket.mutationBoundary ?? {};
+        const approvalGated = ticket.approvalGatedAction;
+        return (
+          ticket.firstReadOnlyAction?.mutation !== true &&
+          ticket.firstReadOnlyAction?.requiresExplicitApproval !== true &&
+          boundary.clusterMutationAttempted !== true &&
+          boundary.registryMutationAttempted !== true &&
+          boundary.mutationAllowedByThisVerifier !== true &&
+          boundary.vectorWriteAttempted !== true &&
+          boundary.ingestionJobCreated !== true &&
+          (approvalGated?.mutation !== true ||
+            approvalGated.requiresExplicitApproval === true)
+        );
+      })
+    ).toBe(true);
     const runtimeLiveCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "runtime-live"
