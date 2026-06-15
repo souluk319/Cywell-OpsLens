@@ -4852,6 +4852,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "runtime-rag-quality",
         "external-runtime-review",
         "external-runtime-final-evidence",
+        "external-runtime-license-review",
         "catalog-registry-auth",
         "release-publish",
         "install-approval"
@@ -5336,6 +5337,54 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "external-runtime-final-evidence",
         "external-runtime-review-packet",
         "external-runtime-command-boundary"
+      ])
+    );
+    const productOwnerLicenseActions =
+      body.installReadiness?.actionQueue?.items?.filter(
+        (item) =>
+          item.owner === "product-owner" &&
+          item.nextCommand?.includes("--license-status approved")
+      ) ?? [];
+    expect(productOwnerLicenseActions.length).toBeGreaterThan(0);
+    expect(
+      productOwnerLicenseActions.every((item) =>
+        item.diagnostics?.some(
+          (diagnostic) => diagnostic.id === "external-runtime-license-review"
+        )
+      )
+    ).toBe(true);
+    expect(
+      productOwnerLicenseActions.every((item) =>
+        item.diagnostics?.some(
+          (diagnostic) => diagnostic.id === "external-runtime-product-boundary"
+        )
+      )
+    ).toBe(true);
+    const externalRuntimeLicenseCriticalPath =
+      body.installReadiness?.actionQueue?.criticalPath?.find(
+        (entry) => entry.lane === "external-runtime-license-review"
+      );
+    expect(externalRuntimeLicenseCriticalPath?.owner).toBe("product-owner");
+    expect(externalRuntimeLicenseCriticalPath?.actionId).toMatch(
+      /external-runtime-(vllm|qdrant)-product-owner-\d+/
+    );
+    expect(externalRuntimeLicenseCriticalPath?.source).toMatch(
+      /^externalRuntimeReviewPacket:(vllm|qdrant)$/
+    );
+    expect(externalRuntimeLicenseCriticalPath?.nextCommand).toContain(
+      "--license-status approved"
+    );
+    expect(externalRuntimeLicenseCriticalPath?.readOnlyCommandIds).toEqual(
+      expect.arrayContaining([
+        "refresh-external-runtime-drafts",
+        "verify-external-runtime-plan"
+      ])
+    );
+    expect(externalRuntimeLicenseCriticalPath?.diagnostics).toEqual(
+      expect.arrayContaining([
+        "external-runtime-review-state",
+        "external-runtime-license-review",
+        "external-runtime-product-boundary"
       ])
     );
     const releasePublishAction =
@@ -7636,6 +7685,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("verify:external-runtime-plan");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("external-runtime-license-review");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("product-owner");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("--license-status approved");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("catalog-registry-auth");
