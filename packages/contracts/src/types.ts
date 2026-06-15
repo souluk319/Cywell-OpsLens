@@ -1133,6 +1133,7 @@ export interface OpsLensRuntimeLiveHandoffAction {
   evidenceNeeded: string;
   readOnlyCommandIds: string[];
   blockedBy: string[];
+  runtimeEvidenceTicketPacket?: OpsLensRuntimeEvidenceTicketPacket;
   diagnostics: Array<{
     id: string;
     label: string;

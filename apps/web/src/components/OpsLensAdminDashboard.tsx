@@ -92,6 +92,20 @@ function shortTime(value: string) {
   }).format(new Date(value));
 }
 
+function runtimeEvidenceTicketText(action: OpsLensRuntimeLiveHandoffAction) {
+  const ticket = action.runtimeEvidenceTicketPacket;
+  if (!ticket) return "runtime evidence ticket missing";
+  return [
+    ticket.id,
+    ticket.owner,
+    `first=${ticket.firstReadOnlyAction.id}`,
+    `approval=${ticket.approvalGatedAction.id}`,
+    `requiresApproval=${String(ticket.approvalGatedAction.requiresExplicitApproval)}`,
+    `mutationAllowed=${String(ticket.mutationBoundary.mutationAllowedByThisVerifier)}`,
+    `liveProbeRequiresApproval=${String(ticket.mutationBoundary.liveProbeRequiresExplicitApproval)}`
+  ].join(":");
+}
+
 export function OpsLensAdminDashboard() {
   const [overview, setOverview] = useState<OpsLensAdminOverviewResponse | null>(
     null
@@ -1076,6 +1090,24 @@ export function OpsLensAdminDashboard() {
               ))
             ) : (
               <span>runtime live handoff clear</span>
+            )}
+          </div>
+          <div
+            className="admin-evidence-line"
+            data-testid="opslens-runtime-live-handoff-tickets"
+          >
+            {runtimeLiveHandoffActions.some(
+              (action) => action.runtimeEvidenceTicketPacket
+            ) ? (
+              runtimeLiveHandoffActions.map((action) =>
+                action.runtimeEvidenceTicketPacket ? (
+                  <span key={`${action.id}-ticket`}>
+                    {runtimeEvidenceTicketText(action)}
+                  </span>
+                ) : null
+              )
+            ) : (
+              <span>runtime evidence tickets clear</span>
             )}
           </div>
           <div

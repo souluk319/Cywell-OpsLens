@@ -9452,6 +9452,7 @@ function summarizeRuntimeLiveAction(
     evidenceNeeded: action.evidenceNeeded,
     readOnlyCommandIds: action.readOnlyCommands.map((command) => command.id),
     blockedBy: action.blockedBy,
+    runtimeEvidenceTicketPacket: action.runtimeEvidenceTicketPacket,
     diagnostics: action.diagnostics
   };
 }

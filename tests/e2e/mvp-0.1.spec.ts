@@ -1274,11 +1274,37 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             id?: string;
             owner?: string;
             readOnlyCommandIds?: string[];
+            runtimeEvidenceTicketPacket?: {
+              id?: string;
+              owner?: string;
+              firstReadOnlyAction?: { id?: string };
+              approvalGatedAction?: {
+                id?: string;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                mutationAllowedByThisVerifier?: boolean;
+                liveProbeRequiresExplicitApproval?: boolean;
+              };
+            };
           };
           runtimeRagAction?: {
             id?: string;
             owner?: string;
             readOnlyCommandIds?: string[];
+            runtimeEvidenceTicketPacket?: {
+              id?: string;
+              owner?: string;
+              firstReadOnlyAction?: { id?: string };
+              approvalGatedAction?: {
+                id?: string;
+                requiresExplicitApproval?: boolean;
+              };
+              mutationBoundary?: {
+                mutationAllowedByThisVerifier?: boolean;
+                liveProbeRequiresExplicitApproval?: boolean;
+              };
+            };
           };
           requiredReadOnlyCommands?: string[];
           approvalGatedCommandCount?: number;
@@ -3878,6 +3904,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.runtime?.liveHandoff?.runtimeReadinessAction?.readOnlyCommandIds
     ).toEqual(expect.arrayContaining(["runtime-readiness-live"]));
+    expect(
+      body.runtime?.liveHandoff?.runtimeReadinessAction
+        ?.runtimeEvidenceTicketPacket
+    ).toMatchObject({
+      id: "runtime-platform-live-runtime-evidence-ticket",
+      owner: "runtime-platform",
+      firstReadOnlyAction: { id: "runtime-readiness-live" },
+      approvalGatedAction: {
+        id: "none",
+        requiresExplicitApproval: false
+      },
+      mutationBoundary: {
+        mutationAllowedByThisVerifier: false,
+        liveProbeRequiresExplicitApproval: true
+      }
+    });
     expect(body.runtime?.liveHandoff?.runtimeRagAction).toMatchObject({
       id: "data-ml-engineer-prove-runtime-rag-live-quality",
       owner: "data-ml-engineer"
@@ -3887,6 +3929,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining(["runtime-rag-contract", "runtime-rag-fixture"])
     );
+    expect(
+      body.runtime?.liveHandoff?.runtimeRagAction?.runtimeEvidenceTicketPacket
+    ).toMatchObject({
+      id: "data-ml-runtime-rag-quality-ticket",
+      owner: "data-ml-engineer",
+      firstReadOnlyAction: { id: "runtime-rag-fixture" },
+      approvalGatedAction: {
+        id: "none",
+        requiresExplicitApproval: false
+      },
+      mutationBoundary: {
+        mutationAllowedByThisVerifier: false,
+        liveProbeRequiresExplicitApproval: true
+      }
+    });
     expect(body.runtime?.liveHandoff?.requiredReadOnlyCommands).toEqual(
       expect.arrayContaining([
         "runtime-readiness-live",
@@ -8012,6 +8069,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-runtime-live-handoff-actions")
     ).toContainText("runtime-rag-fixture");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-tickets")
+    ).toContainText("runtime-platform-live-runtime-evidence-ticket");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-tickets")
+    ).toContainText("data-ml-runtime-rag-quality-ticket");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-tickets")
+    ).toContainText("first=runtime-rag-fixture");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-tickets")
+    ).toContainText("liveProbeRequiresApproval=true");
+    await expect(
+      page.getByTestId("opslens-runtime-live-handoff-tickets")
+    ).toContainText("mutationAllowed=false");
     await expect(
       page.getByTestId("opslens-runtime-live-evidence-handoff")
     ).toContainText("qdrant");
