@@ -7960,6 +7960,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "<redacted-ocp-api>"
     );
     await expect(
+      page.getByTestId("opslens-ocp-credential-hygiene")
+    ).toContainText(
+      body.installReadiness?.connectivity?.credentialHygiene
+        ?.credentialDiagnosis ?? "unknown"
+    );
+    await expect(
+      page.getByTestId("opslens-ocp-credential-hygiene")
+    ).toContainText("tokenRedacted=true");
+    await expect(
+      page.getByTestId("opslens-ocp-credential-hygiene")
+    ).toContainText("storedByVerifier=false");
+    await expect(
       page.getByTestId("opslens-ocp-connectivity-rbac")
     ).toContainText("can-i-list-pods");
     await expect(

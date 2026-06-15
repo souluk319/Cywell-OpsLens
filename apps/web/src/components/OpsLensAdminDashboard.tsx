@@ -2019,6 +2019,37 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-ocp-credential-hygiene"
+              >
+                <span>
+                  diagnosis=
+                  {ocpConnectivity.credentialHygiene.credentialDiagnosis}
+                </span>
+                <span>
+                  localFormatIssue=
+                  {String(ocpConnectivity.credentialHygiene.localFormatIssue)}
+                </span>
+                <span>
+                  source={ocpConnectivity.credentialHygiene.tokenSource}
+                </span>
+                <span>
+                  lengthClass=
+                  {ocpConnectivity.credentialHygiene.tokenLengthClass}
+                </span>
+                <span>
+                  storedByVerifier=
+                  {String(
+                    ocpConnectivity.credentialHygiene
+                      .credentialStoredByVerifier
+                  )}
+                </span>
+                <span>
+                  tokenRedacted=
+                  {String(ocpConnectivity.credentialHygiene.tokenValueRedacted)}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-ocp-connectivity-rbac"
               >
                 {ocpConnectivity.diagnostics.rbacAccessReviews.length ? (
