@@ -4363,9 +4363,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.approvalPlan?.firstApprovalActions?.some(
         (action) =>
           action.mutation === false &&
-          action.nextCommand?.match(/verify:|git status|ocp:connectivity/)
+          action.nextCommand?.match(
+            /verify:|git status|ocp:connectivity|evidence:ocp-auth-rbac-plan/
+          )
       )
     ).toBe(true);
+    const installAuthRbacFirstAction =
+      body.installReadiness?.approvalPlan?.firstApprovalActions?.find(
+        (action) =>
+          action.evidenceNeeded?.match(/classification=auth|owner=cluster-admin/i) ||
+          action.nextCommand?.includes("evidence:ocp-auth-rbac-plan")
+      );
+    if (installAuthRbacFirstAction) {
+      expect(installAuthRbacFirstAction).toMatchObject({
+        owner: "cluster-admin",
+        mutation: false,
+        requiresExplicitApproval: false
+      });
+      expect(installAuthRbacFirstAction.nextCommand).toContain(
+        "evidence:ocp-auth-rbac-plan"
+      );
+    }
     expect(
       body.installReadiness?.approvalPlan?.firstApprovalActions?.some(
         (action) =>
@@ -8252,7 +8270,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("clusterMutationAttempted=false");
     await expect(
       page.getByTestId("opslens-install-first-approval-actions")
-    ).toContainText(/verify:|ocp:connectivity|git status/);
+    ).toContainText(/verify:|ocp:connectivity|git status|evidence:ocp-auth-rbac-plan/);
+    if (installAuthRbacFirstAction) {
+      await expect(
+        page.getByTestId("opslens-install-first-approval-actions")
+      ).toContainText("evidence:ocp-auth-rbac-plan");
+    }
     await expect(
       page.getByTestId("opslens-install-first-approval-actions")
     ).toContainText("approval-gated-");

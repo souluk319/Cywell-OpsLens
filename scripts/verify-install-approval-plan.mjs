@@ -382,6 +382,7 @@ function buildApprovalChecklist({
     evidenceDirty(lightspeedReadiness) === false &&
     evidenceHeadMatches(lightspeedReadiness, currentHeadSha) &&
     lightspeedReadiness?.policy?.clusterMutationAttempted === false;
+  const lightspeedCurrentGap = lightspeedReadiness?.currentGap ?? {};
   const actualImageBuildEvidenceReady =
     image?.status === "PASS" &&
     evidenceDirty(image) === false &&
@@ -447,7 +448,10 @@ function buildApprovalChecklist({
         `Lightspeed readiness status=${evidenceStatus(lightspeedReadiness)} ` +
         `dirty=${String(evidenceDirty(lightspeedReadiness) ?? "unknown")} ` +
         `head=${evidenceHeadSha(lightspeedReadiness) ?? "unknown"} currentHead=${currentHeadSha} ` +
-        `clusterMutationAttempted=${String(lightspeedReadiness?.policy?.clusterMutationAttempted ?? "unknown")}`
+        `clusterMutationAttempted=${String(lightspeedReadiness?.policy?.clusterMutationAttempted ?? "unknown")} ` +
+        `classification=${lightspeedCurrentGap.classification ?? "unknown"} ` +
+        `owner=${lightspeedCurrentGap.owner ?? "unknown"} ` +
+        `next=${lightspeedCurrentGap.nextCommand ?? "unknown"}`
     },
     {
       id: "image-build-evidence",
@@ -532,10 +536,37 @@ const checklistActionMap = {
   }
 };
 
+function lightspeedReadinessActionFromEvidence(evidence) {
+  if (/owner=cluster-admin|classification=(auth-failed|auth-or-rbac|token-missing)/i.test(evidence)) {
+    return {
+      owner: "cluster-admin",
+      nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+      request:
+        "Resolve OCP credential or read-only RBAC evidence before install approval can rely on Lightspeed readiness."
+    };
+  }
+  if (/classification=tls|tls-handshake|certificate/i.test(evidence)) {
+    return {
+      owner: "cluster-sre",
+      nextCommand: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
+      request:
+        "Resolve OCP TLS or trust evidence before install approval can rely on Lightspeed readiness."
+    };
+  }
+  return checklistActionMap["lightspeed-readiness-gap-known"];
+}
+
+function checklistActionFor(item) {
+  if (item.id === "lightspeed-readiness-gap-known") {
+    return lightspeedReadinessActionFromEvidence(item.evidence);
+  }
+  return checklistActionMap[item.id];
+}
+
 function firstApprovalActions(checklist, commands) {
   const openChecklistItems = checklist.filter((item) => item.status !== "pass");
   const checklistActions = openChecklistItems.slice(0, 3).map((item) => {
-    const mapped = checklistActionMap[item.id] ?? {
+    const mapped = checklistActionFor(item) ?? {
       owner: "cluster-admin",
       nextCommand: "npm run verify:install-plan",
       request: `Refresh install approval evidence for ${item.id}.`
