@@ -6262,6 +6262,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         requiresExplicitApproval: true
       }
     });
+    expect(
+      securityReviewAction?.securityReviewTicketPacket?.nextCommands?.join(" ")
+    ).toContain("evidence:security-review:promote");
     const securityReviewCriticalPath =
       body.installReadiness?.actionQueue?.criticalPath?.find(
         (entry) => entry.lane === "security-review"

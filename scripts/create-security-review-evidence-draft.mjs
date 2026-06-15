@@ -309,7 +309,7 @@ async function buildDraft() {
     nextSteps: [
       "Review the vulnerability report, SBOM, and release/security ticket.",
       `If review passes, rerun this draft with --name ${options.name} --reviewer <security-reviewer> --ticket <security-ticket> --decision approved --force.`,
-      `Only after review, create ${options.name}-security-review.json with artifactType=opslens.security-review.v0.1.`,
+      `Only after review, run npm run evidence:security-review:promote -- --name ${options.name} --promote-reviewed --reviewer <security-reviewer> --review-ticket <security-ticket> --force.`,
       "Regenerate npm run verify:security-scan-plan, verify:evidence-checkpoint, and verify:release-evidence-bundle from the same clean Git HEAD."
     ],
     risk: [

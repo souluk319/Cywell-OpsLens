@@ -762,6 +762,7 @@ function securityReviewTicketPackets(images, commands) {
         },
         nextCommands: uniqueSanitized([
           nextReviewCommand,
+          `npm run evidence:security-review:promote -- --name ${imageName} --promote-reviewed --reviewer <security-reviewer> --review-ticket <security-ticket> --force`,
           approvalCommand
         ]),
         blockedBy,

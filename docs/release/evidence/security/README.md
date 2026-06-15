@@ -40,7 +40,13 @@ To refresh every image-specific draft packet for the current Git head in one pas
 npm run evidence:security-review:draft -- --all --force
 ```
 
-A human reviewer must still create the final `operator-security-review.json`, `api-security-review.json`, or matching image-specific final file after validating the scan/SBOM inputs.
+A human reviewer must still promote the final `operator-security-review.json`, `api-security-review.json`, or matching image-specific final file after validating the scan/SBOM inputs:
+
+```powershell
+npm run evidence:security-review:promote -- --name operator --promote-reviewed --reviewer <security-reviewer> --review-ticket <security-ticket> --force
+```
+
+Promotion refuses incomplete drafts, stale heads, dirty-worktree drafts, placeholder reviewer/ticket values, missing scan/SBOM evidence, unresolved Critical findings, output paths ending in `.draft.json`, and any registry or cluster mutation flags. It writes only local review-gated evidence and does not sign, push, mirror, install, patch, apply, delete, or scale anything.
 
 ## Docker Fallback Runner
 
