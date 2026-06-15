@@ -5,6 +5,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
+import {
+  sanitizeConfiguredEndpoints,
+  sensitiveEndpointLeakLike
+} from "./lib/evidence-redaction.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -58,7 +62,7 @@ const options = {
 };
 
 function sanitize(value) {
-  return String(value ?? "")
+  return sanitizeConfiguredEndpoints(String(value ?? ""))
     .replace(/--token\s+\S+/gi, "--token <redacted>")
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
     .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>")
@@ -82,7 +86,8 @@ function sanitize(value) {
 }
 
 function endpointLeakLike(value) {
-  return /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/.test(value) ||
+  return sensitiveEndpointLeakLike(value) ||
+    /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/.test(value) ||
     /\b(?:api|console|oauth)[A-Za-z0-9.-]*(?:ocp|openshift)[A-Za-z0-9.-]*\b/i.test(value);
 }
 

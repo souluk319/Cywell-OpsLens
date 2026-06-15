@@ -13,6 +13,43 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
   }
 
+  function configuredEndpointValuesForTest() {
+    const values = new Set<string>();
+    const common = new Set(["true", "false", "0", "1", "yes", "no"]);
+    const localHost = /^(?:localhost|127\.0\.0\.1|0\.0\.0\.0|::1)$/i;
+    const endpointKey =
+      /(?:OCP|OPENSHIFT|KUBE|KUBERNETES|LIGHTSPEED|CYWELL_OPSLENS).*?(?:URL|URI|HOST|HOSTNAME|SERVER|ENDPOINT|BASE_URL)/i;
+    const add = (value?: string) => {
+      const text = String(value ?? "").trim().replace(/^['"]|['"]$/g, "");
+      if (text.length < 8 || common.has(text.toLowerCase())) return;
+      try {
+        const url = new URL(text);
+        if (!localHost.test(url.hostname)) {
+          values.add(text);
+          values.add(url.hostname);
+          values.add(url.host);
+        }
+        return;
+      } catch {
+        if (!localHost.test(text)) values.add(text);
+      }
+    };
+
+    try {
+      for (const line of readFileSync(".env", "utf8").split(/\r?\n/)) {
+        if (line.trim().startsWith("#")) continue;
+        const match = line.match(/^\s*([A-Za-z0-9_]+)\s*=\s*(.*)\s*$/);
+        if (match && endpointKey.test(match[1])) add(match[2]);
+      }
+    } catch {
+      // Test environments do not always provide a local .env file.
+    }
+    for (const [key, value] of Object.entries(process.env)) {
+      if (endpointKey.test(key)) add(value);
+    }
+    return [...values].sort((left, right) => right.length - left.length);
+  }
+
   test("AC-UI-001 keeps alert evidence visible while assistant popover is open", async ({
     page
   }) => {
@@ -3288,6 +3325,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       };
     };
 
+    const overviewPayload = JSON.stringify(body);
+    for (const endpoint of configuredEndpointValuesForTest()) {
+      expect(overviewPayload.includes(endpoint)).toBe(false);
+    }
     expect(body.rag?.documents?.length).toBeGreaterThanOrEqual(3);
     expect(
       body.rag?.documents?.some(

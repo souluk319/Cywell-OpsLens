@@ -4,6 +4,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
+import {
+  sanitizeArtifact,
+  sanitizeConfiguredEndpoints,
+  sensitiveEndpointLeakLike
+} from "./lib/evidence-redaction.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -99,7 +104,7 @@ const checks = [];
 const commandResults = [];
 
 function sanitize(value) {
-  return String(value ?? "")
+  return sanitizeConfiguredEndpoints(String(value ?? ""))
     .replace(/--token\s+\S+/gi, "--token <redacted>")
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
     .replace(/(auth|token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>");
@@ -695,9 +700,13 @@ async function main() {
     checks
   };
 
-  const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
+  const sanitizedArtifact = sanitizeArtifact(artifact, sanitize);
+  const serialized = `${JSON.stringify(sanitizedArtifact, null, 2)}\n`;
   if (/--token\s+(?!<redacted>)\S+/i.test(serialized) || /Bearer\s+(?!<redacted>)[A-Za-z0-9._~+/=-]+/i.test(serialized)) {
     throw new Error("release evidence refresh would include unredacted secret material");
+  }
+  if (sensitiveEndpointLeakLike(serialized)) {
+    throw new Error("release evidence refresh would include an unredacted configured endpoint or private IP");
   }
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");

@@ -6,6 +6,11 @@ import { resolve, dirname } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
+import {
+  sanitizeArtifact,
+  sanitizeConfiguredEndpoints,
+  sensitiveEndpointLeakLike
+} from "./lib/evidence-redaction.mjs";
 
 const execFileAsync = promisify(execFile);
 const startedAt = new Date().toISOString();
@@ -192,7 +197,7 @@ const toolDescriptionContracts = {
 };
 
 function sanitize(value) {
-  return String(value)
+  return sanitizeConfiguredEndpoints(String(value))
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
     .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>")
     .replace(/fixture-secret/gi, "<redacted>");
@@ -635,12 +640,14 @@ async function main() {
     ]
   };
 
+  const sanitizedArtifact = sanitizeArtifact(artifact, sanitize);
+  const serialized = `${JSON.stringify(sanitizedArtifact, null, 2)}\n`;
+  if (sensitiveEndpointLeakLike(serialized)) {
+    throw new Error("Lightspeed tool routing evidence would include an unredacted configured endpoint or private IP");
+  }
+
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
-  await writeFile(
-    resolve(options.evidenceOut),
-    `${JSON.stringify(artifact, null, 2)}\n`,
-    "utf8"
-  );
+  await writeFile(resolve(options.evidenceOut), serialized, "utf8");
 
   for (const check of checks) {
     console.log(`[${check.status}] ${check.name}: ${check.detail}`);

@@ -4,6 +4,11 @@ import { execFile, execFileSync, spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
+import {
+  sanitizeArtifact,
+  sanitizeConfiguredEndpoints,
+  sensitiveEndpointLeakLike
+} from "./lib/evidence-redaction.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -53,7 +58,7 @@ const options = {
 };
 
 function sanitize(value) {
-  return String(value)
+  return sanitizeConfiguredEndpoints(String(value))
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
     .replace(
       /(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi,
@@ -532,12 +537,14 @@ async function main() {
     checks
   };
 
+  const sanitizedArtifact = sanitizeArtifact(artifact, sanitize);
+  const serialized = `${JSON.stringify(sanitizedArtifact, null, 2)}\n`;
+  if (sensitiveEndpointLeakLike(serialized)) {
+    throw new Error("Lightspeed Trojan Horse evidence would include an unredacted configured endpoint or private IP");
+  }
+
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
-  await writeFile(
-    resolve(options.evidenceOut),
-    `${JSON.stringify(artifact, null, 2)}\n`,
-    "utf8"
-  );
+  await writeFile(resolve(options.evidenceOut), serialized, "utf8");
 
   for (const check of checks) {
     console.log(`[${check.status}] ${check.name}: ${check.detail}`);
