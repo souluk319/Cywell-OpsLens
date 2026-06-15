@@ -9510,6 +9510,10 @@ function missingRoadmapCompletionSummary(
     passedRequirements: 0,
     remainingRequirements: 0,
     percentComplete: 0,
+    remainingExternalStateCount: 0,
+    remainingLocalOnlyCount: 0,
+    remainingExternalStateGateIds: [],
+    remainingLocalOnlyGateIds: [],
     remaining: [],
     criticalPathBlockerCount: 0,
     criticalPathBlockers: [],
@@ -9653,6 +9657,12 @@ function getRoadmapCompletionSummary(
         blockedBy: blocker?.blockedBy ?? []
       };
     });
+    const remainingExternalStateGateIds = remainingHandoffs
+      .filter((handoff) => handoff.externalStateRequired)
+      .map((handoff) => handoff.gateId);
+    const remainingLocalOnlyGateIds = remainingHandoffs
+      .filter((handoff) => !handoff.externalStateRequired)
+      .map((handoff) => handoff.gateId);
 
     return {
       status,
@@ -9664,6 +9674,10 @@ function getRoadmapCompletionSummary(
       passedRequirements,
       remainingRequirements: remaining.length,
       percentComplete,
+      remainingExternalStateCount: remainingExternalStateGateIds.length,
+      remainingLocalOnlyCount: remainingLocalOnlyGateIds.length,
+      remainingExternalStateGateIds,
+      remainingLocalOnlyGateIds,
       remaining,
       criticalPathBlockerCount: criticalPathBlockers.length,
       criticalPathBlockers,
@@ -9696,6 +9710,7 @@ function getRoadmapCompletionSummary(
               )
               .join(", ")}`
           : "remaining handoffs=none",
+        `remaining closure boundary externalState=${remainingExternalStateGateIds.length}:${remainingExternalStateGateIds.join("|") || "none"} localOnly=${remainingLocalOnlyGateIds.length}:${remainingLocalOnlyGateIds.join("|") || "none"}`,
         "roadmap completion reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
       ]
     };

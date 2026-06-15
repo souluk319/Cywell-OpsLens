@@ -3477,6 +3477,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           passedRequirements?: number;
           remainingRequirements?: number;
           percentComplete?: number;
+          remainingExternalStateCount?: number;
+          remainingLocalOnlyCount?: number;
+          remainingExternalStateGateIds?: string[];
+          remainingLocalOnlyGateIds?: string[];
           remaining?: Array<{
             stage?: string;
             id?: string;
@@ -5873,6 +5877,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       ? Math.round((roadmapPassed.length / roadmapRequirements.length) * 1000) /
         10
       : 0;
+    const roadmapRemainingHandoffs =
+      body.installReadiness?.roadmapCompletion?.remainingHandoffs ?? [];
+    const roadmapExternalStateHandoffs = roadmapRemainingHandoffs.filter(
+      (entry) => entry.externalStateRequired
+    );
+    const roadmapLocalOnlyHandoffs = roadmapRemainingHandoffs.filter(
+      (entry) => !entry.externalStateRequired
+    );
     expect(body.installReadiness?.roadmapCompletion).toMatchObject({
       actionMode: "roadmapEvidenceOnly",
       artifactStatus: roadmapPlan.status,
@@ -5881,6 +5893,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       passedRequirements: roadmapPassed.length,
       remainingRequirements: roadmapRemaining.length,
       percentComplete: roadmapPercent,
+      remainingExternalStateCount: roadmapExternalStateHandoffs.length,
+      remainingLocalOnlyCount: roadmapLocalOnlyHandoffs.length,
+      remainingExternalStateGateIds: roadmapExternalStateHandoffs.map(
+        (entry) => entry.gateId
+      ),
+      remainingLocalOnlyGateIds: roadmapLocalOnlyHandoffs.map(
+        (entry) => entry.gateId
+      ),
       criticalPathBlockerCount:
         body.installReadiness?.actionQueue?.criticalPath?.length ?? 0,
       mutationBoundaryPassed: true
@@ -9805,6 +9825,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText(
       body.installReadiness?.roadmapCompletion?.remaining?.[0]?.id ?? "none"
     );
+    await expect(
+      page.getByTestId("opslens-roadmap-closure-boundary")
+    ).toContainText(
+      `externalState=${body.installReadiness?.roadmapCompletion?.remainingExternalStateCount}`
+    );
+    await expect(
+      page.getByTestId("opslens-roadmap-closure-boundary")
+    ).toContainText(
+      `localOnly=${body.installReadiness?.roadmapCompletion?.remainingLocalOnlyCount}`
+    );
+    await expect(
+      page.getByTestId("opslens-roadmap-closure-boundary")
+    ).toContainText("externalGates=");
+    await expect(
+      page.getByTestId("opslens-roadmap-closure-boundary")
+    ).toContainText("localGates=");
     await expect(
       page.getByTestId("opslens-roadmap-remaining-handoffs")
     ).toContainText(

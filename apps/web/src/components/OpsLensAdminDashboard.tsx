@@ -1583,6 +1583,25 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-roadmap-closure-boundary"
+              >
+                <span>
+                  externalState={roadmapCompletion.remainingExternalStateCount}
+                </span>
+                <span>localOnly={roadmapCompletion.remainingLocalOnlyCount}</span>
+                <span>
+                  externalGates=
+                  {roadmapCompletion.remainingExternalStateGateIds.join(",") ||
+                    "none"}
+                </span>
+                <span>
+                  localGates=
+                  {roadmapCompletion.remainingLocalOnlyGateIds.join(",") ||
+                    "none"}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-roadmap-remaining-handoffs"
               >
                 {roadmapCompletion.remainingHandoffs.slice(0, 8).map((entry) => (

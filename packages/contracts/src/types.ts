@@ -3532,6 +3532,10 @@ export interface OpsLensRoadmapCompletionSummary {
   passedRequirements: number;
   remainingRequirements: number;
   percentComplete: number;
+  remainingExternalStateCount: number;
+  remainingLocalOnlyCount: number;
+  remainingExternalStateGateIds: string[];
+  remainingLocalOnlyGateIds: string[];
   remaining: Array<{
     stage: string;
     id: string;
