@@ -144,6 +144,20 @@ function credentialHygieneFromConnectivity(artifact) {
   };
 }
 
+function ocContextFromConnectivity(artifact) {
+  const context = artifact?.diagnostics?.ocContext ?? {};
+  return {
+    currentContextSet: context.currentContextSet === true,
+    whoamiAvailable: context.whoamiAvailable === true,
+    showServerAvailable: context.showServerAvailable === true,
+    kubeconfigEnvConfigured: context.kubeconfigEnvConfigured === true,
+    defaultKubeconfigPresent: context.defaultKubeconfigPresent === true,
+    contextStatus: sanitize(context.contextStatus ?? "unknown"),
+    authStatus: sanitize(context.authStatus ?? "unknown"),
+    serverStatus: sanitize(context.serverStatus ?? "unknown")
+  };
+}
+
 async function runCapture(command, args) {
   try {
     const { stdout } = await execFileAsync(command, args, {
@@ -523,6 +537,7 @@ function buildTicketPacket({
   target,
   classification,
   credentialHygiene,
+  ocContext,
   firstNetworkActions,
   sourceArtifacts,
   missingEvidence,
@@ -570,6 +585,11 @@ function buildTicketPacket({
       `credentialDiagnosis=${credentialHygiene.credentialDiagnosis}`,
       `credentialLocalFormatIssue=${String(credentialHygiene.localFormatIssue)}`,
       `tokenValueRedacted=${String(credentialHygiene.tokenValueRedacted)}`,
+      `ocContext=${ocContext.contextStatus}`,
+      `ocAuthenticationStatus=${ocContext.authStatus}`,
+      `ocServer=${ocContext.serverStatus}`,
+      `kubeconfigEnv=${String(ocContext.kubeconfigEnvConfigured)}`,
+      `defaultKubeconfig=${String(ocContext.defaultKubeconfigPresent)}`,
       ...sourceSummary,
       ...adminRequests.slice(0, 3)
     ].map(sanitize),
@@ -607,6 +627,11 @@ function markdownFor(packet) {
     `- Credential diagnosis: ${packet.credentialHygiene.credentialDiagnosis}`,
     `- Credential local format issue: ${String(packet.credentialHygiene.localFormatIssue)}`,
     `- Token value redacted: ${String(packet.credentialHygiene.tokenValueRedacted)}`,
+    `- Current oc context: ${packet.ocContext.contextStatus}`,
+    `- Current oc auth: ${packet.ocContext.authStatus}`,
+    `- Current oc server: ${packet.ocContext.serverStatus}`,
+    `- KUBECONFIG env configured: ${String(packet.ocContext.kubeconfigEnvConfigured)}`,
+    `- Default kubeconfig present: ${String(packet.ocContext.defaultKubeconfigPresent)}`,
     `- Target: ${redactedOcpTarget(target)}`,
     `- DNS: ${redactedAddressText(diagnostics.dns?.addresses ?? [])}`,
     `- TCP: ${diagnostics.tcp?.status ?? "missing"} ${diagnostics.tcp?.error ? `(${diagnostics.tcp.error})` : ""}`,
@@ -713,6 +738,7 @@ async function main() {
   const diagnostics = redactedDiagnostics(artifacts.ocpConnectivity?.diagnostics ?? {});
   const classification = diagnostics.classification ?? "missing";
   const credentialHygiene = credentialHygieneFromConnectivity(artifacts.ocpConnectivity);
+  const ocContext = ocContextFromConnectivity(artifacts.ocpConnectivity);
   const commands = readOnlyCommands(artifacts.ocpConnectivity, artifacts.liveHandoff);
   const unsafeCommands = commandBoundary(commands);
   if (unsafeCommands.length > 0) {
@@ -757,6 +783,7 @@ async function main() {
     target,
     classification,
     credentialHygiene,
+    ocContext,
     firstNetworkActions,
     sourceArtifacts: sources,
     missingEvidence,
@@ -801,6 +828,7 @@ async function main() {
     },
     target,
     credentialHygiene,
+    ocContext,
     diagnostics,
     ownerHint: handoffAudience(classification),
     adminRequests: adminRequestList,

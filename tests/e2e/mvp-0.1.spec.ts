@@ -2417,6 +2417,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               title?: string;
               severity?: string;
               redactedTarget?: string;
+              evidenceChecklist?: string[];
               firstReadOnlyAction?: {
                 id?: string;
                 nextCommand?: string;
@@ -5852,6 +5853,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             requiresExplicitApproval: false
           }
         });
+        expect(
+          clusterAdminOwnerPacket.firstTicketPacket?.evidenceChecklist?.join(" ")
+        ).toMatch(/ocContext=|ocAuthenticationStatus=|ocServer=/);
       }
     }
     expect(
