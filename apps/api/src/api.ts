@@ -2292,6 +2292,33 @@ type ReleasePublishPlanEvidenceArtifact = {
   }>;
   ticketPacket?: OpsLensReleasePublishTicketPacket;
   publishDecisionAction?: OpsLensReleasePublishPlanSummary["publishDecisionAction"];
+  releaseManagerPacket?: {
+    owner?: string;
+    markdownPath?: string;
+    exists?: boolean;
+    ticketId?: string;
+    publishDecisionActionId?: string;
+    status?: string;
+    requiredApprovals?: string[];
+    publishImageCount?: number;
+    firstReadOnlyActionId?: string;
+    humanSetupCommandIds?: string[];
+    approvalGatedActionId?: string;
+    approvalGatedCommandIds?: string[];
+    firstPublishActionIds?: string[];
+    mutatingCommandIds?: string[];
+    humanSecretCommandIds?: string[];
+    missingEvidence?: string[];
+    credentialStoredByVerifier?: boolean;
+    registryLoginExecutedByVerifier?: boolean;
+    releasePublishExecutedByVerifier?: boolean;
+    mutationBoundary?: {
+      clusterMutationAttempted?: boolean;
+      registryMutationAttempted?: boolean;
+      mutationAllowedByThisVerifier?: boolean;
+      publishRequiresExplicitApproval?: boolean;
+    };
+  };
   commands?: ReleasePublishPlanCommandArtifact[];
   risk?: string[];
   rollbackPath?: string[];
@@ -7449,6 +7476,85 @@ function buildReleasePublishDecisionActionSummary({
   };
 }
 
+function mapReleaseManagerPublishPacket({
+  artifactPacket,
+  status,
+  requiredApprovals,
+  publishImageCount,
+  firstPublishActions,
+  ticketPacket,
+  publishDecisionAction,
+  mutatingCommands,
+  missingEvidence
+}: {
+  artifactPacket?: ReleasePublishPlanEvidenceArtifact["releaseManagerPacket"];
+  status: string;
+  requiredApprovals: string[];
+  publishImageCount: number;
+  firstPublishActions: OpsLensReleasePublishPlanSummary["firstPublishActions"];
+  ticketPacket: OpsLensReleasePublishTicketPacket;
+  publishDecisionAction: OpsLensReleasePublishPlanSummary["publishDecisionAction"];
+  mutatingCommands: OpsLensReleasePublishPlanSummary["mutatingCommands"];
+  missingEvidence: string[];
+}): OpsLensReleasePublishPlanSummary["releaseManagerPacket"] {
+  const markdownPath =
+    artifactPacket?.markdownPath ??
+    "test-results/cywell-opslens-release-publish-manager.md";
+
+  return {
+    owner: "release-manager",
+    markdownPath,
+    exists: markdownPath !== "missing" && existsSync(markdownPath),
+    ticketId: artifactPacket?.ticketId ?? ticketPacket.id,
+    publishDecisionActionId:
+      artifactPacket?.publishDecisionActionId ?? publishDecisionAction.id,
+    status: artifactPacket?.status ?? status,
+    requiredApprovals:
+      artifactPacket?.requiredApprovals ?? requiredApprovals,
+    publishImageCount:
+      artifactPacket?.publishImageCount ?? publishImageCount,
+    firstReadOnlyActionId:
+      artifactPacket?.firstReadOnlyActionId ??
+      ticketPacket.firstReadOnlyAction.id,
+    humanSetupCommandIds:
+      artifactPacket?.humanSetupCommandIds ??
+      publishDecisionAction.humanSetupCommandIds,
+    approvalGatedActionId:
+      artifactPacket?.approvalGatedActionId ??
+      ticketPacket.approvalGatedAction.id,
+    approvalGatedCommandIds:
+      artifactPacket?.approvalGatedCommandIds ??
+      publishDecisionAction.approvalGatedCommandIds,
+    firstPublishActionIds:
+      artifactPacket?.firstPublishActionIds ??
+      firstPublishActions.map((action) => action.id),
+    mutatingCommandIds:
+      artifactPacket?.mutatingCommandIds ??
+      mutatingCommands.map((command) => command.id),
+    humanSecretCommandIds:
+      artifactPacket?.humanSecretCommandIds ??
+      publishDecisionAction.humanSetupCommandIds,
+    missingEvidence: artifactPacket?.missingEvidence ?? missingEvidence,
+    credentialStoredByVerifier:
+      artifactPacket?.credentialStoredByVerifier === true,
+    registryLoginExecutedByVerifier:
+      artifactPacket?.registryLoginExecutedByVerifier === true,
+    releasePublishExecutedByVerifier:
+      artifactPacket?.releasePublishExecutedByVerifier === true,
+    mutationBoundary: {
+      clusterMutationAttempted:
+        artifactPacket?.mutationBoundary?.clusterMutationAttempted === true,
+      registryMutationAttempted:
+        artifactPacket?.mutationBoundary?.registryMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        artifactPacket?.mutationBoundary?.mutationAllowedByThisVerifier === true,
+      publishRequiresExplicitApproval:
+        artifactPacket?.mutationBoundary?.publishRequiresExplicitApproval ??
+        ticketPacket.mutationBoundary.publishRequiresExplicitApproval
+    }
+  };
+}
+
 function getReleasePublishPlanReadiness(): {
   status: OpsLensReleasePublishReadiness;
   evidence: string[];
@@ -7561,6 +7667,44 @@ function getReleasePublishPlanReadiness(): {
           registryMutationAttempted: false,
           mutationAllowedByThisVerifier: false,
           publishRequiresExplicitApproval: true
+        },
+        releaseManagerPacket: {
+          owner: "release-manager",
+          markdownPath:
+            "test-results/cywell-opslens-release-publish-manager.md",
+          exists: existsSync(
+            "test-results/cywell-opslens-release-publish-manager.md"
+          ),
+          ticketId: "release-manager-release-publish-ticket",
+          publishDecisionActionId:
+            "release-manager-release-publish-decision",
+          status: "needs-evidence",
+          requiredApprovals: [
+            "release-manager",
+            "registry-admin",
+            "security-reviewer",
+            "product-owner"
+          ],
+          publishImageCount: 0,
+          firstReadOnlyActionId: "generate-release-publish-plan",
+          humanSetupCommandIds: [],
+          approvalGatedActionId: "approval-gated-release-publish",
+          approvalGatedCommandIds: ["approval-gated-release-publish"],
+          firstPublishActionIds: ["generate-release-publish-plan"],
+          mutatingCommandIds: [],
+          humanSecretCommandIds: [],
+          missingEvidence: [
+            `release publish plan evidence is missing at ${evidencePath}`
+          ],
+          credentialStoredByVerifier: false,
+          registryLoginExecutedByVerifier: false,
+          releasePublishExecutedByVerifier: false,
+          mutationBoundary: {
+            clusterMutationAttempted: false,
+            registryMutationAttempted: false,
+            mutationAllowedByThisVerifier: false,
+            publishRequiresExplicitApproval: true
+          }
         },
         mutatingCommands: [],
         risk: [
@@ -7676,6 +7820,17 @@ function getReleasePublishPlanReadiness(): {
       missingEvidence: artifact.missingEvidence ?? [],
       artifactDecisionAction: artifact.publishDecisionAction
     });
+    const releaseManagerPacket = mapReleaseManagerPublishPacket({
+      artifactPacket: artifact.releaseManagerPacket,
+      status,
+      requiredApprovals: artifact.requiredApprovals ?? [],
+      publishImageCount: publishImages.length,
+      firstPublishActions,
+      ticketPacket,
+      publishDecisionAction,
+      mutatingCommands,
+      missingEvidence: artifact.missingEvidence ?? []
+    });
 
     return {
       status,
@@ -7691,6 +7846,7 @@ function getReleasePublishPlanReadiness(): {
         firstPublishActions,
         ticketPacket,
         publishDecisionAction,
+        releaseManagerPacket,
         mutatingCommands,
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? [],
@@ -7705,6 +7861,7 @@ function getReleasePublishPlanReadiness(): {
         `release first publish actions=${firstPublishActions.map((action) => `${action.id}:${action.owner}:${action.nextCommand}:mutation=${String(action.mutation)}`).join(", ") || "missing"}`,
         `release publish ticket=${ticketPacket.id}:${ticketPacket.firstReadOnlyAction.id}:approval=${ticketPacket.approvalGatedAction.id}`,
         `release publish decision action=${publishDecisionAction.id}:first=${publishDecisionAction.readOnlyPreflightCommandId}:setup=${publishDecisionAction.humanSetupCommandIds.join(",") || "none"}:approval=${publishDecisionAction.approvalGatedCommandIds.slice(0, 3).join(",") || "none"}:mutationAllowed=${String(publishDecisionAction.mutationAllowed)}:publishRequiresExplicitApproval=${String(publishDecisionAction.publishRequiresExplicitApproval)}`,
+        `release manager packet=${releaseManagerPacket.markdownPath} exists=${String(releaseManagerPacket.exists)} releasePublishExecuted=${String(releaseManagerPacket.releasePublishExecutedByVerifier)} registryMutationAttempted=${String(releaseManagerPacket.mutationBoundary.registryMutationAttempted)}`,
         mutatingCommandNames
           ? `publish commands require explicit approval: ${mutatingCommandNames}`
           : "publish commands are not listed in latest release plan",
@@ -7795,6 +7952,44 @@ function getReleasePublishPlanReadiness(): {
           registryMutationAttempted: false,
           mutationAllowedByThisVerifier: false,
           publishRequiresExplicitApproval: true
+        },
+        releaseManagerPacket: {
+          owner: "release-manager",
+          markdownPath:
+            "test-results/cywell-opslens-release-publish-manager.md",
+          exists: existsSync(
+            "test-results/cywell-opslens-release-publish-manager.md"
+          ),
+          ticketId: "release-manager-release-publish-ticket",
+          publishDecisionActionId:
+            "release-manager-release-publish-decision",
+          status: "failed",
+          requiredApprovals: [
+            "release-manager",
+            "registry-admin",
+            "security-reviewer",
+            "product-owner"
+          ],
+          publishImageCount: 0,
+          firstReadOnlyActionId: "generate-release-publish-plan",
+          humanSetupCommandIds: [],
+          approvalGatedActionId: "approval-gated-release-publish",
+          approvalGatedCommandIds: ["approval-gated-release-publish"],
+          firstPublishActionIds: ["generate-release-publish-plan"],
+          mutatingCommandIds: [],
+          humanSecretCommandIds: [],
+          missingEvidence: [
+            error instanceof Error ? error.message : "unknown evidence parse error"
+          ],
+          credentialStoredByVerifier: false,
+          registryLoginExecutedByVerifier: false,
+          releasePublishExecutedByVerifier: false,
+          mutationBoundary: {
+            clusterMutationAttempted: false,
+            registryMutationAttempted: false,
+            mutationAllowedByThisVerifier: false,
+            publishRequiresExplicitApproval: true
+          }
         },
         mutatingCommands: [],
         risk: [

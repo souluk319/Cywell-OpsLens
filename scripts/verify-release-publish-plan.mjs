@@ -10,6 +10,7 @@ const execFileAsync = promisify(execFile);
 
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-release-publish-plan.json",
+  markdownOut: "test-results/cywell-opslens-release-publish-manager.md",
   imageEvidence: "test-results/cywell-opslens-image-build-readiness.json",
   ownedImageProvenanceEvidence: "test-results/cywell-opslens-owned-image-provenance.json",
   externalRuntimeEvidence: "test-results/cywell-opslens-external-runtime-images-plan.json",
@@ -39,6 +40,7 @@ function parseArgs(argv) {
 const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
   imageEvidence: parsed.get("image-evidence") ?? defaults.imageEvidence,
   ownedImageProvenanceEvidence: parsed.get("owned-image-provenance-evidence") ?? defaults.ownedImageProvenanceEvidence,
   externalRuntimeEvidence: parsed.get("external-runtime-evidence") ?? defaults.externalRuntimeEvidence,
@@ -616,6 +618,149 @@ function buildPublishDecisionAction({ status, missingEvidence, commands, ticketP
   };
 }
 
+function buildReleaseManagerPublishPacket({
+  status,
+  ticketPacket,
+  publishDecisionAction,
+  firstActions,
+  commands,
+  missingEvidence,
+  publishImages
+}) {
+  const approvalGatedCommands = commands.filter(
+    (command) => command.mutation === true
+  );
+  const humanSetupCommands = commands.filter(
+    (command) =>
+      command.credentialSetup === true ||
+      command.requiresHumanSecretInput === true ||
+      command.id === "login-release-registry"
+  );
+
+  return {
+    owner: "release-manager",
+    markdownPath: resolve(options.markdownOut),
+    exists: true,
+    ticketId: ticketPacket.id,
+    publishDecisionActionId: publishDecisionAction.id,
+    status,
+    requiredApprovals: ticketPacket.requiredApprovals,
+    publishImageCount: publishImages.length,
+    firstReadOnlyActionId: ticketPacket.firstReadOnlyAction.id,
+    humanSetupCommandIds: publishDecisionAction.humanSetupCommandIds,
+    approvalGatedActionId: ticketPacket.approvalGatedAction.id,
+    approvalGatedCommandIds: publishDecisionAction.approvalGatedCommandIds,
+    firstPublishActionIds: firstActions.map((action) => action.id),
+    mutatingCommandIds: approvalGatedCommands.map((command) => command.id),
+    humanSecretCommandIds: humanSetupCommands.map((command) => command.id),
+    missingEvidence,
+    credentialStoredByVerifier: false,
+    registryLoginExecutedByVerifier: false,
+    releasePublishExecutedByVerifier: false,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      publishRequiresExplicitApproval: true
+    }
+  };
+}
+
+function releasePublishMarkdownFor(plan) {
+  const packet = plan.releaseManagerPacket;
+  const ticket = plan.ticketPacket;
+  const decision = plan.publishDecisionAction;
+  const readOnlyCommands = plan.commands.filter(
+    (command) =>
+      command.mutation !== true &&
+      command.credentialSetup !== true &&
+      command.requiresHumanSecretInput !== true
+  );
+  const humanSetupCommands = plan.commands.filter(
+    (command) =>
+      command.credentialSetup === true ||
+      command.requiresHumanSecretInput === true ||
+      command.id === "login-release-registry"
+  );
+  const approvalGatedCommands = plan.commands.filter(
+    (command) => command.mutation === true
+  );
+  const lines = [
+    "# Cywell OpsLens Release Publish Manager Packet",
+    "",
+    `Generated: ${plan.generatedAt}`,
+    `Git: ${plan.ref.branch} ${plan.ref.headSha} dirty=${plan.ref.worktreeDirty}`,
+    `Status: ${plan.status}`,
+    "",
+    "## Publish Summary",
+    "",
+    `- Owner: ${packet.owner}`,
+    `- Ticket: ${packet.ticketId}`,
+    `- Decision action: ${packet.publishDecisionActionId}`,
+    `- Required approvals: ${packet.requiredApprovals.join(", ")}`,
+    `- Publish images: ${packet.publishImageCount}`,
+    `- First read-only action: ${packet.firstReadOnlyActionId}`,
+    `- Human setup commands: ${packet.humanSetupCommandIds.join(", ") || "none"}`,
+    `- First approval-gated action: ${packet.approvalGatedActionId}`,
+    "",
+    "## Read-only Preflight",
+    "",
+    ...readOnlyCommands.map(
+      (command) =>
+        `- ${command.id}: ${command.command} mutation=${String(command.mutation)}`
+    ),
+    "",
+    "## Human Secret Setup",
+    "",
+    ...humanSetupCommands.map(
+      (command) =>
+        `- ${command.id}: ${command.command} requiresHumanSecretInput=${String(command.requiresHumanSecretInput)} credentialStoredByVerifier=${String(command.credentialStoredByVerifier)} registryLoginExecutedByVerifier=${String(command.registryLoginExecutedByVerifier)}`
+    ),
+    "",
+    "## Approval-gated Publish Commands",
+    "",
+    ...approvalGatedCommands.map(
+      (command) =>
+        `- ${command.id}: ${command.command} mutation=${String(command.mutation)} requiresExplicitApproval=${String(command.requiresExplicitApproval)}`
+    ),
+    "",
+    "## Decision Boundary",
+    "",
+    `- decisionStatus=${decision.status}`,
+    `- mutationAllowed=${String(decision.mutationAllowed)}`,
+    `- writesLocalEvidence=${String(decision.writesLocalEvidence)}`,
+    `- requiresHumanSecretInput=${String(decision.requiresHumanSecretInput)}`,
+    `- clusterMutationAttempted=${String(packet.mutationBoundary.clusterMutationAttempted)}`,
+    `- registryMutationAttempted=${String(packet.mutationBoundary.registryMutationAttempted)}`,
+    `- mutationAllowedByThisVerifier=${String(packet.mutationBoundary.mutationAllowedByThisVerifier)}`,
+    `- publishRequiresExplicitApproval=${String(packet.mutationBoundary.publishRequiresExplicitApproval)}`,
+    `- credentialStoredByVerifier=${String(packet.credentialStoredByVerifier)}`,
+    `- registryLoginExecutedByVerifier=${String(packet.registryLoginExecutedByVerifier)}`,
+    `- releasePublishExecutedByVerifier=${String(packet.releasePublishExecutedByVerifier)}`,
+    "- This packet does not login to registries, push images, sign images, mirror runtime images, publish catalog images, apply cluster resources, approve InstallPlans, or store credentials.",
+    "",
+    "## Ticket Checklist",
+    "",
+    ...ticket.evidenceChecklist.map((item) => `- ${item}`),
+    "",
+    "## Blocked By",
+    "",
+    ...(packet.missingEvidence.length
+      ? packet.missingEvidence.map((item) => `- ${item}`)
+      : ["- none"]),
+    "",
+    "## Risk",
+    "",
+    ...plan.risk.map((item) => `- ${item}`),
+    "",
+    "## Rollback Path",
+    "",
+    ...plan.rollbackPath.map((item) => `- ${item}`),
+    ""
+  ];
+  return lines.join("\n");
+}
+
 function secretValuesForLeakCheck() {
   return [
     "OCP_API_TOKEN",
@@ -704,6 +849,15 @@ async function buildPlan() {
     ticketPacket,
     publishImages
   });
+  const releaseManagerPacket = buildReleaseManagerPublishPacket({
+    status,
+    ticketPacket,
+    publishDecisionAction,
+    firstActions,
+    commands,
+    missingEvidence,
+    publishImages
+  });
   if (
     ticketPacket.firstReadOnlyAction.mutation === false &&
     ticketPacket.firstReadOnlyAction.requiresExplicitApproval === false &&
@@ -770,6 +924,7 @@ async function buildPlan() {
     firstPublishActions: firstActions,
     ticketPacket,
     publishDecisionAction,
+    releaseManagerPacket,
     commands,
     missingEvidence,
     risk: [
@@ -799,17 +954,29 @@ async function buildPlan() {
 
 async function writePlan(plan) {
   const reportPath = resolve(options.evidenceOut);
+  const markdownPath = resolve(options.markdownOut);
   const initialSerialized = `${JSON.stringify(plan, null, 2)}\n`;
-  if (secretValuesForLeakCheck().some((secret) => initialSerialized.includes(secret))) {
+  const markdown = releasePublishMarkdownFor(plan);
+  if (
+    secretValuesForLeakCheck().some(
+      (secret) => initialSerialized.includes(secret) || markdown.includes(secret)
+    )
+  ) {
     throw new Error("release publish plan would include a configured secret value");
   }
-  pass("release publish plan evidence export", `${reportPath} written without secret material`);
+  pass("release publish plan evidence export", `${reportPath} and ${markdownPath} written without secret material`);
   const serialized = `${JSON.stringify(plan, null, 2)}\n`;
-  if (secretValuesForLeakCheck().some((secret) => serialized.includes(secret))) {
+  if (
+    secretValuesForLeakCheck().some(
+      (secret) => serialized.includes(secret) || markdown.includes(secret)
+    )
+  ) {
     throw new Error("release publish plan would include a configured secret value");
   }
   await mkdir(dirname(reportPath), { recursive: true });
+  await mkdir(dirname(markdownPath), { recursive: true });
   await writeFile(reportPath, serialized);
+  await writeFile(markdownPath, markdown);
 }
 
 function printSummary() {

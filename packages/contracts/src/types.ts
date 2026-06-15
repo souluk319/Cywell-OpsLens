@@ -2988,6 +2988,33 @@ export interface OpsLensReleasePublishPlanSummary {
     mutationAllowedByThisVerifier: boolean;
     publishRequiresExplicitApproval: boolean;
   };
+  releaseManagerPacket: {
+    owner: "release-manager";
+    markdownPath: string;
+    exists: boolean;
+    ticketId: string;
+    publishDecisionActionId: string;
+    status: string;
+    requiredApprovals: string[];
+    publishImageCount: number;
+    firstReadOnlyActionId: string;
+    humanSetupCommandIds: string[];
+    approvalGatedActionId: string;
+    approvalGatedCommandIds: string[];
+    firstPublishActionIds: string[];
+    mutatingCommandIds: string[];
+    humanSecretCommandIds: string[];
+    missingEvidence: string[];
+    credentialStoredByVerifier: boolean;
+    registryLoginExecutedByVerifier: boolean;
+    releasePublishExecutedByVerifier: boolean;
+    mutationBoundary: {
+      clusterMutationAttempted: boolean;
+      registryMutationAttempted: boolean;
+      mutationAllowedByThisVerifier: boolean;
+      publishRequiresExplicitApproval: boolean;
+    };
+  };
   mutatingCommands: Array<{
     id: string;
     phase: string;

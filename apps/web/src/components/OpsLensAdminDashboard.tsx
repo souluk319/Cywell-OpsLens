@@ -5378,6 +5378,63 @@ export function OpsLensAdminDashboard() {
                   )}
                 </span>
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-release-manager-publish-packet"
+              >
+                <span>
+                  packet=
+                  {releasePlan.releaseManagerPacket.markdownPath
+                    .split(/[\\/]/)
+                    .pop() ?? releasePlan.releaseManagerPacket.markdownPath}
+                </span>
+                <span>
+                  exists={String(releasePlan.releaseManagerPacket.exists)}
+                </span>
+                <span>
+                  ticket={releasePlan.releaseManagerPacket.ticketId}
+                </span>
+                <span>
+                  decision=
+                  {releasePlan.releaseManagerPacket.publishDecisionActionId}
+                </span>
+                <span>
+                  first={releasePlan.releaseManagerPacket.firstReadOnlyActionId}
+                </span>
+                <span>
+                  setup=
+                  {releasePlan.releaseManagerPacket.humanSetupCommandIds.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
+                  approval=
+                  {releasePlan.releaseManagerPacket.approvalGatedCommandIds
+                    .slice(0, 3)
+                    .join(",") || "none"}
+                </span>
+                <span>
+                  registryLoginExecuted=
+                  {String(
+                    releasePlan.releaseManagerPacket
+                      .registryLoginExecutedByVerifier
+                  )}
+                </span>
+                <span>
+                  releasePublishExecuted=
+                  {String(
+                    releasePlan.releaseManagerPacket
+                      .releasePublishExecutedByVerifier
+                  )}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(
+                    releasePlan.releaseManagerPacket.mutationBoundary
+                      .registryMutationAttempted
+                  )}
+                </span>
+              </div>
               <div className="remediation-notes">
                 <p>
                   {releasePlan.risk[0] ??
