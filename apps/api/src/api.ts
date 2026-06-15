@@ -3255,6 +3255,16 @@ type OcpConnectivityDiagnosticArtifact = {
       clientAvailable?: boolean;
       versionGet?: string;
     };
+    ocContext?: {
+      currentContextSet?: boolean;
+      whoamiAvailable?: boolean;
+      showServerAvailable?: boolean;
+      kubeconfigEnvConfigured?: boolean;
+      defaultKubeconfigPresent?: boolean;
+      contextStatus?: string;
+      authStatus?: string;
+      serverStatus?: string;
+    };
     rbacAccessReviews?: Array<{
       id?: string;
       verb?: string;
@@ -5511,6 +5521,16 @@ function getOcpConnectivityDiagnosticReadiness(): {
           tls: "missing",
           kubernetesVersion: "missing",
           oc: "missing",
+          ocContext: {
+            currentContextSet: false,
+            whoamiAvailable: false,
+            showServerAvailable: false,
+            kubeconfigEnvConfigured: false,
+            defaultKubeconfigPresent: false,
+            contextStatus: "missing",
+            authStatus: "not-authenticated",
+            serverStatus: "missing"
+          },
           rbacAccessReviews: []
         },
         actionHints: defaultOcpConnectivityActionHints("missing"),
@@ -5548,6 +5568,24 @@ function getOcpConnectivityDiagnosticReadiness(): {
       kubernetesVersion:
         artifact.diagnostics?.kubernetesVersion?.status ?? "unknown",
       oc: artifact.diagnostics?.oc?.versionGet ?? "unknown",
+      ocContext: {
+        currentContextSet:
+          artifact.diagnostics?.ocContext?.currentContextSet === true,
+        whoamiAvailable:
+          artifact.diagnostics?.ocContext?.whoamiAvailable === true,
+        showServerAvailable:
+          artifact.diagnostics?.ocContext?.showServerAvailable === true,
+        kubeconfigEnvConfigured:
+          artifact.diagnostics?.ocContext?.kubeconfigEnvConfigured === true,
+        defaultKubeconfigPresent:
+          artifact.diagnostics?.ocContext?.defaultKubeconfigPresent === true,
+        contextStatus:
+          artifact.diagnostics?.ocContext?.contextStatus ?? "unknown",
+        authStatus:
+          artifact.diagnostics?.ocContext?.authStatus ?? "unknown",
+        serverStatus:
+          artifact.diagnostics?.ocContext?.serverStatus ?? "unknown"
+      },
       rbacAccessReviews: (artifact.diagnostics?.rbacAccessReviews ?? []).map(
         (review) => ({
           id: review.id ?? "unknown",
@@ -5667,6 +5705,16 @@ function getOcpConnectivityDiagnosticReadiness(): {
           tls: "unknown",
           kubernetesVersion: "unknown",
           oc: "unknown",
+          ocContext: {
+            currentContextSet: false,
+            whoamiAvailable: false,
+            showServerAvailable: false,
+            kubeconfigEnvConfigured: false,
+            defaultKubeconfigPresent: false,
+            contextStatus: "invalid",
+            authStatus: "not-authenticated",
+            serverStatus: "missing"
+          },
           rbacAccessReviews: []
         },
         actionHints: defaultOcpConnectivityActionHints("invalid-evidence"),

@@ -1829,6 +1829,16 @@ export interface OpsLensOcpConnectivityDiagnosticSummary {
     tls: string;
     kubernetesVersion: string;
     oc: string;
+    ocContext: {
+      currentContextSet: boolean;
+      whoamiAvailable: boolean;
+      showServerAvailable: boolean;
+      kubeconfigEnvConfigured: boolean;
+      defaultKubeconfigPresent: boolean;
+      contextStatus: string;
+      authStatus: string;
+      serverStatus: string;
+    };
     rbacAccessReviews: Array<{
       id: string;
       verb: string;

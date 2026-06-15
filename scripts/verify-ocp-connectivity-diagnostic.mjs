@@ -589,6 +589,39 @@ async function diagnoseOc(config) {
   };
 }
 
+async function diagnoseOcContext(config) {
+  const kubeconfigEnvConfigured = Boolean(process.env.KUBECONFIG);
+  const defaultKubeconfigPresent = existsSync(join(homedir(), ".kube", "config"));
+  const context = await runCapture("oc", ["config", "current-context"], config.timeoutMs);
+  const whoami = await runCapture("oc", ["whoami"], config.timeoutMs);
+  const server = await runCapture("oc", ["whoami", "--show-server"], config.timeoutMs);
+  const currentContextSet = context.ok && context.stdout.trim().length > 0;
+  const whoamiAvailable = whoami.ok && whoami.stdout.trim().length > 0;
+  const showServerAvailable = server.ok && server.stdout.trim().length > 0;
+
+  if (currentContextSet) {
+    pass("oc context", "current-context is set; value redacted");
+  } else {
+    warn("oc context", "current-context is missing or incomplete");
+  }
+  if (whoamiAvailable) {
+    pass("oc whoami", "current oc context authenticated; user value redacted");
+  } else {
+    warn("oc whoami", "current oc context is not authenticated");
+  }
+
+  return {
+    currentContextSet,
+    whoamiAvailable,
+    showServerAvailable,
+    kubeconfigEnvConfigured,
+    defaultKubeconfigPresent,
+    contextStatus: currentContextSet ? "present" : "missing",
+    authStatus: whoamiAvailable ? "authenticated" : "not-authenticated",
+    serverStatus: showServerAvailable ? "available" : "missing"
+  };
+}
+
 function skippedOc(reason) {
   warn("oc /version", `skipped because ${reason}`);
   return {
@@ -1011,6 +1044,7 @@ async function main() {
   const ocResult = ocAndRbacSkipReason
     ? skippedOc(ocAndRbacSkipReason)
     : await diagnoseOc(config);
+  const ocContextResult = await diagnoseOcContext(config);
   const rbacAccessResult = ocAndRbacSkipReason
     ? skippedRbacAccess(ocAndRbacSkipReason)
     : await diagnoseRbacAccess(config);
@@ -1028,6 +1062,9 @@ async function main() {
   const missingEvidence = [];
   if (classification !== "api-ready") {
     missingEvidence.push(`OCP API connectivity classification=${classification}`);
+  }
+  if (classification === "auth-failed" && !ocContextResult.whoamiAvailable) {
+    missingEvidence.push("current oc context is not authenticated; no kubeconfig fallback credential is available");
   }
   for (const review of rbacAccessResult.reviews) {
     if (review.required && review.status !== "allowed") {
@@ -1107,6 +1144,7 @@ async function main() {
       tls: tlsResult,
       kubernetesVersion: httpResult,
       oc: ocResult,
+      ocContext: ocContextResult,
       rbacAccessReviews: rbacAccessResult.reviews
     },
     actionHints,
@@ -1117,6 +1155,7 @@ async function main() {
       "RBAC access reviews use oc auth can-i and do not apply, patch, delete, or create cluster resources",
       "no apply, patch, delete, scale, image push, signing, mirroring, or cluster mutation is attempted",
       "token values are redacted from console output and evidence artifacts",
+      `oc context currentContextSet=${String(ocContextResult.currentContextSet)} whoamiAvailable=${String(ocContextResult.whoamiAvailable)}`,
       `credential hygiene localFormatIssue=${hygiene.localFormatIssue} diagnosis=${credentialDiagnosis}`
     ],
     risk: [

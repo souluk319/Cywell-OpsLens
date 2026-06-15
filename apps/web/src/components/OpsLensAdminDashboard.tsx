@@ -2050,6 +2050,33 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-ocp-context"
+              >
+                <span>
+                  context={ocpConnectivity.diagnostics.ocContext.contextStatus}
+                </span>
+                <span>
+                  auth={ocpConnectivity.diagnostics.ocContext.authStatus}
+                </span>
+                <span>
+                  server={ocpConnectivity.diagnostics.ocContext.serverStatus}
+                </span>
+                <span>
+                  kubeconfigEnv=
+                  {String(
+                    ocpConnectivity.diagnostics.ocContext.kubeconfigEnvConfigured
+                  )}
+                </span>
+                <span>
+                  defaultKubeconfig=
+                  {String(
+                    ocpConnectivity.diagnostics.ocContext
+                      .defaultKubeconfigPresent
+                  )}
+                </span>
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-ocp-connectivity-rbac"
               >
                 {ocpConnectivity.diagnostics.rbacAccessReviews.length ? (
