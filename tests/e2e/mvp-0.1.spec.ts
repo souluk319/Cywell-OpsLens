@@ -4848,6 +4848,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         "live-ocp-lightspeed",
+        "lightspeed-auth-rbac",
         "runtime-live",
         "runtime-rag-quality",
         "external-runtime-review",
@@ -5871,6 +5872,34 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         );
         expect(lightspeedReadinessAction.blockedBy?.join(" ")).toMatch(
           /auth-or-rbac|OLSConfig|credentials/
+        );
+        const lightspeedAuthCriticalPath =
+          body.installReadiness?.actionQueue?.criticalPath?.find(
+            (entry) => entry.lane === "lightspeed-auth-rbac"
+          );
+        expect(lightspeedAuthCriticalPath).toMatchObject({
+          owner: "cluster-admin",
+          actionId: "cluster-admin-fix-lightspeed-readiness-auth-rbac",
+          source: "lightspeedReadiness:ocpLiveReaderSmoke"
+        });
+        expect(lightspeedAuthCriticalPath?.readOnlyCommandIds).toEqual(
+          expect.arrayContaining([
+            "lightspeed-readiness-live",
+            "verify-post-approval-live-reader-smoke"
+          ])
+        );
+        expect(lightspeedAuthCriticalPath?.approvalGatedCommandIds).toEqual(
+          expect.arrayContaining([
+            "apply-live-evidence-reader-rbac",
+            "create-short-lived-live-reader-token"
+          ])
+        );
+        expect(lightspeedAuthCriticalPath?.diagnostics).toEqual(
+          expect.arrayContaining([
+            "post-approval-rbac",
+            "post-approval-lightspeed",
+            "post-approval-sources"
+          ])
         );
       } else {
         expect(lightspeedReadinessAction?.blockedBy?.join(" ")).toMatch(
@@ -7654,6 +7683,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText("live-ocp-lightspeed");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("lightspeed-auth-rbac");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("cluster-admin-fix-lightspeed-readiness-auth-rbac");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("lightspeed-readiness-live");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-critical-path")
+    ).toContainText("post-approval-rbac");
     await expect(
       page.getByTestId("opslens-release-action-queue-critical-path")
     ).toContainText(/external-runtime-review|release-publish|install-approval/);
