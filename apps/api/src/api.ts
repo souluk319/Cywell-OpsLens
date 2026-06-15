@@ -2766,6 +2766,30 @@ type RoadmapPlanAlignmentArtifact = {
     baseRef?: string;
     worktreeDirty?: boolean;
   };
+  globalRequirements?: Array<{
+    id?: string;
+    status?: string;
+  }>;
+  completion?: {
+    totalRequirements?: number;
+    passedRequirements?: number;
+    remainingRequirements?: number;
+    percentComplete?: number;
+    requirements?: Array<{
+      stage?: string;
+      id?: string;
+      status?: string;
+    }>;
+    remaining?: Array<{
+      stage?: string;
+      id?: string;
+      status?: string;
+    }>;
+    remainingExternalStateCount?: number;
+    remainingLocalOnlyCount?: number;
+    remainingExternalStateGateIds?: string[];
+    remainingLocalOnlyGateIds?: string[];
+  };
   stages?: Array<{
     id?: string;
     requirements?: Array<{
@@ -9548,24 +9572,47 @@ function getRoadmapCompletionSummary(
     const artifact = JSON.parse(
       readFileSync(evidencePath, "utf8")
     ) as RoadmapPlanAlignmentArtifact;
-    const requirements = (artifact.stages ?? []).flatMap((stage) =>
-      (stage.requirements ?? []).map((requirement) => ({
-        stage: stage.id ?? "unknown",
+    const fallbackRequirements = [
+      ...(artifact.globalRequirements ?? []).map((requirement) => ({
+        stage: "global",
         id: requirement.id ?? "unknown",
         status: requirement.status ?? "missing"
-      }))
-    );
-    const passedRequirements = requirements.filter(
-      (requirement) => requirement.status === "pass"
-    ).length;
-    const remaining = requirements.filter(
+      })),
+      ...(artifact.stages ?? []).flatMap((stage) =>
+        (stage.requirements ?? []).map((requirement) => ({
+          stage: stage.id ?? "unknown",
+          id: requirement.id ?? "unknown",
+          status: requirement.status ?? "missing"
+        }))
+      )
+    ];
+    const requirements =
+      artifact.completion?.requirements?.map((requirement) => ({
+        stage: requirement.stage ?? "unknown",
+        id: requirement.id ?? "unknown",
+        status: requirement.status ?? "missing"
+      })) ?? fallbackRequirements;
+    const fallbackRemaining = requirements.filter(
       (requirement) => requirement.status !== "pass"
     );
-    const totalRequirements = requirements.length;
+    const remaining =
+      artifact.completion?.remaining?.map((requirement) => ({
+        stage: requirement.stage ?? "unknown",
+        id: requirement.id ?? "unknown",
+        status: requirement.status ?? "missing"
+      })) ?? fallbackRemaining;
+    const totalRequirements =
+      artifact.completion?.totalRequirements ?? requirements.length;
+    const passedRequirements =
+      artifact.completion?.passedRequirements ??
+      requirements.filter((requirement) => requirement.status === "pass").length;
+    const remainingRequirements =
+      artifact.completion?.remainingRequirements ?? remaining.length;
     const percentComplete =
-      totalRequirements > 0
+      artifact.completion?.percentComplete ??
+      (totalRequirements > 0
         ? Math.round((passedRequirements / totalRequirements) * 1000) / 10
-        : 0;
+        : 0);
     const blocked =
       artifact.status === "BLOCKED" || (artifact.blockers ?? []).length > 0;
     const status: OpsLensRoadmapCompletionSummary["status"] = blocked
@@ -9657,12 +9704,24 @@ function getRoadmapCompletionSummary(
         blockedBy: blocker?.blockedBy ?? []
       };
     });
-    const remainingExternalStateGateIds = remainingHandoffs
+    const computedRemainingExternalStateGateIds = remainingHandoffs
       .filter((handoff) => handoff.externalStateRequired)
       .map((handoff) => handoff.gateId);
-    const remainingLocalOnlyGateIds = remainingHandoffs
+    const computedRemainingLocalOnlyGateIds = remainingHandoffs
       .filter((handoff) => !handoff.externalStateRequired)
       .map((handoff) => handoff.gateId);
+    const remainingExternalStateGateIds =
+      artifact.completion?.remainingExternalStateGateIds ??
+      computedRemainingExternalStateGateIds;
+    const remainingLocalOnlyGateIds =
+      artifact.completion?.remainingLocalOnlyGateIds ??
+      computedRemainingLocalOnlyGateIds;
+    const remainingExternalStateCount =
+      artifact.completion?.remainingExternalStateCount ??
+      remainingExternalStateGateIds.length;
+    const remainingLocalOnlyCount =
+      artifact.completion?.remainingLocalOnlyCount ??
+      remainingLocalOnlyGateIds.length;
 
     return {
       status,
@@ -9672,10 +9731,10 @@ function getRoadmapCompletionSummary(
       worktreeDirty: artifact.ref?.worktreeDirty === true,
       totalRequirements,
       passedRequirements,
-      remainingRequirements: remaining.length,
+      remainingRequirements,
       percentComplete,
-      remainingExternalStateCount: remainingExternalStateGateIds.length,
-      remainingLocalOnlyCount: remainingLocalOnlyGateIds.length,
+      remainingExternalStateCount,
+      remainingLocalOnlyCount,
       remainingExternalStateGateIds,
       remainingLocalOnlyGateIds,
       remaining,

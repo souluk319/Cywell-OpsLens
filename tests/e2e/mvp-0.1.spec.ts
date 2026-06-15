@@ -5836,6 +5836,31 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     const roadmapPlan = JSON.parse(
       readFileSync("test-results/cywell-opslens-roadmap-plan-alignment.json", "utf8")
     ) as {
+      status?: string;
+      globalRequirements?: Array<{
+        id?: string;
+        status?: string;
+      }>;
+      completion?: {
+        totalRequirements?: number;
+        passedRequirements?: number;
+        remainingRequirements?: number;
+        percentComplete?: number;
+        requirements?: Array<{
+          stage?: string;
+          id?: string;
+          status?: string;
+        }>;
+        remaining?: Array<{
+          stage?: string;
+          id?: string;
+          status?: string;
+        }>;
+        remainingExternalStateCount?: number;
+        remainingLocalOnlyCount?: number;
+        remainingExternalStateGateIds?: string[];
+        remainingLocalOnlyGateIds?: string[];
+      };
       stages?: Array<{
         id?: string;
         requirements?: Array<{
@@ -5859,24 +5884,40 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(roadmapActionQueueSafety?.evidence?.join(" ")).toContain(
       "critical path lane"
     );
-    const roadmapRequirements =
-      roadmapPlan.stages?.flatMap((stage) =>
+    const fallbackRoadmapRequirements = [
+      ...(roadmapPlan.globalRequirements ?? []).map((requirement) => ({
+        stage: "global",
+        id: requirement.id ?? "unknown",
+        status: requirement.status ?? "missing"
+      })),
+      ...(roadmapPlan.stages?.flatMap((stage) =>
         (stage.requirements ?? []).map((requirement) => ({
           stage: stage.id ?? "unknown",
           id: requirement.id ?? "unknown",
           status: requirement.status ?? "missing"
         }))
-      ) ?? [];
+      ) ?? [])
+    ];
+    const roadmapRequirements =
+      roadmapPlan.completion?.requirements ?? fallbackRoadmapRequirements;
     const roadmapPassed = roadmapRequirements.filter(
       (requirement) => requirement.status === "pass"
     );
-    const roadmapRemaining = roadmapRequirements.filter(
-      (requirement) => requirement.status !== "pass"
-    );
-    const roadmapPercent = roadmapRequirements.length
-      ? Math.round((roadmapPassed.length / roadmapRequirements.length) * 1000) /
-        10
-      : 0;
+    const roadmapRemaining =
+      roadmapPlan.completion?.remaining ??
+      roadmapRequirements.filter((requirement) => requirement.status !== "pass");
+    const roadmapPercent =
+      roadmapPlan.completion?.percentComplete ??
+      (roadmapRequirements.length
+        ? Math.round((roadmapPassed.length / roadmapRequirements.length) * 1000) /
+          10
+        : 0);
+    const roadmapTotalRequirements =
+      roadmapPlan.completion?.totalRequirements ?? roadmapRequirements.length;
+    const roadmapPassedRequirements =
+      roadmapPlan.completion?.passedRequirements ?? roadmapPassed.length;
+    const roadmapRemainingRequirements =
+      roadmapPlan.completion?.remainingRequirements ?? roadmapRemaining.length;
     const roadmapRemainingHandoffs =
       body.installReadiness?.roadmapCompletion?.remainingHandoffs ?? [];
     const roadmapExternalStateHandoffs = roadmapRemainingHandoffs.filter(
@@ -5889,18 +5930,22 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       actionMode: "roadmapEvidenceOnly",
       artifactStatus: roadmapPlan.status,
       worktreeDirty: false,
-      totalRequirements: roadmapRequirements.length,
-      passedRequirements: roadmapPassed.length,
-      remainingRequirements: roadmapRemaining.length,
+      totalRequirements: roadmapTotalRequirements,
+      passedRequirements: roadmapPassedRequirements,
+      remainingRequirements: roadmapRemainingRequirements,
       percentComplete: roadmapPercent,
-      remainingExternalStateCount: roadmapExternalStateHandoffs.length,
-      remainingLocalOnlyCount: roadmapLocalOnlyHandoffs.length,
-      remainingExternalStateGateIds: roadmapExternalStateHandoffs.map(
-        (entry) => entry.gateId
-      ),
-      remainingLocalOnlyGateIds: roadmapLocalOnlyHandoffs.map(
-        (entry) => entry.gateId
-      ),
+      remainingExternalStateCount:
+        roadmapPlan.completion?.remainingExternalStateCount ??
+        roadmapExternalStateHandoffs.length,
+      remainingLocalOnlyCount:
+        roadmapPlan.completion?.remainingLocalOnlyCount ??
+        roadmapLocalOnlyHandoffs.length,
+      remainingExternalStateGateIds:
+        roadmapPlan.completion?.remainingExternalStateGateIds ??
+        roadmapExternalStateHandoffs.map((entry) => entry.gateId),
+      remainingLocalOnlyGateIds:
+        roadmapPlan.completion?.remainingLocalOnlyGateIds ??
+        roadmapLocalOnlyHandoffs.map((entry) => entry.gateId),
       criticalPathBlockerCount:
         body.installReadiness?.actionQueue?.criticalPath?.length ?? 0,
       mutationBoundaryPassed: true
@@ -5976,7 +6021,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.roadmapCompletion?.evidence?.join(" ")
     ).toContain(
-      `Roadmap completion ${roadmapPassed.length}/${roadmapRequirements.length}`
+      `Roadmap completion ${roadmapPassedRequirements}/${roadmapTotalRequirements}`
     );
     expect(
       body.installReadiness?.roadmapCompletion?.evidence?.join(" ")

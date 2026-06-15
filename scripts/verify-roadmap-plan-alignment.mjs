@@ -529,6 +529,95 @@ function stage(id, title, requirements) {
   };
 }
 
+function roadmapRequirementEntries(globalRequirements, stages) {
+  return [
+    ...globalRequirements.map((requirement) => ({
+      stage: "global",
+      id: requirement.id ?? "unknown",
+      status: requirement.status ?? "missing"
+    })),
+    ...stages.flatMap((stage) =>
+      (stage.requirements ?? []).map((requirement) => ({
+        stage: stage.id ?? "unknown",
+        id: requirement.id ?? "unknown",
+        status: requirement.status ?? "missing"
+      }))
+    )
+  ];
+}
+
+function externalStateRequiredFor(blocker) {
+  if (!blocker) return true;
+  return (
+    (blocker.approvalGatedCommandIds ?? []).length > 0 ||
+    (blocker.setupCommandIds ?? []).length > 0 ||
+    /<[^>]+>|approval|approved|install|submit|push|mirror|sign|apply|login/i.test(
+      `${blocker.nextCommand ?? ""} ${blocker.evidenceNeeded ?? ""} ${(blocker.blockedBy ?? []).join(" ")}`
+    )
+  );
+}
+
+function roadmapCompletionSummary(globalRequirements, stages, actionQueue) {
+  const requirements = roadmapRequirementEntries(globalRequirements, stages);
+  const passedRequirements = requirements.filter(
+    (requirement) => requirement.status === "pass"
+  ).length;
+  const remaining = requirements.filter(
+    (requirement) => requirement.status !== "pass"
+  );
+  const totalRequirements = requirements.length;
+  const percentComplete =
+    totalRequirements > 0
+      ? Math.round((passedRequirements / totalRequirements) * 1000) / 10
+      : 0;
+  const criticalPath = actionQueue?.criticalPath ?? [];
+  const gateToCriticalPath = new Map([
+    ["ocpConnectivity", ["live-ocp-lightspeed", "ocp-live-reader-rbac"]],
+    ["lightspeedReadiness", ["lightspeed-auth-rbac", "live-ocp-lightspeed"]],
+    ["installPlan", ["install-approval"]],
+    ["certificationReadiness", ["certification-toolchain"]],
+    ["externalRuntime", ["external-runtime-review", "external-runtime-final-evidence"]],
+    ["releasePublish", ["release-publish"]]
+  ]);
+  const fallbackBlocker =
+    criticalPath.find((entry) => entry.priority === "blocker") ??
+    criticalPath[0];
+  const closure = remaining.map((requirement) => {
+    const preferredLanes = gateToCriticalPath.get(requirement.id) ?? [];
+    const blocker =
+      criticalPath.find((entry) => preferredLanes.includes(entry.lane)) ??
+      fallbackBlocker;
+    return {
+      stage: requirement.stage,
+      gateId: requirement.id,
+      status: requirement.status,
+      owner: blocker?.owner ?? "release-manager",
+      actionId: blocker?.actionId ?? "refresh-roadmap-evidence",
+      externalStateRequired: externalStateRequiredFor(blocker)
+    };
+  });
+  const remainingExternalStateGateIds = closure
+    .filter((item) => item.externalStateRequired)
+    .map((item) => item.gateId);
+  const remainingLocalOnlyGateIds = closure
+    .filter((item) => !item.externalStateRequired)
+    .map((item) => item.gateId);
+
+  return {
+    totalRequirements,
+    passedRequirements,
+    remainingRequirements: remaining.length,
+    percentComplete,
+    requirements,
+    remaining,
+    closure,
+    remainingExternalStateCount: remainingExternalStateGateIds.length,
+    remainingLocalOnlyCount: remainingLocalOnlyGateIds.length,
+    remainingExternalStateGateIds,
+    remainingLocalOnlyGateIds
+  };
+}
+
 function markdownFor(artifact) {
   const lines = [
     "# Cywell OpsLens Roadmap Plan Alignment",
@@ -544,6 +633,14 @@ function markdownFor(artifact) {
     "- Stage 1 uses a custom MCP server registered through OLSConfig, with REST kept only for local smoke tests and demos.",
     "- Stage 4 registration is an explicit PatchOLSConfig approval path with preview and rollback evidence.",
     "- Legacy Lightspeed ConfigMap mutation is not a product contract and must remain absent from implementation evidence.",
+    "",
+    "## Completion Summary",
+    "",
+    `- Complete: ${artifact.completion.percentComplete}%`,
+    `- Passed: ${artifact.completion.passedRequirements}/${artifact.completion.totalRequirements}`,
+    `- Remaining: ${artifact.completion.remainingRequirements}`,
+    `- External-state remaining: ${artifact.completion.remainingExternalStateCount} (${artifact.completion.remainingExternalStateGateIds.join(", ") || "none"})`,
+    `- Local-only remaining: ${artifact.completion.remainingLocalOnlyCount} (${artifact.completion.remainingLocalOnlyGateIds.join(", ") || "none"})`,
     "",
     "## Global Freshness",
     "",
@@ -906,6 +1003,11 @@ async function main() {
     : missingEvidence.length > 0 || checkpoint?.status === "NEEDS_EVIDENCE"
       ? "NEEDS_EVIDENCE"
       : "PASS";
+  const completion = roadmapCompletionSummary(
+    globalRequirements,
+    stages,
+    releaseActionQueue
+  );
 
   const artifact = {
     schema: "cywell.opslens.roadmap-plan-alignment.v0.1",
@@ -924,6 +1026,7 @@ async function main() {
       path: resolve(paths.plan),
       title: "Cywell OpsLens 단계별 실행 기획서"
     },
+    completion,
     globalRequirements,
     stages,
     missingEvidence,
