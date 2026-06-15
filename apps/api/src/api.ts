@@ -2745,7 +2745,12 @@ type ReleaseActionQueueArtifact = {
       phase?: string;
       mutation?: boolean;
       requiresNetwork?: boolean;
+      requiresExplicitApproval?: boolean;
       requiresHumanApproval?: boolean;
+      requiresHumanSecretInput?: boolean;
+      credentialSetup?: boolean;
+      credentialStoredByVerifier?: boolean;
+      registryLoginExecutedByVerifier?: boolean;
     }>;
     readOnlyCommands?: Array<{
       id?: string;
@@ -8558,7 +8563,13 @@ function getReleaseActionQueueReadiness(): {
         phase: command.phase ?? "human-setup",
         mutation: command.mutation === true,
         requiresNetwork: command.requiresNetwork === true,
-        requiresHumanApproval: command.requiresHumanApproval === true
+        requiresExplicitApproval: command.requiresExplicitApproval === true,
+        requiresHumanApproval: command.requiresHumanApproval === true,
+        requiresHumanSecretInput: command.requiresHumanSecretInput === true,
+        credentialSetup: command.credentialSetup === true,
+        credentialStoredByVerifier: command.credentialStoredByVerifier === true,
+        registryLoginExecutedByVerifier:
+          command.registryLoginExecutedByVerifier === true
       })),
       readOnlyCommands: (entry.readOnlyCommands ?? []).map((command) => ({
         id: command.id ?? "unknown",

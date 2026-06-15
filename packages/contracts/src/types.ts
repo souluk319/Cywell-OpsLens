@@ -2427,7 +2427,12 @@ export interface OpsLensReleaseActionQueueSummary {
       phase: string;
       mutation: boolean;
       requiresNetwork: boolean;
+      requiresExplicitApproval: boolean;
       requiresHumanApproval: boolean;
+      requiresHumanSecretInput: boolean;
+      credentialSetup: boolean;
+      credentialStoredByVerifier: boolean;
+      registryLoginExecutedByVerifier: boolean;
     }>;
     readOnlyCommands: Array<{
       id: string;
