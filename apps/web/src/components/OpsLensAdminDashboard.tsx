@@ -208,6 +208,7 @@ export function OpsLensAdminDashboard() {
   const releaseBundlePacketName =
     releaseBundle?.markdownPath.split(/[\\/]/).pop() ?? "missing";
   const releaseActionQueue = overview?.installReadiness.actionQueue;
+  const roadmapCompletion = overview?.installReadiness.roadmapCompletion;
   const runtimeLiveHandoff = overview?.runtime.liveHandoff;
   const runtimeLiveHandoffActions = [
     runtimeLiveHandoff?.runtimeReadinessAction,
@@ -1428,6 +1429,8 @@ export function OpsLensAdminDashboard() {
                   "Release Bundle":
                     overview.installReadiness.releaseEvidenceBundle,
                   "Release Action": overview.installReadiness.releaseActionQueue,
+                  "Roadmap Completion":
+                    overview.installReadiness.roadmapCompletion.status,
                   "Evidence Checkpoint":
                     overview.installReadiness.evidenceCheckpoint,
                   "Live Handoff": overview.installReadiness.liveHandoff,
@@ -1461,6 +1464,79 @@ export function OpsLensAdminDashboard() {
               {item}
             </p>
           ))}
+          {roadmapCompletion ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-roadmap-completion"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Roadmap Completion</h4>
+                  <small>{roadmapCompletion.actionMode}</small>
+                </div>
+                <Gauge size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{roadmapCompletion.artifactStatus}</span>
+                <span>head={roadmapCompletion.headSha}</span>
+                <span>dirty={String(roadmapCompletion.worktreeDirty)}</span>
+                <span>
+                  mutationBoundaryPassed=
+                  {String(roadmapCompletion.mutationBoundaryPassed)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Complete</span>
+                  <strong>{roadmapCompletion.percentComplete}%</strong>
+                </div>
+                <div>
+                  <span>Passed</span>
+                  <strong>
+                    {roadmapCompletion.passedRequirements}/
+                    {roadmapCompletion.totalRequirements}
+                  </strong>
+                </div>
+                <div>
+                  <span>Remaining</span>
+                  <strong>{roadmapCompletion.remainingRequirements}</strong>
+                </div>
+                <div>
+                  <span>Status</span>
+                  <strong
+                    className={`freshness ${statusClass(
+                      roadmapCompletion.status
+                    )}`}
+                  >
+                    {roadmapCompletion.status}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-roadmap-remaining-gates"
+              >
+                {roadmapCompletion.remaining.slice(0, 8).map((entry) => (
+                  <span key={`${entry.stage}-${entry.id}`}>
+                    {entry.stage}/{entry.id}:{entry.status}
+                  </span>
+                ))}
+                {roadmapCompletion.remaining.length === 0 ? (
+                  <span>none</span>
+                ) : null}
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {roadmapCompletion.risk[0] ??
+                    "Roadmap completion is evidence-only and cannot approve mutation."}
+                </p>
+                <p>
+                  {roadmapCompletion.rollbackPath[0] ??
+                    "Regenerate roadmap evidence after release evidence changes."}
+                </p>
+              </div>
+            </div>
+          ) : null}
           {extensionPoint ? (
             <div
               className="install-approval-summary"

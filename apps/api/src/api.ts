@@ -86,6 +86,7 @@ import type {
   OpsLensReleaseEvidenceRefreshSummary,
   OpsLensReleaseEvidenceBundleReadiness,
   OpsLensReleaseEvidenceBundleSummary,
+  OpsLensRoadmapCompletionSummary,
   OpsLensRemediationProposal,
   OpsLensSecurityScanPlanSummary,
   OpsLensSecurityScanReadiness,
@@ -2610,6 +2611,30 @@ type ReleaseEvidenceBundleArtifact = {
   rollbackPath?: string[];
 };
 
+type RoadmapPlanAlignmentArtifact = {
+  artifactType?: string;
+  status?: string;
+  generatedAt?: string;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  stages?: Array<{
+    id?: string;
+    requirements?: Array<{
+      id?: string;
+      status?: string;
+    }>;
+  }>;
+  missingEvidence?: string[];
+  blockers?: string[];
+  evidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
 type ReleaseActionQueueArtifact = {
   artifactType?: string;
   status?: string;
@@ -3401,6 +3426,13 @@ function releaseActionQueuePath() {
   return (
     process.env.CYWELL_OPSLENS_RELEASE_ACTION_QUEUE ??
     join(repoRoot, "test-results", "cywell-opslens-release-action-queue.json")
+  );
+}
+
+function roadmapPlanAlignmentPath() {
+  return (
+    process.env.CYWELL_OPSLENS_ROADMAP_PLAN_ALIGNMENT ??
+    join(repoRoot, "test-results", "cywell-opslens-roadmap-plan-alignment.json")
   );
 }
 
@@ -8207,6 +8239,111 @@ function getReleaseEvidenceBundleReadiness(): {
   }
 }
 
+function missingRoadmapCompletionSummary(
+  reason: string,
+  status: OpsLensRoadmapCompletionSummary["status"] = "needs-evidence"
+): OpsLensRoadmapCompletionSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "roadmapEvidenceOnly",
+    headSha: "missing",
+    worktreeDirty: false,
+    totalRequirements: 0,
+    passedRequirements: 0,
+    remainingRequirements: 0,
+    percentComplete: 0,
+    remaining: [],
+    mutationBoundaryPassed: false,
+    missingEvidence: [reason],
+    risk: [
+      "Without roadmap completion evidence, the dashboard cannot prove what remains before a 100 percent MVP claim."
+    ],
+    rollbackPath: [
+      "Run npm run verify:roadmap-plan after refreshing release evidence."
+    ],
+    evidence: [
+      reason,
+      "roadmap completion is evidence-only and does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
+    ]
+  };
+}
+
+function getRoadmapCompletionSummary(): OpsLensRoadmapCompletionSummary {
+  const evidencePath = roadmapPlanAlignmentPath();
+
+  if (!existsSync(evidencePath)) {
+    return missingRoadmapCompletionSummary(
+      `roadmap plan alignment evidence is missing at ${evidencePath}`
+    );
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as RoadmapPlanAlignmentArtifact;
+    const requirements = (artifact.stages ?? []).flatMap((stage) =>
+      (stage.requirements ?? []).map((requirement) => ({
+        stage: stage.id ?? "unknown",
+        id: requirement.id ?? "unknown",
+        status: requirement.status ?? "missing"
+      }))
+    );
+    const passedRequirements = requirements.filter(
+      (requirement) => requirement.status === "pass"
+    ).length;
+    const remaining = requirements.filter(
+      (requirement) => requirement.status !== "pass"
+    );
+    const totalRequirements = requirements.length;
+    const percentComplete =
+      totalRequirements > 0
+        ? Math.round((passedRequirements / totalRequirements) * 1000) / 10
+        : 0;
+    const blocked =
+      artifact.status === "BLOCKED" || (artifact.blockers ?? []).length > 0;
+    const status: OpsLensRoadmapCompletionSummary["status"] = blocked
+      ? "blocked"
+      : remaining.length === 0 && artifact.status === "PASS"
+        ? "ready"
+        : "needs-evidence";
+    const mutationBoundaryPassed = true;
+
+    return {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode: "roadmapEvidenceOnly",
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      totalRequirements,
+      passedRequirements,
+      remainingRequirements: remaining.length,
+      percentComplete,
+      remaining,
+      mutationBoundaryPassed,
+      missingEvidence: artifact.missingEvidence ?? [],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? [],
+      evidence: [
+        `Roadmap completion ${passedRequirements}/${totalRequirements} requirements pass (${percentComplete}%)`,
+        `roadmap artifact ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"} head=${artifact.ref?.headSha ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
+        remaining.length
+          ? `remaining roadmap gates=${remaining
+              .slice(0, 8)
+              .map((item) => `${item.stage}/${item.id}:${item.status}`)
+              .join(", ")}`
+          : "remaining roadmap gates=none",
+        "roadmap completion reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
+      ]
+    };
+  } catch (error) {
+    return missingRoadmapCompletionSummary(
+      error instanceof Error ? error.message : "unknown evidence parse error",
+      "blocked"
+    );
+  }
+}
+
 function missingReleaseActionQueueSummary(
   reason: string,
   status: OpsLensReleaseActionQueueReadiness = "needs-evidence"
@@ -10800,6 +10937,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const releaseEvidenceRefreshReadiness = getReleaseEvidenceRefreshReadiness();
   const releaseEvidenceBundleReadiness = getReleaseEvidenceBundleReadiness();
   const releaseActionQueueReadiness = getReleaseActionQueueReadiness();
+  const roadmapCompletion = getRoadmapCompletionSummary();
   const runtimeLiveHandoff = buildRuntimeLiveHandoffSummary(
     runtimeReadiness,
     releaseActionQueueReadiness.actionQueue
@@ -10839,6 +10977,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     releasePublishReadiness.evidence[0],
     releaseEvidenceBundleReadiness.evidence[0],
     releaseActionQueueReadiness.evidence[0],
+    roadmapCompletion.evidence[0],
     runtimeLiveHandoff.evidence[0],
     ragProductionReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
@@ -10861,6 +11000,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...envContractReadiness.evidence.slice(1),
     ...releaseEvidenceBundleReadiness.evidence.slice(1),
     ...releaseActionQueueReadiness.evidence.slice(1),
+    ...roadmapCompletion.evidence.slice(1),
     ...runtimeLiveHandoff.evidence.slice(1),
     ...ragProductionReadiness.evidence.slice(1),
     ...aiopsIncidentPipelineReadiness.evidence.slice(1),
@@ -11088,6 +11228,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       bundle: releaseEvidenceBundleReadiness.bundle,
       releaseActionQueue: releaseActionQueueReadiness.status,
       actionQueue: releaseActionQueueReadiness.actionQueue,
+      roadmapCompletion,
       evidenceCheckpoint: evidenceCheckpointReadiness.status,
       checkpoint: evidenceCheckpointReadiness.checkpoint,
       liveHandoff: liveHandoffReadiness.status,

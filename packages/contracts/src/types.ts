@@ -3278,6 +3278,28 @@ export interface OpsLensRagProductionReadinessSummary {
   evidence: string[];
 }
 
+export interface OpsLensRoadmapCompletionSummary {
+  status: "ready" | "needs-evidence" | "blocked";
+  artifactStatus: string;
+  actionMode: "roadmapEvidenceOnly";
+  headSha: string;
+  worktreeDirty: boolean;
+  totalRequirements: number;
+  passedRequirements: number;
+  remainingRequirements: number;
+  percentComplete: number;
+  remaining: Array<{
+    stage: string;
+    id: string;
+    status: string;
+  }>;
+  mutationBoundaryPassed: boolean;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+  evidence: string[];
+}
+
 export interface OpsLensAdminOverviewResponse {
   generatedAt: string;
   source: "local-contract";
@@ -3341,6 +3363,7 @@ export interface OpsLensAdminOverviewResponse {
     bundle: OpsLensReleaseEvidenceBundleSummary;
     releaseActionQueue: OpsLensReleaseActionQueueReadiness;
     actionQueue: OpsLensReleaseActionQueueSummary;
+    roadmapCompletion: OpsLensRoadmapCompletionSummary;
     evidenceCheckpoint: OpsLensEvidenceCheckpointReadiness;
     checkpoint: OpsLensEvidenceCheckpointSummary;
     liveHandoff: OpsLensLiveEvidenceHandoffReadiness;

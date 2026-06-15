@@ -3127,6 +3127,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           risk?: string[];
           rollbackPath?: string[];
         };
+        roadmapCompletion?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          headSha?: string;
+          worktreeDirty?: boolean;
+          totalRequirements?: number;
+          passedRequirements?: number;
+          remainingRequirements?: number;
+          percentComplete?: number;
+          remaining?: Array<{
+            stage?: string;
+            id?: string;
+            status?: string;
+          }>;
+          mutationBoundaryPassed?: boolean;
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+          evidence?: string[];
+        };
         evidenceCheckpoint?: string;
         checkpoint?: {
           status?: string;
@@ -5074,6 +5095,42 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     });
     expect(roadmapActionQueueSafety?.evidence?.join(" ")).toContain(
       "critical path lane"
+    );
+    const roadmapRequirements =
+      roadmapPlan.stages?.flatMap((stage) =>
+        (stage.requirements ?? []).map((requirement) => ({
+          stage: stage.id ?? "unknown",
+          id: requirement.id ?? "unknown",
+          status: requirement.status ?? "missing"
+        }))
+      ) ?? [];
+    const roadmapPassed = roadmapRequirements.filter(
+      (requirement) => requirement.status === "pass"
+    );
+    const roadmapRemaining = roadmapRequirements.filter(
+      (requirement) => requirement.status !== "pass"
+    );
+    const roadmapPercent = roadmapRequirements.length
+      ? Math.round((roadmapPassed.length / roadmapRequirements.length) * 1000) /
+        10
+      : 0;
+    expect(body.installReadiness?.roadmapCompletion).toMatchObject({
+      actionMode: "roadmapEvidenceOnly",
+      artifactStatus: roadmapPlan.status,
+      worktreeDirty: false,
+      totalRequirements: roadmapRequirements.length,
+      passedRequirements: roadmapPassed.length,
+      remainingRequirements: roadmapRemaining.length,
+      percentComplete: roadmapPercent,
+      mutationBoundaryPassed: true
+    });
+    expect(body.installReadiness?.roadmapCompletion?.remaining).toEqual(
+      roadmapRemaining
+    );
+    expect(
+      body.installReadiness?.roadmapCompletion?.evidence?.join(" ")
+    ).toContain(
+      `Roadmap completion ${roadmapPassed.length}/${roadmapRequirements.length}`
     );
     expect(
       body.installReadiness?.bundle?.commandCounts?.readOnly ?? 0
@@ -8613,6 +8670,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-refresh-owner-packet-cleanup")
     ).toContainText("cluster-admin.md");
+    await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
+      "roadmapEvidenceOnly"
+    );
+    await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
+      `${body.installReadiness?.roadmapCompletion?.percentComplete}%`
+    );
+    await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
+      `${body.installReadiness?.roadmapCompletion?.passedRequirements}/`
+    );
+    await expect(
+      page.getByTestId("opslens-roadmap-remaining-gates")
+    ).toContainText(
+      body.installReadiness?.roadmapCompletion?.remaining?.[0]?.id ?? "none"
+    );
     await expect(page.getByTestId("opslens-evidence-checkpoint")).toContainText(
       /PASS|NEEDS_EVIDENCE|BLOCKED|missing/
     );
