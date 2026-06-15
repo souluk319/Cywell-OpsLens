@@ -8528,6 +8528,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-release-refresh")).toContainText(
       "dirty=false"
     );
+    await expect(page.getByTestId("opslens-release-refresh")).toContainText(
+      "Critical Path"
+    );
+    await expect(page.getByTestId("opslens-release-refresh")).toContainText(
+      `count=${body.installReadiness?.refresh?.actionQueue?.criticalPathCount}`
+    );
+    await expect(
+      page.getByTestId("opslens-release-refresh-critical-path")
+    ).toContainText("missingDiagnostics=none");
+    await expect(
+      page.getByTestId("opslens-release-refresh-critical-path")
+    ).toContainText("missingTickets=none");
+    await expect(
+      page.getByTestId("opslens-release-refresh-critical-path")
+    ).toContainText("unsafeTickets=none");
     await expect(
       page.getByTestId("opslens-release-refresh-owner-packets")
     ).toContainText("cluster-admin.md");
