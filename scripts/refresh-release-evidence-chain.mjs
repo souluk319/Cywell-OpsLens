@@ -224,6 +224,7 @@ function buildChain() {
       ? npmScript("image-readiness-static", "release", "verify:images")
       : npmScript("image-readiness-build", "release", "verify:images:build", [], { timeoutMs: Math.max(options.commandTimeoutMs, 900000) }),
     npmScript("owned-image-provenance", "release", "verify:owned-image-provenance"),
+    npmScript("external-runtime-draft-digests", "release", "evidence:external-runtime:draft:digests"),
     npmScript("external-runtime-plan", "release", "verify:external-runtime-plan"),
     options.securityScanDocker
       ? npmScript("security-scan-runner-docker", "release", "evidence:security-scan:docker", [], {

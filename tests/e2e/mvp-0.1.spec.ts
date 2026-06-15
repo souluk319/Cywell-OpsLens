@@ -4968,6 +4968,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "community-operator-submission",
         "certification-readiness",
         "catalog-toolchain",
+        "external-runtime-draft-digests",
         "security-review-drafts-all",
         "security-scan-plan",
         "release-evidence-bundle",
