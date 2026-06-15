@@ -592,6 +592,21 @@ function completionClaimPacketMarkdown(artifact) {
         )
       : ["- none"]),
     "",
+    "## Gate Closure Matrix",
+    "",
+    ...(packet.gateClosureMatrix.length
+      ? packet.gateClosureMatrix.flatMap((gate) => [
+          `- ${gate.gateId}: owner=${gate.owner} lane=${gate.lane} status=${gate.status}`,
+          `  closes=${gate.closesClaimRequirementIds.join(", ") || "none"}`,
+          `  sources=${gate.sourceEvidenceIds.join(", ") || "none"}`,
+          `  tickets=${gate.ticketIds.join(", ") || "none"}`,
+          `  readOnly=${gate.readOnlyCommandIds.join(", ") || "none"}`,
+          `  setup=${gate.setupCommandIds.join(", ") || "none"}`,
+          `  approval=${gate.approvalGatedCommandIds.join(", ") || "none"}`,
+          `  evidence=${gate.evidenceRequired.join(" | ") || "same-HEAD evidence required"}`
+        ])
+      : ["- none"]),
+    "",
     "## Failed Claim Requirements",
     "",
     ...(packet.failedClaimRequirementIds.length
@@ -872,6 +887,33 @@ async function main() {
     headSha: source.headSha,
     worktreeDirty: source.worktreeDirty
   }));
+  const gateClosureMatrix = remaining.map((gate) => ({
+    gateId: gate.gateId,
+    stage: gate.stage,
+    status: gate.status,
+    owner: gate.owner,
+    lane: gate.lane,
+    actionId: gate.actionId,
+    nextCommand: gate.nextCommand,
+    ticketIds: gate.ticketIds,
+    readOnlyCommandIds: gate.readOnlyCommandIds,
+    setupCommandIds: gate.setupCommandIds,
+    approvalGatedCommandIds: gate.approvalGatedCommandIds,
+    evidenceRequired: gate.evidenceRequired,
+    externalStateRequired: gate.externalStateRequired,
+    closesClaimRequirementIds: [
+      "roadmap-complete",
+      "external-state-closed",
+      "release-bundle-approval-ready",
+      "action-queue-closed"
+    ],
+    sourceEvidenceIds: [
+      "roadmapPlan",
+      "releaseEvidenceBundle",
+      "releaseActionQueue"
+    ],
+    mutationAllowedByThisVerifier: false
+  }));
   const claimPacket = {
     owner: "release-manager",
     status: readyToClaim100 ? "ready" : "needs-evidence",
@@ -899,6 +941,7 @@ async function main() {
           source.mutationViolation === true
       )
       .map((source) => source.id),
+    gateClosureMatrix,
     releaseBundleStatus: releaseBundle?.status ?? "missing",
     actionQueueCriticalPathCount: queueSafety.criticalPathCount,
     mutationBoundaryPassed,

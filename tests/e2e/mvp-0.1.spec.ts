@@ -3729,6 +3729,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               worktreeDirty?: boolean | string;
             }>;
             failedSourceEvidenceIds?: string[];
+            gateClosureMatrix?: Array<{
+              gateId?: string;
+              stage?: string;
+              status?: string;
+              owner?: string;
+              lane?: string;
+              actionId?: string;
+              nextCommand?: string;
+              ticketIds?: string[];
+              readOnlyCommandIds?: string[];
+              setupCommandIds?: string[];
+              approvalGatedCommandIds?: string[];
+              evidenceRequired?: string[];
+              externalStateRequired?: boolean;
+              closesClaimRequirementIds?: string[];
+              sourceEvidenceIds?: string[];
+              mutationAllowedByThisVerifier?: boolean;
+            }>;
             releaseBundleStatus?: string;
             actionQueueCriticalPathCount?: number;
             mutationBoundaryPassed?: boolean;
@@ -6304,6 +6322,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           worktreeDirty?: boolean | string;
         }>;
         failedSourceEvidenceIds?: string[];
+        gateClosureMatrix?: Array<{
+          gateId?: string;
+          stage?: string;
+          status?: string;
+          owner?: string;
+          lane?: string;
+          actionId?: string;
+          nextCommand?: string;
+          ticketIds?: string[];
+          readOnlyCommandIds?: string[];
+          setupCommandIds?: string[];
+          approvalGatedCommandIds?: string[];
+          evidenceRequired?: string[];
+          externalStateRequired?: boolean;
+          closesClaimRequirementIds?: string[];
+          sourceEvidenceIds?: string[];
+          mutationAllowedByThisVerifier?: boolean;
+        }>;
         releaseBundleStatus?: string;
         actionQueueCriticalPathCount?: number;
         mutationBoundaryPassed?: boolean;
@@ -6521,6 +6557,38 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           source.headSha === completionGate.ref?.headSha
       )
     ).toBe(true);
+    expect(
+      completionGate.claimPacket?.gateClosureMatrix?.map(
+        (gate) => gate.gateId
+      )
+    ).toEqual(completionGate.remainingTo100?.map((gate) => gate.gateId));
+    expect(
+      completionGate.claimPacket?.gateClosureMatrix?.every(
+        (gate) =>
+          gate.owner &&
+          gate.lane &&
+          gate.actionId &&
+          gate.nextCommand &&
+          Array.isArray(gate.ticketIds) &&
+          gate.ticketIds.length > 0 &&
+          Array.isArray(gate.readOnlyCommandIds) &&
+          Array.isArray(gate.setupCommandIds) &&
+          Array.isArray(gate.approvalGatedCommandIds) &&
+          Array.isArray(gate.evidenceRequired) &&
+          gate.evidenceRequired.length > 0 &&
+          gate.externalStateRequired === true &&
+          gate.closesClaimRequirementIds?.includes("roadmap-complete") &&
+          gate.closesClaimRequirementIds?.includes("external-state-closed") &&
+          gate.closesClaimRequirementIds?.includes(
+            "release-bundle-approval-ready"
+          ) &&
+          gate.closesClaimRequirementIds?.includes("action-queue-closed") &&
+          gate.sourceEvidenceIds?.includes("roadmapPlan") &&
+          gate.sourceEvidenceIds?.includes("releaseEvidenceBundle") &&
+          gate.sourceEvidenceIds?.includes("releaseActionQueue") &&
+          gate.mutationAllowedByThisVerifier === false
+      )
+    ).toBe(true);
     const completionClaimPacketMarkdown = readFileSync(
       String(completionGate.claimPacket?.markdownPath),
       "utf8"
@@ -6531,6 +6599,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(completionClaimPacketMarkdown).toContain(
       "Source Evidence Checklist"
     );
+    expect(completionClaimPacketMarkdown).toContain("Gate Closure Matrix");
     expect(completionClaimPacketMarkdown).toContain(
       "does not approve install plans"
     );
@@ -6660,6 +6729,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         completionGate.claimPacket?.sourceEvidenceChecklist,
       failedSourceEvidenceIds:
         completionGate.claimPacket?.failedSourceEvidenceIds,
+      gateClosureMatrix: completionGate.claimPacket?.gateClosureMatrix,
       releaseBundleStatus: completionGate.claimPacket?.releaseBundleStatus,
       actionQueueCriticalPathCount:
         completionGate.claimPacket?.actionQueueCriticalPathCount,
@@ -10761,6 +10831,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-completion-gate-claim-packet")
     ).toContainText("failedSources=none");
+    await expect(
+      page.getByTestId("opslens-completion-gate-claim-packet")
+    ).toContainText("closure=ocpConnectivity");
     await expect(
       page.getByTestId("opslens-completion-gate-claim-packet")
     ).toContainText(

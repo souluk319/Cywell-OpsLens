@@ -3188,6 +3188,24 @@ type CompletionGateArtifact = {
       worktreeDirty?: boolean | string;
     }>;
     failedSourceEvidenceIds?: string[];
+    gateClosureMatrix?: Array<{
+      gateId?: string;
+      stage?: string;
+      status?: string;
+      owner?: string;
+      lane?: string;
+      actionId?: string;
+      nextCommand?: string;
+      ticketIds?: string[];
+      readOnlyCommandIds?: string[];
+      setupCommandIds?: string[];
+      approvalGatedCommandIds?: string[];
+      evidenceRequired?: string[];
+      externalStateRequired?: boolean;
+      closesClaimRequirementIds?: string[];
+      sourceEvidenceIds?: string[];
+      mutationAllowedByThisVerifier?: boolean;
+    }>;
     releaseBundleStatus?: string;
     actionQueueCriticalPathCount?: number;
     mutationBoundaryPassed?: boolean;
@@ -10572,6 +10590,7 @@ function missingCompletionGateSummary(
       failedClaimRequirementIds: ["completion-gate-evidence"],
       sourceEvidenceChecklist: [],
       failedSourceEvidenceIds: [],
+      gateClosureMatrix: [],
       releaseBundleStatus: "missing",
       actionQueueCriticalPathCount: 0,
       mutationBoundaryPassed: false,
@@ -10761,6 +10780,28 @@ function getCompletionGateSummary(): OpsLensCompletionGateSummary {
         })),
         failedSourceEvidenceIds:
           artifact.claimPacket?.failedSourceEvidenceIds ?? [],
+        gateClosureMatrix: (artifact.claimPacket?.gateClosureMatrix ?? []).map(
+          (gate) => ({
+            gateId: gate.gateId ?? "unknown",
+            stage: gate.stage ?? "unknown",
+            status: gate.status ?? "unknown",
+            owner: gate.owner ?? "unknown",
+            lane: gate.lane ?? "unknown",
+            actionId: gate.actionId ?? "unknown",
+            nextCommand: gate.nextCommand ?? "unknown",
+            ticketIds: gate.ticketIds ?? [],
+            readOnlyCommandIds: gate.readOnlyCommandIds ?? [],
+            setupCommandIds: gate.setupCommandIds ?? [],
+            approvalGatedCommandIds: gate.approvalGatedCommandIds ?? [],
+            evidenceRequired: gate.evidenceRequired ?? [],
+            externalStateRequired: gate.externalStateRequired !== false,
+            closesClaimRequirementIds:
+              gate.closesClaimRequirementIds ?? [],
+            sourceEvidenceIds: gate.sourceEvidenceIds ?? [],
+            mutationAllowedByThisVerifier:
+              gate.mutationAllowedByThisVerifier === true
+          })
+        ),
         releaseBundleStatus:
           artifact.claimPacket?.releaseBundleStatus ??
           artifact.releaseEvidenceBundle?.status ??

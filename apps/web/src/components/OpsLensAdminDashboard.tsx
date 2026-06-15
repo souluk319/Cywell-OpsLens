@@ -1657,6 +1657,15 @@ export function OpsLensAdminDashboard() {
                   ) || "none"}
                 </span>
                 <span>
+                  closure=
+                  {completionGate.claimPacket.gateClosureMatrix
+                    .map(
+                      (gate) =>
+                        `${gate.gateId}:${gate.owner}:${gate.closesClaimRequirementIds.length}`
+                    )
+                    .join(",") || "none"}
+                </span>
+                <span>
                   criticalPath=
                   {completionGate.claimPacket.actionQueueCriticalPathCount}
                 </span>

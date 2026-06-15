@@ -2604,6 +2604,24 @@ export interface OpsLensCompletionGateSummary {
       worktreeDirty: boolean | string;
     }>;
     failedSourceEvidenceIds: string[];
+    gateClosureMatrix: Array<{
+      gateId: string;
+      stage: string;
+      status: string;
+      owner: string;
+      lane: string;
+      actionId: string;
+      nextCommand: string;
+      ticketIds: string[];
+      readOnlyCommandIds: string[];
+      setupCommandIds: string[];
+      approvalGatedCommandIds: string[];
+      evidenceRequired: string[];
+      externalStateRequired: boolean;
+      closesClaimRequirementIds: string[];
+      sourceEvidenceIds: string[];
+      mutationAllowedByThisVerifier: boolean;
+    }>;
     releaseBundleStatus: string;
     actionQueueCriticalPathCount: number;
     mutationBoundaryPassed: boolean;
