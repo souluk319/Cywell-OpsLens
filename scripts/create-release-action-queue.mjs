@@ -13,6 +13,7 @@ const defaults = {
   ownerPacketsDir: "test-results/release-action-queue-owners",
   releaseRefreshEvidence: "test-results/cywell-opslens-release-evidence-refresh.json",
   releaseBundleEvidence: "test-results/cywell-opslens-release-evidence-bundle.json",
+  opsBrain: "test-results/cywell-opslens-opsbrain-contract.json",
   envContract: "test-results/cywell-opslens-env-contract.json",
   aiopsIncidentPipeline:
     "test-results/cywell-opslens-aiops-incident-pipeline.json",
@@ -63,6 +64,8 @@ const options = {
     parsed.get("release-refresh-evidence") ?? defaults.releaseRefreshEvidence,
   releaseBundleEvidence:
     parsed.get("release-bundle-evidence") ?? defaults.releaseBundleEvidence,
+  opsBrain:
+    parsed.get("opsbrain-evidence") ?? defaults.opsBrain,
   envContract:
     parsed.get("env-contract-evidence") ?? defaults.envContract,
   aiopsIncidentPipeline:
@@ -789,6 +792,14 @@ function insideWorkspace(path) {
 
 function fixedReadOnlyCommands() {
   return [
+    {
+      id: "verify-opsbrain",
+      phase: "opsbrain-contract",
+      command: "npm run verify:opsbrain",
+      purpose: "Refresh the no-fine-tuning OpsBrain growth contract evidence.",
+      mutation: false,
+      writesLocalEvidence: true
+    },
     {
       id: "refresh-release-chain",
       phase: "local-evidence-refresh",
@@ -4402,6 +4413,7 @@ async function main() {
       ? undefined
       : loadJson(options.releaseRefreshEvidence, "release evidence refresh", false),
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
+    opsBrain: loadJson(options.opsBrain, "Cywell OpsBrain contract", false),
     envContract: loadJson(options.envContract, "environment isolation contract", false),
     aiopsIncidentPipeline: loadJson(options.aiopsIncidentPipeline, "AI Ops incident pipeline", false),
     runtimeReadiness: loadJson(options.runtimeReadiness, "runtime readiness", false),
@@ -4430,6 +4442,7 @@ async function main() {
         )
       : sourceSummary("releaseRefresh", "release evidence refresh", options.releaseRefreshEvidence, artifacts.releaseRefresh, headSha),
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
+    sourceSummary("opsBrain", "Cywell OpsBrain contract", options.opsBrain, artifacts.opsBrain, headSha),
     sourceSummary("envContract", "environment isolation contract", options.envContract, artifacts.envContract, headSha, true),
     sourceSummary("aiopsIncidentPipeline", "AI Ops incident pipeline", options.aiopsIncidentPipeline, artifacts.aiopsIncidentPipeline, headSha),
     sourceSummary("runtimeReadiness", "runtime readiness", options.runtimeReadiness, artifacts.runtimeReadiness, headSha),
@@ -4530,6 +4543,12 @@ async function main() {
       artifacts.releaseBundle?.clusterMutationAttempted !== true &&
       artifacts.releaseBundle?.mutationAllowedByThisVerifier !== true &&
       artifacts.releaseBundle?.mutationBoundary?.passed !== false &&
+      artifacts.opsBrain?.mutationBoundary?.clusterMutationAttempted !== true &&
+      artifacts.opsBrain?.mutationBoundary?.registryMutationAttempted !== true &&
+      artifacts.opsBrain?.mutationBoundary?.vectorWriteAttempted !== true &&
+      artifacts.opsBrain?.mutationBoundary?.graphWriteAttempted !== true &&
+      artifacts.opsBrain?.mutationBoundary?.fineTuningAttempted !== true &&
+      artifacts.opsBrain?.mutationBoundary?.mutationAllowedByThisVerifier !== true &&
       envContractMutationViolation(artifacts.envContract) !== true &&
       artifacts.checkpoint?.registryMutationAttempted !== true &&
       artifacts.checkpoint?.clusterMutationAttempted !== true &&
@@ -4575,6 +4594,7 @@ async function main() {
       worktreeStatus
     },
     acceptance: [
+      "AC-OPSBRAIN-001",
       "AC-DASH-001",
       "AC-ENV-001",
       "AC-CERT-001",
@@ -4592,6 +4612,7 @@ async function main() {
     mutationBoundary,
     missingEvidence: normalizedEvidence([
       ...(artifacts.releaseBundle?.missingEvidence ?? []),
+      ...(artifacts.opsBrain?.missingEvidence ?? []),
       ...(artifacts.envContract?.missingEvidence ?? []),
       // releaseRefresh summarizes a prior action queue run; feeding it back causes stale circular gaps.
       ...(artifacts.checkpoint?.missingEvidence ?? []),

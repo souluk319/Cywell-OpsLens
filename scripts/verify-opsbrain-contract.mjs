@@ -227,7 +227,7 @@ try {
 const failures = checks.filter((check) => check.status === "FAIL");
 const status = failures.length === 0 ? "PASS" : "FAIL";
 const branch = gitValue(["rev-parse", "--abbrev-ref", "HEAD"]);
-const headSha = gitValue(["rev-parse", "HEAD"]);
+const headSha = gitValue(["rev-parse", "--short", "HEAD"]);
 const baseRef = gitValue(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], "origin/main");
 const gitPorcelain = gitValue(["status", "--porcelain"], "");
 const worktreeDirty = gitPorcelain.length > 0;

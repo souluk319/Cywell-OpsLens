@@ -14,6 +14,7 @@ const defaults = {
 
 const evidenceDefaults = {
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
+  opsBrain: "test-results/cywell-opslens-opsbrain-contract.json",
   envContract: "test-results/cywell-opslens-env-contract.json",
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
   runtimeRag: "test-results/cywell-opslens-runtime-rag-contract.json",
@@ -1302,6 +1303,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "opsBrain",
+    label: "Cywell OpsBrain no-fine-tuning growth contract",
+    artifact: artifacts.opsBrain,
+    desiredStatuses: ["PASS"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "envContract",
     label: "environment isolation contract",
     artifact: artifacts.envContract,
@@ -1592,6 +1600,7 @@ async function main() {
       worktreeStatus: worktreeStatus.map(sanitize)
     },
     acceptance: [
+      "AC-OPSBRAIN-001",
       "AC-DASH-001",
       "AC-RAG-001",
       "AC-RAG-002",

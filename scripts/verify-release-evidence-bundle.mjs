@@ -11,6 +11,7 @@ const defaults = {
   evidenceOut: "test-results/cywell-opslens-release-evidence-bundle.json",
   markdownOut: "test-results/cywell-opslens-release-evidence-bundle.md",
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
+  opsBrain: "test-results/cywell-opslens-opsbrain-contract.json",
   envContract: "test-results/cywell-opslens-env-contract.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   lightspeedExtensionPoint:
@@ -64,6 +65,7 @@ const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
   mvpGate: parsed.get("mvp-gate-evidence") ?? defaults.mvpGate,
+  opsBrain: parsed.get("opsbrain-evidence") ?? defaults.opsBrain,
   envContract: parsed.get("env-contract-evidence") ?? defaults.envContract,
   consolePluginAssets:
     parsed.get("console-plugin-assets-evidence") ?? defaults.consolePluginAssets,
@@ -240,6 +242,16 @@ function unique(values) {
 }
 
 function commandSummary(artifacts) {
+  const opsBrainCommands = [
+    {
+      id: "verify-opsbrain",
+      phase: "opsbrain-contract",
+      command: "npm run verify:opsbrain",
+      mutation: false,
+      requiresExplicitApproval: false,
+      writesLocalEvidence: true
+    }
+  ];
   const releaseCommands = (artifacts.releasePlan?.commands ?? []).map((command) => ({
     id: command.id ?? "unknown",
     phase: command.phase ?? "unknown",
@@ -401,7 +413,7 @@ function commandSummary(artifacts) {
       writesLocalEvidence: command.writesLocalEvidence === true
     }));
   return {
-    readOnly: [...releaseCommands, ...installCommands, ...handoffCommands, ...lightspeedExtensionCommands, ...lightspeedIntegrationCommands, ...networkHandoffCommands, ...ocpAuthRbacCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...communitySubmissionCommands, ...securityCommands, ...securityRunnerCommands]
+    readOnly: [...opsBrainCommands, ...releaseCommands, ...installCommands, ...handoffCommands, ...lightspeedExtensionCommands, ...lightspeedIntegrationCommands, ...networkHandoffCommands, ...ocpAuthRbacCommands, ...externalRuntimeReviewCommands, ...catalogCommands, ...certificationCommands, ...communitySubmissionCommands, ...securityCommands, ...securityRunnerCommands]
       .filter((command) => command.mutation === false),
     mutatingApprovalRequired: [...releaseCommands, ...installCommands, ...lightspeedIntegrationApprovalCommands, ...ocpAuthRbacApprovalCommands, ...externalRuntimeApprovalCommands, ...certificationApprovalCommands, ...communitySubmissionApprovalCommands]
       .filter((command) => command.mutation === true),
@@ -489,6 +501,12 @@ function mutationBoundary(artifacts) {
     ["envContract.registryMutationAttempted", artifacts.envContract?.registryMutationAttempted],
     ["envContract.vectorWriteAttempted", artifacts.envContract?.vectorWriteAttempted],
     ["envContract.mutationAllowedByThisVerifier", artifacts.envContract?.mutationAllowedByThisVerifier],
+    ["opsBrain.clusterMutationAttempted", artifacts.opsBrain?.mutationBoundary?.clusterMutationAttempted],
+    ["opsBrain.registryMutationAttempted", artifacts.opsBrain?.mutationBoundary?.registryMutationAttempted],
+    ["opsBrain.vectorWriteAttempted", artifacts.opsBrain?.mutationBoundary?.vectorWriteAttempted],
+    ["opsBrain.graphWriteAttempted", artifacts.opsBrain?.mutationBoundary?.graphWriteAttempted],
+    ["opsBrain.fineTuningAttempted", artifacts.opsBrain?.mutationBoundary?.fineTuningAttempted],
+    ["opsBrain.mutationAllowedByThisVerifier", artifacts.opsBrain?.mutationBoundary?.mutationAllowedByThisVerifier],
     ["releasePlan.registryMutationAttempted", artifacts.releasePlan?.registryMutationAttempted],
     ["releasePlan.clusterMutationAttempted", artifacts.releasePlan?.clusterMutationAttempted],
     ["releasePlan.mutationAllowedByThisVerifier", artifacts.releasePlan?.mutationAllowedByThisVerifier],
@@ -870,6 +888,7 @@ async function main() {
 
   const artifacts = {
     mvpGate: loadJson(options.mvpGate, "MVP gate"),
+    opsBrain: loadJson(options.opsBrain, "Cywell OpsBrain contract"),
     envContract: loadJson(options.envContract, "environment isolation contract"),
     consolePluginAssets: loadJson(options.consolePluginAssets, "ConsolePlugin assets"),
     lightspeedExtensionPoint: loadJson(
@@ -911,6 +930,7 @@ async function main() {
 
   const sources = [
     sourceSummary("mvpGate", "MVP gate", options.mvpGate, artifacts.mvpGate, headSha, ["PASS"]),
+    sourceSummary("opsBrain", "Cywell OpsBrain contract", options.opsBrain, artifacts.opsBrain, headSha, ["PASS"]),
     sourceSummary("envContract", "environment isolation contract", options.envContract, artifacts.envContract, headSha, ["PASS"]),
     sourceSummary("consolePluginAssets", "ConsolePlugin assets", options.consolePluginAssets, artifacts.consolePluginAssets, headSha, ["PASS"]),
     sourceSummary("lightspeedExtensionPoint", "Lightspeed extension point decision", options.lightspeedExtensionPoint, artifacts.lightspeedExtensionPoint, headSha, ["PASS"]),
@@ -1012,12 +1032,36 @@ async function main() {
       worktreeStatus: worktreeStatus.map(sanitize)
     },
     acceptance: [
+      "AC-OPSBRAIN-001",
       "AC-CERT-001",
       "AC-OP-005",
       "AC-LIVE-HANDOFF-001",
       "AC-DASH-001"
     ],
     decision,
+    opsBrain: {
+      status: artifacts.opsBrain?.status ?? "missing",
+      actionMode: artifacts.opsBrain?.mutationBoundary?.actionMode ?? "missing",
+      acceptance: artifacts.opsBrain?.acceptance ?? {},
+      sourceDocumentCount: artifacts.opsBrain?.sourceDocuments?.length ?? 0,
+      mutationBoundary: {
+        clusterMutationAttempted:
+          artifacts.opsBrain?.mutationBoundary?.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          artifacts.opsBrain?.mutationBoundary?.registryMutationAttempted === true,
+        vectorWriteAttempted:
+          artifacts.opsBrain?.mutationBoundary?.vectorWriteAttempted === true,
+        graphWriteAttempted:
+          artifacts.opsBrain?.mutationBoundary?.graphWriteAttempted === true,
+        fineTuningAttempted:
+          artifacts.opsBrain?.mutationBoundary?.fineTuningAttempted === true,
+        memoryWriteRequiresReview:
+          artifacts.opsBrain?.mutationBoundary?.memoryWriteRequiresReview === true,
+        mutationAllowedByThisVerifier:
+          artifacts.opsBrain?.mutationBoundary?.mutationAllowedByThisVerifier === true
+      },
+      missingEvidence: artifacts.opsBrain?.missingEvidence ?? []
+    },
     roadmapCompletion: roadmapCompletionSummary(artifacts.roadmapPlan),
     approvals: approvalSummary(artifacts),
     stages: stageSummary(artifacts.roadmapPlan),
