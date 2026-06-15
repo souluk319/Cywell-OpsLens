@@ -437,6 +437,75 @@ function approvalGatedCommands(manifestPath) {
   ];
 }
 
+function buildTicketPacket({
+  status,
+  classification,
+  target,
+  rbac,
+  readOnly,
+  approvalGated,
+  missingEvidence,
+  risk,
+  rollbackPath
+}) {
+  const firstApproval =
+    approvalGated.find((command) => command.id === "apply-live-evidence-reader-rbac") ??
+    approvalGated[0];
+  return {
+    id: "cluster-admin-ocp-live-reader-rbac-ticket",
+    owner: "cluster-admin",
+    title: "OCP live evidence reader RBAC approval",
+    severity: status === "AUTH_RBAC_APPROVAL_REQUIRED" ? "blocker" : "high",
+    classification,
+    redactedTarget: redactedOcpTarget(target),
+    summary:
+      "Review the fallback read-only live evidence reader RBAC plan before any ServiceAccount token is created or used.",
+    evidenceChecklist: [
+      `classification=${classification}`,
+      `status=${status}`,
+      `manifest=${rbac.path}`,
+      `rules=${rbac.clusterRole.ruleCount}`,
+      `readOnlyOnly=${String(rbac.clusterRole.readOnlyOnly === true)}`,
+      `secretsIncluded=${String(rbac.clusterRole.secretsIncluded === true)}`,
+      "approvalCommandsNotRun=true"
+    ],
+    firstReadOnlyAction: {
+      id: "cluster-admin-review-ocp-auth-rbac-evidence",
+      status: status === "AUTH_RBAC_APPROVAL_REQUIRED" ? "blocker" : "open",
+      nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    approvalGatedAction: {
+      id: firstApproval?.id ?? "apply-live-evidence-reader-rbac",
+      status: "approval-gated",
+      nextCommand: firstApproval?.command ?? `oc apply -f ${options.manifest}`,
+      mutation: true,
+      requiresExplicitApproval: true
+    },
+    nextCommands: [
+      "npm run evidence:ocp-auth-rbac-plan",
+      ...readOnly
+        .map((command) => command.command)
+        .filter(Boolean)
+        .filter((command) => !/^oc apply -f /.test(command))
+        .slice(0, 5)
+    ],
+    blockedBy: missingEvidence,
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
+      authRbacApprovalRequiresExplicitApproval: true,
+      tokenCreationRequiresApprovedSecretHandling: true
+    },
+    risk: risk[0] ?? "Fallback reader RBAC exposes broad read-only metadata and must be explicitly approved.",
+    rollbackPath:
+      rollbackPath[1] ??
+      "If the RBAC is approved and later revoked, delete the ClusterRoleBinding, ClusterRole, and ServiceAccount named cywell-opslens-live-evidence-reader."
+  };
+}
+
 function adminRequests(classification) {
   if (authLikeClassification(classification)) {
     return [
@@ -509,6 +578,18 @@ function markdownFor(packet) {
       "```",
       ""
     ].join("\n")),
+    "## Approval Ticket Packet",
+    "",
+    `- ID: ${packet.ticketPacket.id}`,
+    `- Owner: ${packet.ticketPacket.owner}`,
+    `- Severity: ${packet.ticketPacket.severity}`,
+    `- Classification: ${packet.ticketPacket.classification}`,
+    `- First read-only action: ${packet.ticketPacket.firstReadOnlyAction.id}`,
+    `- First read-only command: ${packet.ticketPacket.firstReadOnlyAction.nextCommand}`,
+    `- Approval-gated action: ${packet.ticketPacket.approvalGatedAction.id}`,
+    `- Approval required: ${String(packet.ticketPacket.approvalGatedAction.requiresExplicitApproval)}`,
+    `- Mutation allowed by verifier: ${String(packet.ticketPacket.mutationBoundary.mutationAllowedByThisVerifier)}`,
+    "",
     "## Mutation Boundary",
     "",
     "- This verifier did not apply RBAC, create tokens, patch OLSConfig, install Operators, delete, scale, push, mirror, copy, or sign anything.",
@@ -569,6 +650,18 @@ async function main() {
       : []),
     ...rbac.violations.map((violation) => `RBAC manifest violation: ${violation}`)
   ];
+  const risk = [
+    "This fallback reader is cluster-scoped read-only and should be approved only when user-token passthrough cannot collect required shared diagnostic evidence.",
+    "The manifest excludes Secrets and mutating verbs, but it can still read broad workload metadata, events, logs, routes, and cluster operator state.",
+    "Short-lived reader tokens must be handled through approved secret management and must not be committed, pasted into tickets, or printed in logs.",
+    "This plan is separate from Operator controller RBAC, which includes reconciliation permissions and is not suitable as a pre-install diagnostic credential."
+  ];
+  const rollbackPath = [
+    "No rollback is required for this verifier because it writes only local evidence.",
+    "If the RBAC is approved and later revoked, delete the ClusterRoleBinding, ClusterRole, and ServiceAccount named cywell-opslens-live-evidence-reader.",
+    "Do not delete the cywell-opslens namespace as rollback unless it was created only for this fallback reader and contains no product resources.",
+    "Remove the local short-lived credential and rerun npm run verify:ocp:connectivity -- --timeout-ms 30000 to prove the current auth/RBAC state."
+  ];
 
   const packet = {
     schema: "cywell.opslens.ocp-auth-rbac-plan.v0.1",
@@ -612,18 +705,22 @@ async function main() {
     sourceArtifacts,
     adminRequests: adminRequests(classification),
     missingEvidence,
-    risk: [
-      "This fallback reader is cluster-scoped read-only and should be approved only when user-token passthrough cannot collect required shared diagnostic evidence.",
-      "The manifest excludes Secrets and mutating verbs, but it can still read broad workload metadata, events, logs, routes, and cluster operator state.",
-      "Short-lived reader tokens must be handled through approved secret management and must not be committed, pasted into tickets, or printed in logs.",
-      "This plan is separate from Operator controller RBAC, which includes reconciliation permissions and is not suitable as a pre-install diagnostic credential."
-    ],
-    rollbackPath: [
-      "No rollback is required for this verifier because it writes only local evidence.",
-      "If the RBAC is approved and later revoked, delete the ClusterRoleBinding, ClusterRole, and ServiceAccount named cywell-opslens-live-evidence-reader.",
-      "Do not delete the cywell-opslens namespace as rollback unless it was created only for this fallback reader and contains no product resources.",
-      "Remove the local short-lived credential and rerun npm run verify:ocp:connectivity -- --timeout-ms 30000 to prove the current auth/RBAC state."
-    ],
+    ticketPacket: buildTicketPacket({
+      status,
+      classification,
+      target: {
+        port: ocpConnectivity?.target?.port ?? "missing",
+        redactedBaseUrl: ocpConnectivity?.target?.redactedBaseUrl ?? "missing"
+      },
+      rbac,
+      readOnly,
+      approvalGated,
+      missingEvidence,
+      risk,
+      rollbackPath
+    }),
+    risk,
+    rollbackPath,
     markdownOut: resolve(options.markdownOut),
     checks
   };

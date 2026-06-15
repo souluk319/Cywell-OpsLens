@@ -2034,6 +2034,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             mutation?: boolean;
             requiresExplicitApproval?: boolean;
           }>;
+          ticketPacket?: {
+            id?: string;
+            owner?: string;
+            classification?: string;
+            firstReadOnlyAction?: {
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            approvalGatedAction?: {
+              id?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            mutationBoundary?: {
+              clusterMutationAttempted?: boolean;
+              registryMutationAttempted?: boolean;
+              mutationAllowedByThisVerifier?: boolean;
+            };
+          };
           missingEvidence?: string[];
           risk?: string[];
           rollbackPath?: string[];
@@ -5835,7 +5855,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(ocpLiveReaderRbacCriticalPath).toMatchObject({
         owner: "cluster-admin",
         actionId: ocpAuthRbacPlanAction.id,
-        source: "ocpAuthRbacPlan"
+        source: "ocpAuthRbacPlan",
+        ticketPacket: {
+          id: "cluster-admin-ocp-live-reader-rbac-ticket",
+          firstReadOnlyAction: {
+            id: "cluster-admin-review-ocp-auth-rbac-evidence",
+            mutation: false,
+            requiresExplicitApproval: false
+          },
+          approvalGatedAction: {
+            id: "apply-live-evidence-reader-rbac",
+            mutation: true,
+            requiresExplicitApproval: true
+          }
+        }
       });
       expect(ocpLiveReaderRbacCriticalPath?.readOnlyCommandIds).toEqual(
         expect.arrayContaining([
@@ -5910,7 +5943,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         expect(lightspeedAuthCriticalPath).toMatchObject({
           owner: "cluster-admin",
           actionId: "cluster-admin-fix-lightspeed-readiness-auth-rbac",
-          source: "lightspeedReadiness:ocpLiveReaderSmoke"
+          source: "lightspeedReadiness:ocpLiveReaderSmoke",
+          ticketPacket: {
+            id: "cluster-admin-ocp-live-reader-rbac-ticket",
+            firstReadOnlyAction: {
+              id: "cluster-admin-review-ocp-auth-rbac-evidence",
+              mutation: false,
+              requiresExplicitApproval: false
+            },
+            approvalGatedAction: {
+              id: "apply-live-evidence-reader-rbac",
+              mutation: true,
+              requiresExplicitApproval: true
+            }
+          }
         });
         expect(lightspeedAuthCriticalPath?.readOnlyCommandIds).toEqual(
           expect.arrayContaining([
@@ -6428,6 +6474,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           command.requiresExplicitApproval === true
       )
     ).toBe(true);
+    expect(body.installReadiness?.authRbacPlan?.ticketPacket).toMatchObject({
+      id: "cluster-admin-ocp-live-reader-rbac-ticket",
+      owner: "cluster-admin",
+      classification: body.installReadiness?.authRbacPlan?.classification,
+      firstReadOnlyAction: {
+        id: "cluster-admin-review-ocp-auth-rbac-evidence",
+        mutation: false,
+        requiresExplicitApproval: false
+      },
+      approvalGatedAction: {
+        id: "apply-live-evidence-reader-rbac",
+        mutation: true,
+        requiresExplicitApproval: true
+      },
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false
+      }
+    });
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /auth\/RBAC plan/i
     );
@@ -7287,6 +7353,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-ocp-auth-rbac-plan-approval")
     ).toContainText("approval=true");
+    await expect(
+      page.getByTestId("opslens-ocp-auth-rbac-plan-ticket")
+    ).toContainText("cluster-admin-ocp-live-reader-rbac-ticket");
+    await expect(
+      page.getByTestId("opslens-ocp-auth-rbac-plan-ticket")
+    ).toContainText("cluster-admin-review-ocp-auth-rbac-evidence");
+    await expect(
+      page.getByTestId("opslens-ocp-auth-rbac-plan-ticket")
+    ).toContainText("apply-live-evidence-reader-rbac");
+    await expect(
+      page.getByTestId("opslens-ocp-auth-rbac-plan-ticket")
+    ).toContainText("mutationAllowed=false");
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Install Plan"
     );
@@ -8036,7 +8114,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
     ).toContainText(
       ocpHandoffAuthLike
-        ? /ticket=none|lightspeed readiness actions clear/
+        ? /ticket=cluster-admin-ocp-live-reader-rbac-ticket|lightspeed readiness actions clear/
         : new RegExp(
             `ticket=${expectedOcpHandoffTicketId}|lightspeed readiness actions clear`
           )
@@ -8045,7 +8123,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       page.getByTestId("opslens-release-action-queue-lightspeed-readiness-actions")
     ).toContainText(
       ocpHandoffAuthLike
-        ? /ticketFirst=none|lightspeed readiness actions clear/
+        ? /ticketFirst=cluster-admin-review-ocp-auth-rbac-evidence|lightspeed readiness actions clear/
         : /ticketFirst=network-sre-confirm-ocp-api-(tcp-6443|dns)|lightspeed readiness actions clear/
     );
     await expect(

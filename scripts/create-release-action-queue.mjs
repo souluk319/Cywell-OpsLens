@@ -1730,6 +1730,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
         gap.evidence ?? ""
       ],
       diagnostics: liveReaderSmokeDiagnostics(ocpLiveReaderSmoke),
+      ticketPacket: authRbacPlan?.ticketPacket,
       acceptance: ["AC-LS-002", "AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
     };
   }
@@ -3051,6 +3052,7 @@ function ocpAuthRbacItems(authRbacPlan) {
         approvalGatedCommands: authRbacPlan.approvalGatedCommands ?? [],
         blockedBy: authRbacPlan.missingEvidence ?? [],
         diagnostics: ocpAuthRbacDiagnostics(authRbacPlan),
+        ticketPacket: authRbacPlan.ticketPacket,
         acceptance: ["AC-OCP-001", "AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
       })
     ];
@@ -3070,6 +3072,7 @@ function ocpAuthRbacItems(authRbacPlan) {
       approvalGatedCommands: authRbacPlan.approvalGatedCommands ?? [],
       blockedBy: authRbacPlan.missingEvidence ?? [],
       diagnostics: ocpAuthRbacDiagnostics(authRbacPlan),
+      ticketPacket: authRbacPlan.ticketPacket,
       acceptance: ["AC-OCP-RBAC-001", "AC-LIVE-HANDOFF-001"]
     })
   ];

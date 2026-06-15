@@ -3145,6 +3145,7 @@ type OcpAuthRbacPlanArtifact = {
     mutation?: boolean;
     requiresExplicitApproval?: boolean;
   }>;
+  ticketPacket?: OcpNetworkHandoffArtifact["ticketPacket"];
   markdownOut?: string;
   missingEvidence?: string[];
   risk?: string[];
@@ -9426,6 +9427,7 @@ function missingOcpAuthRbacPlanSummary(
       }
     ],
     approvalGatedCommands: [],
+    ticketPacket: undefined,
     adminRequests: [
       "Generate the OCP auth/RBAC approval packet before asking cluster-admin to approve fallback reader access."
     ],
@@ -9948,6 +9950,70 @@ function getOcpAuthRbacPlanReadiness(): {
       mutation: command.mutation === true,
       requiresExplicitApproval: command.requiresExplicitApproval === true
     }));
+    const rawTicketPacket = artifact.ticketPacket;
+    const ticketPacket = rawTicketPacket
+      ? {
+          ...rawTicketPacket,
+          id: rawTicketPacket.id ?? "cluster-admin-ocp-live-reader-rbac-ticket",
+          owner: rawTicketPacket.owner ?? "cluster-admin",
+          title: rawTicketPacket.title ?? "OCP live evidence reader RBAC approval",
+          severity: rawTicketPacket.severity ?? "high",
+          classification:
+            rawTicketPacket.classification ??
+            artifact.diagnostics?.classification ??
+            "unknown",
+          redactedTarget: redactedOcpTarget(target),
+          summary:
+            rawTicketPacket.summary ??
+            "Review the fallback read-only live evidence reader RBAC plan.",
+          evidenceChecklist: rawTicketPacket.evidenceChecklist ?? [],
+          firstReadOnlyAction: {
+            id:
+              rawTicketPacket.firstReadOnlyAction?.id ??
+              "cluster-admin-review-ocp-auth-rbac-evidence",
+            status: rawTicketPacket.firstReadOnlyAction?.status ?? "open",
+            nextCommand:
+              rawTicketPacket.firstReadOnlyAction?.nextCommand ??
+              "npm run evidence:ocp-auth-rbac-plan",
+            mutation: rawTicketPacket.firstReadOnlyAction?.mutation === true,
+            requiresExplicitApproval:
+              rawTicketPacket.firstReadOnlyAction?.requiresExplicitApproval === true
+          },
+          approvalGatedAction: {
+            id:
+              rawTicketPacket.approvalGatedAction?.id ??
+              "apply-live-evidence-reader-rbac",
+            status:
+              rawTicketPacket.approvalGatedAction?.status ?? "approval-gated",
+            nextCommand:
+              rawTicketPacket.approvalGatedAction?.nextCommand ??
+              "oc apply -f deploy/ocp-live-readonly/opslens-live-evidence-reader.yaml",
+            mutation: rawTicketPacket.approvalGatedAction?.mutation === true,
+            requiresExplicitApproval:
+              rawTicketPacket.approvalGatedAction?.requiresExplicitApproval !== false
+          },
+          nextCommands: rawTicketPacket.nextCommands ?? [],
+          blockedBy: rawTicketPacket.blockedBy ?? artifact.missingEvidence ?? [],
+          mutationBoundary: {
+            clusterMutationAttempted:
+              rawTicketPacket.mutationBoundary?.clusterMutationAttempted === true,
+            registryMutationAttempted:
+              rawTicketPacket.mutationBoundary?.registryMutationAttempted === true,
+            mutationAllowedByThisVerifier:
+              rawTicketPacket.mutationBoundary?.mutationAllowedByThisVerifier === true,
+            networkChangeRequiresExplicitApproval:
+              rawTicketPacket.mutationBoundary?.networkChangeRequiresExplicitApproval === true
+          },
+          risk:
+            rawTicketPacket.risk ??
+            artifact.risk?.[0] ??
+            "Fallback reader RBAC requires explicit approval.",
+          rollbackPath:
+            rawTicketPacket.rollbackPath ??
+            artifact.rollbackPath?.[0] ??
+            "Regenerate the auth/RBAC plan after OCP connectivity evidence changes."
+        }
+      : undefined;
 
     return {
       status,
@@ -9992,6 +10058,7 @@ function getOcpAuthRbacPlanReadiness(): {
         },
         readOnlyCommands,
         approvalGatedCommands,
+        ticketPacket,
         adminRequests: artifact.adminRequests ?? [],
         missingEvidence: artifact.missingEvidence ?? [],
         risk: artifact.risk ?? [],

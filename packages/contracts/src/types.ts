@@ -1749,6 +1749,7 @@ export interface OpsLensOcpAuthRbacPlanSummary {
     mutation: boolean;
     requiresExplicitApproval: boolean;
   }>;
+  ticketPacket?: OpsLensOcpNetworkHandoffSummary["ticketPacket"];
   adminRequests: string[];
   missingEvidence: string[];
   risk: string[];

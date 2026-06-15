@@ -2188,6 +2188,29 @@ export function OpsLensAdminDashboard() {
                   </span>
                 ))}
               </div>
+              {authRbacPlan.ticketPacket ? (
+                <div
+                  className="admin-evidence-line"
+                  data-testid="opslens-ocp-auth-rbac-plan-ticket"
+                >
+                  <span>
+                    {authRbacPlan.ticketPacket.id}:{authRbacPlan.ticketPacket.owner}
+                    :{authRbacPlan.ticketPacket.classification}:first=
+                    {authRbacPlan.ticketPacket.firstReadOnlyAction.id}:approval=
+                    {authRbacPlan.ticketPacket.approvalGatedAction.id}
+                    :requiresApproval=
+                    {String(
+                      authRbacPlan.ticketPacket.approvalGatedAction
+                        .requiresExplicitApproval
+                    )}
+                    :mutationAllowed=
+                    {String(
+                      authRbacPlan.ticketPacket.mutationBoundary
+                        .mutationAllowedByThisVerifier
+                    )}
+                  </span>
+                </div>
+              ) : null}
               <div className="remediation-notes">
                 <p>
                   {authRbacPlan.risk[0] ??
