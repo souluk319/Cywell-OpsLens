@@ -27,7 +27,7 @@
   },
   "mutation": false,
   "notes": [
-    "Copy this file to approved-ci-runner.json only after the runner image digest, approver, ticket, current head, tool versions, and validation logs are real.",
+    "Promote this shape to approved-ci-runner.json with npm run evidence:certification:ci-runner:promote -- --promote-reviewed only after the runner image digest, approver, ticket, current head, tool versions, and validation logs are real.",
     "This evidence may satisfy missing local opm/operator-sdk tooling, but it does not approve Partner Connect, OperatorHub submission, registry push, signing, mirroring, or cluster mutation."
   ]
 }

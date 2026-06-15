@@ -306,7 +306,7 @@ async function buildDraft() {
         request: "Review runner provenance before promotion to approved-ci-runner.json.",
         evidenceNeeded: "Approved runner image digest, tool versions, clean current-head validation logs, and no mutation flags.",
         nextCommand:
-          "copy reviewed draft values into docs/release/evidence/certification/approved-ci-runner.json, then run npm run verify:certification"
+          "npm run evidence:certification:ci-runner:promote -- --promote-reviewed --reviewer <reviewer> --review-ticket <ticket> --force"
       }
     ],
     missingEvidence,
@@ -324,7 +324,7 @@ async function buildDraft() {
       status === "DRAFT_REVIEW_READY"
         ? [
             "review approved-ci-runner.draft.json with release-manager and security-reviewer",
-            "create docs/release/evidence/certification/approved-ci-runner.json only after human approval",
+            "npm run evidence:certification:ci-runner:promote -- --promote-reviewed --reviewer <reviewer> --review-ticket <ticket> --force",
             "npm run verify:certification"
           ]
         : [

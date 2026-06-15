@@ -4324,6 +4324,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         ?.runnerEvidence?.nextCommands?.join(" ")
     ).toContain("evidence:certification:ci-runner-draft");
     expect(
+      body.installReadiness?.certificationPlan?.toolingHandoff
+        ?.runnerEvidence?.nextCommands?.join(" ")
+    ).toContain("evidence:certification:ci-runner:promote");
+    expect(
       body.installReadiness?.certificationPlan?.toolingHandoff?.ticketPacket
     ).toMatchObject({
       id: "release-manager-certification-tooling-ticket",

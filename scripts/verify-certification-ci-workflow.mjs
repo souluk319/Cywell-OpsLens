@@ -297,7 +297,7 @@ async function main() {
       "run the manual GitHub Actions workflow on an approved runner with oc/docker/opm/operator-sdk available",
       "download cywell-opslens-certification-tooling-evidence artifact",
       "review approved-ci-runner.draft.json with release-manager and security-reviewer",
-      "create docs/release/evidence/certification/approved-ci-runner.json only after the runner digest, approval ticket, tool versions, and validation logs are real",
+      "npm run evidence:certification:ci-runner:promote -- --promote-reviewed --reviewer <reviewer> --review-ticket <ticket> --force",
       "npm run verify:certification -- --ci-runner-evidence docs/release/evidence/certification/approved-ci-runner.json"
     ],
     risk: [

@@ -54,7 +54,7 @@ npm run evidence:certification:ci-runner-draft -- --force
 
 The draft is written to `docs/release/evidence/certification/approved-ci-runner.draft.json`. It collects current Git head, available local tool versions, current certification/catalog evidence paths, missing fields, reviewer requests, risk, and rollback guidance. Draft files do not satisfy certification readiness.
 
-Use `docs/release/evidence/certification/approved-ci-runner.example.json` as the final reviewed shape, then create `docs/release/evidence/certification/approved-ci-runner.json` only after the values are real:
+Use `docs/release/evidence/certification/approved-ci-runner.example.json` as the final reviewed shape, then promote `docs/release/evidence/certification/approved-ci-runner.json` only after the values are real:
 
 - current Git `headSha`
 - approved runner or CI image digest pinned by `sha256`
@@ -63,9 +63,10 @@ Use `docs/release/evidence/certification/approved-ci-runner.example.json` as the
 - artifact or log references for `opm validate`, `operator-sdk bundle validate`, and `operator-sdk scorecard`
 - `mutation: false`
 
-Validate it with:
+Promote and validate it with:
 
 ```powershell
+npm run evidence:certification:ci-runner:promote -- --promote-reviewed --reviewer <reviewer> --review-ticket <ticket> --force
 npm run verify:certification -- --ci-runner-evidence docs/release/evidence/certification/approved-ci-runner.json
 npm run verify:catalog-toolchain
 ```
@@ -97,7 +98,7 @@ Verify the workflow contract locally with:
 npm run verify:certification-ci-workflow
 ```
 
-Only after release-manager and security-reviewer review the workflow artifact should the real values be copied into `approved-ci-runner.json`.
+Only after release-manager and security-reviewer review the workflow artifact should the reviewed draft be promoted into `approved-ci-runner.json` with `npm run evidence:certification:ci-runner:promote -- --promote-reviewed --reviewer <reviewer> --review-ticket <ticket> --force`.
 
 ## Freshness and Owner Handoff
 

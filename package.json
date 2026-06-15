@@ -32,6 +32,7 @@
     "verify:certification": "node ./scripts/verify-certification-readiness.mjs",
     "verify:certification-ci-workflow": "node ./scripts/verify-certification-ci-workflow.mjs",
     "evidence:certification:ci-runner-draft": "node ./scripts/create-certification-ci-runner-draft.mjs",
+    "evidence:certification:ci-runner:promote": "node ./scripts/promote-certification-ci-runner-evidence.mjs",
     "verify:community-submission": "node ./scripts/verify-community-operator-submission.mjs",
     "verify:catalog-toolchain": "node ./scripts/verify-catalog-toolchain-plan.mjs",
     "verify:images": "node ./scripts/verify-image-build-readiness.mjs",
