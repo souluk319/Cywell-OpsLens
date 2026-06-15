@@ -1805,6 +1805,20 @@ export interface OpsLensOcpConnectivityDiagnosticSummary {
     tokenConfigured: boolean;
     tlsVerify: boolean;
   };
+  credentialHygiene: {
+    tokenConfigured: boolean;
+    tokenSource: string;
+    tokenCandidateCount: number;
+    tokenLengthClass: string;
+    tokenLooksPlaceholder: boolean;
+    tokenHasWhitespace: boolean;
+    tokenStartsWithBearer: boolean;
+    tokenLooksOpenShiftSha: boolean;
+    localFormatIssue: boolean;
+    credentialStoredByVerifier: boolean;
+    tokenValueRedacted: boolean;
+    credentialDiagnosis: string;
+  };
   diagnostics: {
     dns: string;
     tcp: string;

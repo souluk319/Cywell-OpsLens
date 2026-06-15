@@ -3224,6 +3224,20 @@ type OcpConnectivityDiagnosticArtifact = {
     tokenConfigured?: boolean;
     tlsVerify?: boolean;
   };
+  credentialHygiene?: {
+    tokenConfigured?: boolean;
+    tokenSource?: string;
+    tokenCandidateCount?: number;
+    tokenLengthClass?: string;
+    tokenLooksPlaceholder?: boolean;
+    tokenHasWhitespace?: boolean;
+    tokenStartsWithBearer?: boolean;
+    tokenLooksOpenShiftSha?: boolean;
+    localFormatIssue?: boolean;
+    credentialStoredByVerifier?: boolean;
+    tokenValueRedacted?: boolean;
+    credentialDiagnosis?: string;
+  };
   diagnostics?: {
     classification?: string;
     dns?: { status?: string };
@@ -5435,6 +5449,20 @@ function getOcpConnectivityDiagnosticReadiness(): {
           tokenConfigured: false,
           tlsVerify: true
         },
+        credentialHygiene: {
+          tokenConfigured: false,
+          tokenSource: "missing",
+          tokenCandidateCount: 0,
+          tokenLengthClass: "missing",
+          tokenLooksPlaceholder: false,
+          tokenHasWhitespace: false,
+          tokenStartsWithBearer: false,
+          tokenLooksOpenShiftSha: false,
+          localFormatIssue: true,
+          credentialStoredByVerifier: false,
+          tokenValueRedacted: true,
+          credentialDiagnosis: "missing-evidence"
+        },
         diagnostics: {
           dns: "missing",
           tcp: "missing",
@@ -5517,6 +5545,30 @@ function getOcpConnectivityDiagnosticReadiness(): {
           tokenConfigured: target.tokenConfigured === true,
           tlsVerify: target.tlsVerify !== false
         },
+        credentialHygiene: {
+          tokenConfigured: artifact.credentialHygiene?.tokenConfigured === true,
+          tokenSource: artifact.credentialHygiene?.tokenSource ?? "unknown",
+          tokenCandidateCount:
+            artifact.credentialHygiene?.tokenCandidateCount ?? 0,
+          tokenLengthClass:
+            artifact.credentialHygiene?.tokenLengthClass ?? "unknown",
+          tokenLooksPlaceholder:
+            artifact.credentialHygiene?.tokenLooksPlaceholder === true,
+          tokenHasWhitespace:
+            artifact.credentialHygiene?.tokenHasWhitespace === true,
+          tokenStartsWithBearer:
+            artifact.credentialHygiene?.tokenStartsWithBearer === true,
+          tokenLooksOpenShiftSha:
+            artifact.credentialHygiene?.tokenLooksOpenShiftSha === true,
+          localFormatIssue:
+            artifact.credentialHygiene?.localFormatIssue === true,
+          credentialStoredByVerifier:
+            artifact.credentialHygiene?.credentialStoredByVerifier === true,
+          tokenValueRedacted:
+            artifact.credentialHygiene?.tokenValueRedacted !== false,
+          credentialDiagnosis:
+            artifact.credentialHygiene?.credentialDiagnosis ?? "unknown"
+        },
         diagnostics,
         actionHints,
         readOnlyTroubleshootingCommands,
@@ -5552,6 +5604,20 @@ function getOcpConnectivityDiagnosticReadiness(): {
           redactedBaseUrl: "unknown",
           tokenConfigured: false,
           tlsVerify: true
+        },
+        credentialHygiene: {
+          tokenConfigured: false,
+          tokenSource: "unknown",
+          tokenCandidateCount: 0,
+          tokenLengthClass: "unknown",
+          tokenLooksPlaceholder: false,
+          tokenHasWhitespace: false,
+          tokenStartsWithBearer: false,
+          tokenLooksOpenShiftSha: false,
+          localFormatIssue: true,
+          credentialStoredByVerifier: false,
+          tokenValueRedacted: true,
+          credentialDiagnosis: "invalid-evidence"
         },
         diagnostics: {
           dns: "unknown",

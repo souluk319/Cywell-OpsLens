@@ -1479,6 +1479,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             tokenConfigured?: boolean;
             tlsVerify?: boolean;
           };
+          credentialHygiene?: {
+            tokenConfigured?: boolean;
+            tokenSource?: string;
+            tokenCandidateCount?: number;
+            tokenLengthClass?: string;
+            tokenLooksPlaceholder?: boolean;
+            tokenHasWhitespace?: boolean;
+            tokenStartsWithBearer?: boolean;
+            tokenLooksOpenShiftSha?: boolean;
+            localFormatIssue?: boolean;
+            credentialStoredByVerifier?: boolean;
+            tokenValueRedacted?: boolean;
+            credentialDiagnosis?: string;
+          };
           diagnostics?: {
             dns?: string;
             tcp?: string;
@@ -3923,6 +3937,20 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.connectivity?.target?.redactedBaseUrl
     ).toContain("<redacted-ocp-api>");
+    expect(body.installReadiness?.connectivity?.credentialHygiene).toMatchObject({
+      tokenConfigured: expect.any(Boolean),
+      tokenSource: expect.any(String),
+      tokenCandidateCount: expect.any(Number),
+      tokenLengthClass: expect.any(String),
+      tokenLooksPlaceholder: expect.any(Boolean),
+      tokenHasWhitespace: expect.any(Boolean),
+      tokenStartsWithBearer: expect.any(Boolean),
+      tokenLooksOpenShiftSha: expect.any(Boolean),
+      localFormatIssue: expect.any(Boolean),
+      credentialStoredByVerifier: false,
+      tokenValueRedacted: true,
+      credentialDiagnosis: expect.any(String)
+    });
     expect(
       body.installReadiness?.connectivity?.actionHints?.length ?? 0
     ).toBeGreaterThan(0);
@@ -3949,6 +3977,8 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       connectivity: body.installReadiness?.connectivity,
       networkHandoff: body.installReadiness?.networkHandoff
     });
+    expect(ocpNetworkEvidenceText).not.toMatch(/sha256~[A-Za-z0-9._~-]+/);
+    expect(ocpNetworkEvidenceText).not.toMatch(/Bearer\s+[A-Za-z0-9._~+/=-]{12,}/i);
     expect(ocpNetworkEvidenceText).not.toMatch(
       /\b(?:10(?:\.\d{1,3}){3}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|192\.168(?:\.\d{1,3}){2})\b/
     );

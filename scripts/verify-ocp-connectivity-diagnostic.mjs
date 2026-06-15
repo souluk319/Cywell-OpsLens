@@ -196,6 +196,43 @@ function ocpConfig() {
   };
 }
 
+function credentialHygiene(config) {
+  const token = config.token ?? "";
+  const tokenConfigured = token.length > 0;
+  const tokenLooksPlaceholder =
+    /<|>|changeme|example/i.test(token) || token.toLowerCase() === "token";
+  const tokenHasWhitespace = /\s/.test(token);
+  const tokenStartsWithBearer = /^Bearer\s+/i.test(token);
+  const tokenLooksOpenShiftSha = token.startsWith("sha256~");
+  const tokenLengthClass = !tokenConfigured
+    ? "missing"
+    : token.length < 16
+      ? "short"
+      : token.length <= 256
+        ? "expected"
+        : "long";
+  const localFormatIssue =
+    !tokenConfigured ||
+    tokenLooksPlaceholder ||
+    tokenHasWhitespace ||
+    tokenStartsWithBearer ||
+    tokenLengthClass === "short";
+
+  return {
+    tokenConfigured,
+    tokenSource: config.tokenSource,
+    tokenCandidateCount: config.tokenCandidateCount,
+    tokenLengthClass,
+    tokenLooksPlaceholder,
+    tokenHasWhitespace,
+    tokenStartsWithBearer,
+    tokenLooksOpenShiftSha,
+    localFormatIssue,
+    credentialStoredByVerifier: false,
+    tokenValueRedacted: true
+  };
+}
+
 function secretValuesForLeakCheck() {
   return [
     "OCP_API_TOKEN",
@@ -774,7 +811,7 @@ function readOnlyTroubleshootingCommands(endpoint, dnsResult) {
   ];
 }
 
-function actionHintsForClassification(classification, troubleshootingCommands = []) {
+function actionHintsForClassification(classification, troubleshootingCommands = [], hygiene) {
   const boundedConnectivityCheck = "npm run verify:ocp:connectivity -- --timeout-ms 30000";
   const tcpNextCheck =
     troubleshootingCommands.find((command) => command.id === "windows-test-netconnection")?.command ??
@@ -867,7 +904,26 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
         summary: "Refresh OCP_API_TOKEN or kubeconfig credentials and confirm user access.",
         evidence: "The API was reachable but authentication or authorization failed.",
         nextCheck: `oc whoami && ${boundedConnectivityCheck}`
-      }
+      },
+      ...(hygiene?.localFormatIssue === false
+        ? [
+            {
+              id: "credential-rejected-or-expired",
+              severity: "blocked",
+              summary: "The configured token shape looks usable locally, so treat the 401 as a rejected, expired, or wrong-cluster credential until proven otherwise.",
+              evidence: "Credential hygiene found no placeholder, whitespace, Bearer prefix, or short-token issue; token value remains redacted.",
+              nextCheck: "Refresh the OCP token from the target cluster, then rerun npm run verify:ocp:connectivity -- --timeout-ms 30000"
+            }
+          ]
+        : [
+            {
+              id: "fix-local-token-format",
+              severity: "blocked",
+              summary: "Fix local token formatting before assuming the cluster rejected a valid credential.",
+              evidence: "Credential hygiene detected a local token format issue without exposing the token value.",
+              nextCheck: "Remove placeholders, whitespace, or a leading Bearer prefix, then rerun npm run verify:ocp:connectivity -- --timeout-ms 30000"
+            }
+          ])
     ],
     "auth-or-rbac": [
       {
@@ -903,6 +959,7 @@ function actionHintsForClassification(classification, troubleshootingCommands = 
 
 async function main() {
   const config = ocpConfig();
+  const hygiene = credentialHygiene(config);
   const endpoint = endpointFromBaseUrl(config.baseUrl);
   const branch = await gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown");
   const headSha = await gitValue(["rev-parse", "--short", "HEAD"], "unknown");
@@ -930,6 +987,19 @@ async function main() {
     warn("OCP API token", "token is missing; set OCP_API_TOKEN or kubeconfig user token");
   } else {
     pass("OCP API token", `token configured from ${config.tokenSource}; value is redacted`);
+  }
+  if (!hygiene.tokenConfigured) {
+    warn("OCP API credential hygiene", "token is missing; value remains redacted");
+  } else if (hygiene.localFormatIssue) {
+    warn(
+      "OCP API credential hygiene",
+      `source=${hygiene.tokenSource} lengthClass=${hygiene.tokenLengthClass} placeholder=${hygiene.tokenLooksPlaceholder} whitespace=${hygiene.tokenHasWhitespace} bearerPrefix=${hygiene.tokenStartsWithBearer} value=redacted`
+    );
+  } else {
+    pass(
+      "OCP API credential hygiene",
+      `source=${hygiene.tokenSource} lengthClass=${hygiene.tokenLengthClass} openshiftSha=${hygiene.tokenLooksOpenShiftSha} localFormatIssue=false value=redacted`
+    );
   }
 
   const dnsResult = await diagnoseDns(endpoint, config.timeoutMs);
@@ -970,7 +1040,18 @@ async function main() {
     missingEvidence.push(`current git worktree dirty=true currentHead=${headSha}`);
   }
   const troubleshootingCommands = readOnlyTroubleshootingCommands(endpoint, dnsResult);
-  const actionHints = actionHintsForClassification(classification, troubleshootingCommands);
+  const credentialDiagnosis = classification === "auth-failed"
+    ? hygiene.localFormatIssue
+      ? "local-token-format-issue"
+      : "credential-rejected-or-expired"
+    : classification === "token-missing"
+      ? "token-missing"
+      : "not-auth-failure";
+  const actionHints = actionHintsForClassification(
+    classification,
+    troubleshootingCommands,
+    hygiene
+  );
 
   const artifact = {
     schema: "cywell.opslens.ocp-connectivity-diagnostic.v0.1",
@@ -1015,6 +1096,10 @@ async function main() {
           tlsVerifySource: config.tlsVerifySource,
           timeoutMs: config.timeoutMs
         },
+    credentialHygiene: {
+      ...hygiene,
+      credentialDiagnosis
+    },
     diagnostics: {
       classification,
       dns: dnsResult,
@@ -1031,7 +1116,8 @@ async function main() {
       "diagnostic performs DNS lookup, TCP connect, TLS handshake, Kubernetes /version GET, and oc get --raw=/version only",
       "RBAC access reviews use oc auth can-i and do not apply, patch, delete, or create cluster resources",
       "no apply, patch, delete, scale, image push, signing, mirroring, or cluster mutation is attempted",
-      "token values are redacted from console output and evidence artifacts"
+      "token values are redacted from console output and evidence artifacts",
+      `credential hygiene localFormatIssue=${hygiene.localFormatIssue} diagnosis=${credentialDiagnosis}`
     ],
     risk: [
       "A TCP timeout usually points to VPN, firewall, route, bastion, or API server reachability rather than an OpsLens code defect.",
