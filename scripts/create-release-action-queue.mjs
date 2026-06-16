@@ -4140,6 +4140,65 @@ function buildOwnerPackets(owners, items) {
   });
 }
 
+function commandSummary(command, fallback = {}) {
+  return {
+    id: command?.id ?? fallback.id ?? "none",
+    command: command?.command ?? fallback.command ?? "none",
+    phase: command?.phase ?? fallback.phase ?? "none",
+    mutation: command?.mutation === true,
+    requiresExplicitApproval:
+      command?.requiresExplicitApproval === true ||
+      fallback.requiresExplicitApproval === true
+  };
+}
+
+function buildOwnerExecutionPlan(ownerPackets, items) {
+  return ownerPackets.map((packet) => {
+    const entries = items.filter((entry) => entry.owner === packet.owner);
+    const firstAction = firstOwnerAction(entries);
+    const firstReadOnlyCommand =
+      firstAction?.readOnlyCommands?.[0] ??
+      entries.flatMap((entry) => entry.readOnlyCommands)[0];
+    const firstSetupCommand =
+      firstAction?.setupCommands?.[0] ??
+      entries.flatMap((entry) => entry.setupCommands)[0];
+    const firstApprovalGatedCommand =
+      firstAction?.approvalGatedCommands?.[0] ??
+      entries.flatMap((entry) => entry.approvalGatedCommands)[0];
+    return {
+      owner: packet.owner,
+      status: packet.status,
+      open: packet.open,
+      blocker: packet.blocker,
+      high: packet.high,
+      firstActionId: packet.firstActionId,
+      firstActionPriority: packet.firstActionPriority,
+      firstNextCommand: packet.firstNextCommand,
+      firstEvidenceNeeded: packet.firstEvidenceNeeded,
+      ticketPacketCount: packet.ticketPacketCount,
+      readOnlyCommandCount: packet.readOnlyCommandIds.length,
+      setupCommandCount: packet.setupCommandIds.length,
+      approvalGatedCommandCount: packet.approvalGatedCommandIds.length,
+      firstReadOnlyCommand: commandSummary(firstReadOnlyCommand, {
+        id: packet.readOnlyCommandIds[0] ?? "none",
+        requiresExplicitApproval: false
+      }),
+      firstSetupCommand: commandSummary(firstSetupCommand, {
+        id: packet.setupCommandIds[0] ?? "none"
+      }),
+      firstApprovalGatedCommand: commandSummary(firstApprovalGatedCommand, {
+        id: packet.approvalGatedCommandIds[0] ?? "none",
+        requiresExplicitApproval:
+          (packet.approvalGatedCommandIds ?? []).length > 0
+      }),
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false,
+      vectorWriteAllowed: false,
+      mutationAllowedByThisVerifier: false
+    };
+  });
+}
+
 async function cleanupOwnerPacketDirectory(expectedPaths) {
   const ownerPacketsDir = resolve(options.ownerPacketsDir);
   const expectedNames = new Set(expectedPaths.map((path) => basename(path)));
@@ -4207,6 +4266,12 @@ function markdownFor(queue) {
     "",
     ...queue.ownerPackets.map((packet) =>
       `- ${packet.owner}: ${packet.markdownPath} open=${packet.open}, blocker=${packet.blocker}, approvalGated=${packet.approvalGatedCommandIds.length}, first=${packet.firstActionId}, next=${packet.firstNextCommand}, runtimeTicket=${packet.firstRuntimeEvidenceTicketPacket?.id ?? "none"}, finalTicket=${packet.firstExternalRuntimeFinalEvidenceTicketPacket?.id ?? "none"}, productTicket=${packet.firstExternalRuntimeProductTicketPacket?.id ?? "none"}, securityTicket=${packet.firstSecurityReviewTicketPacket?.id ?? "none"}, publishTicket=${packet.firstReleasePublishTicketPacket?.id ?? "none"}, installTicket=${packet.firstInstallApprovalTicketPacket?.id ?? "none"}, catalogTicket=${packet.firstCatalogToolchainTicketPacket?.id ?? "none"}, ragTicket=${packet.firstRagProductionTicketPacket?.id ?? "none"}, aiopsTicket=${packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}`
+    ),
+    "",
+    "## Owner Execution Plan",
+    "",
+    ...queue.ownerExecutionPlan.map((plan) =>
+      `- ${plan.owner}: status=${plan.status}, first=${plan.firstActionId}, next=${plan.firstNextCommand}, readOnly=${plan.firstReadOnlyCommand.id}, setup=${plan.firstSetupCommand.id}, approval=${plan.firstApprovalGatedCommand.id}, ticketPackets=${plan.ticketPacketCount}, mutationAllowed=${String(plan.mutationAllowedByThisVerifier)}`
     ),
     "",
     "## Owner Packet Cleanup",
@@ -4673,6 +4738,7 @@ async function main() {
   const items = buildItems(artifacts, headSha);
   const owners = ownerSummary(items);
   const ownerPackets = buildOwnerPackets(owners, items);
+  const ownerExecutionPlan = buildOwnerExecutionPlan(ownerPackets, items);
   const releaseCriticalPath = criticalPath(items);
   const readOnly = readOnlyCommands(artifacts);
   const approvalGated = approvalGatedCommands(artifacts);
@@ -4751,6 +4817,39 @@ async function main() {
     pass(
       "release action queue owner packet ticket coverage",
       `${ownerPackets.length} owner packet(s) carry ticket handoffs`
+    );
+  }
+  const ownerExecutionPlanWithoutReadOnly = ownerExecutionPlan
+    .filter((plan) => plan.open > 0 && plan.firstReadOnlyCommand.id === "none")
+    .map((plan) => plan.owner);
+  const ownerExecutionPlanUnsafeBoundary = ownerExecutionPlan
+    .filter(
+      (plan) =>
+        plan.clusterMutationAllowed === true ||
+        plan.registryMutationAllowed === true ||
+        plan.vectorWriteAllowed === true ||
+        plan.mutationAllowedByThisVerifier === true ||
+        plan.firstReadOnlyCommand.mutation === true ||
+        plan.firstReadOnlyCommand.requiresExplicitApproval === true ||
+        (plan.firstApprovalGatedCommand.id !== "none" &&
+          plan.firstApprovalGatedCommand.requiresExplicitApproval !== true)
+    )
+    .map((plan) => plan.owner);
+  if (
+    ownerExecutionPlanWithoutReadOnly.length > 0 ||
+    ownerExecutionPlanUnsafeBoundary.length > 0
+  ) {
+    fail(
+      "release action queue owner execution plan",
+      [
+        `missingReadOnly=${ownerExecutionPlanWithoutReadOnly.join(",") || "none"}`,
+        `unsafeBoundary=${ownerExecutionPlanUnsafeBoundary.join(",") || "none"}`
+      ].join(" ")
+    );
+  } else {
+    pass(
+      "release action queue owner execution plan",
+      `${ownerExecutionPlan.length} owner execution row(s) have first read-only actions and safe mutation boundaries`
     );
   }
   const itemsWithoutDiagnostics = items
@@ -4898,6 +4997,7 @@ async function main() {
     sourceArtifacts,
     owners,
     ownerPackets,
+    ownerExecutionPlan,
     criticalPath: releaseCriticalPath,
     ownerPacketsDir: resolve(options.ownerPacketsDir),
     items,

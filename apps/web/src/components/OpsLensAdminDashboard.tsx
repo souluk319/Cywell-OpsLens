@@ -3949,6 +3949,26 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-release-action-queue-owner-execution-plan"
+              >
+                {releaseActionQueue.ownerExecutionPlan.slice(0, 10).map((plan) => (
+                  <span key={plan.owner}>
+                    {plan.owner}:{plan.status}:first={plan.firstActionId}:next=
+                    {plan.firstNextCommand}:readOnly=
+                    {plan.firstReadOnlyCommand.id}:setup=
+                    {plan.firstSetupCommand.id}:approval=
+                    {plan.firstApprovalGatedCommand.id}:tickets=
+                    {plan.ticketPacketCount}:clusterMutationAllowed=
+                    {String(plan.clusterMutationAllowed)}
+                    :registryMutationAllowed=
+                    {String(plan.registryMutationAllowed)}:vectorWriteAllowed=
+                    {String(plan.vectorWriteAllowed)}:mutationAllowed=
+                    {String(plan.mutationAllowedByThisVerifier)}
+                  </span>
+                ))}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-release-action-queue-owner-packet-cleanup"
               >
                 <span>

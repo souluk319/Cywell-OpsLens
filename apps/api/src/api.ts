@@ -3008,6 +3008,7 @@ type ReleaseActionQueueArtifact = {
     acceptance?: string[];
     mutationAllowedByThisVerifier?: boolean;
   }>;
+  ownerExecutionPlan?: OpsLensReleaseActionQueueSummary["ownerExecutionPlan"];
   criticalPath?: Array<{
     lane?: string;
     label?: string;
@@ -12066,6 +12067,7 @@ function missingReleaseActionQueueSummary(
     worktreeDirty: false,
     owners: [],
     ownerPackets: [],
+    ownerExecutionPlan: [],
     criticalPath: [],
     ownerPacketCleanup: {
       dir: "missing",
@@ -12104,6 +12106,60 @@ function normalizeOwnerPacketStatus(status?: string): "blocker" | "open" | "clea
     return status;
   }
   return "clear";
+}
+
+function mapActionQueueExecutionCommand(
+  command:
+    | OpsLensReleaseActionQueueSummary["ownerExecutionPlan"][number]["firstReadOnlyCommand"]
+    | undefined,
+  fallbackId = "none"
+): OpsLensReleaseActionQueueSummary["ownerExecutionPlan"][number]["firstReadOnlyCommand"] {
+  return {
+    id: command?.id ?? fallbackId,
+    command: command?.command ?? "none",
+    phase: command?.phase ?? "none",
+    mutation: command?.mutation === true,
+    requiresExplicitApproval: command?.requiresExplicitApproval === true
+  };
+}
+
+function fallbackOwnerExecutionPlan(
+  ownerPackets: OpsLensReleaseActionQueueSummary["ownerPackets"]
+): OpsLensReleaseActionQueueSummary["ownerExecutionPlan"] {
+  return ownerPackets.map((packet) => ({
+    owner: packet.owner,
+    status: packet.status,
+    open: packet.open,
+    blocker: packet.blocker,
+    high: packet.high,
+    firstActionId: packet.firstActionId,
+    firstActionPriority: packet.firstActionPriority,
+    firstNextCommand: packet.firstNextCommand,
+    firstEvidenceNeeded: packet.firstEvidenceNeeded,
+    ticketPacketCount: packet.ticketPacketCount,
+    readOnlyCommandCount: packet.readOnlyCommandIds.length,
+    setupCommandCount: packet.setupCommandIds.length,
+    approvalGatedCommandCount: packet.approvalGatedCommandIds.length,
+    firstReadOnlyCommand: mapActionQueueExecutionCommand(
+      undefined,
+      packet.readOnlyCommandIds[0] ?? "none"
+    ),
+    firstSetupCommand: mapActionQueueExecutionCommand(
+      undefined,
+      packet.setupCommandIds[0] ?? "none"
+    ),
+    firstApprovalGatedCommand: {
+      ...mapActionQueueExecutionCommand(
+        undefined,
+        packet.approvalGatedCommandIds[0] ?? "none"
+      ),
+      requiresExplicitApproval: packet.approvalGatedCommandIds.length > 0
+    },
+    clusterMutationAllowed: false,
+    registryMutationAllowed: false,
+    vectorWriteAllowed: false,
+    mutationAllowedByThisVerifier: false
+  }));
 }
 
 function getReleaseActionQueueReadiness(): {
@@ -12193,6 +12249,37 @@ function getReleaseActionQueueReadiness(): {
       staleRemoved: artifact.ownerPacketCleanup?.staleRemoved ?? [],
       deletionAllowed: artifact.ownerPacketCleanup?.deletionAllowed === true
     };
+    const ownerExecutionPlan = (artifact.ownerExecutionPlan ?? []).length
+      ? (artifact.ownerExecutionPlan ?? []).map((plan) => ({
+          owner: plan.owner ?? "unknown",
+          status: normalizeOwnerPacketStatus(plan.status),
+          open: plan.open ?? 0,
+          blocker: plan.blocker ?? 0,
+          high: plan.high ?? 0,
+          firstActionId: plan.firstActionId ?? "none",
+          firstActionPriority: plan.firstActionPriority ?? "normal",
+          firstNextCommand: plan.firstNextCommand ?? "none",
+          firstEvidenceNeeded: plan.firstEvidenceNeeded ?? "none",
+          ticketPacketCount: plan.ticketPacketCount ?? 0,
+          readOnlyCommandCount: plan.readOnlyCommandCount ?? 0,
+          setupCommandCount: plan.setupCommandCount ?? 0,
+          approvalGatedCommandCount: plan.approvalGatedCommandCount ?? 0,
+          firstReadOnlyCommand: mapActionQueueExecutionCommand(
+            plan.firstReadOnlyCommand
+          ),
+          firstSetupCommand: mapActionQueueExecutionCommand(
+            plan.firstSetupCommand
+          ),
+          firstApprovalGatedCommand: mapActionQueueExecutionCommand(
+            plan.firstApprovalGatedCommand
+          ),
+          clusterMutationAllowed: plan.clusterMutationAllowed === true,
+          registryMutationAllowed: plan.registryMutationAllowed === true,
+          vectorWriteAllowed: plan.vectorWriteAllowed === true,
+          mutationAllowedByThisVerifier:
+            plan.mutationAllowedByThisVerifier === true
+        }))
+      : fallbackOwnerExecutionPlan(ownerPackets);
     const criticalPath = (artifact.criticalPath ?? []).map((entry) => ({
       lane: entry.lane ?? "unknown",
       label: entry.label ?? "Critical path",
@@ -12318,6 +12405,7 @@ function getReleaseActionQueueReadiness(): {
         worktreeDirty: artifact.ref?.worktreeDirty === true,
         owners,
         ownerPackets,
+        ownerExecutionPlan,
         criticalPath,
         ownerPacketCleanup,
         items,
@@ -12333,6 +12421,7 @@ function getReleaseActionQueueReadiness(): {
         `release action queue generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `release action queue markdown packet=${markdownPath}`,
         `release action queue owner packets=${ownerPackets.length}`,
+        `release action queue owner execution plan=${ownerExecutionPlan.map((plan) => `${plan.owner}:readOnly=${plan.firstReadOnlyCommand.id}:approval=${plan.firstApprovalGatedCommand.id}:mutationAllowed=${String(plan.mutationAllowedByThisVerifier)}`).join(", ") || "missing"}`,
         `release action queue critical path=${criticalPath.map((entry) => `${entry.lane}:${entry.owner}:${entry.actionId}`).join(", ") || "missing"}`,
         `release action queue owner packet cleanup deletionAllowed=${String(ownerPacketCleanup.deletionAllowed)} expected=${ownerPacketCleanup.expectedFiles.length} staleRemoved=${ownerPacketCleanup.staleRemoved.length}`,
         `release action queue owners=${owners.length} items=${items.length}`,

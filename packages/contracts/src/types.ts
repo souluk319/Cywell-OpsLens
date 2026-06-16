@@ -2981,6 +2981,46 @@ export interface OpsLensReleaseActionQueueSummary {
     acceptance: string[];
     mutationAllowedByThisVerifier: boolean;
   }>;
+  ownerExecutionPlan: Array<{
+    owner: string;
+    status: "blocker" | "open" | "clear";
+    open: number;
+    blocker: number;
+    high: number;
+    firstActionId: string;
+    firstActionPriority: string;
+    firstNextCommand: string;
+    firstEvidenceNeeded: string;
+    ticketPacketCount: number;
+    readOnlyCommandCount: number;
+    setupCommandCount: number;
+    approvalGatedCommandCount: number;
+    firstReadOnlyCommand: {
+      id: string;
+      command: string;
+      phase: string;
+      mutation: boolean;
+      requiresExplicitApproval: boolean;
+    };
+    firstSetupCommand: {
+      id: string;
+      command: string;
+      phase: string;
+      mutation: boolean;
+      requiresExplicitApproval: boolean;
+    };
+    firstApprovalGatedCommand: {
+      id: string;
+      command: string;
+      phase: string;
+      mutation: boolean;
+      requiresExplicitApproval: boolean;
+    };
+    clusterMutationAllowed: boolean;
+    registryMutationAllowed: boolean;
+    vectorWriteAllowed: boolean;
+    mutationAllowedByThisVerifier: boolean;
+  }>;
   criticalPath: Array<{
     lane: string;
     label: string;

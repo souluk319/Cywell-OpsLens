@@ -3155,6 +3155,46 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             };
             mutationAllowedByThisVerifier?: boolean;
           }>;
+          ownerExecutionPlan?: Array<{
+            owner?: string;
+            status?: string;
+            open?: number;
+            blocker?: number;
+            high?: number;
+            firstActionId?: string;
+            firstActionPriority?: string;
+            firstNextCommand?: string;
+            firstEvidenceNeeded?: string;
+            ticketPacketCount?: number;
+            readOnlyCommandCount?: number;
+            setupCommandCount?: number;
+            approvalGatedCommandCount?: number;
+            firstReadOnlyCommand?: {
+              id?: string;
+              command?: string;
+              phase?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            firstSetupCommand?: {
+              id?: string;
+              command?: string;
+              phase?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            firstApprovalGatedCommand?: {
+              id?: string;
+              command?: string;
+              phase?: string;
+              mutation?: boolean;
+              requiresExplicitApproval?: boolean;
+            };
+            clusterMutationAllowed?: boolean;
+            registryMutationAllowed?: boolean;
+            vectorWriteAllowed?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+          }>;
           criticalPath?: Array<{
             lane?: string;
             label?: string;
@@ -8196,6 +8236,38 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           (packet.readOnlyCommandIds?.length ?? 0) > 0
       )
     ).toBe(true);
+    const ownerExecutionPlan =
+      body.installReadiness?.actionQueue?.ownerExecutionPlan ?? [];
+    expect(ownerExecutionPlan.length).toBe(
+      body.installReadiness?.actionQueue?.ownerPackets?.length
+    );
+    expect(
+      ownerExecutionPlan.every(
+        (plan) =>
+          plan.owner &&
+          plan.firstActionId &&
+          plan.firstNextCommand &&
+          plan.firstReadOnlyCommand?.id &&
+          plan.firstReadOnlyCommand.id !== "none" &&
+          plan.firstReadOnlyCommand.mutation === false &&
+          plan.firstReadOnlyCommand.requiresExplicitApproval === false &&
+          plan.clusterMutationAllowed === false &&
+          plan.registryMutationAllowed === false &&
+          plan.vectorWriteAllowed === false &&
+          plan.mutationAllowedByThisVerifier === false &&
+          (plan.firstApprovalGatedCommand?.id === "none" ||
+            plan.firstApprovalGatedCommand?.requiresExplicitApproval === true)
+      )
+    ).toBe(true);
+    const releaseManagerExecutionPlan = ownerExecutionPlan.find(
+      (plan) => plan.owner === "release-manager"
+    );
+    expect(releaseManagerExecutionPlan?.firstReadOnlyCommand?.id).toBe(
+      "refresh-external-runtime-review-packet"
+    );
+    expect(releaseManagerExecutionPlan?.firstApprovalGatedCommand?.id).toBe(
+      "partner-connect-submit"
+    );
     const firstBlockerOwnerPacket =
       body.installReadiness?.actionQueue?.ownerPackets?.find(
         (packet) => packet.status === "blocker"
@@ -11581,6 +11653,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packets")
     ).toContainText("catalogFirst=registry-base-inspect");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-execution-plan")
+    ).toContainText("release-manager");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-execution-plan")
+    ).toContainText("readOnly=refresh-external-runtime-review-packet");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-execution-plan")
+    ).toContainText("approval=partner-connect-submit");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-execution-plan")
+    ).toContainText("clusterMutationAllowed=false");
+    await expect(
+      page.getByTestId("opslens-release-action-queue-owner-execution-plan")
+    ).toContainText("mutationAllowed=false");
     await expect(
       page.getByTestId("opslens-release-action-queue-owner-packet-cleanup")
     ).toContainText("deletionAllowed=true");
