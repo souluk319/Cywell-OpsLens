@@ -83,6 +83,11 @@ CatalogSource, sample `OpsLensInstallation`, app stack, and manager manifests.
 It also records the known CRC registry failure classes: Docker credential
 helper prompts, untrusted registry certificates, dead port-forwards, and CRC
 versions that no longer support image import commands.
+For a dedicated high-spec Windows lab host, it also records the lab tier,
+CPU/RAM/GPU VRAM capacity, recommended local CRC memory/CPU/disk settings, and
+the runtime placement decision. GPU-backed vLLM/Gemma experiments stay
+external-first until API, dashboard, Lightspeed MCP, and read-only evidence
+gates are stable.
 
 The image-map packet writes ignored JSON, Markdown, and YAML previews under
 `test-results/`. It rewrites owned Operator/API/dashboard/bundle/catalog image
@@ -97,6 +102,17 @@ On the dedicated Windows CRC lab host, after the repo and image tar are present:
 ```bash
 npm run verify:lab-bootstrap -- --lab-machine --require-crc-running
 ```
+
+For the planned 128GiB-class lab PC with a 12GiB VRAM GPU, use the stricter
+capacity check before any install rehearsal:
+
+```bash
+npm run verify:lab-bootstrap -- --lab-machine --require-crc-running --min-ram-gb 96 --min-cpu-cores 12 --min-gpu-vram-gb 12
+```
+
+Add `--require-gpu` only when GPU runtime availability is a hard gate for that
+specific rehearsal. Otherwise the verifier should keep GPU as an explicit gap
+instead of blocking API/dashboard/operator bring-up.
 
 Do not run `oc new-project`, registry login/push, `oc apply`, InstallPlan
 approval, or OLSConfig patching until the bootstrap and handoff packets show the

@@ -25,6 +25,8 @@ const defaults = {
   appStack: "deploy/operator/config/apps/opslens-stack.yaml",
   manager: "deploy/operator/config/manager/manager.yaml",
   minRamGb: 64,
+  minCpuCores: 8,
+  minGpuVramGb: 12,
   timeoutMs: 10000
 };
 
@@ -66,6 +68,7 @@ function parseArgs(argv) {
 const parsed = parseArgs(process.argv.slice(2));
 const options = {
   labMachine: parsed.flags.has("lab-machine"),
+  requireGpu: parsed.flags.has("require-gpu"),
   requireCrcRunning: parsed.flags.has("require-crc-running"),
   evidenceOut: parsed.values.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: parsed.values.get("markdown-out") ?? defaults.markdownOut,
@@ -85,6 +88,8 @@ const options = {
     parsed.values.get("manager") ?? defaults.manager
   ],
   minRamGb: Number(parsed.values.get("min-ram-gb") ?? defaults.minRamGb),
+  minCpuCores: Number(parsed.values.get("min-cpu-cores") ?? defaults.minCpuCores),
+  minGpuVramGb: Number(parsed.values.get("min-gpu-vram-gb") ?? defaults.minGpuVramGb),
   timeoutMs: Number(parsed.values.get("timeout-ms") ?? defaults.timeoutMs)
 };
 
@@ -495,14 +500,56 @@ async function nvidiaProbe() {
     "--format=csv,noheader"
   ]);
   if (!result.ok) {
-    warn("nvidia gpu", "nvidia-smi is unavailable; GPU runtime can remain external or be added later");
-    return { available: false, required: false };
+    if (options.requireGpu) {
+      fail("nvidia gpu", "nvidia-smi is unavailable but --require-gpu was provided");
+    } else {
+      warn("nvidia gpu", "nvidia-smi is unavailable; GPU runtime can remain external or be added later");
+    }
+    return {
+      available: false,
+      required: options.requireGpu,
+      minGpuVramGb: options.minGpuVramGb,
+      gpus: [],
+      totalVramGb: 0,
+      runtimeCandidate: false
+    };
   }
-  pass("nvidia gpu", result.stdout.split(/\r?\n/)[0] || "nvidia-smi available");
+  const gpus = parseNvidiaRows(result.stdout);
+  const totalVramGb = Math.round(gpus.reduce((sum, gpu) => sum + gpu.vramGb, 0) * 10) / 10;
+  const bestGpu = gpus.toSorted((left, right) => right.vramGb - left.vramGb)[0];
+  const runtimeCandidate = (bestGpu?.vramGb ?? 0) >= options.minGpuVramGb;
+  if (runtimeCandidate) {
+    pass("nvidia gpu", `${bestGpu.name} vram=${bestGpu.vramGb}GiB driver=${bestGpu.driverVersion}`);
+  } else if (options.requireGpu) {
+    fail("nvidia gpu", `best GPU VRAM ${bestGpu?.vramGb ?? 0}GiB is below required ${options.minGpuVramGb}GiB`);
+  } else {
+    warn("nvidia gpu", `best GPU VRAM ${bestGpu?.vramGb ?? 0}GiB is below runtime target ${options.minGpuVramGb}GiB`);
+  }
   return {
     available: true,
-    gpus: result.stdout.split(/\r?\n/).filter(Boolean)
+    required: options.requireGpu,
+    minGpuVramGb: options.minGpuVramGb,
+    gpus,
+    totalVramGb,
+    bestGpu,
+    runtimeCandidate
   };
+}
+
+function parseNvidiaRows(stdout) {
+  return stdout
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const [name = "unknown", memory = "0 MiB", driverVersion = "unknown"] = line.split(",").map((part) => part.trim());
+      const memoryMiB = Number((/(\d+(?:\.\d+)?)\s*MiB/i.exec(memory)?.[1] ?? "0"));
+      return {
+        name,
+        memoryMiB,
+        vramGb: Math.round((memoryMiB / 1024) * 10) / 10,
+        driverVersion
+      };
+    });
 }
 
 function machineSummary() {
@@ -513,7 +560,8 @@ function machineSummary() {
     arch: arch(),
     cpuCount: cpus().length,
     ramGb,
-    minRamGb: options.minRamGb
+    minRamGb: options.minRamGb,
+    minCpuCores: options.minCpuCores
   };
   if (options.labMachine && summary.platform !== "win32") {
     warn("lab OS", `expected Windows lab host, detected ${summary.platform}`);
@@ -525,7 +573,57 @@ function machineSummary() {
   } else {
     pass("host RAM", `${ramGb}GiB detected`);
   }
+  if (options.labMachine && summary.cpuCount < options.minCpuCores) {
+    warn("lab CPU", `detected ${summary.cpuCount} cores; recommended minimum is ${options.minCpuCores}`);
+  } else {
+    pass("host CPU", `${summary.cpuCount} logical cores detected`);
+  }
   return summary;
+}
+
+function capacityPlan(machine, nvidia) {
+  const powerLab = machine.ramGb >= 96 && machine.cpuCount >= 12;
+  const crcMemoryGb = machine.ramGb >= 96 ? 32 : machine.ramGb >= 64 ? 24 : 16;
+  const crcCpuTarget = machine.cpuCount >= 12 ? 8 : 6;
+  const crcCpuReserve = Math.max(2, machine.cpuCount - 2);
+  const crcCpuCores = Math.max(2, Math.min(crcCpuTarget, crcCpuReserve, machine.cpuCount));
+  const runtimePlacement =
+    nvidia.runtimeCandidate
+      ? "external-gpu-first"
+      : nvidia.available
+        ? "cpu-or-small-gpu-external-only"
+        : "external-runtime-review-required";
+  const labTier =
+    powerLab && nvidia.runtimeCandidate
+      ? "POWER_CRC_WITH_EXTERNAL_GPU_RUNTIME"
+      : powerLab
+        ? "POWER_CRC_CORE_READY"
+        : machine.ramGb >= options.minRamGb && machine.cpuCount >= options.minCpuCores
+          ? "CRC_CORE_READY"
+          : "NEEDS_CAPACITY_REVIEW";
+  return {
+    labTier,
+    powerLab,
+    recommendedCrc: {
+      memoryGb: crcMemoryGb,
+      cpuCores: crcCpuCores,
+      diskGb: machine.ramGb >= 96 ? 120 : 90,
+      commands: [
+        `crc config set memory ${crcMemoryGb * 1024}`,
+        `crc config set cpus ${crcCpuCores}`,
+        `crc config set disk-size ${machine.ramGb >= 96 ? 120 : 90}`
+      ],
+      mutation: "local-crc-config-only",
+      requiresExplicitApproval: true
+    },
+    runtimePlacement,
+    runtimeAdvice:
+      runtimePlacement === "external-gpu-first"
+        ? "Use GPU-backed vLLM/Gemma experiments outside OpenShift first; connect OpsLens through read-only runtime probes before moving GPU workloads into CRC."
+        : "Keep vLLM/Postgres runtime evidence external or fixture-backed until GPU/runtime review is complete.",
+    installAdvice:
+      "Bring up API/dashboard/operator and Lightspeed MCP evidence first; defer GPU workloads and automatic remediation until read-only evidence gates pass."
+  };
 }
 
 function registryTrapMatrix() {
@@ -704,6 +802,8 @@ function statusFor(state) {
   if (options.labMachine) {
     if (!state.tools.crc.available || !state.tools.oc.available) return "NEEDS_LAB_MACHINE_SETUP";
     if (state.machine.ramGb < options.minRamGb) return "NEEDS_LAB_MACHINE_SETUP";
+    if (state.machine.cpuCount < options.minCpuCores) return "NEEDS_LAB_MACHINE_SETUP";
+    if (options.requireGpu && !state.nvidia.runtimeCandidate) return "NEEDS_LAB_MACHINE_SETUP";
     if (options.requireCrcRunning && (!state.crcStatus.running || !state.crcStatus.openshiftRunning)) {
       return "NEEDS_LAB_MACHINE_SETUP";
     }
@@ -743,8 +843,20 @@ async function writeMarkdown(path, report) {
     "## What Is Ready",
     "",
     `- Docker Linux engine: ${String(report.docker.available && report.docker.osType === "linux")}`,
+    `- Lab tier: ${report.capacity.labTier}`,
+    `- CPU/RAM: ${report.machine.cpuCount} cores / ${report.machine.ramGb}GiB RAM`,
+    `- GPU runtime candidate: ${String(report.nvidia.runtimeCandidate)}${report.nvidia.bestGpu ? ` (${report.nvidia.bestGpu.name}, ${report.nvidia.bestGpu.vramGb}GiB)` : ""}`,
+    `- Recommended CRC: ${report.capacity.recommendedCrc.memoryGb}GiB RAM, ${report.capacity.recommendedCrc.cpuCores} CPUs, ${report.capacity.recommendedCrc.diskGb}GiB disk`,
     `- Portable image tar: ${report.imageTar.exists ? `${report.imageTar.sizeMiB}MiB` : "missing"}`,
     ...report.images.map((image) => `- ${image.tag}: ${image.present ? "present" : "missing"}`),
+    "",
+    "## Capacity Guidance",
+    "",
+    `- Runtime placement: ${report.capacity.runtimePlacement}`,
+    `- Runtime advice: ${report.capacity.runtimeAdvice}`,
+    `- Install advice: ${report.capacity.installAdvice}`,
+    "- CRC config commands are local lab setup actions only; this verifier did not run them.",
+    ...report.capacity.recommendedCrc.commands.map((command) => `- ${command}`),
     "",
     "## Known CRC Registry Traps",
     "",
@@ -815,6 +927,7 @@ const manifestImageRefs = loadManifestImageRefs(options.manifestPaths);
 const imageRefPlan = buildImageRefPlan(manifestImageRefs, images, imageTar);
 const crcStatus = await crcStatusProbe();
 const nvidia = await nvidiaProbe();
+const capacity = capacityPlan(machine, nvidia);
 
 const rawSources = {
   imageBuild: loadJson(options.imageEvidence, "image build", ["PASS"]),
@@ -853,6 +966,7 @@ const state = {
   imageRefPlan,
   crcStatus,
   nvidia,
+  capacity,
   sources,
   ocpClassification
 };
@@ -883,6 +997,8 @@ const report = {
   targetLab: {
     recommendedHost: "Dedicated Windows power PC with Docker Desktop/WSL2, CRC, oc, Node/npm, SSH/SCP, and optional NVIDIA GPU runtime",
     minRamGb: options.minRamGb,
+    minCpuCores: options.minCpuCores,
+    minGpuVramGb: options.minGpuVramGb,
     companyOcpUsed: false,
     gpuStrategy: "Use the GPU for external vLLM/runtime experiments first; move GPU workloads into OpenShift only after API/dashboard/Lightspeed are stable."
   },
@@ -904,6 +1020,7 @@ const report = {
   imageRefPlan,
   crcStatus,
   nvidia,
+  capacity,
   ocpClassification,
   sources,
   registryTrapMatrix: registryTrapMatrix(),
