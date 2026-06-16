@@ -281,16 +281,30 @@ function sanitize(value) {
     .replace(/--token\s+\S+/gi, "--token <redacted>")
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer <redacted>")
     .replace(/(token|password|passwd|secret|api[_-]?key)(=|:)\S+/gi, "$1$2<redacted>")
+    .replace(/\b127(?:\.\d{1,3}){3}\b/g, "<redacted-private-ip>")
+    .replace(/\b100(?:\.\d{1,3}){3}\b/g, "<redacted-private-ip>")
     .replace(/\b10(?:\.\d{1,3}){3}\b/g, "<redacted-private-ip>")
     .replace(/\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b/g, "<redacted-private-ip>")
     .replace(/\b192\.168(?:\.\d{1,3}){2}\b/g, "<redacted-private-ip>");
 }
 
 function endpointLeakLike(value) {
-  return /\b10(?:\.\d{1,3}){3}\b/.test(value) ||
+  return /\b127(?:\.\d{1,3}){3}\b/.test(value) ||
+    /\b100(?:\.\d{1,3}){3}\b/.test(value) ||
+    /\b10(?:\.\d{1,3}){3}\b/.test(value) ||
     /\b172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}\b/.test(value) ||
     /\b192\.168(?:\.\d{1,3}){2}\b/.test(value) ||
     /\b(?:api|console|oauth)[A-Za-z0-9.-]*ocp[A-Za-z0-9.-]*\b/i.test(value);
+}
+
+function sanitizeObject(value) {
+  if (Array.isArray(value)) return value.map((item) => sanitizeObject(item));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, sanitizeObject(nestedValue)])
+    );
+  }
+  return typeof value === "string" ? sanitize(value) : value;
 }
 
 function endpointFromBaseUrl(baseUrl) {
@@ -430,7 +444,9 @@ function tcpErrorClassification(error) {
   ) {
     return "tcp-timeout";
   }
-  return String(error?.message ?? error ?? "tcp-unreachable");
+  if (code === "ECONNREFUSED") return "tcp-refused";
+  if (code === "EHOSTUNREACH" || code === "ENETUNREACH" || code === "ECONNRESET") return "tcp-unreachable";
+  return sanitize(String(error?.message ?? error ?? "tcp-unreachable"));
 }
 
 async function diagnoseTls(endpoint, config, tcpResult, timeoutMs) {
@@ -1326,8 +1342,9 @@ async function main() {
     checks
   };
 
-  const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
-  const authRecoveryMarkdownContent = authRecoveryMarkdown(artifact);
+  const sanitizedArtifact = sanitizeObject(artifact);
+  const serialized = `${JSON.stringify(sanitizedArtifact, null, 2)}\n`;
+  const authRecoveryMarkdownContent = authRecoveryMarkdown(sanitizedArtifact);
   if (secretValuesForLeakCheck().some((secret) => serialized.includes(secret))) {
     throw new Error("OCP connectivity diagnostic would include a configured secret value");
   }
