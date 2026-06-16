@@ -5599,9 +5599,19 @@ function getExternalRuntimeReviewPacketReadiness(): {
       artifact.registryMutationAttempted === true,
       artifact.mutationAllowedByThisVerifier === true
     );
-    const firstReviewerActions = images.flatMap((image) => {
-      const request = image.reviewerRequests[0];
-      if (!request) return [];
+    const firstReviewerActions = images.map((image) => {
+      const handoff = finalEvidenceHandoff.find(
+        (item) => item.imageName === image.name
+      );
+      const request = image.reviewerRequests[0] ?? {
+        role: "security-reviewer",
+        request: `Review ${image.name} external runtime evidence before release approval.`,
+        evidenceNeeded:
+          handoff?.blockedBy[0] ??
+          handoff?.evidenceChecklist[0] ??
+          "reviewed external runtime evidence is missing",
+        nextCommand: "npm run evidence:external-runtime:review-packet"
+      };
       return [
         {
           imageName: image.name,
@@ -5614,7 +5624,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
           finalEvidenceExists: image.finalEvidenceExists
         }
       ];
-    });
+    }).flat();
     const readOnlyCommands = (artifact.readOnlyCommands ?? []).map((command) => ({
       id: command.id ?? "unknown",
       phase: command.phase ?? "unknown",

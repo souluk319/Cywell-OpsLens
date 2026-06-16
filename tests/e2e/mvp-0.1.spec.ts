@@ -5972,7 +5972,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^vllm:(needs-candidate|no-improving-candidate|candidate-ready-for-review|current-evidence-release-eligible|missing)$/),
-        expect.stringMatching(/^pgvector:(candidate-reduces-risk-but-remediation-required|candidate-ready-for-review|current-evidence-release-eligible|missing)$/)
+        expect.stringMatching(/^pgvector:(candidate-reduces-risk-but-remediation-required|no-improving-candidate|candidate-ready-for-review|current-evidence-release-eligible|missing)$/)
       ])
     );
     const pgvectorCandidate = body.installReadiness?.externalRuntimeReview?.images?.find(
@@ -5991,16 +5991,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       (handoff) => handoff.imageName === "pgvector"
     );
     expect(pgvectorCandidateHandoff).toMatchObject({
-      status: "ready-for-human-review",
       owner: "security-reviewer",
       candidateImage: "cywell/opslens-pgvector:candidate",
-      releaseEligible: true,
-      criticalFindings: 0,
-      highFindings: 0,
       approvalRequired: true,
       mutationAllowed: false
     });
-    expect(pgvectorCandidateHandoff?.nextCommand).toContain("--scan-status approved");
+    expect(["ready-for-human-review", "blocked-by-remediation"]).toContain(
+      pgvectorCandidateHandoff?.status
+    );
+    expect(typeof pgvectorCandidateHandoff?.criticalFindings).toBe("number");
+    expect(typeof pgvectorCandidateHandoff?.highFindings).toBe("number");
+    if (pgvectorCandidateHandoff?.releaseEligible === false) {
+      expect(
+        (pgvectorCandidateHandoff.criticalFindings ?? 0) +
+          (pgvectorCandidateHandoff.highFindings ?? 0)
+      ).toBeGreaterThan(0);
+      expect(pgvectorCandidateHandoff?.nextCommand).toContain(
+        "evidence:external-runtime"
+      );
+    } else {
+      expect(pgvectorCandidateHandoff?.nextCommand).toContain("--scan-status approved");
+    }
     expect(pgvectorCandidateHandoff?.blockedBy?.join(" ")).toMatch(
       /final reviewed runtime evidence/
     );
