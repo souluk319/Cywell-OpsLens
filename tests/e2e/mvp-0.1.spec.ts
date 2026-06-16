@@ -7439,6 +7439,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         owner: "network-sre",
         nextCommand: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
         ticketIds: expect.arrayContaining(["network-sre-ocp-api-reachability-ticket"]),
+        readOnlyCommandIds: expect.arrayContaining(["ocp-connectivity"]),
         approvalGatedCommandIds: expect.arrayContaining([
           "approval-gated-network-route-change"
         ])
@@ -7696,6 +7697,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         requiresExplicitApproval: ocpHandoffNetworkChangeRequired
       }
     });
+    if (["network-sre", "cluster-sre"].includes(liveOcpCriticalPath?.owner ?? "")) {
+      expect(liveOcpCriticalPath?.readOnlyCommandIds).toEqual(
+        expect.arrayContaining(["ocp-connectivity"])
+      );
+    }
     if (liveOcpCriticalPath?.owner === "network-sre") {
       expect(liveOcpCriticalPath.ticketPacket).toMatchObject({
         id: "network-sre-ocp-api-reachability-ticket",
