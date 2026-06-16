@@ -2119,6 +2119,15 @@ export function OpsLensAdminDashboard() {
                   </strong>
                 </div>
                 <div>
+                  <span>External/Local</span>
+                  <strong>
+                    external=
+                    {preClusterInstallGate.blockerSummary.remainingExternalStateCount}
+                    , local=
+                    {preClusterInstallGate.blockerSummary.remainingLocalOnlyCount}
+                  </strong>
+                </div>
+                <div>
                   <span>Sources</span>
                   <strong>{preClusterInstallGate.sources.length}</strong>
                 </div>
@@ -2165,6 +2174,24 @@ export function OpsLensAdminDashboard() {
                   firstReadOnly=
                   {preClusterInstallGate.firstBlockedGate?.readOnlyCommandId ??
                     "none"}
+                </span>
+                <span>
+                  remainingExternalState=
+                  {preClusterInstallGate.blockerSummary.remainingExternalStateGateIds.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
+                  remainingLocalOnly=
+                  {preClusterInstallGate.blockerSummary.remainingLocalOnlyGateIds.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
+                  staleExternal=
+                  {preClusterInstallGate.blockerSummary.staleExternalStateSourceIds.join(
+                    ","
+                  ) || "none"}
                 </span>
                 <span>
                   sources=

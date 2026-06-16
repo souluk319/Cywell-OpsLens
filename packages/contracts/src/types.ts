@@ -2823,6 +2823,16 @@ export interface OpsLensPreClusterInstallGateSummary {
     strictCommand: string;
     mutation: boolean;
   } | null;
+  blockerSummary: {
+    failedGateCount: number;
+    remainingExternalStateCount: number;
+    remainingLocalOnlyCount: number;
+    remainingExternalStateGateIds: string[];
+    remainingLocalOnlyGateIds: string[];
+    staleExternalStateSourceIds: string[];
+    staleLocalEvidenceSourceIds: string[];
+    directExternalReadinessGateIds: string[];
+  };
   gateRequirements: Array<{
     id: string;
     owner: string;

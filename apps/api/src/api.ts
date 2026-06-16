@@ -3310,6 +3310,16 @@ type PreClusterInstallGateArtifact = {
     strictCommand?: string;
     mutation?: boolean;
   } | null;
+  blockerSummary?: {
+    failedGateCount?: number;
+    remainingExternalStateCount?: number;
+    remainingLocalOnlyCount?: number;
+    remainingExternalStateGateIds?: string[];
+    remainingLocalOnlyGateIds?: string[];
+    staleExternalStateSourceIds?: string[];
+    staleLocalEvidenceSourceIds?: string[];
+    directExternalReadinessGateIds?: string[];
+  };
   failedGateIds?: string[];
   missingEvidence?: string[];
   readOnlyCommands?: Array<{
@@ -11639,6 +11649,16 @@ function missingPreClusterInstallGateSummary(
       strictCommand: "npm run verify:pre-cluster-install -- --strict",
       mutation: false
     },
+    blockerSummary: {
+      failedGateCount: 1,
+      remainingExternalStateCount: 0,
+      remainingLocalOnlyCount: 1,
+      remainingExternalStateGateIds: [],
+      remainingLocalOnlyGateIds: ["pre-cluster-install-gate-evidence"],
+      staleExternalStateSourceIds: [],
+      staleLocalEvidenceSourceIds: ["pre-cluster-install-gate-evidence"],
+      directExternalReadinessGateIds: []
+    },
     gateRequirements: [
       {
         id: "pre-cluster-install-gate-evidence",
@@ -11764,6 +11784,46 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
               "none",
             mutation: firstGateFromArtifact?.mutation === true
           };
+    const sources = (artifact.sources ?? []).map((source) => ({
+      id: source.id ?? "unknown",
+      status: source.status ?? "unknown",
+      fresh: source.fresh === true,
+      externalState: source.externalState === true,
+      mutationViolation: source.mutationViolation === true,
+      headSha: source.headSha ?? "missing"
+    }));
+    const blockerSummary = {
+      failedGateCount:
+        artifact.blockerSummary?.failedGateCount ??
+        (artifact.failedGateIds ?? []).length,
+      remainingExternalStateCount:
+        artifact.blockerSummary?.remainingExternalStateCount ?? 0,
+      remainingLocalOnlyCount:
+        artifact.blockerSummary?.remainingLocalOnlyCount ?? 0,
+      remainingExternalStateGateIds:
+        artifact.blockerSummary?.remainingExternalStateGateIds ?? [],
+      remainingLocalOnlyGateIds:
+        artifact.blockerSummary?.remainingLocalOnlyGateIds ?? [],
+      staleExternalStateSourceIds:
+        artifact.blockerSummary?.staleExternalStateSourceIds ??
+        sources
+          .filter((source) => source.externalState && !source.fresh)
+          .map((source) => source.id),
+      staleLocalEvidenceSourceIds:
+        artifact.blockerSummary?.staleLocalEvidenceSourceIds ??
+        sources
+          .filter((source) => !source.externalState && !source.fresh)
+          .map((source) => source.id),
+      directExternalReadinessGateIds:
+        artifact.blockerSummary?.directExternalReadinessGateIds ??
+        (artifact.failedGateIds ?? []).filter((id) =>
+          [
+            "ocp-api-live-ready",
+            "lightspeed-live-ready",
+            "operator-server-dry-run-ready"
+          ].includes(id)
+        )
+    };
     return {
       status,
       artifactStatus: artifact.status ?? "unknown",
@@ -11775,15 +11835,9 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
       worktreeDirty: artifact.ref?.worktreeDirty === true,
       failedGateIds: artifact.failedGateIds ?? [],
       firstBlockedGate,
+      blockerSummary,
       gateRequirements,
-      sources: (artifact.sources ?? []).map((source) => ({
-        id: source.id ?? "unknown",
-        status: source.status ?? "unknown",
-        fresh: source.fresh === true,
-        externalState: source.externalState === true,
-        mutationViolation: source.mutationViolation === true,
-        headSha: source.headSha ?? "missing"
-      })),
+      sources,
       readOnlyCommands,
       approvalGatedCommandsNotRun: (
         artifact.approvalGatedCommandsNotRun ?? []
@@ -11804,6 +11858,7 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
         `Pre-cluster install gate ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"} safe=${String(artifact.safeToRunClusterInstall === true)}`,
         `pre-cluster install failed gates=${(artifact.failedGateIds ?? []).join(",") || "none"}`,
         `pre-cluster first blocked gate=${firstBlockedGate?.id ?? "none"} owner=${firstBlockedGate?.owner ?? "none"} next=${firstBlockedGate?.nextCommand ?? "none"}`,
+        `pre-cluster blocker summary externalState=${blockerSummary.remainingExternalStateCount} localOnly=${blockerSummary.remainingLocalOnlyCount} staleExternal=${blockerSummary.staleExternalStateSourceIds.join("|") || "none"}`,
         "pre-cluster install gate reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions",
         ...(artifact.evidence ?? []).slice(0, 2)
       ]

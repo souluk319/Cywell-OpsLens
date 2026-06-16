@@ -158,6 +158,11 @@ const externalStateSourceIds = new Set([
   "lightspeedReadiness",
   "operatorDryRun"
 ]);
+const directExternalReadinessGateIds = new Set([
+  "ocp-api-live-ready",
+  "lightspeed-live-ready",
+  "operator-server-dry-run-ready"
+]);
 
 function sourceSummary(id, label, loaded, headSha) {
   const artifact = loaded.artifact;
@@ -288,6 +293,9 @@ function buildMarkdown(artifact) {
     `- First blocked owner: ${artifact.firstBlockedGate?.owner ?? "none"}`,
     `- First unblock command: ${artifact.firstBlockedGate?.nextCommand ?? "none"}`,
     `- First read-only command: ${artifact.firstBlockedGate?.readOnlyCommand ?? "none"}`,
+    `- Remaining external-state gates: ${artifact.blockerSummary?.remainingExternalStateCount ?? 0}`,
+    `- Remaining local-only gates: ${artifact.blockerSummary?.remainingLocalOnlyCount ?? 0}`,
+    `- Stale external sources: ${(artifact.blockerSummary?.staleExternalStateSourceIds ?? []).join(", ") || "none"}`,
     "",
     "## Gate Requirements",
     ...artifact.gateRequirements.map(
@@ -535,6 +543,28 @@ async function main() {
         mutation: false
       }
     : null;
+  const completionBoundary = completionGate?.completion ?? {};
+  const staleExternalStateSourceIds = sources
+    .filter((source) => source.externalState === true && source.fresh !== true)
+    .map((source) => source.id);
+  const staleLocalEvidenceSourceIds = sources
+    .filter((source) => source.externalState !== true && source.fresh !== true)
+    .map((source) => source.id);
+  const blockerSummary = {
+    failedGateCount: failedGates.length,
+    remainingExternalStateCount:
+      completionBoundary.remainingExternalStateCount ?? 0,
+    remainingLocalOnlyCount: completionBoundary.remainingLocalOnlyCount ?? 0,
+    remainingExternalStateGateIds:
+      completionBoundary.remainingExternalStateGateIds ?? [],
+    remainingLocalOnlyGateIds:
+      completionBoundary.remainingLocalOnlyGateIds ?? [],
+    staleExternalStateSourceIds,
+    staleLocalEvidenceSourceIds,
+    directExternalReadinessGateIds: failedGates
+      .filter((item) => directExternalReadinessGateIds.has(item.id))
+      .map((item) => item.id)
+  };
 
   if (safeToRunClusterInstall) {
     pass("pre-cluster install gate", "all strict install gates are satisfied");
@@ -577,6 +607,7 @@ async function main() {
     sources,
     gateRequirements,
     firstBlockedGate,
+    blockerSummary,
     failedGateIds: failedGates.map((item) => item.id),
     missingEvidence: unique(failedGates.map((item) => item.evidenceNeeded)),
     blockers: unique([
