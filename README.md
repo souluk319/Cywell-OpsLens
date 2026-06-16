@@ -20,6 +20,7 @@ npm run dev
 npm run build
 npm run verify:mvp
 npm run verify:console-plugin
+npm run verify:console-assistant-provider
 npm run verify:evidence-checkpoint
 npm run verify:roadmap-plan
 npm run verify:certification
@@ -42,6 +43,8 @@ npm run verify:lightspeed:fixture
 `npm run verify:mvp` runs the MVP 0.1 release gate and writes local evidence to `test-results/cywell-opslens-mvp-0.1-gate.json`. Use `npm run verify:mvp -- --skip-e2e` for a faster static/API gate when UI evidence is not required.
 
 `npm run verify:console-plugin` validates the OpenShift Console dynamic plugin assets emitted by the dashboard build: `plugin-manifest.json`, `plugin-entry.js`, the exposed `/opslens` route chunk, navigation extensions, iframe dashboard URL, UserToken proxy base, and asset MIME types. It writes `test-results/cywell-opslens-console-plugin-assets.json`.
+
+`npm run verify:console-assistant-provider` performs a read-only live trace for the assistant currently exposed in OpenShift Console, defaulting to display name `KOMSCO AI Assistant`. It lists ConsolePlugins, console operator plugin enablement, `openshift-console` plugin config, related Services/Deployments/Routes/Pods, `openshift-lightspeed` resources, keyword matches, and the UI-serving image/container while redacting route hosts, configured endpoints, tokens, and secret-like values. It writes `test-results/cywell-opslens-console-assistant-provider.json` and does not patch, apply, delete, scale, fetch Secrets, push, mirror, or sign anything.
 
 `npm run verify:evidence-checkpoint` reads the current local evidence artifacts, including the RAG approval queue bridge, ConsolePlugin asset evidence, Operator package evidence, Lightspeed routing score, and Community Operator submission draft, checks that they are stamped with the current git head, keeps live OCP/Lightspeed and external runtime gaps visible, and writes `test-results/cywell-opslens-evidence-checkpoint.json`. It does not build, push, patch, apply, delete, scale, or contact the cluster.
 
