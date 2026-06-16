@@ -64,6 +64,9 @@ const evidencePaths = {
   ocpNetworkHandoffApiFallback:
     "test-results/cywell-opslens-ocp-network-handoff-api-fallback.json",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
+  labBootstrap: "test-results/cywell-opslens-lab-bootstrap-plan.json",
+  labImageMap: "test-results/cywell-opslens-lab-image-map-preview.json",
+  labHandoff: "test-results/cywell-opslens-lab-server-handoff.json",
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   releaseEvidenceBundle: "test-results/cywell-opslens-release-evidence-bundle.json",
   releaseActionQueue: "test-results/cywell-opslens-release-action-queue.json",
@@ -302,6 +305,9 @@ function buildChain() {
     npmScript("lightspeed-integration-handoff", "approval", "verify:lightspeed:integration-handoff"),
     npmScript("evidence-checkpoint", "approval", "verify:evidence-checkpoint"),
     npmScript("ocp-network-handoff-post-checkpoint", "approval", "evidence:ocp-network-handoff"),
+    npmScript("lab-bootstrap", "lab", "verify:lab-bootstrap"),
+    npmScript("lab-image-map", "lab", "verify:lab-image-map"),
+    npmScript("lab-handoff", "lab", "verify:lab-handoff"),
     npmScript("roadmap-plan", "approval", "verify:roadmap-plan", [], { expectedNonZero: true }),
     npmScript("release-evidence-bundle", "approval", "verify:release-evidence-bundle"),
     npmScript(

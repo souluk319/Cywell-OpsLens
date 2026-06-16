@@ -6399,6 +6399,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "security-review-drafts-all",
         "security-scan-plan",
         "release-evidence-bundle",
+        "lab-bootstrap",
+        "lab-image-map",
+        "lab-handoff",
         "roadmap-plan-final",
         "release-evidence-bundle-final",
         "release-action-queue-final",
@@ -6407,7 +6410,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     expect(
       body.installReadiness?.refresh?.artifacts?.map((artifact) => artifact.id)
-    ).toEqual(expect.arrayContaining(["envContract", "completionGate"]));
+    ).toEqual(
+      expect.arrayContaining([
+        "envContract",
+        "labBootstrap",
+        "labImageMap",
+        "labHandoff",
+        "completionGate"
+      ])
+    );
     expect(
       body.installReadiness?.refresh?.artifacts?.find(
         (artifact) => artifact.id === "envContract"
