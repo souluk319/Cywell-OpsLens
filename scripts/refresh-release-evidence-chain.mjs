@@ -537,6 +537,7 @@ function actionQueueSummary(headSha) {
       firstActionId: sanitize(packet.firstActionId ?? "none"),
       firstActionPriority: sanitize(packet.firstActionPriority ?? "normal"),
       firstNextCommand: sanitize(packet.firstNextCommand ?? "none"),
+      nextCommandCount: (packet.nextCommands ?? []).length,
       readOnlyCommandIds: (packet.readOnlyCommandIds ?? []).map(sanitize),
       approvalGatedCommandCount: (packet.approvalGatedCommandIds ?? []).length,
       mutationAllowedByThisVerifier: packet.mutationAllowedByThisVerifier === true
@@ -563,6 +564,9 @@ function actionQueueSummary(headSha) {
   const ownerPacketsWithoutReadOnlyCommands = ownerPackets
     .filter((packet) => packet.open > 0 && packet.readOnlyCommandIds.length === 0)
     .map((packet) => `${packet.owner} owner packet lacks read-only command ids`);
+  const ownerPacketsWithoutNextCommands = ownerPackets
+    .filter((packet) => packet.open > 0 && packet.nextCommandCount === 0)
+    .map((packet) => `${packet.owner} owner packet lacks next commands`);
   const missingCriticalPathDiagnostics = criticalPath
     .filter((entry) => (entry.diagnostics ?? []).length === 0)
     .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks diagnostics`);
@@ -585,7 +589,8 @@ function actionQueueSummary(headSha) {
     ...cleanupExpectedMissing,
     ...missingOwnerPackets,
     ...mutatingOwnerPackets,
-    ...ownerPacketsWithoutReadOnlyCommands
+    ...ownerPacketsWithoutReadOnlyCommands,
+    ...ownerPacketsWithoutNextCommands
   ];
   const criticalPathBlockers = [
     ...freshnessBlockers,
@@ -611,6 +616,7 @@ function actionQueueSummary(headSha) {
     criticalPathReady: criticalPathBlockers.length === 0,
     missingOwnerPackets,
     missingOwnerPacketReadOnlyCommands: ownerPacketsWithoutReadOnlyCommands,
+    missingOwnerPacketNextCommands: ownerPacketsWithoutNextCommands,
     missingCriticalPathDiagnostics,
     missingCriticalPathTickets,
     unsafeCriticalPathTickets,

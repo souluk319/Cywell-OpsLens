@@ -2553,6 +2553,7 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
     criticalPathReady: boolean;
     missingOwnerPackets: string[];
     missingOwnerPacketReadOnlyCommands: string[];
+    missingOwnerPacketNextCommands: string[];
     missingCriticalPathDiagnostics: string[];
     missingCriticalPathTickets: string[];
     unsafeCriticalPathTickets: string[];
@@ -2573,6 +2574,7 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
       firstActionId: string;
       firstActionPriority: string;
       firstNextCommand: string;
+      nextCommandCount: number;
       readOnlyCommandIds: string[];
       approvalGatedCommandCount: number;
       mutationAllowedByThisVerifier: boolean;

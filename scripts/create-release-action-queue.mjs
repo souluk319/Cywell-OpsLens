@@ -4679,6 +4679,20 @@ async function main() {
       `${ownerPackets.length} owner packet(s) carry read-only command ids`
     );
   }
+  const ownerPacketsWithoutNextCommands = ownerPackets
+    .filter((packet) => packet.open > 0 && (packet.nextCommands ?? []).length === 0)
+    .map((packet) => packet.owner);
+  if (ownerPacketsWithoutNextCommands.length > 0) {
+    fail(
+      "release action queue owner packet next-command coverage",
+      `owners=${ownerPacketsWithoutNextCommands.join(",")}`
+    );
+  } else {
+    pass(
+      "release action queue owner packet next-command coverage",
+      `${ownerPackets.length} owner packet(s) carry next commands`
+    );
+  }
   const itemsWithoutDiagnostics = items
     .filter((entry) => (entry.diagnostics ?? []).length === 0)
     .map((entry) => entry.id);

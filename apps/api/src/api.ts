@@ -2785,6 +2785,7 @@ type ReleaseEvidenceRefreshArtifact = {
     criticalPathReady?: boolean;
     missingOwnerPackets?: string[];
     missingOwnerPacketReadOnlyCommands?: string[];
+    missingOwnerPacketNextCommands?: string[];
     missingCriticalPathDiagnostics?: string[];
     missingCriticalPathTickets?: string[];
     unsafeCriticalPathTickets?: string[];
@@ -2805,6 +2806,7 @@ type ReleaseEvidenceRefreshArtifact = {
       firstActionId?: string;
       firstActionPriority?: string;
       firstNextCommand?: string;
+      nextCommandCount?: number;
       readOnlyCommandIds?: string[];
       approvalGatedCommandCount?: number;
       mutationAllowedByThisVerifier?: boolean;
@@ -10594,6 +10596,7 @@ function missingReleaseEvidenceRefreshSummary(
       criticalPathReady: false,
       missingOwnerPackets: [reason],
       missingOwnerPacketReadOnlyCommands: [reason],
+      missingOwnerPacketNextCommands: [reason],
       missingCriticalPathDiagnostics: [reason],
       missingCriticalPathTickets: [reason],
       unsafeCriticalPathTickets: [reason],
@@ -10664,6 +10667,8 @@ function getReleaseEvidenceRefreshReadiness(): {
       missingOwnerPackets: artifact.actionQueue?.missingOwnerPackets ?? [],
       missingOwnerPacketReadOnlyCommands:
         artifact.actionQueue?.missingOwnerPacketReadOnlyCommands ?? [],
+      missingOwnerPacketNextCommands:
+        artifact.actionQueue?.missingOwnerPacketNextCommands ?? [],
       missingCriticalPathDiagnostics:
         artifact.actionQueue?.missingCriticalPathDiagnostics ?? [],
       missingCriticalPathTickets:
@@ -10690,6 +10695,7 @@ function getReleaseEvidenceRefreshReadiness(): {
         firstActionId: packet.firstActionId ?? "none",
         firstActionPriority: packet.firstActionPriority ?? "normal",
         firstNextCommand: packet.firstNextCommand ?? "none",
+        nextCommandCount: packet.nextCommandCount ?? 0,
         readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
         approvalGatedCommandCount: packet.approvalGatedCommandCount ?? 0,
         mutationAllowedByThisVerifier:
