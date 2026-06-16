@@ -2136,6 +2136,14 @@ export function OpsLensAdminDashboard() {
                   <strong>{preClusterInstallGate.readOnlyCommands.length}</strong>
                 </div>
                 <div>
+                  <span>Command Plan</span>
+                  <strong>
+                    live={preClusterInstallGate.commandPlan.directLive.length},
+                    prep=
+                    {preClusterInstallGate.commandPlan.localPreparation.length}
+                  </strong>
+                </div>
+                <div>
                   <span>Approval</span>
                   <strong>
                     {preClusterInstallGate.approvalGatedCommandsNotRun.length}
@@ -2210,6 +2218,31 @@ export function OpsLensAdminDashboard() {
                   {preClusterInstallGate.blockerSummary.aggregateBlockedGateIds.join(
                     ","
                   ) || "none"}
+                </span>
+                <span>
+                  planFirst=
+                  {preClusterInstallGate.commandPlan.firstReadOnlyCommandId}
+                </span>
+                <span>
+                  planStrict={preClusterInstallGate.commandPlan.strictCommandId}
+                </span>
+                <span>
+                  planDirectLive=
+                  {preClusterInstallGate.commandPlan.directLive
+                    .map((item) => `${item.gateId}:${item.command}`)
+                    .join("|") || "none"}
+                </span>
+                <span>
+                  planLocalPrep=
+                  {preClusterInstallGate.commandPlan.localPreparation
+                    .map((item) => `${item.gateId}:${item.command}`)
+                    .join("|") || "none"}
+                </span>
+                <span>
+                  planAggregate=
+                  {preClusterInstallGate.commandPlan.aggregate
+                    .map((item) => `${item.gateId}:${item.command}`)
+                    .join("|") || "none"}
                 </span>
                 <span>
                   sources=

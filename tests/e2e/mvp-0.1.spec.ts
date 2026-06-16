@@ -4016,6 +4016,33 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             localPreparationGateIds?: string[];
             aggregateBlockedGateIds?: string[];
           };
+          commandPlan?: {
+            firstReadOnlyCommandId?: string;
+            firstReadOnlyCommand?: string;
+            strictCommandId?: string;
+            strictCommand?: string;
+            directLive?: Array<{
+              gateId?: string;
+              owner?: string;
+              command?: string;
+              evidenceNeeded?: string;
+              mutation?: boolean;
+            }>;
+            localPreparation?: Array<{
+              gateId?: string;
+              owner?: string;
+              command?: string;
+              evidenceNeeded?: string;
+              mutation?: boolean;
+            }>;
+            aggregate?: Array<{
+              gateId?: string;
+              owner?: string;
+              command?: string;
+              evidenceNeeded?: string;
+              mutation?: boolean;
+            }>;
+          };
           gateRequirements?: Array<{
             id?: string;
             owner?: string;
@@ -7311,6 +7338,46 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           "release-bundle-install-ready"
         ])
       );
+      expect(preClusterInstallGate.commandPlan).toMatchObject({
+        firstReadOnlyCommandId: "refresh-release-chain",
+        strictCommandId: "pre-cluster-install-strict"
+      });
+      expect(
+        preClusterInstallGate.commandPlan?.directLive?.map((item) => item.gateId)
+      ).toEqual(
+        expect.arrayContaining([
+          "ocp-api-live-ready",
+          "lightspeed-live-ready",
+          "operator-server-dry-run-ready"
+        ])
+      );
+      expect(
+        preClusterInstallGate.commandPlan?.localPreparation?.map(
+          (item) => item.gateId
+        )
+      ).toEqual(
+        expect.arrayContaining([
+          "action-queue-closed",
+          "install-approval-ready",
+          "crc-handoff-ready"
+        ])
+      );
+      expect(
+        preClusterInstallGate.commandPlan?.aggregate?.map((item) => item.gateId)
+      ).toEqual(
+        expect.arrayContaining([
+          "clean-current-head",
+          "completion-ready",
+          "release-bundle-install-ready"
+        ])
+      );
+      expect(
+        [
+          ...(preClusterInstallGate.commandPlan?.directLive ?? []),
+          ...(preClusterInstallGate.commandPlan?.localPreparation ?? []),
+          ...(preClusterInstallGate.commandPlan?.aggregate ?? [])
+        ].every((item) => item.command && item.mutation === false)
+      ).toBe(true);
       expect(preClusterInstallGate.firstBlockedGate).toMatchObject({
         id: preClusterInstallGate.failedGateIds?.[0],
         mutation: false
@@ -7344,6 +7411,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       failedGateIds: preClusterInstallGate.failedGateIds,
       firstBlockedGate: preClusterInstallGate.firstBlockedGate,
       blockerSummary: preClusterInstallGate.blockerSummary,
+      commandPlan: preClusterInstallGate.commandPlan,
       clusterMutationAttempted: false,
       registryMutationAttempted: false,
       vectorWriteAttempted: false,
@@ -11811,6 +11879,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       ).toContainText(
         `aggregate=${body.installReadiness.preClusterInstallGate.blockerSummary?.aggregateBlockedGateIds?.join(",") || "none"}`
       );
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText("planFirst=refresh-release-chain");
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText("planStrict=pre-cluster-install-strict");
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText("planDirectLive=ocp-api-live-ready:");
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText("planLocalPrep=action-queue-closed:");
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText("planAggregate=clean-current-head:");
     }
     await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
       "roadmapEvidenceOnly"

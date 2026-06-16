@@ -2835,6 +2835,33 @@ export interface OpsLensPreClusterInstallGateSummary {
     localPreparationGateIds: string[];
     aggregateBlockedGateIds: string[];
   };
+  commandPlan: {
+    firstReadOnlyCommandId: string;
+    firstReadOnlyCommand: string;
+    strictCommandId: string;
+    strictCommand: string;
+    directLive: Array<{
+      gateId: string;
+      owner: string;
+      command: string;
+      evidenceNeeded: string;
+      mutation: boolean;
+    }>;
+    localPreparation: Array<{
+      gateId: string;
+      owner: string;
+      command: string;
+      evidenceNeeded: string;
+      mutation: boolean;
+    }>;
+    aggregate: Array<{
+      gateId: string;
+      owner: string;
+      command: string;
+      evidenceNeeded: string;
+      mutation: boolean;
+    }>;
+  };
   gateRequirements: Array<{
     id: string;
     owner: string;

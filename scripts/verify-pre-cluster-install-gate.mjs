@@ -291,6 +291,18 @@ function unique(values) {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
+function commandPlanRows(gates, idSet) {
+  return gates
+    .filter((item) => idSet.has(item.id))
+    .map((item) => ({
+      gateId: item.id,
+      owner: item.owner,
+      command: item.nextCommand,
+      evidenceNeeded: item.evidenceNeeded,
+      mutation: false
+    }));
+}
+
 function buildMarkdown(artifact) {
   return [
     "# Cywell OpsLens Pre-Cluster Install Gate",
@@ -310,6 +322,28 @@ function buildMarkdown(artifact) {
     `- Direct live readiness gates: ${(artifact.blockerSummary?.directExternalReadinessGateIds ?? []).join(", ") || "none"}`,
     `- Local preparation gates: ${(artifact.blockerSummary?.localPreparationGateIds ?? []).join(", ") || "none"}`,
     `- Aggregate blocked gates: ${(artifact.blockerSummary?.aggregateBlockedGateIds ?? []).join(", ") || "none"}`,
+    "",
+    "## Blocker Command Plan",
+    `- First read-only: ${artifact.commandPlan?.firstReadOnlyCommandId ?? "none"}: \`${artifact.commandPlan?.firstReadOnlyCommand ?? "none"}\``,
+    `- Strict stop/go: ${artifact.commandPlan?.strictCommandId ?? "none"}: \`${artifact.commandPlan?.strictCommand ?? "none"}\``,
+    "- Direct live readiness:",
+    ...(artifact.commandPlan?.directLive?.length
+      ? artifact.commandPlan.directLive.map(
+          (item) => `  - ${item.gateId} (${item.owner}): \`${item.command}\``
+        )
+      : ["  - none"]),
+    "- Local preparation:",
+    ...(artifact.commandPlan?.localPreparation?.length
+      ? artifact.commandPlan.localPreparation.map(
+          (item) => `  - ${item.gateId} (${item.owner}): \`${item.command}\``
+        )
+      : ["  - none"]),
+    "- Aggregate blockers:",
+    ...(artifact.commandPlan?.aggregate?.length
+      ? artifact.commandPlan.aggregate.map(
+          (item) => `  - ${item.gateId} (${item.owner}): \`${item.command}\``
+        )
+      : ["  - none"]),
     "",
     "## Gate Requirements",
     ...artifact.gateRequirements.map(
@@ -585,6 +619,15 @@ async function main() {
       .filter((item) => aggregateBlockedGateIds.has(item.id))
       .map((item) => item.id)
   };
+  const commandPlan = {
+    firstReadOnlyCommandId: firstReadOnlyCommand.id,
+    firstReadOnlyCommand: firstReadOnlyCommand.command,
+    strictCommandId: strictCommand?.id ?? "pre-cluster-install-strict",
+    strictCommand: strictCommand?.command ?? "npm run verify:pre-cluster-install -- --strict",
+    directLive: commandPlanRows(failedGates, directExternalReadinessGateIds),
+    localPreparation: commandPlanRows(failedGates, localPreparationGateIds),
+    aggregate: commandPlanRows(failedGates, aggregateBlockedGateIds)
+  };
 
   if (safeToRunClusterInstall) {
     pass("pre-cluster install gate", "all strict install gates are satisfied");
@@ -628,6 +671,7 @@ async function main() {
     gateRequirements,
     firstBlockedGate,
     blockerSummary,
+    commandPlan,
     failedGateIds: failedGates.map((item) => item.id),
     missingEvidence: unique(failedGates.map((item) => item.evidenceNeeded)),
     blockers: unique([

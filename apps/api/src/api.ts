@@ -3322,6 +3322,33 @@ type PreClusterInstallGateArtifact = {
     localPreparationGateIds?: string[];
     aggregateBlockedGateIds?: string[];
   };
+  commandPlan?: {
+    firstReadOnlyCommandId?: string;
+    firstReadOnlyCommand?: string;
+    strictCommandId?: string;
+    strictCommand?: string;
+    directLive?: Array<{
+      gateId?: string;
+      owner?: string;
+      command?: string;
+      evidenceNeeded?: string;
+      mutation?: boolean;
+    }>;
+    localPreparation?: Array<{
+      gateId?: string;
+      owner?: string;
+      command?: string;
+      evidenceNeeded?: string;
+      mutation?: boolean;
+    }>;
+    aggregate?: Array<{
+      gateId?: string;
+      owner?: string;
+      command?: string;
+      evidenceNeeded?: string;
+      mutation?: boolean;
+    }>;
+  };
   failedGateIds?: string[];
   missingEvidence?: string[];
   readOnlyCommands?: Array<{
@@ -11663,6 +11690,23 @@ function missingPreClusterInstallGateSummary(
       localPreparationGateIds: ["pre-cluster-install-gate-evidence"],
       aggregateBlockedGateIds: []
     },
+    commandPlan: {
+      firstReadOnlyCommandId: "generate-pre-cluster-install-gate",
+      firstReadOnlyCommand: "npm run verify:pre-cluster-install",
+      strictCommandId: "pre-cluster-install-strict",
+      strictCommand: "npm run verify:pre-cluster-install -- --strict",
+      directLive: [],
+      localPreparation: [
+        {
+          gateId: "pre-cluster-install-gate-evidence",
+          owner: "release-manager",
+          command: "npm run verify:pre-cluster-install",
+          evidenceNeeded: reason,
+          mutation: false
+        }
+      ],
+      aggregate: []
+    },
     gateRequirements: [
       {
         id: "pre-cluster-install-gate-evidence",
@@ -11847,6 +11891,58 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
           ].includes(id)
         )
     };
+    const fallbackCommandRows = (gateIds: string[]) =>
+      gateIds.map((gateId) => {
+        const gate = gateRequirements.find((entry) => entry.id === gateId);
+        return {
+          gateId,
+          owner: gate?.owner ?? "unknown",
+          command: gate?.nextCommand ?? "unknown",
+          evidenceNeeded: gate?.evidenceNeeded ?? "missing",
+          mutation: gate?.mutation === true
+        };
+      });
+    const commandPlan = {
+      firstReadOnlyCommandId:
+        artifact.commandPlan?.firstReadOnlyCommandId ??
+        firstReadOnlyCommand?.id ??
+        "none",
+      firstReadOnlyCommand:
+        artifact.commandPlan?.firstReadOnlyCommand ??
+        firstReadOnlyCommand?.command ??
+        "none",
+      strictCommandId:
+        artifact.commandPlan?.strictCommandId ?? strictCommand?.id ?? "none",
+      strictCommand:
+        artifact.commandPlan?.strictCommand ?? strictCommand?.command ?? "none",
+      directLive: (artifact.commandPlan?.directLive ?? fallbackCommandRows(
+        blockerSummary.directExternalReadinessGateIds
+      )).map((item) => ({
+        gateId: item.gateId ?? "unknown",
+        owner: item.owner ?? "unknown",
+        command: item.command ?? "unknown",
+        evidenceNeeded: item.evidenceNeeded ?? "missing",
+        mutation: item.mutation === true
+      })),
+      localPreparation: (artifact.commandPlan?.localPreparation ?? fallbackCommandRows(
+        blockerSummary.localPreparationGateIds
+      )).map((item) => ({
+        gateId: item.gateId ?? "unknown",
+        owner: item.owner ?? "unknown",
+        command: item.command ?? "unknown",
+        evidenceNeeded: item.evidenceNeeded ?? "missing",
+        mutation: item.mutation === true
+      })),
+      aggregate: (artifact.commandPlan?.aggregate ?? fallbackCommandRows(
+        blockerSummary.aggregateBlockedGateIds
+      )).map((item) => ({
+        gateId: item.gateId ?? "unknown",
+        owner: item.owner ?? "unknown",
+        command: item.command ?? "unknown",
+        evidenceNeeded: item.evidenceNeeded ?? "missing",
+        mutation: item.mutation === true
+      }))
+    };
     return {
       status,
       artifactStatus: artifact.status ?? "unknown",
@@ -11859,6 +11955,7 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
       failedGateIds: artifact.failedGateIds ?? [],
       firstBlockedGate,
       blockerSummary,
+      commandPlan,
       gateRequirements,
       sources,
       readOnlyCommands,
@@ -11882,6 +11979,7 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
         `pre-cluster install failed gates=${(artifact.failedGateIds ?? []).join(",") || "none"}`,
         `pre-cluster first blocked gate=${firstBlockedGate?.id ?? "none"} owner=${firstBlockedGate?.owner ?? "none"} next=${firstBlockedGate?.nextCommand ?? "none"}`,
         `pre-cluster blocker summary externalState=${blockerSummary.remainingExternalStateCount} localOnly=${blockerSummary.remainingLocalOnlyCount} staleExternal=${blockerSummary.staleExternalStateSourceIds.join("|") || "none"} directLive=${blockerSummary.directExternalReadinessGateIds.join("|") || "none"} localPrep=${blockerSummary.localPreparationGateIds.join("|") || "none"}`,
+        `pre-cluster command plan directLive=${commandPlan.directLive.length} localPrep=${commandPlan.localPreparation.length} aggregate=${commandPlan.aggregate.length} firstReadOnly=${commandPlan.firstReadOnlyCommandId}`,
         "pre-cluster install gate reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions",
         ...(artifact.evidence ?? []).slice(0, 2)
       ]
