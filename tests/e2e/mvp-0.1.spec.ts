@@ -7145,6 +7145,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(cleanCurrentHeadGate?.nextCommand).toContain(
         "--live-timeout-ms 30000"
       );
+      const refreshReleaseChainCommand =
+        preClusterInstallGate.readOnlyCommands?.find(
+          (command) => command.id === "refresh-release-chain"
+        );
+      expect(refreshReleaseChainCommand?.command).toContain(
+        "--live-timeout-ms 30000"
+      );
     }
     expect(preClusterInstallGate.readOnlyCommands?.map((command) => command.id)).toEqual(
       expect.arrayContaining([

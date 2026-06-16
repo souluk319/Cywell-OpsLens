@@ -472,6 +472,11 @@ async function main() {
   const failedGates = gateRequirements.filter((item) => !item.passed);
   const mutationBlocked = sources.some((source) => source.mutationViolation);
   const safeToRunClusterInstall = failedGates.length === 0 && mutationBlocked === false;
+  const refreshReleaseChainCommand = freshnessPlan.nextCommand.startsWith(
+    "npm run verify:release-refresh"
+  )
+    ? freshnessPlan.nextCommand
+    : "npm run verify:release-refresh -- --security-scan-docker";
   const status = mutationBlocked
     ? "BLOCKED_BY_MUTATION_BOUNDARY"
     : safeToRunClusterInstall
@@ -529,7 +534,7 @@ async function main() {
     readOnlyCommands: [
       {
         id: "refresh-release-chain",
-        command: "npm run verify:release-refresh -- --security-scan-docker",
+        command: refreshReleaseChainCommand,
         mutation: false
       },
       {
