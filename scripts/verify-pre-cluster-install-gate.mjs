@@ -284,6 +284,10 @@ function buildMarkdown(artifact) {
     `- Safe to run cluster install: ${String(artifact.safeToRunClusterInstall)}`,
     `- Head: ${artifact.ref.headSha}`,
     `- Dirty: ${String(artifact.ref.worktreeDirty)}`,
+    `- First blocked gate: ${artifact.firstBlockedGate?.id ?? "none"}`,
+    `- First blocked owner: ${artifact.firstBlockedGate?.owner ?? "none"}`,
+    `- First unblock command: ${artifact.firstBlockedGate?.nextCommand ?? "none"}`,
+    `- First read-only command: ${artifact.firstBlockedGate?.readOnlyCommand ?? "none"}`,
     "",
     "## Gate Requirements",
     ...artifact.gateRequirements.map(
@@ -482,6 +486,55 @@ async function main() {
     : safeToRunClusterInstall
       ? "READY_FOR_CLUSTER_INSTALL"
       : "BLOCKED_BY_EVIDENCE_GAPS";
+  const readOnlyCommands = [
+    {
+      id: "refresh-release-chain",
+      command: refreshReleaseChainCommand,
+      mutation: false
+    },
+    {
+      id: "pre-cluster-install-preview",
+      command: "npm run verify:pre-cluster-install",
+      mutation: false
+    },
+    {
+      id: "pre-cluster-install-strict",
+      command: "npm run verify:pre-cluster-install -- --strict",
+      mutation: false
+    }
+  ];
+  const approvalGatedCommandsNotRun = [
+    {
+      id: "cluster-install-apply",
+      purpose: "Apply Operator/catalog/install manifests only after this gate is READY_FOR_CLUSTER_INSTALL and cluster-admin approval is explicit."
+    },
+    {
+      id: "lightspeed-olsconfig-patch",
+      purpose: "Patch OLSConfig only after the patch preview is approved and target Lightspeed evidence is current."
+    },
+    {
+      id: "registry-push-or-mirror",
+      purpose: "Push or mirror images only after registry owner approval and image evidence are complete."
+    }
+  ];
+  const firstFailedGate = failedGates[0];
+  const firstReadOnlyCommand = readOnlyCommands[0];
+  const strictCommand = readOnlyCommands.find(
+    (command) => command.id === "pre-cluster-install-strict"
+  );
+  const firstBlockedGate = firstFailedGate
+    ? {
+        id: firstFailedGate.id,
+        owner: firstFailedGate.owner,
+        evidenceNeeded: firstFailedGate.evidenceNeeded,
+        nextCommand: firstFailedGate.nextCommand,
+        readOnlyCommandId: firstReadOnlyCommand.id,
+        readOnlyCommand: firstReadOnlyCommand.command,
+        strictCommandId: strictCommand?.id ?? "pre-cluster-install-strict",
+        strictCommand: strictCommand?.command ?? "npm run verify:pre-cluster-install -- --strict",
+        mutation: false
+      }
+    : null;
 
   if (safeToRunClusterInstall) {
     pass("pre-cluster install gate", "all strict install gates are satisfied");
@@ -523,6 +576,7 @@ async function main() {
     },
     sources,
     gateRequirements,
+    firstBlockedGate,
     failedGateIds: failedGates.map((item) => item.id),
     missingEvidence: unique(failedGates.map((item) => item.evidenceNeeded)),
     blockers: unique([
@@ -531,37 +585,8 @@ async function main() {
         .map((source) => `${source.id} reported forbidden mutation flags`),
       ...failedGates.map((item) => `${item.id}: ${item.evidenceNeeded}`)
     ]),
-    readOnlyCommands: [
-      {
-        id: "refresh-release-chain",
-        command: refreshReleaseChainCommand,
-        mutation: false
-      },
-      {
-        id: "pre-cluster-install-preview",
-        command: "npm run verify:pre-cluster-install",
-        mutation: false
-      },
-      {
-        id: "pre-cluster-install-strict",
-        command: "npm run verify:pre-cluster-install -- --strict",
-        mutation: false
-      }
-    ],
-    approvalGatedCommandsNotRun: [
-      {
-        id: "cluster-install-apply",
-        purpose: "Apply Operator/catalog/install manifests only after this gate is READY_FOR_CLUSTER_INSTALL and cluster-admin approval is explicit."
-      },
-      {
-        id: "lightspeed-olsconfig-patch",
-        purpose: "Patch OLSConfig only after the patch preview is approved and target Lightspeed evidence is current."
-      },
-      {
-        id: "registry-push-or-mirror",
-        purpose: "Push or mirror images only after registry owner approval and image evidence are complete."
-      }
-    ],
+    readOnlyCommands,
+    approvalGatedCommandsNotRun,
     evidence: [
       "pre-cluster install gate reads local evidence artifacts only",
       "strict mode intentionally fails when completion, release, install, lab, OCP, Lightspeed, or dry-run evidence is incomplete",

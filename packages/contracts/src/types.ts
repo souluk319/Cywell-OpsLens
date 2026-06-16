@@ -2812,6 +2812,17 @@ export interface OpsLensPreClusterInstallGateSummary {
   headSha: string;
   worktreeDirty: boolean;
   failedGateIds: string[];
+  firstBlockedGate: {
+    id: string;
+    owner: string;
+    evidenceNeeded: string;
+    nextCommand: string;
+    readOnlyCommandId: string;
+    readOnlyCommand: string;
+    strictCommandId: string;
+    strictCommand: string;
+    mutation: boolean;
+  } | null;
   gateRequirements: Array<{
     id: string;
     owner: string;

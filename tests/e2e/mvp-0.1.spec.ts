@@ -3993,6 +3993,17 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           headSha?: string;
           worktreeDirty?: boolean;
           failedGateIds?: string[];
+          firstBlockedGate?: {
+            id?: string;
+            owner?: string;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            readOnlyCommandId?: string;
+            readOnlyCommand?: string;
+            strictCommandId?: string;
+            strictCommand?: string;
+            mutation?: boolean;
+          } | null;
           gateRequirements?: Array<{
             id?: string;
             owner?: string;
@@ -7253,6 +7264,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     if (preClusterInstallGate.status !== "READY_FOR_CLUSTER_INSTALL") {
       expect(preClusterInstallGate.failedGateIds?.length ?? 0).toBeGreaterThan(0);
       expect(preClusterInstallGate.missingEvidence?.length ?? 0).toBeGreaterThan(0);
+      expect(preClusterInstallGate.firstBlockedGate).toMatchObject({
+        id: preClusterInstallGate.failedGateIds?.[0],
+        mutation: false
+      });
+      expect(preClusterInstallGate.firstBlockedGate?.owner).toBeTruthy();
+      expect(preClusterInstallGate.firstBlockedGate?.evidenceNeeded).toBeTruthy();
+      expect(preClusterInstallGate.firstBlockedGate?.nextCommand).toBeTruthy();
+      expect(preClusterInstallGate.firstBlockedGate?.readOnlyCommandId).toBe(
+        "refresh-release-chain"
+      );
+      expect(preClusterInstallGate.firstBlockedGate?.strictCommandId).toBe(
+        "pre-cluster-install-strict"
+      );
+    } else {
+      expect(preClusterInstallGate.firstBlockedGate).toBeNull();
     }
     expect(body.installReadiness?.preClusterInstallGate).toMatchObject({
       status:
@@ -7269,6 +7295,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       headSha: preClusterInstallGate.ref?.headSha,
       worktreeDirty: preClusterInstallGate.ref?.worktreeDirty === true,
       failedGateIds: preClusterInstallGate.failedGateIds,
+      firstBlockedGate: preClusterInstallGate.firstBlockedGate,
       clusterMutationAttempted: false,
       registryMutationAttempted: false,
       vectorWriteAttempted: false,
@@ -11692,6 +11719,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-pre-cluster-install-gate-boundary")
     ).toContainText("pre-cluster-install-strict");
+    if (body.installReadiness?.preClusterInstallGate?.firstBlockedGate) {
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText(
+        `firstBlocked=${body.installReadiness.preClusterInstallGate.firstBlockedGate.id}:`
+      );
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText(
+        `firstNext=${body.installReadiness.preClusterInstallGate.firstBlockedGate.nextCommand}`
+      );
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText("firstReadOnly=refresh-release-chain");
+    }
     await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
       "roadmapEvidenceOnly"
     );

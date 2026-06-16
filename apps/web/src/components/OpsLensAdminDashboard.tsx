@@ -2113,6 +2113,12 @@ export function OpsLensAdminDashboard() {
                   <strong>{preClusterInstallGate.failedGateIds.length}</strong>
                 </div>
                 <div>
+                  <span>First Blocker</span>
+                  <strong>
+                    {preClusterInstallGate.firstBlockedGate?.id ?? "none"}
+                  </strong>
+                </div>
+                <div>
                   <span>Sources</span>
                   <strong>{preClusterInstallGate.sources.length}</strong>
                 </div>
@@ -2145,6 +2151,20 @@ export function OpsLensAdminDashboard() {
                 <span>
                   failed=
                   {preClusterInstallGate.failedGateIds.join(",") || "none"}
+                </span>
+                <span>
+                  firstBlocked=
+                  {preClusterInstallGate.firstBlockedGate?.id ?? "none"}:
+                  {preClusterInstallGate.firstBlockedGate?.owner ?? "none"}
+                </span>
+                <span>
+                  firstNext=
+                  {preClusterInstallGate.firstBlockedGate?.nextCommand ?? "none"}
+                </span>
+                <span>
+                  firstReadOnly=
+                  {preClusterInstallGate.firstBlockedGate?.readOnlyCommandId ??
+                    "none"}
                 </span>
                 <span>
                   sources=

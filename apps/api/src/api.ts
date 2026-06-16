@@ -3299,6 +3299,17 @@ type PreClusterInstallGateArtifact = {
     nextCommand?: string;
     mutation?: boolean;
   }>;
+  firstBlockedGate?: {
+    id?: string;
+    owner?: string;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    readOnlyCommandId?: string;
+    readOnlyCommand?: string;
+    strictCommandId?: string;
+    strictCommand?: string;
+    mutation?: boolean;
+  } | null;
   failedGateIds?: string[];
   missingEvidence?: string[];
   readOnlyCommands?: Array<{
@@ -11617,6 +11628,17 @@ function missingPreClusterInstallGateSummary(
     headSha: "missing",
     worktreeDirty: false,
     failedGateIds: ["pre-cluster-install-gate-evidence"],
+    firstBlockedGate: {
+      id: "pre-cluster-install-gate-evidence",
+      owner: "release-manager",
+      evidenceNeeded: reason,
+      nextCommand: "npm run verify:pre-cluster-install",
+      readOnlyCommandId: "generate-pre-cluster-install-gate",
+      readOnlyCommand: "npm run verify:pre-cluster-install",
+      strictCommandId: "pre-cluster-install-strict",
+      strictCommand: "npm run verify:pre-cluster-install -- --strict",
+      mutation: false
+    },
     gateRequirements: [
       {
         id: "pre-cluster-install-gate-evidence",
@@ -11688,6 +11710,60 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
       readFileSync(evidencePath, "utf8")
     ) as PreClusterInstallGateArtifact;
     const status = mapPreClusterInstallGateStatus(artifact);
+    const readOnlyCommands = (artifact.readOnlyCommands ?? []).map((command) => ({
+      id: command.id ?? "unknown",
+      command: command.command ?? "unknown",
+      mutation: command.mutation === true
+    }));
+    const gateRequirements = (artifact.gateRequirements ?? []).map((gate) => ({
+      id: gate.id ?? "unknown",
+      owner: gate.owner ?? "unknown",
+      passed: gate.passed === true,
+      evidenceNeeded: gate.evidenceNeeded ?? "missing",
+      nextCommand: gate.nextCommand ?? "unknown",
+      mutation: gate.mutation === true
+    }));
+    const firstGateFromArtifact = artifact.firstBlockedGate;
+    const firstFailedGate = gateRequirements.find((gate) => !gate.passed);
+    const firstReadOnlyCommand =
+      readOnlyCommands.find((command) => command.id === "refresh-release-chain") ??
+      readOnlyCommands[0];
+    const strictCommand =
+      readOnlyCommands.find((command) => command.id === "pre-cluster-install-strict") ??
+      firstReadOnlyCommand;
+    const firstBlockedGate =
+      firstGateFromArtifact === null || (!firstGateFromArtifact && !firstFailedGate)
+        ? null
+        : {
+            id: firstGateFromArtifact?.id ?? firstFailedGate?.id ?? "none",
+            owner:
+              firstGateFromArtifact?.owner ?? firstFailedGate?.owner ?? "none",
+            evidenceNeeded:
+              firstGateFromArtifact?.evidenceNeeded ??
+              firstFailedGate?.evidenceNeeded ??
+              "none",
+            nextCommand:
+              firstGateFromArtifact?.nextCommand ??
+              firstFailedGate?.nextCommand ??
+              "none",
+            readOnlyCommandId:
+              firstGateFromArtifact?.readOnlyCommandId ??
+              firstReadOnlyCommand?.id ??
+              "none",
+            readOnlyCommand:
+              firstGateFromArtifact?.readOnlyCommand ??
+              firstReadOnlyCommand?.command ??
+              "none",
+            strictCommandId:
+              firstGateFromArtifact?.strictCommandId ??
+              strictCommand?.id ??
+              "none",
+            strictCommand:
+              firstGateFromArtifact?.strictCommand ??
+              strictCommand?.command ??
+              "none",
+            mutation: firstGateFromArtifact?.mutation === true
+          };
     return {
       status,
       artifactStatus: artifact.status ?? "unknown",
@@ -11698,14 +11774,8 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
       headSha: artifact.ref?.headSha ?? "unknown",
       worktreeDirty: artifact.ref?.worktreeDirty === true,
       failedGateIds: artifact.failedGateIds ?? [],
-      gateRequirements: (artifact.gateRequirements ?? []).map((gate) => ({
-        id: gate.id ?? "unknown",
-        owner: gate.owner ?? "unknown",
-        passed: gate.passed === true,
-        evidenceNeeded: gate.evidenceNeeded ?? "missing",
-        nextCommand: gate.nextCommand ?? "unknown",
-        mutation: gate.mutation === true
-      })),
+      firstBlockedGate,
+      gateRequirements,
       sources: (artifact.sources ?? []).map((source) => ({
         id: source.id ?? "unknown",
         status: source.status ?? "unknown",
@@ -11714,11 +11784,7 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
         mutationViolation: source.mutationViolation === true,
         headSha: source.headSha ?? "missing"
       })),
-      readOnlyCommands: (artifact.readOnlyCommands ?? []).map((command) => ({
-        id: command.id ?? "unknown",
-        command: command.command ?? "unknown",
-        mutation: command.mutation === true
-      })),
+      readOnlyCommands,
       approvalGatedCommandsNotRun: (
         artifact.approvalGatedCommandsNotRun ?? []
       ).map((command) => ({
@@ -11737,6 +11803,7 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
       evidence: [
         `Pre-cluster install gate ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"} safe=${String(artifact.safeToRunClusterInstall === true)}`,
         `pre-cluster install failed gates=${(artifact.failedGateIds ?? []).join(",") || "none"}`,
+        `pre-cluster first blocked gate=${firstBlockedGate?.id ?? "none"} owner=${firstBlockedGate?.owner ?? "none"} next=${firstBlockedGate?.nextCommand ?? "none"}`,
         "pre-cluster install gate reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions",
         ...(artifact.evidence ?? []).slice(0, 2)
       ]
