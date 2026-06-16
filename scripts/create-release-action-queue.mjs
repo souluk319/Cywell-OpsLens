@@ -4697,6 +4697,20 @@ async function main() {
   } else {
     warn("release action queue items", "no open items were generated");
   }
+  const itemsWithoutNextCommands = items
+    .filter((entry) => !entry.nextCommand || ["none", "not listed"].includes(entry.nextCommand))
+    .map((entry) => entry.id);
+  if (itemsWithoutNextCommands.length > 0) {
+    fail(
+      "release action queue item next-command coverage",
+      `items=${itemsWithoutNextCommands.join(",")}`
+    );
+  } else {
+    pass(
+      "release action queue item next-command coverage",
+      `${items.length} open item(s) carry next commands`
+    );
+  }
   const ownerPacketsWithoutReadOnlyCommands = ownerPackets
     .filter((packet) => packet.open > 0 && (packet.readOnlyCommandIds ?? []).length === 0)
     .map((packet) => packet.owner);

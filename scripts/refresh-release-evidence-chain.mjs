@@ -462,10 +462,12 @@ function actionQueueSummary(headSha) {
     warn("release action queue owner packets", "release action queue artifact is missing or unreadable");
     return {
       status: "missing",
+      actionItemCount: 0,
       ownerPacketCount: 0,
       ownerPacketsReady: false,
       criticalPathCount: 0,
       criticalPathReady: false,
+      missingActionItemNextCommands: ["release action queue artifact is missing or unreadable"],
       missingOwnerPackets: ["release action queue artifact is missing or unreadable"],
       missingOwnerPacketReadOnlyCommands: ["release action queue artifact is missing or unreadable"],
       missingOwnerPacketNextCommands: ["release action queue artifact is missing or unreadable"],
@@ -543,6 +545,10 @@ function actionQueueSummary(headSha) {
       packet.firstAiopsMonitoringTicketPacket,
       packet.firstRuntimeEvidenceTicketPacket
     ].filter(Boolean).length;
+  const actionItems = artifact.items ?? [];
+  const missingActionItemNextCommands = actionItems
+    .filter((entry) => !entry.nextCommand || ["none", "not listed"].includes(entry.nextCommand))
+    .map((entry) => `action item ${sanitize(entry.id ?? "unknown")} lacks next command`);
   const criticalPath = artifact.criticalPath ?? [];
   const ownerPackets = (artifact.ownerPackets ?? []).map((packet) => {
     const markdownPath = packet.markdownPath ?? "missing";
@@ -628,7 +634,12 @@ function actionQueueSummary(headSha) {
     ...missingCriticalPathTickets,
     ...unsafeCriticalPathTickets
   ];
-  const blockers = [...new Set([...ownerPacketBlockers, ...criticalPathBlockers])];
+  const actionItemBlockers = [
+    ...freshnessBlockers,
+    ...(actionItems.length > 0 ? [] : ["release action queue has no open action items"]),
+    ...missingActionItemNextCommands
+  ];
+  const blockers = [...new Set([...actionItemBlockers, ...ownerPacketBlockers, ...criticalPathBlockers])];
   if (blockers.length > 0) {
     fail("release action queue owner packets", blockers.join("; "));
   } else {
@@ -639,10 +650,12 @@ function actionQueueSummary(headSha) {
   }
   return {
     status: blockers.length > 0 ? "blocked" : "ready",
+    actionItemCount: actionItems.length,
     ownerPacketCount: ownerPackets.length,
     ownerPacketsReady: ownerPacketBlockers.length === 0,
     criticalPathCount: criticalPath.length,
     criticalPathReady: criticalPathBlockers.length === 0,
+    missingActionItemNextCommands,
     missingOwnerPackets,
     missingOwnerPacketReadOnlyCommands: ownerPacketsWithoutReadOnlyCommands,
     missingOwnerPacketNextCommands: ownerPacketsWithoutNextCommands,

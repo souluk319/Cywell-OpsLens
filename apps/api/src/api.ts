@@ -2779,10 +2779,12 @@ type ReleaseEvidenceRefreshArtifact = {
   }>;
   actionQueue?: {
     status?: string;
+    actionItemCount?: number;
     ownerPacketCount?: number;
     ownerPacketsReady?: boolean;
     criticalPathCount?: number;
     criticalPathReady?: boolean;
+    missingActionItemNextCommands?: string[];
     missingOwnerPackets?: string[];
     missingOwnerPacketReadOnlyCommands?: string[];
     missingOwnerPacketNextCommands?: string[];
@@ -10594,10 +10596,12 @@ function missingReleaseEvidenceRefreshSummary(
     artifacts: [],
     actionQueue: {
       status: "missing",
+      actionItemCount: 0,
       ownerPacketCount: 0,
       ownerPacketsReady: false,
       criticalPathCount: 0,
       criticalPathReady: false,
+      missingActionItemNextCommands: [reason],
       missingOwnerPackets: [reason],
       missingOwnerPacketReadOnlyCommands: [reason],
       missingOwnerPacketNextCommands: [reason],
@@ -10666,10 +10670,13 @@ function getReleaseEvidenceRefreshReadiness(): {
     }));
     const actionQueue = {
       status: artifact.actionQueue?.status ?? "missing",
+      actionItemCount: artifact.actionQueue?.actionItemCount ?? 0,
       ownerPacketCount: artifact.actionQueue?.ownerPacketCount ?? 0,
       ownerPacketsReady: artifact.actionQueue?.ownerPacketsReady === true,
       criticalPathCount: artifact.actionQueue?.criticalPathCount ?? 0,
       criticalPathReady: artifact.actionQueue?.criticalPathReady === true,
+      missingActionItemNextCommands:
+        artifact.actionQueue?.missingActionItemNextCommands ?? [],
       missingOwnerPackets: artifact.actionQueue?.missingOwnerPackets ?? [],
       missingOwnerPacketReadOnlyCommands:
         artifact.actionQueue?.missingOwnerPacketReadOnlyCommands ?? [],

@@ -2547,10 +2547,12 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
   }>;
   actionQueue: {
     status: string;
+    actionItemCount: number;
     ownerPacketCount: number;
     ownerPacketsReady: boolean;
     criticalPathCount: number;
     criticalPathReady: boolean;
+    missingActionItemNextCommands: string[];
     missingOwnerPackets: string[];
     missingOwnerPacketReadOnlyCommands: string[];
     missingOwnerPacketNextCommands: string[];
