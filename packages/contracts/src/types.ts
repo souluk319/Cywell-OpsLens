@@ -1467,6 +1467,11 @@ export type OpsLensCompletionGateReadiness =
   | "needs-evidence"
   | "blocked";
 
+export type OpsLensPreClusterInstallGateReadiness =
+  | "ready"
+  | "needs-evidence"
+  | "blocked";
+
 export type OpsLensReleaseActionQueueReadiness =
   | "ready"
   | "needs-evidence"
@@ -2773,6 +2778,51 @@ export interface OpsLensCompletionGateSummary {
   evidence: string[];
 }
 
+export interface OpsLensPreClusterInstallGateSummary {
+  status: OpsLensPreClusterInstallGateReadiness;
+  artifactStatus: string;
+  actionMode: "preClusterInstallGateOnly";
+  strictMode: boolean;
+  strictExitWouldFail: boolean;
+  safeToRunClusterInstall: boolean;
+  headSha: string;
+  worktreeDirty: boolean;
+  failedGateIds: string[];
+  gateRequirements: Array<{
+    id: string;
+    owner: string;
+    passed: boolean;
+    evidenceNeeded: string;
+    nextCommand: string;
+    mutation: boolean;
+  }>;
+  sources: Array<{
+    id: string;
+    status: string;
+    fresh: boolean;
+    mutationViolation: boolean;
+    headSha: string;
+  }>;
+  readOnlyCommands: Array<{
+    id: string;
+    command: string;
+    mutation: boolean;
+  }>;
+  approvalGatedCommandsNotRun: Array<{
+    id: string;
+    purpose: string;
+  }>;
+  clusterMutationAttempted: boolean;
+  registryMutationAttempted: boolean;
+  vectorWriteAttempted: boolean;
+  ingestionJobCreated: boolean;
+  mutationAllowedByThisVerifier: boolean;
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+  evidence: string[];
+}
+
 export interface OpsLensReleaseActionQueueSummary {
   status: OpsLensReleaseActionQueueReadiness;
   artifactStatus: string;
@@ -4029,6 +4079,7 @@ export interface OpsLensAdminOverviewResponse {
     actionQueue: OpsLensReleaseActionQueueSummary;
     roadmapCompletion: OpsLensRoadmapCompletionSummary;
     completionGate: OpsLensCompletionGateSummary;
+    preClusterInstallGate: OpsLensPreClusterInstallGateSummary;
     evidenceCheckpoint: OpsLensEvidenceCheckpointReadiness;
     checkpoint: OpsLensEvidenceCheckpointSummary;
     liveHandoff: OpsLensLiveEvidenceHandoffReadiness;

@@ -29,6 +29,7 @@ npm run verify:catalog-toolchain
 npm run verify:security-scan-plan
 npm run verify:release-refresh
 npm run verify:completion
+npm run verify:pre-cluster-install
 npm run verify:lab-bootstrap
 npm run verify:lab-handoff
 npm run verify:lab-image-map
@@ -73,6 +74,8 @@ npm run verify:lightspeed:fixture
 `npm run verify:release-evidence-bundle` consolidates checkpoint, roadmap, release, install, live handoff, OCP network handoff, certification, Community Operator submission draft, catalog, image, provenance, external runtime, and security evidence into `test-results/cywell-opslens-release-evidence-bundle.json` plus `test-results/cywell-opslens-release-evidence-bundle.md`. The Markdown packet is for release-manager review only and keeps every external submission, push, mirror, sign, install, patch, apply, delete, and scale command approval-gated.
 
 `npm run verify:completion` reads the current roadmap plan alignment, release evidence bundle, and release action queue artifacts, then writes `test-results/cywell-opslens-completion-gate.json` plus Markdown. It is the single local evidence gate for "can we claim 100%": `readyToClaim100` becomes true only when roadmap completion is 100%, release/install/publish evidence is approval-ready, no external-state or local-only gates remain, the action queue has no critical-path blockers, and mutation flags stay false. `npm run verify:release-refresh` runs this as `completion-gate-final` after the final roadmap, bundle, and action queue refresh, and the admin overview exposes the same summary as `installReadiness.completionGate` for dashboard tracking.
+
+`npm run verify:pre-cluster-install` reads the current completion gate, release bundle, action queue, install approval, CRC lab handoff, OCP connectivity, Lightspeed readiness, and Operator dry-run artifacts, then writes `test-results/cywell-opslens-pre-cluster-install-gate.json` plus Markdown. It is the explicit stop/go packet before any cluster install: default mode reports blockers without mutating anything, and `npm run verify:pre-cluster-install -- --strict` exits nonzero whenever evidence is still blocked so `NEEDS_EVIDENCE` cannot be mistaken for install-ready.
 
 `npm run verify:lab-bootstrap` creates the pre-handoff Windows/CRC lab bootstrap packet. It checks local tooling, Docker Linux engine, API/dashboard/operator/bundle/catalog image tags, the portable image tar contents, manifest image references from Operator/FBC/CatalogSource/sample/app manifests, CRC registry trap classifications, and optional lab-host CRC/GPU readiness with `-- --lab-machine --require-crc-running`. The packet also classifies the lab tier, records CPU/RAM/GPU VRAM capacity, recommends local CRC memory/CPU/disk settings, and keeps GPU-backed vLLM/Gemma runtime work external-first until read-only API/dashboard/Lightspeed evidence is stable. It writes `test-results/cywell-opslens-lab-bootstrap-plan.json` plus Markdown and never logs in to a registry, creates projects, pushes images, applies manifests, patches OLSConfig, fetches Secrets, deletes, or scales.
 

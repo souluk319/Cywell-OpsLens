@@ -3959,6 +3959,50 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
           evidence?: string[];
         };
+        preClusterInstallGate?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          strictMode?: boolean;
+          strictExitWouldFail?: boolean;
+          safeToRunClusterInstall?: boolean;
+          headSha?: string;
+          worktreeDirty?: boolean;
+          failedGateIds?: string[];
+          gateRequirements?: Array<{
+            id?: string;
+            owner?: string;
+            passed?: boolean;
+            evidenceNeeded?: string;
+            nextCommand?: string;
+            mutation?: boolean;
+          }>;
+          sources?: Array<{
+            id?: string;
+            status?: string;
+            fresh?: boolean;
+            mutationViolation?: boolean;
+            headSha?: string;
+          }>;
+          readOnlyCommands?: Array<{
+            id?: string;
+            command?: string;
+            mutation?: boolean;
+          }>;
+          approvalGatedCommandsNotRun?: Array<{
+            id?: string;
+            purpose?: string;
+          }>;
+          clusterMutationAttempted?: boolean;
+          registryMutationAttempted?: boolean;
+          vectorWriteAttempted?: boolean;
+          ingestionJobCreated?: boolean;
+          mutationAllowedByThisVerifier?: boolean;
+          missingEvidence?: string[];
+          risk?: string[];
+          rollbackPath?: string[];
+          evidence?: string[];
+        };
         evidenceCheckpoint?: string;
         checkpoint?: {
           status?: string;
@@ -6413,7 +6457,8 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "roadmap-plan-final",
         "release-evidence-bundle-final",
         "release-action-queue-final",
-        "completion-gate-final"
+        "completion-gate-final",
+        "pre-cluster-install-gate-final"
       ])
     );
     expect(
@@ -6424,7 +6469,8 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "labBootstrap",
         "labImageMap",
         "labHandoff",
-        "completionGate"
+        "completionGate",
+        "preClusterInstallGate"
       ])
     );
     expect(
@@ -6703,6 +6749,53 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         mutationAllowedByThisVerifier?: boolean;
       };
     };
+    const preClusterInstallGate = JSON.parse(
+      readFileSync(
+        "test-results/cywell-opslens-pre-cluster-install-gate.json",
+        "utf8"
+      )
+    ) as {
+      status?: string;
+      actionMode?: string;
+      strictMode?: boolean;
+      strictExitWouldFail?: boolean;
+      safeToRunClusterInstall?: boolean;
+      clusterMutationAttempted?: boolean;
+      registryMutationAttempted?: boolean;
+      vectorWriteAttempted?: boolean;
+      ingestionJobCreated?: boolean;
+      mutationAllowedByThisVerifier?: boolean;
+      ref?: {
+        headSha?: string;
+        worktreeDirty?: boolean;
+      };
+      sources?: Array<{
+        id?: string;
+        status?: string;
+        fresh?: boolean;
+        mutationViolation?: boolean;
+        headSha?: string;
+      }>;
+      gateRequirements?: Array<{
+        id?: string;
+        owner?: string;
+        passed?: boolean;
+        evidenceNeeded?: string;
+        nextCommand?: string;
+        mutation?: boolean;
+      }>;
+      failedGateIds?: string[];
+      missingEvidence?: string[];
+      readOnlyCommands?: Array<{
+        id?: string;
+        command?: string;
+        mutation?: boolean;
+      }>;
+      approvalGatedCommandsNotRun?: Array<{
+        id?: string;
+        purpose?: string;
+      }>;
+    };
     const roadmapActionQueueSafety = roadmapPlan.stages
       ?.find((stage) => stage.id === "stage-5-redhat-gtm")
       ?.requirements?.find(
@@ -6944,6 +7037,119 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           gate.mutationAllowedByThisVerifier === false
       )
     ).toBe(true);
+    expect([
+      "READY_FOR_CLUSTER_INSTALL",
+      "BLOCKED_BY_EVIDENCE_GAPS",
+      "BLOCKED_BY_MUTATION_BOUNDARY"
+    ]).toContain(preClusterInstallGate.status);
+    expect(preClusterInstallGate).toMatchObject({
+      actionMode: "preClusterInstallGateOnly",
+      strictMode: false,
+      safeToRunClusterInstall:
+        preClusterInstallGate.status === "READY_FOR_CLUSTER_INSTALL",
+      strictExitWouldFail:
+        preClusterInstallGate.status !== "READY_FOR_CLUSTER_INSTALL",
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(preClusterInstallGate.gateRequirements?.map((gate) => gate.id)).toEqual(
+      expect.arrayContaining([
+        "clean-current-head",
+        "completion-ready",
+        "release-bundle-install-ready",
+        "action-queue-closed",
+        "install-approval-ready",
+        "crc-handoff-ready",
+        "ocp-api-live-ready",
+        "lightspeed-live-ready",
+        "operator-server-dry-run-ready",
+        "mutation-boundary-clean"
+      ])
+    );
+    expect(
+      preClusterInstallGate.gateRequirements?.every(
+        (gate) =>
+          gate.owner &&
+          typeof gate.passed === "boolean" &&
+          gate.evidenceNeeded &&
+          gate.nextCommand &&
+          gate.mutation === false
+      )
+    ).toBe(true);
+    expect(
+      preClusterInstallGate.sources?.every(
+        (source) =>
+          source.id &&
+          source.status &&
+          source.fresh === true &&
+          source.mutationViolation === false &&
+          source.headSha === preClusterInstallGate.ref?.headSha
+      )
+    ).toBe(true);
+    expect(preClusterInstallGate.readOnlyCommands?.map((command) => command.id)).toEqual(
+      expect.arrayContaining([
+        "refresh-release-chain",
+        "pre-cluster-install-preview",
+        "pre-cluster-install-strict"
+      ])
+    );
+    expect(
+      preClusterInstallGate.readOnlyCommands?.every(
+        (command) => command.mutation === false
+      )
+    ).toBe(true);
+    expect(
+      preClusterInstallGate.approvalGatedCommandsNotRun?.map(
+        (command) => command.id
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        "cluster-install-apply",
+        "lightspeed-olsconfig-patch",
+        "registry-push-or-mirror"
+      ])
+    );
+    if (preClusterInstallGate.status !== "READY_FOR_CLUSTER_INSTALL") {
+      expect(preClusterInstallGate.failedGateIds?.length ?? 0).toBeGreaterThan(0);
+      expect(preClusterInstallGate.missingEvidence?.length ?? 0).toBeGreaterThan(0);
+    }
+    expect(body.installReadiness?.preClusterInstallGate).toMatchObject({
+      status:
+        preClusterInstallGate.status === "READY_FOR_CLUSTER_INSTALL"
+          ? "ready"
+          : preClusterInstallGate.status === "BLOCKED_BY_MUTATION_BOUNDARY"
+            ? "blocked"
+            : "needs-evidence",
+      artifactStatus: preClusterInstallGate.status,
+      actionMode: "preClusterInstallGateOnly",
+      strictMode: preClusterInstallGate.strictMode,
+      strictExitWouldFail: preClusterInstallGate.strictExitWouldFail,
+      safeToRunClusterInstall: preClusterInstallGate.safeToRunClusterInstall,
+      headSha: preClusterInstallGate.ref?.headSha,
+      worktreeDirty: preClusterInstallGate.ref?.worktreeDirty === true,
+      failedGateIds: preClusterInstallGate.failedGateIds,
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false
+    });
+    expect(
+      body.installReadiness?.preClusterInstallGate?.gateRequirements?.map(
+        (gate) => gate.id
+      )
+    ).toEqual(preClusterInstallGate.gateRequirements?.map((gate) => gate.id));
+    expect(
+      body.installReadiness?.preClusterInstallGate?.readOnlyCommands?.map(
+        (command) => command.id
+      )
+    ).toEqual(preClusterInstallGate.readOnlyCommands?.map((command) => command.id));
+    expect(body.installReadiness?.evidence?.join(" ")).toContain(
+      "Pre-cluster install gate"
+    );
     const completionClaimPacketMarkdown = readFileSync(
       String(completionGate.claimPacket?.markdownPath),
       "utf8"
@@ -11293,6 +11499,35 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("opslens-completion-gate-boundary")
     ).toContainText("unsafeTickets=none");
+    await expect(
+      page.getByTestId("opslens-pre-cluster-install-gate")
+    ).toContainText("preClusterInstallGateOnly");
+    await expect(
+      page.getByTestId("opslens-pre-cluster-install-gate")
+    ).toContainText(
+      `safeToRunClusterInstall=${String(
+        body.installReadiness?.preClusterInstallGate?.safeToRunClusterInstall
+      )}`
+    );
+    await expect(
+      page.getByTestId("opslens-pre-cluster-install-gate")
+    ).toContainText(
+      `strictExitWouldFail=${String(
+        body.installReadiness?.preClusterInstallGate?.strictExitWouldFail
+      )}`
+    );
+    await expect(
+      page.getByTestId("opslens-pre-cluster-install-gate-requirements")
+    ).toContainText("clean-current-head");
+    await expect(
+      page.getByTestId("opslens-pre-cluster-install-gate-requirements")
+    ).toContainText("operator-server-dry-run-ready");
+    await expect(
+      page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+    ).toContainText("approvalNotRun=cluster-install-apply");
+    await expect(
+      page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+    ).toContainText("pre-cluster-install-strict");
     await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
       "roadmapEvidenceOnly"
     );

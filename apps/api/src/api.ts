@@ -93,6 +93,7 @@ import type {
   OpsLensReleaseEvidenceBundleReadiness,
   OpsLensReleaseEvidenceBundleSummary,
   OpsLensCompletionGateSummary,
+  OpsLensPreClusterInstallGateSummary,
   OpsLensRoadmapCompletionSummary,
   OpsLensRemediationProposal,
   OpsLensSecurityScanPlanSummary,
@@ -3240,6 +3241,55 @@ type CompletionGateArtifact = {
   evidence?: string[];
 };
 
+type PreClusterInstallGateArtifact = {
+  artifactType?: string;
+  status?: string;
+  actionMode?: string;
+  strictMode?: boolean;
+  strictExitWouldFail?: boolean;
+  safeToRunClusterInstall?: boolean;
+  clusterMutationAttempted?: boolean;
+  registryMutationAttempted?: boolean;
+  vectorWriteAttempted?: boolean;
+  ingestionJobCreated?: boolean;
+  mutationAllowedByThisVerifier?: boolean;
+  ref?: {
+    branch?: string;
+    headSha?: string;
+    baseRef?: string;
+    worktreeDirty?: boolean;
+  };
+  sources?: Array<{
+    id?: string;
+    status?: string;
+    fresh?: boolean;
+    mutationViolation?: boolean;
+    headSha?: string;
+  }>;
+  gateRequirements?: Array<{
+    id?: string;
+    owner?: string;
+    passed?: boolean;
+    evidenceNeeded?: string;
+    nextCommand?: string;
+    mutation?: boolean;
+  }>;
+  failedGateIds?: string[];
+  missingEvidence?: string[];
+  readOnlyCommands?: Array<{
+    id?: string;
+    command?: string;
+    mutation?: boolean;
+  }>;
+  approvalGatedCommandsNotRun?: Array<{
+    id?: string;
+    purpose?: string;
+  }>;
+  risk?: string[];
+  rollbackPath?: string[];
+  evidence?: string[];
+};
+
 type RagProductionReadinessArtifact = {
   artifactType?: string;
   status?: string;
@@ -3974,6 +4024,13 @@ function completionGatePath() {
   return (
     process.env.CYWELL_OPSLENS_COMPLETION_GATE ??
     join(repoRoot, "test-results", "cywell-opslens-completion-gate.json")
+  );
+}
+
+function preClusterInstallGatePath() {
+  return (
+    process.env.CYWELL_OPSLENS_PRE_CLUSTER_INSTALL_GATE ??
+    join(repoRoot, "test-results", "cywell-opslens-pre-cluster-install-gate.json")
   );
 }
 
@@ -11459,6 +11516,151 @@ function getCompletionGateSummary(): OpsLensCompletionGateSummary {
   }
 }
 
+function missingPreClusterInstallGateSummary(
+  reason: string,
+  status: OpsLensPreClusterInstallGateSummary["status"] = "needs-evidence"
+): OpsLensPreClusterInstallGateSummary {
+  return {
+    status,
+    artifactStatus: status === "blocked" ? "invalid" : "missing",
+    actionMode: "preClusterInstallGateOnly",
+    strictMode: false,
+    strictExitWouldFail: true,
+    safeToRunClusterInstall: false,
+    headSha: "missing",
+    worktreeDirty: false,
+    failedGateIds: ["pre-cluster-install-gate-evidence"],
+    gateRequirements: [
+      {
+        id: "pre-cluster-install-gate-evidence",
+        owner: "release-manager",
+        passed: false,
+        evidenceNeeded: reason,
+        nextCommand: "npm run verify:pre-cluster-install",
+        mutation: false
+      }
+    ],
+    sources: [],
+    readOnlyCommands: [
+      {
+        id: "generate-pre-cluster-install-gate",
+        command: "npm run verify:pre-cluster-install",
+        mutation: false
+      }
+    ],
+    approvalGatedCommandsNotRun: [],
+    clusterMutationAttempted: false,
+    registryMutationAttempted: false,
+    vectorWriteAttempted: false,
+    ingestionJobCreated: false,
+    mutationAllowedByThisVerifier: false,
+    missingEvidence: [reason],
+    risk: [
+      "Without a pre-cluster install gate artifact, the dashboard cannot prove whether install blockers remain."
+    ],
+    rollbackPath: [
+      "Run npm run verify:pre-cluster-install after refreshing release evidence."
+    ],
+    evidence: [
+      reason,
+      "pre-cluster install gate is evidence-only and does not approve install, patch, push, mirror, sign, apply, delete, or scale actions"
+    ]
+  };
+}
+
+function mapPreClusterInstallGateStatus(
+  artifact: PreClusterInstallGateArtifact
+): OpsLensPreClusterInstallGateSummary["status"] {
+  if (
+    artifact.status === "BLOCKED_BY_MUTATION_BOUNDARY" ||
+    artifact.clusterMutationAttempted === true ||
+    artifact.registryMutationAttempted === true ||
+    artifact.vectorWriteAttempted === true ||
+    artifact.ingestionJobCreated === true ||
+    artifact.mutationAllowedByThisVerifier === true
+  ) {
+    return "blocked";
+  }
+  return artifact.status === "READY_FOR_CLUSTER_INSTALL" &&
+    artifact.safeToRunClusterInstall === true
+    ? "ready"
+    : "needs-evidence";
+}
+
+function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary {
+  const evidencePath = preClusterInstallGatePath();
+
+  if (!existsSync(evidencePath)) {
+    return missingPreClusterInstallGateSummary(
+      `pre-cluster install gate evidence is missing at ${evidencePath}`
+    );
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as PreClusterInstallGateArtifact;
+    const status = mapPreClusterInstallGateStatus(artifact);
+    return {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode: "preClusterInstallGateOnly",
+      strictMode: artifact.strictMode === true,
+      strictExitWouldFail: artifact.strictExitWouldFail !== false,
+      safeToRunClusterInstall: artifact.safeToRunClusterInstall === true,
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      failedGateIds: artifact.failedGateIds ?? [],
+      gateRequirements: (artifact.gateRequirements ?? []).map((gate) => ({
+        id: gate.id ?? "unknown",
+        owner: gate.owner ?? "unknown",
+        passed: gate.passed === true,
+        evidenceNeeded: gate.evidenceNeeded ?? "missing",
+        nextCommand: gate.nextCommand ?? "unknown",
+        mutation: gate.mutation === true
+      })),
+      sources: (artifact.sources ?? []).map((source) => ({
+        id: source.id ?? "unknown",
+        status: source.status ?? "unknown",
+        fresh: source.fresh === true,
+        mutationViolation: source.mutationViolation === true,
+        headSha: source.headSha ?? "missing"
+      })),
+      readOnlyCommands: (artifact.readOnlyCommands ?? []).map((command) => ({
+        id: command.id ?? "unknown",
+        command: command.command ?? "unknown",
+        mutation: command.mutation === true
+      })),
+      approvalGatedCommandsNotRun: (
+        artifact.approvalGatedCommandsNotRun ?? []
+      ).map((command) => ({
+        id: command.id ?? "unknown",
+        purpose: command.purpose ?? "missing"
+      })),
+      clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+      registryMutationAttempted: artifact.registryMutationAttempted === true,
+      vectorWriteAttempted: artifact.vectorWriteAttempted === true,
+      ingestionJobCreated: artifact.ingestionJobCreated === true,
+      mutationAllowedByThisVerifier:
+        artifact.mutationAllowedByThisVerifier === true,
+      missingEvidence: artifact.missingEvidence ?? [],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? [],
+      evidence: [
+        `Pre-cluster install gate ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"} safe=${String(artifact.safeToRunClusterInstall === true)}`,
+        `pre-cluster install failed gates=${(artifact.failedGateIds ?? []).join(",") || "none"}`,
+        "pre-cluster install gate reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions",
+        ...(artifact.evidence ?? []).slice(0, 2)
+      ]
+    };
+  } catch (error) {
+    return missingPreClusterInstallGateSummary(
+      error instanceof Error ? error.message : "unknown evidence parse error",
+      "blocked"
+    );
+  }
+}
+
 function missingReleaseActionQueueSummary(
   reason: string,
   status: OpsLensReleaseActionQueueReadiness = "needs-evidence"
@@ -14810,6 +15012,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     releaseActionQueueReadiness.actionQueue
   );
   const completionGate = getCompletionGateSummary();
+  const preClusterInstallGate = getPreClusterInstallGateSummary();
   const runtimeLiveHandoff = buildRuntimeLiveHandoffSummary(
     runtimeReadiness,
     releaseActionQueueReadiness.actionQueue
@@ -14853,6 +15056,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     releaseActionQueueReadiness.evidence[0],
     roadmapCompletion.evidence[0],
     completionGate.evidence[0],
+    preClusterInstallGate.evidence[0],
     runtimeLiveHandoff.evidence[0],
     ragProductionReadiness.evidence[0],
     ...ocpConnectivityReadiness.evidence.slice(1),
@@ -15113,6 +15317,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       actionQueue: releaseActionQueueReadiness.actionQueue,
       roadmapCompletion,
       completionGate,
+      preClusterInstallGate,
       evidenceCheckpoint: evidenceCheckpointReadiness.status,
       checkpoint: evidenceCheckpointReadiness.checkpoint,
       liveHandoff: liveHandoffReadiness.status,
@@ -15159,6 +15364,7 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 5 release evidence refresh chain is generated by npm run verify:release-refresh",
         "Stage 5 release evidence bundle is generated by npm run verify:release-evidence-bundle",
         "Stage 5 release action queue is generated by npm run evidence:release-action-queue",
+        "Pre-cluster install stop/go gate is generated by npm run verify:pre-cluster-install",
         "RAG production ingestion handoff is generated by npm run verify:rag:production-readiness",
         "Current-head release/install evidence is summarized by npm run verify:evidence-checkpoint"
       ]

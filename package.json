@@ -72,6 +72,7 @@
     "verify:release-plan": "node ./scripts/verify-release-publish-plan.mjs",
     "verify:release-evidence-bundle": "node ./scripts/verify-release-evidence-bundle.mjs",
     "verify:completion": "node ./scripts/verify-completion-gate.mjs",
+    "verify:pre-cluster-install": "node ./scripts/verify-pre-cluster-install-gate.mjs",
     "evidence:release-action-queue": "node ./scripts/create-release-action-queue.mjs",
     "verify:release-refresh": "node ./scripts/refresh-release-evidence-chain.mjs",
     "verify:lightspeed": "node ./scripts/verify-lightspeed-mcp.mjs",

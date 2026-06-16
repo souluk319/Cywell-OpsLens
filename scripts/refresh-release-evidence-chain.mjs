@@ -70,7 +70,8 @@ const evidencePaths = {
   roadmapPlan: "test-results/cywell-opslens-roadmap-plan-alignment.json",
   releaseEvidenceBundle: "test-results/cywell-opslens-release-evidence-bundle.json",
   releaseActionQueue: "test-results/cywell-opslens-release-action-queue.json",
-  completionGate: "test-results/cywell-opslens-completion-gate.json"
+  completionGate: "test-results/cywell-opslens-completion-gate.json",
+  preClusterInstallGate: "test-results/cywell-opslens-pre-cluster-install-gate.json"
 };
 
 function parseArgs(argv) {
@@ -324,7 +325,12 @@ function buildChain() {
       "evidence:release-action-queue",
       ["--defer-release-refresh-source"]
     ),
-    npmScript("completion-gate-final", "approval", "verify:completion")
+    npmScript("completion-gate-final", "approval", "verify:completion"),
+    npmScript(
+      "pre-cluster-install-gate-final",
+      "approval",
+      "verify:pre-cluster-install"
+    )
   );
 
   return commands;

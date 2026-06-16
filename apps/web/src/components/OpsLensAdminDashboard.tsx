@@ -243,6 +243,8 @@ export function OpsLensAdminDashboard() {
   const releaseActionQueue = overview?.installReadiness.actionQueue;
   const roadmapCompletion = overview?.installReadiness.roadmapCompletion;
   const completionGate = overview?.installReadiness.completionGate;
+  const preClusterInstallGate =
+    overview?.installReadiness.preClusterInstallGate;
   const runtimeLiveHandoff = overview?.runtime.liveHandoff;
   const runtimeLiveEvidenceHandoff =
     overview?.runtime.readiness.liveEvidenceHandoff ?? [];
@@ -1803,6 +1805,8 @@ export function OpsLensAdminDashboard() {
                     overview.installReadiness.roadmapCompletion.status,
                   "Completion Gate":
                     overview.installReadiness.completionGate.status,
+                  "Pre-cluster Gate":
+                    overview.installReadiness.preClusterInstallGate.status,
                   "Evidence Checkpoint":
                     overview.installReadiness.evidenceCheckpoint,
                   "Live Handoff": overview.installReadiness.liveHandoff,
@@ -2062,6 +2066,116 @@ export function OpsLensAdminDashboard() {
                 <p>
                   {completionGate.rollbackPath[0] ??
                     "Regenerate completion evidence after release evidence changes."}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          {preClusterInstallGate ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-pre-cluster-install-gate"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Pre-cluster Install Gate</h4>
+                  <small>{preClusterInstallGate.actionMode}</small>
+                </div>
+                <ShieldCheck size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{preClusterInstallGate.artifactStatus}</span>
+                <span>head={preClusterInstallGate.headSha}</span>
+                <span>
+                  dirty={String(preClusterInstallGate.worktreeDirty)}
+                </span>
+                <span>
+                  safeToRunClusterInstall=
+                  {String(preClusterInstallGate.safeToRunClusterInstall)}
+                </span>
+                <span>
+                  strictExitWouldFail=
+                  {String(preClusterInstallGate.strictExitWouldFail)}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Status</span>
+                  <strong
+                    className={`freshness ${statusClass(
+                      preClusterInstallGate.status
+                    )}`}
+                  >
+                    {preClusterInstallGate.status}
+                  </strong>
+                </div>
+                <div>
+                  <span>Failed Gates</span>
+                  <strong>{preClusterInstallGate.failedGateIds.length}</strong>
+                </div>
+                <div>
+                  <span>Sources</span>
+                  <strong>{preClusterInstallGate.sources.length}</strong>
+                </div>
+                <div>
+                  <span>Read-only</span>
+                  <strong>{preClusterInstallGate.readOnlyCommands.length}</strong>
+                </div>
+                <div>
+                  <span>Approval</span>
+                  <strong>
+                    {preClusterInstallGate.approvalGatedCommandsNotRun.length}
+                  </strong>
+                </div>
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-pre-cluster-install-gate-requirements"
+              >
+                {preClusterInstallGate.gateRequirements.map((gate) => (
+                  <span key={gate.id}>
+                    {gate.id}:{gate.owner}:{String(gate.passed)}:next=
+                    {gate.nextCommand}
+                  </span>
+                ))}
+              </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-pre-cluster-install-gate-boundary"
+              >
+                <span>
+                  failed=
+                  {preClusterInstallGate.failedGateIds.join(",") || "none"}
+                </span>
+                <span>
+                  sources=
+                  {preClusterInstallGate.sources
+                    .map(
+                      (source) =>
+                        `${source.id}:${source.fresh && !source.mutationViolation ? "pass" : "needs-evidence"}`
+                    )
+                    .join(",") || "none"}
+                </span>
+                <span>
+                  readOnly=
+                  {preClusterInstallGate.readOnlyCommands
+                    .map((command) => command.id)
+                    .join(",") || "none"}
+                </span>
+                <span>
+                  approvalNotRun=
+                  {preClusterInstallGate.approvalGatedCommandsNotRun
+                    .map((command) => command.id)
+                    .join(",") || "none"}
+                </span>
+              </div>
+              <div className="remediation-notes">
+                <p>
+                  {preClusterInstallGate.risk[0] ??
+                    "Pre-cluster gate blocks install until evidence is ready."}
+                </p>
+                <p>
+                  {preClusterInstallGate.rollbackPath[0] ??
+                    "No rollback is required for the verifier itself."}
                 </p>
               </div>
             </div>
