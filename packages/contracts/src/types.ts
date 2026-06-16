@@ -1429,6 +1429,7 @@ export type OpsLensLabHandoffReadiness =
   | "ready-for-handoff"
   | "needs-current-evidence"
   | "needs-local-package"
+  | "needs-image-ref-mapping"
   | "needs-crc-target"
   | "needs-ocp-live"
   | "needs-install-preview"

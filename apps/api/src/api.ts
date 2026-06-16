@@ -9762,6 +9762,8 @@ function mapLabHandoffStatus(
       return "needs-current-evidence";
     case "NEEDS_LOCAL_IMAGE_PACKAGE":
       return "needs-local-package";
+    case "NEEDS_IMAGE_REF_MAPPING":
+      return "needs-image-ref-mapping";
     case "NEEDS_CRC_TARGET":
       return "needs-crc-target";
     case "NEEDS_OCP_LIVE_EVIDENCE":

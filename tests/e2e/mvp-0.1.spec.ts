@@ -5470,6 +5470,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "ready-for-handoff",
       "needs-current-evidence",
       "needs-local-package",
+      "needs-image-ref-mapping",
       "needs-crc-target",
       "needs-ocp-live",
       "needs-install-preview",
@@ -5490,6 +5491,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       Array.isArray(body.installReadiness?.labHandoffPlan?.imageTar?.missingTags)
     ).toBe(true);
+    expect(
+      body.installReadiness?.labHandoffPlan?.sourceArtifacts?.map(
+        (source) => source.id
+      )
+    ).toEqual(expect.arrayContaining(["imageBuild", "labImageMap"]));
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(/lab bootstrap/i);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(/lab handoff/i);
     expect([

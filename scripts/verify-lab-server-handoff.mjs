@@ -18,6 +18,7 @@ const defaults = {
   evidenceOut: "test-results/cywell-opslens-lab-server-handoff.json",
   markdownOut: "test-results/cywell-opslens-lab-server-handoff.md",
   imageEvidence: "test-results/cywell-opslens-image-build-readiness.json",
+  labImageMapEvidence: "test-results/cywell-opslens-lab-image-map-preview.json",
   ocpTargetProfileEvidence: "test-results/cywell-opslens-ocp-target-profile.json",
   ocpConnectivityEvidence: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
   lightspeedReadinessEvidence: "test-results/cywell-opslens-lightspeed-readiness.json",
@@ -82,6 +83,8 @@ const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
   imageEvidence: parsed.get("image-evidence") ?? defaults.imageEvidence,
+  labImageMapEvidence:
+    parsed.get("lab-image-map-evidence") ?? defaults.labImageMapEvidence,
   ocpTargetProfileEvidence:
     parsed.get("ocp-target-profile-evidence") ?? defaults.ocpTargetProfileEvidence,
   ocpConnectivityEvidence:
@@ -388,6 +391,13 @@ function buildCommands(state) {
       purpose: "Confirm the ignored .env points only at the CRC lab target."
     },
     {
+      id: "lab-image-map",
+      phase: "local-preview",
+      command: "npm run verify:lab-image-map",
+      mutation: false,
+      purpose: "Refresh the CRC registry image-reference preview for Kubernetes and FBC manifests."
+    },
+    {
       id: "ocp-connectivity",
       phase: "live-read-only",
       command: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
@@ -433,7 +443,7 @@ function buildCommands(state) {
         state.images.some((image) => !image.present) ||
         !state.sources.imageBuild.acceptable ||
         !state.sources.imageBuild.fresh,
-      purpose: "Build Operator/API/dashboard/bundle images locally without pushing them."
+      purpose: "Build Operator/API/dashboard/bundle/catalog images locally without pushing them."
     },
     {
       id: "package-crc-images",
@@ -487,6 +497,12 @@ function firstNextCommand(state, localSetupCommands, readOnlyCommands) {
   const setup = localSetupCommands.find((command) => command.requiredWhen);
   if (setup) return setup;
   if (
+    !state.sources.labImageMap.acceptable ||
+    !state.sources.labImageMap.fresh
+  ) {
+    return readOnlyCommands.find((command) => command.id === "lab-image-map");
+  }
+  if (
     !state.sources.ocpTargetProfile.acceptable ||
     !state.sources.ocpTargetProfile.fresh ||
     state.sources.ocpTargetProfile.status !== "CRC_SANDBOX_READY"
@@ -522,12 +538,21 @@ function statusFor(state) {
     !state.imageTar.exists,
     state.imageTar.exists && state.imageTar.sizeLooksValid === false,
     state.imageTar.exists && (state.imageTar.missingTags ?? []).length > 0,
-    state.sources.imageBuild.status !== "PASS"
+    state.sources.imageBuild.status !== "PASS",
+    ["NEEDS_LOCAL_IMAGES", "NEEDS_CATALOG_IMAGE"].includes(
+      state.sources.labImageMap.status
+    )
   ].filter(Boolean);
   if (hardBlockers.length > 0) return "NEEDS_LOCAL_IMAGE_PACKAGE";
-  if (state.worktreeDirty || !state.sources.ocpTargetProfile.fresh || !state.sources.ocpConnectivity.fresh) {
+  if (
+    state.worktreeDirty ||
+    !state.sources.labImageMap.fresh ||
+    !state.sources.ocpTargetProfile.fresh ||
+    !state.sources.ocpConnectivity.fresh
+  ) {
     return "NEEDS_CURRENT_EVIDENCE";
   }
+  if (!state.sources.labImageMap.acceptable) return "NEEDS_IMAGE_REF_MAPPING";
   if (state.sources.ocpTargetProfile.status !== "CRC_SANDBOX_READY") return "NEEDS_CRC_TARGET";
   if (state.ocpClassification !== "api-ready") return "NEEDS_OCP_LIVE_EVIDENCE";
   const staleSources = Object.values(state.sources).filter((source) => !source.fresh);
@@ -621,6 +646,7 @@ if (worktreeStatus.length === 0) {
 
 const artifacts = {
   imageBuild: loadJson(options.imageEvidence, "image build readiness"),
+  labImageMap: loadJson(options.labImageMapEvidence, "lab image map preview"),
   ocpTargetProfile: loadJson(options.ocpTargetProfileEvidence, "OCP target profile"),
   ocpConnectivity: loadJson(options.ocpConnectivityEvidence, "OCP connectivity"),
   lightspeedReadiness: loadJson(options.lightspeedReadinessEvidence, "Lightspeed readiness"),
@@ -637,6 +663,14 @@ const imageTar = imageTarSummary(options.imageTar);
 
 const sources = {
   imageBuild: sourceSummary("imageBuild", "image build readiness", options.imageEvidence, artifacts.imageBuild, headSha, ["PASS"]),
+  labImageMap: sourceSummary(
+    "labImageMap",
+    "lab image map preview",
+    options.labImageMapEvidence,
+    artifacts.labImageMap,
+    headSha,
+    ["READY_FOR_CRC_REGISTRY_REVIEW"]
+  ),
   ocpTargetProfile: sourceSummary(
     "ocpTargetProfile",
     "OCP target profile",
