@@ -2784,6 +2784,7 @@ type ReleaseEvidenceRefreshArtifact = {
     ownerPacketsReady?: boolean;
     criticalPathCount?: number;
     criticalPathReady?: boolean;
+    missingActionItemDiagnostics?: string[];
     missingActionItemNextCommands?: string[];
     missingOwnerPackets?: string[];
     missingOwnerPacketReadOnlyCommands?: string[];
@@ -10601,6 +10602,7 @@ function missingReleaseEvidenceRefreshSummary(
       ownerPacketsReady: false,
       criticalPathCount: 0,
       criticalPathReady: false,
+      missingActionItemDiagnostics: [reason],
       missingActionItemNextCommands: [reason],
       missingOwnerPackets: [reason],
       missingOwnerPacketReadOnlyCommands: [reason],
@@ -10675,6 +10677,8 @@ function getReleaseEvidenceRefreshReadiness(): {
       ownerPacketsReady: artifact.actionQueue?.ownerPacketsReady === true,
       criticalPathCount: artifact.actionQueue?.criticalPathCount ?? 0,
       criticalPathReady: artifact.actionQueue?.criticalPathReady === true,
+      missingActionItemDiagnostics:
+        artifact.actionQueue?.missingActionItemDiagnostics ?? [],
       missingActionItemNextCommands:
         artifact.actionQueue?.missingActionItemNextCommands ?? [],
       missingOwnerPackets: artifact.actionQueue?.missingOwnerPackets ?? [],

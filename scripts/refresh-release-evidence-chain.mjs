@@ -467,6 +467,7 @@ function actionQueueSummary(headSha) {
       ownerPacketsReady: false,
       criticalPathCount: 0,
       criticalPathReady: false,
+      missingActionItemDiagnostics: ["release action queue artifact is missing or unreadable"],
       missingActionItemNextCommands: ["release action queue artifact is missing or unreadable"],
       missingOwnerPackets: ["release action queue artifact is missing or unreadable"],
       missingOwnerPacketReadOnlyCommands: ["release action queue artifact is missing or unreadable"],
@@ -546,6 +547,9 @@ function actionQueueSummary(headSha) {
       packet.firstRuntimeEvidenceTicketPacket
     ].filter(Boolean).length;
   const actionItems = artifact.items ?? [];
+  const missingActionItemDiagnostics = actionItems
+    .filter((entry) => (entry.diagnostics ?? []).length === 0)
+    .map((entry) => `action item ${sanitize(entry.id ?? "unknown")} lacks diagnostics`);
   const missingActionItemNextCommands = actionItems
     .filter((entry) => !entry.nextCommand || ["none", "not listed"].includes(entry.nextCommand))
     .map((entry) => `action item ${sanitize(entry.id ?? "unknown")} lacks next command`);
@@ -637,6 +641,7 @@ function actionQueueSummary(headSha) {
   const actionItemBlockers = [
     ...freshnessBlockers,
     ...(actionItems.length > 0 ? [] : ["release action queue has no open action items"]),
+    ...missingActionItemDiagnostics,
     ...missingActionItemNextCommands
   ];
   const blockers = [...new Set([...actionItemBlockers, ...ownerPacketBlockers, ...criticalPathBlockers])];
@@ -655,6 +660,7 @@ function actionQueueSummary(headSha) {
     ownerPacketsReady: ownerPacketBlockers.length === 0,
     criticalPathCount: criticalPath.length,
     criticalPathReady: criticalPathBlockers.length === 0,
+    missingActionItemDiagnostics,
     missingActionItemNextCommands,
     missingOwnerPackets,
     missingOwnerPacketReadOnlyCommands: ownerPacketsWithoutReadOnlyCommands,

@@ -2792,6 +2792,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             ownerPacketsReady?: boolean;
             criticalPathCount?: number;
             criticalPathReady?: boolean;
+            missingActionItemDiagnostics?: string[];
             missingActionItemNextCommands?: string[];
             missingOwnerPackets?: string[];
             missingOwnerPacketReadOnlyCommands?: string[];
@@ -6532,6 +6533,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       status: "ready",
       ownerPacketsReady: true,
       criticalPathReady: true,
+      missingActionItemDiagnostics: [],
       missingActionItemNextCommands: [],
       missingOwnerPacketReadOnlyCommands: [],
       missingOwnerPacketNextCommands: [],

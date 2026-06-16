@@ -2552,6 +2552,7 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
     ownerPacketsReady: boolean;
     criticalPathCount: number;
     criticalPathReady: boolean;
+    missingActionItemDiagnostics: string[];
     missingActionItemNextCommands: string[];
     missingOwnerPackets: string[];
     missingOwnerPacketReadOnlyCommands: string[];
