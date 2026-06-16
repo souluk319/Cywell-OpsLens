@@ -39,6 +39,7 @@
     "verify:catalog-toolchain": "node ./scripts/verify-catalog-toolchain-plan.mjs",
     "verify:images": "node ./scripts/verify-image-build-readiness.mjs",
     "verify:images:build": "node ./scripts/verify-image-build-readiness.mjs --build",
+    "verify:lab-bootstrap": "node ./scripts/verify-lab-bootstrap-plan.mjs",
     "verify:lab-handoff": "node ./scripts/verify-lab-server-handoff.mjs",
     "verify:owned-image-provenance": "node ./scripts/verify-owned-image-provenance.mjs",
     "verify:security-scan-plan": "node ./scripts/verify-security-scan-plan.mjs",

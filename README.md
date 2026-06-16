@@ -29,6 +29,7 @@ npm run verify:catalog-toolchain
 npm run verify:security-scan-plan
 npm run verify:release-refresh
 npm run verify:completion
+npm run verify:lab-bootstrap
 npm run verify:lab-handoff
 npm run evidence:release-action-queue
 npm run verify:ocp:target-profile
@@ -71,6 +72,8 @@ npm run verify:lightspeed:fixture
 `npm run verify:release-evidence-bundle` consolidates checkpoint, roadmap, release, install, live handoff, OCP network handoff, certification, Community Operator submission draft, catalog, image, provenance, external runtime, and security evidence into `test-results/cywell-opslens-release-evidence-bundle.json` plus `test-results/cywell-opslens-release-evidence-bundle.md`. The Markdown packet is for release-manager review only and keeps every external submission, push, mirror, sign, install, patch, apply, delete, and scale command approval-gated.
 
 `npm run verify:completion` reads the current roadmap plan alignment, release evidence bundle, and release action queue artifacts, then writes `test-results/cywell-opslens-completion-gate.json` plus Markdown. It is the single local evidence gate for "can we claim 100%": `readyToClaim100` becomes true only when roadmap completion is 100%, release/install/publish evidence is approval-ready, no external-state or local-only gates remain, the action queue has no critical-path blockers, and mutation flags stay false. `npm run verify:release-refresh` runs this as `completion-gate-final` after the final roadmap, bundle, and action queue refresh, and the admin overview exposes the same summary as `installReadiness.completionGate` for dashboard tracking.
+
+`npm run verify:lab-bootstrap` creates the pre-handoff Windows/CRC lab bootstrap packet. It checks local tooling, Docker Linux engine, API/dashboard/operator/bundle/catalog image tags, the portable image tar contents, manifest image references from Operator/FBC/CatalogSource/sample/app manifests, CRC registry trap classifications, and optional lab-host CRC/GPU readiness with `-- --lab-machine --require-crc-running`. It writes `test-results/cywell-opslens-lab-bootstrap-plan.json` plus Markdown and never logs in to a registry, creates projects, pushes images, applies manifests, patches OLSConfig, fetches Secrets, deletes, or scales.
 
 `npm run verify:lab-handoff` creates a non-mutating dedicated CRC lab handoff packet for the next server move. It checks Docker Linux engine readiness, local OpsLens API/dashboard/operator image tags, the portable CRC image tar, CRC target profile evidence, OCP API connectivity, Lightspeed readiness, OLSConfig patch preview, and install approval evidence, then writes `test-results/cywell-opslens-lab-server-handoff.json` plus Markdown with one next command. It does not create projects, push images, apply manifests, patch OLSConfig, fetch Secrets, delete, or scale.
 

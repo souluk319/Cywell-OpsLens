@@ -54,6 +54,7 @@ Verify the switch without mutating either cluster:
 ```bash
 npm run verify:env
 npm run verify:ocp:target-profile -- --require-crc
+npm run verify:lab-bootstrap
 npm run verify:ocp:connectivity -- --timeout-ms 30000
 npm run verify:lightspeed:fixture
 npm run verify:lightspeed:patch-preview:fixture
@@ -63,6 +64,33 @@ If this Windows workspace cannot reach the CRC API endpoint, run the checks on
 the MacBook workspace or expose a reviewed local/tunnel endpoint and keep the
 `.env` target marked as CRC-owned. Do not reuse the company OCP target for
 sandbox install experiments.
+
+## CRC Lab Image Bootstrap
+
+Before trying to install Cywell OpsLens on a new CRC lab host, separate local
+artifact readiness from cluster mutation:
+
+```bash
+npm run verify:images:build
+npm run verify:lab-bootstrap
+```
+
+The bootstrap packet checks local Docker, local OpsLens image tags, the portable
+image tar, and the images referenced by the Operator CSV, FBC catalog,
+CatalogSource, sample `OpsLensInstallation`, app stack, and manager manifests.
+It also records the known CRC registry failure classes: Docker credential
+helper prompts, untrusted registry certificates, dead port-forwards, and CRC
+versions that no longer support image import commands.
+
+On the dedicated Windows CRC lab host, after the repo and image tar are present:
+
+```bash
+npm run verify:lab-bootstrap -- --lab-machine --require-crc-running
+```
+
+Do not run `oc new-project`, registry login/push, `oc apply`, InstallPlan
+approval, or OLSConfig patching until the bootstrap and handoff packets show the
+exact remaining approval-gated action.
 
 ## Evidence
 
