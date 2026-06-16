@@ -7423,6 +7423,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           entry.ticketIds.length > 0 &&
           Array.isArray(entry.setupCommandIds) &&
           Array.isArray(entry.readOnlyCommandIds) &&
+          entry.readOnlyCommandIds.length > 0 &&
           Array.isArray(entry.approvalGatedCommandIds) &&
           typeof entry.externalStateRequired === "boolean"
       )
@@ -7479,6 +7480,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           Array.isArray(entry.ticketIds) &&
           entry.ticketIds.length > 0 &&
           Array.isArray(entry.readOnlyCommandIds) &&
+          entry.readOnlyCommandIds.length > 0 &&
           Array.isArray(entry.setupCommandIds) &&
           Array.isArray(entry.approvalGatedCommandIds)
       )
@@ -7540,6 +7542,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.actionQueue?.criticalPath?.every(
         (entry) => entry.owner && entry.actionId && entry.nextCommand
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.actionQueue?.criticalPath?.every(
+        (entry) => (entry.readOnlyCommandIds?.length ?? 0) > 0
       )
     ).toBe(true);
     expect(

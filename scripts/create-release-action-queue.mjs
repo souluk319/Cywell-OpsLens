@@ -4685,6 +4685,20 @@ async function main() {
       `${items.length} item(s) and ${releaseCriticalPath.length} critical path lane(s) carry diagnostics`
     );
   }
+  const criticalPathWithoutReadOnlyCommands = releaseCriticalPath
+    .filter((entry) => (entry.readOnlyCommandIds ?? []).length === 0)
+    .map((entry) => entry.lane);
+  if (criticalPathWithoutReadOnlyCommands.length > 0) {
+    fail(
+      "release action queue read-only command coverage",
+      `criticalPath=${criticalPathWithoutReadOnlyCommands.join(",")}`
+    );
+  } else {
+    pass(
+      "release action queue read-only command coverage",
+      `${releaseCriticalPath.length} critical path lane(s) carry read-only command ids`
+    );
+  }
   const criticalPathWithoutTickets = releaseCriticalPath
     .filter((entry) => criticalPathTicketIds(entry).length === 0)
     .map((entry) => entry.lane);
