@@ -2755,6 +2755,24 @@ export interface OpsLensCompletionGateSummary {
     markdownPath: string;
     exists: boolean;
   }>;
+  closeoutExecutionPlan: Array<{
+    owner: string;
+    status: string;
+    gateIds: string[];
+    ticketIds: string[];
+    firstNextCommand: string;
+    firstReadOnlyCommandId: string;
+    firstSetupCommandId: string;
+    firstApprovalGatedCommandId: string;
+    readOnlyCommandCount: number;
+    setupCommandCount: number;
+    approvalGatedCommandCount: number;
+    approvalRequired: boolean;
+    clusterMutationAllowed: boolean;
+    registryMutationAllowed: boolean;
+    vectorWriteAllowed: boolean;
+    mutationAllowedByThisVerifier: boolean;
+  }>;
   ownerPacketCleanup: {
     dir: string;
     expectedFiles: string[];

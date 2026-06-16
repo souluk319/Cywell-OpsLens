@@ -444,6 +444,27 @@ function ownerCloseoutPackets(remaining) {
   }));
 }
 
+function closeoutExecutionPlan(closeoutPackets) {
+  return closeoutPackets.map((packet) => ({
+    owner: packet.owner,
+    status: packet.status,
+    gateIds: packet.gateIds,
+    ticketIds: packet.ticketIds,
+    firstNextCommand: packet.firstNextCommand,
+    firstReadOnlyCommandId: packet.readOnlyCommandIds[0] ?? "none",
+    firstSetupCommandId: packet.setupCommandIds[0] ?? "none",
+    firstApprovalGatedCommandId: packet.approvalGatedCommandIds[0] ?? "none",
+    readOnlyCommandCount: packet.readOnlyCommandIds.length,
+    setupCommandCount: packet.setupCommandIds.length,
+    approvalGatedCommandCount: packet.approvalGatedCommandIds.length,
+    approvalRequired: packet.approvalRequired === true,
+    clusterMutationAllowed: false,
+    registryMutationAllowed: false,
+    vectorWriteAllowed: false,
+    mutationAllowedByThisVerifier: false
+  }));
+}
+
 function releaseDecisionReady(decision) {
   return (
     decision?.publishReady === true &&
@@ -635,6 +656,15 @@ function completionClaimPacketMarkdown(artifact) {
         )
       : ["- none"]),
     "",
+    "## Closeout Execution Plan",
+    "",
+    ...(artifact.closeoutExecutionPlan.length
+      ? artifact.closeoutExecutionPlan.map(
+          (row) =>
+            `- ${row.owner}: first=${row.firstNextCommand} readOnly=${row.firstReadOnlyCommandId} setup=${row.firstSetupCommandId} approval=${row.firstApprovalGatedCommandId} approvalRequired=${String(row.approvalRequired)} mutationAllowed=${String(row.mutationAllowedByThisVerifier)}`
+        )
+      : ["- none"]),
+    "",
     "## Claim Requirements",
     "",
     ...artifact.claimRequirements.map((item) =>
@@ -707,6 +737,15 @@ function buildMarkdown(artifact) {
         ])
       : ["- none"]),
     `- cleanupDeletionAllowed=${String(artifact.ownerPacketCleanup.deletionAllowed)} expected=${artifact.ownerPacketCleanup.expectedFiles.join(", ") || "none"} staleRemoved=${artifact.ownerPacketCleanup.staleRemoved.join(", ") || "none"}`,
+    "",
+    "## Closeout Execution Plan",
+    "",
+    ...(artifact.closeoutExecutionPlan.length
+      ? artifact.closeoutExecutionPlan.map(
+          (row) =>
+            `- ${row.owner}: status=${row.status} gates=${row.gateIds.join(", ") || "none"} tickets=${row.ticketIds.join(", ") || "none"} first=${row.firstNextCommand} readOnly=${row.firstReadOnlyCommandId} setup=${row.firstSetupCommandId} approval=${row.firstApprovalGatedCommandId} approvalRequired=${String(row.approvalRequired)} mutationAllowed=${String(row.mutationAllowedByThisVerifier)}`
+        )
+      : ["- none"]),
     "",
     "## Claim Requirements",
     "",
@@ -826,6 +865,38 @@ async function main() {
     markdownPath: resolve(options.ownerPacketsDir, `${ownerSlug(packet.owner)}.md`),
     exists: true
   }));
+  const closeoutExecution = closeoutExecutionPlan(closeoutPackets);
+  if (
+    closeoutExecution.every(
+      (row) =>
+        row.gateIds.length === 0 ||
+        (row.firstNextCommand && row.firstReadOnlyCommandId !== "none")
+    ) &&
+    closeoutExecution.every(
+      (row) =>
+        row.clusterMutationAllowed === false &&
+        row.registryMutationAllowed === false &&
+        row.vectorWriteAllowed === false &&
+        row.mutationAllowedByThisVerifier === false
+    ) &&
+    closeoutExecution.every(
+      (row) =>
+        row.firstApprovalGatedCommandId === "none" ||
+        row.approvalRequired === true
+    )
+  ) {
+    pass(
+      "completion closeout execution plan",
+      closeoutExecution.length > 0
+        ? `${closeoutExecution.length} owner row(s) expose first read-only/setup/approval actions with mutation disabled`
+        : "no owner closeout execution rows required"
+    );
+  } else {
+    fail(
+      "completion closeout execution plan",
+      "owner closeout rows must expose first read-only action, approval gating, and disabled mutation flags"
+    );
+  }
   const ownerPacketCleanup = await cleanupOwnerPacketDirectory(
     closeoutPackets.map((packet) => packet.markdownPath)
   );
@@ -1021,6 +1092,7 @@ async function main() {
     claimRequirements,
     remainingTo100: remaining,
     ownerCloseoutPackets: closeoutPackets,
+    closeoutExecutionPlan: closeoutExecution,
     ownerPacketCleanup,
     claimPacket,
     missingEvidence,

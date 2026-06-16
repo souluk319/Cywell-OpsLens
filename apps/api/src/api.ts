@@ -3196,6 +3196,24 @@ type CompletionGateArtifact = {
     markdownPath?: string;
     exists?: boolean;
   }>;
+  closeoutExecutionPlan?: Array<{
+    owner?: string;
+    status?: string;
+    gateIds?: string[];
+    ticketIds?: string[];
+    firstNextCommand?: string;
+    firstReadOnlyCommandId?: string;
+    firstSetupCommandId?: string;
+    firstApprovalGatedCommandId?: string;
+    readOnlyCommandCount?: number;
+    setupCommandCount?: number;
+    approvalGatedCommandCount?: number;
+    approvalRequired?: boolean;
+    clusterMutationAllowed?: boolean;
+    registryMutationAllowed?: boolean;
+    vectorWriteAllowed?: boolean;
+    mutationAllowedByThisVerifier?: boolean;
+  }>;
   ownerPacketCleanup?: {
     dir?: string;
     expectedFiles?: string[];
@@ -11425,6 +11443,7 @@ function missingCompletionGateSummary(
     },
     remainingTo100: [],
     ownerCloseoutPackets: [],
+    closeoutExecutionPlan: [],
     ownerPacketCleanup: {
       dir: "missing",
       expectedFiles: [],
@@ -11591,6 +11610,28 @@ function getCompletionGateSummary(): OpsLensCompletionGateSummary {
           exists:
             typeof packet.markdownPath === "string" &&
             existsSync(packet.markdownPath)
+        })
+      ),
+      closeoutExecutionPlan: (artifact.closeoutExecutionPlan ?? []).map(
+        (row) => ({
+          owner: row.owner ?? "unknown",
+          status: row.status ?? "needs-evidence",
+          gateIds: row.gateIds ?? [],
+          ticketIds: row.ticketIds ?? [],
+          firstNextCommand: row.firstNextCommand ?? "unknown",
+          firstReadOnlyCommandId: row.firstReadOnlyCommandId ?? "none",
+          firstSetupCommandId: row.firstSetupCommandId ?? "none",
+          firstApprovalGatedCommandId:
+            row.firstApprovalGatedCommandId ?? "none",
+          readOnlyCommandCount: row.readOnlyCommandCount ?? 0,
+          setupCommandCount: row.setupCommandCount ?? 0,
+          approvalGatedCommandCount: row.approvalGatedCommandCount ?? 0,
+          approvalRequired: row.approvalRequired === true,
+          clusterMutationAllowed: row.clusterMutationAllowed === true,
+          registryMutationAllowed: row.registryMutationAllowed === true,
+          vectorWriteAllowed: row.vectorWriteAllowed === true,
+          mutationAllowedByThisVerifier:
+            row.mutationAllowedByThisVerifier === true
         })
       ),
       ownerPacketCleanup: {

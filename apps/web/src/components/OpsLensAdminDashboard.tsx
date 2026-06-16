@@ -2023,6 +2023,25 @@ export function OpsLensAdminDashboard() {
               </div>
               <div
                 className="admin-evidence-line"
+                data-testid="opslens-completion-closeout-execution-plan"
+              >
+                {completionGate.closeoutExecutionPlan.map((row) => (
+                  <span key={row.owner}>
+                    {row.owner}:status={row.status}:first=
+                    {row.firstNextCommand}:readOnly=
+                    {row.firstReadOnlyCommandId}:setup=
+                    {row.firstSetupCommandId}:approval=
+                    {row.firstApprovalGatedCommandId}:approvalRequired=
+                    {String(row.approvalRequired)}:mutationAllowed=
+                    {String(row.mutationAllowedByThisVerifier)}
+                  </span>
+                ))}
+                {completionGate.closeoutExecutionPlan.length === 0 ? (
+                  <span>none</span>
+                ) : null}
+              </div>
+              <div
+                className="admin-evidence-line"
                 data-testid="opslens-completion-gate-boundary"
               >
                 <span>
