@@ -2058,6 +2058,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           status?: string;
           artifactStatus?: string;
           actionMode?: string;
+          imageTar?: {
+            exists?: boolean;
+            sizeMiB?: number;
+            missingTags?: string[];
+          };
           nextCommand?: { id?: string; command?: string; mutation?: boolean };
           sourceArtifacts?: Array<{
             id?: string;
@@ -5438,6 +5443,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.labHandoffPlan?.nextCommand?.mutation).toBe(
       false
     );
+    expect(
+      Array.isArray(body.installReadiness?.labHandoffPlan?.imageTar?.missingTags)
+    ).toBe(true);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(/lab bootstrap/i);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(/lab handoff/i);
     expect([
@@ -10237,6 +10245,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
       "Recommended CRC"
+    );
+    await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
+      "Portable Tar"
+    );
+    await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
+      "missingTags="
     );
     await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
       "verify:lab"

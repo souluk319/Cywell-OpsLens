@@ -9628,6 +9628,12 @@ type LabHandoffEvidenceArtifact = {
     approvalGatedCommands?: LabCommandEvidence[];
     oneAtATimeNextCommand?: LabCommandEvidence;
   };
+  imageTar?: {
+    exists?: boolean;
+    sizeBytes?: number;
+    sizeMiB?: number;
+    missingTags?: string[];
+  };
   sources?: Record<
     string,
     { id?: string; status?: string; fresh?: boolean; acceptable?: boolean }
@@ -9927,6 +9933,11 @@ function missingLabHandoffSummary(
     headSha: "missing",
     worktreeDirty: false,
     evidencePath: labHandoffEvidencePath(),
+    imageTar: {
+      exists: false,
+      sizeMiB: 0,
+      missingTags: []
+    },
     nextCommand: mapLabCommand(undefined, {
       id: "generate-lab-handoff",
       command: "npm run verify:lab-handoff",
@@ -10011,6 +10022,16 @@ function getLabHandoffReadiness(): {
       headSha: artifact.ref?.headSha ?? "unknown",
       worktreeDirty: artifact.ref?.worktreeDirty === true,
       evidencePath,
+      imageTar: {
+        exists: artifact.imageTar?.exists === true,
+        sizeMiB: Number(
+          artifact.imageTar?.sizeMiB ??
+            (typeof artifact.imageTar?.sizeBytes === "number"
+              ? artifact.imageTar.sizeBytes / 1024 / 1024
+              : 0)
+        ),
+        missingTags: artifact.imageTar?.missingTags ?? []
+      },
       nextCommand: mapLabCommand(
         artifact.commandPlan?.oneAtATimeNextCommand,
         {
@@ -10046,6 +10067,7 @@ function getLabHandoffReadiness(): {
       evidence: [
         `Lab handoff evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `lab handoff head=${plan.headSha} dirty=${String(plan.worktreeDirty)} next=${plan.nextCommand.id}`,
+        `lab handoff imageTar exists=${String(plan.imageTar.exists)} missingTags=${plan.imageTar.missingTags.join(",") || "none"}`,
         `lab handoff sources=${sourceArtifacts.map((source) => `${source.id}:${source.status}:fresh=${String(source.fresh)}`).join(", ") || "none"}`,
         `lab handoff mutations cluster=${String(plan.mutationBoundary.clusterMutationAttempted)} registry=${String(plan.mutationBoundary.registryMutationAttempted)} allowed=${String(plan.mutationBoundary.mutationAllowedByThisVerifier)}`,
         "admin overview reads lab handoff evidence only; it does not run live checks or mutating commands"

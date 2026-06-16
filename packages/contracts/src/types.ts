@@ -2083,6 +2083,11 @@ export interface OpsLensLabHandoffSummary {
   headSha: string;
   worktreeDirty: boolean;
   evidencePath: string;
+  imageTar: {
+    exists: boolean;
+    sizeMiB: number;
+    missingTags: string[];
+  };
   nextCommand: OpsLensLabCommandSummary;
   readOnlyCommands: OpsLensLabCommandSummary[];
   localSetupCommands: OpsLensLabCommandSummary[];

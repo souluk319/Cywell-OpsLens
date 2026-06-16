@@ -4543,6 +4543,14 @@ export function OpsLensAdminDashboard() {
                   </strong>
                 </div>
                 <div>
+                  <span>Portable Tar</span>
+                  <strong>
+                    exists={String(labHandoffPlan.imageTar.exists)},
+                    missingTags=
+                    {labHandoffPlan.imageTar.missingTags.join(",") || "none"}
+                  </strong>
+                </div>
+                <div>
                   <span>Handoff Sources</span>
                   <strong>
                     {labHandoffPlan.sourceArtifacts

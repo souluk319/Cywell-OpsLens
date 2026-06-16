@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  readSync,
+  statSync
+} from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
@@ -38,6 +45,18 @@ const expectedImages = [
     localTag: "cywell/opslens-operator:verify",
     registryTag: "<crc-registry>/cywell-opslens/cywell-opslens-operator:verify",
     requiredFor: ["operator", "install"]
+  },
+  {
+    id: "bundle",
+    localTag: "cywell/opslens-operator-bundle:verify",
+    registryTag: "<crc-registry>/cywell-opslens/cywell-opslens-operator-bundle:verify",
+    requiredFor: ["olm", "bundle", "install"]
+  },
+  {
+    id: "catalog",
+    localTag: "cywell/opslens-catalog:verify",
+    registryTag: "<crc-registry>/cywell-opslens/cywell-opslens-catalog:verify",
+    requiredFor: ["olm", "catalog", "install"]
   }
 ];
 
@@ -248,6 +267,73 @@ async function dockerImage(image) {
   };
 }
 
+function tarManifestRepoTags(path) {
+  const fd = openTar(path);
+  if (fd === undefined) return { repoTags: [], error: "tar could not be opened" };
+  try {
+    const block = Buffer.alloc(512);
+    while (true) {
+      const read = readTarBlock(fd, block);
+      if (read === 0 || block.every((value) => value === 0)) break;
+      const name = block.toString("utf8", 0, 100).replace(/\0.*$/u, "");
+      const sizeOctal = block.toString("utf8", 124, 136).replace(/\0.*$/u, "").trim();
+      const size = Number.parseInt(sizeOctal || "0", 8);
+      const dataBlocks = Math.ceil(size / 512);
+      if (name === "manifest.json") {
+        const data = Buffer.alloc(dataBlocks * 512);
+        let offset = 0;
+        while (offset < data.length) {
+          const chunk = readTarBlock(fd, data.subarray(offset, offset + 512));
+          if (chunk === 0) break;
+          offset += chunk;
+        }
+        const manifest = JSON.parse(data.subarray(0, size).toString("utf8"));
+        return {
+          repoTags: Array.from(
+            new Set(
+              manifest.flatMap((entry) =>
+                Array.isArray(entry.RepoTags) ? entry.RepoTags.filter(Boolean) : []
+              )
+            )
+          ).sort()
+        };
+      }
+      const skip = Buffer.alloc(512);
+      for (let index = 0; index < dataBlocks; index += 1) {
+        readTarBlock(fd, skip);
+      }
+    }
+    return { repoTags: [], error: "manifest.json not found in docker save tar" };
+  } catch (error) {
+    return {
+      repoTags: [],
+      error: error instanceof Error ? error.message : String(error)
+    };
+  } finally {
+    closeTar(fd);
+  }
+}
+
+function openTar(path) {
+  try {
+    return openSync(resolve(path), "r");
+  } catch {
+    return undefined;
+  }
+}
+
+function readTarBlock(fd, buffer) {
+  return readSync(fd, buffer, 0, buffer.length, null);
+}
+
+function closeTar(fd) {
+  try {
+    closeSync(fd);
+  } catch {
+    // Best-effort close for read-only tar inspection.
+  }
+}
+
 function imageTarSummary(path) {
   const absolutePath = resolve(path);
   if (!existsSync(absolutePath)) {
@@ -259,23 +345,33 @@ function imageTarSummary(path) {
   }
   const stat = statSync(absolutePath);
   const minExpectedBytes = 100 * 1024 * 1024;
-  if (stat.size >= minExpectedBytes) {
-    pass("CRC image tar", `${path} exists size=${Math.round(stat.size / 1024 / 1024)}MiB`);
-  } else {
+  const manifest = tarManifestRepoTags(path);
+  const missingTags = expectedImages
+    .map((image) => image.localTag)
+    .filter((tag) => !manifest.repoTags.includes(tag));
+  if (stat.size >= minExpectedBytes && missingTags.length === 0) {
+    pass("CRC image tar", `${path} exists size=${Math.round(stat.size / 1024 / 1024)}MiB with all required tags`);
+  } else if (stat.size < minExpectedBytes) {
     warn("CRC image tar", `${path} exists but size=${stat.size} bytes looks too small`);
+  } else {
+    warn("CRC image tar", `${path} is missing required tag(s): ${missingTags.join(", ")}`);
   }
   return {
     path: absolutePath,
     exists: true,
     sizeBytes: stat.size,
     lastWriteTime: stat.mtime.toISOString(),
-    sizeLooksValid: stat.size >= minExpectedBytes
+    sizeLooksValid: stat.size >= minExpectedBytes,
+    repoTags: manifest.repoTags,
+    missingTags,
+    manifestError: manifest.error
   };
 }
 
 function buildCommands(state) {
-  const saveCommand =
-    "docker save cywell/opslens-api:verify cywell/opslens-dashboard:verify cywell/opslens-operator:verify -o .\\test-results\\cywell-opslens-crc-images.tar";
+  const saveCommand = `docker save ${expectedImages
+    .map((image) => image.localTag)
+    .join(" ")} -o .\\test-results\\cywell-opslens-crc-images.tar`;
   const readOnlyCommands = [
     {
       id: "lab-handoff-refresh",
@@ -343,8 +439,11 @@ function buildCommands(state) {
       id: "package-crc-images",
       command: saveCommand,
       mutation: false,
-      requiredWhen: !state.imageTar.exists || state.imageTar.sizeLooksValid === false,
-      purpose: "Create the portable tar used to move API/dashboard/operator images to the lab server."
+      requiredWhen:
+        !state.imageTar.exists ||
+        state.imageTar.sizeLooksValid === false ||
+        (state.imageTar.missingTags ?? []).length > 0,
+      purpose: "Create the portable tar used to move API/dashboard/operator/bundle/catalog images to the lab server."
     }
   ];
 
@@ -422,6 +521,7 @@ function statusFor(state) {
     state.images.some((image) => !image.present),
     !state.imageTar.exists,
     state.imageTar.exists && state.imageTar.sizeLooksValid === false,
+    state.imageTar.exists && (state.imageTar.missingTags ?? []).length > 0,
     state.sources.imageBuild.status !== "PASS"
   ].filter(Boolean);
   if (hardBlockers.length > 0) return "NEEDS_LOCAL_IMAGE_PACKAGE";
@@ -469,6 +569,7 @@ async function writeMarkdown(path, report) {
     "",
     `- Tar exists: ${String(report.imageTar.exists)}`,
     `- Tar size: ${report.imageTar.sizeBytes ? `${Math.round(report.imageTar.sizeBytes / 1024 / 1024)}MiB` : "missing"}`,
+    `- Tar missing tags: ${(report.imageTar.missingTags ?? []).join(", ") || "none"}`,
     ...report.images.map((image) => `- ${image.localTag}: ${image.present ? "present" : "missing"}`),
     "",
     "## Evidence Sources",
