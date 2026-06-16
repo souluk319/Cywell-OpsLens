@@ -6449,9 +6449,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       mutationAllowedByThisVerifier: false,
       worktreeDirty: false
     });
-    expect(
-      body.installReadiness?.refresh?.commands?.map((command) => command.id)
-    ).toEqual(
+    const refreshCommandIds =
+      body.installReadiness?.refresh?.commands?.map((command) => command.id) ??
+      [];
+    expect(refreshCommandIds).toEqual(
       expect.arrayContaining([
         "mvp-gate",
         "env-contract",
@@ -6463,15 +6464,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         "security-review-drafts-all",
         "security-scan-plan",
         "release-evidence-bundle",
-        "lab-bootstrap",
         "lab-image-map",
         "lab-handoff",
+        "lab-bootstrap",
         "roadmap-plan-final",
         "release-evidence-bundle-final",
         "release-action-queue-final",
         "completion-gate-final",
         "pre-cluster-install-gate-final"
       ])
+    );
+    expect(refreshCommandIds.indexOf("lab-image-map")).toBeLessThan(
+      refreshCommandIds.indexOf("lab-handoff")
+    );
+    expect(refreshCommandIds.indexOf("lab-handoff")).toBeLessThan(
+      refreshCommandIds.indexOf("lab-bootstrap")
     );
     expect(
       body.installReadiness?.refresh?.artifacts?.map((artifact) => artifact.id)

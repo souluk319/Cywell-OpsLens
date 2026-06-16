@@ -306,9 +306,9 @@ function buildChain() {
     npmScript("lightspeed-integration-handoff", "approval", "verify:lightspeed:integration-handoff"),
     npmScript("evidence-checkpoint", "approval", "verify:evidence-checkpoint"),
     npmScript("ocp-network-handoff-post-checkpoint", "approval", "evidence:ocp-network-handoff"),
-    npmScript("lab-bootstrap", "lab", "verify:lab-bootstrap"),
     npmScript("lab-image-map", "lab", "verify:lab-image-map"),
     npmScript("lab-handoff", "lab", "verify:lab-handoff"),
+    npmScript("lab-bootstrap", "lab", "verify:lab-bootstrap"),
     npmScript("roadmap-plan", "approval", "verify:roadmap-plan", [], { expectedNonZero: true }),
     npmScript("release-evidence-bundle", "approval", "verify:release-evidence-bundle"),
     npmScript(
