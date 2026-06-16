@@ -10,6 +10,7 @@ const execFileAsync = promisify(execFile);
 const paths = {
   plan: "kugnus-idea/CywellOpsLens_plan.md",
   evidenceCheckpoint: "test-results/cywell-opslens-evidence-checkpoint.json",
+  ocpTargetProfile: "test-results/cywell-opslens-ocp-target-profile.json",
   lightspeedExtensionPoint:
     "test-results/cywell-opslens-lightspeed-extension-point.json",
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
@@ -115,7 +116,7 @@ function laneRequirement(checkpoint, id, label, desiredStatuses = ["pass"]) {
   }
   const status = lane.status === "pass"
     ? "pass"
-    : lane.status === "blocked" || !desiredStatuses.includes(lane.status)
+    : lane.status === "blocked"
       ? "blocked"
       : "needs-evidence";
   return {
@@ -513,6 +514,58 @@ function artifactStatusRequirement(artifact, id, label, desiredStatuses) {
   };
 }
 
+function ocpTargetProfileRequirement(profile, id, label) {
+  if (!profile) {
+    return {
+      id,
+      label,
+      status: "needs-evidence",
+      evidence: [],
+      missingEvidence: [`${label} artifact is missing`]
+    };
+  }
+
+  const target = profile.target ?? {};
+  const boundary = profile.boundary ?? {};
+  const desiredStatuses = ["CRC_SANDBOX_READY", "COMPANY_SHARED_READ_ONLY"];
+  const missingEvidence = [
+    ...(desiredStatuses.includes(profile.status)
+      ? []
+      : [`${label} status=${profile.status ?? "missing"}; expected ${desiredStatuses.join(" or ")}`]),
+    ...(profile.actionMode === "localEnvTargetAuditOnly"
+      ? []
+      : [`${label} actionMode=${profile.actionMode ?? "missing"}`]),
+    ...(target.kind ? [] : [`${label} target.kind is missing`]),
+    ...(profile.clusterMutationAttempted === true ? [`${label} clusterMutationAttempted=true`] : []),
+    ...(profile.registryMutationAttempted === true ? [`${label} registryMutationAttempted=true`] : []),
+    ...(profile.vectorWriteAttempted === true ? [`${label} vectorWriteAttempted=true`] : []),
+    ...(profile.mutationAllowedByThisVerifier === true
+      ? [`${label} mutationAllowedByThisVerifier=true`]
+      : []),
+    ...(boundary.companyOcpMutationAllowedByThisVerifier === true
+      ? [`${label} companyOcpMutationAllowedByThisVerifier=true`]
+      : []),
+    ...(boundary.crcMutationAllowedByThisVerifier === true
+      ? [`${label} crcMutationAllowedByThisVerifier=true`]
+      : []),
+    ...(profile.missingEvidence ?? []).map((item) => `${label}: ${item}`)
+  ];
+
+  return {
+    id,
+    label,
+    status: missingEvidence.length === 0 ? "pass" : "needs-evidence",
+    artifactType: profile.artifactType ?? profile.schema ?? "unknown",
+    artifactStatus: profile.status ?? "unknown",
+    evidence: missingEvidence.length === 0
+      ? [
+          `${label} status=${profile.status} targetKind=${target.kind} actionMode=${profile.actionMode} endpoint=redacted`
+        ]
+      : [],
+    missingEvidence
+  };
+}
+
 function stage(id, title, requirements) {
   const status = stageStatus(requirements);
   return {
@@ -712,6 +765,7 @@ async function main() {
   else fail("roadmap plan source", `${planPath} is missing`);
 
   const checkpoint = loadJson(paths.evidenceCheckpoint, "evidence checkpoint");
+  const ocpTargetProfile = loadJson(paths.ocpTargetProfile, "OCP target profile guard");
   const lightspeedExtensionPoint = loadJson(
     paths.lightspeedExtensionPoint,
     "Lightspeed extension point decision"
@@ -739,6 +793,12 @@ async function main() {
   );
   const globalRequirements = [
     artifactFreshnessRequirement(checkpoint, "checkpoint-fresh", "Evidence checkpoint", headSha),
+    artifactFreshnessRequirement(
+      ocpTargetProfile,
+      "ocp-target-profile-fresh",
+      "OCP target profile guard",
+      headSha
+    ),
     artifactFreshnessRequirement(
       lightspeedExtensionPoint,
       "lightspeed-extension-point-fresh",
@@ -795,6 +855,12 @@ async function main() {
       laneRequirement(checkpoint, "lightspeedRouting", "10-question Lightspeed tool routing score"),
       laneRequirement(checkpoint, "lightspeedTrojanHorse", "Exact Korean Trojan Horse custom question"),
       laneRequirement(checkpoint, "lightspeedIntegrationHandoff", "Lightspeed integration handoff packet", ["pass", "needs-evidence"]),
+      ocpTargetProfileRequirement(
+        ocpTargetProfile,
+        "lightspeed-ocp-target-profile-guard",
+        "Lightspeed OCP target profile guard"
+      ),
+      laneRequirement(checkpoint, "ocpTargetProfile", "OCP target profile checkpoint"),
       laneRequirement(checkpoint, "ocpConnectivity", "Live OCP connectivity diagnostic", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "lightspeedReadiness", "Live Lightspeed/OCP readiness", ["pass", "needs-evidence"]),
       laneRequirement(checkpoint, "liveHandoff", "Read-only live evidence handoff", ["pass", "needs-evidence"]),
@@ -888,6 +954,12 @@ async function main() {
       laneRequirement(checkpoint, "operatorRuntimeParity", "Operator runtime parity checkpoint"),
       laneRequirement(checkpoint, "consolePluginAssets", "ConsolePlugin dynamic plugin asset evidence"),
       laneRequirement(checkpoint, "operatorDryRun", "Live Operator server dry-run", ["pass", "needs-evidence"]),
+      ocpTargetProfileRequirement(
+        ocpTargetProfile,
+        "operator-ocp-target-profile-guard",
+        "Operator install OCP target profile guard"
+      ),
+      laneRequirement(checkpoint, "ocpTargetProfile", "OCP target profile checkpoint"),
       laneRequirement(checkpoint, "installPlan", "Human install approval plan", ["pass", "needs-evidence"]),
       installPlanLightspeedRegistrationRequirement(installPlan),
       laneRequirement(checkpoint, "liveHandoff", "SRE-safe live evidence handoff", ["pass", "needs-evidence"]),
