@@ -7135,6 +7135,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(preClusterInstallGate.missingEvidence?.join(" ")).toMatch(
         /OCP connectivity|Lightspeed readiness|operator dry-run/i
       );
+      const cleanCurrentHeadGate =
+        preClusterInstallGate.gateRequirements?.find(
+          (gate) => gate.id === "clean-current-head"
+        );
+      expect(cleanCurrentHeadGate?.evidenceNeeded).toMatch(
+        /refresh live read-only evidence for current head/i
+      );
+      expect(cleanCurrentHeadGate?.nextCommand).toContain(
+        "--live-timeout-ms 30000"
+      );
     }
     expect(preClusterInstallGate.readOnlyCommands?.map((command) => command.id)).toEqual(
       expect.arrayContaining([

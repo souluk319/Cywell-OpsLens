@@ -231,6 +231,46 @@ function allSourcesNonMutating(sources) {
   return sources.every((source) => source.mutationViolation === false);
 }
 
+function freshnessGatePlan({ worktreeDirty, sources }) {
+  if (worktreeDirty) {
+    return {
+      evidenceNeeded:
+        "commit intended changes, refresh release evidence, then rerun this gate",
+      nextCommand: "npm run verify:release-refresh -- --security-scan-docker"
+    };
+  }
+
+  const staleLocal = sources.filter(
+    (source) => source.externalState !== true && source.fresh !== true
+  );
+  if (staleLocal.length > 0) {
+    return {
+      evidenceNeeded: `refresh local evidence for current head: ${staleLocal
+        .map((source) => source.id)
+        .join(", ")}`,
+      nextCommand: "npm run verify:release-refresh -- --security-scan-docker"
+    };
+  }
+
+  const staleExternal = sources.filter(
+    (source) => source.externalState === true && source.fresh !== true
+  );
+  if (staleExternal.length > 0) {
+    return {
+      evidenceNeeded: `refresh live read-only evidence for current head: ${staleExternal
+        .map((source) => source.id)
+        .join(", ")}`,
+      nextCommand:
+        "npm run verify:release-refresh -- --live-timeout-ms 30000 --security-scan-docker"
+    };
+  }
+
+  return {
+    evidenceNeeded: "all source evidence is current for this clean Git head",
+    nextCommand: "npm run verify:pre-cluster-install"
+  };
+}
+
 function unique(values) {
   return Array.from(new Set(values.filter(Boolean)));
 }
@@ -340,6 +380,7 @@ async function main() {
   const ocpConnectivity = loaded.ocpConnectivity.artifact;
   const lightspeedReadiness = loaded.lightspeedReadiness.artifact;
   const operatorDryRun = loaded.operatorDryRun.artifact;
+  const freshnessPlan = freshnessGatePlan({ worktreeDirty, sources });
 
   const gateRequirements = [
     gate(
@@ -347,8 +388,8 @@ async function main() {
       "release-manager",
       worktreeDirty === false && allSourcesFresh(sources),
       "current Git head and all source evidence are clean and current",
-      "commit intended changes, refresh release evidence, then rerun this gate",
-      "npm run verify:release-refresh -- --security-scan-docker"
+      freshnessPlan.evidenceNeeded,
+      freshnessPlan.nextCommand
     ),
     gate(
       "completion-ready",
