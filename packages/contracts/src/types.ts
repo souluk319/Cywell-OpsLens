@@ -2642,9 +2642,16 @@ export interface OpsLensReleaseEvidenceBundleSummary {
     status: string;
     fresh: boolean;
     ready: boolean;
+    actionItemCount: number;
     ownerPacketCount: number;
     criticalPathCount: number;
+    readOnlyCommandCount: number;
+    approvalGatedCommandCount: number;
+    mutationBoundaryPassed: boolean;
+    missingActionItemDiagnostics: string[];
+    missingActionItemNextCommands: string[];
     missingDiagnostics: string[];
+    missingCriticalPathNextCommands: string[];
     missingTickets: string[];
     unsafeTickets: string[];
   };

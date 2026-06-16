@@ -3524,6 +3524,7 @@ export function OpsLensAdminDashboard() {
                   <span>Action Queue</span>
                   <strong>
                     ready={String(releaseBundle.actionQueueSafety.ready)},
+                    items={releaseBundle.actionQueueSafety.actionItemCount},
                     criticalPath=
                     {releaseBundle.actionQueueSafety.criticalPathCount}
                   </strong>
@@ -3559,6 +3560,26 @@ export function OpsLensAdminDashboard() {
                 <span>
                   actionQueueFresh=
                   {String(releaseBundle.actionQueueSafety.fresh)}
+                </span>
+                <span>
+                  actionQueueCommands=readOnly:
+                  {releaseBundle.actionQueueSafety.readOnlyCommandCount}/gated:
+                  {releaseBundle.actionQueueSafety.approvalGatedCommandCount}
+                </span>
+                <span>
+                  actionQueueMutationBoundary=
+                  {String(releaseBundle.actionQueueSafety.mutationBoundaryPassed)}
+                </span>
+                <span>
+                  actionQueueActionGaps=
+                  {[
+                    ...releaseBundle.actionQueueSafety
+                      .missingActionItemDiagnostics,
+                    ...releaseBundle.actionQueueSafety
+                      .missingActionItemNextCommands,
+                    ...releaseBundle.actionQueueSafety
+                      .missingCriticalPathNextCommands
+                  ].length || "none"}
                 </span>
                 <span>
                   unsafeTickets=

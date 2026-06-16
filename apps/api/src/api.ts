@@ -2872,9 +2872,16 @@ type ReleaseEvidenceBundleArtifact = {
     status?: string;
     fresh?: boolean;
     ready?: boolean;
+    actionItemCount?: number;
     ownerPacketCount?: number;
     criticalPathCount?: number;
+    readOnlyCommandCount?: number;
+    approvalGatedCommandCount?: number;
+    mutationBoundaryPassed?: boolean;
+    missingActionItemDiagnostics?: string[];
+    missingActionItemNextCommands?: string[];
     missingDiagnostics?: string[];
+    missingCriticalPathNextCommands?: string[];
     missingTickets?: string[];
     unsafeTickets?: string[];
   };
@@ -10842,9 +10849,16 @@ function missingReleaseEvidenceBundleSummary(
       status: "missing",
       fresh: false,
       ready: false,
+      actionItemCount: 0,
       ownerPacketCount: 0,
       criticalPathCount: 0,
+      readOnlyCommandCount: 0,
+      approvalGatedCommandCount: 0,
+      mutationBoundaryPassed: false,
+      missingActionItemDiagnostics: [reason],
+      missingActionItemNextCommands: [reason],
       missingDiagnostics: [reason],
+      missingCriticalPathNextCommands: [reason],
       missingTickets: [reason],
       unsafeTickets: [reason]
     },
@@ -10910,10 +10924,23 @@ function getReleaseEvidenceBundleReadiness(): {
       status: artifact.actionQueueSafety?.status ?? "missing",
       fresh: artifact.actionQueueSafety?.fresh === true,
       ready: artifact.actionQueueSafety?.ready === true,
+      actionItemCount: artifact.actionQueueSafety?.actionItemCount ?? 0,
       ownerPacketCount: artifact.actionQueueSafety?.ownerPacketCount ?? 0,
       criticalPathCount: artifact.actionQueueSafety?.criticalPathCount ?? 0,
+      readOnlyCommandCount:
+        artifact.actionQueueSafety?.readOnlyCommandCount ?? 0,
+      approvalGatedCommandCount:
+        artifact.actionQueueSafety?.approvalGatedCommandCount ?? 0,
+      mutationBoundaryPassed:
+        artifact.actionQueueSafety?.mutationBoundaryPassed === true,
+      missingActionItemDiagnostics:
+        artifact.actionQueueSafety?.missingActionItemDiagnostics ?? [],
+      missingActionItemNextCommands:
+        artifact.actionQueueSafety?.missingActionItemNextCommands ?? [],
       missingDiagnostics:
         artifact.actionQueueSafety?.missingDiagnostics ?? [],
+      missingCriticalPathNextCommands:
+        artifact.actionQueueSafety?.missingCriticalPathNextCommands ?? [],
       missingTickets: artifact.actionQueueSafety?.missingTickets ?? [],
       unsafeTickets: artifact.actionQueueSafety?.unsafeTickets ?? []
     };
@@ -10969,7 +10996,7 @@ function getReleaseEvidenceBundleReadiness(): {
         `bundle decision publishReady=${String(decision.publishReady)} installReady=${String(decision.installReady)} roadmapComplete=${String(decision.roadmapComplete)}`,
         `bundle markdown packet=${markdownPath}`,
         `bundle command counts readOnly=${commandCounts.readOnly} mutatingApprovalRequired=${commandCounts.mutatingApprovalRequired}`,
-        `bundle action queue ready=${String(actionQueueSafety.ready)} criticalPath=${actionQueueSafety.criticalPathCount} unsafeTickets=${actionQueueSafety.unsafeTickets.length}`,
+        `bundle action queue ready=${String(actionQueueSafety.ready)} actionItems=${actionQueueSafety.actionItemCount} criticalPath=${actionQueueSafety.criticalPathCount} readOnlyCommands=${actionQueueSafety.readOnlyCommandCount} approvalGatedCommands=${actionQueueSafety.approvalGatedCommandCount} mutationBoundaryPassed=${String(actionQueueSafety.mutationBoundaryPassed)} unsafeTickets=${actionQueueSafety.unsafeTickets.length}`,
         `bundle roadmap completion=${roadmapCompletion.passedRequirements}/${roadmapCompletion.totalRequirements} (${roadmapCompletion.percentComplete}%) externalState=${roadmapCompletion.remainingExternalStateCount} localOnly=${roadmapCompletion.remainingLocalOnlyCount}`,
         sourceSummary ? `bundle sources=${sourceSummary}` : "bundle sources are not listed",
         `bundle mutationBoundaryPassed=${String(artifact.mutationBoundary?.passed ?? false)}`,

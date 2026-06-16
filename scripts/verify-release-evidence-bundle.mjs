@@ -626,14 +626,27 @@ function unsafeActionQueueTickets(entry) {
 
 function actionQueueSafety(actionQueue, currentHeadSha) {
   const ref = artifactRef(actionQueue);
+  const actionItems = actionQueue?.items ?? [];
   const criticalPath = actionQueue?.criticalPath ?? [];
+  const missingActionItemDiagnostics = actionItems
+    .filter((entry) => (entry.diagnostics ?? []).length === 0)
+    .map((entry) => `action item ${sanitize(entry.id ?? "unknown")} lacks diagnostics`);
+  const missingActionItemNextCommands = actionItems
+    .filter((entry) => !entry.nextCommand || ["none", "not listed"].includes(entry.nextCommand))
+    .map((entry) => `action item ${sanitize(entry.id ?? "unknown")} lacks next command`);
   const missingDiagnostics = criticalPath
     .filter((entry) => (entry.diagnostics ?? []).length === 0)
     .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks diagnostics`);
+  const missingCriticalPathNextCommands = criticalPath
+    .filter((entry) => !entry.nextCommand || ["none", "not listed"].includes(entry.nextCommand))
+    .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks next command`);
   const missingTickets = criticalPath
     .filter((entry) => actionQueueTicketPackets(entry).length === 0)
     .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks ticket packet`);
   const unsafeTickets = criticalPath.flatMap(unsafeActionQueueTickets).map(sanitize);
+  const mutationBoundaryPassed = actionQueue?.mutationBoundary?.passed === true;
+  const readOnlyCommandCount = (actionQueue?.readOnlyCommands ?? []).length;
+  const approvalGatedCommandCount = (actionQueue?.approvalGatedCommands ?? []).length;
   const fresh =
     actionQueue !== undefined &&
     ref.headSha === currentHeadSha &&
@@ -641,10 +654,16 @@ function actionQueueSafety(actionQueue, currentHeadSha) {
   const ready =
     actionQueue?.status === "ACTION_QUEUE_READY" &&
     fresh &&
+    actionItems.length > 0 &&
     criticalPath.length > 0 &&
+    missingActionItemDiagnostics.length === 0 &&
+    missingActionItemNextCommands.length === 0 &&
     missingDiagnostics.length === 0 &&
+    missingCriticalPathNextCommands.length === 0 &&
     missingTickets.length === 0 &&
     unsafeTickets.length === 0 &&
+    readOnlyCommandCount > 0 &&
+    mutationBoundaryPassed &&
     actionQueue?.mutationAllowedByThisVerifier !== true &&
     actionQueue?.clusterMutationAttempted !== true &&
     actionQueue?.registryMutationAttempted !== true;
@@ -654,9 +673,16 @@ function actionQueueSafety(actionQueue, currentHeadSha) {
     worktreeDirty: ref.worktreeDirty ?? "unknown",
     fresh,
     ready,
+    actionItemCount: actionItems.length,
     ownerPacketCount: (actionQueue?.ownerPackets ?? []).length,
     criticalPathCount: criticalPath.length,
+    readOnlyCommandCount,
+    approvalGatedCommandCount,
+    mutationBoundaryPassed,
+    missingActionItemDiagnostics,
+    missingActionItemNextCommands,
     missingDiagnostics,
+    missingCriticalPathNextCommands,
     missingTickets,
     unsafeTickets
   };
@@ -808,9 +834,16 @@ function buildMarkdownBundle(artifact) {
       `- Status: ${artifact.actionQueueSafety?.status ?? "missing"}`,
       `- Fresh: ${String(artifact.actionQueueSafety?.fresh ?? false)}`,
       `- Ready: ${String(artifact.actionQueueSafety?.ready ?? false)}`,
+      `- Action items: ${artifact.actionQueueSafety?.actionItemCount ?? 0}`,
       `- Owner packets: ${artifact.actionQueueSafety?.ownerPacketCount ?? 0}`,
       `- Critical path lanes: ${artifact.actionQueueSafety?.criticalPathCount ?? 0}`,
+      `- Read-only commands: ${artifact.actionQueueSafety?.readOnlyCommandCount ?? 0}`,
+      `- Approval-gated commands: ${artifact.actionQueueSafety?.approvalGatedCommandCount ?? 0}`,
+      `- Mutation boundary passed: ${String(artifact.actionQueueSafety?.mutationBoundaryPassed ?? false)}`,
+      `- Missing action diagnostics: ${(artifact.actionQueueSafety?.missingActionItemDiagnostics ?? []).join(", ") || "none"}`,
+      `- Missing action next commands: ${(artifact.actionQueueSafety?.missingActionItemNextCommands ?? []).join(", ") || "none"}`,
       `- Missing diagnostics: ${(artifact.actionQueueSafety?.missingDiagnostics ?? []).join(", ") || "none"}`,
+      `- Missing critical path next commands: ${(artifact.actionQueueSafety?.missingCriticalPathNextCommands ?? []).join(", ") || "none"}`,
       `- Missing tickets: ${(artifact.actionQueueSafety?.missingTickets ?? []).join(", ") || "none"}`,
       `- Unsafe tickets: ${(artifact.actionQueueSafety?.unsafeTickets ?? []).join(", ") || "none"}`,
       "",
@@ -999,8 +1032,15 @@ async function main() {
       [
         `status=${actionQueue.status}`,
         `fresh=${String(actionQueue.fresh)}`,
+        `actionItems=${actionQueue.actionItemCount}`,
         `criticalPath=${actionQueue.criticalPathCount}`,
+        `readOnlyCommands=${actionQueue.readOnlyCommandCount}`,
+        `approvalGatedCommands=${actionQueue.approvalGatedCommandCount}`,
+        `mutationBoundaryPassed=${String(actionQueue.mutationBoundaryPassed)}`,
+        `missingActionDiagnostics=${actionQueue.missingActionItemDiagnostics.length}`,
+        `missingActionNextCommands=${actionQueue.missingActionItemNextCommands.length}`,
         `missingDiagnostics=${actionQueue.missingDiagnostics.length}`,
+        `missingCriticalPathNextCommands=${actionQueue.missingCriticalPathNextCommands.length}`,
         `missingTickets=${actionQueue.missingTickets.length}`,
         `unsafeTickets=${actionQueue.unsafeTickets.length}`
       ].join(" ")
@@ -1014,6 +1054,9 @@ async function main() {
           `release action queue safety ready=${String(actionQueue.ready)} status=${actionQueue.status}`
         ]),
     ...actionQueue.missingDiagnostics,
+    ...actionQueue.missingActionItemDiagnostics,
+    ...actionQueue.missingActionItemNextCommands,
+    ...actionQueue.missingCriticalPathNextCommands,
     ...actionQueue.missingTickets,
     ...actionQueue.unsafeTickets
   ]);

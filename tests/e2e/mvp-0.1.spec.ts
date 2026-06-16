@@ -2871,9 +2871,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             status?: string;
             fresh?: boolean;
             ready?: boolean;
+            actionItemCount?: number;
             ownerPacketCount?: number;
             criticalPathCount?: number;
+            readOnlyCommandCount?: number;
+            approvalGatedCommandCount?: number;
+            mutationBoundaryPassed?: boolean;
+            missingActionItemDiagnostics?: string[];
+            missingActionItemNextCommands?: string[];
             missingDiagnostics?: string[];
+            missingCriticalPathNextCommands?: string[];
             missingTickets?: string[];
             unsafeTickets?: string[];
           };
@@ -6647,10 +6654,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.bundle?.actionQueueSafety).toMatchObject({
       status: "ACTION_QUEUE_READY",
       fresh: true,
-      ready: true
+      ready: true,
+      mutationBoundaryPassed: true,
+      missingActionItemDiagnostics: [],
+      missingActionItemNextCommands: [],
+      missingCriticalPathNextCommands: []
     });
     expect(
+      body.installReadiness?.bundle?.actionQueueSafety?.actionItemCount ?? 0
+    ).toBeGreaterThan(0);
+    expect(
       body.installReadiness?.bundle?.actionQueueSafety?.criticalPathCount ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.bundle?.actionQueueSafety?.readOnlyCommandCount ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.bundle?.actionQueueSafety
+        ?.approvalGatedCommandCount ?? 0
     ).toBeGreaterThan(0);
     expect(
       body.installReadiness?.bundle?.actionQueueSafety?.unsafeTickets
@@ -11090,6 +11111,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
       "Action Queue"
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      `items=${body.installReadiness?.bundle?.actionQueueSafety?.actionItemCount}`
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      `actionQueueCommands=readOnly:${body.installReadiness?.bundle?.actionQueueSafety?.readOnlyCommandCount}`
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      "actionQueueMutationBoundary=true"
+    );
+    await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
+      "actionQueueActionGaps=none"
     );
     await expect(page.getByTestId("opslens-release-evidence-bundle")).toContainText(
       `${body.installReadiness?.bundle?.roadmapCompletion?.percentComplete}%`
