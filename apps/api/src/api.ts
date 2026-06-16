@@ -53,6 +53,11 @@ import type {
   OpsLensInstallApprovalPlanSummary,
   OpsLensInstallApprovalTicketPacket,
   OpsLensInstallPlanReadiness,
+  OpsLensLabBootstrapReadiness,
+  OpsLensLabBootstrapSummary,
+  OpsLensLabCommandSummary,
+  OpsLensLabHandoffReadiness,
+  OpsLensLabHandoffSummary,
   OpsLensLightspeedExtensionPointReadiness,
   OpsLensLightspeedExtensionPointSummary,
   OpsLensLightspeedRegistrationApprovalPlanSummary,
@@ -3913,6 +3918,20 @@ function catalogToolchainEvidencePath() {
   return (
     process.env.CYWELL_OPSLENS_CATALOG_TOOLCHAIN_EVIDENCE ??
     join(repoRoot, "test-results", "cywell-opslens-catalog-toolchain-plan.json")
+  );
+}
+
+function labBootstrapEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_LAB_BOOTSTRAP_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-lab-bootstrap-plan.json")
+  );
+}
+
+function labHandoffEvidencePath() {
+  return (
+    process.env.CYWELL_OPSLENS_LAB_HANDOFF_EVIDENCE ??
+    join(repoRoot, "test-results", "cywell-opslens-lab-server-handoff.json")
   );
 }
 
@@ -9521,6 +9540,523 @@ function getCatalogToolchainReadiness(): {
   }
 }
 
+type LabCommandEvidence = {
+  id?: string;
+  command?: string;
+  phase?: string;
+  where?: string;
+  purpose?: string;
+  mutation?: boolean;
+  requiresExplicitApproval?: boolean;
+};
+
+type LabBootstrapEvidenceArtifact = {
+  artifactType?: string;
+  mode?: string;
+  status?: string;
+  currentJudgment?: string;
+  ref?: { headSha?: string; worktreeDirty?: boolean };
+  targetLab?: {
+    minRamGb?: number;
+    minCpuCores?: number;
+    minGpuVramGb?: number;
+  };
+  machine?: {
+    platform?: string;
+    arch?: string;
+    cpuCount?: number;
+    ramGb?: number;
+    minRamGb?: number;
+    minCpuCores?: number;
+  };
+  nvidia?: { runtimeCandidate?: boolean };
+  capacity?: {
+    labTier?: string;
+    runtimePlacement?: string;
+    recommendedCrc?: {
+      memoryGb?: number;
+      cpuCores?: number;
+      diskGb?: number;
+      commands?: string[];
+      requiresExplicitApproval?: boolean;
+    };
+  };
+  imageTar?: { exists?: boolean; sizeMiB?: number };
+  imageRefPlan?: {
+    blocking?: unknown[];
+    externalRuntime?: unknown[];
+    allOwnedCatalogReady?: boolean;
+  };
+  commandPlan?: {
+    readOnly?: LabCommandEvidence[];
+    humanSetup?: LabCommandEvidence[];
+    approvalGated?: LabCommandEvidence[];
+    next?: LabCommandEvidence;
+  };
+  mutationBoundary?: {
+    clusterMutationAttempted?: boolean;
+    registryMutationAttempted?: boolean;
+    registryLoginAttempted?: boolean;
+    secretCreated?: boolean;
+    olsConfigPatched?: boolean;
+    applyDeleteScaleAttempted?: boolean;
+    mutationAllowedByThisVerifier?: boolean;
+  };
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
+type LabHandoffEvidenceArtifact = {
+  artifactType?: string;
+  status?: string;
+  currentJudgment?: string;
+  ref?: { headSha?: string; worktreeDirty?: boolean };
+  commandPlan?: {
+    readOnlyCommands?: LabCommandEvidence[];
+    localSetupCommands?: LabCommandEvidence[];
+    approvalGatedCommands?: LabCommandEvidence[];
+    oneAtATimeNextCommand?: LabCommandEvidence;
+  };
+  sources?: Record<
+    string,
+    { id?: string; status?: string; fresh?: boolean; acceptable?: boolean }
+  >;
+  mutationBoundary?: {
+    clusterMutationAttempted?: boolean;
+    registryMutationAttempted?: boolean;
+    secretCreated?: boolean;
+    olsConfigPatched?: boolean;
+    applyDeleteScaleAttempted?: boolean;
+    mutationAllowedByThisVerifier?: boolean;
+  };
+  missingEvidence?: string[];
+  risk?: string[];
+  rollbackPath?: string[];
+};
+
+function mapLabCommand(
+  command: LabCommandEvidence | undefined,
+  fallback: Partial<OpsLensLabCommandSummary>
+): OpsLensLabCommandSummary {
+  return {
+    id: command?.id ?? fallback.id ?? "unknown",
+    command: command?.command ?? fallback.command ?? "unknown",
+    phase: command?.phase ?? fallback.phase ?? "local-evidence",
+    where: command?.where ?? fallback.where ?? "workspace",
+    purpose:
+      command?.purpose ??
+      fallback.purpose ??
+      "Refresh local lab evidence without mutating a cluster.",
+    mutation: command?.mutation === true,
+    requiresExplicitApproval:
+      command?.requiresExplicitApproval === true ||
+      fallback.requiresExplicitApproval === true
+  };
+}
+
+function mapLabBootstrapStatus(
+  artifactStatus: string | undefined
+): OpsLensLabBootstrapReadiness {
+  switch (artifactStatus) {
+    case "READY_FOR_REMOTE_LAB_PREP":
+      return "ready-for-remote-prep";
+    case "READY_FOR_APPROVAL_GATED_LAB_INSTALL_REVIEW":
+      return "approval-review";
+    case "NEEDS_IMAGE_REF_MAPPING":
+      return "needs-image-ref-mapping";
+    case "NEEDS_LAB_MACHINE_SETUP":
+      return "needs-lab-machine";
+    case "NEEDS_OCP_CONNECTIVITY":
+      return "needs-ocp-live";
+    case "NEEDS_LOCAL_ARTIFACTS":
+    case "NEEDS_TOOLING":
+      return "needs-local-artifacts";
+    case "NEEDS_CLEAN_WORKTREE":
+      return "blocked";
+    default:
+      return "needs-evidence";
+  }
+}
+
+function mapLabHandoffStatus(
+  artifactStatus: string | undefined
+): OpsLensLabHandoffReadiness {
+  switch (artifactStatus) {
+    case "READY_FOR_EXPLICIT_CRC_HANDOFF":
+      return "ready-for-handoff";
+    case "NEEDS_CURRENT_EVIDENCE":
+      return "needs-current-evidence";
+    case "NEEDS_LOCAL_IMAGE_PACKAGE":
+      return "needs-local-package";
+    case "NEEDS_CRC_TARGET":
+      return "needs-crc-target";
+    case "NEEDS_OCP_LIVE_EVIDENCE":
+      return "needs-ocp-live";
+    case "NEEDS_INSTALL_PREVIEW_EVIDENCE":
+      return "needs-install-preview";
+    default:
+      return "needs-evidence";
+  }
+}
+
+function missingLabBootstrapSummary(
+  reason: string,
+  status: OpsLensLabBootstrapReadiness = "needs-evidence"
+): OpsLensLabBootstrapSummary {
+  return {
+    status,
+    artifactStatus: status === "failed" ? "invalid" : "missing",
+    actionMode: "localEvidenceOnly",
+    mode: "missing",
+    currentJudgment: reason,
+    headSha: "missing",
+    worktreeDirty: false,
+    evidencePath: labBootstrapEvidencePath(),
+    labTier: "missing",
+    runtimePlacement: "missing",
+    gpuRuntimeCandidate: false,
+    machine: {
+      platform: "unknown",
+      arch: "unknown",
+      cpuCount: 0,
+      ramGb: 0,
+      minRamGb: 64,
+      minCpuCores: 8,
+      minGpuVramGb: 12
+    },
+    recommendedCrc: {
+      memoryGb: 0,
+      cpuCores: 0,
+      diskGb: 0,
+      commands: [],
+      requiresExplicitApproval: true
+    },
+    imageTar: { exists: false, sizeMiB: 0 },
+    imageRefPlan: {
+      blockingCount: 0,
+      externalRuntimeCount: 0,
+      allOwnedCatalogReady: false
+    },
+    nextCommand: mapLabCommand(undefined, {
+      id: "generate-lab-bootstrap",
+      command: "npm run verify:lab-bootstrap",
+      phase: "local-self-check",
+      purpose: "Generate lab bootstrap evidence before CRC install rehearsal."
+    }),
+    readOnlyCommands: [],
+    humanSetupCommands: [],
+    approvalGatedCommands: [],
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      registryLoginAttempted: false,
+      secretCreated: false,
+      olsConfigPatched: false,
+      applyDeleteScaleAttempted: false,
+      mutationAllowedByThisVerifier: false
+    },
+    missingEvidence: [reason],
+    risk: [
+      "Without lab bootstrap evidence, the dashboard cannot distinguish local tooling gaps from approval-gated CRC actions."
+    ],
+    rollbackPath: [
+      "Run npm run verify:lab-bootstrap from a clean worktree before lab install review."
+    ]
+  };
+}
+
+function getLabBootstrapReadiness(): {
+  status: OpsLensLabBootstrapReadiness;
+  evidence: string[];
+  plan: OpsLensLabBootstrapSummary;
+} {
+  const evidencePath = labBootstrapEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    const plan = missingLabBootstrapSummary(
+      `lab bootstrap evidence is missing at ${evidencePath}`
+    );
+    return {
+      status: plan.status,
+      plan,
+      evidence: [
+        "run npm run verify:lab-bootstrap to create dedicated CRC lab bootstrap evidence",
+        "dashboard keeps lab bootstrap as needs-evidence until local readiness evidence exists",
+        "admin overview does not create projects, push images, patch OLSConfig, or mutate clusters"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as LabBootstrapEvidenceArtifact;
+    const status = mapLabBootstrapStatus(artifact.status);
+    const readOnlyCommands = (artifact.commandPlan?.readOnly ?? []).map(
+      (command) => mapLabCommand(command, {})
+    );
+    const humanSetupCommands = (artifact.commandPlan?.humanSetup ?? []).map(
+      (command) => mapLabCommand(command, {})
+    );
+    const approvalGatedCommands = (artifact.commandPlan?.approvalGated ?? []).map(
+      (command) => mapLabCommand(command, { requiresExplicitApproval: true })
+    );
+    const plan: OpsLensLabBootstrapSummary = {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode: "localEvidenceOnly",
+      mode: artifact.mode ?? "unknown",
+      currentJudgment:
+        artifact.currentJudgment ??
+        "Lab bootstrap evidence is present; inspect next command before CRC actions.",
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      evidencePath,
+      labTier: artifact.capacity?.labTier ?? "unknown",
+      runtimePlacement: artifact.capacity?.runtimePlacement ?? "unknown",
+      gpuRuntimeCandidate: artifact.nvidia?.runtimeCandidate === true,
+      machine: {
+        platform: artifact.machine?.platform ?? "unknown",
+        arch: artifact.machine?.arch ?? "unknown",
+        cpuCount: Number(artifact.machine?.cpuCount ?? 0),
+        ramGb: Number(artifact.machine?.ramGb ?? 0),
+        minRamGb: Number(
+          artifact.machine?.minRamGb ?? artifact.targetLab?.minRamGb ?? 64
+        ),
+        minCpuCores: Number(
+          artifact.machine?.minCpuCores ??
+            artifact.targetLab?.minCpuCores ??
+            8
+        ),
+        minGpuVramGb: Number(artifact.targetLab?.minGpuVramGb ?? 12)
+      },
+      recommendedCrc: {
+        memoryGb: Number(artifact.capacity?.recommendedCrc?.memoryGb ?? 0),
+        cpuCores: Number(artifact.capacity?.recommendedCrc?.cpuCores ?? 0),
+        diskGb: Number(artifact.capacity?.recommendedCrc?.diskGb ?? 0),
+        commands: artifact.capacity?.recommendedCrc?.commands ?? [],
+        requiresExplicitApproval:
+          artifact.capacity?.recommendedCrc?.requiresExplicitApproval !== false
+      },
+      imageTar: {
+        exists: artifact.imageTar?.exists === true,
+        sizeMiB: Number(artifact.imageTar?.sizeMiB ?? 0)
+      },
+      imageRefPlan: {
+        blockingCount: artifact.imageRefPlan?.blocking?.length ?? 0,
+        externalRuntimeCount:
+          artifact.imageRefPlan?.externalRuntime?.length ?? 0,
+        allOwnedCatalogReady:
+          artifact.imageRefPlan?.allOwnedCatalogReady === true
+      },
+      nextCommand: mapLabCommand(artifact.commandPlan?.next, {
+        id: "lab-bootstrap-next",
+        command: "npm run verify:lab-bootstrap",
+        phase: "local-self-check"
+      }),
+      readOnlyCommands,
+      humanSetupCommands,
+      approvalGatedCommands,
+      mutationBoundary: {
+        clusterMutationAttempted:
+          artifact.mutationBoundary?.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          artifact.mutationBoundary?.registryMutationAttempted === true,
+        registryLoginAttempted:
+          artifact.mutationBoundary?.registryLoginAttempted === true,
+        secretCreated: artifact.mutationBoundary?.secretCreated === true,
+        olsConfigPatched:
+          artifact.mutationBoundary?.olsConfigPatched === true,
+        applyDeleteScaleAttempted:
+          artifact.mutationBoundary?.applyDeleteScaleAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationBoundary?.mutationAllowedByThisVerifier === true
+      },
+      missingEvidence: artifact.missingEvidence ?? [],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? []
+    };
+    return {
+      status,
+      plan,
+      evidence: [
+        `Lab bootstrap evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `lab bootstrap head=${plan.headSha} dirty=${String(plan.worktreeDirty)} tier=${plan.labTier}`,
+        `lab capacity cpu=${plan.machine.cpuCount}/${plan.machine.minCpuCores} ram=${plan.machine.ramGb}/${plan.machine.minRamGb} gpuCandidate=${String(plan.gpuRuntimeCandidate)}`,
+        `lab next=${plan.nextCommand.id}:${plan.nextCommand.command}`,
+        `lab mutations cluster=${String(plan.mutationBoundary.clusterMutationAttempted)} registry=${String(plan.mutationBoundary.registryMutationAttempted)} allowed=${String(plan.mutationBoundary.mutationAllowedByThisVerifier)}`,
+        "admin overview reads lab bootstrap evidence only; it does not create projects, push images, apply manifests, or patch OLSConfig"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      plan: missingLabBootstrapSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "failed"
+      ),
+      evidence: [
+        `Lab bootstrap evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid lab bootstrap evidence blocks dashboard lab readiness claims"
+      ]
+    };
+  }
+}
+
+function missingLabHandoffSummary(
+  reason: string,
+  status: OpsLensLabHandoffReadiness = "needs-evidence"
+): OpsLensLabHandoffSummary {
+  return {
+    status,
+    artifactStatus: status === "failed" ? "invalid" : "missing",
+    actionMode: "handoffOnly",
+    currentJudgment: reason,
+    headSha: "missing",
+    worktreeDirty: false,
+    evidencePath: labHandoffEvidencePath(),
+    nextCommand: mapLabCommand(undefined, {
+      id: "generate-lab-handoff",
+      command: "npm run verify:lab-handoff",
+      phase: "handoff-refresh",
+      purpose: "Generate the dedicated CRC lab handoff packet."
+    }),
+    readOnlyCommands: [],
+    localSetupCommands: [],
+    approvalGatedCommands: [],
+    sourceArtifacts: [],
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      secretCreated: false,
+      olsConfigPatched: false,
+      applyDeleteScaleAttempted: false,
+      mutationAllowedByThisVerifier: false
+    },
+    missingEvidence: [reason],
+    risk: [
+      "Without lab handoff evidence, install review can drift into manual CRC actions without a one-command next step."
+    ],
+    rollbackPath: [
+      "Run npm run verify:lab-handoff after refreshing lab bootstrap, OCP connectivity, Lightspeed, and install-plan evidence."
+    ]
+  };
+}
+
+function getLabHandoffReadiness(): {
+  status: OpsLensLabHandoffReadiness;
+  evidence: string[];
+  plan: OpsLensLabHandoffSummary;
+} {
+  const evidencePath = labHandoffEvidencePath();
+
+  if (!existsSync(evidencePath)) {
+    const plan = missingLabHandoffSummary(
+      `lab handoff evidence is missing at ${evidencePath}`
+    );
+    return {
+      status: plan.status,
+      plan,
+      evidence: [
+        "run npm run verify:lab-handoff to create the dedicated CRC lab handoff packet",
+        "dashboard keeps lab handoff as needs-evidence until one-command handoff evidence exists",
+        "admin overview does not create projects, push images, patch OLSConfig, or mutate clusters"
+      ]
+    };
+  }
+
+  try {
+    const artifact = JSON.parse(
+      readFileSync(evidencePath, "utf8")
+    ) as LabHandoffEvidenceArtifact;
+    const status = mapLabHandoffStatus(artifact.status);
+    const readOnlyCommands = (artifact.commandPlan?.readOnlyCommands ?? []).map(
+      (command) => mapLabCommand(command, {})
+    );
+    const localSetupCommands = (
+      artifact.commandPlan?.localSetupCommands ?? []
+    ).map((command) => mapLabCommand(command, {}));
+    const approvalGatedCommands = (
+      artifact.commandPlan?.approvalGatedCommands ?? []
+    ).map((command) =>
+      mapLabCommand(command, { requiresExplicitApproval: true })
+    );
+    const sourceArtifacts = Object.entries(artifact.sources ?? {}).map(
+      ([id, source]) => ({
+        id: source.id ?? id,
+        status: source.status ?? "unknown",
+        fresh: source.fresh === true,
+        acceptable: source.acceptable === true
+      })
+    );
+    const plan: OpsLensLabHandoffSummary = {
+      status,
+      artifactStatus: artifact.status ?? "unknown",
+      actionMode: "handoffOnly",
+      currentJudgment:
+        artifact.currentJudgment ??
+        "Lab handoff evidence is present; inspect the one-at-a-time next command.",
+      headSha: artifact.ref?.headSha ?? "unknown",
+      worktreeDirty: artifact.ref?.worktreeDirty === true,
+      evidencePath,
+      nextCommand: mapLabCommand(
+        artifact.commandPlan?.oneAtATimeNextCommand,
+        {
+          id: "lab-handoff-next",
+          command: "npm run verify:lab-handoff",
+          phase: "handoff-refresh"
+        }
+      ),
+      readOnlyCommands,
+      localSetupCommands,
+      approvalGatedCommands,
+      sourceArtifacts,
+      mutationBoundary: {
+        clusterMutationAttempted:
+          artifact.mutationBoundary?.clusterMutationAttempted === true,
+        registryMutationAttempted:
+          artifact.mutationBoundary?.registryMutationAttempted === true,
+        secretCreated: artifact.mutationBoundary?.secretCreated === true,
+        olsConfigPatched:
+          artifact.mutationBoundary?.olsConfigPatched === true,
+        applyDeleteScaleAttempted:
+          artifact.mutationBoundary?.applyDeleteScaleAttempted === true,
+        mutationAllowedByThisVerifier:
+          artifact.mutationBoundary?.mutationAllowedByThisVerifier === true
+      },
+      missingEvidence: artifact.missingEvidence ?? [],
+      risk: artifact.risk ?? [],
+      rollbackPath: artifact.rollbackPath ?? []
+    };
+    return {
+      status,
+      plan,
+      evidence: [
+        `Lab handoff evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
+        `lab handoff head=${plan.headSha} dirty=${String(plan.worktreeDirty)} next=${plan.nextCommand.id}`,
+        `lab handoff sources=${sourceArtifacts.map((source) => `${source.id}:${source.status}:fresh=${String(source.fresh)}`).join(", ") || "none"}`,
+        `lab handoff mutations cluster=${String(plan.mutationBoundary.clusterMutationAttempted)} registry=${String(plan.mutationBoundary.registryMutationAttempted)} allowed=${String(plan.mutationBoundary.mutationAllowedByThisVerifier)}`,
+        "admin overview reads lab handoff evidence only; it does not run live checks or mutating commands"
+      ]
+    };
+  } catch (error) {
+    return {
+      status: "failed",
+      plan: missingLabHandoffSummary(
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "failed"
+      ),
+      evidence: [
+        `Lab handoff evidence could not be parsed from ${evidencePath}`,
+        error instanceof Error ? error.message : "unknown evidence parse error",
+        "invalid lab handoff evidence blocks dashboard lab readiness claims"
+      ]
+    };
+  }
+}
+
 function missingSecurityScanPlanSummary(
   reason: string,
   status: OpsLensSecurityScanReadiness = "needs-evidence"
@@ -14231,6 +14767,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
   const communityOperatorSubmissionReadiness =
     getCommunityOperatorSubmissionReadiness();
   const catalogToolchainReadiness = getCatalogToolchainReadiness();
+  const labBootstrapReadiness = getLabBootstrapReadiness();
+  const labHandoffReadiness = getLabHandoffReadiness();
   const securityScanReadiness = getSecurityScanPlanReadiness();
   const releasePublishReadiness = getReleasePublishPlanReadiness();
   const releaseEvidenceRefreshReadiness = getReleaseEvidenceRefreshReadiness();
@@ -14271,6 +14809,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     certificationReadiness.evidence[0],
     communityOperatorSubmissionReadiness.evidence[0],
     catalogToolchainReadiness.evidence[0],
+    labBootstrapReadiness.evidence[0],
+    labHandoffReadiness.evidence[0],
     imageBuildReadiness.evidence[0],
     ownedImageProvenanceReadiness.evidence[0],
     externalRuntimeImagesReadiness.evidence[0],
@@ -14293,6 +14833,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
     ...certificationReadiness.evidence.slice(1),
     ...communityOperatorSubmissionReadiness.evidence.slice(1),
     ...catalogToolchainReadiness.evidence.slice(1),
+    ...labBootstrapReadiness.evidence.slice(1),
+    ...labHandoffReadiness.evidence.slice(1),
     ...imageBuildReadiness.evidence.slice(1),
     ...ownedImageProvenanceReadiness.evidence.slice(1),
     ...externalRuntimeImagesReadiness.evidence.slice(1),
@@ -14516,6 +15058,10 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
       communitySubmissionPlan: communityOperatorSubmissionReadiness.plan,
       catalogToolchain: catalogToolchainReadiness.status,
       catalogToolchainPlan: catalogToolchainReadiness.plan,
+      labBootstrap: labBootstrapReadiness.status,
+      labBootstrapPlan: labBootstrapReadiness.plan,
+      labHandoff: labHandoffReadiness.status,
+      labHandoffPlan: labHandoffReadiness.plan,
       imageBuilds: imageBuildReadiness.status,
       ownedImageProvenance: ownedImageProvenanceReadiness.status,
       ownedImageProvenancePlan: ownedImageProvenanceReadiness.plan,
@@ -14570,6 +15116,8 @@ export async function getOpsLensAdminOverview(): Promise<OpsLensAdminOverviewRes
         "Stage 5 catalog and certification readiness draft is validated by npm run verify:certification",
         "Stage 5 Community Operator submission draft is validated by npm run verify:community-submission",
         "Stage 5 catalog toolchain readiness is validated by npm run verify:catalog-toolchain",
+        "Dedicated CRC lab bootstrap readiness is generated by npm run verify:lab-bootstrap",
+        "Dedicated CRC lab handoff readiness is generated by npm run verify:lab-handoff",
         "Stage 5 image build readiness is validated by npm run verify:images",
         "Stage 5 owned image provenance is validated by npm run verify:owned-image-provenance",
         "Stage 5 external runtime evidence plan is generated by npm run verify:external-runtime-plan",

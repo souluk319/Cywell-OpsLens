@@ -64,6 +64,8 @@ function statusClass(status: string) {
     status === "ready" ||
     status === "ready-for-ingestion-job" ||
     status === "ready-for-dry-run" ||
+    status === "ready-for-remote-prep" ||
+    status === "ready-for-handoff" ||
     status === "ready-for-review" ||
     status === "ready-for-scan" ||
     status === "ready-for-live-registration-review" ||
@@ -84,6 +86,14 @@ function statusClass(status: string) {
     status === "partial" ||
     status === "approval-required" ||
     status === "needs-tooling" ||
+    status === "needs-image-ref-mapping" ||
+    status === "needs-lab-machine" ||
+    status === "needs-ocp-live" ||
+    status === "needs-local-artifacts" ||
+    status === "needs-current-evidence" ||
+    status === "needs-local-package" ||
+    status === "needs-crc-target" ||
+    status === "needs-install-preview" ||
     status === "planned"
   ) {
     return "stale";
@@ -214,6 +224,8 @@ export function OpsLensAdminDashboard() {
     overview?.installReadiness.communitySubmissionPlan;
   const catalogToolchainPlan =
     overview?.installReadiness.catalogToolchainPlan;
+  const labBootstrapPlan = overview?.installReadiness.labBootstrapPlan;
+  const labHandoffPlan = overview?.installReadiness.labHandoffPlan;
   const externalRuntimePlan = overview?.installReadiness.externalRuntimePlan;
   const externalRuntimeReview =
     overview?.installReadiness.externalRuntimeReview;
@@ -1772,6 +1784,8 @@ export function OpsLensAdminDashboard() {
                     overview.installReadiness.communityOperatorSubmission,
                   "Catalog Toolchain":
                     overview.installReadiness.catalogToolchain,
+                  "Lab Bootstrap": overview.installReadiness.labBootstrap,
+                  "Lab Handoff": overview.installReadiness.labHandoff,
                   "Image Builds": overview.installReadiness.imageBuilds,
                   "Owned Provenance":
                     overview.installReadiness.ownedImageProvenance,
@@ -4458,6 +4472,98 @@ export function OpsLensAdminDashboard() {
                     catalogToolchainPlan.rollbackPath[0] ??
                     "Regenerate catalog toolchain evidence from a clean worktree."}
                 </p>
+              </div>
+            </div>
+          ) : null}
+          {labBootstrapPlan && labHandoffPlan ? (
+            <div
+              className="install-approval-summary"
+              data-testid="opslens-lab-readiness"
+            >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>Dedicated CRC Lab Readiness</h4>
+                  <small>{labBootstrapPlan.actionMode}</small>
+                </div>
+                <ListChecks size={18} aria-hidden="true" />
+              </div>
+              <div className="admin-evidence-line">
+                <span>{labBootstrapPlan.artifactStatus}</span>
+                <span>{labHandoffPlan.artifactStatus}</span>
+                <span>head={labBootstrapPlan.headSha}</span>
+                <span>dirty={String(labBootstrapPlan.worktreeDirty)}</span>
+                <span>
+                  clusterMutationAttempted=
+                  {String(
+                    labBootstrapPlan.mutationBoundary.clusterMutationAttempted ||
+                      labHandoffPlan.mutationBoundary.clusterMutationAttempted
+                  )}
+                </span>
+                <span>
+                  registryMutationAttempted=
+                  {String(
+                    labBootstrapPlan.mutationBoundary.registryMutationAttempted ||
+                      labHandoffPlan.mutationBoundary.registryMutationAttempted
+                  )}
+                </span>
+              </div>
+              <div className="approval-summary-grid">
+                <div>
+                  <span>Lab Tier</span>
+                  <strong>{labBootstrapPlan.labTier}</strong>
+                </div>
+                <div>
+                  <span>CPU / RAM</span>
+                  <strong>
+                    {labBootstrapPlan.machine.cpuCount} cores /{" "}
+                    {labBootstrapPlan.machine.ramGb}GiB
+                  </strong>
+                </div>
+                <div>
+                  <span>GPU Runtime</span>
+                  <strong>
+                    {labBootstrapPlan.gpuRuntimeCandidate
+                      ? "candidate"
+                      : labBootstrapPlan.runtimePlacement}
+                  </strong>
+                </div>
+                <div>
+                  <span>Recommended CRC</span>
+                  <strong>
+                    {labBootstrapPlan.recommendedCrc.memoryGb}GiB /{" "}
+                    {labBootstrapPlan.recommendedCrc.cpuCores} CPU /{" "}
+                    {labBootstrapPlan.recommendedCrc.diskGb}GiB
+                  </strong>
+                </div>
+                <div>
+                  <span>Image Map</span>
+                  <strong>
+                    blocking={labBootstrapPlan.imageRefPlan.blockingCount},
+                    external={labBootstrapPlan.imageRefPlan.externalRuntimeCount}
+                  </strong>
+                </div>
+                <div>
+                  <span>Handoff Sources</span>
+                  <strong>
+                    {labHandoffPlan.sourceArtifacts
+                      .slice(0, 4)
+                      .map(
+                        (source) =>
+                          `${source.id}:${source.fresh ? "fresh" : "stale"}`
+                      )
+                      .join(", ") || "missing"}
+                  </strong>
+                </div>
+              </div>
+              <div className="admin-evidence-line">
+                {labBootstrapPlan.recommendedCrc.commands.map((command) => (
+                  <span key={command}>{command}</span>
+                ))}
+              </div>
+              <div className="remediation-notes">
+                <p>{labBootstrapPlan.currentJudgment}</p>
+                <p>{labBootstrapPlan.nextCommand.command}</p>
+                <p>{labHandoffPlan.nextCommand.command}</p>
               </div>
             </div>
           ) : null}

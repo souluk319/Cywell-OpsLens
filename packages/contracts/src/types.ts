@@ -1414,6 +1414,27 @@ export type OpsLensCatalogToolchainReadiness =
   | "needs-evidence"
   | "failed";
 
+export type OpsLensLabBootstrapReadiness =
+  | "ready-for-remote-prep"
+  | "approval-review"
+  | "needs-image-ref-mapping"
+  | "needs-lab-machine"
+  | "needs-ocp-live"
+  | "needs-local-artifacts"
+  | "needs-evidence"
+  | "blocked"
+  | "failed";
+
+export type OpsLensLabHandoffReadiness =
+  | "ready-for-handoff"
+  | "needs-current-evidence"
+  | "needs-local-package"
+  | "needs-crc-target"
+  | "needs-ocp-live"
+  | "needs-install-preview"
+  | "needs-evidence"
+  | "failed";
+
 export type OpsLensSecurityScanReadiness =
   | "ready-for-scan"
   | "needs-tooling"
@@ -1983,6 +2004,102 @@ export interface OpsLensCatalogToolchainSummary {
     mutation: boolean;
     requiresHumanSecretInput: boolean;
     reason: string;
+  };
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensLabCommandSummary {
+  id: string;
+  command: string;
+  phase: string;
+  where: string;
+  purpose: string;
+  mutation: boolean;
+  requiresExplicitApproval: boolean;
+}
+
+export interface OpsLensLabBootstrapSummary {
+  status: OpsLensLabBootstrapReadiness;
+  artifactStatus: string;
+  actionMode: "localEvidenceOnly";
+  mode: string;
+  currentJudgment: string;
+  headSha: string;
+  worktreeDirty: boolean;
+  evidencePath: string;
+  labTier: string;
+  runtimePlacement: string;
+  gpuRuntimeCandidate: boolean;
+  machine: {
+    platform: string;
+    arch: string;
+    cpuCount: number;
+    ramGb: number;
+    minRamGb: number;
+    minCpuCores: number;
+    minGpuVramGb: number;
+  };
+  recommendedCrc: {
+    memoryGb: number;
+    cpuCores: number;
+    diskGb: number;
+    commands: string[];
+    requiresExplicitApproval: boolean;
+  };
+  imageTar: {
+    exists: boolean;
+    sizeMiB: number;
+  };
+  imageRefPlan: {
+    blockingCount: number;
+    externalRuntimeCount: number;
+    allOwnedCatalogReady: boolean;
+  };
+  nextCommand: OpsLensLabCommandSummary;
+  readOnlyCommands: OpsLensLabCommandSummary[];
+  humanSetupCommands: OpsLensLabCommandSummary[];
+  approvalGatedCommands: OpsLensLabCommandSummary[];
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    registryLoginAttempted: boolean;
+    secretCreated: boolean;
+    olsConfigPatched: boolean;
+    applyDeleteScaleAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
+  };
+  missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface OpsLensLabHandoffSummary {
+  status: OpsLensLabHandoffReadiness;
+  artifactStatus: string;
+  actionMode: "handoffOnly";
+  currentJudgment: string;
+  headSha: string;
+  worktreeDirty: boolean;
+  evidencePath: string;
+  nextCommand: OpsLensLabCommandSummary;
+  readOnlyCommands: OpsLensLabCommandSummary[];
+  localSetupCommands: OpsLensLabCommandSummary[];
+  approvalGatedCommands: OpsLensLabCommandSummary[];
+  sourceArtifacts: Array<{
+    id: string;
+    status: string;
+    fresh: boolean;
+    acceptable: boolean;
+  }>;
+  mutationBoundary: {
+    clusterMutationAttempted: boolean;
+    registryMutationAttempted: boolean;
+    secretCreated: boolean;
+    olsConfigPatched: boolean;
+    applyDeleteScaleAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
   };
   missingEvidence: string[];
   risk: string[];
@@ -3880,6 +3997,10 @@ export interface OpsLensAdminOverviewResponse {
     approvalPlan: OpsLensInstallApprovalPlanSummary;
     catalogToolchain: OpsLensCatalogToolchainReadiness;
     catalogToolchainPlan: OpsLensCatalogToolchainSummary;
+    labBootstrap: OpsLensLabBootstrapReadiness;
+    labBootstrapPlan: OpsLensLabBootstrapSummary;
+    labHandoff: OpsLensLabHandoffReadiness;
+    labHandoffPlan: OpsLensLabHandoffSummary;
     imageBuilds: OpsLensImageBuildReadiness;
     ownedImageProvenance: OpsLensOwnedImageProvenanceReadiness;
     ownedImageProvenancePlan: OpsLensOwnedImageProvenanceSummary;

@@ -2019,6 +2019,58 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           rollbackPath?: string[];
           missingEvidence?: string[];
         };
+        labBootstrap?: string;
+        labBootstrapPlan?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          labTier?: string;
+          runtimePlacement?: string;
+          gpuRuntimeCandidate?: boolean;
+          machine?: {
+            cpuCount?: number;
+            ramGb?: number;
+            minRamGb?: number;
+            minCpuCores?: number;
+            minGpuVramGb?: number;
+          };
+          recommendedCrc?: {
+            memoryGb?: number;
+            cpuCores?: number;
+            diskGb?: number;
+            commands?: string[];
+            requiresExplicitApproval?: boolean;
+          };
+          imageRefPlan?: {
+            blockingCount?: number;
+            externalRuntimeCount?: number;
+            allOwnedCatalogReady?: boolean;
+          };
+          nextCommand?: { id?: string; command?: string; mutation?: boolean };
+          mutationBoundary?: {
+            clusterMutationAttempted?: boolean;
+            registryMutationAttempted?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+          };
+        };
+        labHandoff?: string;
+        labHandoffPlan?: {
+          status?: string;
+          artifactStatus?: string;
+          actionMode?: string;
+          nextCommand?: { id?: string; command?: string; mutation?: boolean };
+          sourceArtifacts?: Array<{
+            id?: string;
+            status?: string;
+            fresh?: boolean;
+            acceptable?: boolean;
+          }>;
+          mutationBoundary?: {
+            clusterMutationAttempted?: boolean;
+            registryMutationAttempted?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+          };
+        };
         certificationReadiness?: string;
         certificationPlan?: {
           status?: string;
@@ -5336,6 +5388,58 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(
       /catalog toolchain/i
     );
+    expect([
+      "ready-for-remote-prep",
+      "approval-review",
+      "needs-image-ref-mapping",
+      "needs-lab-machine",
+      "needs-ocp-live",
+      "needs-local-artifacts",
+      "needs-evidence",
+      "blocked",
+      "failed"
+    ]).toContain(body.installReadiness?.labBootstrap);
+    expect(body.installReadiness?.labBootstrapPlan).toMatchObject({
+      actionMode: "localEvidenceOnly",
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false
+      }
+    });
+    expect(
+      typeof body.installReadiness?.labBootstrapPlan?.machine?.ramGb
+    ).toBe("number");
+    expect(
+      body.installReadiness?.labBootstrapPlan?.recommendedCrc
+        ?.requiresExplicitApproval
+    ).toBe(true);
+    expect(
+      body.installReadiness?.labBootstrapPlan?.nextCommand?.mutation
+    ).toBe(false);
+    expect([
+      "ready-for-handoff",
+      "needs-current-evidence",
+      "needs-local-package",
+      "needs-crc-target",
+      "needs-ocp-live",
+      "needs-install-preview",
+      "needs-evidence",
+      "failed"
+    ]).toContain(body.installReadiness?.labHandoff);
+    expect(body.installReadiness?.labHandoffPlan).toMatchObject({
+      actionMode: "handoffOnly",
+      mutationBoundary: {
+        clusterMutationAttempted: false,
+        registryMutationAttempted: false,
+        mutationAllowedByThisVerifier: false
+      }
+    });
+    expect(body.installReadiness?.labHandoffPlan?.nextCommand?.mutation).toBe(
+      false
+    );
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(/lab bootstrap/i);
+    expect(body.installReadiness?.evidence?.join(" ")).toMatch(/lab handoff/i);
     expect([
       "ready-for-review",
       "needs-tooling",
@@ -10074,6 +10178,27 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-catalog-toolchain")).toContainText(
       "opm:"
+    );
+    await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
+      "Dedicated CRC Lab Readiness"
+    );
+    await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
+      "clusterMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
+      "registryMutationAttempted=false"
+    );
+    await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
+      "Recommended CRC"
+    );
+    await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
+      "verify:lab"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Lab Bootstrap"
+    );
+    await expect(page.getByTestId("opslens-install-readiness")).toContainText(
+      "Lab Handoff"
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Certification Evidence"
