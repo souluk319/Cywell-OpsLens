@@ -591,6 +591,13 @@ function buildCommandPlan(state) {
       purpose: "Classify the catalog image build/auth gap before any CRC OLM install rehearsal."
     },
     {
+      id: "lab-image-map",
+      where: "company workstation",
+      command: "npm run verify:lab-image-map",
+      mutation: false,
+      purpose: "Generate the CRC registry image-reference preview without pushing or applying anything."
+    },
+    {
       id: "lab-machine-check",
       where: "home Windows lab",
       command: "npm run verify:lab-bootstrap -- --lab-machine --require-crc-running",
@@ -672,7 +679,7 @@ function buildCommandPlan(state) {
     if (!state.imageTar.exists || !state.imageTar.sizeLooksValid) return readOnly.find((item) => item.id === "package-images");
     if (!state.imageRefPlan.allOwnedCatalogReady) {
       const tarGap = state.imageRefPlan.blocking.some((row) => row.pullability === "portable-tar-missing-tag");
-      return readOnly.find((item) => item.id === (tarGap ? "package-images" : "catalog-toolchain"));
+      return readOnly.find((item) => item.id === (tarGap ? "package-images" : "lab-image-map"));
     }
     if (options.labMachine && (!state.crcStatus.running || !state.crcStatus.openshiftRunning)) {
       return humanSetup.find((item) => item.id === "start-crc");

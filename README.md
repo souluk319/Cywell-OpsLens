@@ -31,6 +31,7 @@ npm run verify:release-refresh
 npm run verify:completion
 npm run verify:lab-bootstrap
 npm run verify:lab-handoff
+npm run verify:lab-image-map
 npm run evidence:release-action-queue
 npm run verify:ocp:target-profile
 npm run verify:ocp:connectivity
@@ -76,6 +77,8 @@ npm run verify:lightspeed:fixture
 `npm run verify:lab-bootstrap` creates the pre-handoff Windows/CRC lab bootstrap packet. It checks local tooling, Docker Linux engine, API/dashboard/operator/bundle/catalog image tags, the portable image tar contents, manifest image references from Operator/FBC/CatalogSource/sample/app manifests, CRC registry trap classifications, and optional lab-host CRC/GPU readiness with `-- --lab-machine --require-crc-running`. It writes `test-results/cywell-opslens-lab-bootstrap-plan.json` plus Markdown and never logs in to a registry, creates projects, pushes images, applies manifests, patches OLSConfig, fetches Secrets, deletes, or scales.
 
 `npm run verify:lab-handoff` creates a non-mutating dedicated CRC lab handoff packet for the next server move. It checks Docker Linux engine readiness, local OpsLens API/dashboard/operator image tags, the portable CRC image tar, CRC target profile evidence, OCP API connectivity, Lightspeed readiness, OLSConfig patch preview, and install approval evidence, then writes `test-results/cywell-opslens-lab-server-handoff.json` plus Markdown with one next command. It does not create projects, push images, apply manifests, patch OLSConfig, fetch Secrets, delete, or scale.
+
+`npm run verify:lab-image-map` writes a CRC registry image-reference preview for the OLM/catalog install rehearsal path. It rewrites owned Operator/API/dashboard/bundle/catalog image references into `<crc-registry>/cywell-opslens/*:verify` inside ignored Kubernetes and FBC preview YAML files under `test-results/`, records local image presence plus external vLLM/pgvector gaps, and keeps all registry login, image push, project creation, apply, OLSConfig patch, Secret fetch, delete, and scale actions approval-gated.
 
 `npm run evidence:release-action-queue` reads the refreshed checkpoint, release bundle, environment isolation contract, external runtime review packet, OCP network handoff, release publish plan, and install plan, then writes `test-results/cywell-opslens-release-action-queue.json` plus Markdown. It is an owner-scoped queue only: it assigns blocker/high evidence gaps to Network/SRE, Cluster SRE/Admin, Registry, Security, Product, and Release Manager roles without running push, mirror, sign, apply, delete, scale, or install commands; the `network-sre` packet carries the redacted OCP reachability ticket from the network handoff so the first blocker can be copied into an internal SRE ticket.
 
