@@ -2194,6 +2194,24 @@ export function OpsLensAdminDashboard() {
                   ) || "none"}
                 </span>
                 <span>
+                  directLive=
+                  {preClusterInstallGate.blockerSummary.directExternalReadinessGateIds.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
+                  localPrep=
+                  {preClusterInstallGate.blockerSummary.localPreparationGateIds.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
+                  aggregate=
+                  {preClusterInstallGate.blockerSummary.aggregateBlockedGateIds.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
                   sources=
                   {preClusterInstallGate.sources
                     .map(

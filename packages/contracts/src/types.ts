@@ -2832,6 +2832,8 @@ export interface OpsLensPreClusterInstallGateSummary {
     staleExternalStateSourceIds: string[];
     staleLocalEvidenceSourceIds: string[];
     directExternalReadinessGateIds: string[];
+    localPreparationGateIds: string[];
+    aggregateBlockedGateIds: string[];
   };
   gateRequirements: Array<{
     id: string;

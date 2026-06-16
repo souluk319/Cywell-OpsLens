@@ -3319,6 +3319,8 @@ type PreClusterInstallGateArtifact = {
     staleExternalStateSourceIds?: string[];
     staleLocalEvidenceSourceIds?: string[];
     directExternalReadinessGateIds?: string[];
+    localPreparationGateIds?: string[];
+    aggregateBlockedGateIds?: string[];
   };
   failedGateIds?: string[];
   missingEvidence?: string[];
@@ -11657,7 +11659,9 @@ function missingPreClusterInstallGateSummary(
       remainingLocalOnlyGateIds: ["pre-cluster-install-gate-evidence"],
       staleExternalStateSourceIds: [],
       staleLocalEvidenceSourceIds: ["pre-cluster-install-gate-evidence"],
-      directExternalReadinessGateIds: []
+      directExternalReadinessGateIds: [],
+      localPreparationGateIds: ["pre-cluster-install-gate-evidence"],
+      aggregateBlockedGateIds: []
     },
     gateRequirements: [
       {
@@ -11822,6 +11826,25 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
             "lightspeed-live-ready",
             "operator-server-dry-run-ready"
           ].includes(id)
+        ),
+      localPreparationGateIds:
+        artifact.blockerSummary?.localPreparationGateIds ??
+        (artifact.failedGateIds ?? []).filter((id) =>
+          [
+            "action-queue-closed",
+            "install-approval-ready",
+            "crc-handoff-ready",
+            "mutation-boundary-clean"
+          ].includes(id)
+        ),
+      aggregateBlockedGateIds:
+        artifact.blockerSummary?.aggregateBlockedGateIds ??
+        (artifact.failedGateIds ?? []).filter((id) =>
+          [
+            "clean-current-head",
+            "completion-ready",
+            "release-bundle-install-ready"
+          ].includes(id)
         )
     };
     return {
@@ -11858,7 +11881,7 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
         `Pre-cluster install gate ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"} safe=${String(artifact.safeToRunClusterInstall === true)}`,
         `pre-cluster install failed gates=${(artifact.failedGateIds ?? []).join(",") || "none"}`,
         `pre-cluster first blocked gate=${firstBlockedGate?.id ?? "none"} owner=${firstBlockedGate?.owner ?? "none"} next=${firstBlockedGate?.nextCommand ?? "none"}`,
-        `pre-cluster blocker summary externalState=${blockerSummary.remainingExternalStateCount} localOnly=${blockerSummary.remainingLocalOnlyCount} staleExternal=${blockerSummary.staleExternalStateSourceIds.join("|") || "none"}`,
+        `pre-cluster blocker summary externalState=${blockerSummary.remainingExternalStateCount} localOnly=${blockerSummary.remainingLocalOnlyCount} staleExternal=${blockerSummary.staleExternalStateSourceIds.join("|") || "none"} directLive=${blockerSummary.directExternalReadinessGateIds.join("|") || "none"} localPrep=${blockerSummary.localPreparationGateIds.join("|") || "none"}`,
         "pre-cluster install gate reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions",
         ...(artifact.evidence ?? []).slice(0, 2)
       ]

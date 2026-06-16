@@ -163,6 +163,17 @@ const directExternalReadinessGateIds = new Set([
   "lightspeed-live-ready",
   "operator-server-dry-run-ready"
 ]);
+const aggregateBlockedGateIds = new Set([
+  "clean-current-head",
+  "completion-ready",
+  "release-bundle-install-ready"
+]);
+const localPreparationGateIds = new Set([
+  "action-queue-closed",
+  "install-approval-ready",
+  "crc-handoff-ready",
+  "mutation-boundary-clean"
+]);
 
 function sourceSummary(id, label, loaded, headSha) {
   const artifact = loaded.artifact;
@@ -296,6 +307,9 @@ function buildMarkdown(artifact) {
     `- Remaining external-state gates: ${artifact.blockerSummary?.remainingExternalStateCount ?? 0}`,
     `- Remaining local-only gates: ${artifact.blockerSummary?.remainingLocalOnlyCount ?? 0}`,
     `- Stale external sources: ${(artifact.blockerSummary?.staleExternalStateSourceIds ?? []).join(", ") || "none"}`,
+    `- Direct live readiness gates: ${(artifact.blockerSummary?.directExternalReadinessGateIds ?? []).join(", ") || "none"}`,
+    `- Local preparation gates: ${(artifact.blockerSummary?.localPreparationGateIds ?? []).join(", ") || "none"}`,
+    `- Aggregate blocked gates: ${(artifact.blockerSummary?.aggregateBlockedGateIds ?? []).join(", ") || "none"}`,
     "",
     "## Gate Requirements",
     ...artifact.gateRequirements.map(
@@ -563,6 +577,12 @@ async function main() {
     staleLocalEvidenceSourceIds,
     directExternalReadinessGateIds: failedGates
       .filter((item) => directExternalReadinessGateIds.has(item.id))
+      .map((item) => item.id),
+    localPreparationGateIds: failedGates
+      .filter((item) => localPreparationGateIds.has(item.id))
+      .map((item) => item.id),
+    aggregateBlockedGateIds: failedGates
+      .filter((item) => aggregateBlockedGateIds.has(item.id))
       .map((item) => item.id)
   };
 

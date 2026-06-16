@@ -4013,6 +4013,8 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             staleExternalStateSourceIds?: string[];
             staleLocalEvidenceSourceIds?: string[];
             directExternalReadinessGateIds?: string[];
+            localPreparationGateIds?: string[];
+            aggregateBlockedGateIds?: string[];
           };
           gateRequirements?: Array<{
             id?: string;
@@ -7289,6 +7291,24 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           "ocp-api-live-ready",
           "lightspeed-live-ready",
           "operator-server-dry-run-ready"
+        ])
+      );
+      expect(
+        preClusterInstallGate.blockerSummary?.localPreparationGateIds
+      ).toEqual(
+        expect.arrayContaining([
+          "action-queue-closed",
+          "install-approval-ready",
+          "crc-handoff-ready"
+        ])
+      );
+      expect(
+        preClusterInstallGate.blockerSummary?.aggregateBlockedGateIds
+      ).toEqual(
+        expect.arrayContaining([
+          "clean-current-head",
+          "completion-ready",
+          "release-bundle-install-ready"
         ])
       );
       expect(preClusterInstallGate.firstBlockedGate).toMatchObject({
@@ -11775,6 +11795,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         page.getByTestId("opslens-pre-cluster-install-gate-boundary")
       ).toContainText(
         `staleExternal=${body.installReadiness.preClusterInstallGate.blockerSummary?.staleExternalStateSourceIds?.join(",") || "none"}`
+      );
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText(
+        `directLive=${body.installReadiness.preClusterInstallGate.blockerSummary?.directExternalReadinessGateIds?.join(",") || "none"}`
+      );
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText(
+        `localPrep=${body.installReadiness.preClusterInstallGate.blockerSummary?.localPreparationGateIds?.join(",") || "none"}`
+      );
+      await expect(
+        page.getByTestId("opslens-pre-cluster-install-gate-boundary")
+      ).toContainText(
+        `aggregate=${body.installReadiness.preClusterInstallGate.blockerSummary?.aggregateBlockedGateIds?.join(",") || "none"}`
       );
     }
     await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
