@@ -143,6 +143,8 @@ Live OpenShift read-only API support:
 
 The API loads `OCP_API_BASE_URL` and `OCP_API_TOKEN` from `.env`, and also falls back to kubeconfig server/token candidates when the env URL points at a console endpoint instead of the Kubernetes API root. CRC/self-signed TLS can be handled with `OCP_TLS_VERIFY=false`; `OPENSHIFT_LIGHTSPEED_TLS_VERIFY` is intentionally ignored by the OCP reader. `npm run verify:env` writes `test-results/cywell-opslens-env-contract.json` with key names/counts only, so `.env` target changes can be checked without persisting secret values.
 
+`OCP_API_TOKEN` and `OPENSHIFT_LIGHTSPEED_API_TOKEN` are separate credential contracts by default. The first authenticates Cywell OpsLens to the OpenShift/Kubernetes API for read-only resource evidence; the second is used only when calling the Lightspeed app/API endpoint directly. Do not copy one token into the other unless the target Lightspeed deployment is explicitly verified to accept the same OpenShift bearer token. See `docs/runbooks/ocp-auth-recovery.md` for the CRC token refresh, Lightspeed port-forward, and auth/RBAC recovery sequence.
+
 When company OCP is being changed by someone else, keep it as an observation target only and move development iteration to CRC. The safe switch sequence is documented in `docs/runbooks/ocp-target-profiles.md`: update ignored `.env` locally, run `npm run verify:env`, `npm run verify:ocp:target-profile -- --require-crc`, then run the read-only connectivity and fixture checks before any approved sandbox install rehearsal.
 
 Safety defaults:
