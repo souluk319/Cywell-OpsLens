@@ -2786,6 +2786,7 @@ type ReleaseEvidenceRefreshArtifact = {
     missingOwnerPackets?: string[];
     missingOwnerPacketReadOnlyCommands?: string[];
     missingOwnerPacketNextCommands?: string[];
+    missingOwnerPacketTickets?: string[];
     missingCriticalPathDiagnostics?: string[];
     missingCriticalPathTickets?: string[];
     unsafeCriticalPathTickets?: string[];
@@ -2807,6 +2808,7 @@ type ReleaseEvidenceRefreshArtifact = {
       firstActionPriority?: string;
       firstNextCommand?: string;
       nextCommandCount?: number;
+      ticketPacketCount?: number;
       readOnlyCommandIds?: string[];
       approvalGatedCommandCount?: number;
       mutationAllowedByThisVerifier?: boolean;
@@ -2979,6 +2981,7 @@ type ReleaseActionQueueArtifact = {
     firstRagProductionTicketPacket?: OpsLensRagProductionTicketPacket;
     firstAiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
     firstRuntimeEvidenceTicketPacket?: OpsLensRuntimeEvidenceTicketPacket;
+    ticketPacketCount?: number;
     nextCommands?: string[];
     setupCommandIds?: string[];
     readOnlyCommandIds?: string[];
@@ -10597,6 +10600,7 @@ function missingReleaseEvidenceRefreshSummary(
       missingOwnerPackets: [reason],
       missingOwnerPacketReadOnlyCommands: [reason],
       missingOwnerPacketNextCommands: [reason],
+      missingOwnerPacketTickets: [reason],
       missingCriticalPathDiagnostics: [reason],
       missingCriticalPathTickets: [reason],
       unsafeCriticalPathTickets: [reason],
@@ -10669,6 +10673,8 @@ function getReleaseEvidenceRefreshReadiness(): {
         artifact.actionQueue?.missingOwnerPacketReadOnlyCommands ?? [],
       missingOwnerPacketNextCommands:
         artifact.actionQueue?.missingOwnerPacketNextCommands ?? [],
+      missingOwnerPacketTickets:
+        artifact.actionQueue?.missingOwnerPacketTickets ?? [],
       missingCriticalPathDiagnostics:
         artifact.actionQueue?.missingCriticalPathDiagnostics ?? [],
       missingCriticalPathTickets:
@@ -10696,6 +10702,7 @@ function getReleaseEvidenceRefreshReadiness(): {
         firstActionPriority: packet.firstActionPriority ?? "normal",
         firstNextCommand: packet.firstNextCommand ?? "none",
         nextCommandCount: packet.nextCommandCount ?? 0,
+        ticketPacketCount: packet.ticketPacketCount ?? 0,
         readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
         approvalGatedCommandCount: packet.approvalGatedCommandCount ?? 0,
         mutationAllowedByThisVerifier:
@@ -11803,6 +11810,7 @@ function getReleaseActionQueueReadiness(): {
         packet.firstAiopsMonitoringTicketPacket,
       firstRuntimeEvidenceTicketPacket:
         packet.firstRuntimeEvidenceTicketPacket,
+      ticketPacketCount: packet.ticketPacketCount ?? 0,
       nextCommands: packet.nextCommands ?? [],
       setupCommandIds: packet.setupCommandIds ?? [],
       readOnlyCommandIds: packet.readOnlyCommandIds ?? [],

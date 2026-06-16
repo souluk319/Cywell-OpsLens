@@ -2554,6 +2554,7 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
     missingOwnerPackets: string[];
     missingOwnerPacketReadOnlyCommands: string[];
     missingOwnerPacketNextCommands: string[];
+    missingOwnerPacketTickets: string[];
     missingCriticalPathDiagnostics: string[];
     missingCriticalPathTickets: string[];
     unsafeCriticalPathTickets: string[];
@@ -2575,6 +2576,7 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
       firstActionPriority: string;
       firstNextCommand: string;
       nextCommandCount: number;
+      ticketPacketCount: number;
       readOnlyCommandIds: string[];
       approvalGatedCommandCount: number;
       mutationAllowedByThisVerifier: boolean;
@@ -2874,6 +2876,7 @@ export interface OpsLensReleaseActionQueueSummary {
     firstRagProductionTicketPacket?: OpsLensRagProductionTicketPacket;
     firstAiopsMonitoringTicketPacket?: OpsLensAiopsMonitoringProxyTicketPacket;
     firstRuntimeEvidenceTicketPacket?: OpsLensRuntimeEvidenceTicketPacket;
+    ticketPacketCount: number;
     nextCommands: string[];
     setupCommandIds: string[];
     readOnlyCommandIds: string[];

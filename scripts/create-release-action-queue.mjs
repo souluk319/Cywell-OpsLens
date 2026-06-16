@@ -3961,6 +3961,23 @@ function criticalPathTicketIds(entry) {
   ].filter(Boolean));
 }
 
+function ownerPacketTicketIds(packet) {
+  return uniqueStrings([
+    packet.firstTicketPacket?.id,
+    packet.firstExternalRuntimeTicketPacket?.id,
+    packet.firstExternalRuntimeFinalEvidenceTicketPacket?.id,
+    packet.firstExternalRuntimeProductTicketPacket?.id,
+    packet.firstSecurityReviewTicketPacket?.id,
+    packet.firstReleasePublishTicketPacket?.id,
+    packet.firstInstallApprovalTicketPacket?.id,
+    packet.firstCatalogToolchainTicketPacket?.id,
+    packet.firstCertificationToolingTicketPacket?.id,
+    packet.firstRagProductionTicketPacket?.id,
+    packet.firstAiopsMonitoringTicketPacket?.id,
+    packet.firstRuntimeEvidenceTicketPacket?.id
+  ].filter(Boolean));
+}
+
 function criticalPathTicketPackets(entry) {
   return [
     entry.ticketPacket,
@@ -4055,6 +4072,20 @@ function buildOwnerPackets(owners, items) {
     const firstRuntimeEvidenceTicketPacket = entries.find(
       (entry) => entry.runtimeEvidenceTicketPacket
     )?.runtimeEvidenceTicketPacket;
+    const ticketPacketCount = uniqueStrings([
+      firstTicketPacket?.id,
+      firstExternalRuntimeTicketPacket?.id,
+      firstExternalRuntimeFinalEvidenceTicketPacket?.id,
+      firstExternalRuntimeProductTicketPacket?.id,
+      firstSecurityReviewTicketPacket?.id,
+      firstReleasePublishTicketPacket?.id,
+      firstInstallApprovalTicketPacket?.id,
+      firstCatalogToolchainTicketPacket?.id,
+      firstCertificationToolingTicketPacket?.id,
+      firstRagProductionTicketPacket?.id,
+      firstAiopsMonitoringTicketPacket?.id,
+      firstRuntimeEvidenceTicketPacket?.id
+    ]).length;
     return {
       owner: owner.owner,
       status: owner.blocker > 0 ? "blocker" : owner.open > 0 ? "open" : "clear",
@@ -4083,6 +4114,7 @@ function buildOwnerPackets(owners, items) {
       firstRagProductionTicketPacket,
       firstAiopsMonitoringTicketPacket,
       firstRuntimeEvidenceTicketPacket,
+      ticketPacketCount,
       nextCommands: uniqueStrings(
         entries.flatMap((entry) => [
           entry.nextCommand,
@@ -4691,6 +4723,20 @@ async function main() {
     pass(
       "release action queue owner packet next-command coverage",
       `${ownerPackets.length} owner packet(s) carry next commands`
+    );
+  }
+  const ownerPacketsWithoutTicketPackets = ownerPackets
+    .filter((packet) => packet.open > 0 && ownerPacketTicketIds(packet).length === 0)
+    .map((packet) => packet.owner);
+  if (ownerPacketsWithoutTicketPackets.length > 0) {
+    fail(
+      "release action queue owner packet ticket coverage",
+      `owners=${ownerPacketsWithoutTicketPackets.join(",")}`
+    );
+  } else {
+    pass(
+      "release action queue owner packet ticket coverage",
+      `${ownerPackets.length} owner packet(s) carry ticket handoffs`
     );
   }
   const itemsWithoutDiagnostics = items

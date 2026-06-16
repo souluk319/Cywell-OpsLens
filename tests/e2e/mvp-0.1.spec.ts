@@ -2794,6 +2794,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             missingOwnerPackets?: string[];
             missingOwnerPacketReadOnlyCommands?: string[];
             missingOwnerPacketNextCommands?: string[];
+            missingOwnerPacketTickets?: string[];
             missingCriticalPathDiagnostics?: string[];
             missingCriticalPathTickets?: string[];
             unsafeCriticalPathTickets?: string[];
@@ -2811,6 +2812,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               firstActionPriority?: string;
               firstNextCommand?: string;
               nextCommandCount?: number;
+              ticketPacketCount?: number;
               readOnlyCommandIds?: string[];
               approvalGatedCommandCount?: number;
             }>;
@@ -2919,6 +2921,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
                 requiresExplicitApproval?: boolean;
               };
             };
+            ticketPacketCount?: number;
             nextCommands?: string[];
             readOnlyCommandIds?: string[];
             approvalGatedCommandIds?: string[];
@@ -6528,6 +6531,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       criticalPathReady: true,
       missingOwnerPacketReadOnlyCommands: [],
       missingOwnerPacketNextCommands: [],
+      missingOwnerPacketTickets: [],
       ownerPacketCleanup: {
         deletionAllowed: true
       }
@@ -6565,6 +6569,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.refresh?.actionQueue?.ownerPackets?.every(
         (packet) => (packet.nextCommandCount ?? 0) > 0
+      )
+    ).toBe(true);
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.ownerPackets?.every(
+        (packet) => (packet.ticketPacketCount ?? 0) > 0
       )
     ).toBe(true);
     expect(

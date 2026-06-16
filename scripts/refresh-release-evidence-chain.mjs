@@ -467,6 +467,9 @@ function actionQueueSummary(headSha) {
       criticalPathCount: 0,
       criticalPathReady: false,
       missingOwnerPackets: ["release action queue artifact is missing or unreadable"],
+      missingOwnerPacketReadOnlyCommands: ["release action queue artifact is missing or unreadable"],
+      missingOwnerPacketNextCommands: ["release action queue artifact is missing or unreadable"],
+      missingOwnerPacketTickets: ["release action queue artifact is missing or unreadable"],
       missingCriticalPathDiagnostics: ["release action queue artifact is missing or unreadable"],
       missingCriticalPathTickets: ["release action queue artifact is missing or unreadable"],
       unsafeCriticalPathTickets: ["release action queue artifact is missing or unreadable"],
@@ -523,6 +526,22 @@ function actionQueueSummary(headSha) {
         ? [`${entry.lane ?? "unknown"}:${ticket.id ?? "unknown"}:${reasons.join("+")}`]
         : [];
     });
+  const ownerPacketTicketCount = (packet) =>
+    packet.ticketPacketCount ??
+    [
+      packet.firstTicketPacket,
+      packet.firstExternalRuntimeTicketPacket,
+      packet.firstExternalRuntimeFinalEvidenceTicketPacket,
+      packet.firstExternalRuntimeProductTicketPacket,
+      packet.firstSecurityReviewTicketPacket,
+      packet.firstReleasePublishTicketPacket,
+      packet.firstInstallApprovalTicketPacket,
+      packet.firstCatalogToolchainTicketPacket,
+      packet.firstCertificationToolingTicketPacket,
+      packet.firstRagProductionTicketPacket,
+      packet.firstAiopsMonitoringTicketPacket,
+      packet.firstRuntimeEvidenceTicketPacket
+    ].filter(Boolean).length;
   const criticalPath = artifact.criticalPath ?? [];
   const ownerPackets = (artifact.ownerPackets ?? []).map((packet) => {
     const markdownPath = packet.markdownPath ?? "missing";
@@ -538,6 +557,7 @@ function actionQueueSummary(headSha) {
       firstActionPriority: sanitize(packet.firstActionPriority ?? "normal"),
       firstNextCommand: sanitize(packet.firstNextCommand ?? "none"),
       nextCommandCount: (packet.nextCommands ?? []).length,
+      ticketPacketCount: ownerPacketTicketCount(packet),
       readOnlyCommandIds: (packet.readOnlyCommandIds ?? []).map(sanitize),
       approvalGatedCommandCount: (packet.approvalGatedCommandIds ?? []).length,
       mutationAllowedByThisVerifier: packet.mutationAllowedByThisVerifier === true
@@ -567,6 +587,9 @@ function actionQueueSummary(headSha) {
   const ownerPacketsWithoutNextCommands = ownerPackets
     .filter((packet) => packet.open > 0 && packet.nextCommandCount === 0)
     .map((packet) => `${packet.owner} owner packet lacks next commands`);
+  const ownerPacketsWithoutTickets = ownerPackets
+    .filter((packet) => packet.open > 0 && packet.ticketPacketCount === 0)
+    .map((packet) => `${packet.owner} owner packet lacks ticket handoff`);
   const missingCriticalPathDiagnostics = criticalPath
     .filter((entry) => (entry.diagnostics ?? []).length === 0)
     .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks diagnostics`);
@@ -590,7 +613,8 @@ function actionQueueSummary(headSha) {
     ...missingOwnerPackets,
     ...mutatingOwnerPackets,
     ...ownerPacketsWithoutReadOnlyCommands,
-    ...ownerPacketsWithoutNextCommands
+    ...ownerPacketsWithoutNextCommands,
+    ...ownerPacketsWithoutTickets
   ];
   const criticalPathBlockers = [
     ...freshnessBlockers,
@@ -617,6 +641,7 @@ function actionQueueSummary(headSha) {
     missingOwnerPackets,
     missingOwnerPacketReadOnlyCommands: ownerPacketsWithoutReadOnlyCommands,
     missingOwnerPacketNextCommands: ownerPacketsWithoutNextCommands,
+    missingOwnerPacketTickets: ownerPacketsWithoutTickets,
     missingCriticalPathDiagnostics,
     missingCriticalPathTickets,
     unsafeCriticalPathTickets,
