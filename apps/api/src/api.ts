@@ -2784,6 +2784,12 @@ type ReleaseEvidenceRefreshArtifact = {
     ownerPacketsReady?: boolean;
     criticalPathCount?: number;
     criticalPathReady?: boolean;
+    readOnlyCommandCount?: number;
+    approvalGatedCommandCount?: number;
+    mutationBoundaryPassed?: boolean;
+    registryMutationAttempted?: boolean;
+    clusterMutationAttempted?: boolean;
+    mutationAllowedByThisVerifier?: boolean;
     missingActionItemDiagnostics?: string[];
     missingActionItemNextCommands?: string[];
     missingOwnerPackets?: string[];
@@ -10602,6 +10608,12 @@ function missingReleaseEvidenceRefreshSummary(
       ownerPacketsReady: false,
       criticalPathCount: 0,
       criticalPathReady: false,
+      readOnlyCommandCount: 0,
+      approvalGatedCommandCount: 0,
+      mutationBoundaryPassed: false,
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
       missingActionItemDiagnostics: [reason],
       missingActionItemNextCommands: [reason],
       missingOwnerPackets: [reason],
@@ -10677,6 +10689,17 @@ function getReleaseEvidenceRefreshReadiness(): {
       ownerPacketsReady: artifact.actionQueue?.ownerPacketsReady === true,
       criticalPathCount: artifact.actionQueue?.criticalPathCount ?? 0,
       criticalPathReady: artifact.actionQueue?.criticalPathReady === true,
+      readOnlyCommandCount: artifact.actionQueue?.readOnlyCommandCount ?? 0,
+      approvalGatedCommandCount:
+        artifact.actionQueue?.approvalGatedCommandCount ?? 0,
+      mutationBoundaryPassed:
+        artifact.actionQueue?.mutationBoundaryPassed === true,
+      registryMutationAttempted:
+        artifact.actionQueue?.registryMutationAttempted === true,
+      clusterMutationAttempted:
+        artifact.actionQueue?.clusterMutationAttempted === true,
+      mutationAllowedByThisVerifier:
+        artifact.actionQueue?.mutationAllowedByThisVerifier === true,
       missingActionItemDiagnostics:
         artifact.actionQueue?.missingActionItemDiagnostics ?? [],
       missingActionItemNextCommands:

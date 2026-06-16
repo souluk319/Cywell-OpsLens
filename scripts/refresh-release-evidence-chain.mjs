@@ -467,6 +467,12 @@ function actionQueueSummary(headSha) {
       ownerPacketsReady: false,
       criticalPathCount: 0,
       criticalPathReady: false,
+      readOnlyCommandCount: 0,
+      approvalGatedCommandCount: 0,
+      mutationBoundaryPassed: false,
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
       missingActionItemDiagnostics: ["release action queue artifact is missing or unreadable"],
       missingActionItemNextCommands: ["release action queue artifact is missing or unreadable"],
       missingOwnerPackets: ["release action queue artifact is missing or unreadable"],
@@ -547,6 +553,7 @@ function actionQueueSummary(headSha) {
       packet.firstRuntimeEvidenceTicketPacket
     ].filter(Boolean).length;
   const actionItems = artifact.items ?? [];
+  const mutationBoundaryPassed = artifact.mutationBoundary?.passed === true;
   const missingActionItemDiagnostics = actionItems
     .filter((entry) => (entry.diagnostics ?? []).length === 0)
     .map((entry) => `action item ${sanitize(entry.id ?? "unknown")} lacks diagnostics`);
@@ -660,6 +667,12 @@ function actionQueueSummary(headSha) {
     ownerPacketsReady: ownerPacketBlockers.length === 0,
     criticalPathCount: criticalPath.length,
     criticalPathReady: criticalPathBlockers.length === 0,
+    readOnlyCommandCount: (artifact.readOnlyCommands ?? []).length,
+    approvalGatedCommandCount: (artifact.approvalGatedCommands ?? []).length,
+    mutationBoundaryPassed,
+    registryMutationAttempted: artifact.registryMutationAttempted === true,
+    clusterMutationAttempted: artifact.clusterMutationAttempted === true,
+    mutationAllowedByThisVerifier: artifact.mutationAllowedByThisVerifier === true,
     missingActionItemDiagnostics,
     missingActionItemNextCommands,
     missingOwnerPackets,

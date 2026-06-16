@@ -2552,6 +2552,12 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
     ownerPacketsReady: boolean;
     criticalPathCount: number;
     criticalPathReady: boolean;
+    readOnlyCommandCount: number;
+    approvalGatedCommandCount: number;
+    mutationBoundaryPassed: boolean;
+    registryMutationAttempted: boolean;
+    clusterMutationAttempted: boolean;
+    mutationAllowedByThisVerifier: boolean;
     missingActionItemDiagnostics: string[];
     missingActionItemNextCommands: string[];
     missingOwnerPackets: string[];

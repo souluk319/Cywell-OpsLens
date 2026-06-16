@@ -2792,6 +2792,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             ownerPacketsReady?: boolean;
             criticalPathCount?: number;
             criticalPathReady?: boolean;
+            readOnlyCommandCount?: number;
+            approvalGatedCommandCount?: number;
+            mutationBoundaryPassed?: boolean;
+            registryMutationAttempted?: boolean;
+            clusterMutationAttempted?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
             missingActionItemDiagnostics?: string[];
             missingActionItemNextCommands?: string[];
             missingOwnerPackets?: string[];
@@ -6533,6 +6539,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       status: "ready",
       ownerPacketsReady: true,
       criticalPathReady: true,
+      mutationBoundaryPassed: true,
+      registryMutationAttempted: false,
+      clusterMutationAttempted: false,
+      mutationAllowedByThisVerifier: false,
       missingActionItemDiagnostics: [],
       missingActionItemNextCommands: [],
       missingOwnerPacketReadOnlyCommands: [],
@@ -6544,6 +6554,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     });
     expect(
       body.installReadiness?.refresh?.actionQueue?.actionItemCount ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.readOnlyCommandCount ?? 0
+    ).toBeGreaterThan(0);
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.approvalGatedCommandCount ?? 0
     ).toBeGreaterThan(0);
     expect(
       body.installReadiness?.refresh?.actionQueue?.criticalPathCount ?? 0
