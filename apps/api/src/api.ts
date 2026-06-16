@@ -3263,6 +3263,7 @@ type PreClusterInstallGateArtifact = {
     id?: string;
     status?: string;
     fresh?: boolean;
+    externalState?: boolean;
     mutationViolation?: boolean;
     headSha?: string;
   }>;
@@ -11625,6 +11626,7 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
         id: source.id ?? "unknown",
         status: source.status ?? "unknown",
         fresh: source.fresh === true,
+        externalState: source.externalState === true,
         mutationViolation: source.mutationViolation === true,
         headSha: source.headSha ?? "missing"
       })),

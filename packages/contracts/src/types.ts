@@ -2801,6 +2801,7 @@ export interface OpsLensPreClusterInstallGateSummary {
     id: string;
     status: string;
     fresh: boolean;
+    externalState: boolean;
     mutationViolation: boolean;
     headSha: string;
   }>;

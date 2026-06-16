@@ -3981,6 +3981,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             id?: string;
             status?: string;
             fresh?: boolean;
+            externalState?: boolean;
             mutationViolation?: boolean;
             headSha?: string;
           }>;
@@ -5466,6 +5467,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.labBootstrapPlan?.nextCommand?.mutation
     ).toBe(false);
+    expect(
+      body.installReadiness?.labBootstrapPlan?.readOnlyCommands?.find(
+        (command) => command.id === "package-images"
+      )?.command
+    ).toMatch(/opslens-catalog:verify/);
     expect([
       "ready-for-handoff",
       "needs-current-evidence",
@@ -7085,16 +7091,44 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           gate.mutation === false
       )
     ).toBe(true);
+    const preClusterSources = preClusterInstallGate.sources ?? [];
     expect(
-      preClusterInstallGate.sources?.every(
+      preClusterSources.every(
         (source) =>
           source.id &&
           source.status &&
-          source.fresh === true &&
-          source.mutationViolation === false &&
-          source.headSha === preClusterInstallGate.ref?.headSha
+          source.mutationViolation === false
       )
     ).toBe(true);
+    expect(
+      preClusterSources
+        .filter((source) => source.externalState !== true)
+        .every(
+          (source) =>
+            source.fresh === true &&
+            source.headSha === preClusterInstallGate.ref?.headSha
+        )
+    ).toBe(true);
+    expect(
+      preClusterSources
+        .filter((source) => source.externalState === true)
+        .map((source) => source.id)
+    ).toEqual(
+      expect.arrayContaining([
+        "ocpConnectivity",
+        "lightspeedReadiness",
+        "operatorDryRun"
+      ])
+    );
+    const staleExternalPreClusterSources = preClusterSources.filter(
+      (source) => source.externalState === true && source.fresh !== true
+    );
+    if (staleExternalPreClusterSources.length > 0) {
+      expect(preClusterInstallGate.status).not.toBe("READY_FOR_CLUSTER_INSTALL");
+      expect(preClusterInstallGate.missingEvidence?.join(" ")).toMatch(
+        /OCP connectivity|Lightspeed readiness|operator dry-run/i
+      );
+    }
     expect(preClusterInstallGate.readOnlyCommands?.map((command) => command.id)).toEqual(
       expect.arrayContaining([
         "refresh-release-chain",
@@ -10465,7 +10499,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "missingTags="
     );
     await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
-      "verify:lab"
+      /verify:(catalog-toolchain|images|lab)/
     );
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Lab Bootstrap"

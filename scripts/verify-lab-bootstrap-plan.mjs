@@ -42,7 +42,8 @@ const portableImages = [
   "cywell/opslens-api:verify",
   "cywell/opslens-dashboard:verify",
   "cywell/opslens-operator:verify",
-  "cywell/opslens-operator-bundle:verify"
+  "cywell/opslens-operator-bundle:verify",
+  "cywell/opslens-catalog:verify"
 ];
 
 function parseArgs(argv) {
@@ -338,7 +339,7 @@ function imageRole(image) {
   if (/opslens-dashboard/.test(text)) return { category: "owned-core", component: "dashboard", localTag: "cywell/opslens-dashboard:verify", portable: true };
   if (/opslens-operator-bundle/.test(text)) return { category: "olm-package", component: "bundle", localTag: "cywell/opslens-operator-bundle:verify", portable: true };
   if (/opslens-operator/.test(text)) return { category: "owned-core", component: "operator", localTag: "cywell/opslens-operator:verify", portable: true };
-  if (/opslens-catalog/.test(text)) return { category: "olm-catalog", component: "catalog", localTag: "cywell/opslens-catalog:verify", portable: false };
+  if (/opslens-catalog/.test(text)) return { category: "olm-catalog", component: "catalog", localTag: "cywell/opslens-catalog:verify", portable: true };
   if (/opslens-vllm/.test(text)) return { category: "external-runtime", component: "vllm", localTag: undefined, portable: false };
   if (/pgvector/.test(text)) return { category: "external-runtime", component: "pgvector", localTag: undefined, portable: false };
   return { category: "unknown", component: "unknown", localTag: undefined, portable: false };
@@ -658,7 +659,7 @@ function registryTrapMatrix() {
 function buildCommandPlan(state) {
   const windowsTar = ".\\test-results\\cywell-opslens-crc-images.tar";
   const saveImages =
-    "docker save cywell/opslens-api:verify cywell/opslens-dashboard:verify cywell/opslens-operator:verify cywell/opslens-operator-bundle:verify -o .\\test-results\\cywell-opslens-crc-images.tar";
+    "docker save cywell/opslens-api:verify cywell/opslens-dashboard:verify cywell/opslens-operator:verify cywell/opslens-operator-bundle:verify cywell/opslens-catalog:verify -o .\\test-results\\cywell-opslens-crc-images.tar";
   const readOnly = [
     {
       id: "refresh-bootstrap",
@@ -672,14 +673,14 @@ function buildCommandPlan(state) {
       where: "company workstation",
       command: "npm run verify:images:build",
       mutation: false,
-      purpose: "Build API/dashboard/operator images locally without pushing them."
+      purpose: "Build API/dashboard/operator/bundle/catalog images locally without pushing them."
     },
     {
       id: "package-images",
       where: "company workstation",
       command: saveImages,
       mutation: false,
-      purpose: "Create the portable image tar for the lab host, including the OLM bundle image."
+      purpose: "Create the portable image tar for the lab host, including the OLM bundle and catalog images."
     },
     {
       id: "catalog-toolchain",
@@ -754,7 +755,7 @@ function buildCommandPlan(state) {
     {
       id: "make-images-pullable",
       where: "home Windows lab",
-      command: "Use the reviewed CRC registry path from the lab packet to tag and push API/dashboard/operator images.",
+      command: "Use the reviewed CRC registry path from the lab packet to tag and push API/dashboard/operator/bundle/catalog images.",
       mutation: true,
       requiresExplicitApproval: true,
       purpose: "Publish images only to the dedicated CRC lab registry."
@@ -771,8 +772,15 @@ function buildCommandPlan(state) {
 
   const next = (() => {
     if (!state.docker.available || state.docker.osType !== "linux") return readOnly.find((item) => item.id === "build-images");
-    if (!state.images.filter((image) => portableImages.includes(image.tag)).every((image) => image.present)) {
-      return readOnly.find((item) => item.id === "build-images");
+    const missingPortableImages = state.images.filter(
+      (image) => portableImages.includes(image.tag) && !image.present
+    );
+    if (missingPortableImages.length > 0) {
+      return readOnly.find((item) =>
+        missingPortableImages.some((image) => image.tag.includes("opslens-catalog"))
+          ? item.id === "catalog-toolchain"
+          : item.id === "build-images"
+      );
     }
     if (!state.imageTar.exists || !state.imageTar.sizeLooksValid) return readOnly.find((item) => item.id === "package-images");
     if (!state.imageRefPlan.allOwnedCatalogReady) {
@@ -794,7 +802,13 @@ function statusFor(state) {
   if (!state.tools.git.available || !state.tools.node.available || !state.tools.npm.available) return "NEEDS_TOOLING";
   if (!state.docker.available || state.docker.osType !== "linux") return "NEEDS_TOOLING";
   if (!state.sources.imageBuild.acceptable || !state.sources.imageBuild.fresh) return "NEEDS_LOCAL_ARTIFACTS";
-  if (!state.images.filter((image) => portableImages.includes(image.tag)).every((image) => image.present)) {
+  const missingPortableImages = state.images.filter(
+    (image) => portableImages.includes(image.tag) && !image.present
+  );
+  if (missingPortableImages.some((image) => image.tag.includes("opslens-catalog"))) {
+    return "NEEDS_IMAGE_REF_MAPPING";
+  }
+  if (missingPortableImages.length > 0) {
     return "NEEDS_LOCAL_ARTIFACTS";
   }
   if (!state.imageTar.exists || !state.imageTar.sizeLooksValid) return "NEEDS_LOCAL_ARTIFACTS";

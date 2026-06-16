@@ -153,10 +153,17 @@ function artifactRef(artifact) {
   };
 }
 
+const externalStateSourceIds = new Set([
+  "ocpConnectivity",
+  "lightspeedReadiness",
+  "operatorDryRun"
+]);
+
 function sourceSummary(id, label, loaded, headSha) {
   const artifact = loaded.artifact;
   const ref = artifactRef(artifact);
   const status = artifact?.status ?? "missing";
+  const externalState = externalStateSourceIds.has(id);
   const fresh =
     artifact !== undefined &&
     ref.headSha === headSha &&
@@ -191,6 +198,7 @@ function sourceSummary(id, label, loaded, headSha) {
     artifactType: artifact?.artifactType ?? artifact?.schema ?? "missing",
     status,
     fresh,
+    externalState,
     mutationViolation,
     headSha: ref.headSha ?? "missing",
     worktreeDirty: ref.worktreeDirty ?? "unknown"

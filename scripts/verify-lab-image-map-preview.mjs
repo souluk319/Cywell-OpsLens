@@ -343,9 +343,9 @@ function buildCommandPlan(imageRows, previewPaths, status) {
       {
         id: "package-images",
         command:
-          "docker save cywell/opslens-api:verify cywell/opslens-dashboard:verify cywell/opslens-operator:verify cywell/opslens-operator-bundle:verify -o .\\test-results\\cywell-opslens-crc-images.tar",
+          "docker save cywell/opslens-api:verify cywell/opslens-dashboard:verify cywell/opslens-operator:verify cywell/opslens-operator-bundle:verify cywell/opslens-catalog:verify -o .\\test-results\\cywell-opslens-crc-images.tar",
         mutation: false,
-        purpose: "Package the local images before moving them to the lab host."
+        purpose: "Package the local Operator/API/dashboard/bundle/catalog images before moving them to the lab host."
       }
     ],
     approvalGatedCommands: tagPushCommands,
