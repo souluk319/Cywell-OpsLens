@@ -2784,6 +2784,7 @@ type ReleaseEvidenceRefreshArtifact = {
     criticalPathCount?: number;
     criticalPathReady?: boolean;
     missingOwnerPackets?: string[];
+    missingOwnerPacketReadOnlyCommands?: string[];
     missingCriticalPathDiagnostics?: string[];
     missingCriticalPathTickets?: string[];
     unsafeCriticalPathTickets?: string[];
@@ -2804,6 +2805,7 @@ type ReleaseEvidenceRefreshArtifact = {
       firstActionId?: string;
       firstActionPriority?: string;
       firstNextCommand?: string;
+      readOnlyCommandIds?: string[];
       approvalGatedCommandCount?: number;
       mutationAllowedByThisVerifier?: boolean;
     }>;
@@ -10591,6 +10593,7 @@ function missingReleaseEvidenceRefreshSummary(
       criticalPathCount: 0,
       criticalPathReady: false,
       missingOwnerPackets: [reason],
+      missingOwnerPacketReadOnlyCommands: [reason],
       missingCriticalPathDiagnostics: [reason],
       missingCriticalPathTickets: [reason],
       unsafeCriticalPathTickets: [reason],
@@ -10659,6 +10662,8 @@ function getReleaseEvidenceRefreshReadiness(): {
       criticalPathCount: artifact.actionQueue?.criticalPathCount ?? 0,
       criticalPathReady: artifact.actionQueue?.criticalPathReady === true,
       missingOwnerPackets: artifact.actionQueue?.missingOwnerPackets ?? [],
+      missingOwnerPacketReadOnlyCommands:
+        artifact.actionQueue?.missingOwnerPacketReadOnlyCommands ?? [],
       missingCriticalPathDiagnostics:
         artifact.actionQueue?.missingCriticalPathDiagnostics ?? [],
       missingCriticalPathTickets:
@@ -10685,6 +10690,7 @@ function getReleaseEvidenceRefreshReadiness(): {
         firstActionId: packet.firstActionId ?? "none",
         firstActionPriority: packet.firstActionPriority ?? "normal",
         firstNextCommand: packet.firstNextCommand ?? "none",
+        readOnlyCommandIds: packet.readOnlyCommandIds ?? [],
         approvalGatedCommandCount: packet.approvalGatedCommandCount ?? 0,
         mutationAllowedByThisVerifier:
           packet.mutationAllowedByThisVerifier === true

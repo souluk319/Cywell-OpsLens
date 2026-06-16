@@ -4665,6 +4665,20 @@ async function main() {
   } else {
     warn("release action queue items", "no open items were generated");
   }
+  const ownerPacketsWithoutReadOnlyCommands = ownerPackets
+    .filter((packet) => packet.open > 0 && (packet.readOnlyCommandIds ?? []).length === 0)
+    .map((packet) => packet.owner);
+  if (ownerPacketsWithoutReadOnlyCommands.length > 0) {
+    fail(
+      "release action queue owner packet read-only coverage",
+      `owners=${ownerPacketsWithoutReadOnlyCommands.join(",")}`
+    );
+  } else {
+    pass(
+      "release action queue owner packet read-only coverage",
+      `${ownerPackets.length} owner packet(s) carry read-only command ids`
+    );
+  }
   const itemsWithoutDiagnostics = items
     .filter((entry) => (entry.diagnostics ?? []).length === 0)
     .map((entry) => entry.id);
