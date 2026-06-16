@@ -56,7 +56,7 @@ const evidenceRequirements = {
     "External submission remains separate from this local verifier."
   ],
   externalRuntime: [
-    "Final reviewed vLLM/Qdrant runtime image evidence exists, including scan, SBOM, provenance, and reviewer approval.",
+    "Final reviewed vLLM/Postgres/pgvector runtime image evidence exists, including scan, SBOM, provenance, and reviewer approval.",
     "Mirror/sign/push actions remain approval-gated until release approval."
   ],
   releasePublish: [

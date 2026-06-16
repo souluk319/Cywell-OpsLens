@@ -417,9 +417,9 @@ try {
 
   expectCheck(
     "Go vector persistence parity",
-    controller.includes("VolumeClaimTemplates") &&
+      controller.includes("VolumeClaimTemplates") &&
       controller.includes("vector-data") &&
-      controller.includes("/qdrant/storage") &&
+      controller.includes("/var/lib/opslens/vector") &&
       controller.includes("/var/lib/postgresql/data") &&
       controller.includes("corev1.ResourceStorage"),
     "vector store keeps the TS volume claim and provider-specific mount contract"

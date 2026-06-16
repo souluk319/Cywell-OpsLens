@@ -12,7 +12,7 @@ const defaults = {
   markdownOut: "test-results/cywell-opslens-external-runtime-candidate-matrix.md",
   securityEvidenceDir: "docs/release/evidence/security",
   candidateRoot: "test-results/security-candidates",
-  names: ["vllm", "qdrant"],
+  names: ["vllm", "pgvector"],
   timeoutMs: 10000
 };
 

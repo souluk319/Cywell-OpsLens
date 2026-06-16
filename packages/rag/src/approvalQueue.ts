@@ -496,7 +496,7 @@ export async function planRagApprovalQueueIngestionJob(
     risk: [
       "Approved queue metadata is not the raw source of truth; the ingestion job must fetch source Markdown from the approved Git or ticket reference.",
       "Vector ingestion can introduce bad operational guidance if stale drafts are indexed without fresh validation.",
-      "This planner does not prove production Qdrant/vLLM reachability."
+      "This planner does not prove production Postgres/pgvector/vLLM reachability."
     ],
     rollbackPath: [
       "Do not run ingestion if any preflight check is stale or failing.",

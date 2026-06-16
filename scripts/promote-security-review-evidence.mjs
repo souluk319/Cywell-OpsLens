@@ -20,7 +20,7 @@ const images = {
   bundle: "quay.io/cywell/opslens-operator-bundle:0.1.0",
   catalog: "quay.io/cywell/opslens-catalog:0.1.0",
   vllm: "quay.io/cywell/opslens-vllm:0.1.0",
-  qdrant: "docker.io/qdrant/qdrant:v1.12.1"
+  pgvector: "docker.io/pgvector/pgvector:pg16"
 };
 
 function parseArgs(argv) {

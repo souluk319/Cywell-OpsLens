@@ -49,7 +49,7 @@ const imageBuilds = [
 
 const externalImages = new Map([
   ["vllm", "quay.io/cywell/opslens-vllm:0.1.0"],
-  ["qdrant", "docker.io/qdrant/qdrant:v1.12.1"]
+  ["pgvector", "docker.io/pgvector/pgvector:pg16"]
 ]);
 
 const checks = [];

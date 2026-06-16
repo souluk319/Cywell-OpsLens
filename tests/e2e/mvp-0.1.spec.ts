@@ -502,7 +502,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       mode: "local",
       status: "disabled",
       provider: {
-        vectorStore: "qdrant",
+        vectorStore: "pgvector",
         modelRuntime: "vllm"
       },
       retrievalAttempted: false,
@@ -510,7 +510,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       citationsUsed: "local-fallback"
     });
     expect(askBody.audit?.runtimeRag?.missingEvidence?.join(" ")).toContain(
-      "live Qdrant/vLLM retrieval was not requested"
+      "live Postgres/pgvector and vLLM retrieval was not requested"
     );
     expect(askBody.audit?.sources?.length).toBeGreaterThanOrEqual(2);
     expect(JSON.stringify(askBody)).not.toContain("secret-demo");
@@ -1406,7 +1406,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           runtimePlatformOwner?: string;
           dataMlOwner?: string;
           liveProbeEnabled?: boolean;
-          qdrantStatus?: string;
+          pgvectorStatus?: string;
           vllmStatus?: string;
           runtimeReadinessAction?: {
             id?: string;
@@ -4399,7 +4399,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       rawDocumentReturned: false
     });
     expect(body.runtime?.readiness?.vectorStore).toMatchObject({
-      provider: "qdrant",
+      provider: "pgvector",
       liveProbeEnabled: false
     });
     expect(body.runtime?.readiness?.modelRuntime).toMatchObject({
@@ -4409,7 +4409,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(body.runtime?.readiness?.liveEvidenceHandoff).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          provider: "qdrant",
+          provider: "pgvector",
           owner: "runtime-platform",
           writesLocalEvidence: true,
           requiresExplicitApproval: true,
@@ -4450,7 +4450,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       runtimePlatformOwner: "runtime-platform",
       dataMlOwner: "data-ml-engineer",
       liveProbeEnabled: false,
-      qdrantStatus: body.runtime?.readiness?.vectorStore?.status,
+      pgvectorStatus: body.runtime?.readiness?.vectorStore?.status,
       vllmStatus: body.runtime?.readiness?.modelRuntime?.status,
       mutationAllowedByThisVerifier: false,
       clusterMutationAttempted: false,
@@ -4460,7 +4460,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.runtime?.liveHandoff?.runtimeReadinessAction
     ).toMatchObject({
-      id: "runtime-platform-run-live-vllm-qdrant-probes",
+      id: "runtime-platform-run-live-vllm-pgvector-probes",
       owner: "runtime-platform"
     });
     expect(
@@ -4536,7 +4536,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       mutationAllowed: false
     });
     expect(runtimeReadinessBody.vectorStore).toMatchObject({
-      provider: "qdrant",
+      provider: "pgvector",
       liveProbeEnabled: false
     });
     expect(runtimeReadinessBody.modelRuntime).toMatchObject({
@@ -4546,7 +4546,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(runtimeReadinessBody.liveEvidenceHandoff).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          provider: "qdrant",
+          provider: "pgvector",
           owner: "runtime-platform",
           writesLocalEvidence: true,
           requiresExplicitApproval: true,
@@ -5689,7 +5689,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.externalRuntimePlan?.externalImages?.map(
         (image) => image.name
       )
-    ).toEqual(expect.arrayContaining(["vllm", "qdrant"]));
+    ).toEqual(expect.arrayContaining(["vllm", "pgvector"]));
     expect(
       body.installReadiness?.externalRuntimePlan?.externalImages?.map(
         (image) => `${image.name}:${image.draftStatus}`
@@ -5697,14 +5697,14 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^vllm:(missing|draft-needs-evidence|draft-review-ready)$/),
-        expect.stringMatching(/^qdrant:(missing|draft-needs-evidence|draft-review-ready)$/)
+        expect.stringMatching(/^pgvector:(missing|draft-needs-evidence|draft-review-ready)$/)
       ])
     );
     expect(
       body.installReadiness?.externalRuntimePlan?.evidenceTemplates?.map(
         (template) => `${template.name}:${template.status}`
       )
-    ).toEqual(expect.arrayContaining(["vllm:ready", "qdrant:ready"]));
+    ).toEqual(expect.arrayContaining(["vllm:ready", "pgvector:ready"]));
     expect(body.installReadiness?.externalRuntimePlan?.evidenceDrafts).toEqual(
       expect.any(Array)
     );
@@ -5753,12 +5753,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.externalRuntimeReview?.images?.map(
         (image) => image.name
       )
-    ).toEqual(expect.arrayContaining(["vllm", "qdrant"]));
+    ).toEqual(expect.arrayContaining(["vllm", "pgvector"]));
     expect(
       body.installReadiness?.externalRuntimeReview?.firstReviewerActions?.map(
         (action) => action.imageName
       )
-    ).toEqual(expect.arrayContaining(["vllm", "qdrant"]));
+    ).toEqual(expect.arrayContaining(["vllm", "pgvector"]));
     expect(
       body.installReadiness?.externalRuntimeReview?.firstReviewerActions?.every(
         (action) =>
@@ -5858,7 +5858,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^vllm:(pass|needs-evidence|missing)$/),
-        expect.stringMatching(/^qdrant:(pass|needs-evidence|missing)$/)
+        expect.stringMatching(/^pgvector:(pass|needs-evidence|missing)$/)
       ])
     );
     expect(
@@ -5868,36 +5868,36 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^vllm:(needs-candidate|no-improving-candidate|candidate-ready-for-review|current-evidence-release-eligible|missing)$/),
-        expect.stringMatching(/^qdrant:(candidate-reduces-risk-but-remediation-required|candidate-ready-for-review|current-evidence-release-eligible|missing)$/)
+        expect.stringMatching(/^pgvector:(candidate-reduces-risk-but-remediation-required|candidate-ready-for-review|current-evidence-release-eligible|missing)$/)
       ])
     );
-    const qdrantCandidate = body.installReadiness?.externalRuntimeReview?.images?.find(
-      (image) => image.name === "qdrant"
+    const pgvectorCandidate = body.installReadiness?.externalRuntimeReview?.images?.find(
+      (image) => image.name === "pgvector"
     )?.candidateMatrix?.bestCandidate;
-    if (qdrantCandidate) {
-      expect(String(qdrantCandidate.criticalFindings)).toMatch(/^(\d+|unknown)$/);
-      expect(String(qdrantCandidate.highFindings)).toMatch(/^(\d+|unknown)$/);
+    if (pgvectorCandidate) {
+      expect(String(pgvectorCandidate.criticalFindings)).toMatch(/^(\d+|unknown)$/);
+      expect(String(pgvectorCandidate.highFindings)).toMatch(/^(\d+|unknown)$/);
     }
     const externalRuntimeCandidateHandoff =
       body.installReadiness?.externalRuntimeReview?.candidateHandoff ?? [];
     expect(externalRuntimeCandidateHandoff.map((handoff) => handoff.imageName)).toEqual(
-      expect.arrayContaining(["vllm", "qdrant"])
+      expect.arrayContaining(["vllm", "pgvector"])
     );
-    const qdrantCandidateHandoff = externalRuntimeCandidateHandoff.find(
-      (handoff) => handoff.imageName === "qdrant"
+    const pgvectorCandidateHandoff = externalRuntimeCandidateHandoff.find(
+      (handoff) => handoff.imageName === "pgvector"
     );
-    expect(qdrantCandidateHandoff).toMatchObject({
+    expect(pgvectorCandidateHandoff).toMatchObject({
       status: "ready-for-human-review",
       owner: "security-reviewer",
-      candidateImage: "cywell/opslens-qdrant:candidate",
+      candidateImage: "cywell/opslens-pgvector:candidate",
       releaseEligible: true,
       criticalFindings: 0,
       highFindings: 0,
       approvalRequired: true,
       mutationAllowed: false
     });
-    expect(qdrantCandidateHandoff?.nextCommand).toContain("--scan-status approved");
-    expect(qdrantCandidateHandoff?.blockedBy?.join(" ")).toMatch(
+    expect(pgvectorCandidateHandoff?.nextCommand).toContain("--scan-status approved");
+    expect(pgvectorCandidateHandoff?.blockedBy?.join(" ")).toMatch(
       /final reviewed runtime evidence/
     );
     const vllmCandidateHandoff = externalRuntimeCandidateHandoff.find(
@@ -5913,7 +5913,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       body.installReadiness?.externalRuntimeReview?.finalEvidenceHandoff ?? [];
     expect(
       externalRuntimeFinalEvidenceHandoff.map((handoff) => handoff.imageName)
-    ).toEqual(expect.arrayContaining(["vllm", "qdrant"]));
+    ).toEqual(expect.arrayContaining(["vllm", "pgvector"]));
     expect(
       externalRuntimeFinalEvidenceHandoff.every(
         (handoff) =>
@@ -5935,7 +5935,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^vllm:(needs-reviewed-inputs|ready-for-promotion-review|reviewed-final-present)$/),
-        expect.stringMatching(/^qdrant:(needs-reviewed-inputs|ready-for-promotion-review|reviewed-final-present)$/)
+        expect.stringMatching(/^pgvector:(needs-reviewed-inputs|ready-for-promotion-review|reviewed-final-present)$/)
       ])
     );
     expect(
@@ -6011,7 +6011,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       body.installReadiness?.securityScanPlan?.images?.map((image) => image.name)
     ).toEqual(
-      expect.arrayContaining(["operator", "api", "dashboard", "bundle", "vllm", "qdrant"])
+      expect.arrayContaining(["operator", "api", "dashboard", "bundle", "vllm", "pgvector"])
     );
     expect(body.installReadiness?.securityScanPlan?.runnerEvidence).toMatchObject({
       actionMode: "scanEvidenceLocalWrite",
@@ -6088,7 +6088,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(
       securityReviewFinalHandoff.map((handoff) => handoff.imageName)
     ).toEqual(
-      expect.arrayContaining(["operator", "api", "dashboard", "bundle", "vllm", "qdrant"])
+      expect.arrayContaining(["operator", "api", "dashboard", "bundle", "vllm", "pgvector"])
     );
     expect(
       securityReviewFinalHandoff.every(
@@ -6111,7 +6111,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toEqual(
       expect.arrayContaining([
         expect.stringMatching(/^operator:(needs-reviewed-inputs|ready-for-promotion-review|reviewed-final-present)$/),
-        expect.stringMatching(/^qdrant:(needs-reviewed-inputs|ready-for-promotion-review|reviewed-final-present)$/)
+        expect.stringMatching(/^pgvector:(needs-reviewed-inputs|ready-for-promotion-review|reviewed-final-present)$/)
       ])
     );
     const securityReviewTickets =
@@ -7207,7 +7207,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       );
     expect(runtimeLiveCriticalPath).toMatchObject({
       owner: "runtime-platform",
-      actionId: "runtime-platform-run-live-vllm-qdrant-probes",
+      actionId: "runtime-platform-run-live-vllm-pgvector-probes",
       runtimeEvidenceTicketPacket: {
         id: "runtime-platform-live-runtime-evidence-ticket",
         owner: "runtime-platform",
@@ -7779,10 +7779,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       );
     expect(externalRuntimeLicenseCriticalPath?.owner).toBe("product-owner");
     expect(externalRuntimeLicenseCriticalPath?.actionId).toMatch(
-      /external-runtime-(vllm|qdrant)-product-owner-\d+/
+      /external-runtime-(vllm|pgvector)-product-owner-\d+/
     );
     expect(externalRuntimeLicenseCriticalPath?.source).toMatch(
-      /^externalRuntimeReviewPacket:(vllm|qdrant)$/
+      /^externalRuntimeReviewPacket:(vllm|pgvector)$/
     );
     expect(externalRuntimeLicenseCriticalPath?.nextCommand).toContain(
       "--license-status approved"
@@ -8104,26 +8104,29 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           /releaseEligible=(true|false)/.test(bestCandidateDiagnostic ?? "")
       ).toBe(true);
     }
-    const qdrantCandidateAction =
+    const pgvectorCandidateAction =
       body.installReadiness?.actionQueue?.items?.find(
-        (item) => item.id === "external-runtime-qdrant-candidate-matrix"
+        (item) => item.id === "external-runtime-pgvector-candidate-matrix"
       );
     expect(
-      qdrantCandidateAction?.readOnlyCommands?.map((command) => command.id)
-    ).toEqual(expect.arrayContaining(["scan-qdrant-candidate"]));
-    expect(qdrantCandidateAction?.nextCommand).toContain(
-      "evidence:external-runtime:draft"
+      pgvectorCandidateAction?.readOnlyCommands?.map((command) => command.id)
+    ).toEqual(expect.arrayContaining(["scan-pgvector-candidate"]));
+    const pgvectorNextCommand = pgvectorCandidateAction?.nextCommand ?? "";
+    expect(pgvectorNextCommand).toMatch(
+      /evidence:external-runtime:(draft|candidate-scan)/
     );
-    expect(qdrantCandidateAction?.nextCommand).toContain("--scan-evidence");
-    expect(qdrantCandidateAction?.nextCommand).toContain("--sbom-evidence");
-    expect(qdrantCandidateAction?.nextCommand).toContain(
-      "qdrant-cywell-minimal-ubi9"
-    );
-    expect(qdrantCandidateAction?.evidenceNeeded).toContain(
+    if (pgvectorNextCommand.includes("candidate-scan")) {
+      expect(pgvectorNextCommand).toContain("cywell/opslens-pgvector:candidate");
+      expect(pgvectorNextCommand).toContain("cywell-postgres-pgvector");
+    } else {
+      expect(pgvectorNextCommand).toContain("--scan-evidence");
+      expect(pgvectorNextCommand).toContain("--sbom-evidence");
+    }
+    expect(pgvectorCandidateAction?.evidenceNeeded).toContain(
       "criticalFindings=0"
     );
-    expect(qdrantCandidateAction?.evidenceNeeded).toContain("sbom=");
-    expect(qdrantCandidateAction?.diagnostics?.map((item) => item.id)).toEqual(
+    expect(pgvectorCandidateAction?.evidenceNeeded).toContain("sbom=");
+    expect(pgvectorCandidateAction?.diagnostics?.map((item) => item.id)).toEqual(
       expect.arrayContaining([
         "candidate-status",
         "candidate-best",
@@ -8133,12 +8136,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       ])
     );
     expect(
-      qdrantCandidateAction?.diagnostics
+      pgvectorCandidateAction?.diagnostics
         ?.find((item) => item.id === "candidate-findings")
         ?.value
     ).toMatch(/critical=0.*high=0/);
     expect(
-      qdrantCandidateAction?.diagnostics
+      pgvectorCandidateAction?.diagnostics
         ?.find((item) => item.id === "candidate-review")
         ?.value
     ).toContain("promotionApproved=false");
@@ -8650,7 +8653,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     }
     const runtimeLiveAction =
       body.installReadiness?.actionQueue?.items?.find(
-        (item) => item.id === "runtime-platform-run-live-vllm-qdrant-probes"
+        (item) => item.id === "runtime-platform-run-live-vllm-pgvector-probes"
       );
     if (
       body.installReadiness?.refresh?.missingEvidence?.some((entry) =>
@@ -8666,7 +8669,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect(runtimeLiveAction?.diagnostics?.map((item) => item.id)).toEqual(
         expect.arrayContaining([
           "runtime-readiness-status",
-          "runtime-readiness-qdrant",
+          "runtime-readiness-pgvector",
           "runtime-readiness-vllm"
         ])
       );
@@ -8684,7 +8687,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         );
       expect(runtimeLiveCriticalPath).toMatchObject({
         owner: "runtime-platform",
-        actionId: "runtime-platform-run-live-vllm-qdrant-probes",
+        actionId: "runtime-platform-run-live-vllm-pgvector-probes",
         source: "runtimeReadiness"
       });
       expect(runtimeLiveCriticalPath?.readOnlyCommandIds).toEqual(
@@ -9381,7 +9384,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "readOnly"
     );
     await expect(page.getByTestId("opslens-runtime-readiness")).toContainText(
-      "qdrant="
+      "pgvector="
     );
     await expect(page.getByTestId("opslens-runtime-readiness")).toContainText(
       "vllm="
@@ -9403,7 +9406,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(
       page.getByTestId("opslens-runtime-live-handoff-actions")
-    ).toContainText("runtime-platform-run-live-vllm-qdrant-probes");
+    ).toContainText("runtime-platform-run-live-vllm-pgvector-probes");
     await expect(
       page.getByTestId("opslens-runtime-live-handoff-actions")
     ).toContainText("runtime-readiness-live");
@@ -9430,7 +9433,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText("mutationAllowed=false");
     await expect(
       page.getByTestId("opslens-runtime-live-evidence-handoff")
-    ).toContainText("qdrant");
+    ).toContainText("pgvector");
     await expect(
       page.getByTestId("opslens-runtime-live-evidence-handoff")
     ).toContainText("vllm");
@@ -10300,10 +10303,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText(/zeroCritical=/);
     await expect(
       page.getByTestId("opslens-external-runtime-candidate-handoff")
-    ).toContainText("qdrant:ready-for-human-review");
+    ).toContainText("pgvector:ready-for-human-review");
     await expect(
       page.getByTestId("opslens-external-runtime-candidate-handoff")
-    ).toContainText("candidate=cywell/opslens-qdrant:candidate");
+    ).toContainText("candidate=cywell/opslens-pgvector:candidate");
     await expect(
       page.getByTestId("opslens-external-runtime-candidate-handoff")
     ).toContainText("critical=0");
@@ -10920,7 +10923,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toContainText(/catalog-mutation-boundary|catalog registry actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-runtime-live-actions")
-    ).toContainText(/runtime-platform-run-live-vllm-qdrant-probes|runtime live actions clear/);
+    ).toContainText(/runtime-platform-run-live-vllm-pgvector-probes|runtime live actions clear/);
     await expect(
       page.getByTestId("opslens-release-action-queue-runtime-live-actions")
     ).toContainText(/runtime-readiness-live|runtime live actions clear/);

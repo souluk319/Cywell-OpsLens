@@ -174,11 +174,11 @@ async function main() {
     "adapter can request vLLM embeddings when runtime mode is enabled"
   );
   expectCheck(
-    "Qdrant search route",
-    runtimeRagSource.includes("CYWELL_OPSLENS_VECTOR_URL") &&
-      runtimeRagSource.includes("points/search") &&
-      runtimeRagSource.includes("with_payload: true"),
-    "adapter can search Qdrant with payload snippets when runtime mode is enabled"
+    "Postgres pgvector search route",
+    runtimeRagSource.includes("CYWELL_OPSLENS_POSTGRES_URL") &&
+      runtimeRagSource.includes("embedding <=>") &&
+      runtimeRagSource.includes("redacted = true"),
+    "adapter can search Postgres/pgvector with redacted snippet rows when runtime mode is enabled"
   );
   expectCheck(
     "snippet-only payload",
@@ -232,13 +232,13 @@ async function main() {
   expectCheck(
     "e2e coverage",
     e2eSource.includes("runtimeRag") &&
-      e2eSource.includes("live Qdrant/vLLM retrieval was not requested"),
+      e2eSource.includes("live Postgres/pgvector and vLLM retrieval was not requested"),
     "AC-LS-001 e2e asserts default runtime RAG fallback contract"
   );
 
   warn(
     "live runtime retrieval evidence",
-    "static contract is present; live vLLM embedding plus Qdrant search still requires reachable runtime endpoints"
+    "static contract is present; live vLLM embedding plus Postgres/pgvector search still requires reachable runtime endpoints"
   );
 
   const failures = checks.filter((check) => check.status === "FAIL");
@@ -264,24 +264,24 @@ async function main() {
     runtimeRag: {
       defaultMode: "local",
       optInModes: ["hybrid", "runtime"],
-      vectorStore: "qdrant",
+      vectorStore: "pgvector",
       modelRuntime: "vllm",
-      collectionPrefixEnv: "CYWELL_OPSLENS_QDRANT_COLLECTION_PREFIX",
+      collectionPrefixEnv: "CYWELL_OPSLENS_PGVECTOR_TABLE_PREFIX",
       embeddingModelEnv: "CYWELL_OPSLENS_EMBEDDING_MODEL"
     },
     evidence: [
       "OpsLens answer path now carries runtimeRag audit data",
       "Default local mode avoids accidental live runtime network calls",
       "Operator API deployment explicitly pins CYWELL_OPSLENS_RAG_RUNTIME_MODE=local",
-      "Hybrid/runtime modes attempt vLLM embeddings and Qdrant snippet retrieval before local fallback"
+      "Hybrid/runtime modes attempt vLLM embeddings and Postgres/pgvector snippet retrieval before local fallback"
     ],
     missingEvidence: [
       "live vLLM /v1/embeddings response against approved runtime image",
-      "live Qdrant /points/search response with tenant-scoped redacted snippets",
+      "live Postgres/pgvector read-only SELECT response with tenant-scoped redacted snippets",
       "quality evaluation that citation snippets support the generated plan"
     ],
     risk: [
-      "NEEDS_LIVE_EVIDENCE means the code path and contract exist, but deployed Qdrant/vLLM retrieval has not been proven from this verifier.",
+      "NEEDS_LIVE_EVIDENCE means the code path and contract exist, but deployed Postgres/pgvector plus vLLM retrieval has not been proven from this verifier.",
       "Embedding and vector search failures must remain visible as missingEvidence rather than being hidden behind a confident answer.",
       "Runtime RAG must not return raw documents or perform apply/delete/scale."
     ],

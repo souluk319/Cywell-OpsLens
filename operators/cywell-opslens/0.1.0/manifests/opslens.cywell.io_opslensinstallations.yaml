@@ -97,13 +97,12 @@ spec:
                         provider:
                           type: string
                           enum:
-                            - qdrant
                             - pgvector
                             - inmemory
-                          default: qdrant
+                          default: pgvector
                         image:
                           type: string
-                          default: docker.io/qdrant/qdrant:v1.12.1
+                          default: docker.io/pgvector/pgvector:pg16
                         storageSize:
                           type: string
                           default: 20Gi

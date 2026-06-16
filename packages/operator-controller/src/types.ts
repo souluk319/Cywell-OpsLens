@@ -36,7 +36,7 @@ export interface OpsLensInstallation {
         serviceName?: string;
       };
       vectorStore: {
-        provider: "qdrant" | "pgvector" | "inmemory";
+        provider: "pgvector" | "inmemory";
         image?: string;
         storageSize?: string;
       };

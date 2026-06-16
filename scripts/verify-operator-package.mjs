@@ -437,7 +437,7 @@ function validateCsv(csv) {
   }
 
   const relatedImages = (csv?.spec?.relatedImages ?? []).map((image) => image.name);
-  for (const imageName of ["operator", "api", "dashboard", "vllm", "qdrant"]) {
+  for (const imageName of ["operator", "api", "dashboard", "vllm", "pgvector"]) {
     if (relatedImages.includes(imageName)) {
       pass(`CSV related image ${imageName}`, "declared");
     } else {

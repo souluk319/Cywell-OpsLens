@@ -36,7 +36,12 @@ function runtimeRagMode(): OpsLensRuntimeRagMode {
 }
 
 function runtimeVectorUrl() {
-  return process.env.CYWELL_OPSLENS_VECTOR_URL ?? "http://cywell-opslens-vector:6333";
+  return (
+    process.env.CYWELL_OPSLENS_POSTGRES_URL ??
+    process.env.POSTGRES_URL ??
+    process.env.DATABASE_URL ??
+    "postgresql://cywell-opslens-vector:5432/opslens"
+  );
 }
 
 function runtimeModelUrl() {
@@ -62,9 +67,9 @@ function joinEndpoint(baseUrl: string, path: string) {
 }
 
 function runtimeCollectionName(tenantId: string) {
-  const prefix = process.env.CYWELL_OPSLENS_QDRANT_COLLECTION_PREFIX ?? "opslens-";
+  const prefix = process.env.CYWELL_OPSLENS_PGVECTOR_TABLE_PREFIX ?? "opslens_";
   const safeTenant = tenantId.toLowerCase().replace(/[^a-z0-9-]/g, "-");
-  return `${prefix}${safeTenant || "default"}`;
+  return `${prefix}${(safeTenant || "default").replace(/-/g, "_")}_rag_chunks`;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -143,23 +148,89 @@ function parseEmbeddingVector(payload: unknown): number[] | undefined {
   return embedding;
 }
 
-function qdrantResultPoints(payload: unknown): unknown[] {
-  const result = asRecord(payload).result;
-  if (Array.isArray(result)) return result;
-  const resultRecord = asRecord(result);
-  return Array.isArray(resultRecord.points) ? resultRecord.points : [];
+function pgvectorFixtureRows(): unknown[] | undefined {
+  const configured = process.env.CYWELL_OPSLENS_PGVECTOR_FIXTURE_ROWS;
+  if (!configured) return undefined;
+  try {
+    const parsed = JSON.parse(configured);
+    return Array.isArray(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
-function citationFromQdrantPoint(
-  point: unknown,
+function quotePgIdentifier(identifier: string) {
+  return `"${identifier.replace(/"/g, '""')}"`;
+}
+
+function quotePgTableName(tableName: string) {
+  return tableName
+    .split(".")
+    .map((part) => quotePgIdentifier(part || "opslens_rag_chunks"))
+    .join(".");
+}
+
+function vectorLiteral(vector: number[]) {
+  return `[${vector.map((value) => (Number.isFinite(value) ? value : 0)).join(",")}]`;
+}
+
+async function searchPgvectorRows(params: {
+  tableName: string;
+  tenantId: string;
+  vector: number[];
+  limit: number;
+  timeoutMs: number;
+}): Promise<unknown[]> {
+  const fixtureRows = pgvectorFixtureRows();
+  if (fixtureRows) {
+    return fixtureRows.slice(0, params.limit);
+  }
+
+  const pg = await import("pg");
+  const client = new pg.Client({
+    connectionString: runtimeVectorUrl(),
+    statement_timeout: params.timeoutMs,
+    query_timeout: params.timeoutMs,
+    connectionTimeoutMillis: params.timeoutMs
+  });
+
+  await client.connect();
+  try {
+    const tableName = quotePgTableName(params.tableName);
+    const result = await client.query(
+      `select
+         document_id,
+         id,
+         label,
+         title,
+         source_type,
+         trust_level,
+         redacted_snippet,
+         snippet,
+         chunk_snippet
+       from ${tableName}
+       where tenant_id = $1 and redacted = true
+       order by embedding <=> $2::vector
+       limit $3`,
+      [params.tenantId, vectorLiteral(params.vector), params.limit]
+    );
+    return result.rows;
+  } finally {
+    await client.end();
+  }
+}
+
+function citationFromPgvectorRow(
+  row: unknown,
   index: number
 ): OpsLensCitation | undefined {
-  const record = asRecord(point);
-  const payload = asRecord(record.payload);
+  const payload = asRecord(row);
   const snippet =
     optionalString(payload.redactedSnippet) ??
+    optionalString(payload.redacted_snippet) ??
     optionalString(payload.snippet) ??
-    optionalString(payload.chunkSnippet);
+    optionalString(payload.chunkSnippet) ??
+    optionalString(payload.chunk_snippet);
 
   if (!snippet) {
     return undefined;
@@ -167,8 +238,8 @@ function citationFromQdrantPoint(
 
   const id =
     optionalString(payload.documentId) ??
+    optionalString(payload.document_id) ??
     optionalString(payload.id) ??
-    optionalString(record.id) ??
     `runtime-rag-${index + 1}`;
 
   return {
@@ -177,8 +248,8 @@ function citationFromQdrantPoint(
       optionalString(payload.label) ??
       optionalString(payload.title) ??
       `Runtime RAG citation ${index + 1}`,
-    sourceType: normalizeSourceType(payload.sourceType),
-    trustLevel: normalizeTrustLevel(payload.trustLevel),
+    sourceType: normalizeSourceType(payload.sourceType ?? payload.source_type),
+    trustLevel: normalizeTrustLevel(payload.trustLevel ?? payload.trust_level),
     snippet: redactSensitiveText(snippet).slice(0, 360),
     redacted: true
   };
@@ -202,7 +273,7 @@ function createRuntimeAudit(params: {
     mode: params.mode,
     status: params.status,
     provider: {
-      vectorStore: "qdrant",
+      vectorStore: "pgvector",
       modelRuntime: "vllm"
     },
     collection: params.collection,
@@ -241,12 +312,12 @@ export async function retrieveRuntimeRagCitations(
         citationsUsed: "local-fallback",
         latencyMs: Math.max(1, Date.now() - startedAt),
         evidence: [
-          "runtime RAG mode=local; no Qdrant or vLLM request was made",
+          "runtime RAG mode=local; no Postgres/pgvector or vLLM request was made",
           "local tenant-scoped Markdown RAG remains the default MVP 0.1 answer source",
           "runtime RAG can be enabled with CYWELL_OPSLENS_RAG_RUNTIME_MODE=hybrid or runtime"
         ],
         missingEvidence: [
-          "live Qdrant/vLLM retrieval was not requested for this response"
+          "live Postgres/pgvector and vLLM retrieval was not requested for this response"
         ]
       })
     };
@@ -254,9 +325,9 @@ export async function retrieveRuntimeRagCitations(
 
   const evidence = [
     `runtime RAG mode=${mode}`,
-    `runtime RAG collection=${collection}`,
+    `runtime RAG pgvector table=${collection}`,
     "query text is redacted before vLLM embedding request",
-    "Qdrant payload conversion only accepts redacted snippet fields"
+    "Postgres/pgvector row conversion only accepts redacted snippet fields"
   ];
   let embeddingAttempted = false;
   let vectorSearchAttempted = false;
@@ -279,37 +350,15 @@ export async function retrieveRuntimeRagCitations(
     evidence.push(`vLLM embedding returned ${vector.length} dimensions`);
 
     vectorSearchAttempted = true;
-    const searchPayload = await fetchJson({
-      url: joinEndpoint(
-        runtimeVectorUrl(),
-        `/collections/${encodeURIComponent(collection)}/points/search`
-      ),
-      method: "POST",
-      timeoutMs: runtimeProbeTimeoutMs(),
-      body: {
-        vector,
-        limit: params.maxDocuments,
-        with_payload: true,
-        filter: {
-          must: [
-            {
-              key: "tenantId",
-              match: {
-                value: params.tenantId
-              }
-            },
-            {
-              key: "redacted",
-              match: {
-                value: true
-              }
-            }
-          ]
-        }
-      }
+    const rows = await searchPgvectorRows({
+      tableName: collection,
+      tenantId: params.tenantId,
+      vector,
+      limit: params.maxDocuments,
+      timeoutMs: runtimeProbeTimeoutMs()
     });
-    const citations = qdrantResultPoints(searchPayload)
-      .map((point, index) => citationFromQdrantPoint(point, index))
+    const citations = rows
+      .map((row, index) => citationFromPgvectorRow(row, index))
       .filter((citation): citation is OpsLensCitation => Boolean(citation))
       .slice(0, params.maxDocuments);
 
@@ -329,7 +378,7 @@ export async function retrieveRuntimeRagCitations(
           latencyMs: Math.max(1, Date.now() - startedAt),
           evidence,
           missingEvidence: [
-            "runtime Qdrant search returned no redacted snippet citations",
+            "runtime Postgres/pgvector search returned no redacted snippet citations",
             "local RAG fallback was used to avoid an unsupported answer"
           ]
         })
@@ -351,7 +400,7 @@ export async function retrieveRuntimeRagCitations(
         latencyMs: Math.max(1, Date.now() - startedAt),
         evidence: [
           ...evidence,
-          `Qdrant returned ${citations.length} redacted citation(s)`
+          `Postgres/pgvector returned ${citations.length} redacted citation(s)`
         ],
         missingEvidence: []
       })

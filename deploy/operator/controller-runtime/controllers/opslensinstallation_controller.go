@@ -160,12 +160,14 @@ func (r *OpsLensInstallationReconciler) reconcileDashboardService(ctx context.Co
 
 func (r *OpsLensInstallationReconciler) reconcileVectorService(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
 	port := int32(6333)
+	portName := "http"
 	if installation.Spec.Components.VectorStore.Provider == "pgvector" {
 		port = 5432
+		portName = "postgres"
 	}
 
 	return r.reconcileService(ctx, installation, namespace, "cywell-opslens-vector", "vector-store", []corev1.ServicePort{
-		{Name: "http", Port: port, TargetPort: intstr.FromString("http")},
+		{Name: portName, Port: port, TargetPort: intstr.FromString(portName)},
 	})
 }
 
@@ -352,13 +354,26 @@ func (r *OpsLensInstallationReconciler) reconcileDashboardDeployment(ctx context
 }
 
 func (r *OpsLensInstallationReconciler) reconcileVectorStore(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
-	provider := valueOrDefault(installation.Spec.Components.VectorStore.Provider, "qdrant")
-	image := valueOrDefault(installation.Spec.Components.VectorStore.Image, "docker.io/qdrant/qdrant:v1.12.1")
+	provider := valueOrDefault(installation.Spec.Components.VectorStore.Provider, "pgvector")
+	image := valueOrDefault(installation.Spec.Components.VectorStore.Image, "docker.io/pgvector/pgvector:pg16")
 	port := int32(6333)
-	mountPath := "/qdrant/storage"
+	portName := "http"
+	mountPath := "/var/lib/opslens/vector"
+	var env []corev1.EnvVar
 	if provider == "pgvector" {
 		port = 5432
+		portName = "postgres"
 		mountPath = "/var/lib/postgresql/data"
+		env = []corev1.EnvVar{
+			{Name: "POSTGRES_DB", Value: "opslens"},
+			{Name: "POSTGRES_USER", Value: "opslens"},
+			{Name: "POSTGRES_PASSWORD", ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{Name: "cywell-opslens-postgres-auth"},
+					Key:                  "password",
+				},
+			}},
+		}
 	}
 	storageSize := valueOrDefault(installation.Spec.Components.VectorStore.StorageSize, "20Gi")
 	storageQuantity, err := resource.ParseQuantity(storageSize)
@@ -384,8 +399,9 @@ func (r *OpsLensInstallationReconciler) reconcileVectorStore(ctx context.Context
 				Name:            provider,
 				Image:           image,
 				ImagePullPolicy: corev1.PullIfNotPresent,
+				Env:             env,
 				Ports: []corev1.ContainerPort{
-					{Name: "http", ContainerPort: port},
+					{Name: portName, ContainerPort: port},
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{Name: "vector-data", MountPath: mountPath},
@@ -538,7 +554,13 @@ func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Conte
 					{Name: "PORT", Value: fmt.Sprintf("%d", httpsContainerPort)},
 					{Name: "CYWELL_OPSLENS_TLS_CERT_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.crt"},
 					{Name: "CYWELL_OPSLENS_TLS_KEY_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.key"},
-					{Name: "CYWELL_OPSLENS_VECTOR_URL", Value: "http://cywell-opslens-vector:6333"},
+					{Name: "CYWELL_OPSLENS_VECTOR_PROVIDER", Value: valueOrDefault(installation.Spec.Components.VectorStore.Provider, "pgvector")},
+					{Name: "CYWELL_OPSLENS_POSTGRES_URL", ValueFrom: &corev1.EnvVarSource{
+						SecretKeyRef: &corev1.SecretKeySelector{
+							LocalObjectReference: corev1.LocalObjectReference{Name: "cywell-opslens-postgres-auth"},
+							Key:                  "url",
+						},
+					}},
 					{Name: "CYWELL_OPSLENS_MODEL_URL", Value: "http://cywell-opslens-vllm:8000"},
 					{Name: "CYWELL_OPSLENS_RAG_RUNTIME_MODE", Value: "local"},
 					{Name: "CYWELL_OPSLENS_ACTION_MODE", Value: "plan-only"},

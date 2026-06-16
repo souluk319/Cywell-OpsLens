@@ -219,7 +219,8 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
   const rag = normalizeRagSettings(installation);
   const apiServiceName = api.serviceName ?? "cywell-opslens-api";
   const dashboardServiceName = dashboard.serviceName ?? "cywell-opslens-dashboard";
-  const vectorImage = vector.image ?? "docker.io/qdrant/qdrant:v1.12.1";
+  const vectorProvider = vector.provider ?? "pgvector";
+  const vectorImage = vector.image ?? "docker.io/pgvector/pgvector:pg16";
   const runtimeImage = runtime.image ?? "quay.io/cywell/opslens-vllm:0.1.0";
   const resources: KubernetesObject[] = [
     {
@@ -285,8 +286,17 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
           value: `${tlsMountPath}/tls.key`
         },
         {
-          name: "CYWELL_OPSLENS_VECTOR_URL",
-          value: "http://cywell-opslens-vector:6333"
+          name: "CYWELL_OPSLENS_VECTOR_PROVIDER",
+          value: vectorProvider
+        },
+        {
+          name: "CYWELL_OPSLENS_POSTGRES_URL",
+          valueFrom: {
+            secretKeyRef: {
+              name: "cywell-opslens-postgres-auth",
+              key: "url"
+            }
+          }
         },
         {
           name: "CYWELL_OPSLENS_MODEL_URL",
@@ -468,19 +478,40 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
           spec: {
             containers: [
               {
-                name: vector.provider === "pgvector" ? "pgvector" : "qdrant",
+                name: vectorProvider === "inmemory" ? "inmemory" : "pgvector",
                 image: vectorImage,
                 imagePullPolicy: "IfNotPresent",
+                env: vectorProvider === "pgvector"
+                  ? [
+                      {
+                        name: "POSTGRES_DB",
+                        value: "opslens"
+                      },
+                      {
+                        name: "POSTGRES_USER",
+                        value: "opslens"
+                      },
+                      {
+                        name: "POSTGRES_PASSWORD",
+                        valueFrom: {
+                          secretKeyRef: {
+                            name: "cywell-opslens-postgres-auth",
+                            key: "password"
+                          }
+                        }
+                      }
+                    ]
+                  : undefined,
                 ports: [
                   {
-                    name: "http",
-                    containerPort: vector.provider === "pgvector" ? 5432 : 6333
+                    name: vectorProvider === "pgvector" ? "postgres" : "http",
+                    containerPort: vectorProvider === "pgvector" ? 5432 : 6333
                   }
                 ],
                 volumeMounts: [
                   {
                     name: "vector-data",
-                    mountPath: vector.provider === "pgvector" ? "/var/lib/postgresql/data" : "/qdrant/storage"
+                    mountPath: vectorProvider === "pgvector" ? "/var/lib/postgresql/data" : "/var/lib/opslens/vector"
                   }
                 ]
               }
@@ -507,8 +538,8 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
     service("cywell-opslens-vector", namespace, "vector-store", [
       {
         name: "http",
-        port: vector.provider === "pgvector" ? 5432 : 6333,
-        targetPort: "http"
+        port: vectorProvider === "pgvector" ? 5432 : 6333,
+        targetPort: vectorProvider === "pgvector" ? "postgres" : "http"
       }
     ]),
     deployment("cywell-opslens-vllm", namespace, "model-runtime", runtimeImage, runtime.replicas ?? 1, {

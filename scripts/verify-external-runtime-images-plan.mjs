@@ -22,7 +22,7 @@ const defaults = {
   timeoutMs: 10000
 };
 
-const externalRuntimeNames = new Set(["vllm", "qdrant"]);
+const externalRuntimeNames = new Set(["vllm", "pgvector"]);
 
 function parseArgs(argv) {
   const values = new Map();
@@ -188,9 +188,9 @@ function externalRuntimeImages(csvImages) {
   return Array.from(externalRuntimeNames).map((name) => ({
     name,
     image: csvImages.get(name) ?? "missing",
-    sourceType: name === "qdrant" ? "third-party-vector-store" : "externally-built-model-runtime",
-    desiredMirror: name === "qdrant"
-      ? "<internal-registry>/cywell/qdrant:v1.12.1"
+    sourceType: name === "pgvector" ? "third-party-vector-store" : "externally-built-model-runtime",
+    desiredMirror: name === "pgvector"
+      ? "<internal-registry>/cywell/pgvector:pg16"
       : "<internal-registry>/cywell/opslens-vllm:0.1.0",
     evidenceFile: resolve(options.externalEvidenceDir, `${name}.json`),
     draftFile: resolve(options.externalEvidenceDir, `${name}.draft.json`)
@@ -300,7 +300,7 @@ function externalRuntimeGapNextCommand(gap) {
   if (/external runtime evidence missing at/i.test(gap)) {
     return "npm run evidence:external-runtime:review-packet";
   }
-  const imageMatch = gap.match(/\b(vllm|qdrant)\b/i);
+  const imageMatch = gap.match(/\b(vllm|pgvector)\b/i);
   const imageName = imageMatch?.[1]?.toLowerCase();
   if (/license|support|product/i.test(gap) && imageName) {
     return `npm run evidence:external-runtime:draft -- --name ${imageName} --license-status approved --license-evidence <license-review-ticket> --ticket <change-ticket> --force`;
@@ -362,7 +362,7 @@ function buildFirstPlanActions(missingEvidence, commands) {
           status: "approval-gated",
           request: `Do not run ${firstMutatingCommand.id} until external runtime approvals are explicit.`,
           evidenceNeeded:
-            "Final vLLM/qdrant certification, scan, SBOM, provenance, license/support, mirror digest, and release approvals are recorded.",
+            "Final vLLM/pgvector certification, scan, SBOM, provenance, license/support, mirror digest, and release approvals are recorded.",
           nextCommand: firstMutatingCommand.command,
           mutation: true,
           requiresExplicitApproval: true,
@@ -465,14 +465,14 @@ function loadEvidenceTemplates(images) {
     expectCheck(
       "external runtime evidence README",
       text.includes("vllm.json") &&
-        text.includes("qdrant.json") &&
+        text.includes("pgvector.json") &&
         text.includes("sourceDigest") &&
         text.includes("mirroredDigest") &&
         text.includes("criticalFindings=0") &&
         requiredReadmeSections.every((section) => text.includes(section)) &&
         requiredReadmeTerms.every((term) => text.includes(term)),
-      "README documents vLLM/Qdrant files, immutable digests, reviewer roles, evidence states, and approval-gated commands",
-      `README must document vLLM/Qdrant files, source/mirror digests, criticalFindings=0, sections=${requiredReadmeSections.join(", ")}, terms=${requiredReadmeTerms.join(", ")}`
+      "README documents vLLM/Postgres/pgvector files, immutable digests, reviewer roles, evidence states, and approval-gated commands",
+      `README must document vLLM/Postgres/pgvector files, source/mirror digests, criticalFindings=0, sections=${requiredReadmeSections.join(", ")}, terms=${requiredReadmeTerms.join(", ")}`
     );
   }
 
@@ -646,7 +646,7 @@ async function buildPlan() {
     "external runtime inventory",
     images.every((image) => image.image !== "missing"),
     images.map((image) => `${image.name}=${image.image}`).join(", "),
-    "CSV must include vllm and qdrant relatedImages"
+    "CSV must include vllm and pgvector relatedImages"
   );
 
   for (const image of images) {
@@ -797,7 +797,7 @@ async function buildPlan() {
     missingEvidence,
     risk: [
       "External runtime image tags can drift unless certification evidence records immutable source and mirror digests.",
-      "Qdrant is a third-party vector store image and needs license, vulnerability, and support boundary evidence before Certified Operator submission.",
+      "Postgres/pgvector is a third-party vector store image and needs license, vulnerability, and support boundary evidence before Certified Operator submission.",
       "vLLM/model runtime provenance must be documented because this repository does not build that image.",
       "Wrong mirror references can break disconnected installs even when the Operator bundle itself is valid."
     ],

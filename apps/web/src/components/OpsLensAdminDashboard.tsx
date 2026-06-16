@@ -1352,7 +1352,7 @@ export function OpsLensAdminDashboard() {
           >
             <span>{overview?.runtime.readiness.actionMode ?? "readOnly"}</span>
             <span>
-              qdrant={overview?.runtime.readiness.vectorStore.status ?? "--"}
+              pgvector={overview?.runtime.readiness.vectorStore.status ?? "--"}
             </span>
             <span>
               vllm={overview?.runtime.readiness.modelRuntime.status ?? "--"}
@@ -1377,7 +1377,7 @@ export function OpsLensAdminDashboard() {
             <span>
               liveProbe={String(runtimeLiveHandoff?.liveProbeEnabled ?? false)}
             </span>
-            <span>qdrant={runtimeLiveHandoff?.qdrantStatus ?? "--"}</span>
+            <span>pgvector={runtimeLiveHandoff?.pgvectorStatus ?? "--"}</span>
             <span>vllm={runtimeLiveHandoff?.vllmStatus ?? "--"}</span>
           </div>
           <div

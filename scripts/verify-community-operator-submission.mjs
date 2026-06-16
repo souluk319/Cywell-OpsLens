@@ -300,7 +300,7 @@ function validateCsv(csv) {
     maintainers.map((entry) => entry.email).join(", ") || "missing",
     "CSV must include a Cywell maintainer email"
   );
-  for (const name of ["operator", "api", "dashboard", "vllm", "qdrant"]) {
+  for (const name of ["operator", "api", "dashboard", "vllm", "pgvector"]) {
     expectCheck(
       `submission CSV related image ${name}`,
       relatedImagesByName(csv).has(name),

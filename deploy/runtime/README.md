@@ -2,23 +2,22 @@
 
 This directory contains local runtime-image candidates used to reduce external runtime risk before release review.
 
-## Qdrant Runtime-Only Candidate
+## Postgres pgvector Runtime Candidate
 
-`qdrant-minimal.Dockerfile` builds a local, non-published Qdrant candidate image:
+`pgvector-postgres.Dockerfile` builds a local, non-published Postgres pgvector candidate image:
 
-- source binary: `docker.io/qdrant/qdrant:v1.18.2-unprivileged`
-- base: `registry.access.redhat.com/ubi9/ubi-minimal:9.8`
-- runtime mode: API-only vector store for OpsLens
-- intentionally omitted: Qdrant static Web UI assets
-- local tag used by evidence scripts: `cywell/opslens-qdrant:candidate`
+- source image: `docker.io/pgvector/pgvector:pg16`
+- runtime mode: tenant-scoped Postgres tables with pgvector similarity search for OpsLens RAG
+- intentionally omitted: seeded documents, tenant data, passwords, and any production connection URL
+- local tag used by evidence scripts: `cywell/opslens-pgvector:candidate`
 
 The image is a security-review candidate, not final release evidence. It must not replace CSV, FBC, CRD, sample, or fixture image references until product, security, registry, and release owners approve the final external-runtime evidence.
 
 ## Local Evidence Commands
 
 ```powershell
-docker build -f deploy/runtime/qdrant-minimal.Dockerfile -t cywell/opslens-qdrant:candidate .
-npm run evidence:external-runtime:candidate-scan -- --name qdrant --candidate-image cywell/opslens-qdrant:candidate --candidate-label cywell-minimal-ubi9 --execute-docker-fallback
+docker build -f deploy/runtime/pgvector-postgres.Dockerfile -t cywell/opslens-pgvector:candidate .
+npm run evidence:external-runtime:candidate-scan -- --name pgvector --candidate-image cywell/opslens-pgvector:candidate --candidate-label cywell-postgres-pgvector --execute-docker-fallback
 npm run evidence:external-runtime:candidates
 npm run evidence:external-runtime:review-packet
 ```
@@ -27,7 +26,7 @@ These commands write local evidence only. They do not push, mirror, sign, promot
 
 ## vLLM Long-Running Candidate Scan
 
-vLLM runtime images are much larger than the Qdrant runtime image and should be scanned in an approved long-running workstation or CI lane, not in a short interactive shell.
+vLLM runtime images are much larger than the Postgres pgvector runtime image and should be scanned in an approved long-running workstation or CI lane, not in a short interactive shell.
 
 The current review candidate inspected on 2026-06-13 is:
 
@@ -48,7 +47,7 @@ The scan passes the candidate gate only when both vulnerability and SBOM evidenc
 
 ## Acceptance For Promotion
 
-A Qdrant candidate can move from review candidate to release proposal only when:
+A Postgres pgvector candidate can move from review candidate to release proposal only when:
 
 - vulnerability evidence has `criticalFindings=0`
 - SBOM evidence is generated and reviewed

@@ -10,7 +10,7 @@ const execFileAsync = promisify(execFile);
 const defaults = {
   candidateRoot: "test-results/security-candidates",
   evidenceOutRoot: "test-results",
-  names: ["vllm", "qdrant"],
+  names: ["vllm", "pgvector"],
   timeoutMs: 600000
 };
 

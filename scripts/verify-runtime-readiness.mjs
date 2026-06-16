@@ -2,6 +2,7 @@
 import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
+import { connect } from "node:net";
 import { dirname, resolve } from "node:path";
 import { promisify } from "node:util";
 import { parseAllDocuments } from "yaml";
@@ -46,9 +47,9 @@ const options = {
   contractSource: parsed.values.get("contract-source") ?? defaults.contractSource,
   timeoutMs: Number(parsed.values.get("timeout-ms") ?? process.env.CYWELL_OPSLENS_RUNTIME_PROBE_TIMEOUT_MS ?? defaults.timeoutMs),
   live: parsed.flags.has("live") || process.env.CYWELL_OPSLENS_RUNTIME_PROBE_LIVE === "true",
-  vectorUrl: parsed.values.get("vector-url") ?? process.env.CYWELL_OPSLENS_VECTOR_URL ?? "http://cywell-opslens-vector:6333",
+  vectorUrl: parsed.values.get("vector-url") ?? process.env.CYWELL_OPSLENS_POSTGRES_URL ?? process.env.POSTGRES_URL ?? process.env.DATABASE_URL ?? "postgresql://cywell-opslens-vector:5432/opslens",
   modelUrl: parsed.values.get("model-url") ?? process.env.CYWELL_OPSLENS_MODEL_URL ?? "http://cywell-opslens-vllm:8000",
-  vectorPath: parsed.values.get("vector-path") ?? process.env.CYWELL_OPSLENS_VECTOR_HEALTH_PATH ?? "/healthz",
+  vectorPath: parsed.values.get("vector-path") ?? process.env.CYWELL_OPSLENS_POSTGRES_HEALTH_PATH ?? "tcp/5432",
   modelPath: parsed.values.get("model-path") ?? process.env.CYWELL_OPSLENS_MODEL_HEALTH_PATH ?? "/v1/models"
 };
 
@@ -203,11 +204,49 @@ function classifyHttpStatus(statusCode) {
   return "runtime-http-unexpected";
 }
 
+function postgresTcpTarget(url) {
+  try {
+    const parsedUrl = new URL(url);
+    return {
+      host: parsedUrl.hostname,
+      port: Number(parsedUrl.port || 5432)
+    };
+  } catch {
+    return {
+      host: "cywell-opslens-vector",
+      port: 5432
+    };
+  }
+}
+
+function probeTcp(url, timeoutMs) {
+  const target = postgresTcpTarget(url);
+  return new Promise((resolveProbe, rejectProbe) => {
+    const socket = connect({
+      host: target.host,
+      port: target.port
+    });
+    const timeout = setTimeout(() => {
+      socket.destroy(Object.assign(new Error("tcp probe timed out"), { code: "ETIMEDOUT" }));
+    }, timeoutMs);
+
+    socket.once("connect", () => {
+      clearTimeout(timeout);
+      socket.end();
+      resolveProbe();
+    });
+    socket.once("error", (error) => {
+      clearTimeout(timeout);
+      rejectProbe(error);
+    });
+  });
+}
+
 function probeAction(name, classification) {
-  const runtimeName = name === "qdrant" ? "Qdrant" : "vLLM";
+  const runtimeName = name === "pgvector" ? "Postgres/pgvector" : "vLLM";
   const endpointEnv =
-    name === "qdrant"
-      ? "CYWELL_OPSLENS_VECTOR_URL"
+    name === "pgvector"
+      ? "CYWELL_OPSLENS_POSTGRES_URL"
       : "CYWELL_OPSLENS_MODEL_URL";
   const command = "npm run verify:runtime -- --live --timeout-ms 30000";
   const byClassification = {
@@ -281,6 +320,24 @@ async function probe(name, url, path) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs);
   try {
+    if (name === "pgvector") {
+      await probeTcp(url, options.timeoutMs);
+      const latencyMs = Math.max(1, Date.now() - started);
+      pass(`${name} live probe`, `tcp=connected latencyMs=${latencyMs}`);
+      return {
+        name,
+        status: "ready",
+        classification: "ready",
+        liveProbeEnabled: true,
+        url: redactedUrl,
+        path,
+        latencyMs,
+        owner: "runtime-platform",
+        nextCommand: "none",
+        missingEvidence: []
+      };
+    }
+
     const response = await fetch(joinEndpoint(url, path), {
       method: "GET",
       signal: controller.signal,
@@ -351,8 +408,8 @@ function runtimeStatus(probes) {
 }
 
 function liveEvidenceHandoff(probe) {
-  const component = probe.name === "qdrant" ? "vector-store" : "model-runtime";
-  const provider = probe.name === "qdrant" ? "qdrant" : "vllm";
+  const component = probe.name === "pgvector" ? "vector-store" : "model-runtime";
+  const provider = probe.name === "pgvector" ? "pgvector" : "vllm";
   const status =
     probe.status === "ready" && probe.liveProbeEnabled
       ? "ready"
@@ -411,15 +468,16 @@ async function main() {
   expectCheck("API live evidence handoff", apiSource.includes("liveEvidenceHandoff"), "API surfaces runtime live evidence handoff");
   expectCheck("API mutation boundary", apiSource.includes("mutationAllowed: false") && apiSource.includes("rawDocumentReturned: false"), "runtime readiness remains read-only and returns no raw documents");
   expectCheck("server route", serverSource.includes("/api/opslens/runtime/readiness"), "server exposes /api/opslens/runtime/readiness");
-  expectCheck("API vector env", env.get("CYWELL_OPSLENS_VECTOR_URL") === "http://cywell-opslens-vector:6333", "API deployment points to Qdrant service");
+  expectCheck("API vector provider env", env.get("CYWELL_OPSLENS_VECTOR_PROVIDER") === "pgvector", "API deployment pins the integrated vector provider to pgvector");
+  expectCheck("API Postgres env", env.has("CYWELL_OPSLENS_POSTGRES_URL"), "API deployment points to Postgres/pgvector through a secret-backed connection URL");
   expectCheck("API model env", env.get("CYWELL_OPSLENS_MODEL_URL") === "http://cywell-opslens-vllm:8000", "API deployment points to vLLM service");
-  expectCheck("Qdrant workload", Boolean(vectorStatefulSet), "Qdrant StatefulSet is present");
-  expectCheck("Qdrant service", Boolean(vectorService), "Qdrant Service is present");
+  expectCheck("Postgres/pgvector workload", Boolean(vectorStatefulSet), "Postgres/pgvector StatefulSet is present");
+  expectCheck("Postgres/pgvector service", Boolean(vectorService), "Postgres/pgvector Service is present");
   expectCheck("vLLM workload", Boolean(modelDeployment), "vLLM Deployment is present");
   expectCheck("vLLM service", Boolean(modelService), "vLLM Service is present");
 
   const probes = [
-    await probe("qdrant", options.vectorUrl, options.vectorPath),
+    await probe("pgvector", options.vectorUrl, options.vectorPath),
     await probe("vllm", options.modelUrl, options.modelPath)
   ];
   const status = runtimeStatus(probes);
@@ -428,10 +486,10 @@ async function main() {
 
   expectCheck(
     "runtime live evidence handoff entries",
-    handoff.length === 2 &&
-      handoff.some((item) => item.provider === "qdrant") &&
+      handoff.length === 2 &&
+      handoff.some((item) => item.provider === "pgvector") &&
       handoff.some((item) => item.provider === "vllm"),
-    "runtime live evidence handoff covers qdrant and vllm"
+    "runtime live evidence handoff covers pgvector and vllm"
   );
   expectCheck(
     "runtime live evidence mutation boundary",
@@ -471,19 +529,19 @@ async function main() {
     liveEvidenceHandoff: handoff,
     evidence: [
       "API exposes a read-only runtime readiness endpoint",
-      "Operator app manifest wires API to Qdrant and vLLM service DNS names",
+      "Operator app manifest wires API to Postgres/pgvector and vLLM service DNS names",
       "Runtime live evidence handoff identifies owner, next command, missing evidence, and mutation boundary",
       "Live runtime probing is opt-in and does not mutate cluster or registry state"
     ],
     missingEvidence,
     risk: [
-      "NEEDS_LIVE_EVIDENCE means runtime endpoint shape is wired but Qdrant/vLLM reachability has not been proven.",
+      "NEEDS_LIVE_EVIDENCE means runtime endpoint shape is wired but Postgres/pgvector and vLLM reachability has not been proven.",
       "Ready probes do not replace model quality evaluation or external runtime certification evidence.",
       "Runtime readiness does not allow apply/delete/scale, image push, signing, or mirroring."
     ],
     rollbackPath: [
       "Disable live probes with CYWELL_OPSLENS_RUNTIME_PROBE_LIVE=false.",
-      "Restore previous OpsLensInstallation runtime image references if a new Qdrant/vLLM image fails readiness.",
+      "Restore previous OpsLensInstallation runtime image references if a new Postgres/pgvector or vLLM image fails readiness.",
       "Regenerate runtime, image, release, install, and checkpoint evidence from the same Git HEAD after runtime changes."
     ],
     checks

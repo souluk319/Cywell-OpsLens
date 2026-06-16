@@ -10,7 +10,7 @@ This directory holds human-reviewed vulnerability scan, SBOM, signature, and pro
 - `bundle`: Operator bundle image
 - `catalog`: internal catalog image when registry.redhat.io access is available
 - `vllm`: externally built model runtime image
-- `qdrant`: external vector store image
+- `pgvector`: external vector store image
 
 ## Evidence Rules
 
@@ -69,7 +69,7 @@ npm run verify:release-refresh -- --security-scan-docker
 For external runtime remediation research, scan a candidate image into a separate evidence directory instead of overwriting the release evidence:
 
 ```bash
-npm run evidence:external-runtime:candidate-scan -- --name qdrant --candidate-image docker.io/qdrant/qdrant:<candidate-tag> --candidate-label <candidate-tag> --execute-docker-fallback
+npm run evidence:external-runtime:candidate-scan -- --name pgvector --candidate-image docker.io/pgvector/pgvector:<candidate-tag> --candidate-label <candidate-tag> --execute-docker-fallback
 ```
 
 The candidate wrapper delegates to the security scan runner, writes candidate scan/SBOM/review-draft files under `test-results/security-candidates/<name>-<candidate-label>`, refreshes the candidate matrix after executed scans, and leaves the Operator CSV/FBC/runtime manifests unchanged. A candidate only becomes release evidence after explicit product/security approval and the normal external runtime final evidence flow.
@@ -94,9 +94,9 @@ This writes `test-results/cywell-opslens-external-runtime-candidate-matrix.json`
 - `bundle-sbom.spdx.json`
 - `vllm-vulnerability.json`
 - `vllm-sbom.spdx.json`
-- `qdrant-vulnerability.json`
-- `qdrant-sbom.spdx.json`
-- `qdrant-security-review.json`
+- `pgvector-vulnerability.json`
+- `pgvector-sbom.spdx.json`
+- `pgvector-security-review.json`
 - `security-review.example.json`
 
 Generated raw scanner outputs and reviewer drafts may be kept outside source control until reviewed because they are large release/CI artifacts. Final human-reviewed `*-security-review.json` evidence should be linked from `test-results/cywell-opslens-security-scan-plan.json` and the release evidence bundle.

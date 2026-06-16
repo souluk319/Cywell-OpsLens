@@ -1340,7 +1340,7 @@ function toolResponseProfile(params: {
           "Cywell OpsLens 설치/연동 전 read-only preflight checklist를 생성했습니다.",
         suspectedCauses: [
           "Lightspeed MCP CRD/OLSConfig live reachability가 아직 증명되지 않았을 수 있음",
-          "external vLLM/Qdrant image certification evidence가 아직 부족할 수 있음",
+          "external vLLM/Postgres pgvector image certification evidence가 아직 부족할 수 있음",
           "release/install approval evidence가 없으면 실제 배포는 진행하면 안 됨"
         ],
         recommendedSteps: [
@@ -1353,7 +1353,7 @@ function toolResponseProfile(params: {
           "live OCP API /version response",
           "live OLSConfig CRD and cluster OLSConfig read",
           "live MCP /mcp tools/list and tools/call proof",
-          "external vLLM/Qdrant certification, SBOM, provenance, mirror digest evidence",
+          "external vLLM/Postgres pgvector certification, SBOM, provenance, mirror digest evidence",
           "human approval for install, OLSConfig patch, image push/sign/mirror"
         ],
         risks: [
@@ -1494,7 +1494,12 @@ function runtimeModelName() {
 }
 
 function runtimeVectorUrl() {
-  return process.env.CYWELL_OPSLENS_VECTOR_URL ?? "http://cywell-opslens-vector:6333";
+  return (
+    process.env.CYWELL_OPSLENS_POSTGRES_URL ??
+    process.env.POSTGRES_URL ??
+    process.env.DATABASE_URL ??
+    "postgresql://cywell-opslens-vector:5432/opslens"
+  );
 }
 
 function runtimeModelUrl() {
@@ -1667,7 +1672,7 @@ export async function getOpsLensRuntimeReadiness(): Promise<OpsLensRuntimeReadin
   const liveProbeEnabled = envBoolean("CYWELL_OPSLENS_RUNTIME_PROBE_LIVE", false);
   const vectorStore = await probeRuntimeDependency({
     component: "vector-store",
-    provider: "qdrant",
+    provider: "pgvector",
     endpoint: runtimeVectorUrl(),
     probePath: runtimeVectorProbePath(),
     liveProbeEnabled
@@ -1708,13 +1713,13 @@ export async function getOpsLensRuntimeReadiness(): Promise<OpsLensRuntimeReadin
     missingEvidence,
     risk: [
       "A ready runtime probe proves endpoint reachability only; model quality, tenant isolation, and citation accuracy still require separate evaluation.",
-      "Qdrant and vLLM runtime images require certification, vulnerability scan, SBOM, provenance, mirror digest, and approval evidence before Certified Operator submission.",
+      "Postgres/pgvector and vLLM runtime images require certification, vulnerability scan, SBOM, provenance, mirror digest, and approval evidence before Certified Operator submission.",
       "Runtime readiness never permits apply/delete/scale or registry mutation."
     ],
     rollbackPath: [
       "Disable live probes by setting CYWELL_OPSLENS_RUNTIME_PROBE_LIVE=false if runtime checks are noisy during installation.",
       "Restore the previous OpsLensInstallation runtime image references if a new runtime image fails readiness.",
-      "Regenerate runtime, image, release, and install evidence after changing vLLM or Qdrant endpoints."
+      "Regenerate runtime, image, release, and install evidence after changing vLLM or Postgres/pgvector endpoints."
     ]
   };
 }
@@ -4964,7 +4969,7 @@ function getExternalRuntimeImagesPlanReadiness(): {
         mutatingCommands: [],
         firstPlanActions: [],
         risk: [
-          "No external runtime image evidence plan is available yet; vLLM/Qdrant mirror and certification work remain blocked."
+          "No external runtime image evidence plan is available yet; vLLM/Postgres pgvector mirror and certification work remain blocked."
         ],
         rollbackPath: [
           "Generate external runtime image evidence before attempting runtime image mirror or sign commands."
@@ -4974,7 +4979,7 @@ function getExternalRuntimeImagesPlanReadiness(): {
         ]
       },
       evidence: [
-        "run npm run verify:external-runtime-plan to create vLLM/Qdrant evidence plan",
+        "run npm run verify:external-runtime-plan to create vLLM/Postgres pgvector evidence plan",
         "dashboard keeps external runtime images as needs-evidence until no-mirror approval evidence is available",
         "external runtime plan evidence must keep registryMutationAttempted=false and clusterMutationAttempted=false"
       ]
@@ -5175,7 +5180,7 @@ function missingExternalRuntimeReviewPacketSummary(
     approvalGatedCommands: [],
     missingEvidence: [detail],
     risk: [
-      "External runtime reviewer packet is missing, so vLLM/Qdrant evidence asks are not dashboard-visible yet."
+      "External runtime reviewer packet is missing, so vLLM/Postgres pgvector evidence asks are not dashboard-visible yet."
     ],
     rollbackPath: [
       "Generate the external runtime review packet before release-manager review."
@@ -5450,7 +5455,7 @@ function getExternalRuntimeReviewPacketReadiness(): {
         `external runtime review packet evidence is missing at ${evidencePath}`
       ),
       evidence: [
-        "run npm run evidence:external-runtime:review-packet to create the vLLM/Qdrant reviewer packet",
+        "run npm run evidence:external-runtime:review-packet to create the vLLM/Postgres pgvector reviewer packet",
         "dashboard keeps runtime review as needs-evidence until the packet exists",
         "the packet must keep registryMutationAttempted=false and clusterMutationAttempted=false"
       ]
@@ -11182,7 +11187,7 @@ function buildRuntimeLiveHandoffSummary(
 ): OpsLensRuntimeLiveHandoffSummary {
   const runtimeReadinessAction = summarizeRuntimeLiveAction(
     actionQueue.items.find(
-      (item) => item.id === "runtime-platform-run-live-vllm-qdrant-probes"
+      (item) => item.id === "runtime-platform-run-live-vllm-pgvector-probes"
     )
   );
   const runtimeRagAction = summarizeRuntimeLiveAction(
@@ -11226,14 +11231,14 @@ function buildRuntimeLiveHandoffSummary(
     liveProbeEnabled:
       runtimeReadiness.vectorStore.liveProbeEnabled ||
       runtimeReadiness.modelRuntime.liveProbeEnabled,
-    qdrantStatus: runtimeReadiness.vectorStore.status,
+    pgvectorStatus: runtimeReadiness.vectorStore.status,
     vllmStatus: runtimeReadiness.modelRuntime.status,
     runtimeReadinessAction,
     runtimeRagAction,
     requiredReadOnlyCommands,
     approvalGatedCommandCount:
       (actionQueue.items.find(
-        (item) => item.id === "runtime-platform-run-live-vllm-qdrant-probes"
+        (item) => item.id === "runtime-platform-run-live-vllm-pgvector-probes"
       )?.approvalGatedCommands.length ?? 0) +
       (actionQueue.items.find(
         (item) => item.id === "data-ml-engineer-prove-runtime-rag-live-quality"
@@ -11244,13 +11249,13 @@ function buildRuntimeLiveHandoffSummary(
     vectorWriteAttempted: false,
     evidence: [
       "Runtime live handoff is derived from release action queue owner packets.",
-      "runtime-platform owns live vLLM/Qdrant probe evidence.",
+      "runtime-platform owns live vLLM/Postgres pgvector probe evidence.",
       "data-ml-engineer owns runtime RAG live quality evidence.",
       "No cluster, registry, or vector mutation is attempted by this handoff summary."
     ],
     missingEvidence,
     risk: [
-      "Without live vLLM/Qdrant probes, runtime readiness remains evidence-limited.",
+      "Without live vLLM/Postgres pgvector probes, runtime readiness remains evidence-limited.",
       "Without runtime RAG live quality evidence, dashboard answers cannot claim external model/vector path readiness."
     ],
     rollbackPath: [
@@ -13489,7 +13494,7 @@ function getOpsBrainSystemSummary(): OpsLensAdminOverviewResponse["opsBrain"] {
   const litellmConfigured = hasEnvValue("LITELLM_BASE_URL", "LITELLM_API_KEY");
   const memoryStoreConfigured =
     hasEnvValue("DATABASE_URL", "POSTGRES_URL") ||
-    hasEnvValue("CYWELL_OPSLENS_QDRANT_URL", "QDRANT_URL");
+    hasEnvValue("CYWELL_OPSLENS_POSTGRES_URL");
 
   return {
     status: ocpApiConfigured ? "mvp-locked" : "needs-evidence",
@@ -14133,8 +14138,8 @@ function getOpsBrainSystemSummary(): OpsLensAdminOverviewResponse["opsBrain"] {
       {
         id: "memory-store",
         label: "Structured memory/vector store",
-        requiredFor: "Postgres/pgvector, Qdrant, or future GraphRAG memory",
-        keyNames: ["DATABASE_URL", "POSTGRES_URL", "CYWELL_OPSLENS_QDRANT_URL"],
+        requiredFor: "Postgres/pgvector or future GraphRAG memory",
+        keyNames: ["DATABASE_URL", "POSTGRES_URL", "CYWELL_OPSLENS_POSTGRES_URL"],
         issuer: "data/platform owner",
         configured: memoryStoreConfigured,
         secretValueExposed: false,
@@ -14947,7 +14952,7 @@ export async function createOpsLensToolResponse(
       sources: citations.map((citation) => citation.id),
       model:
         runtimeRagAudit.citationsUsed === "runtime"
-          ? "cywell-private-rag-qdrant-vllm-hybrid/v0.1"
+          ? "cywell-private-rag-pgvector-vllm-hybrid/v0.1"
           : "cywell-private-rag-local-vector/v0.1",
       runtimeRag: runtimeRagAudit,
       redactionCount,

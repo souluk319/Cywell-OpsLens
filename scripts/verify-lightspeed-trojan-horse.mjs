@@ -518,7 +518,7 @@ async function main() {
     externalEvidenceGaps: [
       "live Lightspeed model-side tool choice still requires a reachable OLSConfig MCP registration",
       "live OpenShift API and Lightspeed endpoint checks remain covered by npm run verify:lightspeed and npm run verify:live-handoff",
-      "live Qdrant/vLLM retrieval quality remains a separate runtime RAG evidence lane"
+      "live Postgres/pgvector/vLLM retrieval quality remains a separate runtime RAG evidence lane"
     ],
     missingEvidence:
       status === "PASS"

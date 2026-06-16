@@ -202,7 +202,7 @@ function commandPlan(mcpUrlConfigured, troubleshootingCommands = []) {
     {
       id: "runtime-live-probe",
       command: "set CYWELL_OPSLENS_RUNTIME_PROBE_LIVE=true && npm run verify:runtime -- --live",
-      purpose: "Probe Qdrant and vLLM runtime endpoints only after services are reachable.",
+      purpose: "Probe Postgres/pgvector and vLLM runtime endpoints only after services are reachable.",
       phase: "live-read-only",
       requiresNetwork: true,
       mutation: false,
@@ -453,7 +453,7 @@ async function main() {
     risk: [
       "The handoff is only a live evidence collection plan; it does not approve install, patch, push, sign, mirror, or ingestion.",
       "If OCP connectivity remains tcp-timeout, Lightspeed and Operator live checks will continue to report external reachability gaps.",
-      "Runtime live probes can be noisy during installation and should be enabled only when Qdrant/vLLM endpoints are expected to be reachable."
+      "Runtime live probes can be noisy during installation and should be enabled only when Postgres/pgvector/vLLM endpoints are expected to be reachable."
     ],
     rollbackPath: [
       "No rollback is required because this verifier only writes a local handoff artifact.",

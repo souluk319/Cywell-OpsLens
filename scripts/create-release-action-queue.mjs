@@ -404,7 +404,7 @@ function externalRuntimeFinalEvidenceReadOnlyCommands(packet) {
     id: "verify-external-runtime-plan",
     phase: "external-runtime-review",
     command: "npm run verify:external-runtime-plan",
-    purpose: "Verify final reviewed vLLM/Qdrant runtime evidence without promoting or mutating images.",
+    purpose: "Verify final reviewed vLLM/Postgres/pgvector runtime evidence without promoting or mutating images.",
     mutation: false,
     writesLocalEvidence: true
   };
@@ -458,7 +458,7 @@ function externalRuntimeFinalEvidenceTicketPacket(packet) {
     missingEvidenceCount: packet?.missingEvidence?.length ?? 0,
     evidenceChecklist: uniqueStrings([
       "Regenerate the external runtime review packet at the current git head.",
-      "Verify vLLM and qdrant final evidence without mirror, sign, push, or promote execution.",
+      "Verify vLLM and pgvector final evidence without mirror, sign, push, or promote execution.",
       "Confirm registry, security, release-manager, and product-owner reviewer requests are resolved before final release evidence is treated as complete.",
       ...imageChecklist
     ]),
@@ -485,7 +485,7 @@ function externalRuntimeFinalEvidenceTicketPacket(packet) {
       finalEvidenceRequiresReviewedInputs: true
     },
     risk:
-      "Final external runtime evidence cannot be release-ready until vLLM/qdrant reviewer inputs are complete and same-head verification passes.",
+      "Final external runtime evidence cannot be release-ready until vLLM/pgvector reviewer inputs are complete and same-head verification passes.",
     rollbackPath:
       "No cluster or registry rollback is required; correct the local evidence draft/final file and rerun the review packet plus verify:external-runtime-plan."
   };
@@ -2086,8 +2086,8 @@ function checkpointItems(
     owner: "release-manager",
     priority: "high",
     source: "externalRuntimeReviewPacket:externalRuntimePlan",
-    request: "Coordinate final reviewed vLLM/Qdrant evidence files after registry/security/product inputs are complete.",
-    evidenceNeeded: "docs/release/evidence/external-runtime/vllm.json and qdrant.json pass verify:external-runtime-plan.",
+    request: "Coordinate final reviewed vLLM/Postgres/pgvector evidence files after registry/security/product inputs are complete.",
+    evidenceNeeded: "docs/release/evidence/external-runtime/vllm.json and pgvector.json pass verify:external-runtime-plan.",
     nextCommand: "npm run verify:external-runtime-plan",
     handoffNextCommands:
       externalRuntimeFinalEvidenceHandoffCommands(externalRuntimeReviewPacket),
@@ -2359,8 +2359,10 @@ function externalRuntimeItems(packet) {
     const candidateScannerOptions = image.name === "vllm"
       ? " --trivy-timeout 30m --trivy-scanners vuln"
       : "";
+    const candidateImage = image.name === "pgvector" ? "cywell/opslens-pgvector:candidate" : "<candidate-image>";
+    const candidateLabel = image.name === "pgvector" ? "cywell-postgres-pgvector" : "<candidate-label>";
     const candidateScanCommand =
-      `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image <candidate-image> --candidate-label <candidate-label> --execute-docker-fallback${candidateTimeout}${candidateScannerOptions}`;
+      `npm run evidence:external-runtime:candidate-scan -- --name ${image.name} --candidate-image ${candidateImage} --candidate-label ${candidateLabel} --execute-docker-fallback${candidateTimeout}${candidateScannerOptions}`;
     const candidateApprovalCommand = candidateReady && bestCandidate?.releaseEligible === true
       ? `npm run evidence:external-runtime:draft -- --name ${image.name} --scan-status approved --scan-evidence ${bestCandidate.vulnerabilityPath ?? "<zero-critical-scan-report>"} --scan-critical-findings ${bestCandidate.criticalFindings ?? 0} --scan-high-findings ${bestCandidate.highFindings ?? "<high-findings>"} --sbom-status approved --sbom-evidence ${bestCandidate.sbomPath ?? "<approved-sbom-path-or-url>"} --ticket <change-ticket> --force`
       : `npm run evidence:external-runtime:draft -- --name ${image.name} --scan-status approved --scan-evidence <zero-critical-scan-report> --scan-critical-findings 0 --ticket <change-ticket> --force`;
@@ -2855,8 +2857,8 @@ function runtimeReadinessDiagnostics(runtimeReadiness) {
         `${artifactStatusLine(runtimeReadiness)} liveProbe=${String(runtimeReadiness?.liveProbeEnabled === true)}`
     },
     {
-      id: "runtime-readiness-qdrant",
-      label: "Qdrant",
+      id: "runtime-readiness-pgvector",
+      label: "Postgres/pgvector",
       value:
         `status=${vector.status ?? "missing"} classification=${vector.classification ?? "missing"} liveProbe=${String(vector.liveProbeEnabled === true)} url=${vector.url ?? "missing"} next=${vector.nextCommand ?? "missing"}`
     },
@@ -2999,7 +3001,7 @@ function runtimeLiveItems(
   const runtimeProbeGaps = prefixedEvidence(
     "runtimeReadiness",
     runtimeReadiness?.missingEvidence ?? []
-  ).filter((entry) => /(?:qdrant|vllm).*live probe/i.test(entry));
+  ).filter((entry) => /(?:pgvector|vllm).*live probe/i.test(entry));
   const runtimeRagGaps = [
     ...prefixedEvidence("runtimeRag", runtimeRagContract?.missingEvidence ?? []),
     ...prefixedEvidence("runtimeRagFixture", runtimeRagFixture?.missingEvidence ?? [])
@@ -3014,14 +3016,14 @@ function runtimeLiveItems(
 
   if (runtimeProbeGaps.length > 0) {
     items.push(item({
-      id: "runtime-platform-run-live-vllm-qdrant-probes",
+      id: "runtime-platform-run-live-vllm-pgvector-probes",
       owner: "runtime-platform",
       priority: "high",
       source: "runtimeReadiness",
       request:
-        "Run read-only live probes against the deployed vLLM and Qdrant services before claiming runtime readiness.",
+        "Run read-only live probes against the deployed vLLM and Postgres/pgvector services before claiming runtime readiness.",
       evidenceNeeded:
-        "runtimeReadiness liveProbeEnabled=true with qdrant=ready and vllm=ready against approved runtime endpoints.",
+        "runtimeReadiness liveProbeEnabled=true with pgvector=ready and vllm=ready against approved runtime endpoints.",
       nextCommand: "npm run verify:runtime -- --live --timeout-ms 30000",
       handoffNextCommands: [
         "set CYWELL_OPSLENS_VECTOR_URL and CYWELL_OPSLENS_MODEL_URL to the approved in-cluster or port-forwarded endpoints",
@@ -3042,7 +3044,7 @@ function runtimeLiveItems(
       runtimeEvidenceTicketPacket: runtimeEvidenceTicketPacket({
         id: "runtime-platform-live-runtime-evidence-ticket",
         owner: "runtime-platform",
-        title: "Runtime vLLM/Qdrant live evidence handoff",
+        title: "Runtime vLLM/Postgres/pgvector live evidence handoff",
         classification: "runtime-live-probes-required",
         runtimeStatus: runtimeReadiness?.status ?? "missing",
         firstReadOnlyAction: {
@@ -3052,7 +3054,7 @@ function runtimeLiveItems(
         blockedBy: runtimeProbeGaps,
         evidenceChecklist: [
           `runtimeReadiness=${runtimeReadiness?.status ?? "missing"}`,
-          "qdrantLiveProbe=required",
+          "pgvectorLiveProbe=required",
           "vllmLiveProbe=required",
           "clusterMutationAttempted=false",
           "registryMutationAttempted=false"
@@ -3063,7 +3065,7 @@ function runtimeLiveItems(
         ],
         liveProbeRequiresExplicitApproval: true,
         risk:
-          "Runtime live probes require approved vLLM/Qdrant endpoints and must not be confused with deploying or scaling runtime services.",
+          "Runtime live probes require approved vLLM/Postgres/pgvector endpoints and must not be confused with deploying or scaling runtime services.",
         rollbackPath:
           "Unset local runtime endpoint variables and rerun npm run verify:runtime to return to local fallback evidence."
       }),
@@ -3078,14 +3080,14 @@ function runtimeLiveItems(
       priority: "high",
       source: "runtimeRag:runtimeRagFixture",
       request:
-        "Prove that runtime RAG uses live vLLM embeddings and Qdrant tenant-scoped snippets, then record citation quality evidence.",
+        "Prove that runtime RAG uses live vLLM embeddings and Postgres/pgvector tenant-scoped snippets, then record citation quality evidence.",
       evidenceNeeded:
-        "runtimeRag live evidence includes vLLM /v1/embeddings, Qdrant /points/search, tenant-scoped redacted snippets, and citation support for the generated plan.",
+        "runtimeRag live evidence includes vLLM /v1/embeddings, Postgres/pgvector /points/search, tenant-scoped redacted snippets, and citation support for the generated plan.",
       nextCommand: "npm run verify:runtime-rag:fixture",
       handoffNextCommands: [
         "npm run verify:runtime-rag",
         "npm run verify:runtime-rag:fixture",
-        "run the deployed API with CYWELL_OPSLENS_RAG_RUNTIME_MODE=hybrid or runtime after live vLLM/Qdrant endpoints are approved"
+        "run the deployed API with CYWELL_OPSLENS_RAG_RUNTIME_MODE=hybrid or runtime after live vLLM/Postgres/pgvector endpoints are approved"
       ],
       readOnlyCommands: [
         {
@@ -3123,7 +3125,7 @@ function runtimeLiveItems(
           `runtimeRag=${runtimeRagContract?.status ?? "missing"}`,
           `runtimeRagFixture=${runtimeRagFixture?.status ?? "missing"}`,
           "liveEmbeddingsEvidence=required",
-          "liveQdrantSearchEvidence=required",
+          "livePostgres/pgvectorSearchEvidence=required",
           "citationQualityEvidence=required"
         ],
         nextCommands: [

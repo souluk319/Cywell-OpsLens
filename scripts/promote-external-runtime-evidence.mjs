@@ -19,10 +19,10 @@ const images = {
     draft: "vllm.draft.json",
     final: "vllm.json"
   },
-  qdrant: {
-    image: "docker.io/qdrant/qdrant:v1.12.1",
-    draft: "qdrant.draft.json",
-    final: "qdrant.json"
+  pgvector: {
+    image: "docker.io/pgvector/pgvector:pg16",
+    draft: "pgvector.draft.json",
+    final: "pgvector.json"
   }
 };
 
@@ -51,7 +51,7 @@ function usage() {
     "Usage:",
     "  npm run evidence:external-runtime:promote -- --name vllm --promote-reviewed --reviewer alice --review-ticket CHG-123 --force",
     "",
-    "Supported names: vllm, qdrant",
+    "Supported names: vllm, pgvector",
     "This script writes final evidence only after every draft requirement is reviewed and complete."
   ].join("\n");
 }

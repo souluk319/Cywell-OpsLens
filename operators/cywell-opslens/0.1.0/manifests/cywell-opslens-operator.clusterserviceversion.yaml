@@ -28,8 +28,8 @@ metadata:
                 "serviceName": "cywell-opslens-dashboard"
               },
               "vectorStore": {
-                "provider": "qdrant",
-                "image": "docker.io/qdrant/qdrant:v1.12.1",
+                "provider": "pgvector",
+                "image": "docker.io/pgvector/pgvector:pg16",
                 "storageSize": "20Gi"
               },
               "modelRuntime": {
@@ -136,8 +136,8 @@ spec:
       image: quay.io/cywell/opslens-dashboard:0.1.0
     - name: vllm
       image: quay.io/cywell/opslens-vllm:0.1.0
-    - name: qdrant
-      image: docker.io/qdrant/qdrant:v1.12.1
+    - name: pgvector
+      image: docker.io/pgvector/pgvector:pg16
   install:
     strategy: deployment
     spec:

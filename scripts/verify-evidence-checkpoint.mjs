@@ -1621,7 +1621,7 @@ async function main() {
     blockers,
     risk: [
       "A PASS checkpoint only means local evidence is fresh; it does not approve cluster mutation or registry publishing.",
-      "NEEDS_EVIDENCE keeps external blockers visible, especially live OCP/Lightspeed reachability and vLLM/Qdrant certification inputs.",
+      "NEEDS_EVIDENCE keeps external blockers visible, especially live OCP/Lightspeed reachability and vLLM/Postgres/pgvector certification inputs.",
       "BLOCKED means an artifact is stale, unsafe, invalid, or reported a forbidden mutation attempt."
     ],
     rollbackPath: [

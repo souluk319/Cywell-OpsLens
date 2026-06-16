@@ -664,7 +664,7 @@ function readOnlyCommands(images, candidateMatrix) {
       id: "refresh-external-runtime-drafts",
       phase: "local-evidence-refresh",
       command: "npm run evidence:external-runtime:draft:digests",
-      purpose: "Refresh ignored vLLM/Qdrant draft evidence and collect source digests when registries expose them.",
+      purpose: "Refresh ignored vLLM/Postgres/pgvector draft evidence and collect source digests when registries expose them.",
       mutation: false,
       writesLocalEvidence: true
     },
@@ -795,7 +795,7 @@ function buildFirstRegistryActions(images, approvalGated) {
       status: "approval-gated",
       request: `Do not run ${command.id} until external runtime evidence and approvals are explicit.`,
       evidenceNeeded:
-        "Reviewed final vLLM/Qdrant evidence, immutable source digests, internal mirror digests, security approval, product approval, release-manager approval, and registry-admin approval.",
+        "Reviewed final vLLM/Postgres/pgvector evidence, immutable source digests, internal mirror digests, security approval, product approval, release-manager approval, and registry-admin approval.",
       nextCommand: command.command,
       mutation: true,
       requiresExplicitApproval: true,
@@ -1078,7 +1078,7 @@ function markdownFor(packet) {
     "",
     "- Do not mirror, push, copy, sign, install, patch, delete, or scale from this packet.",
     "- This packet writes local evidence only and records approval-gated commands as not-run.",
-    "- Draft files do not replace final reviewed vLLM/Qdrant evidence.",
+    "- Draft files do not replace final reviewed vLLM/Postgres/pgvector evidence.",
     "",
     "## Next Evidence Refresh",
     "",
@@ -1390,7 +1390,7 @@ async function main() {
       "This packet consolidates external runtime draft intake, source digest inspection state, scan/SBOM plan state, candidate comparison evidence, and approval-gated mirror/sign commands.",
       "It is a reviewer packet only; it does not promote drafts, mirror images, sign images, push images, install Operators, patch OLSConfig, or mutate the cluster.",
       "Final evidence promotion handoff is review-gated local evidence only; it records promote-reviewed commands but does not run them.",
-      "Final release readiness still requires reviewed docs/release/evidence/external-runtime/vllm.json and qdrant.json files."
+      "Final release readiness still requires reviewed docs/release/evidence/external-runtime/vllm.json and pgvector.json files."
     ],
     risk: unique([
       ...(artifacts.externalRuntime?.risk ?? []),

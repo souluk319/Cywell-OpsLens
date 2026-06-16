@@ -408,14 +408,14 @@ function planStatus(missingEvidence) {
 }
 
 function publishGapOwner(gap) {
-  if (/external runtime|mirror|vllm|qdrant/i.test(gap)) return "registry-admin";
+  if (/external runtime|mirror|vllm|pgvector/i.test(gap)) return "registry-admin";
   if (/catalog|registry\.redhat\.io/i.test(gap)) return "registry-admin";
   if (/scan|sbom|certification|signature|cosign/i.test(gap)) return "security-reviewer";
   return "release-manager";
 }
 
 function publishGapNextCommand(gap) {
-  if (/external runtime|vllm|qdrant/i.test(gap)) return "npm run verify:external-runtime-plan";
+  if (/external runtime|vllm|pgvector/i.test(gap)) return "npm run verify:external-runtime-plan";
   if (/owned image provenance/i.test(gap)) return "npm run verify:owned-image-provenance";
   if (/image readiness|actual image build|verify:images:build/i.test(gap)) return "npm run verify:images:build";
   if (/catalog|registry\.redhat\.io/i.test(gap)) return "npm run verify:catalog-toolchain";
@@ -931,7 +931,7 @@ async function buildPlan() {
       "Publishing mutable or unsigned images can make later OLM install evidence unreproducible.",
       "Local owned-image provenance is not a substitute for registry digest, signature, SBOM, or scan evidence.",
       "Catalog image publishing is blocked until registry.redhat.io base-image authentication is available locally or in CI.",
-      "External vLLM/Qdrant runtime images require certification and mirroring evidence before Certified Operator submission.",
+      "External vLLM/Postgres/pgvector runtime images require certification and mirroring evidence before Certified Operator submission.",
       "Pushing images does not install OpsLens; cluster install remains gated by the separate install approval plan."
     ],
     rollbackPath: [

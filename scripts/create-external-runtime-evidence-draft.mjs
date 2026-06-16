@@ -19,10 +19,10 @@ const imageDefaults = {
     final: "vllm.json",
     draft: "vllm.draft.json"
   },
-  qdrant: {
-    example: "qdrant.example.json",
-    final: "qdrant.json",
-    draft: "qdrant.draft.json"
+  pgvector: {
+    example: "pgvector.example.json",
+    final: "pgvector.json",
+    draft: "pgvector.draft.json"
   }
 };
 
@@ -56,9 +56,9 @@ function usage() {
     "  npm run evidence:external-runtime:draft -- --all --collect-source-digests --force",
     "  npm run evidence:external-runtime:draft -- --name vllm --source-digest quay.io/cywell/opslens-vllm@sha256:<digest> --mirrored-image <internal>/cywell/opslens-vllm:0.1.0 --mirrored-digest <internal>/cywell/opslens-vllm@sha256:<digest> --ticket CHG-123 --force",
     "",
-    "For --all, image-specific overrides may be passed as --vllm-source-digest, --qdrant-source-digest, and so on.",
-    "Supported names: vllm, qdrant",
-    "This script writes only *.draft.json files. It never creates final vllm.json/qdrant.json evidence.",
+    "For --all, image-specific overrides may be passed as --vllm-source-digest, --pgvector-source-digest, and so on.",
+    "Supported names: vllm, pgvector",
+    "This script writes only *.draft.json files. It never creates final vllm.json/pgvector.json evidence.",
     "--collect-source-digests performs read-only docker manifest inspection and never pulls, pushes, mirrors, or signs images.",
     "--security-evidence-dir may point at generated vulnerability/SBOM evidence for draft intake."
   ].join("\n");
@@ -588,7 +588,7 @@ async function buildDraft(name) {
         : `Source digest inspection status=${sourceDigestInspection.status}: ${sourceDigestInspection.detail}`,
       `Vulnerability evidence intake: ${securityEvidenceInspection.vulnerabilityScan.detail}`,
       `SBOM evidence intake: ${securityEvidenceInspection.sbom.detail}`,
-      "The external runtime verifier may surface this draft, but final release readiness still requires the reviewed vllm.json/qdrant.json file."
+      "The external runtime verifier may surface this draft, but final release readiness still requires the reviewed vllm.json/pgvector.json file."
     ],
     risk: [
       "A complete draft is not final approval; it can still contain stale, incorrect, or unreviewed evidence.",

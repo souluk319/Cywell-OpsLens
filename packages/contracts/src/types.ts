@@ -376,7 +376,7 @@ export interface OpsLensRuntimeRagAudit {
   mode: OpsLensRuntimeRagMode;
   status: OpsLensRuntimeRagStatus;
   provider: {
-    vectorStore: "qdrant";
+    vectorStore: "pgvector";
     modelRuntime: "vllm";
   };
   collection: string;
@@ -1076,7 +1076,7 @@ export type OpsLensRuntimeReadinessStatus =
 
 export interface OpsLensRuntimeDependencyReadiness {
   component: "vector-store" | "model-runtime";
-  provider: "qdrant" | "vllm";
+  provider: "pgvector" | "vllm";
   endpoint: string;
   probePath: string;
   status: OpsLensRuntimeReadinessStatus;
@@ -1088,7 +1088,7 @@ export interface OpsLensRuntimeDependencyReadiness {
 
 export interface OpsLensRuntimeLiveEvidenceHandoff {
   component: "vector-store" | "model-runtime";
-  provider: "qdrant" | "vllm";
+  provider: "pgvector" | "vllm";
   status: "ready" | "needs-live-evidence" | "blocked";
   classification: string;
   owner: "runtime-platform";
@@ -1147,7 +1147,7 @@ export interface OpsLensRuntimeLiveHandoffSummary {
   runtimePlatformOwner: string;
   dataMlOwner: string;
   liveProbeEnabled: boolean;
-  qdrantStatus: OpsLensRuntimeReadinessStatus;
+  pgvectorStatus: OpsLensRuntimeReadinessStatus;
   vllmStatus: OpsLensRuntimeReadinessStatus;
   runtimeReadinessAction?: OpsLensRuntimeLiveHandoffAction;
   runtimeRagAction?: OpsLensRuntimeLiveHandoffAction;

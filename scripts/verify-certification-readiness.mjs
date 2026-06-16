@@ -178,7 +178,7 @@ function validateCsv(csv) {
     );
   }
 
-  for (const imageName of ["operator", "api", "dashboard", "vllm", "qdrant"]) {
+  for (const imageName of ["operator", "api", "dashboard", "vllm", "pgvector"]) {
     expectCheck(
       `CSV related image ${imageName}`,
       valuesFromRelatedImages(csv).has(imageName),

@@ -68,21 +68,21 @@ const steps = [
     command: "npm",
     args: ["run", "verify:runtime"],
     acceptance: ["AC-LS-001", "AC-RAG-001", "AC-DASH-001", "AC-OP-001"],
-    purpose: "Verify the read-only vLLM/Qdrant runtime readiness contract without mutating cluster or registry state."
+    purpose: "Verify the read-only vLLM/Postgres/pgvector runtime readiness contract without mutating cluster or registry state."
   },
   {
     id: "RUNTIME-RAG",
     command: "npm",
     args: ["run", "verify:runtime-rag"],
     acceptance: ["AC-LS-001", "AC-RAG-001", "AC-AIOPS-001"],
-    purpose: "Verify /ask, /mcp, and incident analysis carry the Qdrant/vLLM runtime RAG adapter contract with safe local fallback."
+    purpose: "Verify /ask, /mcp, and incident analysis carry the Postgres/pgvector/vLLM runtime RAG adapter contract with safe local fallback."
   },
   {
     id: "RUNTIME-RAG-FIXTURE",
     command: "npm",
     args: ["run", "verify:runtime-rag:fixture"],
     acceptance: ["AC-LS-001", "AC-RAG-001"],
-    purpose: "Verify the hybrid runtime RAG success path against mock vLLM embeddings and Qdrant redacted snippet search."
+    purpose: "Verify the hybrid runtime RAG success path against mock vLLM embeddings and Postgres/pgvector redacted snippet search."
   },
   {
     id: "OPSBRAIN",

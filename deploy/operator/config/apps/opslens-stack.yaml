@@ -69,8 +69,13 @@ spec:
               value: /var/run/secrets/cywell-opslens/tls/tls.crt
             - name: CYWELL_OPSLENS_TLS_KEY_FILE
               value: /var/run/secrets/cywell-opslens/tls/tls.key
-            - name: CYWELL_OPSLENS_VECTOR_URL
-              value: http://cywell-opslens-vector:6333
+            - name: CYWELL_OPSLENS_VECTOR_PROVIDER
+              value: pgvector
+            - name: CYWELL_OPSLENS_POSTGRES_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cywell-opslens-postgres-auth
+                  key: url
             - name: CYWELL_OPSLENS_MODEL_URL
               value: http://cywell-opslens-vllm:8000
             - name: CYWELL_OPSLENS_RAG_RUNTIME_MODE
@@ -277,15 +282,25 @@ spec:
         app.kubernetes.io/component: vector-store
     spec:
       containers:
-        - name: qdrant
-          image: docker.io/qdrant/qdrant:v1.12.1
+        - name: pgvector
+          image: docker.io/pgvector/pgvector:pg16
           imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              value: opslens
+            - name: POSTGRES_USER
+              value: opslens
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cywell-opslens-postgres-auth
+                  key: password
           ports:
-            - name: http
-              containerPort: 6333
+            - name: postgres
+              containerPort: 5432
           volumeMounts:
             - name: vector-data
-              mountPath: /qdrant/storage
+              mountPath: /var/lib/postgresql/data
   volumeClaimTemplates:
     - metadata:
         name: vector-data
@@ -309,9 +324,9 @@ spec:
     app.kubernetes.io/name: cywell-opslens
     app.kubernetes.io/component: vector-store
   ports:
-    - name: http
-      port: 6333
-      targetPort: http
+    - name: postgres
+      port: 5432
+      targetPort: postgres
 ---
 apiVersion: apps/v1
 kind: Deployment

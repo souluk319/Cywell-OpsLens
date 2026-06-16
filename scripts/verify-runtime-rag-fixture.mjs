@@ -124,45 +124,11 @@ async function createMockRuntimeServers() {
     });
   });
 
-  const qdrant = createServer(async (request, response) => {
-    if (
-      request.method !== "POST" ||
-      !request.url?.startsWith("/collections/opslens-cywell-payments/points/search")
-    ) {
-      sendJson(response, 404, { error: "route missing" });
-      return;
-    }
-    const body = await readJsonRequest(request);
-    state.vectorSearchRequests.push(body);
-    sendJson(response, 200, {
-      result: [
-        {
-          id: "runtime-point-1",
-          score: 0.97,
-          payload: {
-            id: "runtime-payments-guide",
-            documentId: "runtime-payments-guide",
-            tenantId: "cywell-payments",
-            label: "Runtime Payments Runbook",
-            sourceType: "customer-runbook",
-            trustLevel: "approved",
-            redacted: true,
-            redactedSnippet:
-              "Runtime snippet says compare rollout config, readiness probe events, and approved rollback evidence."
-          }
-        }
-      ]
-    });
-  });
-
   const vllmPort = await listen(vllm);
-  const qdrantPort = await listen(qdrant);
   return {
     state,
     vllm,
-    qdrant,
-    vllmUrl: `http://127.0.0.1:${vllmPort}`,
-    qdrantUrl: `http://127.0.0.1:${qdrantPort}`
+    vllmUrl: `http://127.0.0.1:${vllmPort}`
   };
 }
 
@@ -254,7 +220,20 @@ async function main() {
     CYWELL_OPSLENS_TLS_KEY_FILE: "",
     CYWELL_OPSLENS_RAG_RUNTIME_MODE: "hybrid",
     CYWELL_OPSLENS_MODEL_URL: runtime.vllmUrl,
-    CYWELL_OPSLENS_VECTOR_URL: runtime.qdrantUrl,
+    CYWELL_OPSLENS_POSTGRES_URL: "postgresql://fixture.invalid:5432/opslens",
+    CYWELL_OPSLENS_PGVECTOR_FIXTURE_ROWS: JSON.stringify([
+      {
+        id: "runtime-payments-guide",
+        document_id: "runtime-payments-guide",
+        tenant_id: "cywell-payments",
+        label: "Runtime Payments Runbook",
+        source_type: "customer-runbook",
+        trust_level: "approved",
+        redacted: true,
+        redacted_snippet:
+          "Runtime snippet says compare rollout config, readiness probe events, and approved rollback evidence."
+      }
+    ]),
     CYWELL_OPSLENS_RUNTIME_PROBE_TIMEOUT_MS: "5000"
   });
 
@@ -307,9 +286,15 @@ async function main() {
     );
     expectCheck(
       "runtime model route",
-      body.audit?.model === "cywell-private-rag-qdrant-vllm-hybrid/v0.1",
+      body.audit?.model === "cywell-private-rag-pgvector-vllm-hybrid/v0.1",
       "hybrid model route is recorded",
       `model=${body.audit?.model ?? "missing"}`
+    );
+    expectCheck(
+      "runtime provider",
+      body.audit?.runtimeRag?.provider?.vectorStore === "pgvector",
+      "runtime audit records pgvector as the integrated vector store",
+      `provider=${JSON.stringify(body.audit?.runtimeRag?.provider ?? {})}`
     );
     expectCheck(
       "runtime citation returned",
@@ -319,7 +304,7 @@ async function main() {
           citation.label === "Runtime Payments Runbook" &&
           citation.redacted === true
       ) === true,
-      "redacted Qdrant fixture citation is returned"
+      "redacted pgvector fixture citation is returned"
     );
     expectCheck(
       "policy remains read-only",
@@ -341,24 +326,16 @@ async function main() {
         !String(embeddingRequest.input ?? "").includes("fixture-secret"),
       "vLLM embedding request received redacted input"
     );
-    const vectorSearchRequest = runtime.state.vectorSearchRequests[0] ?? {};
     expectCheck(
-      "Qdrant vector search request",
-      runtime.state.vectorSearchRequests.length === 1 &&
-        Array.isArray(vectorSearchRequest.vector) &&
-        vectorSearchRequest.vector.length === 4 &&
-        vectorSearchRequest.filter?.must?.some?.(
-          (item) =>
-            item.key === "tenantId" &&
-            item.match?.value === "cywell-payments"
-        ) === true,
-      "Qdrant search received vector and tenant filter"
+      "pgvector fixture path",
+      body.audit?.runtimeRag?.vectorSearchAttempted === true &&
+        body.audit?.runtimeRag?.collection === "opslens_cywell_payments_rag_chunks",
+      "pgvector retrieval used the tenant-scoped table contract"
     );
   } finally {
     apiProcess.child.kill();
     await Promise.allSettled([
-      closeServer(runtime.vllm),
-      closeServer(runtime.qdrant)
+      closeServer(runtime.vllm)
     ]);
   }
 
@@ -385,11 +362,11 @@ async function main() {
     acceptance: ["AC-LS-001", "AC-RAG-001"],
     evidence: [
       "fixture vLLM /v1/embeddings returned a numeric embedding",
-      "fixture Qdrant /points/search returned a redacted tenant citation",
+      "fixture Postgres/pgvector rows returned a redacted tenant citation",
       "OpsLens /api/opslens/ask selected runtime citation and kept read-only policy"
     ],
     missingEvidence: [
-      "real deployed vLLM/Qdrant reachability and quality evaluation remain required"
+      "real deployed vLLM/Postgres pgvector reachability and quality evaluation remain required"
     ],
     risk: [
       "Fixture PASS proves the code path, not live runtime service health.",

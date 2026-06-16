@@ -16,8 +16,8 @@ spec:
       replicas: 1
       serviceName: cywell-opslens-dashboard
     vectorStore:
-      provider: qdrant
-      image: docker.io/qdrant/qdrant:v1.12.1
+      provider: pgvector
+      image: docker.io/pgvector/pgvector:pg16
       storageSize: 20Gi
     modelRuntime:
       provider: vllm

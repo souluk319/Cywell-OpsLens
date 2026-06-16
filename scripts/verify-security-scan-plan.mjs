@@ -862,7 +862,7 @@ function securityEvidenceReadmeCheck() {
     return;
   }
   const text = readFileSync(readmePath, "utf8");
-  const required = ["Vulnerability scans", "SBOM", "Critical findings", "Signature", "operator-vulnerability.json", "qdrant-sbom.spdx.json"];
+  const required = ["Vulnerability scans", "SBOM", "Critical findings", "Signature", "operator-vulnerability.json", "pgvector-sbom.spdx.json"];
   const missing = required.filter((item) => !text.toLowerCase().includes(item.toLowerCase()));
   if (missing.length > 0) {
     fail("security evidence README", `missing ${missing.join(", ")}`);
