@@ -4801,6 +4801,44 @@ export function OpsLensAdminDashboard() {
                   <span key={command}>{command}</span>
                 ))}
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-lab-machine-role-plan"
+              >
+                <span>
+                  workstation=
+                  {labHandoffPlan.machineRolePlan.workstation.role}:
+                  {labHandoffPlan.machineRolePlan.workstation.firstCommandId}
+                </span>
+                <span>
+                  transfer=
+                  {labHandoffPlan.machineRolePlan.transfer.role}:ready=
+                  {String(labHandoffPlan.machineRolePlan.transfer.ready)}
+                </span>
+                <span>
+                  transferMissing=
+                  {labHandoffPlan.machineRolePlan.transfer.missingTags.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
+                  labHost={labHandoffPlan.machineRolePlan.labHost.role}:first=
+                  {
+                    labHandoffPlan.machineRolePlan.labHost
+                      .firstReadOnlyCommandId
+                  }
+                </span>
+                <span>
+                  labApproval=
+                  {labHandoffPlan.machineRolePlan.labHost.approvalGatedCommandIds.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
+                  companyOcpUsed=
+                  {String(labHandoffPlan.machineRolePlan.labHost.companyOcpUsed)}
+                </span>
+              </div>
               <div className="remediation-notes">
                 <p>{labBootstrapPlan.currentJudgment}</p>
                 <p>{labBootstrapPlan.nextCommand.command}</p>

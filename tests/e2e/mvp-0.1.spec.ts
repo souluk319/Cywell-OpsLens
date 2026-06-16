@@ -2064,6 +2064,34 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             missingTags?: string[];
           };
           nextCommand?: { id?: string; command?: string; mutation?: boolean };
+          machineRolePlan?: {
+            workstation?: {
+              role?: string;
+              firstCommandId?: string;
+              firstCommand?: string;
+              commandIds?: string[];
+              clusterMutationAllowed?: boolean;
+              registryMutationAllowed?: boolean;
+            };
+            transfer?: {
+              role?: string;
+              artifactPath?: string;
+              ready?: boolean;
+              missingTags?: string[];
+              commandTemplate?: string;
+              clusterMutationAllowed?: boolean;
+              registryMutationAllowed?: boolean;
+            };
+            labHost?: {
+              role?: string;
+              firstReadOnlyCommandId?: string;
+              readOnlyCommandIds?: string[];
+              approvalGatedCommandIds?: string[];
+              clusterMutationAllowed?: boolean;
+              registryMutationAllowed?: boolean;
+              companyOcpUsed?: boolean;
+            };
+          };
           sourceArtifacts?: Array<{
             id?: string;
             status?: string;
@@ -5576,6 +5604,38 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (source) => source.id
       )
     ).toEqual(expect.arrayContaining(["imageBuild", "labImageMap"]));
+    expect(body.installReadiness?.labHandoffPlan?.machineRolePlan).toMatchObject({
+      workstation: {
+        role: "repo-workstation",
+        clusterMutationAllowed: false,
+        registryMutationAllowed: false
+      },
+      transfer: {
+        role: "portable-image-transfer",
+        clusterMutationAllowed: false,
+        registryMutationAllowed: false
+      },
+      labHost: {
+        role: "dedicated-crc-lab-host",
+        companyOcpUsed: false,
+        clusterMutationAllowed: false,
+        registryMutationAllowed: false
+      }
+    });
+    expect(
+      body.installReadiness?.labHandoffPlan?.machineRolePlan?.transfer
+        ?.missingTags
+    ).toEqual(body.installReadiness?.labHandoffPlan?.imageTar?.missingTags);
+    expect(
+      body.installReadiness?.labHandoffPlan?.machineRolePlan?.labHost
+        ?.approvalGatedCommandIds
+    ).toEqual(
+      expect.arrayContaining([
+        "create-crc-project",
+        "push-images-to-crc-registry",
+        "install-opslens-stack"
+      ])
+    );
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(/lab bootstrap/i);
     expect(body.installReadiness?.evidence?.join(" ")).toMatch(/lab handoff/i);
     expect([
@@ -10756,6 +10816,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-lab-readiness")).toContainText(
       /verify:(catalog-toolchain|images|lab)/
     );
+    await expect(
+      page.getByTestId("opslens-lab-machine-role-plan")
+    ).toContainText("workstation=repo-workstation");
+    await expect(
+      page.getByTestId("opslens-lab-machine-role-plan")
+    ).toContainText("transfer=portable-image-transfer");
+    await expect(
+      page.getByTestId("opslens-lab-machine-role-plan")
+    ).toContainText("labHost=dedicated-crc-lab-host");
+    await expect(
+      page.getByTestId("opslens-lab-machine-role-plan")
+    ).toContainText("companyOcpUsed=false");
     await expect(page.getByTestId("opslens-install-readiness")).toContainText(
       "Lab Bootstrap"
     );

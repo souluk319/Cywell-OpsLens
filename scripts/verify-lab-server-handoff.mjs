@@ -380,6 +380,7 @@ function buildCommands(state) {
       id: "lab-handoff-refresh",
       phase: "local-self-check",
       command: "npm run verify:lab-handoff",
+      where: "repo-workstation",
       mutation: false,
       purpose: "Refresh this lab handoff packet."
     },
@@ -387,6 +388,7 @@ function buildCommands(state) {
       id: "crc-target-profile",
       phase: "local-target-check",
       command: "npm run verify:ocp:target-profile -- --require-crc",
+      where: "repo-workstation-with-crc-env",
       mutation: false,
       purpose: "Confirm the ignored .env points only at the CRC lab target."
     },
@@ -394,6 +396,7 @@ function buildCommands(state) {
       id: "lab-image-map",
       phase: "local-preview",
       command: "npm run verify:lab-image-map",
+      where: "repo-workstation",
       mutation: false,
       purpose: "Refresh the CRC registry image-reference preview for Kubernetes and FBC manifests."
     },
@@ -401,6 +404,7 @@ function buildCommands(state) {
       id: "ocp-connectivity",
       phase: "live-read-only",
       command: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
+      where: "repo-workstation-with-crc-env",
       mutation: false,
       purpose: "Prove OCP API auth and read-only RBAC before any install attempt."
     },
@@ -408,6 +412,7 @@ function buildCommands(state) {
       id: "lightspeed-readiness",
       phase: "live-read-only",
       command: "npm run verify:lightspeed -- --timeout-ms 30000",
+      where: "repo-workstation-with-crc-env",
       mutation: false,
       purpose: "Read OLSConfig/CRD readiness before registration."
     },
@@ -415,6 +420,7 @@ function buildCommands(state) {
       id: "lightspeed-patch-preview",
       phase: "preview-only",
       command: "npm run verify:lightspeed:patch-preview",
+      where: "repo-workstation-with-crc-env",
       mutation: false,
       purpose: "Preview OLSConfig MCP registration diff without applying it."
     },
@@ -422,6 +428,7 @@ function buildCommands(state) {
       id: "install-plan",
       phase: "approval-plan",
       command: "npm run verify:install-plan",
+      where: "repo-workstation",
       mutation: false,
       purpose: "Refresh the approval-gated install packet."
     }
@@ -431,6 +438,7 @@ function buildCommands(state) {
     {
       id: "docker-linux-engine",
       command: "docker info",
+      where: "repo-workstation",
       mutation: false,
       requiredWhen: !state.docker.available || state.docker.osType !== "linux",
       purpose: "Docker must answer with OSType=linux before image builds are useful."
@@ -438,6 +446,7 @@ function buildCommands(state) {
     {
       id: "build-images",
       command: "npm run verify:images:build",
+      where: "repo-workstation",
       mutation: false,
       requiredWhen:
         state.images.some((image) => !image.present) ||
@@ -448,6 +457,7 @@ function buildCommands(state) {
     {
       id: "package-crc-images",
       command: saveCommand,
+      where: "repo-workstation",
       mutation: false,
       requiredWhen:
         !state.imageTar.exists ||
@@ -461,6 +471,7 @@ function buildCommands(state) {
     {
       id: "create-crc-project",
       command: "oc new-project cywell-opslens",
+      where: "dedicated-crc-lab-host",
       mutation: true,
       requiresExplicitApproval: true,
       scope: "dedicated CRC lab only",
@@ -470,6 +481,7 @@ function buildCommands(state) {
       id: "push-images-to-crc-registry",
       command:
         "docker tag cywell/opslens-api:verify <registry>/cywell-opslens/cywell-opslens-api:verify && docker push <registry>/cywell-opslens/cywell-opslens-api:verify",
+      where: "dedicated-crc-lab-host",
       mutation: true,
       requiresExplicitApproval: true,
       scope: "dedicated CRC lab only",
@@ -478,6 +490,7 @@ function buildCommands(state) {
     {
       id: "install-opslens-stack",
       command: "approval-gated apply path from test-results/cywell-opslens-install-approval-cluster-admin.md",
+      where: "dedicated-crc-lab-host",
       mutation: true,
       requiresExplicitApproval: true,
       scope: "dedicated CRC lab only",
@@ -525,8 +538,62 @@ function firstNextCommand(state, localSetupCommands, readOnlyCommands) {
     id: "ready-for-explicit-crc-image-handoff",
     phase: "local-review",
     command: "Get-Content .\\test-results\\cywell-opslens-lab-server-handoff.md",
+    where: "repo-workstation",
     mutation: false,
     purpose: "Read the handoff packet before the next approval-gated action changes the dedicated CRC lab."
+  };
+}
+
+function buildMachineRolePlan(state, commandPlan) {
+  const workstationCommandIds = [
+    ...commandPlan.localSetupCommands.map((command) => command.id),
+    ...commandPlan.readOnlyCommands
+      .filter((command) => command.where !== "dedicated-crc-lab-host")
+      .map((command) => command.id)
+  ];
+  const labReadOnlyCommandIds = commandPlan.readOnlyCommands
+    .filter((command) => command.where === "repo-workstation-with-crc-env")
+    .map((command) => command.id);
+  const approvalGatedCommandIds = commandPlan.approvalGatedCommands.map(
+    (command) => command.id
+  );
+  const transferReady =
+    state.imageTar.exists === true &&
+    state.imageTar.sizeLooksValid !== false &&
+    (state.imageTar.missingTags ?? []).length === 0;
+
+  return {
+    workstation: {
+      role: "repo-workstation",
+      description:
+        "Build and verify Cywell OpsLens artifacts from this repository; do not touch OpenShift cluster state.",
+      firstCommandId: commandPlan.oneAtATimeNextCommand.id,
+      firstCommand: commandPlan.oneAtATimeNextCommand.command,
+      commandIds: workstationCommandIds,
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false
+    },
+    transfer: {
+      role: "portable-image-transfer",
+      artifactPath: resolve(options.imageTar),
+      ready: transferReady,
+      missingTags: state.imageTar.missingTags ?? [],
+      commandTemplate:
+        "copy test-results/cywell-opslens-crc-images.tar to the dedicated CRC lab host, then docker load it there",
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false
+    },
+    labHost: {
+      role: "dedicated-crc-lab-host",
+      description:
+        "Run CRC/OCP read-only checks against the personal lab target before any approval-gated project, registry, install, or OLSConfig action.",
+      firstReadOnlyCommandId: labReadOnlyCommandIds[0] ?? "none",
+      readOnlyCommandIds: labReadOnlyCommandIds,
+      approvalGatedCommandIds,
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false,
+      companyOcpUsed: false
+    }
   };
 }
 
@@ -589,6 +656,18 @@ async function writeMarkdown(path, report) {
     "```powershell",
     report.commandPlan.oneAtATimeNextCommand.command,
     "```",
+    "",
+    "## Machine Role Plan",
+    "",
+    `- Workstation role: ${report.machineRolePlan.workstation.role}`,
+    `- Workstation first command: ${report.machineRolePlan.workstation.firstCommandId} -> ${report.machineRolePlan.workstation.firstCommand}`,
+    `- Transfer artifact ready: ${String(report.machineRolePlan.transfer.ready)}`,
+    `- Transfer missing tags: ${report.machineRolePlan.transfer.missingTags.join(", ") || "none"}`,
+    `- Transfer command template: ${report.machineRolePlan.transfer.commandTemplate}`,
+    `- Lab host role: ${report.machineRolePlan.labHost.role}`,
+    `- Lab host first read-only command: ${report.machineRolePlan.labHost.firstReadOnlyCommandId}`,
+    `- Lab host approval-gated commands: ${report.machineRolePlan.labHost.approvalGatedCommandIds.join(", ") || "none"}`,
+    `- Company OCP used: ${String(report.machineRolePlan.labHost.companyOcpUsed)}`,
     "",
     "## Local Image Package",
     "",
@@ -723,6 +802,7 @@ const state = {
 };
 
 const commandPlan = buildCommands(state);
+const machineRolePlan = buildMachineRolePlan(state, commandPlan);
 const status = statusFor(state);
 const currentJudgment =
   status === "READY_FOR_EXPLICIT_CRC_HANDOFF"
@@ -762,6 +842,7 @@ const report = {
   images,
   imageTar,
   commandPlan,
+  machineRolePlan,
   currentJudgment,
   checks
 };

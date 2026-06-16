@@ -9760,6 +9760,7 @@ type LabHandoffEvidenceArtifact = {
     approvalGatedCommands?: LabCommandEvidence[];
     oneAtATimeNextCommand?: LabCommandEvidence;
   };
+  machineRolePlan?: OpsLensLabHandoffSummary["machineRolePlan"];
   imageTar?: {
     exists?: boolean;
     sizeBytes?: number;
@@ -9848,6 +9849,48 @@ function mapLabHandoffStatus(
     default:
       return "needs-evidence";
   }
+}
+
+function labHandoffMachineRolePlanFallback(
+  nextCommand: OpsLensLabCommandSummary,
+  imageTar: OpsLensLabHandoffSummary["imageTar"]
+): OpsLensLabHandoffSummary["machineRolePlan"] {
+  return {
+    workstation: {
+      role: "repo-workstation",
+      firstCommandId: nextCommand.id,
+      firstCommand: nextCommand.command,
+      commandIds: [nextCommand.id],
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false
+    },
+    transfer: {
+      role: "portable-image-transfer",
+      artifactPath: labHandoffEvidencePath().replace(
+        /cywell-opslens-lab-server-handoff\.json$/u,
+        "cywell-opslens-crc-images.tar"
+      ),
+      ready: imageTar.exists && imageTar.missingTags.length === 0,
+      missingTags: imageTar.missingTags,
+      commandTemplate:
+        "copy test-results/cywell-opslens-crc-images.tar to the dedicated CRC lab host, then docker load it there",
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false
+    },
+    labHost: {
+      role: "dedicated-crc-lab-host",
+      firstReadOnlyCommandId: "crc-target-profile",
+      readOnlyCommandIds: ["crc-target-profile", "ocp-connectivity", "lightspeed-readiness"],
+      approvalGatedCommandIds: [
+        "create-crc-project",
+        "push-images-to-crc-registry",
+        "install-opslens-stack"
+      ],
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false,
+      companyOcpUsed: false
+    }
+  };
 }
 
 function missingLabBootstrapSummary(
@@ -10059,6 +10102,17 @@ function missingLabHandoffSummary(
   reason: string,
   status: OpsLensLabHandoffReadiness = "needs-evidence"
 ): OpsLensLabHandoffSummary {
+  const imageTar = {
+    exists: false,
+    sizeMiB: 0,
+    missingTags: []
+  };
+  const nextCommand = mapLabCommand(undefined, {
+    id: "generate-lab-handoff",
+    command: "npm run verify:lab-handoff",
+    phase: "handoff-refresh",
+    purpose: "Generate the dedicated CRC lab handoff packet."
+  });
   return {
     status,
     artifactStatus: status === "failed" ? "invalid" : "missing",
@@ -10067,20 +10121,12 @@ function missingLabHandoffSummary(
     headSha: "missing",
     worktreeDirty: false,
     evidencePath: labHandoffEvidencePath(),
-    imageTar: {
-      exists: false,
-      sizeMiB: 0,
-      missingTags: []
-    },
-    nextCommand: mapLabCommand(undefined, {
-      id: "generate-lab-handoff",
-      command: "npm run verify:lab-handoff",
-      phase: "handoff-refresh",
-      purpose: "Generate the dedicated CRC lab handoff packet."
-    }),
+    imageTar,
+    nextCommand,
     readOnlyCommands: [],
     localSetupCommands: [],
     approvalGatedCommands: [],
+    machineRolePlan: labHandoffMachineRolePlanFallback(nextCommand, imageTar),
     sourceArtifacts: [],
     mutationBoundary: {
       clusterMutationAttempted: false,
@@ -10138,6 +10184,16 @@ function getLabHandoffReadiness(): {
     ).map((command) =>
       mapLabCommand(command, { requiresExplicitApproval: true })
     );
+    const imageTar = {
+      exists: artifact.imageTar?.exists === true,
+      sizeMiB: Number(
+        artifact.imageTar?.sizeMiB ??
+          (typeof artifact.imageTar?.sizeBytes === "number"
+            ? artifact.imageTar.sizeBytes / 1024 / 1024
+            : 0)
+      ),
+      missingTags: artifact.imageTar?.missingTags ?? []
+    };
     const sourceArtifacts = Object.entries(artifact.sources ?? {}).map(
       ([id, source]) => ({
         id: source.id ?? id,
@@ -10156,16 +10212,7 @@ function getLabHandoffReadiness(): {
       headSha: artifact.ref?.headSha ?? "unknown",
       worktreeDirty: artifact.ref?.worktreeDirty === true,
       evidencePath,
-      imageTar: {
-        exists: artifact.imageTar?.exists === true,
-        sizeMiB: Number(
-          artifact.imageTar?.sizeMiB ??
-            (typeof artifact.imageTar?.sizeBytes === "number"
-              ? artifact.imageTar.sizeBytes / 1024 / 1024
-              : 0)
-        ),
-        missingTags: artifact.imageTar?.missingTags ?? []
-      },
+      imageTar,
       nextCommand: mapLabCommand(
         artifact.commandPlan?.oneAtATimeNextCommand,
         {
@@ -10177,6 +10224,16 @@ function getLabHandoffReadiness(): {
       readOnlyCommands,
       localSetupCommands,
       approvalGatedCommands,
+      machineRolePlan:
+        artifact.machineRolePlan ??
+        labHandoffMachineRolePlanFallback(
+          mapLabCommand(artifact.commandPlan?.oneAtATimeNextCommand, {
+            id: "lab-handoff-next",
+            command: "npm run verify:lab-handoff",
+            phase: "handoff-refresh"
+          }),
+          imageTar
+        ),
       sourceArtifacts,
       mutationBoundary: {
         clusterMutationAttempted:
@@ -10202,6 +10259,7 @@ function getLabHandoffReadiness(): {
         `Lab handoff evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `lab handoff head=${plan.headSha} dirty=${String(plan.worktreeDirty)} next=${plan.nextCommand.id}`,
         `lab handoff imageTar exists=${String(plan.imageTar.exists)} missingTags=${plan.imageTar.missingTags.join(",") || "none"}`,
+        `lab machine roles workstation=${plan.machineRolePlan.workstation.role}:${plan.machineRolePlan.workstation.firstCommandId} transferReady=${String(plan.machineRolePlan.transfer.ready)} labHost=${plan.machineRolePlan.labHost.role}:${plan.machineRolePlan.labHost.firstReadOnlyCommandId} companyOcpUsed=${String(plan.machineRolePlan.labHost.companyOcpUsed)}`,
         `lab handoff sources=${sourceArtifacts.map((source) => `${source.id}:${source.status}:fresh=${String(source.fresh)}`).join(", ") || "none"}`,
         `lab handoff mutations cluster=${String(plan.mutationBoundary.clusterMutationAttempted)} registry=${String(plan.mutationBoundary.registryMutationAttempted)} allowed=${String(plan.mutationBoundary.mutationAllowedByThisVerifier)}`,
         "admin overview reads lab handoff evidence only; it does not run live checks or mutating commands"
