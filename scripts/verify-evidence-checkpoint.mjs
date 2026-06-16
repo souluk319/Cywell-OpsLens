@@ -16,6 +16,7 @@ const evidenceDefaults = {
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
   opsBrain: "test-results/cywell-opslens-opsbrain-contract.json",
   envContract: "test-results/cywell-opslens-env-contract.json",
+  ocpTargetProfile: "test-results/cywell-opslens-ocp-target-profile.json",
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
   runtimeRag: "test-results/cywell-opslens-runtime-rag-contract.json",
   runtimeRagFixture: "test-results/cywell-opslens-runtime-rag-fixture.json",
@@ -383,6 +384,44 @@ function checkEnvContract(envArtifact) {
   pass(
     "environment isolation contract",
     `activeKeys=${audit.activeKeyCount ?? 0} commented=${audit.commentedTrackedCount ?? 0} values redacted`
+  );
+}
+
+function checkOcpTargetProfile(profileArtifact) {
+  if (!profileArtifact) return;
+  const violations = [];
+  const target = profileArtifact.target ?? {};
+  const boundary = profileArtifact.boundary ?? {};
+  const allowedStatuses = new Set(["CRC_SANDBOX_READY", "COMPANY_SHARED_READ_ONLY"]);
+
+  if (!allowedStatuses.has(profileArtifact.status)) {
+    violations.push(`status=${profileArtifact.status ?? "missing"}`);
+  }
+  if (profileArtifact.actionMode !== "localEnvTargetAuditOnly") {
+    violations.push(`actionMode=${profileArtifact.actionMode ?? "missing"}`);
+  }
+  if (!target.kind) {
+    violations.push("target.kind");
+  }
+  if (
+    profileArtifact.clusterMutationAttempted === true ||
+    profileArtifact.registryMutationAttempted === true ||
+    profileArtifact.vectorWriteAttempted === true ||
+    profileArtifact.mutationAllowedByThisVerifier === true ||
+    boundary.companyOcpMutationAllowedByThisVerifier === true ||
+    boundary.crcMutationAllowedByThisVerifier === true
+  ) {
+    violations.push("mutationBoundary");
+  }
+
+  if (violations.length > 0) {
+    fail("OCP target profile guard", `violations=${violations.join(", ")}`);
+    return;
+  }
+
+  pass(
+    "OCP target profile guard",
+    `status=${profileArtifact.status} targetKind=${target.kind} endpoint=redacted`
   );
 }
 
@@ -1317,6 +1356,13 @@ async function main() {
     currentHeadSha: headSha
   });
   laneResult({
+    id: "ocpTargetProfile",
+    label: "OCP target profile guard",
+    artifact: artifacts.ocpTargetProfile,
+    desiredStatuses: ["CRC_SANDBOX_READY", "COMPANY_SHARED_READ_ONLY"],
+    currentHeadSha: headSha
+  });
+  laneResult({
     id: "runtimeReadiness",
     label: "runtime readiness",
     artifact: artifacts.runtimeReadiness,
@@ -1557,6 +1603,7 @@ async function main() {
   });
 
   checkEnvContract(artifacts.envContract);
+  checkOcpTargetProfile(artifacts.ocpTargetProfile);
   checkLightspeedRoutingScore(artifacts.lightspeedRouting);
   checkLightspeedTrojanHorse(artifacts.lightspeedTrojanHorse);
   checkLightspeedIntegrationHandoff(artifacts.lightspeedIntegrationHandoff);

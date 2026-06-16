@@ -15,6 +15,7 @@ const defaults = {
   releaseBundleEvidence: "test-results/cywell-opslens-release-evidence-bundle.json",
   opsBrain: "test-results/cywell-opslens-opsbrain-contract.json",
   envContract: "test-results/cywell-opslens-env-contract.json",
+  ocpTargetProfile: "test-results/cywell-opslens-ocp-target-profile.json",
   aiopsIncidentPipeline:
     "test-results/cywell-opslens-aiops-incident-pipeline.json",
   runtimeReadiness: "test-results/cywell-opslens-runtime-readiness.json",
@@ -68,6 +69,8 @@ const options = {
     parsed.get("opsbrain-evidence") ?? defaults.opsBrain,
   envContract:
     parsed.get("env-contract-evidence") ?? defaults.envContract,
+  ocpTargetProfile:
+    parsed.get("ocp-target-profile-evidence") ?? defaults.ocpTargetProfile,
   aiopsIncidentPipeline:
     parsed.get("aiops-incident-pipeline-evidence") ??
     defaults.aiopsIncidentPipeline,
@@ -1945,6 +1948,41 @@ function liveReaderSmokeDiagnostics(ocpLiveReaderSmoke) {
   ];
 }
 
+function lightspeedReadinessRerunTicketPacket(gap, nextCommand) {
+  const classification = gap?.classification ?? "unknown";
+  return {
+    id: "cluster-sre-lightspeed-readiness-rerun-ticket",
+    owner: gap?.owner ?? "cluster-sre",
+    title: "Lightspeed readiness read-only rerun",
+    severity: "blocker",
+    classification,
+    evidenceChecklist: [
+      "Rerun Lightspeed readiness with the active OCP target profile confirmed.",
+      "Keep the rerun read-only and write only local evidence.",
+      "Attach the refreshed readiness artifact and checkpoint status to the handoff."
+    ],
+    firstReadOnlyAction: {
+      id: "rerun-lightspeed-readiness",
+      status: "open",
+      nextCommand,
+      mutation: false,
+      requiresExplicitApproval: false
+    },
+    mutationBoundary: {
+      clusterMutationAttempted: false,
+      registryMutationAttempted: false,
+      vectorWriteAttempted: false,
+      ingestionJobCreated: false,
+      mutationAllowedByThisVerifier: false
+    },
+    nextCommands: uniqueStrings([
+      "npm run verify:ocp:target-profile",
+      nextCommand,
+      "npm run verify:evidence-checkpoint"
+    ])
+  };
+}
+
 function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveReaderSmoke, networkHandoff) {
   const gap = lightspeedReadiness?.currentGap ?? {};
   const classification = gap.classification ?? "unknown";
@@ -2033,6 +2071,7 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
     };
   }
 
+  const nextCommand = gap.nextCommand ?? "npm run verify:lightspeed -- --timeout-ms 30000";
   return {
     id: "cluster-sre-rerun-lightspeed-readiness",
     owner: gap.owner ?? "cluster-sre",
@@ -2040,10 +2079,16 @@ function lightspeedReadinessAction(lightspeedReadiness, authRbacPlan, ocpLiveRea
     source: "lightspeedReadiness",
     request: "Rerun live Lightspeed MCP readiness after OCP API reachability and OLSConfig readability are restored.",
     evidenceNeeded: "Lightspeed readiness artifact reaches PASS or a non-network NEEDS_CONFIGURATION classification.",
-    nextCommand: gap.nextCommand ?? "npm run verify:lightspeed -- --timeout-ms 30000",
+    nextCommand,
+    handoffNextCommands: uniqueStrings([
+      "npm run verify:ocp:target-profile",
+      nextCommand,
+      "npm run verify:evidence-checkpoint"
+    ]),
     readOnlyCommands,
     blockedBy: lightspeedReadiness?.missingEvidence ?? [],
     diagnostics: liveReaderSmokeDiagnostics(ocpLiveReaderSmoke),
+    ticketPacket: lightspeedReadinessRerunTicketPacket(gap, nextCommand),
     acceptance: ["AC-LS-001", "AC-LS-002"]
   };
 }
@@ -3328,6 +3373,131 @@ function envContractItems(envContract, currentHeadSha) {
   ];
 }
 
+function ocpTargetProfileMutationViolation(profile) {
+  return profile?.clusterMutationAttempted === true ||
+    profile?.registryMutationAttempted === true ||
+    profile?.vectorWriteAttempted === true ||
+    profile?.mutationAllowedByThisVerifier === true ||
+    profile?.boundary?.companyOcpMutationAllowedByThisVerifier === true ||
+    profile?.boundary?.crcMutationAllowedByThisVerifier === true;
+}
+
+function ocpTargetProfileDiagnostics(profile, currentHeadSha) {
+  const ref = artifactRef(profile);
+  const target = profile?.target ?? {};
+  const boundary = profile?.boundary ?? {};
+  const commandPlan = profile?.commandPlan ?? {};
+  const currentSafeCommands = Array.isArray(commandPlan.currentSafeCommands)
+    ? commandPlan.currentSafeCommands.length
+    : 0;
+  const crcSwitchPlan = Array.isArray(commandPlan.crcSwitchPlan)
+    ? commandPlan.crcSwitchPlan.length
+    : 0;
+  const forbiddenWithoutApproval = Array.isArray(commandPlan.forbiddenWithoutApproval)
+    ? commandPlan.forbiddenWithoutApproval.length
+    : 0;
+
+  return [
+    {
+      id: "ocp-target-profile-status",
+      label: "OCP target profile",
+      value:
+        `status=${profile?.status ?? "missing"} ` +
+        `actionMode=${profile?.actionMode ?? "missing"} ` +
+        `artifactHead=${ref.headSha ?? "missing"} ` +
+        `currentHead=${currentHeadSha} ` +
+        `fresh=${String(profile ? artifactFresh(profile, currentHeadSha) : false)}`
+    },
+    {
+      id: "ocp-target-profile-target",
+      label: "Target discipline",
+      value:
+        `targetKind=${target.kind ?? "missing"} ` +
+        `targetSafety=${target.safety ?? "unspecified"} ` +
+        `recommendedUsage=${target.recommendedUsage ?? "missing"}`
+    },
+    {
+      id: "ocp-target-profile-boundary",
+      label: "Mutation boundary",
+      value:
+        `companyOcpMutationAllowedByThisVerifier=${String(boundary.companyOcpMutationAllowedByThisVerifier === true)} ` +
+        `crcMutationAllowedByThisVerifier=${String(boundary.crcMutationAllowedByThisVerifier === true)} ` +
+        `mutationRequiresExplicitHumanApproval=${String(boundary.mutationRequiresExplicitHumanApproval === true)}`
+    },
+    {
+      id: "ocp-target-profile-command-plan",
+      label: "Command plan",
+      value:
+        `currentSafeCommands=${currentSafeCommands} ` +
+        `crcSwitchPlan=${crcSwitchPlan} ` +
+        `forbiddenWithoutApproval=${forbiddenWithoutApproval}`
+    }
+  ];
+}
+
+function ocpTargetProfileItems(profile, currentHeadSha) {
+  const allowedStatuses = new Set(["CRC_SANDBOX_READY", "COMPANY_SHARED_READ_ONLY"]);
+  const target = profile?.target ?? {};
+  const gaps = uniqueStrings([
+    ...(!profile ? ["OCP target profile artifact missing"] : []),
+    ...(profile && !artifactFresh(profile, currentHeadSha)
+      ? [`OCP target profile stale head=${artifactRef(profile).headSha ?? "missing"}`]
+      : []),
+    ...(!allowedStatuses.has(profile?.status)
+      ? [`OCP target profile status=${profile?.status ?? "missing"}`]
+      : []),
+    ...(profile?.actionMode !== "localEnvTargetAuditOnly"
+      ? [`OCP target profile actionMode=${profile?.actionMode ?? "missing"}`]
+      : []),
+    ...(!target.kind ? ["OCP target kind missing"] : []),
+    ...(ocpTargetProfileMutationViolation(profile)
+      ? ["OCP target profile mutation boundary violated"]
+      : []),
+    ...(profile?.missingEvidence ?? [])
+  ]);
+
+  if (gaps.length === 0) return [];
+
+  const blocker =
+    !profile ||
+    !allowedStatuses.has(profile.status) ||
+    profile.actionMode !== "localEnvTargetAuditOnly" ||
+    !target.kind ||
+    ocpTargetProfileMutationViolation(profile);
+
+  return [
+    item({
+      id: "cluster-sre-restore-ocp-target-profile",
+      owner: "cluster-sre",
+      priority: blocker ? "blocker" : "high",
+      source: "ocpTargetProfile",
+      request:
+        "Restore the OCP target profile guard before live readiness, install rehearsal, or CRC switch work.",
+      evidenceNeeded:
+        "npm run verify:ocp:target-profile writes CRC_SANDBOX_READY or COMPANY_SHARED_READ_ONLY with actionMode=localEnvTargetAuditOnly, target kind present, and mutation flags false.",
+      nextCommand: "npm run verify:ocp:target-profile",
+      handoffNextCommands: [
+        "npm run verify:env",
+        "npm run verify:ocp:target-profile",
+        "npm run verify:release-refresh -- --live-timeout-ms 8000"
+      ],
+      readOnlyCommands: [
+        {
+          id: "ocp-target-profile",
+          phase: "target-profile",
+          command: "npm run verify:ocp:target-profile",
+          mutation: false,
+          requiresNetwork: false,
+          writesLocalEvidence: true
+        }
+      ],
+      blockedBy: gaps,
+      diagnostics: ocpTargetProfileDiagnostics(profile, currentHeadSha),
+      acceptance: ["AC-ENV-001", "AC-OCP-001", "AC-LIVE-HANDOFF-001"]
+    })
+  ];
+}
+
 function aiopsMonitoringItems(aiopsIncidentPipeline) {
   const missingEvidence = [
     ...(aiopsIncidentPipeline?.missingEvidence ?? []),
@@ -3554,6 +3724,7 @@ function buildItems(artifacts, currentHeadSha) {
   return uniqueByKey(
     [
       ...envContractItems(artifacts.envContract, currentHeadSha),
+      ...ocpTargetProfileItems(artifacts.ocpTargetProfile, currentHeadSha),
       ...checkpointItems(
         artifacts.checkpoint,
         artifacts.ocpNetworkHandoff,
@@ -4417,6 +4588,7 @@ async function main() {
     releaseBundle: loadJson(options.releaseBundleEvidence, "release evidence bundle", true),
     opsBrain: loadJson(options.opsBrain, "Cywell OpsBrain contract", false),
     envContract: loadJson(options.envContract, "environment isolation contract", false),
+    ocpTargetProfile: loadJson(options.ocpTargetProfile, "OCP target profile guard", false),
     aiopsIncidentPipeline: loadJson(options.aiopsIncidentPipeline, "AI Ops incident pipeline", false),
     runtimeReadiness: loadJson(options.runtimeReadiness, "runtime readiness", false),
     runtimeRagContract: loadJson(options.runtimeRagContract, "runtime RAG contract", false),
@@ -4446,6 +4618,7 @@ async function main() {
     sourceSummary("releaseBundle", "release evidence bundle", options.releaseBundleEvidence, artifacts.releaseBundle, headSha, true),
     sourceSummary("opsBrain", "Cywell OpsBrain contract", options.opsBrain, artifacts.opsBrain, headSha),
     sourceSummary("envContract", "environment isolation contract", options.envContract, artifacts.envContract, headSha, true),
+    sourceSummary("ocpTargetProfile", "OCP target profile guard", options.ocpTargetProfile, artifacts.ocpTargetProfile, headSha),
     sourceSummary("aiopsIncidentPipeline", "AI Ops incident pipeline", options.aiopsIncidentPipeline, artifacts.aiopsIncidentPipeline, headSha),
     sourceSummary("runtimeReadiness", "runtime readiness", options.runtimeReadiness, artifacts.runtimeReadiness, headSha),
     sourceSummary("runtimeRagContract", "runtime RAG contract", options.runtimeRagContract, artifacts.runtimeRagContract, headSha),
@@ -4552,6 +4725,7 @@ async function main() {
       artifacts.opsBrain?.mutationBoundary?.fineTuningAttempted !== true &&
       artifacts.opsBrain?.mutationBoundary?.mutationAllowedByThisVerifier !== true &&
       envContractMutationViolation(artifacts.envContract) !== true &&
+      ocpTargetProfileMutationViolation(artifacts.ocpTargetProfile) !== true &&
       artifacts.checkpoint?.registryMutationAttempted !== true &&
       artifacts.checkpoint?.clusterMutationAttempted !== true &&
       artifacts.securityScanPlan?.registryMutationAttempted !== true &&
@@ -4616,6 +4790,7 @@ async function main() {
       ...(artifacts.releaseBundle?.missingEvidence ?? []),
       ...(artifacts.opsBrain?.missingEvidence ?? []),
       ...(artifacts.envContract?.missingEvidence ?? []),
+      ...(artifacts.ocpTargetProfile?.missingEvidence ?? []),
       // releaseRefresh summarizes a prior action queue run; feeding it back causes stale circular gaps.
       ...(artifacts.checkpoint?.missingEvidence ?? []),
       ...(artifacts.securityScanPlan?.missingEvidence ?? []),

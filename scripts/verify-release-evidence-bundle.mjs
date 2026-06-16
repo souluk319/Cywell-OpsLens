@@ -13,6 +13,7 @@ const defaults = {
   mvpGate: "test-results/cywell-opslens-mvp-0.1-gate.json",
   opsBrain: "test-results/cywell-opslens-opsbrain-contract.json",
   envContract: "test-results/cywell-opslens-env-contract.json",
+  ocpTargetProfile: "test-results/cywell-opslens-ocp-target-profile.json",
   consolePluginAssets: "test-results/cywell-opslens-console-plugin-assets.json",
   lightspeedExtensionPoint:
     "test-results/cywell-opslens-lightspeed-extension-point.json",
@@ -67,6 +68,8 @@ const options = {
   mvpGate: parsed.get("mvp-gate-evidence") ?? defaults.mvpGate,
   opsBrain: parsed.get("opsbrain-evidence") ?? defaults.opsBrain,
   envContract: parsed.get("env-contract-evidence") ?? defaults.envContract,
+  ocpTargetProfile:
+    parsed.get("ocp-target-profile-evidence") ?? defaults.ocpTargetProfile,
   consolePluginAssets:
     parsed.get("console-plugin-assets-evidence") ?? defaults.consolePluginAssets,
   lightspeedExtensionPoint:
@@ -501,6 +504,12 @@ function mutationBoundary(artifacts) {
     ["envContract.registryMutationAttempted", artifacts.envContract?.registryMutationAttempted],
     ["envContract.vectorWriteAttempted", artifacts.envContract?.vectorWriteAttempted],
     ["envContract.mutationAllowedByThisVerifier", artifacts.envContract?.mutationAllowedByThisVerifier],
+    ["ocpTargetProfile.clusterMutationAttempted", artifacts.ocpTargetProfile?.clusterMutationAttempted],
+    ["ocpTargetProfile.registryMutationAttempted", artifacts.ocpTargetProfile?.registryMutationAttempted],
+    ["ocpTargetProfile.vectorWriteAttempted", artifacts.ocpTargetProfile?.vectorWriteAttempted],
+    ["ocpTargetProfile.mutationAllowedByThisVerifier", artifacts.ocpTargetProfile?.mutationAllowedByThisVerifier],
+    ["ocpTargetProfile.companyOcpMutationAllowedByThisVerifier", artifacts.ocpTargetProfile?.boundary?.companyOcpMutationAllowedByThisVerifier],
+    ["ocpTargetProfile.crcMutationAllowedByThisVerifier", artifacts.ocpTargetProfile?.boundary?.crcMutationAllowedByThisVerifier],
     ["opsBrain.clusterMutationAttempted", artifacts.opsBrain?.mutationBoundary?.clusterMutationAttempted],
     ["opsBrain.registryMutationAttempted", artifacts.opsBrain?.mutationBoundary?.registryMutationAttempted],
     ["opsBrain.vectorWriteAttempted", artifacts.opsBrain?.mutationBoundary?.vectorWriteAttempted],
@@ -688,6 +697,7 @@ function evidenceGaps(artifacts, sources) {
       .filter((source) => !source.acceptable)
       .map((source) => `${source.label} status=${source.status}`),
     ...(artifacts.evidenceCheckpoint?.missingEvidence ?? []),
+    ...(artifacts.ocpTargetProfile?.missingEvidence ?? []),
     ...(artifacts.releasePlan?.missingEvidence ?? []),
     ...(artifacts.installPlan?.missingEvidence ?? []),
     ...(artifacts.certificationReadiness?.missingEvidence ?? []),
@@ -890,6 +900,7 @@ async function main() {
     mvpGate: loadJson(options.mvpGate, "MVP gate"),
     opsBrain: loadJson(options.opsBrain, "Cywell OpsBrain contract"),
     envContract: loadJson(options.envContract, "environment isolation contract"),
+    ocpTargetProfile: loadJson(options.ocpTargetProfile, "OCP target profile guard"),
     consolePluginAssets: loadJson(options.consolePluginAssets, "ConsolePlugin assets"),
     lightspeedExtensionPoint: loadJson(
       options.lightspeedExtensionPoint,
@@ -932,6 +943,7 @@ async function main() {
     sourceSummary("mvpGate", "MVP gate", options.mvpGate, artifacts.mvpGate, headSha, ["PASS"]),
     sourceSummary("opsBrain", "Cywell OpsBrain contract", options.opsBrain, artifacts.opsBrain, headSha, ["PASS"]),
     sourceSummary("envContract", "environment isolation contract", options.envContract, artifacts.envContract, headSha, ["PASS"]),
+    sourceSummary("ocpTargetProfile", "OCP target profile guard", options.ocpTargetProfile, artifacts.ocpTargetProfile, headSha, ["CRC_SANDBOX_READY", "COMPANY_SHARED_READ_ONLY"]),
     sourceSummary("consolePluginAssets", "ConsolePlugin assets", options.consolePluginAssets, artifacts.consolePluginAssets, headSha, ["PASS"]),
     sourceSummary("lightspeedExtensionPoint", "Lightspeed extension point decision", options.lightspeedExtensionPoint, artifacts.lightspeedExtensionPoint, headSha, ["PASS"]),
     sourceSummary("imageBuild", "image build readiness", options.imageBuild, artifacts.imageBuild, headSha, ["PASS"]),
