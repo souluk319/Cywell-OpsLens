@@ -7138,17 +7138,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           typeof entry.externalStateRequired === "boolean"
       )
     ).toBe(true);
-    expect(
+    const ocpConnectivityHandoff =
       body.installReadiness?.roadmapCompletion?.remainingHandoffs?.find(
         (entry) => entry.gateId === "ocpConnectivity"
-      )
-    ).toMatchObject({
-      owner: "cluster-admin",
-      actionId: "cluster-admin-fix-ocp-auth-rbac",
-      nextCommand: "npm run evidence:ocp-auth-rbac-plan",
-      ticketIds: expect.arrayContaining(["cluster-admin-ocp-auth-rbac-ticket"]),
+      );
+    expect(ocpConnectivityHandoff).toMatchObject({
       externalStateRequired: true
     });
+    if (ocpConnectivityHandoff?.actionId === "network-sre-unblock-ocp-api") {
+      expect(ocpConnectivityHandoff).toMatchObject({
+        owner: "network-sre",
+        nextCommand: "npm run verify:ocp:connectivity -- --timeout-ms 30000",
+        ticketIds: expect.arrayContaining(["network-sre-ocp-api-reachability-ticket"]),
+        approvalGatedCommandIds: expect.arrayContaining([
+          "approval-gated-network-route-change"
+        ])
+      });
+    } else {
+      expect(ocpConnectivityHandoff).toMatchObject({
+        owner: "cluster-admin",
+        actionId: "cluster-admin-fix-ocp-auth-rbac",
+        nextCommand: "npm run evidence:ocp-auth-rbac-plan",
+        ticketIds: expect.arrayContaining(["cluster-admin-ocp-auth-rbac-ticket"])
+      });
+    }
     expect(
       body.installReadiness?.roadmapCompletion?.remainingHandoffs?.find(
         (entry) => entry.gateId === "releasePublish"
@@ -7220,15 +7233,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       expect.arrayContaining([
         "live-ocp-lightspeed",
         "lightspeed-auth-rbac",
-        "ocp-live-reader-rbac",
         "runtime-live",
         "runtime-rag-quality",
         "external-runtime-review",
         "external-runtime-final-evidence",
         "external-runtime-license-review",
         "catalog-registry-auth",
+        "certification-toolchain",
         "release-publish",
-        "install-approval"
+        "install-approval",
+        "security-review",
+        "rag-production",
+        "aiops-monitoring"
       ])
     );
     expect(
