@@ -2788,6 +2788,7 @@ type ReleaseEvidenceRefreshArtifact = {
     missingOwnerPacketNextCommands?: string[];
     missingOwnerPacketTickets?: string[];
     missingCriticalPathDiagnostics?: string[];
+    missingCriticalPathNextCommands?: string[];
     missingCriticalPathTickets?: string[];
     unsafeCriticalPathTickets?: string[];
     ownerPacketCleanup?: {
@@ -10602,6 +10603,7 @@ function missingReleaseEvidenceRefreshSummary(
       missingOwnerPacketNextCommands: [reason],
       missingOwnerPacketTickets: [reason],
       missingCriticalPathDiagnostics: [reason],
+      missingCriticalPathNextCommands: [reason],
       missingCriticalPathTickets: [reason],
       unsafeCriticalPathTickets: [reason],
       ownerPacketCleanup: {
@@ -10677,6 +10679,8 @@ function getReleaseEvidenceRefreshReadiness(): {
         artifact.actionQueue?.missingOwnerPacketTickets ?? [],
       missingCriticalPathDiagnostics:
         artifact.actionQueue?.missingCriticalPathDiagnostics ?? [],
+      missingCriticalPathNextCommands:
+        artifact.actionQueue?.missingCriticalPathNextCommands ?? [],
       missingCriticalPathTickets:
         artifact.actionQueue?.missingCriticalPathTickets ?? [],
       unsafeCriticalPathTickets:

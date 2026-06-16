@@ -2556,6 +2556,7 @@ export interface OpsLensReleaseEvidenceRefreshSummary {
     missingOwnerPacketNextCommands: string[];
     missingOwnerPacketTickets: string[];
     missingCriticalPathDiagnostics: string[];
+    missingCriticalPathNextCommands: string[];
     missingCriticalPathTickets: string[];
     unsafeCriticalPathTickets: string[];
     ownerPacketCleanup: {

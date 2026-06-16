@@ -2796,6 +2796,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
             missingOwnerPacketNextCommands?: string[];
             missingOwnerPacketTickets?: string[];
             missingCriticalPathDiagnostics?: string[];
+            missingCriticalPathNextCommands?: string[];
             missingCriticalPathTickets?: string[];
             unsafeCriticalPathTickets?: string[];
             ownerPacketCleanup?: {
@@ -6541,6 +6542,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     ).toBeGreaterThan(0);
     expect(
       body.installReadiness?.refresh?.actionQueue?.missingCriticalPathDiagnostics
+    ).toEqual([]);
+    expect(
+      body.installReadiness?.refresh?.actionQueue?.missingCriticalPathNextCommands
     ).toEqual([]);
     expect(
       body.installReadiness?.refresh?.actionQueue?.missingCriticalPathTickets

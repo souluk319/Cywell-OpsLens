@@ -4773,6 +4773,20 @@ async function main() {
       `${releaseCriticalPath.length} critical path lane(s) carry read-only command ids`
     );
   }
+  const criticalPathWithoutNextCommands = releaseCriticalPath
+    .filter((entry) => !entry.nextCommand || ["none", "not listed"].includes(entry.nextCommand))
+    .map((entry) => entry.lane);
+  if (criticalPathWithoutNextCommands.length > 0) {
+    fail(
+      "release action queue critical path next-command coverage",
+      `criticalPath=${criticalPathWithoutNextCommands.join(",")}`
+    );
+  } else {
+    pass(
+      "release action queue critical path next-command coverage",
+      `${releaseCriticalPath.length} critical path lane(s) carry next commands`
+    );
+  }
   const criticalPathWithoutTickets = releaseCriticalPath
     .filter((entry) => criticalPathTicketIds(entry).length === 0)
     .map((entry) => entry.lane);

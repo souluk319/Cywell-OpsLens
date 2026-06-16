@@ -471,6 +471,7 @@ function actionQueueSummary(headSha) {
       missingOwnerPacketNextCommands: ["release action queue artifact is missing or unreadable"],
       missingOwnerPacketTickets: ["release action queue artifact is missing or unreadable"],
       missingCriticalPathDiagnostics: ["release action queue artifact is missing or unreadable"],
+      missingCriticalPathNextCommands: ["release action queue artifact is missing or unreadable"],
       missingCriticalPathTickets: ["release action queue artifact is missing or unreadable"],
       unsafeCriticalPathTickets: ["release action queue artifact is missing or unreadable"],
       ownerPacketCleanup: {
@@ -593,6 +594,9 @@ function actionQueueSummary(headSha) {
   const missingCriticalPathDiagnostics = criticalPath
     .filter((entry) => (entry.diagnostics ?? []).length === 0)
     .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks diagnostics`);
+  const missingCriticalPathNextCommands = criticalPath
+    .filter((entry) => !entry.nextCommand || ["none", "not listed"].includes(entry.nextCommand))
+    .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks next command`);
   const missingCriticalPathTickets = criticalPath
     .filter((entry) => ticketPackets(entry).length === 0)
     .map((entry) => `critical path ${sanitize(entry.lane ?? "unknown")} lacks ticket packet`);
@@ -620,6 +624,7 @@ function actionQueueSummary(headSha) {
     ...freshnessBlockers,
     ...(criticalPath.length > 0 ? [] : ["release action queue has no criticalPath lanes"]),
     ...missingCriticalPathDiagnostics,
+    ...missingCriticalPathNextCommands,
     ...missingCriticalPathTickets,
     ...unsafeCriticalPathTickets
   ];
@@ -643,6 +648,7 @@ function actionQueueSummary(headSha) {
     missingOwnerPacketNextCommands: ownerPacketsWithoutNextCommands,
     missingOwnerPacketTickets: ownerPacketsWithoutTickets,
     missingCriticalPathDiagnostics,
+    missingCriticalPathNextCommands,
     missingCriticalPathTickets,
     unsafeCriticalPathTickets,
     ownerPacketCleanup,
