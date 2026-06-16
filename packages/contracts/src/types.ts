@@ -1941,6 +1941,8 @@ export interface OpsLensCatalogToolchainSummary {
   status: OpsLensCatalogToolchainReadiness;
   artifactStatus: string;
   actionMode: "toolchainPlanOnly";
+  currentJudgment: string;
+  markdownPath: string;
   registryMutationAttempted: boolean;
   clusterMutationAttempted: boolean;
   mutationAllowedByThisVerifier: boolean;
@@ -1973,6 +1975,15 @@ export interface OpsLensCatalogToolchainSummary {
     requiresNetwork: boolean;
     mutation: boolean;
   }>;
+  nextAction: {
+    id: string;
+    owner: string;
+    command: string;
+    phase: string;
+    mutation: boolean;
+    requiresHumanSecretInput: boolean;
+    reason: string;
+  };
   missingEvidence: string[];
   risk: string[];
   rollbackPath: string[];

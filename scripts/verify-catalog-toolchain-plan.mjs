@@ -11,6 +11,7 @@ const execFileAsync = promisify(execFile);
 
 const defaults = {
   evidenceOut: "test-results/cywell-opslens-catalog-toolchain-plan.json",
+  markdownOut: "test-results/cywell-opslens-catalog-toolchain-plan.md",
   csv: "deploy/operator/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml",
   fbc: "deploy/catalog/fbc/catalog.yaml",
   catalogDockerfile: "deploy/catalog/catalog.Dockerfile",
@@ -43,6 +44,7 @@ function parseArgs(argv) {
 const parsed = parseArgs(process.argv.slice(2));
 const options = {
   evidenceOut: parsed.get("evidence-out") ?? defaults.evidenceOut,
+  markdownOut: parsed.get("markdown-out") ?? defaults.markdownOut,
   csv: parsed.get("csv") ?? defaults.csv,
   fbc: parsed.get("fbc") ?? defaults.fbc,
   catalogDockerfile: parsed.get("catalog-dockerfile") ?? defaults.catalogDockerfile,
@@ -378,6 +380,139 @@ function planStatus(missingEvidence) {
   return "READY_FOR_DRY_RUN";
 }
 
+function nextActionFor({ status, missingEvidence, cliByName, registryAuth, registryBaseImageProbe }) {
+  if (status === "BLOCKED") {
+    return {
+      id: "fix-static-catalog-contract",
+      owner: "release-manager",
+      command: "npm run verify:catalog-toolchain",
+      phase: "static-readiness",
+      mutation: false,
+      requiresHumanSecretInput: false,
+      reason: "Static catalog/FBC/CSV contract checks failed; fix manifests before tooling work."
+    };
+  }
+  if (missingEvidence.some((entry) => entry.includes("current git worktree dirty"))) {
+    return {
+      id: "review-worktree",
+      owner: "release-manager",
+      command: "git status --short",
+      phase: "local-evidence",
+      mutation: false,
+      requiresHumanSecretInput: false,
+      reason: "Catalog evidence must be generated from a clean worktree before release or CRC install review."
+    };
+  }
+  if (!cliByName.get("opm")?.available) {
+    return {
+      id: "install-opm",
+      owner: "release-manager",
+      command: "install opm matching the target OpenShift/OLM toolchain, then rerun npm run verify:catalog-toolchain",
+      phase: "human-tooling-setup",
+      mutation: false,
+      requiresHumanSecretInput: false,
+      reason: "FBC preview validation needs opm; this verifier does not install tools."
+    };
+  }
+  if (!cliByName.get("operator-sdk")?.available) {
+    return {
+      id: "install-operator-sdk",
+      owner: "release-manager",
+      command: "install operator-sdk matching the target Operator SDK release, then rerun npm run verify:catalog-toolchain",
+      phase: "human-tooling-setup",
+      mutation: false,
+      requiresHumanSecretInput: false,
+      reason: "Bundle validation and scorecard need operator-sdk; this verifier does not install tools."
+    };
+  }
+  if (!registryAuth.configured || !registryBaseImageProbe.readable) {
+    return {
+      id: "registry-redhat-login",
+      owner: "registry-admin",
+      command: "docker login registry.redhat.io, then rerun npm run verify:catalog-toolchain",
+      phase: "human-registry-setup",
+      mutation: false,
+      requiresHumanSecretInput: true,
+      reason: "The Red Hat catalog base image cannot be read yet; credentials must be entered by a human and are not stored by the verifier."
+    };
+  }
+  return {
+    id: "build-catalog-image",
+    owner: "release-manager",
+    command: "docker build -f deploy/catalog/catalog.Dockerfile -t cywell/opslens-catalog:verify deploy/catalog",
+    phase: "local-artifact",
+    mutation: false,
+    requiresHumanSecretInput: false,
+    reason: "Catalog manifests and toolchain are ready for a local catalog image build; pushing remains approval-gated."
+  };
+}
+
+function currentJudgmentFor(status, nextAction) {
+  if (status === "READY_FOR_DRY_RUN") {
+    return "Catalog static contracts and local toolchain evidence are ready for local dry-run review. Publishing or applying remains approval-gated.";
+  }
+  if (nextAction?.id === "registry-redhat-login") {
+    return "Catalog manifests are structurally valid, but the local machine cannot read the Red Hat catalog base image yet. This is a registry/auth setup gap, not an OpsLens code defect.";
+  }
+  if (nextAction?.id === "install-opm" || nextAction?.id === "install-operator-sdk") {
+    return "Catalog manifests are structurally valid, but local certification tooling is incomplete. Install the missing CLI before claiming catalog dry-run readiness.";
+  }
+  return "Catalog readiness is not proven yet; follow the next action before building or publishing a catalog image.";
+}
+
+async function writeMarkdown(path, artifact) {
+  const lines = [
+    "# Cywell OpsLens Catalog Toolchain Handoff",
+    "",
+    `- Status: ${artifact.status}`,
+    `- Branch: ${artifact.ref.branch}`,
+    `- Head: ${artifact.ref.headSha}`,
+    `- Dirty: ${String(artifact.ref.worktreeDirty)}`,
+    `- Registry auth configured: ${String(artifact.registryAuth.configured)}`,
+    `- Registry base readable: ${String(artifact.registryAuth.baseImageReadable)}`,
+    "",
+    "## Current Judgment",
+    "",
+    artifact.currentJudgment,
+    "",
+    "## Next Action",
+    "",
+    `- ID: ${artifact.nextAction.id}`,
+    `- Owner: ${artifact.nextAction.owner}`,
+    `- Phase: ${artifact.nextAction.phase}`,
+    `- Requires human secret input: ${String(artifact.nextAction.requiresHumanSecretInput)}`,
+    `- Mutation: ${String(artifact.nextAction.mutation)}`,
+    "",
+    "```powershell",
+    artifact.nextAction.command,
+    "```",
+    "",
+    artifact.nextAction.reason,
+    "",
+    "## Missing Evidence",
+    "",
+    ...(artifact.missingEvidence.length > 0
+      ? artifact.missingEvidence.map((entry) => `- ${entry}`)
+      : ["- none"]),
+    "",
+    "## CLI Status",
+    "",
+    ...artifact.cli.map((entry) => `- ${entry.name}: available=${String(entry.available)} version=${entry.version}`),
+    "",
+    "## Boundaries",
+    "",
+    "- This verifier writes local evidence only.",
+    "- It does not install opm/operator-sdk, log in to registries, build or push release images, apply manifests, patch OLSConfig, delete, or scale.",
+    "- Catalog image push, catalog publication, Operator install, and OLSConfig registration remain approval-gated.",
+    "",
+    "## Checks",
+    "",
+    ...artifact.checks.map((check) => `- [${check.status}] ${check.name}: ${check.detail}`)
+  ];
+  await mkdir(dirname(resolve(path)), { recursive: true });
+  await writeFile(resolve(path), `${lines.map(sanitize).join("\n")}\n`, "utf8");
+}
+
 function secretValuesForLeakCheck() {
   return [
     "OCP_API_TOKEN",
@@ -453,6 +588,14 @@ async function main() {
 
   const commands = buildCommands();
   const status = planStatus(missingEvidence);
+  const nextAction = nextActionFor({
+    status,
+    missingEvidence,
+    cliByName,
+    registryAuth,
+    registryBaseImageProbe
+  });
+  const currentJudgment = currentJudgmentFor(status, nextAction);
   const artifact = {
     schema: "cywell.opslens.catalog-toolchain-plan.v0.1",
     artifactType: "opslens.catalog-toolchain-plan.v0.1",
@@ -474,6 +617,9 @@ async function main() {
     cli,
     registryAuth,
     commands,
+    nextAction,
+    currentJudgment,
+    markdownPath: resolve(options.markdownOut),
     missingEvidence,
     risk: [
       "Catalog image build can fail even when manifests are valid if registry.redhat.io credentials are missing.",
@@ -502,7 +648,9 @@ async function main() {
   }
   await mkdir(dirname(resolve(options.evidenceOut)), { recursive: true });
   await writeFile(resolve(options.evidenceOut), serialized, "utf8");
+  await writeMarkdown(options.markdownOut, artifact);
   pass("catalog toolchain plan export", `${resolve(options.evidenceOut)} written without secret material`);
+  pass("catalog toolchain handoff export", `${resolve(options.markdownOut)} written without secret material`);
 
   const totals = {
     fail: checks.filter((check) => check.status === "FAIL").length,
@@ -515,6 +663,7 @@ async function main() {
   }
   console.log("");
   console.log(`Cywell OpsLens catalog toolchain plan: status=${status}, ${totals.fail} fail, ${totals.warn} warn, ${checks.length} checks`);
+  console.log(`Next: ${nextAction.command}`);
 
   if (status === "BLOCKED") process.exitCode = 1;
 }

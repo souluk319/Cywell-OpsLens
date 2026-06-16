@@ -4383,6 +4383,23 @@ export function OpsLensAdminDashboard() {
               </div>
               <div className="approval-summary-grid">
                 <div>
+                  <span>Next Action</span>
+                  <strong>
+                    {catalogToolchainPlan.nextAction.id}:
+                    {catalogToolchainPlan.nextAction.owner}
+                  </strong>
+                </div>
+                <div>
+                  <span>Handoff</span>
+                  <strong>
+                    {catalogToolchainPlan.markdownPath !== "missing"
+                      ? catalogToolchainPlan.markdownPath
+                          .split(/[\\/]/)
+                          .pop()
+                      : "missing"}
+                  </strong>
+                </div>
+                <div>
                   <span>CLI</span>
                   <strong>
                     {catalogToolchainPlan.cli.length
@@ -4429,11 +4446,16 @@ export function OpsLensAdminDashboard() {
               </div>
               <div className="remediation-notes">
                 <p>
-                  {catalogToolchainPlan.risk[0] ??
+                  {catalogToolchainPlan.currentJudgment ??
+                    catalogToolchainPlan.risk[0] ??
                     "Catalog toolchain evidence reads local readiness only."}
                 </p>
                 <p>
-                  {catalogToolchainPlan.rollbackPath[0] ??
+                  {catalogToolchainPlan.nextAction.command}
+                </p>
+                <p>
+                  {catalogToolchainPlan.nextAction.reason ??
+                    catalogToolchainPlan.rollbackPath[0] ??
                     "Regenerate catalog toolchain evidence from a clean worktree."}
                 </p>
               </div>

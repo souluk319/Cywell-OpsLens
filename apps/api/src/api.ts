@@ -2554,6 +2554,8 @@ type CatalogToolchainEvidenceArtifact = {
   status?: string;
   generatedAt?: string;
   actionMode?: string;
+  currentJudgment?: string;
+  markdownPath?: string;
   registryMutationAttempted?: boolean;
   clusterMutationAttempted?: boolean;
   mutationAllowedByThisVerifier?: boolean;
@@ -2601,6 +2603,15 @@ type CatalogToolchainEvidenceArtifact = {
       requiresNetwork?: boolean;
       mutation?: boolean;
     }>;
+  };
+  nextAction?: {
+    id?: string;
+    owner?: string;
+    command?: string;
+    phase?: string;
+    mutation?: boolean;
+    requiresHumanSecretInput?: boolean;
+    reason?: string;
   };
   missingEvidence?: string[];
   risk?: string[];
@@ -9350,6 +9361,8 @@ function missingCatalogToolchainSummary(
     status,
     artifactStatus: status === "failed" ? "invalid" : "missing",
     actionMode: "toolchainPlanOnly",
+    currentJudgment: reason,
+    markdownPath: "missing",
     registryMutationAttempted: false,
     clusterMutationAttempted: false,
     mutationAllowedByThisVerifier: false,
@@ -9367,6 +9380,15 @@ function missingCatalogToolchainSummary(
     ],
     setupCommands: [],
     localArtifactCommands: [],
+    nextAction: {
+      id: "generate-catalog-toolchain",
+      owner: "release-manager",
+      command: "npm run verify:catalog-toolchain",
+      phase: "local-contract",
+      mutation: false,
+      requiresHumanSecretInput: false,
+      reason: "Generate catalog toolchain evidence before release or CRC install review."
+    },
     missingEvidence: [reason],
     risk: [
       "Without catalog toolchain evidence, catalog validation and certification review can drift from the release packet."
@@ -9441,6 +9463,10 @@ function getCatalogToolchainReadiness(): {
         status,
         artifactStatus: artifact.status ?? "unknown",
         actionMode: "toolchainPlanOnly",
+        currentJudgment:
+          artifact.currentJudgment ??
+          "Catalog toolchain evidence is present; inspect missing evidence and next action before release or CRC install review.",
+        markdownPath: artifact.markdownPath ?? "missing",
         registryMutationAttempted: artifact.registryMutationAttempted === true,
         clusterMutationAttempted: artifact.clusterMutationAttempted === true,
         mutationAllowedByThisVerifier:
@@ -9452,6 +9478,19 @@ function getCatalogToolchainReadiness(): {
         readOnlyCommands,
         setupCommands,
         localArtifactCommands,
+        nextAction: {
+          id: artifact.nextAction?.id ?? "generate-catalog-toolchain",
+          owner: artifact.nextAction?.owner ?? "release-manager",
+          command:
+            artifact.nextAction?.command ?? "npm run verify:catalog-toolchain",
+          phase: artifact.nextAction?.phase ?? "local-contract",
+          mutation: artifact.nextAction?.mutation === true,
+          requiresHumanSecretInput:
+            artifact.nextAction?.requiresHumanSecretInput === true,
+          reason:
+            artifact.nextAction?.reason ??
+            "Refresh catalog toolchain evidence before release or CRC install review."
+        },
         missingEvidence: artifact.missingEvidence ?? [],
         risk: artifact.risk ?? [],
         rollbackPath: artifact.rollbackPath ?? []
@@ -9460,6 +9499,7 @@ function getCatalogToolchainReadiness(): {
         `Catalog toolchain evidence ${artifact.artifactType ?? "unknown"} status=${artifact.status ?? "unknown"}`,
         `catalog toolchain generated at ${artifact.generatedAt ?? "unknown"} from ${artifact.ref?.branch ?? "unknown"}@${artifact.ref?.headSha ?? "unknown"} base=${artifact.ref?.baseRef ?? "unknown"} dirty=${String(artifact.ref?.worktreeDirty ?? "unknown")}`,
         `registryAuthConfigured=${String(artifact.registryAuth?.configured ?? false)} registryBaseReadable=${String(artifact.registryAuth?.baseImageReadable ?? false)} readOnlyCommands=${readOnlyCommands.length} setupCommands=${setupCommands.length}`,
+        `catalog handoff markdown=${artifact.markdownPath ?? "missing"} nextAction=${artifact.nextAction?.id ?? "missing"}`,
         missingTools ? `missing local catalog CLIs=${missingTools}` : "all reported catalog CLIs are available",
         ...(artifact.missingEvidence ?? []).slice(0, 3),
         "admin overview reads catalog toolchain evidence only; it does not publish catalog images or apply cluster resources"
