@@ -30,6 +30,7 @@ npm run verify:security-scan-plan
 npm run verify:release-refresh
 npm run verify:completion
 npm run evidence:release-action-queue
+npm run verify:ocp:target-profile
 npm run verify:ocp:connectivity
 npm run verify:runtime-rag
 npm run verify:runtime-rag:fixture
@@ -77,6 +78,8 @@ npm run verify:lightspeed:fixture
 `npm run evidence:external-runtime:review-packet` consolidates vLLM/Postgres pgvector draft status, source digest inspection, security scan/SBOM plan state, missing evidence, reviewer requests, and approval-gated mirror/sign commands into `test-results/cywell-opslens-external-runtime-review-packet.json` plus Markdown. It writes local evidence only, rejects secret-like material, keeps registry/cluster mutation flags false, and is surfaced by the checkpoint, roadmap Stage 5, and release evidence bundle.
 
 `npm run evidence:external-runtime:promote -- --name vllm|pgvector --promote-reviewed --reviewer <name> --review-ticket <ticket>` promotes a complete, review-ready draft into a final external runtime evidence file. It refuses incomplete drafts, placeholder digests, unresolved critical findings, missing approvers, missing reviewer identity, and mutation flags; it writes only local evidence files and never mirrors, signs, pushes, installs, or patches anything.
+
+`npm run verify:ocp:target-profile` audits the ignored `.env` target profile without contacting the cluster or printing secrets. It classifies the active OCP target as CRC sandbox, local/forwarded, private-network, company/shared, or missing; records whether company OCP should stay read-only; and writes `test-results/cywell-opslens-ocp-target-profile.json`. Use `npm run verify:ocp:target-profile -- --require-crc` before CRC-only install rehearsals.
 
 `npm run verify:ocp:connectivity` performs a read-only live connectivity diagnostic for the configured OCP API endpoint. It loads `.env`/kubeconfig candidates, redacts token values, checks DNS, TCP, TLS, Kubernetes `/version`, and `oc get --raw=/version`, then writes `test-results/cywell-opslens-ocp-connectivity-diagnostic.json`. A `tcp-timeout` classification means the API host resolves but port 6443 is not reachable from this machine yet.
 
@@ -139,6 +142,8 @@ Live OpenShift read-only API support:
 - `GET /api/ocp/events?apiVersion=v1&kind=Pod&namespace=default&name=<pod>`
 
 The API loads `OCP_API_BASE_URL` and `OCP_API_TOKEN` from `.env`, and also falls back to kubeconfig server/token candidates when the env URL points at a console endpoint instead of the Kubernetes API root. CRC/self-signed TLS can be handled with `OCP_TLS_VERIFY=false`; `OPENSHIFT_LIGHTSPEED_TLS_VERIFY` is intentionally ignored by the OCP reader. `npm run verify:env` writes `test-results/cywell-opslens-env-contract.json` with key names/counts only, so `.env` target changes can be checked without persisting secret values.
+
+When company OCP is being changed by someone else, keep it as an observation target only and move development iteration to CRC. The safe switch sequence is documented in `docs/runbooks/ocp-target-profiles.md`: update ignored `.env` locally, run `npm run verify:env`, `npm run verify:ocp:target-profile -- --require-crc`, then run the read-only connectivity and fixture checks before any approved sandbox install rehearsal.
 
 Safety defaults:
 

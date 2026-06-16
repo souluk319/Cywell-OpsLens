@@ -22,6 +22,7 @@
     "verify:rag:production-readiness": "node ./scripts/verify-rag-production-readiness.mjs",
     "verify:operator": "node ./scripts/verify-operator-package.mjs",
     "verify:operator:dry-run": "node ./scripts/verify-operator-dry-run.mjs",
+    "verify:ocp:target-profile": "node ./scripts/verify-ocp-target-profile.mjs",
     "verify:ocp:connectivity": "node ./scripts/verify-ocp-connectivity-diagnostic.mjs",
     "verify:ocp:live-reader-smoke": "node ./scripts/verify-ocp-live-reader-smoke.mjs",
     "evidence:ocp-auth-rbac-plan": "node ./scripts/verify-ocp-auth-rbac-plan.mjs",

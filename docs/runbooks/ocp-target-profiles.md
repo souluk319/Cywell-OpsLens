@@ -1,0 +1,73 @@
+# OCP Target Profiles
+
+Cywell OpsLens uses one active OCP target at a time through the ignored local `.env`.
+Use this runbook when switching between a shared company OCP cluster and a local CRC
+sandbox.
+
+## Profiles
+
+| Profile | Purpose | Default boundary |
+|---|---|---|
+| Company/shared OCP | Read-only observation, provider trace, live evidence collection | No install, patch, apply, delete, or scale |
+| CRC sandbox | Development iteration, local install rehearsal, Operator and ConsolePlugin experiments | Still approval-aware, but isolated from company users |
+
+## Company OCP Safety
+
+When another operator is changing the company cluster, keep Cywell OpsLens in
+observation mode:
+
+```bash
+npm run verify:env
+npm run verify:ocp:target-profile
+npm run verify:ocp:connectivity -- --timeout-ms 30000
+npm run verify:console-assistant-provider
+```
+
+Do not run approval-gated commands such as `oc apply`, `oc patch`, Operator install,
+or OLSConfig patching against the company cluster unless there is an explicit human
+approval record.
+
+## CRC Switch
+
+On the MacBook that owns CRC:
+
+```bash
+crc start
+eval $(crc oc-env)
+oc login -u kubeadmin -p <crc-password> <crc-api-url>
+oc whoami -t
+```
+
+Then update the ignored local `.env` through approved local secret handling:
+
+```env
+OCP_API_BASE_URL=<crc-api-url>
+OCP_API_TOKEN=<redacted>
+OCP_TLS_VERIFY=false
+OCP_API_TIMEOUT_SECONDS=30
+CYWELL_OPSLENS_RAG_RUNTIME_MODE=local
+OCP_ENABLE_MONITORING_PROXY=false
+```
+
+Verify the switch without mutating either cluster:
+
+```bash
+npm run verify:env
+npm run verify:ocp:target-profile -- --require-crc
+npm run verify:ocp:connectivity -- --timeout-ms 30000
+npm run verify:lightspeed:fixture
+npm run verify:lightspeed:patch-preview:fixture
+```
+
+If this Windows workspace cannot reach the CRC API endpoint, run the checks on
+the MacBook workspace or expose a reviewed local/tunnel endpoint and keep the
+`.env` target marked as CRC-owned. Do not reuse the company OCP target for
+sandbox install experiments.
+
+## Evidence
+
+`npm run verify:ocp:target-profile` writes
+`test-results/cywell-opslens-ocp-target-profile.json` with only key names, target
+classification, mutation boundary, and next commands. It does not contact the
+cluster, print tokens, print exact company endpoints, fetch Secrets, or mutate
+anything.
