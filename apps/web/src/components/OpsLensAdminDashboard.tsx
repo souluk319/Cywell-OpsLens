@@ -79,7 +79,10 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "approval-required": "approval required",
       "approval-gated": "approval-gated",
       "blocked-by-missing-tooling": "blocked by missing tooling",
+      match: "match",
+      drift: "drift",
       "ready-for-live-registration-review": "ready for live registration review",
+      "ready-for-external-review": "ready for external review",
       "ready-for-handoff": "ready for handoff",
       "review-packet-ready": "review packet ready",
       "needs-tooling": "needs tooling",
@@ -112,7 +115,10 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "approval-required": "승인 필요",
       "approval-gated": "승인 대기",
       "blocked-by-missing-tooling": "도구 누락으로 차단",
+      match: "일치",
+      drift: "차이 있음",
       "ready-for-live-registration-review": "실시간 등록 검토 준비",
+      "ready-for-external-review": "외부 검토 준비",
       "ready-for-handoff": "인계 준비",
       "review-packet-ready": "검토 패킷 준비",
       "needs-tooling": "도구 필요",
@@ -160,7 +166,9 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       PatchOLSConfig: "patch OLSConfig",
       reviewPacketOnly: "review packet only",
       scanPlanOnly: "scan plan only",
-      certificationReadinessOnly: "certification readiness only"
+      certificationReadinessOnly: "certification readiness only",
+      communitySubmissionOnly: "community submission only",
+      submissionDraftOnly: "submission draft only"
     },
     ko: {
       readOnly: "읽기 전용",
@@ -173,7 +181,9 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       PatchOLSConfig: "OLSConfig 패치",
       reviewPacketOnly: "검토 패킷 전용",
       scanPlanOnly: "스캔 계획 전용",
-      certificationReadinessOnly: "인증 준비도 전용"
+      certificationReadinessOnly: "인증 준비도 전용",
+      communitySubmissionOnly: "커뮤니티 제출 전용",
+      submissionDraftOnly: "제출 초안 전용"
     }
   };
   return labels[language][mode] ?? mode;
@@ -477,6 +487,12 @@ const adminCopy = {
     ragIngestion: "RAG ingestion",
     certificationEvidence: "certification evidence",
     communitySubmission: "community submission",
+    layout: "layout",
+    parity: "parity",
+    parityEntries: "parity entries",
+    approvalGate: "approval gate",
+    externalSubmissionAttempted: "external submission attempted",
+    communityFirstActionsMissing: "community submission first actions missing",
     catalogToolchain: "catalog toolchain",
     labBootstrap: "lab bootstrap",
     labHandoff: "lab handoff",
@@ -835,6 +851,12 @@ const adminCopy = {
     ragIngestion: "RAG 적재",
     certificationEvidence: "인증 근거",
     communitySubmission: "커뮤니티 제출",
+    layout: "레이아웃",
+    parity: "패리티",
+    parityEntries: "패리티 항목",
+    approvalGate: "승인 게이트",
+    externalSubmissionAttempted: "외부 제출 시도",
+    communityFirstActionsMissing: "커뮤니티 제출 첫 작업 누락",
     catalogToolchain: "카탈로그 도구체인",
     labBootstrap: "랩 부트스트랩",
     labHandoff: "랩 인계",
@@ -6837,72 +6859,100 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             >
               <div className="card-title-row compact">
                 <div>
-                  <h4>Community Submission</h4>
-                  <small>{communitySubmissionPlan.actionMode}</small>
+                  <h4>{copy.communitySubmission}</h4>
+                  <small>
+                    {actionModeText(language, communitySubmissionPlan.actionMode)}
+                  </small>
                 </div>
                 <FileDiff size={18} aria-hidden="true" />
               </div>
               <div className="admin-evidence-line">
-                <span>{communitySubmissionPlan.artifactStatus}</span>
-                <span>head={communitySubmissionPlan.headSha}</span>
-                <span>dirty={String(communitySubmissionPlan.worktreeDirty)}</span>
-                <span>parity={String(communitySubmissionPlan.parityPassed)}</span>
+                <span>{statusText(language, communitySubmissionPlan.artifactStatus)}</span>
                 <span>
-                  externalSubmissionAttempted=
-                  {String(communitySubmissionPlan.externalSubmissionAttempted)}
+                  {copy.head}: {communitySubmissionPlan.headSha}
                 </span>
                 <span>
-                  registryMutationAttempted=
-                  {String(communitySubmissionPlan.registryMutationAttempted)}
+                  {copy.dirty}:{" "}
+                  {booleanText(language, communitySubmissionPlan.worktreeDirty)}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(communitySubmissionPlan.clusterMutationAttempted)}
+                  {copy.parity}:{" "}
+                  {booleanText(language, communitySubmissionPlan.parityPassed)}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(communitySubmissionPlan.mutationAllowedByThisVerifier)}
+                  {copy.externalSubmissionAttempted}:{" "}
+                  {booleanText(
+                    language,
+                    communitySubmissionPlan.externalSubmissionAttempted
+                  )}
+                </span>
+                <span>
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
+                    communitySubmissionPlan.registryMutationAttempted
+                  )}
+                </span>
+                <span>
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
+                    communitySubmissionPlan.clusterMutationAttempted
+                  )}
+                </span>
+                <span>
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(
+                    language,
+                    communitySubmissionPlan.mutationAllowedByThisVerifier
+                  )}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Layout</span>
+                  <span>{copy.layout}</span>
                   <strong>
                     {communitySubmissionPlan.submissionLayout.root} /
                     {communitySubmissionPlan.submissionLayout.version}
                   </strong>
                 </div>
                 <div>
-                  <span>Parity Entries</span>
+                  <span>{copy.parityEntries}</span>
                   <strong>
                     {communitySubmissionPlan.sourceBundleParity.length
                       ? communitySubmissionPlan.sourceBundleParity
                           .map(
                             (entry) =>
-                              `${entry.id}:${entry.match ? "match" : "drift"}`
+                              `${entry.id}: ${statusText(
+                                language,
+                                entry.match ? "match" : "drift"
+                              )}`
                           )
                           .join(", ")
-                      : "missing"}
+                      : statusText(language, "missing")}
                   </strong>
                 </div>
                 <div>
-                  <span>Read-only Checks</span>
+                  <span>{copy.readOnlyCommands}</span>
                   <strong>
                     {communitySubmissionPlan.readOnlyCommands.length
                       ? communitySubmissionPlan.readOnlyCommands
                           .map((command) => command.id)
                           .join(", ")
-                      : "none"}
+                      : copy.none}
                   </strong>
                 </div>
                 <div>
-                  <span>Approval Gate</span>
+                  <span>{copy.approvalGate}</span>
                   <strong>
                     {communitySubmissionPlan.approvalGatedCommands.length
                       ? communitySubmissionPlan.approvalGatedCommands
-                          .map((command) => `${command.id}:approval`)
+                          .map(
+                            (command) =>
+                              `${command.id}: ${copy.approvalRequired}`
+                          )
                           .join(", ")
-                      : "none"}
+                      : copy.none}
                   </strong>
                 </div>
               </div>
@@ -6914,14 +6964,18 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   communitySubmissionPlan.firstSubmissionActions.map(
                     (action) => (
                       <span key={action.id}>
-                        {action.id}:{action.owner}:{action.status}:next=
-                        {action.nextCommand}:mutation={String(action.mutation)}
-                        :approval={String(action.requiresExplicitApproval)}
+                        {action.id}: {copy.owner}: {action.owner} /{" "}
+                        {copy.status}: {statusText(language, action.status)} /{" "}
+                        {copy.nextCommand}: {action.nextCommand} /{" "}
+                        {copy.policyMutation}:{" "}
+                        {booleanText(language, action.mutation)} /{" "}
+                        {copy.approvalRequired}:{" "}
+                        {booleanText(language, action.requiresExplicitApproval)}
                       </span>
                     )
                   )
                 ) : (
-                  <span>community submission first actions missing</span>
+                  <span>{copy.communityFirstActionsMissing}</span>
                 )}
               </div>
               <div className="remediation-notes">

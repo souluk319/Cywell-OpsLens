@@ -103,6 +103,11 @@ const certificationReadinessSource = sourceSection(
   'data-testid="opslens-certification-readiness"',
   'data-testid="opslens-community-submission"'
 );
+const communitySubmissionSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-community-submission"',
+  'data-testid="opslens-external-runtime-plan"'
+);
 
 expectCheck(
   "runtime surface badge",
@@ -853,6 +858,41 @@ expectCheck(
     !certificationReadinessSource.includes(" fail=") &&
     !certificationReadinessSource.includes("certification submission first actions missing"),
   "Certification readiness rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized community submission labels",
+  communitySubmissionSource.includes("copy.communitySubmission") &&
+    communitySubmissionSource.includes("copy.externalSubmissionAttempted") &&
+    communitySubmissionSource.includes("copy.parityEntries") &&
+    communitySubmissionSource.includes("copy.approvalGate") &&
+    communitySubmissionSource.includes("statusText(language, communitySubmissionPlan.artifactStatus)") &&
+    communitySubmissionSource.includes("actionModeText(language, communitySubmissionPlan.actionMode)") &&
+    adminSource.includes('communitySubmissionOnly: "커뮤니티 제출 전용"') &&
+    adminSource.includes('submissionDraftOnly: "제출 초안 전용"') &&
+    adminSource.includes('"ready-for-external-review": "외부 검토 준비"') &&
+    adminSource.includes('match: "일치"') &&
+    adminSource.includes('drift: "차이 있음"') &&
+    !communitySubmissionSource.includes("<h4>Community Submission</h4>") &&
+    !communitySubmissionSource.includes("<span>Layout</span>") &&
+    !communitySubmissionSource.includes("<span>Parity Entries</span>") &&
+    !communitySubmissionSource.includes("<span>Read-only Checks</span>") &&
+    !communitySubmissionSource.includes("<span>Approval Gate</span>") &&
+    !communitySubmissionSource.includes("{communitySubmissionPlan.artifactStatus}") &&
+    !communitySubmissionSource.includes("{communitySubmissionPlan.actionMode}") &&
+    !communitySubmissionSource.includes("head={communitySubmissionPlan.headSha}") &&
+    !communitySubmissionSource.includes("dirty={String(communitySubmissionPlan.worktreeDirty)}") &&
+    !communitySubmissionSource.includes("parity={String(communitySubmissionPlan.parityPassed)}") &&
+    !communitySubmissionSource.includes("externalSubmissionAttempted=") &&
+    !communitySubmissionSource.includes("registryMutationAttempted=") &&
+    !communitySubmissionSource.includes("clusterMutationAttempted=") &&
+    !communitySubmissionSource.includes("mutationAllowedByThisVerifier=") &&
+    !communitySubmissionSource.includes(":approval") &&
+    !communitySubmissionSource.includes(":next=") &&
+    !communitySubmissionSource.includes(":mutation={String") &&
+    !communitySubmissionSource.includes(":approval={String") &&
+    !communitySubmissionSource.includes("community submission first actions missing"),
+  "Community submission rows use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(
