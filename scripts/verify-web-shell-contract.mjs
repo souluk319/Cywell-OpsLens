@@ -199,6 +199,23 @@ expectCheck(
 );
 
 expectCheck(
+  "visible post-install smoke path",
+  appSource.includes('data-testid="post-install-smoke-strip"') &&
+    appSource.includes('data-testid="smoke-route"') &&
+    appSource.includes('data-testid="smoke-assistant"') &&
+    appSource.includes('data-testid="smoke-ols"') &&
+    appSource.includes("Open ConsolePlugin route") &&
+    appSource.includes("Ask KOMSCO AI Assistant") &&
+    appSource.includes("OLSConfig stays ValidateOnly") &&
+    appSource.includes("콘솔 플러그인 라우트 열기") &&
+    appSource.includes("KOMSCO AI 어시스턴트 질문") &&
+    appSource.includes("OLSConfig는 ValidateOnly 유지") &&
+    stylesSource.includes(".post-install-smoke-strip") &&
+    stylesSource.includes(".post-install-smoke-strip .status-pill"),
+  "masthead keeps the post-install smoke path visible without implying OLSConfig mutation"
+);
+
+expectCheck(
   "console plugin proxy detection",
   appSource.includes('surface === "console-plugin"') &&
     appSource.includes('/api/proxy/plugin/cywell-opslens/') &&

@@ -800,6 +800,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - This directly addresses the repeated install loop where an old `quay.io` operator image or stale CatalogSource looked like waiting, not a wrong package/image path.
 - `npm run verify:web-shell` now includes a `visible CRC install signal` gate, and `AC-UI-004` checks the KO/EN install signal labels in the browser.
 
+### 2026-06-18 - Lane 54
+
+- Added a visible post-install smoke path strip so the first viewport tells the operator what to prove after install is apparently healthy.
+- The KO/EN masthead now separates the three smoke signals: open the ConsolePlugin route, ask KOMSCO AI Assistant, and keep OLSConfig in `ValidateOnly`.
+- This directly addresses the demo risk that “installed” gets mistaken for “fully integrated and patched Lightspeed,” while still preserving the read-only/approval boundary.
+- `npm run verify:web-shell` now includes a `visible post-install smoke path` gate, and `AC-UI-004` checks the KO/EN smoke labels in the browser.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -811,10 +818,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 52: `1108e0d`
+- feature branch latest pushed head after Lane 53: `cfdd258`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 53: PASS, 35 checks
-- latest overnight checkpoint after Lane 53: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 54: PASS, 36 checks
+- latest overnight checkpoint after Lane 54: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

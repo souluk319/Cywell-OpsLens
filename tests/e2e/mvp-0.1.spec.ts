@@ -266,6 +266,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("apply-signal-stale")).toContainText(
       "quay.io 구버전 이미지는 stale catalog"
     );
+    await expect(page.getByTestId("smoke-route")).toContainText(
+      "콘솔 플러그인 라우트 열기"
+    );
+    await expect(page.getByTestId("smoke-assistant")).toContainText(
+      "KOMSCO AI 어시스턴트 질문"
+    );
+    await expect(page.getByTestId("smoke-ols")).toContainText(
+      "OLSConfig는 ValidateOnly 유지"
+    );
     await expect(page.getByTestId("readiness-status")).toContainText(
       "근거 필요"
     );
@@ -378,6 +387,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("apply-signal-stale")).toContainText(
       "Old quay.io image means stale catalog"
+    );
+    await expect(page.getByTestId("smoke-route")).toContainText(
+      "Open ConsolePlugin route"
+    );
+    await expect(page.getByTestId("smoke-assistant")).toContainText(
+      "Ask KOMSCO AI Assistant"
+    );
+    await expect(page.getByTestId("smoke-ols")).toContainText(
+      "OLSConfig stays ValidateOnly"
     );
     await expect(page.getByTestId("readiness-status")).toContainText(
       "needs evidence"

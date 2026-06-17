@@ -168,7 +168,8 @@ button {
 .certification-boundary-strip,
 .demo-handoff-strip,
 .access-boundary-strip,
-.apply-signal-strip {
+.apply-signal-strip,
+.post-install-smoke-strip {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
@@ -182,7 +183,8 @@ button {
 .certification-boundary-strip .status-pill,
 .demo-handoff-strip .status-pill,
 .access-boundary-strip .status-pill,
-.apply-signal-strip .status-pill {
+.apply-signal-strip .status-pill,
+.post-install-smoke-strip .status-pill {
   padding-inline: 8px;
 }
 

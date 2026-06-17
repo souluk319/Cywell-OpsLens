@@ -392,6 +392,10 @@ const shellCopy = {
     applySignalCommand: "Check: oc get opslensinstallation,deploy,pod,svc",
     applySignalReady: "Ready = API/dashboard 1/1",
     applySignalStale: "Old quay.io image means stale catalog",
+    smokeBoundary: "Post-install smoke",
+    smokeRoute: "Open ConsolePlugin route",
+    smokeAssistant: "Ask KOMSCO AI Assistant",
+    smokeOls: "OLSConfig stays ValidateOnly",
     handoffBoundary: "Return checklist",
     handoffReconnect: "Reconnect Mac CRC",
     handoffRoute: "Open ConsolePlugin route",
@@ -473,6 +477,10 @@ const shellCopy = {
     applySignalCommand: "확인: oc get opslensinstallation,deploy,pod,svc",
     applySignalReady: "Ready = API/대시보드 1/1",
     applySignalStale: "quay.io 구버전 이미지는 stale catalog",
+    smokeBoundary: "설치 후 스모크",
+    smokeRoute: "콘솔 플러그인 라우트 열기",
+    smokeAssistant: "KOMSCO AI 어시스턴트 질문",
+    smokeOls: "OLSConfig는 ValidateOnly 유지",
     handoffBoundary: "복귀 체크",
     handoffReconnect: "Mac CRC 재연결",
     handoffRoute: "콘솔 플러그인 라우트 열기",
@@ -996,6 +1004,21 @@ export default function App() {
               </span>
               <span className="status-pill warning" data-testid="apply-signal-stale">
                 {copy.applySignalStale}
+              </span>
+            </div>
+            <div
+              className="post-install-smoke-strip"
+              data-testid="post-install-smoke-strip"
+              aria-label={copy.smokeBoundary}
+            >
+              <span className="status-pill ready" data-testid="smoke-route">
+                {copy.smokeRoute}
+              </span>
+              <span className="status-pill ready" data-testid="smoke-assistant">
+                {copy.smokeAssistant}
+              </span>
+              <span className="status-pill read-only" data-testid="smoke-ols">
+                {copy.smokeOls}
               </span>
             </div>
             <div
