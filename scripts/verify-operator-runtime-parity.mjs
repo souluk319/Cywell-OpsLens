@@ -489,6 +489,26 @@ try {
   );
 
   expectCheck(
+    "Go status workload readiness parity",
+    controller.includes("func (r *OpsLensInstallationReconciler) observeDeploymentComponent") &&
+      controller.includes("func (r *OpsLensInstallationReconciler) observeStatefulSetComponent") &&
+      controller.includes("apierrors.IsNotFound") &&
+      controller.includes("deployment.Status.ObservedGeneration >= deployment.Generation") &&
+      controller.includes("deployment.Status.ReadyReplicas >= desiredReplicas") &&
+      controller.includes("deployment.Status.AvailableReplicas >= desiredReplicas") &&
+      controller.includes("statefulSet.Status.ObservedGeneration >= statefulSet.Generation") &&
+      controller.includes("statefulSet.Status.ReadyReplicas >= desiredReplicas") &&
+      controller.includes("localOnlyComponent(\"inmemory\"") &&
+      controller.includes("localOnlyComponent(\"mock-local\"") &&
+      controller.includes("Type:    \"WorkloadsAvailable\"") &&
+      controller.includes("workloadReason = \"WaitingForWorkloads\"") &&
+      controller.includes("phase = \"Installing\"") &&
+      controller.includes("Components: components") &&
+      controller.includes("r.buildStatus(ctx, &installation, namespace)"),
+    "Go status observes API/dashboard/vector/model workload readiness and keeps the CR Installing until required workloads are ready"
+  );
+
+  expectCheck(
     "Go OLSConfig patch parity",
     plan.lightspeedRegistration.mode === "PatchOLSConfig" &&
       plan.lightspeedRegistration.strategicMergePatch?.spec?.featureGates?.includes("MCPServer") &&

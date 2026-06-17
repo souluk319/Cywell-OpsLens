@@ -586,6 +586,20 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
   - `npm run -w @kugnus/web build`
   - `npx playwright test -g "AC-UI-004"`
 
+### 2026-06-18 - Lane 25
+
+- Fixed the live controller-runtime status path so `OpsLensInstallation` no longer reports `Ready` immediately after resource creation.
+- The Go controller now observes required workload status before setting the CR phase:
+  - API Deployment readiness and availability
+  - dashboard Deployment readiness and availability
+  - pgvector StatefulSet readiness when `vectorStore.provider=pgvector`
+  - vLLM Deployment readiness and availability when `modelRuntime.provider` is not `mock-local`
+- CRC lightweight profiles keep `vectorStore.provider=inmemory` and `modelRuntime.provider=mock-local` as intentionally local-only components, so they do not wait on absent pgvector/vLLM pods.
+- Added a `WorkloadsAvailable` condition and component status map. Missing or unready required workloads keep the CR in `Installing`; all required workloads available moves it to `Ready`.
+- Protected this no-false-Ready behavior in `npm run verify:operator:runtime`.
+- Verified the Go source by building the local operator image through `npm run verify:images:build`.
+- `verify:images:build` temporarily overwrote local `:verify` tags with Windows/amd64 images, so the CRC lab `:verify` tags were restored from the pinned `v0.1.2-dev-crc` arm64 images before rerunning `npm run verify:lab-image-map`.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -600,6 +614,9 @@ Checkpoint cadence:
 - feature branch latest pushed head before Lane 19: `5a6dc1e`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
 - latest web shell verifier after Lane 24: PASS, 12 checks
+- latest operator runtime verifier after Lane 25: PASS, 78 checks
+- latest local image build gate after Lane 25: PASS, 0 fail, 3 external-runtime/catalog warnings
+- latest lab image map after restoring CRC tags: PASS, 0 fail, 3 expected external-runtime warnings
 - latest CRC handoff tar: `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`
 
 ## First Command Set

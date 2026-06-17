@@ -23,6 +23,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the Assistant now keeps the raw API error as evidence but adds a KO/EN interpretation for disconnected routes, missing endpoints, auth/RBAC rejection, and API service failures
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
 - the Operator reconcile path no longer needs finalizer permission for owner references
+- the Operator status path no longer reports `OpsLensInstallation Ready` before required API/dashboard/vector/model workloads are observed as ready; unready required workloads keep the CR in `Installing`
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes
 - OperatorHub `alm-examples` now exposes that CRC lightweight sample, so console-created CRs no longer default users into the pgvector/vLLM/PatchOLSConfig path during CRC demos
 - CRC catalog/image handoff now uses explicit `v0.1.2-dev-crc` tags instead of ambiguous `:verify`
@@ -34,20 +35,24 @@ This is not a claim that production install is ready. The pre-cluster gate still
 ## Commits On This Branch
 
 ```text
+6426291 Expose assistant connection mode
+1e8723f Test localized assistant shell
+a3ea61d Expose CRC lightweight OperatorHub example
+35c8d12 Explain assistant API fallback errors
+3df56c7 Polish Lightspeed admin labels
+168c86b Clarify assistant connection state
+5e48bce Localize assistant answer display
+5a6dc1e Polish Korean UI status labels
+3fb9a3a Polish Resource Explorer Korean copy
+1c1df71 Localize OCP coverage matrix
+b81f7ec Clarify OpsLens install flow
+9122027 Polish Korean shell copy
+1b18f3f Add Dev 0.1.2 overnight checkpoint loop
+3d528ea Refresh Dev 0.1.2 handoff plan
 3942a6a Enforce CRC arm64 handoff
 cc8bf3b Ignore Windows desktop metadata
 bab809b Harden CRC dev image handoff
 f5a663f Allow CRC lightweight runtime disable
-3952914 Harden web shell action contracts
-48e2cf6 Clarify CRC lab shell context
-eb7de6e Surface assistant API diagnostics
-7a65f71 Document Dev 0.1.2 morning handoff
-8c04d16 Update CRC live verification handoff
-f7a7078 Harden CRC operator runtime defaults
-e1f2883 Harden ConsolePlugin mode diagnostics
-23fc447 Localize OpsLens admin shell
-d45a9b1 Plan Dev 0.1.2 overnight loop
-cf791e1 Tighten web shell evidence
 ```
 
 ## Verified Gates
@@ -65,8 +70,9 @@ Latest non-mutating checks:
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
 | `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |
 | `npm run verify:operator:reconcile` | PASS | 0 fail, 23 checks |
-| `npm run verify:operator:runtime` | PASS | 0 fail, 77 checks |
+| `npm run verify:operator:runtime` | PASS | 0 fail, 78 checks; includes workload readiness/no-false-Ready contract |
 | `npm run verify:operator` | PASS/WARN | 0 fail, 1 warn; live OLM smoke remains external |
+| `npm run verify:images:build` | PASS/WARN | 0 fail, 3 expected warnings; operator Go image built locally |
 | `npm run verify:install-plan` | PASS/WARN | 0 fail, 7 warn; evidence freshness and Lightspeed gap remain |
 | `npm run verify:pre-cluster-install` | PASS/WARN | 0 fail, 19 warn; `safeToRunClusterInstall=false` |
 

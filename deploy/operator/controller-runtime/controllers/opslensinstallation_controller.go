@@ -12,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -116,7 +117,7 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
-	installation.Status = buildStatus(&installation)
+	installation.Status = r.buildStatus(ctx, &installation, namespace)
 	if err := r.Status().Update(ctx, &installation); err != nil {
 		logger.Error(err, "unable to update OpsLensInstallation status")
 		return ctrl.Result{}, err
@@ -838,7 +839,111 @@ func normalizeRAGSettings(installation *opslensv1alpha1.OpsLensInstallation) rag
 	}
 }
 
-func buildStatus(installation *opslensv1alpha1.OpsLensInstallation) opslensv1alpha1.OpsLensInstallationStatus {
+type observedComponent struct {
+	status   opslensv1alpha1.OpsLensComponentStatus
+	required bool
+	message  string
+}
+
+func (r *OpsLensInstallationReconciler) observeDeploymentComponent(ctx context.Context, namespace string, name string, service string, image string) observedComponent {
+	component := observedComponent{
+		required: true,
+		status: opslensv1alpha1.OpsLensComponentStatus{
+			Ready:   false,
+			Service: service,
+			Image:   image,
+		},
+		message: fmt.Sprintf("%s Deployment is not observed yet", name),
+	}
+
+	var deployment appsv1.Deployment
+	if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &deployment); err != nil {
+		if apierrors.IsNotFound(err) {
+			return component
+		}
+		component.message = fmt.Sprintf("%s Deployment readiness could not be read: %s", name, err.Error())
+		return component
+	}
+
+	desiredReplicas := int32(1)
+	if deployment.Spec.Replicas != nil {
+		desiredReplicas = *deployment.Spec.Replicas
+	}
+	component.status.Ready = desiredReplicas == 0 ||
+		(deployment.Status.ObservedGeneration >= deployment.Generation &&
+			deployment.Status.ReadyReplicas >= desiredReplicas &&
+			deployment.Status.AvailableReplicas >= desiredReplicas)
+	if component.status.Ready {
+		component.message = fmt.Sprintf("%s Deployment is available", name)
+	} else {
+		component.message = fmt.Sprintf(
+			"%s Deployment waiting for readiness ready=%d available=%d desired=%d observedGeneration=%d generation=%d",
+			name,
+			deployment.Status.ReadyReplicas,
+			deployment.Status.AvailableReplicas,
+			desiredReplicas,
+			deployment.Status.ObservedGeneration,
+			deployment.Generation,
+		)
+	}
+	return component
+}
+
+func (r *OpsLensInstallationReconciler) observeStatefulSetComponent(ctx context.Context, namespace string, name string, service string, image string) observedComponent {
+	component := observedComponent{
+		required: true,
+		status: opslensv1alpha1.OpsLensComponentStatus{
+			Ready:   false,
+			Service: service,
+			Image:   image,
+		},
+		message: fmt.Sprintf("%s StatefulSet is not observed yet", name),
+	}
+
+	var statefulSet appsv1.StatefulSet
+	if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &statefulSet); err != nil {
+		if apierrors.IsNotFound(err) {
+			return component
+		}
+		component.message = fmt.Sprintf("%s StatefulSet readiness could not be read: %s", name, err.Error())
+		return component
+	}
+
+	desiredReplicas := int32(1)
+	if statefulSet.Spec.Replicas != nil {
+		desiredReplicas = *statefulSet.Spec.Replicas
+	}
+	component.status.Ready = desiredReplicas == 0 ||
+		(statefulSet.Status.ObservedGeneration >= statefulSet.Generation &&
+			statefulSet.Status.ReadyReplicas >= desiredReplicas)
+	if component.status.Ready {
+		component.message = fmt.Sprintf("%s StatefulSet is ready", name)
+	} else {
+		component.message = fmt.Sprintf(
+			"%s StatefulSet waiting for readiness ready=%d desired=%d observedGeneration=%d generation=%d",
+			name,
+			statefulSet.Status.ReadyReplicas,
+			desiredReplicas,
+			statefulSet.Status.ObservedGeneration,
+			statefulSet.Generation,
+		)
+	}
+	return component
+}
+
+func localOnlyComponent(service string, image string, message string) observedComponent {
+	return observedComponent{
+		required: false,
+		status: opslensv1alpha1.OpsLensComponentStatus{
+			Ready:   true,
+			Service: service,
+			Image:   image,
+		},
+		message: message,
+	}
+}
+
+func (r *OpsLensInstallationReconciler) buildStatus(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) opslensv1alpha1.OpsLensInstallationStatus {
 	lightspeedPhase := "Ready"
 	registrationMode := installation.Spec.LightspeedRegistration.Mode
 	if registrationMode == "" {
@@ -848,9 +953,60 @@ func buildStatus(installation *opslensv1alpha1.OpsLensInstallation) opslensv1alp
 		lightspeedPhase = "PatchPlanned"
 	}
 
+	api := installation.Spec.Components.API
+	dashboard := installation.Spec.Components.Dashboard
+	vectorStore := installation.Spec.Components.VectorStore
+	modelRuntime := installation.Spec.Components.ModelRuntime
+	apiStatus := r.observeDeploymentComponent(ctx, namespace, "cywell-opslens-api", valueOrDefault(api.ServiceName, "cywell-opslens-api"), api.Image)
+	dashboardStatus := r.observeDeploymentComponent(ctx, namespace, "cywell-opslens-dashboard", valueOrDefault(dashboard.ServiceName, "cywell-opslens-dashboard"), dashboard.Image)
+	vectorStatus := localOnlyComponent("inmemory", vectorStore.Image, "vector store uses in-memory provider for this profile")
+	if valueOrDefault(vectorStore.Provider, "pgvector") != "inmemory" {
+		vectorStatus = r.observeStatefulSetComponent(ctx, namespace, "cywell-opslens-vector", "cywell-opslens-vector", vectorStore.Image)
+	}
+	modelStatus := localOnlyComponent("mock-local", modelRuntime.Image, "model runtime uses mock-local provider for this profile")
+	if modelRuntime.Provider != "mock-local" {
+		modelStatus = r.observeDeploymentComponent(ctx, namespace, "cywell-opslens-vllm", "cywell-opslens-vllm", modelRuntime.Image)
+	}
+
+	componentObservations := map[string]observedComponent{
+		"api":          apiStatus,
+		"dashboard":    dashboardStatus,
+		"vectorStore":  vectorStatus,
+		"modelRuntime": modelStatus,
+	}
+	components := map[string]opslensv1alpha1.OpsLensComponentStatus{}
+	workloadMessages := []string{}
+	workloadsReady := true
+	for name, observation := range componentObservations {
+		components[name] = observation.status
+		if observation.required && !observation.status.Ready {
+			workloadsReady = false
+			workloadMessages = append(workloadMessages, observation.message)
+		}
+	}
+	workloadConditionStatus := metav1.ConditionTrue
+	workloadReason := "AllReady"
+	workloadMessage := "Required OpsLens workloads are available or intentionally local-only for this profile."
+	if !workloadsReady {
+		workloadConditionStatus = metav1.ConditionFalse
+		workloadReason = "WaitingForWorkloads"
+		workloadMessage = strings.Join(workloadMessages, "; ")
+	}
+	phase := "Ready"
+	if !workloadsReady {
+		phase = "Installing"
+	}
+
 	return opslensv1alpha1.OpsLensInstallationStatus{
-		Phase: "Ready",
+		Phase:      phase,
+		Components: components,
 		Conditions: []metav1.Condition{
+			{
+				Type:    "WorkloadsAvailable",
+				Status:  workloadConditionStatus,
+				Reason:  workloadReason,
+				Message: workloadMessage,
+			},
 			{
 				Type:    "LightspeedRegistration",
 				Status:  metav1.ConditionTrue,
