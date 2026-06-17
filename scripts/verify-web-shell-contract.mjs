@@ -462,6 +462,26 @@ expectCheck(
 );
 
 expectCheck(
+  "localized roadmap completion labels",
+  adminSource.includes('data-testid="opslens-roadmap-completion"') &&
+    adminSource.includes("roadmapCompletion.remainingHandoffs") &&
+    !adminSource.includes("head={roadmapCompletion.headSha}") &&
+    !adminSource.includes("dirty={String(roadmapCompletion.worktreeDirty)}") &&
+    !adminSource.includes("mutationBoundaryPassed=\n                  {String(roadmapCompletion.mutationBoundaryPassed)}") &&
+    !adminSource.includes("{entry.stage}/{entry.id}:{entry.status}") &&
+    !adminSource.includes("externalState={roadmapCompletion.remainingExternalStateCount}") &&
+    !adminSource.includes("localOnly={roadmapCompletion.remainingLocalOnlyCount}") &&
+    !adminSource.includes("externalGates=\n                  {roadmapCompletion.remainingExternalStateGateIds.join") &&
+    !adminSource.includes("localGates=\n                  {roadmapCompletion.remainingLocalOnlyGateIds.join") &&
+    !adminSource.includes("{entry.actionId}:next={entry.nextCommand}:external=") &&
+    !adminSource.includes(":tickets=\n                    {entry.ticketIds.join") &&
+    !adminSource.includes(":readOnly=\n                    {entry.readOnlyCommandIds") &&
+    !adminSource.includes(":approval=\n                    {entry.approvalGatedCommandIds") &&
+    !adminSource.includes("{entry.owner}:{entry.actionId}:next={entry.nextCommand}"),
+  "Roadmap completion cards use bilingual labels for percent, remaining gates, and handoff evidence"
+);
+
+expectCheck(
   "localized remediation proposal labels",
   !adminSource.includes("<span>Mode</span>") &&
     !adminSource.includes("<span>Patch</span>") &&

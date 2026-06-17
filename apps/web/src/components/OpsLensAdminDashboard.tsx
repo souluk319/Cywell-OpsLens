@@ -3391,12 +3391,19 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 <Gauge size={18} aria-hidden="true" />
               </div>
               <div className="admin-evidence-line">
-                <span>{roadmapCompletion.artifactStatus}</span>
-                <span>head={roadmapCompletion.headSha}</span>
-                <span>dirty={String(roadmapCompletion.worktreeDirty)}</span>
+                <span title={roadmapCompletion.artifactStatus}>
+                  {statusText(language, roadmapCompletion.artifactStatus)}
+                </span>
                 <span>
-                  mutationBoundaryPassed=
-                  {String(roadmapCompletion.mutationBoundaryPassed)}
+                  {copy.head}: {roadmapCompletion.headSha}
+                </span>
+                <span>
+                  {copy.dirty}:{" "}
+                  {booleanText(language, roadmapCompletion.worktreeDirty)}
+                </span>
+                <span>
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(language, roadmapCompletion.mutationBoundaryPassed)}
                 </span>
               </div>
               <div className="approval-summary-grid">
@@ -3436,11 +3443,12 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {roadmapCompletion.remaining.slice(0, 8).map((entry) => (
                   <span key={`${entry.stage}-${entry.id}`}>
-                    {entry.stage}/{entry.id}:{entry.status}
+                    {entry.stage}/{entry.id}: {copy.status}{" "}
+                    {statusText(language, entry.status)}
                   </span>
                 ))}
                 {roadmapCompletion.remaining.length === 0 ? (
-                  <span>none</span>
+                  <span>{copy.none}</span>
                 ) : null}
               </div>
               <div
@@ -3448,18 +3456,21 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-roadmap-closure-boundary"
               >
                 <span>
-                  externalState={roadmapCompletion.remainingExternalStateCount}
+                  {copy.external}:{" "}
+                  {roadmapCompletion.remainingExternalStateCount}
                 </span>
-                <span>localOnly={roadmapCompletion.remainingLocalOnlyCount}</span>
                 <span>
-                  externalGates=
+                  {copy.local}: {roadmapCompletion.remainingLocalOnlyCount}
+                </span>
+                <span>
+                  {copy.external} {copy.completionGates}:{" "}
                   {roadmapCompletion.remainingExternalStateGateIds.join(",") ||
-                    "none"}
+                    copy.none}
                 </span>
                 <span>
-                  localGates=
+                  {copy.local} {copy.completionGates}:{" "}
                   {roadmapCompletion.remainingLocalOnlyGateIds.join(",") ||
-                    "none"}
+                    copy.none}
                 </span>
               </div>
               <div
@@ -3468,20 +3479,23 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {roadmapCompletion.remainingHandoffs.slice(0, 8).map((entry) => (
                   <span key={`${entry.stage}-${entry.gateId}-${entry.actionId}`}>
-                    {entry.gateId}:{entry.owner}:{entry.priority}:
-                    {entry.actionId}:next={entry.nextCommand}:external=
-                    {String(entry.externalStateRequired)}:tickets=
-                    {entry.ticketIds.join(",") || "none"}:readOnly=
-                    {entry.readOnlyCommandIds.slice(0, 3).join(",") || "none"}
-                    :setup=
-                    {entry.setupCommandIds.slice(0, 3).join(",") || "none"}
-                    :approval=
+                    {entry.gateId}: {copy.owner} {entry.owner} /{" "}
+                    {copy.priority} {entry.priority} / {copy.nextCommand}{" "}
+                    {entry.nextCommand} / {copy.external}{" "}
+                    {booleanText(language, entry.externalStateRequired)} /{" "}
+                    {copy.ticket} {entry.ticketIds.join(",") || copy.none} /{" "}
+                    {copy.readOnlyCommands}{" "}
+                    {entry.readOnlyCommandIds.slice(0, 3).join(",") ||
+                      copy.none}{" "}
+                    / {copy.setupCommands}{" "}
+                    {entry.setupCommandIds.slice(0, 3).join(",") || copy.none}{" "}
+                    / {copy.gatedCommands}{" "}
                     {entry.approvalGatedCommandIds.slice(0, 3).join(",") ||
-                      "none"}
+                      copy.none}
                   </span>
                 ))}
                 {roadmapCompletion.remainingHandoffs.length === 0 ? (
-                  <span>none</span>
+                  <span>{copy.none}</span>
                 ) : null}
               </div>
               <div
@@ -3492,11 +3506,12 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   .slice(0, 6)
                   .map((entry) => (
                     <span key={`${entry.lane}-${entry.actionId}`}>
-                      {entry.owner}:{entry.actionId}:next={entry.nextCommand}
+                      {copy.owner}: {entry.owner} / {entry.actionId} /{" "}
+                      {copy.nextCommand}: {entry.nextCommand}
                     </span>
                   ))}
                 {roadmapCompletion.criticalPathBlockers.length === 0 ? (
-                  <span>none</span>
+                  <span>{copy.none}</span>
                 ) : null}
               </div>
               <div className="remediation-notes">

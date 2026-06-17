@@ -724,6 +724,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The UI still preserves head SHA, gate IDs, owner IDs, command IDs, packet filenames, RBAC-style count values, and unsafe ticket IDs as evidence.
 - `npm run verify:web-shell` now includes a `localized completion gate labels` gate.
 
+### 2026-06-18 - Lane 43
+
+- Polished the roadmap completion card, the surface that answers "what percent is complete and what remains?"
+- KO mode no longer exposes raw labels such as `head=`, `dirty=`, `mutationBoundaryPassed=`, `externalState=`, `localOnly=`, `externalGates=`, `localGates=`, `next=`, `external=`, `tickets=`, `readOnly=`, `setup=`, or `approval=` in that card.
+- The UI still preserves head SHA, gate IDs, owner IDs, command IDs, ticket IDs, and critical-path action IDs as evidence.
+- `npm run verify:web-shell` now includes a `localized roadmap completion labels` gate.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -735,10 +742,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 41: `673f5f3`
+- feature branch latest pushed head after Lane 42: `def83cc`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 42: PASS, 24 checks
-- latest overnight checkpoint after Lane 42: PASS, 9/9 local gates, structured Git dirty state present
+- latest web shell verifier after Lane 43: PASS, 25 checks
+- latest overnight checkpoint after Lane 43: PASS, 9/9 local gates, structured Git dirty state present
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
