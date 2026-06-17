@@ -952,6 +952,16 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The risk/rollback note renderer now preserves evidence text while translating known raw fragments such as `mode=PatchOLSConfig` into customer-facing labels.
 - Added a `verify:web-shell` gate and browser DOM check so the install approval card cannot drift back to raw developer labels.
 
+### 2026-06-18 - Lane 78
+
+- Added an Assistant connection smoke card.
+- The KOMSCO Assistant now shows three explicit checks inside the popover:
+  - context sync
+  - action plan API
+  - cluster mutation boundary
+- The card makes the current state visible without pretending the native Lightspeed drawer has been replaced: `API connected / plan-only` can now be read together with `context sync ready`, `action plan API ready`, and `cluster mutation blocked`.
+- Protected the smoke card with `verify:web-shell`, `AC-UI-004`, `AC-CTX-001`, and an in-app browser observation.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -965,7 +975,8 @@ Checkpoint cadence:
 - feature branch head at plan creation: `cf791e1`
 - feature branch latest pushed head before Lane 77: `6834383`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 77: PASS, 51 checks
+- latest web shell verifier after Lane 78: PASS, 51 checks
+- latest assistant smoke browser check after Lane 78: PASS, `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, `클러스터 변경: 차단`
 - latest overnight checkpoint after Lane 77: PASS, 10/10 local gates on a clean worktree, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation

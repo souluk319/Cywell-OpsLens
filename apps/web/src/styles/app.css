@@ -2258,6 +2258,45 @@ button {
   line-height: 1.25;
 }
 
+.assistant-connection-smoke {
+  display: grid;
+  gap: 5px;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid rgba(79, 82, 85, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.assistant-connection-smoke strong {
+  color: #151515;
+  font-size: 0.7rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.assistant-connection-smoke div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.assistant-connection-smoke span {
+  padding: 4px 6px;
+  border: 1px solid #d2d2d2;
+  border-radius: 999px;
+  background: #fff;
+  color: #3c3c3c;
+  font-size: 0.69rem;
+  font-weight: 750;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.assistant-connection-smoke b {
+  color: #151515;
+}
+
 .prompt-box {
   display: grid;
   gap: 6px;

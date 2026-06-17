@@ -69,6 +69,14 @@ const assistantCopy = {
     executionEnter: "Enter sends to the current OpsLens API route",
     executionFallback: "Fallback keeps the local plan-only answer visible",
     executionNewline: "Shift+Enter adds a line",
+    smokeTitle: "Connection smoke",
+    smokeContextSync: "context sync",
+    smokeActionPlan: "action plan API",
+    smokeMutationBoundary: "cluster mutation",
+    smokeReady: "ready",
+    smokeChecking: "checking",
+    smokeFallback: "local fallback",
+    smokeBlocked: "blocked",
     pending: "pending",
     actionMode: "action mode",
     prompt: "Ask from current context",
@@ -116,6 +124,14 @@ const assistantCopy = {
     executionEnter: "Enter는 현재 OpsLens API 경로로 전송",
     executionFallback: "대체 응답은 로컬 계획 전용으로 유지",
     executionNewline: "Shift+Enter는 줄바꿈",
+    smokeTitle: "연결 스모크",
+    smokeContextSync: "컨텍스트 동기화",
+    smokeActionPlan: "액션 플랜 API",
+    smokeMutationBoundary: "클러스터 변경",
+    smokeReady: "준비됨",
+    smokeChecking: "확인 중",
+    smokeFallback: "로컬 대체",
+    smokeBlocked: "차단",
     pending: "대기 중",
     actionMode: "동작 모드",
     prompt: "현재 컨텍스트로 질문",
@@ -459,6 +475,32 @@ export function AssistantPopover({
     apiRouteMode === "console-plugin-user-token-proxy"
       ? copy.tokenConsole
       : copy.tokenLocal;
+  const connectionSmoke = [
+    {
+      id: "context-sync",
+      label: copy.smokeContextSync,
+      value: audit?.contextHash
+        ? copy.smokeReady
+        : apiStatus === "loading"
+          ? copy.smokeChecking
+          : copy.smokeFallback
+    },
+    {
+      id: "action-plan",
+      label: copy.smokeActionPlan,
+      value:
+        apiStatus === "ready"
+          ? copy.smokeReady
+          : apiStatus === "loading"
+            ? copy.smokeChecking
+            : copy.smokeFallback
+    },
+    {
+      id: "mutation-boundary",
+      label: copy.smokeMutationBoundary,
+      value: copy.smokeBlocked
+    }
+  ];
 
   function handleDraftKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
@@ -596,6 +638,23 @@ export function AssistantPopover({
             </dd>
           </div>
         </dl>
+        <div
+          className="assistant-connection-smoke"
+          data-testid="assistant-connection-smoke"
+          aria-label={copy.smokeTitle}
+        >
+          <strong>{copy.smokeTitle}</strong>
+          <div>
+            {connectionSmoke.map((item) => (
+              <span
+                key={item.id}
+                data-testid={`assistant-smoke-${item.id}`}
+              >
+                {item.label}: <b>{item.value}</b>
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="prompt-box">

@@ -402,6 +402,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("assistant-mutation-boundary")).toContainText(
       "실행 안 함"
     );
+    await expect(page.getByTestId("assistant-connection-smoke")).toContainText(
+      "연결 스모크"
+    );
+    await expect(page.getByTestId("assistant-smoke-context-sync")).toContainText(
+      "컨텍스트 동기화"
+    );
+    await expect(page.getByTestId("assistant-smoke-action-plan")).toContainText(
+      "액션 플랜 API"
+    );
+    await expect(
+      page.getByTestId("assistant-smoke-mutation-boundary")
+    ).toContainText("클러스터 변경");
     await expect(page.getByLabel("현재 컨텍스트로 질문")).toBeVisible();
     await expect(page.getByTestId("assistant-ask-button")).toContainText("질문");
     await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
@@ -522,6 +534,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("assistant-mode-matrix")).toContainText(
       "cluster changes"
     );
+    await expect(page.getByTestId("assistant-connection-smoke")).toContainText(
+      "Connection smoke"
+    );
+    await expect(page.getByTestId("assistant-smoke-context-sync")).toContainText(
+      "context sync"
+    );
+    await expect(page.getByTestId("assistant-smoke-action-plan")).toContainText(
+      "action plan API"
+    );
+    await expect(
+      page.getByTestId("assistant-smoke-mutation-boundary")
+    ).toContainText("cluster mutation");
     await expect(page.getByLabel("Ask from current context")).toBeVisible();
     await expect(page.getByTestId("assistant-ask-button")).toContainText("Ask");
     await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
@@ -610,6 +634,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     expect(parsed.resource?.name).toBe("version");
     expect(parsed.visibleRows?.length).toBeGreaterThanOrEqual(3);
     await expect(page.getByTestId("api-trace")).toContainText("plan-");
+    await expect(page.getByTestId("assistant-smoke-context-sync")).toContainText(
+      "ready"
+    );
+    await expect(page.getByTestId("assistant-smoke-action-plan")).toContainText(
+      "ready"
+    );
+    await expect(
+      page.getByTestId("assistant-smoke-mutation-boundary")
+    ).toContainText("blocked");
 
     const planResponse = page.waitForResponse(
       (response) =>

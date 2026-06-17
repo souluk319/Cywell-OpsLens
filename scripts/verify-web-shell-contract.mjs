@@ -346,6 +346,14 @@ expectCheck(
     assistantSource.includes('data-testid="assistant-answer-source"') &&
     assistantSource.includes('data-testid="assistant-token-path"') &&
     assistantSource.includes('data-testid="assistant-mutation-boundary"') &&
+    assistantSource.includes('data-testid="assistant-connection-smoke"') &&
+    assistantSource.includes('data-testid={`assistant-smoke-${item.id}`}') &&
+    assistantSource.includes("Connection smoke") &&
+    assistantSource.includes("연결 스모크") &&
+    assistantSource.includes("context sync") &&
+    assistantSource.includes("컨텍스트 동기화") &&
+    assistantSource.includes("action plan API") &&
+    assistantSource.includes("액션 플랜 API") &&
     assistantSource.includes("연결 판정") &&
     assistantSource.includes("답변 출처") &&
     assistantSource.includes("OpenShift 사용자 토큰 프록시") &&
@@ -379,7 +387,9 @@ expectCheck(
     assistantSource.includes("설치된 ConsolePlugin은 사용자 토큰 프록시") &&
     assistantSource.includes("기본 Lightspeed 서랍은 별도") &&
     stylesSource.includes(".assistant-integration-contract") &&
-    stylesSource.includes(".assistant-integration-contract span"),
+    stylesSource.includes(".assistant-integration-contract span") &&
+    stylesSource.includes(".assistant-connection-smoke") &&
+    stylesSource.includes(".assistant-connection-smoke span"),
   "assistant visibly separates standalone preview, ConsolePlugin proxy integration, and native Lightspeed drawer ownership"
 );
 

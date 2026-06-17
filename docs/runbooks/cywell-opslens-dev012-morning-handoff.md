@@ -50,6 +50,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the masthead now shows a visible certification boundary explaining that the current build is a local demo, not a Partner/OperatorHub submission, and certified readiness still needs security/release evidence
 - the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
 - the Assistant connection card now includes a KO/EN mode matrix for answer source, token/proxy path, and the non-mutating chat boundary; this directly addresses the “why does the chatbot look unconnected?” demo risk
+- the Assistant now includes a KO/EN connection smoke card for context sync, action plan API, and cluster mutation boundary, so `API connected / plan-only` is backed by visible checks rather than a vague status badge
 - the Assistant ready badge now says `API connected / plan-only` and `API 연결됨 / 계획 전용`, while fallback still says local fallback, so a connected plan-only route no longer looks like a disconnected chatbot
 - the Assistant connection card now shows a KO/EN integration contract separating standalone preview, installed ConsolePlugin UserToken proxy, and the native OpenShift Lightspeed drawer
 - the Assistant prompt now shows the KO/EN ask execution path: Enter sends to the current OpsLens API route, fallback stays local plan-only, and Shift+Enter adds a line
@@ -167,8 +168,10 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 51 checks after the release/action queue, external runtime review, security scan, certification, community submission, external runtime plan, owned provenance, release publish, install approval, catalog toolchain, and lab readiness label lanes |
-| `npm run -w @kugnus/web build` | PASS | TypeScript, Vite, and ConsolePlugin bundle completed after the install approval label lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 51 checks after the Assistant smoke, release/action queue, external runtime review, security scan, certification, community submission, external runtime plan, owned provenance, release publish, install approval, catalog toolchain, and lab readiness label lanes |
+| `npm run -w @kugnus/web build` | PASS | TypeScript, Vite, and ConsolePlugin bundle completed after the Assistant smoke lane |
+| `npx playwright test -g "AC-UI-004\\|AC-CTX-001"` | PASS | KO/EN shell and Assistant smoke card render; context sync/action plan API are ready and cluster mutation is blocked |
+| in-app browser smoke | PASS | Assistant popover showed `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, and `클러스터 변경: 차단` |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
 | `npm run verify:crc-demo-readiness` | PASS | 0 fail, 0 warn, 14 checks; writes JSON and Markdown evidence for OperatorHub first example, lightweight sample, UI copy, handoff commands, and arm64 tar alignment |
 | `npm run overnight:checkpoint` | PASS | latest clean checkpoint after Lane 77 passed 10/10 local gates on a clean worktree; evidence includes start/finish Git state and CRC demo readiness |
