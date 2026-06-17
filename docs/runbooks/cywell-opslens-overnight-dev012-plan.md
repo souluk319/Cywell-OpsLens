@@ -908,6 +908,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Scan CLI, image evidence, final review, first review actions, review tickets, runner evidence, and review drafts now use KO/EN labels instead of raw fragments such as `scan=`, `sbom=`, `review=`, `first=`, `approval=`, `finalEvidence=`, `reviewApproved=`, `digestPinned=`, `missingTargets=`, or `ready=`.
 - Added a `verify:web-shell` gate so the security scan/review section cannot drift back to raw developer labels.
 
+### 2026-06-18 - Lane 71
+
+- Polished the certification readiness card in OpsLens Admin.
+- Submission CLI, gate counts, tooling handoff, CI runner evidence, release manager packet, freshness policy, first submission actions, and certification gate counts now use KO/EN labels instead of raw fragments such as `head=`, `dirty=`, `registryMutationAttempted=`, `status=`, `required=`, `satisfiedBy=`, `writesLocalEvidence=`, `requiredHead=`, or `pass=`.
+- Added a `verify:web-shell` gate so the certification readiness section cannot drift back to raw developer labels, while preserving command/action IDs such as `approval-gated-partner-connect-submit` as evidence identifiers.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -919,9 +925,9 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 66: `4652648`
+- feature branch latest pushed head before Lane 71: `783fd64`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 70: PASS, 43 checks
+- latest web shell verifier after Lane 71: PASS, 44 checks
 - latest overnight checkpoint after Lane 70: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation

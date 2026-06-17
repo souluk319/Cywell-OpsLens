@@ -98,6 +98,11 @@ const securityScanSource = sourceSection(
   'data-testid="opslens-security-scan-plan"',
   'data-testid="opslens-owned-image-provenance"'
 );
+const certificationReadinessSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-certification-readiness"',
+  'data-testid="opslens-community-submission"'
+);
 
 expectCheck(
   "runtime surface badge",
@@ -780,6 +785,74 @@ expectCheck(
     !securityScanSource.includes(":ticket=") &&
     !securityScanSource.includes(":ready="),
   "Security scan and review rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized certification readiness labels",
+  certificationReadinessSource.includes("copy.certificationReadiness") &&
+    adminSource.includes('certificationReadinessOnly: "인증 준비도 전용"') &&
+    adminSource.includes('"blocked-by-missing-tooling": "도구 누락으로 차단"') &&
+    adminSource.includes('"approval-gated": "승인 대기"') &&
+    certificationReadinessSource.includes("copy.submissionCli") &&
+    certificationReadinessSource.includes("copy.toolingHandoff") &&
+    certificationReadinessSource.includes("copy.executionLanes") &&
+    certificationReadinessSource.includes("statusText(language, certificationPlan.artifactStatus)") &&
+    certificationReadinessSource.includes("actionModeText(language, certificationPlan.actionMode)") &&
+    !certificationReadinessSource.includes("<h4>Certification Readiness</h4>") &&
+    !certificationReadinessSource.includes("<span>Submission CLI</span>") &&
+    !certificationReadinessSource.includes("<span>Gate Counts</span>") &&
+    !certificationReadinessSource.includes("<span>Documents</span>") &&
+    !certificationReadinessSource.includes("<span>Open Items</span>") &&
+    !certificationReadinessSource.includes("<span>Tooling Handoff</span>") &&
+    !certificationReadinessSource.includes("<span>Execution Lanes</span>") &&
+    !certificationReadinessSource.includes("{certificationPlan.artifactStatus}") &&
+    !certificationReadinessSource.includes("{certificationPlan.actionMode}") &&
+    !certificationReadinessSource.includes("head={certificationPlan.headSha}") &&
+    !certificationReadinessSource.includes("dirty={String(certificationPlan.worktreeDirty)}") &&
+    !certificationReadinessSource.includes("registryMutationAttempted=") &&
+    !certificationReadinessSource.includes("clusterMutationAttempted=") &&
+    !certificationReadinessSource.includes("mutationAllowedByThisVerifier=") &&
+    !certificationReadinessSource.includes(" external=${String") &&
+    !certificationReadinessSource.includes("internal={certificationPlan.gateCounts") &&
+    !certificationReadinessSource.includes("community={certificationPlan.gateCounts") &&
+    !certificationReadinessSource.includes("certified={certificationPlan.gateCounts") &&
+    !certificationReadinessSource.includes(" missing=") &&
+    !certificationReadinessSource.includes("required=") &&
+    !certificationReadinessSource.includes("status={certificationPlan.toolingHandoff") &&
+    !certificationReadinessSource.includes("satisfiedBy=") &&
+    !certificationReadinessSource.includes("readOnlyCommands=") &&
+    !certificationReadinessSource.includes("setupCommands=") &&
+    !certificationReadinessSource.includes("approvalGated=") &&
+    !certificationReadinessSource.includes("path=") &&
+    !certificationReadinessSource.includes("sameHead=") &&
+    !certificationReadinessSource.includes("mutation=") &&
+    !certificationReadinessSource.includes("tools=") &&
+    !certificationReadinessSource.includes("owner=") &&
+    !certificationReadinessSource.includes("final=") &&
+    !certificationReadinessSource.includes("draft=") &&
+    !certificationReadinessSource.includes("promote=") &&
+    !certificationReadinessSource.includes("verify=") &&
+    !certificationReadinessSource.includes("writesLocalEvidence=") &&
+    !certificationReadinessSource.includes("reviewedInput=") &&
+    !certificationReadinessSource.includes("mutationAllowed=") &&
+    !certificationReadinessSource.includes("packet=") &&
+    !certificationReadinessSource.includes("exists=") &&
+    !certificationReadinessSource.includes("ticket=") &&
+    !certificationReadinessSource.includes("first=") &&
+    !certificationReadinessSource.includes("setup=") &&
+    !certificationReadinessSource.includes("approval=") &&
+    !certificationReadinessSource.includes("submissionExecuted=") &&
+    !certificationReadinessSource.includes("requiredHead=") &&
+    !certificationReadinessSource.includes("worktree=") &&
+    !certificationReadinessSource.includes("rerunAfter=") &&
+    !certificationReadinessSource.includes(":owner=") &&
+    !certificationReadinessSource.includes(":mutation=") &&
+    !certificationReadinessSource.includes(":approval=") &&
+    !certificationReadinessSource.includes(" pass=") &&
+    !certificationReadinessSource.includes(" warn=") &&
+    !certificationReadinessSource.includes(" fail=") &&
+    !certificationReadinessSource.includes("certification submission first actions missing"),
+  "Certification readiness rows use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(

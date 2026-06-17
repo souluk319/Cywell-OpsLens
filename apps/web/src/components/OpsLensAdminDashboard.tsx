@@ -77,6 +77,8 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "needs-live-evidence": "needs live evidence",
       "needs-live-check": "needs live check",
       "approval-required": "approval required",
+      "approval-gated": "approval-gated",
+      "blocked-by-missing-tooling": "blocked by missing tooling",
       "ready-for-live-registration-review": "ready for live registration review",
       "ready-for-handoff": "ready for handoff",
       "review-packet-ready": "review packet ready",
@@ -108,6 +110,8 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "needs-live-evidence": "실시간 근거 필요",
       "needs-live-check": "실시간 확인 필요",
       "approval-required": "승인 필요",
+      "approval-gated": "승인 대기",
+      "blocked-by-missing-tooling": "도구 누락으로 차단",
       "ready-for-live-registration-review": "실시간 등록 검토 준비",
       "ready-for-handoff": "인계 준비",
       "review-packet-ready": "검토 패킷 준비",
@@ -155,7 +159,8 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       ValidateOnly: "validate-only",
       PatchOLSConfig: "patch OLSConfig",
       reviewPacketOnly: "review packet only",
-      scanPlanOnly: "scan plan only"
+      scanPlanOnly: "scan plan only",
+      certificationReadinessOnly: "certification readiness only"
     },
     ko: {
       readOnly: "읽기 전용",
@@ -167,7 +172,8 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       ValidateOnly: "검증 전용",
       PatchOLSConfig: "OLSConfig 패치",
       reviewPacketOnly: "검토 패킷 전용",
-      scanPlanOnly: "스캔 계획 전용"
+      scanPlanOnly: "스캔 계획 전용",
+      certificationReadinessOnly: "인증 준비도 전용"
     }
   };
   return labels[language][mode] ?? mode;
@@ -474,6 +480,31 @@ const adminCopy = {
     catalogToolchain: "catalog toolchain",
     labBootstrap: "lab bootstrap",
     labHandoff: "lab handoff",
+    certificationReadiness: "certification readiness",
+    submissionCli: "submission CLI",
+    gateCounts: "gate counts",
+    toolingHandoff: "tooling handoff",
+    executionLanes: "execution lanes",
+    internalCatalog: "internal catalog",
+    communityOperator: "community operator",
+    certifiedOperator: "certified operator",
+    documents: "documents",
+    documentsMissing: "documents missing",
+    missingEvidence: "missing evidence",
+    notListed: "not listed",
+    requiredForExternalSubmission: "required for external submission",
+    toolingSatisfiedBy: "tooling satisfied by",
+    ciRunner: "CI runner",
+    ciRunnerAction: "CI runner action",
+    releaseManagerPacket: "release manager packet",
+    ciRunnerDraft: "CI runner draft",
+    path: "path",
+    final: "final",
+    verifyCommand: "verify",
+    requiredHead: "required head",
+    worktree: "worktree",
+    rerunAfter: "rerun after",
+    certificationFirstActionsMissing: "certification first actions missing",
     imageBuilds: "image builds",
     ownedProvenance: "owned provenance",
     externalRuntime: "external runtime",
@@ -807,6 +838,31 @@ const adminCopy = {
     catalogToolchain: "카탈로그 도구체인",
     labBootstrap: "랩 부트스트랩",
     labHandoff: "랩 인계",
+    certificationReadiness: "인증 준비도",
+    submissionCli: "제출 CLI",
+    gateCounts: "게이트 수",
+    toolingHandoff: "도구 인계",
+    executionLanes: "실행 레인",
+    internalCatalog: "내부 카탈로그",
+    communityOperator: "커뮤니티 오퍼레이터",
+    certifiedOperator: "인증 오퍼레이터",
+    documents: "문서",
+    documentsMissing: "문서 누락",
+    missingEvidence: "누락 근거",
+    notListed: "목록 없음",
+    requiredForExternalSubmission: "외부 제출 필수",
+    toolingSatisfiedBy: "도구 충족 기준",
+    ciRunner: "CI 러너",
+    ciRunnerAction: "CI 러너 작업",
+    releaseManagerPacket: "릴리스 매니저 패킷",
+    ciRunnerDraft: "CI 러너 초안",
+    path: "경로",
+    final: "최종",
+    verifyCommand: "검증",
+    requiredHead: "필수 HEAD",
+    worktree: "작업 트리",
+    rerunAfter: "재실행 기준",
+    certificationFirstActionsMissing: "인증 첫 작업 누락",
     imageBuilds: "이미지 빌드",
     ownedProvenance: "소유 이미지 출처",
     externalRuntime: "외부 런타임",
@@ -6313,55 +6369,68 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             >
               <div className="card-title-row compact">
                 <div>
-                  <h4>Certification Readiness</h4>
-                  <small>{certificationPlan.actionMode}</small>
+                  <h4>{copy.certificationReadiness}</h4>
+                  <small>{actionModeText(language, certificationPlan.actionMode)}</small>
                 </div>
                 <ShieldCheck size={18} aria-hidden="true" />
               </div>
               <div className="admin-evidence-line">
-                <span>{certificationPlan.artifactStatus}</span>
-                <span>head={certificationPlan.headSha}</span>
-                <span>dirty={String(certificationPlan.worktreeDirty)}</span>
+                <span>{statusText(language, certificationPlan.artifactStatus)}</span>
                 <span>
-                  registryMutationAttempted=
-                  {String(certificationPlan.registryMutationAttempted)}
+                  {copy.head}: {certificationPlan.headSha}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(certificationPlan.clusterMutationAttempted)}
+                  {copy.dirty}: {booleanText(language, certificationPlan.worktreeDirty)}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(certificationPlan.mutationAllowedByThisVerifier)}
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, certificationPlan.registryMutationAttempted)}
+                </span>
+                <span>
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, certificationPlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(language, certificationPlan.mutationAllowedByThisVerifier)}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Submission CLI</span>
+                  <span>{copy.submissionCli}</span>
                   <strong>
                     {certificationPlan.cli.length
                       ? certificationPlan.cli
                           .map(
                             (tool) =>
-                              `${tool.name}:${tool.available ? "ready" : "missing"} external=${String(tool.requiredForExternalSubmission)}`
+                              `${tool.name}: ${statusText(
+                                language,
+                                tool.available ? "ready" : "missing"
+                              )} / ${copy.requiredForExternalSubmission}: ${booleanText(
+                                language,
+                                tool.requiredForExternalSubmission
+                              )}`
                           )
                           .join(", ")
-                      : "blocked until evidence exists"}
+                      : copy.blockedUntilEvidenceExists}
                   </strong>
                 </div>
                 <div>
-                  <span>Gate Counts</span>
+                  <span>{copy.gateCounts}</span>
                   <strong>
-                    internal={certificationPlan.gateCounts.internalCatalog.pass}/
-                    {certificationPlan.gateCounts.internalCatalog.total},
-                    community={certificationPlan.gateCounts.communityOperator.pass}/
-                    {certificationPlan.gateCounts.communityOperator.total},
-                    certified={certificationPlan.gateCounts.certifiedOperator.pass}/
+                    {copy.internalCatalog}:{" "}
+                    {certificationPlan.gateCounts.internalCatalog.pass}/
+                    {certificationPlan.gateCounts.internalCatalog.total},{" "}
+                    {copy.communityOperator}:{" "}
+                    {certificationPlan.gateCounts.communityOperator.pass}/
+                    {certificationPlan.gateCounts.communityOperator.total},{" "}
+                    {copy.certifiedOperator}:{" "}
+                    {certificationPlan.gateCounts.certifiedOperator.pass}/
                     {certificationPlan.gateCounts.certifiedOperator.total}
                   </strong>
                 </div>
                 <div>
-                  <span>Documents</span>
+                  <span>{copy.documents}</span>
                   <strong>
                     {Object.entries(certificationPlan.documents).length
                       ? Object.entries(certificationPlan.documents)
@@ -6371,37 +6440,41 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                               `${key}:${value.split(/[\\/]/).pop() ?? value}`
                           )
                           .join(", ")
-                      : "documents missing"}
+                      : copy.documentsMissing}
                   </strong>
                 </div>
                 <div>
-                  <span>Open Items</span>
+                  <span>{copy.openItems}</span>
                   <strong>
                     {certificationPlan.missingEvidence.length
-                      ? `${certificationPlan.missingEvidence.length} missing evidence`
+                      ? `${certificationPlan.missingEvidence.length} ${copy.missingEvidence}`
                       : "none"}
                   </strong>
                 </div>
                 <div>
-                  <span>Tooling Handoff</span>
+                  <span>{copy.toolingHandoff}</span>
                   <strong>
-                    {certificationPlan.toolingHandoff.status} / missing=
+                    {statusText(language, certificationPlan.toolingHandoff.status)} /{" "}
+                    {copy.missingTools}:{" "}
                     {certificationPlan.toolingHandoff.missingRequiredTools
                       .length
                       ? certificationPlan.toolingHandoff.missingRequiredTools.join(
                           ", "
                         )
-                      : "none"}
+                      : copy.none}
                   </strong>
                 </div>
                 <div>
-                  <span>Execution Lanes</span>
+                  <span>{copy.executionLanes}</span>
                   <strong>
                     {certificationPlan.toolingHandoff.executionLanes.length
                       ? certificationPlan.toolingHandoff.executionLanes
-                          .map((lane) => `${lane.id}:${lane.status}`)
+                          .map(
+                            (lane) =>
+                              `${lane.id}: ${statusText(language, lane.status)}`
+                          )
                           .join(", ")
-                      : "not listed"}
+                      : copy.notListed}
                   </strong>
                 </div>
               </div>
@@ -6411,8 +6484,10 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {certificationPlan.cli.slice(0, 5).map((tool) => (
                   <span key={tool.name}>
-                    {tool.name}:{tool.available ? "ready" : "missing"} required=
-                    {String(tool.requiredForExternalSubmission)}
+                    {tool.name}:{" "}
+                    {statusText(language, tool.available ? "ready" : "missing")} /{" "}
+                    {copy.requiredForExternalSubmission}:{" "}
+                    {booleanText(language, tool.requiredForExternalSubmission)}
                   </span>
                 ))}
               </div>
@@ -6420,30 +6495,33 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 className="admin-evidence-line"
                 data-testid="opslens-certification-tooling-handoff"
               >
-                <span>{certificationPlan.toolingHandoff.actionMode}</span>
                 <span>
-                  status={certificationPlan.toolingHandoff.status}
+                  {actionModeText(language, certificationPlan.toolingHandoff.actionMode)}
                 </span>
                 <span>
-                  satisfiedBy=
+                  {copy.status}:{" "}
+                  {statusText(language, certificationPlan.toolingHandoff.status)}
+                </span>
+                <span>
+                  {copy.toolingSatisfiedBy}:{" "}
                   {certificationPlan.toolingHandoff.toolingSatisfiedBy}
                 </span>
                 <span>
-                  missing=
+                  {copy.missingTools}:{" "}
                   {certificationPlan.toolingHandoff.missingRequiredTools.join(
                     ", "
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  readOnlyCommands=
+                  {copy.readOnlyCommands}:{" "}
                   {certificationPlan.toolingHandoff.readOnlyCommands.length}
                 </span>
                 <span>
-                  setupCommands=
+                  {copy.setupCommands}:{" "}
                   {certificationPlan.toolingHandoff.setupCommands.length}
                 </span>
                 <span>
-                  approvalGated=
+                  {copy.approvalGated}:{" "}
                   {
                     certificationPlan.toolingHandoff.approvalGatedCommands
                       .length
@@ -6455,26 +6533,31 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-certification-ci-runner"
               >
                 <span>
-                  status=
-                  {certificationPlan.toolingHandoff.runnerEvidence.status}
+                  {copy.status}:{" "}
+                  {statusText(
+                    language,
+                    certificationPlan.toolingHandoff.runnerEvidence.status
+                  )}
                 </span>
                 <span>
-                  path={certificationPlan.toolingHandoff.runnerEvidence.path}
+                  {copy.path}: {certificationPlan.toolingHandoff.runnerEvidence.path}
                 </span>
                 <span>
-                  sameHead=
-                  {String(
+                  {copy.sameHead}:{" "}
+                  {booleanText(
+                    language,
                     certificationPlan.toolingHandoff.runnerEvidence.sameHead
                   )}
                 </span>
                 <span>
-                  mutation=
-                  {String(
+                  {copy.policyMutation}:{" "}
+                  {booleanText(
+                    language,
                     certificationPlan.toolingHandoff.runnerEvidence.mutation
                   )}
                 </span>
                 <span>
-                  tools=
+                  {copy.tools}:{" "}
                   {[
                     `oc:${certificationPlan.toolingHandoff.runnerEvidence.toolVersions.oc}`,
                     `docker:${certificationPlan.toolingHandoff.runnerEvidence.toolVersions.docker}`,
@@ -6491,58 +6574,64 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   {certificationPlan.toolingHandoff.runnerEvidenceAction.id}
                 </span>
                 <span>
-                  owner=
+                  {copy.owner}:{" "}
                   {certificationPlan.toolingHandoff.runnerEvidenceAction.owner}
                 </span>
                 <span>
-                  status=
-                  {certificationPlan.toolingHandoff.runnerEvidenceAction.status}
+                  {copy.status}:{" "}
+                  {statusText(
+                    language,
+                    certificationPlan.toolingHandoff.runnerEvidenceAction.status
+                  )}
                 </span>
                 <span>
-                  final=
+                  {copy.final}:{" "}
                   {
                     certificationPlan.toolingHandoff.runnerEvidenceAction
                       .finalEvidencePath
                   }
                 </span>
                 <span>
-                  draft=
+                  {copy.draft}:{" "}
                   {
                     certificationPlan.toolingHandoff.runnerEvidenceAction
                       .draftCommand
                   }
                 </span>
                 <span>
-                  promote=
+                  {copy.promotionCommands}:{" "}
                   {
                     certificationPlan.toolingHandoff.runnerEvidenceAction
                       .promotionCommand
                   }
                 </span>
                 <span>
-                  verify=
+                  {copy.verifyCommand}:{" "}
                   {
                     certificationPlan.toolingHandoff.runnerEvidenceAction
                       .verificationCommand
                   }
                 </span>
                 <span>
-                  writesLocalEvidence=
-                  {String(
+                  {copy.writesLocalEvidence}:{" "}
+                  {booleanText(
+                    language,
                     certificationPlan.toolingHandoff.runnerEvidenceAction
                       .writesLocalEvidence
                   )}
                 </span>
                 <span>
-                  reviewedInput=
-                  {String(
+                  {copy.reviewedInput}:{" "}
+                  {booleanText(
+                    language,
                     certificationPlan.toolingHandoff.runnerEvidenceAction
                       .requiresReviewedInput
                   )}
                 </span>
                 <span>
-                  mutationAllowed=
-                  {String(
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(
+                    language,
                     certificationPlan.toolingHandoff.runnerEvidenceAction
                       .mutationAllowed
                   )}
@@ -6553,7 +6642,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-certification-tooling-release-manager-packet"
               >
                 <span>
-                  packet=
+                  {copy.packet}:{" "}
                   {certificationPlan.toolingHandoff.releaseManagerPacket.markdownPath
                     .split(/[\\/]/)
                     .pop() ??
@@ -6561,44 +6650,47 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                       .markdownPath}
                 </span>
                 <span>
-                  exists=
-                  {String(
+                  {copy.exists}:{" "}
+                  {booleanText(
+                    language,
                     certificationPlan.toolingHandoff.releaseManagerPacket.exists
                   )}
                 </span>
                 <span>
-                  ticket=
+                  {copy.ticket}:{" "}
                   {certificationPlan.toolingHandoff.releaseManagerPacket.ticketId}
                 </span>
                 <span>
-                  first=
+                  {copy.firstAction}:{" "}
                   {
                     certificationPlan.toolingHandoff.releaseManagerPacket
                       .firstReadOnlyActionId
                   }
                 </span>
                 <span>
-                  setup=
+                  {copy.setupCommands}:{" "}
                   {certificationPlan.toolingHandoff.releaseManagerPacket.setupActionIds.join(
                     ", "
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  approval=
+                  {copy.approvalGated}:{" "}
                   {certificationPlan.toolingHandoff.releaseManagerPacket.approvalGatedActionIds.join(
                     ", "
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  submissionExecuted=
-                  {String(
+                  {copy.submissionCli}:{" "}
+                  {booleanText(
+                    language,
                     certificationPlan.toolingHandoff.releaseManagerPacket
                       .externalSubmissionExecutedByVerifier
                   )}
                 </span>
                 <span>
-                  mutationAllowed=
-                  {String(
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(
+                    language,
                     certificationPlan.toolingHandoff.releaseManagerPacket
                       .mutationBoundary.mutationAllowedByThisVerifier
                   )}
@@ -6609,28 +6701,38 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-certification-ci-runner-draft"
               >
                 <span>
-                  draft={certificationPlan.toolingHandoff.runnerDraft.evidenceState}
+                  {copy.draft}:{" "}
+                  {statusText(
+                    language,
+                    certificationPlan.toolingHandoff.runnerDraft.evidenceState
+                  )}
                 </span>
                 <span>
-                  path={certificationPlan.toolingHandoff.runnerDraft.path}
+                  {copy.path}: {certificationPlan.toolingHandoff.runnerDraft.path}
                 </span>
                 <span>
-                  sameHead=
-                  {String(certificationPlan.toolingHandoff.runnerDraft.sameHead)}
+                  {copy.sameHead}:{" "}
+                  {booleanText(
+                    language,
+                    certificationPlan.toolingHandoff.runnerDraft.sameHead
+                  )}
                 </span>
                 <span>
-                  mutation=
-                  {String(certificationPlan.toolingHandoff.runnerDraft.mutation)}
+                  {copy.policyMutation}:{" "}
+                  {booleanText(
+                    language,
+                    certificationPlan.toolingHandoff.runnerDraft.mutation
+                  )}
                 </span>
                 <span>
-                  final=
+                  {copy.final}:{" "}
                   {
                     certificationPlan.toolingHandoff.runnerDraft
                       .finalEvidenceFile
                   }
                 </span>
                 <span>
-                  missing=
+                  {copy.missingEvidence}:{" "}
                   {
                     certificationPlan.toolingHandoff.runnerDraft
                       .missingEvidence.length
@@ -6643,9 +6745,11 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {certificationPlan.toolingHandoff.executionLanes.map((lane) => (
                   <span key={lane.id}>
-                    {lane.id}:{lane.status}:owner={lane.owner}:mutation=
-                    {String(lane.mutation)}:approval=
-                    {String(lane.requiresExplicitApproval)}
+                    {lane.id}: {statusText(language, lane.status)} / {copy.owner}:{" "}
+                    {lane.owner} / {copy.policyMutation}:{" "}
+                    {booleanText(language, lane.mutation)} /{" "}
+                    {copy.approvalRequired}:{" "}
+                    {booleanText(language, lane.requiresExplicitApproval)}
                   </span>
                 ))}
               </div>
@@ -6654,21 +6758,21 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-certification-freshness-policy"
               >
                 <span>
-                  requiredHead=
+                  {copy.requiredHead}:{" "}
                   {certificationPlan.toolingHandoff.freshnessPolicy.requiredHead}
                 </span>
                 <span>
-                  worktree=
+                  {copy.worktree}:{" "}
                   {
                     certificationPlan.toolingHandoff.freshnessPolicy
                       .worktreeRequirement
                   }
                 </span>
                 <span>
-                  rerunAfter=
+                  {copy.rerunAfter}:{" "}
                   {certificationPlan.toolingHandoff.freshnessPolicy.rerunAfter
                     .slice(0, 4)
-                    .join(", ") || "none"}
+                    .join(", ") || copy.none}
                 </span>
               </div>
               <div
@@ -6688,13 +6792,16 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {certificationPlan.firstSubmissionActions.length ? (
                   certificationPlan.firstSubmissionActions.map((action) => (
                     <span key={action.id}>
-                      {action.id}:{action.owner}:{action.status}:next=
-                      {action.nextCommand}:mutation={String(action.mutation)}
-                      :approval={String(action.requiresExplicitApproval)}
+                      {action.id}: {copy.owner}: {action.owner} / {copy.status}:{" "}
+                      {statusText(language, action.status)} / {copy.nextCommand}:{" "}
+                      {action.nextCommand} / {copy.policyMutation}:{" "}
+                      {booleanText(language, action.mutation)} /{" "}
+                      {copy.approvalRequired}:{" "}
+                      {booleanText(language, action.requiresExplicitApproval)}
                     </span>
                   ))
                 ) : (
-                  <span>certification submission first actions missing</span>
+                  <span>{copy.certificationFirstActionsMissing}</span>
                 )}
               </div>
               <div
@@ -6704,8 +6811,9 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {Object.entries(certificationPlan.gateCounts).map(
                   ([gate, counts]) => (
                     <span key={gate}>
-                      {gate} pass={counts.pass} warn={counts.warn} fail=
-                      {counts.fail}
+                      {gate}: {statusText(language, "pass")}: {counts.pass} /{" "}
+                      {statusText(language, "warn")}: {counts.warn} /{" "}
+                      {statusText(language, "fail")}: {counts.fail}
                     </span>
                   )
                 )}
