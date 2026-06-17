@@ -889,6 +889,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The CRC lightweight profile still marks intentionally absent `inmemory` and `mock-local` runtime services as locally satisfied, while API/dashboard remain live-observed readiness signals.
 - `npm run verify:operator:reconcile`, `npm run verify:operator:runtime`, and `npm run verify:operator` passed.
 
+### 2026-06-18 - Lane 68
+
+- Polished the deep release/action queue panels in OpsLens Admin.
+- Release refresh, release bundle, owner packets, critical-path actions, source artifacts, and handoff rows now use KO/EN labels instead of raw `key=value` strings such as `unsafeTickets=`, `staleRemoved=`, `actionQueueActionGaps=`, `readOnly=`, `approval=`, `ticketFirst=`, or `diagnostics=`.
+- Added a `verify:web-shell` gate so the release/action queue section cannot drift back to raw developer labels.
+- `npm run -w @kugnus/web build` and `npm run verify:web-shell` passed.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -902,7 +909,7 @@ Checkpoint cadence:
 - feature branch head at plan creation: `cf791e1`
 - feature branch latest pushed head after Lane 66: `4652648`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 65: PASS, 40 checks
+- latest web shell verifier after Lane 68: PASS, 41 checks
 - latest overnight checkpoint after Lane 66: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation

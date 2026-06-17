@@ -240,6 +240,58 @@ function runtimeEvidenceTicketText(
   ].join(" / ");
 }
 
+function listOrNone(copy: Record<string, string>, values: string[] | undefined) {
+  return values && values.length ? values.join(", ") : copy.none;
+}
+
+function ticketText(
+  copy: Record<string, string>,
+  label: string,
+  ticket:
+    | {
+        id?: string;
+        firstReadOnlyAction?: {
+          id?: string;
+        };
+      }
+    | undefined
+    | null
+) {
+  return `${label}: ${ticket?.id ?? copy.none} / ${copy.ticketFirstAction}: ${
+    ticket?.firstReadOnlyAction?.id ?? copy.none
+  }`;
+}
+
+function commandIdsText(
+  copy: Record<string, string>,
+  commands: Array<{ id?: string }> | undefined,
+  limit = 4
+) {
+  return commands && commands.length
+    ? commands
+        .slice(0, limit)
+        .map((command) => command.id ?? copy.unknown)
+        .join(", ")
+    : copy.none;
+}
+
+function diagnosticsText(
+  copy: Record<string, string>,
+  diagnostics: Array<{ id?: string; value?: unknown }> | undefined,
+  limit = 8
+) {
+  return diagnostics && diagnostics.length
+    ? diagnostics
+        .slice(0, limit)
+        .map((diagnostic) =>
+          diagnostic.value === undefined
+            ? (diagnostic.id ?? copy.unknown)
+            : `${diagnostic.id ?? copy.unknown}: ${String(diagnostic.value)}`
+        )
+        .join(" | ")
+    : copy.none;
+}
+
 const adminCopy = {
   en: {
     adminTitle: "Admin Dashboard",
@@ -453,6 +505,29 @@ const adminCopy = {
     networkFirstActions: "network first actions",
     sourceArtifacts: "source artifacts",
     fresh: "fresh",
+    commands: "commands",
+    freshArtifacts: "fresh artifacts",
+    openItems: "open items",
+    ownerPackets: "owner packets",
+    ready: "ready",
+    count: "count",
+    missingDiagnostics: "missing diagnostics",
+    missingTickets: "missing tickets",
+    expectedFiles: "expected files",
+    removedStaleFiles: "removed stale files",
+    localDockerBuildAllowed: "local Docker build allowed",
+    securityReviewDrafts: "security review drafts",
+    expectedNonZero: "expects non-empty output",
+    actionQueueStatus: "action queue status",
+    actionQueueFresh: "action queue fresh",
+    actionQueueCommands: "action queue commands",
+    actionQueueActionGaps: "action queue gaps",
+    roadmapExternalState: "roadmap external state",
+    roadmapLocalOnly: "roadmap local-only",
+    items: "items",
+    ticketFirstAction: "ticket first action",
+    missingTools: "missing tools",
+    handoffCommands: "handoff commands",
     adminAsk: "admin ask",
     rbacReviewsMissing: "RBAC reviews missing",
     networkFirstActionsMissing: "network first actions missing",
@@ -718,6 +793,29 @@ const adminCopy = {
     networkFirstActions: "네트워크 첫 작업",
     sourceArtifacts: "소스 산출물",
     fresh: "최신",
+    commands: "명령",
+    freshArtifacts: "최신 산출물",
+    openItems: "열린 항목",
+    ownerPackets: "담당자 패킷",
+    ready: "준비",
+    count: "수량",
+    missingDiagnostics: "누락 진단",
+    missingTickets: "누락 티켓",
+    expectedFiles: "예상 파일",
+    removedStaleFiles: "정리된 오래된 파일",
+    localDockerBuildAllowed: "로컬 Docker 빌드 허용",
+    securityReviewDrafts: "보안 검토 초안",
+    expectedNonZero: "비어 있지 않은 출력 필요",
+    actionQueueStatus: "작업 대기열 상태",
+    actionQueueFresh: "작업 대기열 최신성",
+    actionQueueCommands: "작업 대기열 명령",
+    actionQueueActionGaps: "작업 대기열 gap",
+    roadmapExternalState: "로드맵 외부 상태",
+    roadmapLocalOnly: "로드맵 로컬 항목",
+    items: "항목",
+    ticketFirstAction: "티켓 첫 작업",
+    missingTools: "누락 도구",
+    handoffCommands: "인계 명령",
     adminAsk: "관리자 요청",
     rbacReviewsMissing: "RBAC 검토 누락",
     networkFirstActionsMissing: "네트워크 첫 작업 누락",
@@ -4720,27 +4818,27 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-release-refresh"
             >
               <div className="admin-evidence-line">
-                <span>{releaseRefresh.artifactStatus}</span>
-                <span>{releaseRefresh.actionMode}</span>
-                <span>head={releaseRefresh.headSha}</span>
-                <span>dirty={String(releaseRefresh.worktreeDirty)}</span>
+                <span>{statusText(language, releaseRefresh.artifactStatus)}</span>
+                <span>{actionModeText(language, releaseRefresh.actionMode)}</span>
+                <span>{copy.head}: {releaseRefresh.headSha}</span>
+                <span>{copy.dirty}: {booleanText(language, releaseRefresh.worktreeDirty)}</span>
                 <span>
-                  localDockerBuildAllowed=
-                  {String(releaseRefresh.localDockerBuildAllowed)}
+                  {copy.localDockerBuildAllowed}:{" "}
+                  {booleanText(language, releaseRefresh.localDockerBuildAllowed)}
                 </span>
               </div>
               <div className="admin-evidence-line">
                 <span>
-                  registryMutationAttempted=
-                  {String(releaseRefresh.registryMutationAttempted)}
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, releaseRefresh.registryMutationAttempted)}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(releaseRefresh.clusterMutationAttempted)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, releaseRefresh.clusterMutationAttempted)}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(releaseRefresh.mutationAllowedByThisVerifier)}
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(language, releaseRefresh.mutationAllowedByThisVerifier)}
                 </span>
               </div>
               <div
@@ -4748,32 +4846,33 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-release-refresh-security-review"
               >
                 <span>
-                  securityReviewDrafts=
-                  {releaseRefreshSecurityReviewCommand?.status ?? "missing"}
+                  {copy.securityReviewDrafts}:{" "}
+                  {statusText(language, releaseRefreshSecurityReviewCommand?.status)}
                 </span>
                 <span>
-                  expectedNonZero=
-                  {String(
+                  {copy.expectedNonZero}:{" "}
+                  {booleanText(
+                    language,
                     releaseRefreshSecurityReviewCommand?.expectedNonZero ??
                       false
                   )}
                 </span>
-                <span>id=security-review-drafts-all</span>
+                <span>id: security-review-drafts-all</span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Commands</span>
+                  <span>{copy.commands}</span>
                   <strong>
                     {releaseRefresh.commands.length
                       ? releaseRefresh.commands
                           .slice(0, 5)
                           .map((command) => `${command.id}:${command.status}`)
                           .join(", ")
-                      : "blocked until refresh exists"}
+                      : copy.blockedUntilEvidenceExists}
                   </strong>
                 </div>
                 <div>
-                  <span>Fresh Artifacts</span>
+                  <span>{copy.freshArtifacts}</span>
                   <strong>
                     {
                       releaseRefresh.artifacts.filter((artifact) => artifact.fresh)
@@ -4783,25 +4882,27 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   </strong>
                 </div>
                 <div>
-                  <span>Open Items</span>
+                  <span>{copy.openItems}</span>
                   <strong>
                     {releaseRefresh.missingEvidence.length
-                      ? `${releaseRefresh.missingEvidence.length} missing evidence`
-                      : "none"}
+                      ? `${releaseRefresh.missingEvidence.length} ${copy.evidenceGaps}`
+                      : copy.none}
                   </strong>
                 </div>
                 <div>
-                  <span>Owner Packets</span>
+                  <span>{copy.ownerPackets}</span>
                   <strong>
-                    ready={String(releaseRefresh.actionQueue.ownerPacketsReady)},
-                    count={releaseRefresh.actionQueue.ownerPacketCount}
+                    {copy.ready}:{" "}
+                    {booleanText(language, releaseRefresh.actionQueue.ownerPacketsReady)}
+                    , {copy.count}: {releaseRefresh.actionQueue.ownerPacketCount}
                   </strong>
                 </div>
                 <div>
-                  <span>Critical Path</span>
+                  <span>{copy.criticalPath}</span>
                   <strong>
-                    ready={String(releaseRefresh.actionQueue.criticalPathReady)},
-                    count={releaseRefresh.actionQueue.criticalPathCount}
+                    {copy.ready}:{" "}
+                    {booleanText(language, releaseRefresh.actionQueue.criticalPathReady)}
+                    , {copy.count}: {releaseRefresh.actionQueue.criticalPathCount}
                   </strong>
                 </div>
               </div>
@@ -4810,22 +4911,22 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-release-refresh-critical-path"
               >
                 <span>
-                  missingDiagnostics=
+                  {copy.missingDiagnostics}:{" "}
                   {releaseRefresh.actionQueue.missingCriticalPathDiagnostics.join(
                     ", "
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  missingTickets=
+                  {copy.missingTickets}:{" "}
                   {releaseRefresh.actionQueue.missingCriticalPathTickets.join(
                     ", "
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  unsafeTickets=
+                  {copy.unsafeTickets}:{" "}
                   {releaseRefresh.actionQueue.unsafeCriticalPathTickets.join(
                     ", "
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
               </div>
               <div
@@ -4834,11 +4935,11 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {releaseRefresh.actionQueue.ownerPackets.slice(0, 6).map((packet) => (
                   <span key={packet.owner}>
-                    {packet.owner}:
-                    {packet.markdownPath.split(/[\\/]/).pop() ??
-                      packet.markdownPath}
-                    :exists={String(packet.exists)}:first={packet.firstActionId}
-                    :next={packet.firstNextCommand}
+                    {copy.owner}: {packet.owner} / {copy.packet}:{" "}
+                    {packet.markdownPath.split(/[\\/]/).pop() ?? packet.markdownPath} /{" "}
+                    {copy.exists}: {booleanText(language, packet.exists)} /{" "}
+                    {copy.firstAction}: {packet.firstActionId} /{" "}
+                    {copy.nextCommand}: {packet.firstNextCommand}
                   </span>
                 ))}
               </div>
@@ -4847,18 +4948,21 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-release-refresh-owner-packet-cleanup"
               >
                 <span>
-                  deletionAllowed=
-                  {String(releaseRefresh.actionQueue.ownerPacketCleanup.deletionAllowed)}
+                  {copy.cleanupDeletionAllowed}:{" "}
+                  {booleanText(
+                    language,
+                    releaseRefresh.actionQueue.ownerPacketCleanup.deletionAllowed
+                  )}
                 </span>
                 <span>
-                  expected=
+                  {copy.expectedFiles}:{" "}
                   {releaseRefresh.actionQueue.ownerPacketCleanup.expectedFiles.join(", ") ||
-                    "none"}
+                    copy.none}
                 </span>
                 <span>
-                  staleRemoved=
+                  {copy.removedStaleFiles}:{" "}
                   {releaseRefresh.actionQueue.ownerPacketCleanup.staleRemoved.join(", ") ||
-                    "none"}
+                    copy.none}
                 </span>
               </div>
               <div className="remediation-notes">
@@ -4879,28 +4983,28 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-release-evidence-bundle"
             >
               <div className="admin-evidence-line">
-                <span>{releaseBundle.artifactStatus}</span>
-                <span>{releaseBundle.actionMode}</span>
-                <span>head={releaseBundle.headSha}</span>
-                <span>dirty={String(releaseBundle.worktreeDirty)}</span>
-                <span>packet={releaseBundlePacketName}</span>
+                <span>{statusText(language, releaseBundle.artifactStatus)}</span>
+                <span>{actionModeText(language, releaseBundle.actionMode)}</span>
+                <span>{copy.head}: {releaseBundle.headSha}</span>
+                <span>{copy.dirty}: {booleanText(language, releaseBundle.worktreeDirty)}</span>
+                <span>{copy.packet}: {releaseBundlePacketName}</span>
                 <span>
-                  mutationBoundaryPassed=
-                  {String(releaseBundle.mutationBoundaryPassed)}
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(language, releaseBundle.mutationBoundaryPassed)}
                 </span>
               </div>
               <div className="admin-evidence-line">
                 <span>
-                  registryMutationAttempted=
-                  {String(releaseBundle.registryMutationAttempted)}
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, releaseBundle.registryMutationAttempted)}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(releaseBundle.clusterMutationAttempted)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, releaseBundle.clusterMutationAttempted)}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(releaseBundle.mutationAllowedByThisVerifier)}
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(language, releaseBundle.mutationAllowedByThisVerifier)}
                 </span>
               </div>
               <div className="approval-summary-grid">
@@ -4923,65 +5027,71 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   </strong>
                 </div>
                 <div>
-                  <span>Commands</span>
+                  <span>{copy.commands}</span>
                   <strong>
-                    readOnly={releaseBundle.commandCounts.readOnly},
-                    gated=
+                    {copy.readOnlyCommands}: {releaseBundle.commandCounts.readOnly},{" "}
+                    {copy.gatedCommands}:{" "}
                     {releaseBundle.commandCounts.mutatingApprovalRequired}
                   </strong>
                 </div>
                 <div>
-                  <span>Action Queue</span>
+                  <span>{copy.actionQueueReady}</span>
                   <strong>
-                    ready={String(releaseBundle.actionQueueSafety.ready)},
-                    items={releaseBundle.actionQueueSafety.actionItemCount},
-                    criticalPath=
+                    {copy.ready}:{" "}
+                    {booleanText(language, releaseBundle.actionQueueSafety.ready)}
+                    , {copy.items}: {releaseBundle.actionQueueSafety.actionItemCount},{" "}
+                    {copy.criticalPath}:{" "}
                     {releaseBundle.actionQueueSafety.criticalPathCount}
                   </strong>
                 </div>
                 <div>
-                  <span>Roadmap</span>
+                  <span>{copy.roadmapCompletion}</span>
                   <strong>
-                    {releaseBundle.roadmapCompletion.percentComplete}%,
-                    remaining=
+                    {releaseBundle.roadmapCompletion.percentComplete}%,{" "}
+                    {copy.remaining}:{" "}
                     {releaseBundle.roadmapCompletion.remainingRequirements}
                   </strong>
                 </div>
                 <div>
-                  <span>Open Items</span>
+                  <span>{copy.openItems}</span>
                   <strong>
                     {releaseBundle.missingEvidence.length
-                      ? `${releaseBundle.missingEvidence.length} missing evidence`
-                      : "none"}
+                      ? `${releaseBundle.missingEvidence.length} ${copy.evidenceGaps}`
+                      : copy.none}
                   </strong>
                 </div>
               </div>
               <div className="admin-evidence-line">
                 {releaseBundle.sourceArtifacts.slice(0, 4).map((source) => (
                   <span key={source.id}>
-                    {source.id} fresh={String(source.fresh)}
+                    {source.id} / {copy.fresh}: {booleanText(language, source.fresh)}
                   </span>
                 ))}
               </div>
               <div className="admin-evidence-line">
                 <span>
-                  actionQueueStatus={releaseBundle.actionQueueSafety.status}
+                  {copy.actionQueueStatus}:{" "}
+                  {statusText(language, releaseBundle.actionQueueSafety.status)}
                 </span>
                 <span>
-                  actionQueueFresh=
-                  {String(releaseBundle.actionQueueSafety.fresh)}
+                  {copy.actionQueueFresh}:{" "}
+                  {booleanText(language, releaseBundle.actionQueueSafety.fresh)}
                 </span>
                 <span>
-                  actionQueueCommands=readOnly:
-                  {releaseBundle.actionQueueSafety.readOnlyCommandCount}/gated:
+                  {copy.actionQueueCommands}: {copy.readOnlyCommands}{" "}
+                  {releaseBundle.actionQueueSafety.readOnlyCommandCount} /{" "}
+                  {copy.gatedCommands}{" "}
                   {releaseBundle.actionQueueSafety.approvalGatedCommandCount}
                 </span>
                 <span>
-                  actionQueueMutationBoundary=
-                  {String(releaseBundle.actionQueueSafety.mutationBoundaryPassed)}
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(
+                    language,
+                    releaseBundle.actionQueueSafety.mutationBoundaryPassed
+                  )}
                 </span>
                 <span>
-                  actionQueueActionGaps=
+                  {copy.actionQueueActionGaps}:{" "}
                   {[
                     ...releaseBundle.actionQueueSafety
                       .missingActionItemDiagnostics,
@@ -4989,19 +5099,19 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                       .missingActionItemNextCommands,
                     ...releaseBundle.actionQueueSafety
                       .missingCriticalPathNextCommands
-                  ].length || "none"}
+                  ].length || copy.none}
                 </span>
                 <span>
-                  unsafeTickets=
+                  {copy.unsafeTickets}:{" "}
                   {releaseBundle.actionQueueSafety.unsafeTickets.join(", ") ||
-                    "none"}
+                    copy.none}
                 </span>
                 <span>
-                  roadmapExternalState=
+                  {copy.roadmapExternalState}:{" "}
                   {releaseBundle.roadmapCompletion.remainingExternalStateCount}
                 </span>
                 <span>
-                  roadmapLocalOnly=
+                  {copy.roadmapLocalOnly}:{" "}
                   {releaseBundle.roadmapCompletion.remainingLocalOnlyCount}
                 </span>
               </div>
@@ -5030,47 +5140,50 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 <ListChecks size={18} aria-hidden="true" />
               </div>
               <div className="admin-evidence-line">
-                <span>{releaseActionQueue.artifactStatus}</span>
-                <span>head={releaseActionQueue.headSha}</span>
-                <span>dirty={String(releaseActionQueue.worktreeDirty)}</span>
-                <span>packet={releaseActionQueuePacketName}</span>
+                <span>{statusText(language, releaseActionQueue.artifactStatus)}</span>
+                <span>{copy.head}: {releaseActionQueue.headSha}</span>
+                <span>{copy.dirty}: {booleanText(language, releaseActionQueue.worktreeDirty)}</span>
+                <span>{copy.packet}: {releaseActionQueuePacketName}</span>
                 <span>
-                  mutationBoundaryPassed=
-                  {String(releaseActionQueue.mutationBoundaryPassed)}
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(language, releaseActionQueue.mutationBoundaryPassed)}
                 </span>
               </div>
               <div className="admin-evidence-line">
                 <span>
-                  registryMutationAttempted=
-                  {String(releaseActionQueue.registryMutationAttempted)}
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, releaseActionQueue.registryMutationAttempted)}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(releaseActionQueue.clusterMutationAttempted)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, releaseActionQueue.clusterMutationAttempted)}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(releaseActionQueue.mutationAllowedByThisVerifier)}
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(
+                    language,
+                    releaseActionQueue.mutationAllowedByThisVerifier
+                  )}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Owners</span>
+                  <span>{copy.owner}</span>
                   <strong>{releaseActionQueue.owners.length}</strong>
                 </div>
                 <div>
-                  <span>Open Actions</span>
+                  <span>{copy.openItems}</span>
                   <strong>{releaseActionQueue.items.length}</strong>
                 </div>
                 <div>
-                  <span>Commands</span>
+                  <span>{copy.commands}</span>
                   <strong>
-                    readOnly={releaseActionQueue.commandCounts.readOnly},
-                    gated={releaseActionQueue.commandCounts.approvalGated}
+                    {copy.readOnlyCommands}: {releaseActionQueue.commandCounts.readOnly},{" "}
+                    {copy.gatedCommands}: {releaseActionQueue.commandCounts.approvalGated}
                   </strong>
                 </div>
                 <div>
-                  <span>Sources</span>
+                  <span>{copy.sourceArtifacts}</span>
                   <strong>
                     {
                       releaseActionQueue.sourceArtifacts.filter(
@@ -5089,11 +5202,11 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                         owner.blocker > 0 ? "missing" : "stale"
                       }`}
                     >
-                      {owner.blocker > 0 ? "blocker" : "open"}
+                      {owner.blocker > 0 ? copy.blockers : copy.openItems}
                     </span>
                     <strong>{owner.owner}</strong>
-                    <small>open={owner.open}</small>
-                    <small>high={owner.high}</small>
+                    <small>{copy.openItems}: {owner.open}</small>
+                    <small>{copy.severity}: {owner.high}</small>
                   </div>
                 ))}
               </div>
@@ -5104,74 +5217,41 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {releaseActionQueue.criticalPath.length > 0 ? (
                   releaseActionQueue.criticalPath.map((entry) => (
                     <span key={entry.lane}>
-                      {entry.lane}:{entry.owner}:{entry.priority}:
-                      {entry.actionId}:next={entry.nextCommand}:ticket=
-                      {entry.ticketPacket?.id ?? "none"}:ticketFirst=
-                      {entry.ticketPacket?.firstReadOnlyAction.id ?? "none"}
-                      :extTicket={entry.externalRuntimeTicketPacket?.id ?? "none"}
-                      :extFirst=
-                      {entry.externalRuntimeTicketPacket?.firstReadOnlyAction.id ??
-                        "none"}
-                      :finalTicket=
-                      {entry.externalRuntimeFinalEvidenceTicketPacket?.id ??
-                        "none"}
-                      :finalFirst=
-                      {entry.externalRuntimeFinalEvidenceTicketPacket
-                        ?.firstReadOnlyAction.id ?? "none"}
-                      :productTicket=
-                      {entry.externalRuntimeProductTicketPacket?.id ?? "none"}
-                      :productFirst=
-                      {entry.externalRuntimeProductTicketPacket?.firstReadOnlyAction
-                        .id ?? "none"}
-                      :certTicket=
-                      {entry.certificationToolingTicketPacket?.id ?? "none"}
-                      :certFirst=
-                      {entry.certificationToolingTicketPacket?.firstReadOnlyAction
-                        .id ?? "none"}
-                      :securityTicket=
-                      {entry.securityReviewTicketPacket?.id ?? "none"}
-                      :securityFirst=
-                      {entry.securityReviewTicketPacket?.firstReadOnlyAction.id ??
-                        "none"}
-                      :publishTicket=
-                      {entry.releasePublishTicketPacket?.id ?? "none"}
-                      :publishFirst=
-                      {entry.releasePublishTicketPacket?.firstReadOnlyAction.id ??
-                        "none"}
-                      :installTicket=
-                      {entry.installApprovalTicketPacket?.id ?? "none"}
-                      :installFirst=
-                      {entry.installApprovalTicketPacket?.firstReadOnlyAction.id ??
-                        "none"}
-                      :catalogTicket=
-                      {entry.catalogToolchainTicketPacket?.id ?? "none"}
-                      :catalogFirst=
-                      {entry.catalogToolchainTicketPacket?.firstReadOnlyAction.id ??
-                        "none"}
-                      :ragTicket=
-                      {entry.ragProductionTicketPacket?.id ?? "none"}
-                      :ragFirst=
-                      {entry.ragProductionTicketPacket?.firstReadOnlyAction.id ??
-                        "none"}
-                      :aiopsTicket=
-                      {entry.aiopsMonitoringTicketPacket?.id ?? "none"}
-                      :aiopsFirst=
-                      {entry.aiopsMonitoringTicketPacket?.firstReadOnlyAction.id ??
-                        "none"}
-                      :runtimeTicket=
-                      {entry.runtimeEvidenceTicketPacket?.id ?? "none"}
-                      :runtimeFirst=
-                      {entry.runtimeEvidenceTicketPacket?.firstReadOnlyAction.id ??
-                        "none"}
-                      :tools={entry.missingRequiredTools.join(",") || "none"}
-                      :setup={entry.setupCommandIds.join(",") || "none"}:readOnly=
-                      {entry.readOnlyCommandIds.join(",") || "none"}:approval=
-                      {entry.approvalGatedCommandIds.join(",") || "none"}
-                      :diagnostics={entry.diagnostics.join(",") || "none"}
+                      {[
+                        `${entry.lane} / ${copy.owner}: ${entry.owner}`,
+                        `${copy.severity}: ${entry.priority}`,
+                        `${copy.firstAction}: ${entry.actionId}`,
+                        `${copy.nextCommand}: ${entry.nextCommand}`,
+                        ticketText(copy, copy.ticket, entry.ticketPacket),
+                        ticketText(copy, copy.externalRuntime, entry.externalRuntimeTicketPacket),
+                        ticketText(
+                          copy,
+                          `${copy.externalRuntime} final`,
+                          entry.externalRuntimeFinalEvidenceTicketPacket
+                        ),
+                        ticketText(
+                          copy,
+                          `${copy.externalRuntime} product`,
+                          entry.externalRuntimeProductTicketPacket
+                        ),
+                        ticketText(copy, copy.certificationEvidence, entry.certificationToolingTicketPacket),
+                        ticketText(copy, copy.securityScan, entry.securityReviewTicketPacket),
+                        ticketText(copy, copy.releasePublish, entry.releasePublishTicketPacket),
+                        ticketText(copy, copy.installPlan, entry.installApprovalTicketPacket),
+                        ticketText(copy, copy.catalogToolchain, entry.catalogToolchainTicketPacket),
+                        ticketText(copy, copy.ragIngestion, entry.ragProductionTicketPacket),
+                        ticketText(copy, copy.aiOpsPipeline, entry.aiopsMonitoringTicketPacket),
+                        ticketText(copy, copy.runtimeReview, entry.runtimeEvidenceTicketPacket),
+                        `${copy.missingTools}: ${listOrNone(copy, entry.missingRequiredTools)}`,
+                        `${copy.setupCommands}: ${listOrNone(copy, entry.setupCommandIds)}`,
+                        `${copy.readOnlyCommands}: ${listOrNone(copy, entry.readOnlyCommandIds)}`,
+                        `${copy.approvalGated}: ${listOrNone(copy, entry.approvalGatedCommandIds)}`,
+                        `${copy.diagnosis}: ${listOrNone(copy, entry.diagnostics)}`
+                      ].join(" / ")}
                     </span>
                   ))
                 ) : (
-                  <span>critical path clear</span>
+                  <span>{copy.criticalPath}: {copy.none}</span>
                 )}
               </div>
               <div
@@ -5180,9 +5260,11 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {releaseActionQueue.sourceArtifacts.slice(0, 8).map((source) => (
                   <span key={source.id}>
-                    {source.id}:{source.status}:fresh={String(source.fresh)}
-                    :required={String(source.required)}:mutation=
-                    {String(source.mutationViolation)}
+                    {source.id} / {copy.status}:{" "}
+                    {statusText(language, source.status)} / {copy.fresh}:{" "}
+                    {booleanText(language, source.fresh)} / {copy.required}:{" "}
+                    {booleanText(language, source.required)} / {copy.mutationAllowed}:{" "}
+                    {booleanText(language, source.mutationViolation)}
                   </span>
                 ))}
               </div>
@@ -5192,70 +5274,37 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {releaseActionQueue.ownerPackets.slice(0, 7).map((packet) => (
                   <span key={packet.owner}>
-                    {packet.owner}:
-                    {packet.markdownPath.split(/[\\/]/).pop() ??
-                      packet.markdownPath}
-                    :open={packet.open}:approval=
-                    {packet.approvalGatedCommandIds.length}:first=
-                    {packet.firstActionId}:next={packet.firstNextCommand}
-                    :ticket={packet.firstTicketPacket?.id ?? "none"}:ticketFirst=
-                    {packet.firstTicketPacket?.firstReadOnlyAction.id ?? "none"}
-                    :extTicket=
-                    {packet.firstExternalRuntimeTicketPacket?.id ?? "none"}
-                    :extFirst=
-                    {packet.firstExternalRuntimeTicketPacket?.firstReadOnlyAction
-                      .id ?? "none"}
-                    :finalTicket=
-                    {packet.firstExternalRuntimeFinalEvidenceTicketPacket?.id ??
-                      "none"}
-                    :finalFirst=
-                    {packet.firstExternalRuntimeFinalEvidenceTicketPacket
-                      ?.firstReadOnlyAction.id ?? "none"}
-                    :productTicket=
-                    {packet.firstExternalRuntimeProductTicketPacket?.id ?? "none"}
-                    :productFirst=
-                    {packet.firstExternalRuntimeProductTicketPacket
-                      ?.firstReadOnlyAction.id ?? "none"}
-                    :certTicket=
-                    {packet.firstCertificationToolingTicketPacket?.id ?? "none"}
-                    :certFirst=
-                    {packet.firstCertificationToolingTicketPacket?.firstReadOnlyAction
-                      .id ?? "none"}
-                    :securityTicket=
-                    {packet.firstSecurityReviewTicketPacket?.id ?? "none"}
-                    :securityFirst=
-                    {packet.firstSecurityReviewTicketPacket?.firstReadOnlyAction
-                      .id ?? "none"}
-                    :publishTicket=
-                    {packet.firstReleasePublishTicketPacket?.id ?? "none"}
-                    :publishFirst=
-                    {packet.firstReleasePublishTicketPacket?.firstReadOnlyAction
-                      .id ?? "none"}
-                    :installTicket=
-                    {packet.firstInstallApprovalTicketPacket?.id ?? "none"}
-                    :installFirst=
-                    {packet.firstInstallApprovalTicketPacket?.firstReadOnlyAction
-                      .id ?? "none"}
-                    :catalogTicket=
-                    {packet.firstCatalogToolchainTicketPacket?.id ?? "none"}
-                    :catalogFirst=
-                    {packet.firstCatalogToolchainTicketPacket?.firstReadOnlyAction
-                      .id ?? "none"}
-                    :ragTicket=
-                    {packet.firstRagProductionTicketPacket?.id ?? "none"}
-                    :ragFirst=
-                    {packet.firstRagProductionTicketPacket?.firstReadOnlyAction
-                      .id ?? "none"}
-                    :aiopsTicket=
-                    {packet.firstAiopsMonitoringTicketPacket?.id ?? "none"}
-                    :aiopsFirst=
-                    {packet.firstAiopsMonitoringTicketPacket?.firstReadOnlyAction
-                      .id ?? "none"}
-                    :runtimeTicket=
-                    {packet.firstRuntimeEvidenceTicketPacket?.id ?? "none"}
-                    :runtimeFirst=
-                    {packet.firstRuntimeEvidenceTicketPacket?.firstReadOnlyAction
-                      .id ?? "none"}
+                    {[
+                      `${copy.owner}: ${packet.owner}`,
+                      `${copy.packet}: ${
+                        packet.markdownPath.split(/[\\/]/).pop() ??
+                        packet.markdownPath
+                      }`,
+                      `${copy.openItems}: ${packet.open}`,
+                      `${copy.approvalGated}: ${packet.approvalGatedCommandIds.length}`,
+                      `${copy.firstAction}: ${packet.firstActionId}`,
+                      `${copy.nextCommand}: ${packet.firstNextCommand}`,
+                      ticketText(copy, copy.ticket, packet.firstTicketPacket),
+                      ticketText(copy, copy.externalRuntime, packet.firstExternalRuntimeTicketPacket),
+                      ticketText(
+                        copy,
+                        `${copy.externalRuntime} final`,
+                        packet.firstExternalRuntimeFinalEvidenceTicketPacket
+                      ),
+                      ticketText(
+                        copy,
+                        `${copy.externalRuntime} product`,
+                        packet.firstExternalRuntimeProductTicketPacket
+                      ),
+                      ticketText(copy, copy.certificationEvidence, packet.firstCertificationToolingTicketPacket),
+                      ticketText(copy, copy.securityScan, packet.firstSecurityReviewTicketPacket),
+                      ticketText(copy, copy.releasePublish, packet.firstReleasePublishTicketPacket),
+                      ticketText(copy, copy.installPlan, packet.firstInstallApprovalTicketPacket),
+                      ticketText(copy, copy.catalogToolchain, packet.firstCatalogToolchainTicketPacket),
+                      ticketText(copy, copy.ragIngestion, packet.firstRagProductionTicketPacket),
+                      ticketText(copy, copy.aiOpsPipeline, packet.firstAiopsMonitoringTicketPacket),
+                      ticketText(copy, copy.runtimeReview, packet.firstRuntimeEvidenceTicketPacket)
+                    ].join(" / ")}
                   </span>
                 ))}
               </div>
@@ -5265,17 +5314,20 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {releaseActionQueue.ownerExecutionPlan.slice(0, 10).map((plan) => (
                   <span key={plan.owner}>
-                    {plan.owner}:{plan.status}:first={plan.firstActionId}:next=
-                    {plan.firstNextCommand}:readOnly=
-                    {plan.firstReadOnlyCommand.id}:setup=
-                    {plan.firstSetupCommand.id}:approval=
-                    {plan.firstApprovalGatedCommand.id}:tickets=
-                    {plan.ticketPacketCount}:clusterMutationAllowed=
-                    {String(plan.clusterMutationAllowed)}
-                    :registryMutationAllowed=
-                    {String(plan.registryMutationAllowed)}:vectorWriteAllowed=
-                    {String(plan.vectorWriteAllowed)}:mutationAllowed=
-                    {String(plan.mutationAllowedByThisVerifier)}
+                    {copy.owner}: {plan.owner} / {copy.status}:{" "}
+                    {statusText(language, plan.status)} / {copy.firstAction}:{" "}
+                    {plan.firstActionId} / {copy.nextCommand}:{" "}
+                    {plan.firstNextCommand} / {copy.firstReadOnly}:{" "}
+                    {plan.firstReadOnlyCommand.id} / {copy.setupCommands}:{" "}
+                    {plan.firstSetupCommand.id} / {copy.approvalAction}:{" "}
+                    {plan.firstApprovalGatedCommand.id} / {copy.ticket}:{" "}
+                    {plan.ticketPacketCount} / {copy.clusterMutationAttempted}:{" "}
+                    {booleanText(language, plan.clusterMutationAllowed)} /{" "}
+                    {copy.registryMutationAttempted}:{" "}
+                    {booleanText(language, plan.registryMutationAllowed)} /{" "}
+                    {copy.vectorWrite}: {booleanText(language, plan.vectorWriteAllowed)} /{" "}
+                    {copy.mutationByVerifier}:{" "}
+                    {booleanText(language, plan.mutationAllowedByThisVerifier)}
                   </span>
                 ))}
               </div>
@@ -5284,18 +5336,21 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-release-action-queue-owner-packet-cleanup"
               >
                 <span>
-                  deletionAllowed=
-                  {String(releaseActionQueue.ownerPacketCleanup.deletionAllowed)}
+                  {copy.cleanupDeletionAllowed}:{" "}
+                  {booleanText(
+                    language,
+                    releaseActionQueue.ownerPacketCleanup.deletionAllowed
+                  )}
                 </span>
                 <span>
-                  expected=
+                  {copy.expectedFiles}:{" "}
                   {releaseActionQueue.ownerPacketCleanup.expectedFiles.join(", ") ||
-                    "none"}
+                    copy.none}
                 </span>
                 <span>
-                  staleRemoved=
+                  {copy.removedStaleFiles}:{" "}
                   {releaseActionQueue.ownerPacketCleanup.staleRemoved.join(", ") ||
-                    "none"}
+                    copy.none}
                 </span>
               </div>
               <div className="admin-evidence-line">
@@ -5323,17 +5378,19 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                     <small>{entry.nextCommand}</small>
                     {entry.missingRequiredTools.length ? (
                       <small>
-                        missing={entry.missingRequiredTools.join(", ")}
+                        {copy.missingTools}:{" "}
+                        {entry.missingRequiredTools.join(", ")}
                       </small>
                     ) : null}
                     {entry.handoffNextCommands.length ? (
                       <small>
-                        handoff={entry.handoffNextCommands.slice(0, 2).join(" | ")}
+                        {copy.handoffCommands}:{" "}
+                        {entry.handoffNextCommands.slice(0, 2).join(" | ")}
                       </small>
                     ) : null}
                     {entry.readOnlyCommands.length ? (
                       <small>
-                        readOnly=
+                        {copy.readOnlyCommands}:{" "}
                         {entry.readOnlyCommands
                           .slice(0, 2)
                           .map((command) => command.id)
@@ -5342,7 +5399,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                     ) : null}
                     {entry.approvalGatedCommands.length ? (
                       <small>
-                        approval=
+                        {copy.approvalAction}:{" "}
                         {entry.approvalGatedCommands
                           .slice(0, 2)
                           .map((command) => command.id)
@@ -5361,14 +5418,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   .slice(0, 3)
                   .map((entry) => (
                     <span key={entry.id}>
-                      {entry.id}:
-                      {entry.diagnostics
-                        .slice(0, 2)
-                        .map(
-                          (diagnostic) =>
-                            `${diagnostic.id}=${diagnostic.value}`
-                        )
-                        .join(" | ")}
+                      {entry.id} / {copy.diagnosis}:{" "}
+                      {diagnosticsText(copy, entry.diagnostics, 2)}
                     </span>
                   ))}
               </div>
@@ -5379,19 +5430,13 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {releaseDecisionActions.length > 0 ? (
                   releaseDecisionActions.map((entry) => (
                     <span key={entry.id}>
-                      {entry.id}:{entry.owner}:next={entry.nextCommand}
-                      :diagnostics=
-                      {entry.diagnostics
-                        .slice(0, 8)
-                        .map(
-                          (diagnostic) =>
-                            `${diagnostic.id}=${diagnostic.value}`
-                        )
-                        .join(" | ") || "none"}
+                      {entry.id} / {copy.owner}: {entry.owner} /{" "}
+                      {copy.nextCommand}: {entry.nextCommand} /{" "}
+                      {copy.diagnosis}: {diagnosticsText(copy, entry.diagnostics)}
                     </span>
                   ))
                 ) : (
-                  <span>decision actions clear</span>
+                  <span>{copy.releaseAction}: {copy.none}</span>
                 )}
               </div>
               <div
@@ -5400,13 +5445,9 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {releaseApprovalHandoffActions.map((entry) => (
                   <span key={entry.id}>
-                    {entry.owner}:
-                    {entry.approvalGatedCommands
-                      .map((command) => command.id)
-                      .join(", ")}
-                    :diagnostics=
-                    {entry.diagnostics.map((diagnostic) => diagnostic.id).join(",") ||
-                      "none"}
+                    {copy.owner}: {entry.owner} / {copy.approvalGated}:{" "}
+                    {commandIdsText(copy, entry.approvalGatedCommands)} /{" "}
+                    {copy.diagnosis}: {diagnosticsText(copy, entry.diagnostics)}
                   </span>
                 ))}
               </div>
@@ -5416,11 +5457,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {releaseReadOnlyHandoffActions.map((entry) => (
                   <span key={entry.id}>
-                    {entry.owner}:
-                    {entry.readOnlyCommands
-                      .slice(0, 4)
-                      .map((command) => command.id)
-                      .join(", ")}
+                    {copy.owner}: {entry.owner} / {copy.readOnlyCommands}:{" "}
+                    {commandIdsText(copy, entry.readOnlyCommands)}
                   </span>
                 ))}
               </div>
@@ -5433,11 +5471,10 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   .slice(0, 3)
                   .map((entry) => (
                     <span key={entry.id}>
-                      {entry.owner}:{entry.missingRequiredTools.join(", ")}:
-                      {entry.setupCommands.map((command) => command.id).join(", ")}
-                      :diagnostics=
-                      {entry.diagnostics.map((diagnostic) => diagnostic.id).join(",") ||
-                        "none"}
+                      {copy.owner}: {entry.owner} / {copy.missingTools}:{" "}
+                      {listOrNone(copy, entry.missingRequiredTools)} /{" "}
+                      {copy.setupCommands}: {commandIdsText(copy, entry.setupCommands)} /{" "}
+                      {copy.diagnosis}: {diagnosticsText(copy, entry.diagnostics)}
                     </span>
                   ))}
               </div>
@@ -5448,24 +5485,15 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {releaseNetworkActions.length > 0 ? (
                   releaseNetworkActions.slice(0, 5).map((entry) => (
                     <span key={entry.id}>
-                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
-                      :readOnly=
-                      {entry.readOnlyCommands
-                        .slice(0, 4)
-                        .map((command) => command.id)
-                        .join(", ")}
-                      :diagnostics=
-                      {entry.diagnostics
-                        .slice(0, 8)
-                        .map(
-                          (diagnostic) =>
-                            `${diagnostic.id}=${diagnostic.value}`
-                        )
-                        .join(" | ")}
+                      {entry.id} / {copy.owner}: {entry.owner} /{" "}
+                      {copy.severity}: {entry.priority} / {copy.nextCommand}:{" "}
+                      {entry.nextCommand} / {copy.readOnlyCommands}:{" "}
+                      {commandIdsText(copy, entry.readOnlyCommands)} /{" "}
+                      {copy.diagnosis}: {diagnosticsText(copy, entry.diagnostics)}
                     </span>
                   ))
                 ) : (
-                  <span>network actions clear</span>
+                  <span>{copy.networkFirstActions}: {copy.none}</span>
                 )}
               </div>
               <div
@@ -5475,19 +5503,14 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {releaseCandidateActions.length > 0 ? (
                   releaseCandidateActions.map((entry) => (
                     <span key={entry.id}>
-                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
-                      :diagnostics=
-                      {entry.diagnostics
-                        .slice(0, 7)
-                        .map(
-                          (diagnostic) =>
-                            `${diagnostic.id}=${diagnostic.value}`
-                        )
-                        .join(" | ")}
+                      {entry.id} / {copy.owner}: {entry.owner} /{" "}
+                      {copy.severity}: {entry.priority} / {copy.nextCommand}:{" "}
+                      {entry.nextCommand} / {copy.diagnosis}:{" "}
+                      {diagnosticsText(copy, entry.diagnostics, 7)}
                     </span>
                   ))
                 ) : (
-                  <span>candidate actions clear</span>
+                  <span>{copy.externalRuntime}: {copy.none}</span>
                 )}
               </div>
               <div
@@ -5497,20 +5520,16 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {releaseSecurityReviewActions.length > 0 ? (
                   releaseSecurityReviewActions.slice(0, 6).map((entry) => (
                     <span key={entry.id}>
-                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
-                      :readOnly=
-                      {entry.readOnlyCommands
-                        .slice(0, 3)
-                        .map((command) => command.id)
-                        .join(", ")}
-                      :approval=
-                      {entry.approvalGatedCommands
-                        .map((command) => command.id)
-                        .join(", ")}
+                      {entry.id} / {copy.owner}: {entry.owner} /{" "}
+                      {copy.severity}: {entry.priority} / {copy.nextCommand}:{" "}
+                      {entry.nextCommand} / {copy.readOnlyCommands}:{" "}
+                      {commandIdsText(copy, entry.readOnlyCommands, 3)} /{" "}
+                      {copy.approvalAction}:{" "}
+                      {commandIdsText(copy, entry.approvalGatedCommands)}
                     </span>
                   ))
                 ) : (
-                  <span>security review actions clear</span>
+                  <span>{copy.securityScan}: {copy.none}</span>
                 )}
               </div>
               <div
@@ -5520,51 +5539,34 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {releaseCatalogRegistryActions.length > 0 ? (
                   releaseCatalogRegistryActions.map((entry) => (
                     <span key={entry.id}>
-                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
-                      :readOnly=
-                      {entry.readOnlyCommands
-                        .map((command) => command.id)
-                        .join(", ")}
-                      :setup=
-                      {entry.setupCommands
-                        .map((command) => command.id)
-                        .join(", ")}
-                      :catalogTicket=
-                      {entry.catalogToolchainTicketPacket?.id ?? "none"}
-                      :catalogFirst=
-                      {entry.catalogToolchainTicketPacket?.firstReadOnlyAction.id ??
-                        "none"}
-                      :catalogSetup=
-                      {entry.catalogToolchainTicketPacket?.setupAction.id ??
-                        "none"}
-                      :catalogLocal=
+                      {entry.id} / {copy.owner}: {entry.owner} /{" "}
+                      {copy.severity}: {entry.priority} / {copy.nextCommand}:{" "}
+                      {entry.nextCommand} / {copy.readOnlyCommands}:{" "}
+                      {commandIdsText(copy, entry.readOnlyCommands)} /{" "}
+                      {copy.setupCommands}: {commandIdsText(copy, entry.setupCommands)} /{" "}
+                      {ticketText(copy, copy.catalogToolchain, entry.catalogToolchainTicketPacket)} /{" "}
+                      {copy.setupCommands}:{" "}
+                      {entry.catalogToolchainTicketPacket?.setupAction.id ?? copy.none} /{" "}
+                      {copy.localInspect}:{" "}
                       {entry.catalogToolchainTicketPacket?.localArtifactAction.id ??
-                        "none"}
-                      :catalogApproval=
+                        copy.none} / {copy.approvalAction}:{" "}
                       {entry.catalogToolchainTicketPacket?.approvalGatedAction.id ??
-                        "none"}
-                      :secretInput=
-                      {String(
+                        copy.none} / {copy.humanApproval}:{" "}
+                      {booleanText(
+                        language,
                         entry.catalogToolchainTicketPacket?.setupAction
                           .requiresHumanSecretInput ?? false
-                      )}
-                      :publishApproval=
-                      {String(
+                      )} / {copy.releasePublish} {copy.requiresApproval}:{" "}
+                      {booleanText(
+                        language,
                         entry.catalogToolchainTicketPacket?.mutationBoundary
                           .catalogPublishRequiresExplicitApproval ?? false
-                      )}
-                      :diagnostics=
-                      {entry.diagnostics
-                        .slice(0, 5)
-                        .map(
-                          (diagnostic) =>
-                            `${diagnostic.id}=${diagnostic.value}`
-                        )
-                        .join(" | ") || "none"}
+                      )} / {copy.diagnosis}:{" "}
+                      {diagnosticsText(copy, entry.diagnostics, 5)}
                     </span>
                   ))
                 ) : (
-                  <span>catalog registry actions clear</span>
+                  <span>{copy.catalogToolchain}: {copy.none}</span>
                 )}
               </div>
               <div
@@ -5574,27 +5576,19 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {releaseRuntimeLiveActions.length > 0 ? (
                   releaseRuntimeLiveActions.slice(0, 5).map((entry) => (
                     <span key={entry.id}>
-                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
-                      :readOnly=
-                      {entry.readOnlyCommands
-                        .map((command) => command.id)
-                        .join(", ")}
-                      :diagnostics=
-                      {entry.diagnostics
-                        .slice(0, 2)
-                        .map(
-                          (diagnostic) =>
-                            `${diagnostic.id}=${diagnostic.value}`
-                        )
-                        .join(" | ")}
-                      :ragTicket={entry.ragProductionTicketPacket?.id ?? "none"}
-                      :ragApproval=
+                      {entry.id} / {copy.owner}: {entry.owner} /{" "}
+                      {copy.severity}: {entry.priority} / {copy.nextCommand}:{" "}
+                      {entry.nextCommand} / {copy.readOnlyCommands}:{" "}
+                      {commandIdsText(copy, entry.readOnlyCommands)} /{" "}
+                      {copy.diagnosis}: {diagnosticsText(copy, entry.diagnostics, 2)} /{" "}
+                      {ticketText(copy, copy.ragIngestion, entry.ragProductionTicketPacket)} /{" "}
+                      {copy.approvalAction}:{" "}
                       {entry.ragProductionTicketPacket?.approvalGatedAction.id ??
-                        "none"}
+                        copy.none}
                     </span>
                   ))
                 ) : (
-                  <span>runtime live actions clear</span>
+                  <span>{copy.runtimeReview}: {copy.none}</span>
                 )}
               </div>
               <div
@@ -5604,22 +5598,18 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {releaseMonitoringProxyActions.length > 0 ? (
                   releaseMonitoringProxyActions.map((entry) => (
                     <span key={entry.id}>
-                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
-                      :readOnly=
-                      {entry.readOnlyCommands
-                        .map((command) => command.id)
-                        .join(", ")}
-                      :ticket={entry.aiopsMonitoringTicketPacket?.id ?? "none"}
-                      :ticketFirst=
-                      {entry.aiopsMonitoringTicketPacket?.firstReadOnlyAction.id ??
-                        "none"}
-                      :ticketApproval=
+                      {entry.id} / {copy.owner}: {entry.owner} /{" "}
+                      {copy.severity}: {entry.priority} / {copy.nextCommand}:{" "}
+                      {entry.nextCommand} / {copy.readOnlyCommands}:{" "}
+                      {commandIdsText(copy, entry.readOnlyCommands)} /{" "}
+                      {ticketText(copy, copy.aiOpsPipeline, entry.aiopsMonitoringTicketPacket)} /{" "}
+                      {copy.approvalAction}:{" "}
                       {entry.aiopsMonitoringTicketPacket?.approvalGatedAction.id ??
-                        "none"}
+                        copy.none}
                     </span>
                   ))
                 ) : (
-                  <span>monitoring proxy actions clear</span>
+                  <span>{copy.monitoringProxy}: {copy.none}</span>
                 )}
               </div>
               <div
@@ -5629,23 +5619,19 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {releaseLightspeedReadinessActions.length > 0 ? (
                   releaseLightspeedReadinessActions.map((entry) => (
                     <span key={entry.id}>
-                      {entry.id}:{entry.owner}:{entry.priority}:{entry.nextCommand}
-                      :readOnly=
-                      {entry.readOnlyCommands
-                        .map((command) => command.id)
-                        .join(", ")}
-                      :approval=
-                      {entry.approvalGatedCommands
-                        .map((command) => command.id)
-                        .join(", ")}
-                      :ticket={entry.ticketPacket?.id ?? "none"}:ticketFirst=
-                      {entry.ticketPacket?.firstReadOnlyAction.id ?? "none"}
-                      :ticketApproval=
-                      {entry.ticketPacket?.approvalGatedAction.id ?? "none"}
+                      {entry.id} / {copy.owner}: {entry.owner} /{" "}
+                      {copy.severity}: {entry.priority} / {copy.nextCommand}:{" "}
+                      {entry.nextCommand} / {copy.readOnlyCommands}:{" "}
+                      {commandIdsText(copy, entry.readOnlyCommands)} /{" "}
+                      {copy.approvalAction}:{" "}
+                      {commandIdsText(copy, entry.approvalGatedCommands)} /{" "}
+                      {ticketText(copy, copy.lightspeedMcp, entry.ticketPacket)} /{" "}
+                      {copy.approvalAction}:{" "}
+                      {entry.ticketPacket?.approvalGatedAction.id ?? copy.none}
                     </span>
                   ))
                 ) : (
-                  <span>lightspeed readiness actions clear</span>
+                  <span>{copy.lightspeedMcp}: {copy.none}</span>
                 )}
               </div>
               <div className="remediation-notes">

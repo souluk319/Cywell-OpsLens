@@ -54,6 +54,13 @@ function gitDirty() {
   }
 }
 
+function sourceSection(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  if (start < 0) return "";
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  return end < 0 ? source.slice(start) : source.slice(start, end);
+}
+
 const appSource = await readText("apps/web/src/App.tsx");
 const assistantSource = await readText("apps/web/src/components/AssistantPopover.tsx");
 const evidenceSource = await readText("apps/web/src/components/ConsoleEvidencePane.tsx");
@@ -66,6 +73,21 @@ const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 const e2eSource = await readText("tests/e2e/mvp-0.1.spec.ts");
+const releaseRefreshSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-release-refresh"',
+  'data-testid="opslens-release-evidence-bundle"'
+);
+const releaseBundleSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-release-evidence-bundle"',
+  'data-testid="opslens-release-action-queue"'
+);
+const releaseActionQueueSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-release-action-queue"',
+  'data-testid="opslens-evidence-checkpoint"'
+);
 
 expectCheck(
   "runtime surface badge",
@@ -643,6 +665,27 @@ expectCheck(
     !adminSource.includes("actionQueueReady={String(completionGate.actionQueue.ready)}") &&
     !adminSource.includes("unsafeTickets=\n                  {completionGate.actionQueue.unsafeTickets.join"),
   "Completion gate cards use bilingual labels for 100% claim and closeout evidence instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized release action queue labels",
+  adminSource.includes("function ticketText") &&
+    adminSource.includes("function diagnosticsText") &&
+    adminSource.includes("copy.ticketFirstAction") &&
+    adminSource.includes('"작업 대기열 gap"') &&
+    !releaseRefreshSource.includes("missingDiagnostics=") &&
+    !releaseRefreshSource.includes("missingTickets=") &&
+    !releaseRefreshSource.includes("unsafeTickets=") &&
+    !releaseRefreshSource.includes("staleRemoved=") &&
+    !releaseBundleSource.includes("actionQueueActionGaps=") &&
+    !releaseBundleSource.includes("unsafeTickets=") &&
+    !releaseActionQueueSource.includes(":readOnly=") &&
+    !releaseActionQueueSource.includes(":approval=") &&
+    !releaseActionQueueSource.includes(":ticketFirst=") &&
+    !releaseActionQueueSource.includes(":diagnostics=") &&
+    !releaseActionQueueSource.includes("catalogTicket=") &&
+    !releaseActionQueueSource.includes("mutationAllowedByThisVerifier="),
+  "Release refresh, bundle, and action queue rows use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(
