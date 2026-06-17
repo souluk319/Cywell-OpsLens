@@ -70,11 +70,15 @@ expectCheck(
   appSource.includes('data-testid="runtime-surface"') &&
     appSource.includes('data-testid="api-route-mode"') &&
     appSource.includes('data-testid="console-plugin-scope"') &&
+    appSource.includes('data-testid="console-context-primary"') &&
+    appSource.includes("CRC lab preview") &&
+    appSource.includes("OpenShift ConsolePlugin") &&
+    !appSource.includes("<span>prod-ocp / openshift-cluster-version</span>") &&
     appSource.includes("Standalone dev") &&
     appSource.includes("Console plugin") &&
     appSource.includes("Route + proxy mode") &&
     appSource.includes("Preview shell"),
-  "dashboard shell distinguishes standalone dev, ConsolePlugin mode, and install scope"
+  "dashboard shell distinguishes standalone dev, ConsolePlugin mode, install scope, and non-company-OCP local context"
 );
 
 expectCheck(

@@ -321,6 +321,10 @@ const shellCopy = {
       "Installed ConsolePlugin scope: OpsLens route, launcher entry, UserToken API proxy, and MCP readiness surfaces. Native OpenShift chrome and Lightspeed drawer remain OpenShift-owned.",
     standaloneScopeTitle:
       "Standalone preview scope: local shell and local API path. Install as ConsolePlugin to verify in-console routing and proxy behavior.",
+    consoleContextPrimary: "OpenShift ConsolePlugin",
+    consoleContextSecondary: "UserToken proxy / active console context",
+    standaloneContextPrimary: "CRC lab preview",
+    standaloneContextSecondary: "local fixture scenario / no company OCP mutation",
     opsLensStatus: "Cywell OpsLens status",
     openShiftUtilities: "OpenShift console utilities"
   },
@@ -368,6 +372,10 @@ const shellCopy = {
       "설치된 ConsolePlugin 적용 범위: OpsLens 라우트, 런처 항목, UserToken API 프록시, MCP 준비도 화면입니다. 기본 OpenShift chrome과 Lightspeed drawer는 OpenShift 소유로 유지됩니다.",
     standaloneScopeTitle:
       "독립 미리보기 범위: 로컬 shell과 로컬 API 경로입니다. 콘솔 내부 라우팅과 프록시는 ConsolePlugin 설치 후 검증합니다.",
+    consoleContextPrimary: "OpenShift 콘솔 플러그인",
+    consoleContextSecondary: "UserToken 프록시 / 활성 콘솔 컨텍스트",
+    standaloneContextPrimary: "CRC lab 미리보기",
+    standaloneContextSecondary: "로컬 fixture 시나리오 / 회사 OCP mutation 없음",
     opsLensStatus: "Cywell OpsLens 상태",
     openShiftUtilities: "OpenShift 콘솔 유틸리티"
   }
@@ -714,8 +722,16 @@ export default function App() {
             </div>
           </div>
           <div className="cluster-context" data-testid="console-perspective">
-            <strong>{copy.administrator}</strong>
-            <span>prod-ocp / openshift-cluster-version</span>
+            <strong data-testid="console-context-primary">
+              {isConsolePlugin
+                ? copy.consoleContextPrimary
+                : copy.standaloneContextPrimary}
+            </strong>
+            <span data-testid="console-context-secondary">
+              {isConsolePlugin
+                ? copy.consoleContextSecondary
+                : copy.standaloneContextSecondary}
+            </span>
           </div>
         </div>
         <div className="masthead-actions" aria-label={copy.openShiftUtilities}>

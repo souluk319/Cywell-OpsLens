@@ -304,6 +304,23 @@ Every checkpoint:
   - `endpoint=/api/actions/plan`
   - retry button visible and enabled
 
+### 2026-06-17 - Lane 7
+
+- Removed the misleading fixed `prod-ocp / openshift-cluster-version` header context from the local web shell.
+- The header context now distinguishes:
+  - standalone CRC lab preview
+  - ConsolePlugin hosted mode
+  - local fixture/no company OCP mutation boundary
+- Protected the behavior in `npm run verify:web-shell` so the old fixed prod OCP string cannot silently return.
+- Passed:
+  - `npm run -w @kugnus/web build`
+  - `npm run verify:web-shell`
+  - `npm run verify:console-plugin`
+- Browser verification on `http://127.0.0.1:5173/index.html` showed:
+  - `primary=CRC lab 미리보기`
+  - `secondary=로컬 fixture 시나리오 / 회사 OCP mutation 없음`
+  - `hasOldProdContext=false`
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -316,7 +333,7 @@ Checkpoint cadence:
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier: PASS, 7 checks
+- latest web shell verifier: PASS, 8 checks
 
 ## First Command Set
 
