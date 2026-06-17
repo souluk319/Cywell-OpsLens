@@ -388,6 +388,10 @@ const shellCopy = {
     accessConsoleRoute: "Installed view uses Console route",
     accessDashboardHttps: "Dashboard uses HTTPS 19443",
     accessApiProxy: "Assistant/API follows proxy mode",
+    applySignalBoundary: "CRC install signal",
+    applySignalCommand: "Check: oc get opslensinstallation,deploy,pod,svc",
+    applySignalReady: "Ready = API/dashboard 1/1",
+    applySignalStale: "Old quay.io image means stale catalog",
     handoffBoundary: "Return checklist",
     handoffReconnect: "Reconnect Mac CRC",
     handoffRoute: "Open ConsolePlugin route",
@@ -465,6 +469,10 @@ const shellCopy = {
     accessConsoleRoute: "설치 화면은 콘솔 라우트 사용",
     accessDashboardHttps: "대시보드는 HTTPS 19443",
     accessApiProxy: "어시스턴트/API는 프록시 모드 연동",
+    applySignalBoundary: "CRC 설치 신호",
+    applySignalCommand: "확인: oc get opslensinstallation,deploy,pod,svc",
+    applySignalReady: "Ready = API/대시보드 1/1",
+    applySignalStale: "quay.io 구버전 이미지는 stale catalog",
     handoffBoundary: "복귀 체크",
     handoffReconnect: "Mac CRC 재연결",
     handoffRoute: "콘솔 플러그인 라우트 열기",
@@ -973,6 +981,21 @@ export default function App() {
               </span>
               <span className="status-pill read-only" data-testid="access-api-proxy">
                 {copy.accessApiProxy}
+              </span>
+            </div>
+            <div
+              className="apply-signal-strip"
+              data-testid="apply-signal-strip"
+              aria-label={copy.applySignalBoundary}
+            >
+              <span className="status-pill read-only" data-testid="apply-signal-command">
+                {copy.applySignalCommand}
+              </span>
+              <span className="status-pill ready" data-testid="apply-signal-ready">
+                {copy.applySignalReady}
+              </span>
+              <span className="status-pill warning" data-testid="apply-signal-stale">
+                {copy.applySignalStale}
               </span>
             </div>
             <div

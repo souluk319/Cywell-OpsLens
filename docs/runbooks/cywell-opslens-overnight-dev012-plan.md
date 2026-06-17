@@ -793,6 +793,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - This directly addresses the repeated `http://127.0.0.1:19443` versus `https://...` and standalone-versus-installed access confusion without touching live CRC.
 - `npm run verify:web-shell` now includes a `visible demo access path` gate, and `AC-UI-004` checks the KO/EN access path labels in the browser.
 
+### 2026-06-18 - Lane 53
+
+- Added a visible CRC install signal strip so the first viewport tells the operator what to check after OperatorHub install and `OpsLensInstallation` apply.
+- The KO/EN masthead now keeps the exact read-only check command, the expected `API/dashboard 1/1` signal, and the stale-catalog symptom visible.
+- This directly addresses the repeated install loop where an old `quay.io` operator image or stale CatalogSource looked like waiting, not a wrong package/image path.
+- `npm run verify:web-shell` now includes a `visible CRC install signal` gate, and `AC-UI-004` checks the KO/EN install signal labels in the browser.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -804,10 +811,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 51: `31611b4`
+- feature branch latest pushed head after Lane 52: `1108e0d`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 52: PASS, 34 checks
-- latest overnight checkpoint after Lane 52: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 53: PASS, 35 checks
+- latest overnight checkpoint after Lane 53: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

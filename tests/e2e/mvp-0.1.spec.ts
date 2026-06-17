@@ -257,6 +257,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("access-api-proxy")).toContainText(
       "어시스턴트/API는 프록시 모드 연동"
     );
+    await expect(page.getByTestId("apply-signal-command")).toContainText(
+      "확인: oc get opslensinstallation,deploy,pod,svc"
+    );
+    await expect(page.getByTestId("apply-signal-ready")).toContainText(
+      "Ready = API/대시보드 1/1"
+    );
+    await expect(page.getByTestId("apply-signal-stale")).toContainText(
+      "quay.io 구버전 이미지는 stale catalog"
+    );
     await expect(page.getByTestId("readiness-status")).toContainText(
       "근거 필요"
     );
@@ -360,6 +369,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("access-api-proxy")).toContainText(
       "Assistant/API follows proxy mode"
+    );
+    await expect(page.getByTestId("apply-signal-command")).toContainText(
+      "Check: oc get opslensinstallation,deploy,pod,svc"
+    );
+    await expect(page.getByTestId("apply-signal-ready")).toContainText(
+      "Ready = API/dashboard 1/1"
+    );
+    await expect(page.getByTestId("apply-signal-stale")).toContainText(
+      "Old quay.io image means stale catalog"
     );
     await expect(page.getByTestId("readiness-status")).toContainText(
       "needs evidence"

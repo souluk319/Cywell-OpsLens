@@ -182,6 +182,23 @@ expectCheck(
 );
 
 expectCheck(
+  "visible CRC install signal",
+  appSource.includes('data-testid="apply-signal-strip"') &&
+    appSource.includes('data-testid="apply-signal-command"') &&
+    appSource.includes('data-testid="apply-signal-ready"') &&
+    appSource.includes('data-testid="apply-signal-stale"') &&
+    appSource.includes("Check: oc get opslensinstallation,deploy,pod,svc") &&
+    appSource.includes("Ready = API/dashboard 1/1") &&
+    appSource.includes("Old quay.io image means stale catalog") &&
+    appSource.includes("확인: oc get opslensinstallation,deploy,pod,svc") &&
+    appSource.includes("Ready = API/대시보드 1/1") &&
+    appSource.includes("quay.io 구버전 이미지는 stale catalog") &&
+    stylesSource.includes(".apply-signal-strip") &&
+    stylesSource.includes(".apply-signal-strip .status-pill"),
+  "masthead keeps the next CRC install verification command, ready signal, and stale catalog signal visible"
+);
+
+expectCheck(
   "console plugin proxy detection",
   appSource.includes('surface === "console-plugin"') &&
     appSource.includes('/api/proxy/plugin/cywell-opslens/') &&
