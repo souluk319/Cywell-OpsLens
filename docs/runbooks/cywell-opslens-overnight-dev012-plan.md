@@ -920,6 +920,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Submission draft mode, parity, external submission boundary, layout, parity entries, read-only checks, approval gates, and first submission actions now use KO/EN labels instead of raw fragments such as `head=`, `dirty=`, `parity=`, `externalSubmissionAttempted=`, `registryMutationAttempted=`, `mutationAllowedByThisVerifier=`, `:next=`, or `:approval=`.
 - Added a `verify:web-shell` gate so the community submission section cannot drift back to raw developer labels, while preserving command/action IDs such as `approval-gated-community-operatorhub-pr` as evidence identifiers.
 
+### 2026-06-18 - Lane 73
+
+- Polished the external runtime plan card in OpsLens Admin.
+- Runtime images, evidence templates, draft intake, mirror commands, and first plan actions now use KO/EN labels instead of raw fragments such as `registryMutationAttempted=`, `clusterMutationAttempted=`, `mutationAllowedByThisVerifier=`, `draft=`, `templates missing`, `drafts missing`, `:mutation=`, `:approval=`, or `:next=`.
+- Added a `verify:web-shell` gate so the external runtime plan section cannot drift back to raw developer labels, while preserving runtime image and mirror command IDs as evidence identifiers.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -931,9 +937,9 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head before Lane 72: `651ccc5`
+- feature branch latest pushed head before Lane 73: `6d7867b`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 72: PASS, 45 checks
+- latest web shell verifier after Lane 73: PASS, 46 checks
 - latest overnight checkpoint after Lane 70: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation

@@ -79,6 +79,7 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "approval-required": "approval required",
       "approval-gated": "approval-gated",
       "blocked-by-missing-tooling": "blocked by missing tooling",
+      "draft-needs-evidence": "draft needs evidence",
       match: "match",
       drift: "drift",
       "ready-for-live-registration-review": "ready for live registration review",
@@ -115,6 +116,7 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "approval-required": "승인 필요",
       "approval-gated": "승인 대기",
       "blocked-by-missing-tooling": "도구 누락으로 차단",
+      "draft-needs-evidence": "초안 근거 필요",
       match: "일치",
       drift: "차이 있음",
       "ready-for-live-registration-review": "실시간 등록 검토 준비",
@@ -168,7 +170,8 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       scanPlanOnly: "scan plan only",
       certificationReadinessOnly: "certification readiness only",
       communitySubmissionOnly: "community submission only",
-      submissionDraftOnly: "submission draft only"
+      submissionDraftOnly: "submission draft only",
+      approvalPlanOnly: "approval plan only"
     },
     ko: {
       readOnly: "읽기 전용",
@@ -183,7 +186,8 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       scanPlanOnly: "스캔 계획 전용",
       certificationReadinessOnly: "인증 준비도 전용",
       communitySubmissionOnly: "커뮤니티 제출 전용",
-      submissionDraftOnly: "제출 초안 전용"
+      submissionDraftOnly: "제출 초안 전용",
+      approvalPlanOnly: "승인 계획 전용"
     }
   };
   return labels[language][mode] ?? mode;
@@ -524,6 +528,13 @@ const adminCopy = {
     imageBuilds: "image builds",
     ownedProvenance: "owned provenance",
     externalRuntime: "external runtime",
+    runtimeImages: "runtime images",
+    evidenceTemplates: "evidence templates",
+    draftIntake: "draft intake",
+    mirrorCommands: "mirror commands",
+    templatesMissing: "templates missing",
+    draftsMissing: "drafts missing",
+    firstPlanActionsMissing: "first plan actions missing",
     runtimeReview: "runtime review",
     sourceDigest: "source digest",
     reviewerRequests: "reviewer requests",
@@ -888,6 +899,13 @@ const adminCopy = {
     imageBuilds: "이미지 빌드",
     ownedProvenance: "소유 이미지 출처",
     externalRuntime: "외부 런타임",
+    runtimeImages: "런타임 이미지",
+    evidenceTemplates: "근거 템플릿",
+    draftIntake: "초안 입력",
+    mirrorCommands: "미러 명령",
+    templatesMissing: "템플릿 누락",
+    draftsMissing: "초안 누락",
+    firstPlanActionsMissing: "첫 계획 작업 누락",
     runtimeReview: "런타임 검토",
     sourceDigest: "소스 digest",
     reviewerRequests: "검토 요청",
@@ -6995,63 +7013,87 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               className="install-approval-summary"
               data-testid="opslens-external-runtime-plan"
             >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>{copy.externalRuntime}</h4>
+                  <small>{actionModeText(language, externalRuntimePlan.actionMode)}</small>
+                </div>
+                <Cpu size={18} aria-hidden="true" />
+              </div>
               <div className="admin-evidence-line">
-                <span>{externalRuntimePlan.actionMode}</span>
                 <span>
-                  registryMutationAttempted=
-                  {String(externalRuntimePlan.registryMutationAttempted)}
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, externalRuntimePlan.registryMutationAttempted)}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(externalRuntimePlan.clusterMutationAttempted)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, externalRuntimePlan.clusterMutationAttempted)}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(externalRuntimePlan.mutationAllowedByThisVerifier)}
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(
+                    language,
+                    externalRuntimePlan.mutationAllowedByThisVerifier
+                  )}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Runtime Images</span>
+                  <span>{copy.runtimeImages}</span>
                   <strong>
                     {externalRuntimePlan.externalImages.length
                       ? externalRuntimePlan.externalImages
                           .map(
                             (image) =>
-                              `${image.name}:${image.status} draft=${image.draftStatus}`
+                              `${image.name}: ${statusText(
+                                language,
+                                image.status
+                              )} / ${copy.draft}: ${statusText(
+                                language,
+                                image.draftStatus
+                              )}`
                           )
                           .join(", ")
-                      : "blocked until evidence exists"}
+                      : copy.blockedUntilEvidenceExists}
                   </strong>
                 </div>
                 <div>
-                  <span>Evidence Templates</span>
+                  <span>{copy.evidenceTemplates}</span>
                   <strong>
                     {externalRuntimePlan.evidenceTemplates.length
                       ? externalRuntimePlan.evidenceTemplates
-                          .map((template) => `${template.name}:${template.status}`)
+                          .map(
+                            (template) =>
+                              `${template.name}: ${statusText(
+                                language,
+                                template.status
+                              )}`
+                          )
                           .join(", ")
-                      : "templates missing"}
+                      : copy.templatesMissing}
                   </strong>
                 </div>
                 <div>
-                  <span>Draft Intake</span>
+                  <span>{copy.draftIntake}</span>
                   <strong>
                     {externalRuntimePlan.evidenceDrafts.length
                       ? externalRuntimePlan.evidenceDrafts
-                          .map((draft) => `${draft.name}:${draft.status}`)
+                          .map(
+                            (draft) =>
+                              `${draft.name}: ${statusText(language, draft.status)}`
+                          )
                           .join(", ")
-                      : "drafts missing"}
+                      : copy.draftsMissing}
                   </strong>
                 </div>
                 <div>
-                  <span>Mirror Commands</span>
+                  <span>{copy.mirrorCommands}</span>
                   <strong>
                     {externalRuntimePlan.mutatingCommands.length
                       ? externalRuntimePlan.mutatingCommands
                           .map((command) => command.id)
                           .join(", ")
-                      : "blocked until evidence exists"}
+                      : copy.blockedUntilEvidenceExists}
                   </strong>
                 </div>
               </div>
@@ -7064,14 +7106,17 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                     .slice(0, 5)
                     .map((action) => (
                       <span key={action.id}>
-                        {action.owner}:{action.id}:{action.status}:mutation=
-                        {String(action.mutation)}:approval=
-                        {String(action.requiresExplicitApproval)}:next=
-                        {action.nextCommand}
+                        {action.id}: {copy.owner}: {action.owner} /{" "}
+                        {copy.status}: {statusText(language, action.status)} /{" "}
+                        {copy.policyMutation}:{" "}
+                        {booleanText(language, action.mutation)} /{" "}
+                        {copy.approvalRequired}:{" "}
+                        {booleanText(language, action.requiresExplicitApproval)} /{" "}
+                        {copy.nextCommand}: {action.nextCommand}
                       </span>
                     ))
                 ) : (
-                  <span>firstPlanActions=missing</span>
+                  <span>{copy.firstPlanActionsMissing}</span>
                 )}
               </div>
               <div className="remediation-notes">

@@ -108,6 +108,11 @@ const communitySubmissionSource = sourceSection(
   'data-testid="opslens-community-submission"',
   'data-testid="opslens-external-runtime-plan"'
 );
+const externalRuntimePlanSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-external-runtime-plan"',
+  'data-testid="opslens-external-runtime-review-packet"'
+);
 
 expectCheck(
   "runtime surface badge",
@@ -893,6 +898,36 @@ expectCheck(
     !communitySubmissionSource.includes(":approval={String") &&
     !communitySubmissionSource.includes("community submission first actions missing"),
   "Community submission rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized external runtime plan labels",
+  externalRuntimePlanSource.includes("copy.externalRuntime") &&
+    externalRuntimePlanSource.includes("copy.runtimeImages") &&
+    externalRuntimePlanSource.includes("copy.evidenceTemplates") &&
+    externalRuntimePlanSource.includes("copy.draftIntake") &&
+  externalRuntimePlanSource.includes("copy.mirrorCommands") &&
+    externalRuntimePlanSource.includes("actionModeText(language, externalRuntimePlan.actionMode)") &&
+    adminSource.includes('approvalPlanOnly: "승인 계획 전용"') &&
+    adminSource.includes('"draft-needs-evidence": "초안 근거 필요"') &&
+    externalRuntimePlanSource.includes("image.status") &&
+    externalRuntimePlanSource.includes("image.draftStatus") &&
+    !externalRuntimePlanSource.includes("{externalRuntimePlan.actionMode}") &&
+    !externalRuntimePlanSource.includes("registryMutationAttempted=") &&
+    !externalRuntimePlanSource.includes("clusterMutationAttempted=") &&
+    !externalRuntimePlanSource.includes("mutationAllowedByThisVerifier=") &&
+    !externalRuntimePlanSource.includes("<span>Runtime Images</span>") &&
+    !externalRuntimePlanSource.includes("<span>Evidence Templates</span>") &&
+    !externalRuntimePlanSource.includes("<span>Draft Intake</span>") &&
+    !externalRuntimePlanSource.includes("<span>Mirror Commands</span>") &&
+    !externalRuntimePlanSource.includes(" draft=") &&
+    !externalRuntimePlanSource.includes("templates missing") &&
+    !externalRuntimePlanSource.includes("drafts missing") &&
+    !externalRuntimePlanSource.includes(":mutation=") &&
+    !externalRuntimePlanSource.includes(":approval=") &&
+    !externalRuntimePlanSource.includes(":next=") &&
+    !externalRuntimePlanSource.includes("firstPlanActions=missing"),
+  "External runtime plan rows use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(
