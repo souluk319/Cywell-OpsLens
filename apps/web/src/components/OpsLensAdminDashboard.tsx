@@ -144,6 +144,8 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       readOnlyEvidenceOnly: "read-only evidence",
       planOnly: "plan-only",
       handoffOnly: "handoff only",
+      designOnly: "design-only",
+      DesignOnly: "design-only",
       ValidateOnly: "validate-only",
       PatchOLSConfig: "patch OLSConfig"
     },
@@ -152,6 +154,8 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       readOnlyEvidenceOnly: "읽기 전용 근거",
       planOnly: "계획 전용",
       handoffOnly: "인계 전용",
+      designOnly: "설계 전용",
+      DesignOnly: "설계 전용",
       ValidateOnly: "검증 전용",
       PatchOLSConfig: "OLSConfig 패치"
     }
@@ -229,6 +233,23 @@ const adminCopy = {
     docs: "docs",
     tokens: "tokens",
     opsBrainTitle: "No fine-tuning growth system",
+    fineTuningRequired: "fine-tuning required",
+    writePolicy: "write policy",
+    goldenSet: "golden set",
+    nextImplementation: "next implementation",
+    groundedTarget: "grounded target",
+    dangerousExecTarget: "dangerous exec target",
+    repeatReuse: "repeat reuse",
+    evalBeforePromotion: "eval before promotion",
+    routingPlanned: "routing planned",
+    externalProviderDefault: "external provider default",
+    rawMemoryWrite: "raw memory write",
+    vectorWrite: "vector write",
+    graphWrite: "graph write",
+    reviewerRequired: "reviewer required",
+    fineTuning: "fine-tuning",
+    policyMutation: "policy mutation",
+    nightlyLoop: "nightly loop",
     growthLoop: "Growth Loop",
     steps: "steps",
     memoryTiers: "Memory Tiers",
@@ -382,6 +403,23 @@ const adminCopy = {
     docs: "문서",
     tokens: "토큰",
     opsBrainTitle: "파인튜닝 없는 성장 시스템",
+    fineTuningRequired: "파인튜닝 필요",
+    writePolicy: "쓰기 정책",
+    goldenSet: "골든셋",
+    nextImplementation: "다음 구현",
+    groundedTarget: "근거 기반 목표",
+    dangerousExecTarget: "위험 실행 목표",
+    repeatReuse: "반복 사례 재사용",
+    evalBeforePromotion: "승격 전 평가",
+    routingPlanned: "라우팅 계획",
+    externalProviderDefault: "외부 제공자 기본값",
+    rawMemoryWrite: "원본 메모리 쓰기",
+    vectorWrite: "벡터 쓰기",
+    graphWrite: "그래프 쓰기",
+    reviewerRequired: "검토자 필요",
+    fineTuning: "파인튜닝",
+    policyMutation: "정책 변경",
+    nightlyLoop: "야간 루프",
     growthLoop: "성장 루프",
     steps: "단계",
     memoryTiers: "메모리 계층",
@@ -943,13 +981,14 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             </div>
             <div className="opsbrain-badges">
               <span className={`freshness ${statusClass(opsBrain.status)}`}>
-                {opsBrain.status}
+                {statusText(language, opsBrain.status)}
               </span>
               <span className="status-pill read-only">
-                fineTuningRequired={String(opsBrain.fineTuningRequired)}
+                {copy.fineTuningRequired}:{" "}
+                {booleanText(language, opsBrain.fineTuningRequired)}
               </span>
               <span className="status-pill read-only">
-                actionMode={opsBrain.actionMode}
+                {copy.toolMode}: {actionModeText(language, opsBrain.actionMode)}
               </span>
             </div>
           </div>
@@ -992,7 +1031,9 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                     </span>
                     <strong>{tier.label}</strong>
                     <small>{tier.implementation}</small>
-                    <small>write={tier.writePolicy}</small>
+                    <small>
+                      {copy.writePolicy}: {tier.writePolicy}
+                    </small>
                   </div>
                 ))}
               </div>
@@ -1004,15 +1045,21 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   <ShieldCheck size={16} aria-hidden="true" />
                   {copy.riskGate}
                 </h4>
-                <span>mutationAllowed={String(opsBrain.riskGate.mutationAllowed)}</span>
+                <span>
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(language, opsBrain.riskGate.mutationAllowed)}
+                </span>
               </div>
               <div className="opsbrain-risk-list">
                 {opsBrain.riskGate.commandClasses.map((commandClass) => (
                   <div key={commandClass.className}>
                     <strong>{commandClass.className}</strong>
                     <span>
-                      approval=
-                      {commandClass.allowedWithoutApproval ? "not-required" : "required"}
+                      {copy.approvalRequired}:{" "}
+                      {booleanText(
+                        language,
+                        !commandClass.allowedWithoutApproval
+                      )}
                     </span>
                     <small>{commandClass.examples.join(", ")}</small>
                   </div>
@@ -1026,7 +1073,9 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   <ListChecks size={16} aria-hidden="true" />
                   {copy.evaluator}
                 </h4>
-                <span>golden={opsBrain.evaluator.goldenSetTarget}</span>
+                <span>
+                  {copy.goldenSet}: {opsBrain.evaluator.goldenSetTarget}
+                </span>
               </div>
               <div className="opsbrain-chip-list">
                 {opsBrain.evaluator.metrics.map((metric) => (
@@ -1053,11 +1102,13 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {opsBrain.architectureModules.map((module) => (
                   <div key={module.id}>
                     <span className={`freshness ${statusClass(module.status)}`}>
-                      {module.status}
+                      {statusText(language, module.status)}
                     </span>
                     <strong>{module.label}</strong>
                     <small>{module.currentImplementation}</small>
-                    <small>next={module.nextImplementation}</small>
+                    <small>
+                      {copy.nextImplementation}: {module.nextImplementation}
+                    </small>
                   </div>
                 ))}
               </div>
@@ -1076,16 +1127,29 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </div>
               <div className="opsbrain-governance-grid">
                 <span>
-                  groundedTarget={opsBrain.growthGovernance.currentStateEvidenceTargetPercent}%
+                  {copy.groundedTarget}:{" "}
+                  {opsBrain.growthGovernance.currentStateEvidenceTargetPercent}%
                 </span>
                 <span>
-                  dangerousExecTarget={opsBrain.growthGovernance.unauthorizedDangerousExecutionTarget}
+                  {copy.dangerousExecTarget}:{" "}
+                  {
+                    opsBrain.growthGovernance
+                      .unauthorizedDangerousExecutionTarget
+                  }
                 </span>
                 <span>
-                  repeatReuse={String(opsBrain.growthGovernance.repeatedCaseReuseRequired)}
+                  {copy.repeatReuse}:{" "}
+                  {booleanText(
+                    language,
+                    opsBrain.growthGovernance.repeatedCaseReuseRequired
+                  )}
                 </span>
                 <span>
-                  evalBeforePromotion={String(opsBrain.growthGovernance.evalBeforePromotionRequired)}
+                  {copy.evalBeforePromotion}:{" "}
+                  {booleanText(
+                    language,
+                    opsBrain.growthGovernance.evalBeforePromotionRequired
+                  )}
                 </span>
               </div>
               <div className="opsbrain-chip-list">
@@ -1108,18 +1172,22 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </div>
               <div className="opsbrain-safety-grid">
                 <span>
-                  routingPlanned={String(opsBrain.modelStrategy.routingPlanned)}
+                  {copy.routingPlanned}:{" "}
+                  {booleanText(language, opsBrain.modelStrategy.routingPlanned)}
                 </span>
                 <span>
-                  externalProviderDefault=
-                  {String(opsBrain.modelStrategy.externalProviderCallAllowedByDefault)}
+                  {copy.externalProviderDefault}:{" "}
+                  {booleanText(
+                    language,
+                    opsBrain.modelStrategy.externalProviderCallAllowedByDefault
+                  )}
                 </span>
               </div>
               <div className="opsbrain-model-list">
                 {opsBrain.modelStrategy.providers.map((provider) => (
                   <div key={provider.id}>
                     <span className={`status-pill ${provider.status === "active" ? "ready" : provider.status === "missing" ? "danger" : "read-only"}`}>
-                      {provider.status}
+                      {statusText(language, provider.status)}
                     </span>
                     <strong>{provider.label}</strong>
                     <small>{provider.role}</small>
@@ -1142,7 +1210,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {opsBrain.acceptanceCriteria.map((criterion) => (
                   <div key={criterion.id}>
                     <span className={`status-pill ${criterion.status === "pass" ? "ready" : criterion.status === "needs-evidence" ? "warning" : "read-only"}`}>
-                      {criterion.status}
+                      {statusText(language, criterion.status)}
                     </span>
                     <strong>{criterion.id}</strong>
                     <small>{criterion.pass}</small>
@@ -1161,10 +1229,34 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 <span>{opsBrain.memoryWriteGuard.mode}</span>
               </div>
               <div className="opsbrain-safety-grid">
-                <span>rawMemoryWrite={String(opsBrain.memoryWriteGuard.rawMemoryWriteAllowed)}</span>
-                <span>vectorWrite={String(opsBrain.memoryWriteGuard.vectorWriteAllowed)}</span>
-                <span>graphWrite={String(opsBrain.memoryWriteGuard.graphWriteAllowed)}</span>
-                <span>reviewerRequired={String(opsBrain.memoryWriteGuard.reviewerRequired)}</span>
+                <span>
+                  {copy.rawMemoryWrite}:{" "}
+                  {booleanText(
+                    language,
+                    opsBrain.memoryWriteGuard.rawMemoryWriteAllowed
+                  )}
+                </span>
+                <span>
+                  {copy.vectorWrite}:{" "}
+                  {booleanText(
+                    language,
+                    opsBrain.memoryWriteGuard.vectorWriteAllowed
+                  )}
+                </span>
+                <span>
+                  {copy.graphWrite}:{" "}
+                  {booleanText(
+                    language,
+                    opsBrain.memoryWriteGuard.graphWriteAllowed
+                  )}
+                </span>
+                <span>
+                  {copy.reviewerRequired}:{" "}
+                  {booleanText(
+                    language,
+                    opsBrain.memoryWriteGuard.reviewerRequired
+                  )}
+                </span>
               </div>
               <div className="opsbrain-chip-list">
                 {opsBrain.memoryWriteGuard.blockedTargets.slice(0, 5).map((target) => (
@@ -1183,12 +1275,26 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </div>
               <div className="opsbrain-safety-grid">
                 <span>
-                  fineTuning={String(opsBrain.selfImprover.automaticFineTuningAllowed)}
+                  {copy.fineTuning}:{" "}
+                  {booleanText(
+                    language,
+                    opsBrain.selfImprover.automaticFineTuningAllowed
+                  )}
                 </span>
                 <span>
-                  policyMutation={String(opsBrain.selfImprover.automaticPolicyMutationAllowed)}
+                  {copy.policyMutation}:{" "}
+                  {booleanText(
+                    language,
+                    opsBrain.selfImprover.automaticPolicyMutationAllowed
+                  )}
                 </span>
-                <span>nightlyLoop={String(opsBrain.selfImprover.nightlyLoopPlanned)}</span>
+                <span>
+                  {copy.nightlyLoop}:{" "}
+                  {booleanText(
+                    language,
+                    opsBrain.selfImprover.nightlyLoopPlanned
+                  )}
+                </span>
               </div>
               <div className="opsbrain-chip-list">
                 {opsBrain.selfImprover.candidateOutputs.slice(0, 5).map((output) => (

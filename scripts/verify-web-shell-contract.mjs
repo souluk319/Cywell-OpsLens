@@ -255,6 +255,7 @@ expectCheck(
     coverageSource.includes("diagnosticStatusLabels[language][item.status]") &&
     coverageSource.includes("범위 행을 선택하면 읽기 전용 진단 근거를 확인합니다.") &&
     adminSource.includes("const adminCopy") &&
+    adminSource.includes("파인튜닝 필요") &&
     adminSource.includes("우회 명령 방어 점검") &&
     adminSource.includes("라우팅 점수") &&
     adminSource.includes("읽기 전용 도구") &&
@@ -274,6 +275,10 @@ expectCheck(
     adminSource.includes("copy.reviewGate") &&
     adminSource.includes("copy.targetConfidence") &&
     adminSource.includes("copy.runbooks") &&
+    adminSource.includes("copy.fineTuningRequired") &&
+    adminSource.includes("copy.writePolicy") &&
+    adminSource.includes("copy.rawMemoryWrite") &&
+    adminSource.includes("copy.nightlyLoop") &&
     adminSource.includes("copy.currentGap") &&
     adminSource.includes("copy.requiredImages") &&
     adminSource.includes("copy.localInspect") &&
@@ -335,6 +340,22 @@ expectCheck(
     !adminSource.includes("metrics=") &&
     !adminSource.includes("runbooks={proposal.triggerEvidence.runbookCitations.length}"),
   "Remediation proposal cards use bilingual labels while retaining operational field values"
+);
+
+expectCheck(
+  "localized opsbrain guard labels",
+  !adminSource.includes("fineTuningRequired={String(opsBrain.fineTuningRequired)}") &&
+    !adminSource.includes("actionMode={opsBrain.actionMode}") &&
+    !adminSource.includes("write={tier.writePolicy}") &&
+    !adminSource.includes("mutationAllowed={String(opsBrain.riskGate.mutationAllowed)}") &&
+    !adminSource.includes("golden={opsBrain.evaluator.goldenSetTarget}") &&
+    !adminSource.includes("next={module.nextImplementation}") &&
+    !adminSource.includes("groundedTarget={opsBrain.growthGovernance.currentStateEvidenceTargetPercent}") &&
+    !adminSource.includes("routingPlanned={String(opsBrain.modelStrategy.routingPlanned)}") &&
+    !adminSource.includes("rawMemoryWrite={String(opsBrain.memoryWriteGuard.rawMemoryWriteAllowed)}") &&
+    !adminSource.includes("fineTuning={String(opsBrain.selfImprover.automaticFineTuningAllowed)}") &&
+    !adminSource.includes("nightlyLoop={String(opsBrain.selfImprover.nightlyLoopPlanned)}"),
+  "OpsBrain panels use bilingual labels for growth, guard, memory, routing, and self-improvement status"
 );
 
 expectCheck(

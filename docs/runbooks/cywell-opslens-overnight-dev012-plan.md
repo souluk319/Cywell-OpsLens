@@ -656,6 +656,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The cards still preserve target kind/name, field path, YAML patch, metric query names, and operational values as evidence.
 - `npm run verify:web-shell` now includes a `localized remediation proposal labels` gate.
 
+### 2026-06-18 - Lane 34
+
+- Polished the Cywell OpsBrain panels so KO mode no longer shows raw guard labels such as `fineTuningRequired=`, `actionMode=`, `write=`, `mutationAllowed=`, `golden=`, `next=`, `groundedTarget=`, `routingPlanned=`, `rawMemoryWrite=`, `fineTuning=`, or `nightlyLoop=`.
+- Added language-owned labels for fine-tuning requirement, memory write policy, golden set, next implementation, governance targets, routing plan, external provider default, memory write guards, and self-improvement controls.
+- Status chips now use the same display helper as the rest of the Admin dashboard while preserving raw implementation IDs and evidence strings where they matter.
+- `npm run verify:web-shell` now includes a `localized opsbrain guard labels` gate.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -667,10 +674,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 32: `1315da3`
+- feature branch latest pushed head after Lane 33: `42223ff`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 33: PASS, 16 checks
-- latest overnight checkpoint after Lane 33: PASS, 9/9 local gates
+- latest web shell verifier after Lane 34: PASS, 17 checks
+- latest overnight checkpoint after Lane 34: PASS, 9/9 local gates
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
