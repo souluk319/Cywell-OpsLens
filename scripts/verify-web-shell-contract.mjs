@@ -350,6 +350,37 @@ expectCheck(
 );
 
 expectCheck(
+  "localized ocp network handoff labels",
+  adminSource.includes("copy.kubeconfigEnv") &&
+    adminSource.includes("copy.humanApproval") &&
+    adminSource.includes("copy.adminAsk") &&
+    adminSource.includes('"Kubeconfig 환경"') &&
+    !adminSource.includes("classification={ocpConnectivity.classification}") &&
+    !adminSource.includes("clusterMutationAttempted=\n                  {String(ocpConnectivity.clusterMutationAttempted)}") &&
+    !adminSource.includes("<span>Auth Boundary</span>") &&
+    !adminSource.includes("diagnosis=\n                  {ocpConnectivity.credentialHygiene.credentialDiagnosis}") &&
+    !adminSource.includes("storedByVerifier=\n                  {String(\n                    ocpConnectivity.credentialHygiene") &&
+    !adminSource.includes("context={ocpConnectivity.diagnostics.ocContext.contextStatus}") &&
+    !adminSource.includes("auth={ocpConnectivity.diagnostics.ocContext.authStatus}") &&
+    !adminSource.includes("server={ocpConnectivity.diagnostics.ocContext.serverStatus}") &&
+    !adminSource.includes("ocpConnectivity.diagnostics.ocContext.kubeconfigEnvConfigured\n                  )}") &&
+    !adminSource.includes("status={ocpConnectivity.authRecovery.status}") &&
+    !adminSource.includes("humanApproval=\n                  {String(\n                    ocpConnectivity.authRecovery") &&
+    !adminSource.includes("tokenRedacted=\n                  {String(\n                    ocpConnectivity.authRecovery") &&
+    !adminSource.includes('next={ocpConnectivity.authRecovery.nextCommands[0] ?? "none"}') &&
+    !adminSource.includes("packet=\n                  {ocpConnectivity.authRecovery.markdownPath") &&
+    !adminSource.includes("exists={String(ocpConnectivity.authRecovery.exists)}") &&
+    !adminSource.includes("rbacAccessReviews=missing") &&
+    !adminSource.includes("{hint.severity}:{hint.id} next={hint.nextCheck}") &&
+    !adminSource.includes("classification={networkHandoff.classification}") &&
+    !adminSource.includes("registryMutationAttempted=\n                  {String(networkHandoff.registryMutationAttempted)}") &&
+    !adminSource.includes("first={networkHandoff.ticketPacket.firstReadOnlyAction.id}") &&
+    !adminSource.includes("approval=\n                  {String(\n                    networkHandoff.ticketPacket.approvalGatedAction") &&
+    !adminSource.includes("<span>network first actions missing</span>"),
+  "OCP connectivity and network handoff panels use bilingual labels while preserving diagnostic values"
+);
+
+expectCheck(
   "localized remediation proposal labels",
   !adminSource.includes("<span>Mode</span>") &&
     !adminSource.includes("<span>Patch</span>") &&

@@ -696,6 +696,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Monitoring proxy handoff now uses language-owned labels for owner, mutation boundary, next command, and read-only command mutation status while preserving command IDs and ticket IDs as evidence.
 - `npm run verify:web-shell` now includes a `localized monitoring proxy handoff labels` gate.
 
+### 2026-06-18 - Lane 39
+
+- Polished the OCP connectivity and network handoff cards, the same surfaces that explain CRC/OCP auth, Kubeconfig, RBAC, network, and registry handoff state.
+- KO mode no longer exposes raw labels such as `context=`, `auth=`, `server=`, `kubeconfigEnv=`, `humanApproval=`, `rbacAccessReviews=missing`, `mutation=false`, `classification=...`, `first=...`, `approval=...`, `fresh=true`, or `required=true` in those panels.
+- The UI still preserves diagnostic values, command IDs, ticket IDs, owner IDs, and file names as evidence.
+- `npm run verify:web-shell` now includes a `localized ocp network handoff labels` gate so these install/troubleshooting cards do not regress while the user is away.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -707,10 +714,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 37: `f67c5c8`
+- feature branch latest pushed head after Lane 38: `f107952`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 38: PASS, 20 checks
-- latest overnight checkpoint after Lane 38: PASS, 9/9 local gates, structured Git dirty state present
+- latest web shell verifier after Lane 39: PASS, 21 checks
+- latest overnight checkpoint after Lane 39: PASS, 9/9 local gates, structured Git dirty state present
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

@@ -428,6 +428,34 @@ const adminCopy = {
     smoke: "smoke",
     assistantMutationAllowed: "assistant mutation allowed",
     registryMutationAttempted: "registry mutation attempted",
+    context: "context",
+    auth: "auth",
+    server: "server",
+    kubeconfigEnv: "Kubeconfig env",
+    defaultKubeconfig: "default Kubeconfig",
+    diagnosis: "diagnosis",
+    humanApproval: "human approval",
+    tokenRedacted: "token redacted",
+    storedByVerifier: "stored by verifier",
+    packet: "packet",
+    exists: "exists",
+    required: "required",
+    severity: "severity",
+    nextCheck: "next check",
+    classification: "classification",
+    target: "target",
+    api: "API",
+    authBoundary: "auth boundary",
+    tlsVerify: "TLS verify",
+    localFormatIssue: "local format issue",
+    source: "source",
+    lengthClass: "length class",
+    networkFirstActions: "network first actions",
+    sourceArtifacts: "source artifacts",
+    fresh: "fresh",
+    adminAsk: "admin ask",
+    rbacReviewsMissing: "RBAC reviews missing",
+    networkFirstActionsMissing: "network first actions missing",
     requiredImages: "required images",
     localInspect: "local inspect",
     remainingEvidence: "remaining evidence",
@@ -622,6 +650,34 @@ const adminCopy = {
     smoke: "스모크",
     assistantMutationAllowed: "어시스턴트 변경 허용",
     registryMutationAttempted: "레지스트리 변경 시도",
+    context: "컨텍스트",
+    auth: "인증",
+    server: "서버",
+    kubeconfigEnv: "Kubeconfig 환경",
+    defaultKubeconfig: "기본 Kubeconfig",
+    diagnosis: "진단",
+    humanApproval: "사람 승인",
+    tokenRedacted: "토큰 비식별",
+    storedByVerifier: "검증기 저장",
+    packet: "패킷",
+    exists: "존재 여부",
+    required: "필수",
+    severity: "심각도",
+    nextCheck: "다음 점검",
+    classification: "분류",
+    target: "대상",
+    api: "API",
+    authBoundary: "인증 경계",
+    tlsVerify: "TLS 검증",
+    localFormatIssue: "로컬 형식 문제",
+    source: "출처",
+    lengthClass: "길이 등급",
+    networkFirstActions: "네트워크 첫 작업",
+    sourceArtifacts: "소스 산출물",
+    fresh: "최신",
+    adminAsk: "관리자 요청",
+    rbacReviewsMissing: "RBAC 검토 누락",
+    networkFirstActionsMissing: "네트워크 첫 작업 누락",
     requiredImages: "필수 이미지",
     localInspect: "로컬 검사",
     remainingEvidence: "남은 근거",
@@ -3760,38 +3816,47 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-ocp-connectivity"
             >
               <div className="admin-evidence-line">
-                <span>{ocpConnectivity.artifactStatus}</span>
-                <span>classification={ocpConnectivity.classification}</span>
-                <span>{ocpConnectivity.actionMode}</span>
+                <span title={ocpConnectivity.artifactStatus}>
+                  {statusText(language, ocpConnectivity.artifactStatus)}
+                </span>
+                <span title={ocpConnectivity.classification}>
+                  {copy.classification}:{" "}
+                  {statusText(language, ocpConnectivity.classification)}
+                </span>
+                <span title={ocpConnectivity.actionMode}>
+                  {actionModeText(language, ocpConnectivity.actionMode)}
+                </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(ocpConnectivity.clusterMutationAttempted)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, ocpConnectivity.clusterMutationAttempted)}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Target</span>
+                  <span>{copy.target}</span>
                   <strong>{ocpConnectivity.target.redactedBaseUrl}</strong>
                 </div>
                 <div>
-                  <span>Network</span>
+                  <span>{copy.network}</span>
                   <strong>
                     dns={ocpConnectivity.diagnostics.dns}, tcp=
                     {ocpConnectivity.diagnostics.tcp}
                   </strong>
                 </div>
                 <div>
-                  <span>API</span>
+                  <span>{copy.api}</span>
                   <strong>
                     tls={ocpConnectivity.diagnostics.tls}, version=
                     {ocpConnectivity.diagnostics.kubernetesVersion}
                   </strong>
                 </div>
                 <div>
-                  <span>Auth Boundary</span>
+                  <span>{copy.authBoundary}</span>
                   <strong>
-                    token={String(ocpConnectivity.target.tokenConfigured)},
-                    tlsVerify={String(ocpConnectivity.target.tlsVerify)}
+                    {copy.tokens}:{" "}
+                    {booleanText(language, ocpConnectivity.target.tokenConfigured)},{" "}
+                    {copy.tlsVerify}:{" "}
+                    {booleanText(language, ocpConnectivity.target.tlsVerify)}
                   </strong>
                 </div>
               </div>
@@ -3800,30 +3865,37 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-ocp-credential-hygiene"
               >
                 <span>
-                  diagnosis=
+                  {copy.diagnosis}:{" "}
                   {ocpConnectivity.credentialHygiene.credentialDiagnosis}
                 </span>
                 <span>
-                  localFormatIssue=
-                  {String(ocpConnectivity.credentialHygiene.localFormatIssue)}
+                  {copy.localFormatIssue}:{" "}
+                  {booleanText(
+                    language,
+                    ocpConnectivity.credentialHygiene.localFormatIssue
+                  )}
                 </span>
                 <span>
-                  source={ocpConnectivity.credentialHygiene.tokenSource}
+                  {copy.source}: {ocpConnectivity.credentialHygiene.tokenSource}
                 </span>
                 <span>
-                  lengthClass=
+                  {copy.lengthClass}:{" "}
                   {ocpConnectivity.credentialHygiene.tokenLengthClass}
                 </span>
                 <span>
-                  storedByVerifier=
-                  {String(
+                  {copy.storedByVerifier}:{" "}
+                  {booleanText(
+                    language,
                     ocpConnectivity.credentialHygiene
                       .credentialStoredByVerifier
                   )}
                 </span>
                 <span>
-                  tokenRedacted=
-                  {String(ocpConnectivity.credentialHygiene.tokenValueRedacted)}
+                  {copy.tokenRedacted}:{" "}
+                  {booleanText(
+                    language,
+                    ocpConnectivity.credentialHygiene.tokenValueRedacted
+                  )}
                 </span>
               </div>
               <div
@@ -3831,23 +3903,38 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-ocp-context"
               >
                 <span>
-                  context={ocpConnectivity.diagnostics.ocContext.contextStatus}
-                </span>
-                <span>
-                  auth={ocpConnectivity.diagnostics.ocContext.authStatus}
-                </span>
-                <span>
-                  server={ocpConnectivity.diagnostics.ocContext.serverStatus}
-                </span>
-                <span>
-                  kubeconfigEnv=
-                  {String(
-                    ocpConnectivity.diagnostics.ocContext.kubeconfigEnvConfigured
+                  {copy.context}:{" "}
+                  {statusText(
+                    language,
+                    ocpConnectivity.diagnostics.ocContext.contextStatus
                   )}
                 </span>
                 <span>
-                  defaultKubeconfig=
-                  {String(
+                  {copy.auth}:{" "}
+                  {statusText(
+                    language,
+                    ocpConnectivity.diagnostics.ocContext.authStatus
+                  )}
+                </span>
+                <span>
+                  {copy.server}:{" "}
+                  {statusText(
+                    language,
+                    ocpConnectivity.diagnostics.ocContext.serverStatus
+                  )}
+                </span>
+                <span>
+                  {copy.kubeconfigEnv}:{" "}
+                  {booleanText(
+                    language,
+                    ocpConnectivity.diagnostics.ocContext
+                      .kubeconfigEnvConfigured
+                  )}
+                </span>
+                <span>
+                  {copy.defaultKubeconfig}:{" "}
+                  {booleanText(
+                    language,
                     ocpConnectivity.diagnostics.ocContext
                       .defaultKubeconfigPresent
                   )}
@@ -3857,44 +3944,54 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 className="admin-evidence-line"
                 data-testid="opslens-ocp-auth-recovery"
               >
-                <span>status={ocpConnectivity.authRecovery.status}</span>
-                <span>owner={ocpConnectivity.authRecovery.owner}</span>
                 <span>
-                  diagnosis=
+                  {copy.status}:{" "}
+                  {statusText(language, ocpConnectivity.authRecovery.status)}
+                </span>
+                <span>
+                  {copy.owner}: {ocpConnectivity.authRecovery.owner}
+                </span>
+                <span>
+                  {copy.diagnosis}:{" "}
                   {ocpConnectivity.authRecovery.credentialDiagnosis}
                 </span>
                 <span>
-                  humanApproval=
-                  {String(
+                  {copy.humanApproval}:{" "}
+                  {booleanText(
+                    language,
                     ocpConnectivity.authRecovery.mutationBoundary
                       .credentialRefreshRequiresHumanApproval
                   )}
                 </span>
                 <span>
-                  tokenRedacted=
-                  {String(
+                  {copy.tokenRedacted}:{" "}
+                  {booleanText(
+                    language,
                     ocpConnectivity.authRecovery.mutationBoundary
                       .tokenValueRedacted
                   )}
                 </span>
                 <span>
-                  storedByVerifier=
-                  {String(
+                  {copy.storedByVerifier}:{" "}
+                  {booleanText(
+                    language,
                     ocpConnectivity.authRecovery.mutationBoundary
                       .credentialStoredByVerifier
                   )}
                 </span>
                 <span>
-                  next={ocpConnectivity.authRecovery.nextCommands[0] ?? "none"}
+                  {copy.nextCommand}:{" "}
+                  {ocpConnectivity.authRecovery.nextCommands[0] ?? copy.none}
                 </span>
                 <span>
-                  packet=
+                  {copy.packet}:{" "}
                   {ocpConnectivity.authRecovery.markdownPath
                     .split(/[\\/]/)
                     .pop()}
                 </span>
                 <span>
-                  exists={String(ocpConnectivity.authRecovery.exists)}
+                  {copy.exists}:{" "}
+                  {booleanText(language, ocpConnectivity.authRecovery.exists)}
                 </span>
               </div>
               <div
@@ -3904,12 +4001,13 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {ocpConnectivity.diagnostics.rbacAccessReviews.length ? (
                   ocpConnectivity.diagnostics.rbacAccessReviews.map((review) => (
                     <span key={review.id}>
-                      {review.id}={review.status} required=
-                      {String(review.required)}
+                      {review.id}: {copy.status}{" "}
+                      {statusText(language, review.status)} / {copy.required}{" "}
+                      {booleanText(language, review.required)}
                     </span>
                   ))
                 ) : (
-                  <span>rbacAccessReviews=missing</span>
+                  <span>{copy.rbacReviewsMissing}</span>
                 )}
               </div>
               <div
@@ -3918,7 +4016,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {ocpConnectivity.actionHints.slice(0, 2).map((hint) => (
                   <span key={hint.id}>
-                    {hint.severity}:{hint.id} next={hint.nextCheck}
+                    {copy.severity}: {statusText(language, hint.severity)} /{" "}
+                    {hint.id} / {copy.nextCheck}: {hint.nextCheck}
                   </span>
                 ))}
               </div>
@@ -3930,7 +4029,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   .slice(0, 3)
                   .map((command) => (
                     <span key={command.id}>
-                      {command.id} mutation={String(command.mutation)}
+                      {command.id}: {copy.mutationAllowed}{" "}
+                      {booleanText(language, command.mutation)}
                     </span>
                   ))}
               </div>
@@ -3952,32 +4052,39 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-ocp-network-handoff"
             >
               <div className="admin-evidence-line">
-                <span>{networkHandoff.artifactStatus}</span>
-                <span>{networkHandoff.actionMode}</span>
-                <span>classification={networkHandoff.classification}</span>
-                <span>
-                  clusterMutationAttempted=
-                  {String(networkHandoff.clusterMutationAttempted)}
+                <span title={networkHandoff.artifactStatus}>
+                  {statusText(language, networkHandoff.artifactStatus)}
+                </span>
+                <span title={networkHandoff.actionMode}>
+                  {actionModeText(language, networkHandoff.actionMode)}
+                </span>
+                <span title={networkHandoff.classification}>
+                  {copy.classification}:{" "}
+                  {statusText(language, networkHandoff.classification)}
                 </span>
                 <span>
-                  registryMutationAttempted=
-                  {String(networkHandoff.registryMutationAttempted)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, networkHandoff.clusterMutationAttempted)}
+                </span>
+                <span>
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, networkHandoff.registryMutationAttempted)}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Target</span>
+                  <span>{copy.target}</span>
                   <strong>{networkHandoff.target.redactedBaseUrl}</strong>
                 </div>
                 <div>
-                  <span>Packet</span>
+                  <span>{copy.packet}</span>
                   <strong>
                     {networkHandoff.markdownPath.split(/[\\/]/).pop() ??
                       networkHandoff.markdownPath}
                   </strong>
                 </div>
                 <div>
-                  <span>Admin Ask</span>
+                  <span>{copy.adminAsk}</span>
                   <strong>
                     {networkHandoff.adminRequests.length
                       ? networkHandoff.adminRequests.slice(0, 2).join(" ")
@@ -3991,7 +4098,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {networkHandoff.readOnlyCommands.slice(0, 4).map((command) => (
                   <span key={command.id}>
-                    {command.id} mutation={String(command.mutation)}
+                    {command.id}: {copy.mutationAllowed}{" "}
+                    {booleanText(language, command.mutation)}
                   </span>
                 ))}
               </div>
@@ -4005,19 +4113,27 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 </span>
                 <span>{networkHandoff.ticketPacket.title}</span>
                 <span>
-                  first={networkHandoff.ticketPacket.firstReadOnlyAction.id}
-                  :mutation=
-                  {String(networkHandoff.ticketPacket.firstReadOnlyAction.mutation)}
+                  {copy.firstAction}:{" "}
+                  {networkHandoff.ticketPacket.firstReadOnlyAction.id} /{" "}
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(
+                    language,
+                    networkHandoff.ticketPacket.firstReadOnlyAction.mutation
+                  )}
                 </span>
                 <span>
-                  approval=
-                  {String(
+                  {copy.requiresApproval}:{" "}
+                  {booleanText(
+                    language,
                     networkHandoff.ticketPacket.approvalGatedAction
                       .requiresExplicitApproval
                   )}
                 </span>
                 <span>
-                  next={networkHandoff.ticketPacket.nextCommands.slice(0, 2).join(" | ")}
+                  {copy.nextCommand}:{" "}
+                  {networkHandoff.ticketPacket.nextCommands
+                    .slice(0, 2)
+                    .join(" | ")}
                 </span>
               </div>
               <div
@@ -4027,13 +4143,16 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {networkHandoff.firstNetworkActions.length ? (
                   networkHandoff.firstNetworkActions.map((action) => (
                     <span key={action.id}>
-                      {action.id}:{action.owner}:{action.status}:next=
-                      {action.nextCommand}:mutation={String(action.mutation)}
-                      :approval={String(action.requiresExplicitApproval)}
+                      {action.id}: {copy.owner} {action.owner} / {copy.status}{" "}
+                      {statusText(language, action.status)} / {copy.nextCommand}{" "}
+                      {action.nextCommand} / {copy.mutationAllowed}{" "}
+                      {booleanText(language, action.mutation)} /{" "}
+                      {copy.requiresApproval}{" "}
+                      {booleanText(language, action.requiresExplicitApproval)}
                     </span>
                   ))
                 ) : (
-                  <span>network first actions missing</span>
+                  <span>{copy.networkFirstActionsMissing}</span>
                 )}
               </div>
               <div
@@ -4042,8 +4161,10 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {networkHandoff.sourceArtifacts.slice(0, 5).map((source) => (
                   <span key={source.id}>
-                    {source.id}:{source.status}:fresh={String(source.fresh)}
-                    :required={String(source.required)}
+                    {source.id}: {copy.status}{" "}
+                    {statusText(language, source.status)} / {copy.fresh}{" "}
+                    {booleanText(language, source.fresh)} / {copy.required}{" "}
+                    {booleanText(language, source.required)}
                   </span>
                 ))}
               </div>
