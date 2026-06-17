@@ -814,6 +814,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - This directly addresses the demo risk that the chat surface looks inert or mysterious when the API route is unavailable or running through the ConsolePlugin proxy.
 - `npm run verify:web-shell` now includes an `assistant ask execution path` gate, and `AC-UI-004` checks the KO/EN execution path labels in the browser.
 
+### 2026-06-18 - Lane 56
+
+- Moved the CRC lightweight `alm-examples` entry ahead of the approved pgvector/vLLM example in the Operator CSV.
+- `npm run verify:operator` now fails if the first OperatorHub CR example is not the `crc-lightweight` profile.
+- This turns the repeated CRC install failure class into a package contract: local demos default to in-memory RAG, mock-local model runtime, and `ValidateOnly`; approved installs still keep the explicit pgvector/vLLM/PatchOLSConfig example.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

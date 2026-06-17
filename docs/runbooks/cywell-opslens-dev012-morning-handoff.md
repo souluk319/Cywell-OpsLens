@@ -55,6 +55,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the Operator status path no longer reports `OpsLensInstallation Ready` before required API/dashboard/vector/model workloads are observed as ready; unready required workloads keep the CR in `Installing`
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes
 - OperatorHub `alm-examples` now exposes that CRC lightweight sample, so console-created CRs no longer default users into the pgvector/vLLM/PatchOLSConfig path during CRC demos
+- the CRC lightweight `alm-examples` entry is now first in the CSV, and `npm run verify:operator` fails if the first OperatorHub CR example drifts back to pgvector/vLLM
 - CRC catalog/image handoff now uses explicit `v0.1.2-dev-crc` tags instead of ambiguous `:verify`
 - local image build evidence now uses isolated `:build-verify` tags, so `npm run verify:images:build` no longer overwrites CRC arm64 `:verify` tags
 - the Mac CRC transfer artifact is pinned to `arm64/linux` and verified before handoff

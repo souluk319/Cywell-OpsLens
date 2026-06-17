@@ -14,6 +14,76 @@ metadata:
           "apiVersion": "opslens.cywell.io/v1alpha1",
           "kind": "OpsLensInstallation",
           "metadata": {
+            "name": "cywell-opslens-crc-lightweight",
+            "namespace": "cywell-opslens",
+            "annotations": {
+              "opslens.cywell.io/profile": "crc-lightweight",
+              "opslens.cywell.io/runtime-note": "API, dashboard, ConsolePlugin, and local RAG only; Postgres/pgvector and vLLM workloads are intentionally skipped."
+            }
+          },
+          "spec": {
+            "version": "0.1.2-dev",
+            "targetNamespace": "cywell-opslens",
+            "components": {
+              "api": {
+                "image": "image-registry.openshift-image-registry.svc:5000/cywell-opslens/cywell-opslens-api:v0.1.2-dev-crc",
+                "replicas": 1,
+                "serviceName": "cywell-opslens-api"
+              },
+              "dashboard": {
+                "image": "image-registry.openshift-image-registry.svc:5000/cywell-opslens/cywell-opslens-dashboard:v0.1.2-dev-crc",
+                "replicas": 1,
+                "serviceName": "cywell-opslens-dashboard"
+              },
+              "vectorStore": {
+                "provider": "inmemory",
+                "storageSize": "1Gi"
+              },
+              "modelRuntime": {
+                "provider": "mock-local",
+                "model": "local-rag-runtime",
+                "replicas": 0,
+                "gpu": {
+                  "enabled": false,
+                  "deviceClass": "nvidia.com/gpu",
+                  "count": 0
+                }
+              }
+            },
+            "rag": {
+              "documentIntake": {
+                "mode": "ValidateOnly",
+                "evidenceExport": true,
+                "rawDocumentReturnAllowed": false
+              },
+              "approvalQueue": {
+                "mode": "DesignOnly",
+                "enqueueAllowed": false,
+                "requiredApprovals": [
+                  "rag-owner",
+                  "cluster-sre"
+                ]
+              }
+            },
+            "lightspeedRegistration": {
+              "mode": "ValidateOnly",
+              "olsConfigName": "cluster",
+              "olsConfigNamespace": "openshift-lightspeed",
+              "mcpServerName": "cywell-opslens",
+              "apiKeySecretName": "cywell-opslens-mcp-header",
+              "userTokenForwarding": true,
+              "endpoint": "https://cywell-opslens-api.cywell-opslens.svc.cluster.local/mcp"
+            },
+            "consolePlugin": {
+              "enabled": true,
+              "name": "cywell-opslens"
+            }
+          }
+        },
+        {
+          "apiVersion": "opslens.cywell.io/v1alpha1",
+          "kind": "OpsLensInstallation",
+          "metadata": {
             "name": "cywell-opslens",
             "namespace": "cywell-opslens"
           },
@@ -72,82 +142,12 @@ metadata:
               "userTokenForwarding": true,
               "endpoint": "https://cywell-opslens-api.cywell-opslens.svc.cluster.local/mcp"
             },
-          "consolePlugin": {
-            "enabled": true,
-            "name": "cywell-opslens"
+            "consolePlugin": {
+              "enabled": true,
+              "name": "cywell-opslens"
+            }
           }
         }
-      },
-      {
-        "apiVersion": "opslens.cywell.io/v1alpha1",
-        "kind": "OpsLensInstallation",
-        "metadata": {
-          "name": "cywell-opslens-crc-lightweight",
-          "namespace": "cywell-opslens",
-          "annotations": {
-            "opslens.cywell.io/profile": "crc-lightweight",
-            "opslens.cywell.io/runtime-note": "API, dashboard, ConsolePlugin, and local RAG only; Postgres/pgvector and vLLM workloads are intentionally skipped."
-          }
-        },
-        "spec": {
-          "version": "0.1.2-dev",
-          "targetNamespace": "cywell-opslens",
-          "components": {
-            "api": {
-              "image": "image-registry.openshift-image-registry.svc:5000/cywell-opslens/cywell-opslens-api:v0.1.2-dev-crc",
-              "replicas": 1,
-              "serviceName": "cywell-opslens-api"
-            },
-            "dashboard": {
-              "image": "image-registry.openshift-image-registry.svc:5000/cywell-opslens/cywell-opslens-dashboard:v0.1.2-dev-crc",
-              "replicas": 1,
-              "serviceName": "cywell-opslens-dashboard"
-            },
-            "vectorStore": {
-              "provider": "inmemory",
-              "storageSize": "1Gi"
-            },
-            "modelRuntime": {
-              "provider": "mock-local",
-              "model": "local-rag-runtime",
-              "replicas": 0,
-              "gpu": {
-                "enabled": false,
-                "deviceClass": "nvidia.com/gpu",
-                "count": 0
-              }
-            }
-          },
-          "rag": {
-            "documentIntake": {
-              "mode": "ValidateOnly",
-              "evidenceExport": true,
-              "rawDocumentReturnAllowed": false
-            },
-            "approvalQueue": {
-              "mode": "DesignOnly",
-              "enqueueAllowed": false,
-              "requiredApprovals": [
-                "rag-owner",
-                "cluster-sre"
-              ]
-            }
-          },
-          "lightspeedRegistration": {
-            "mode": "ValidateOnly",
-            "olsConfigName": "cluster",
-            "olsConfigNamespace": "openshift-lightspeed",
-            "mcpServerName": "cywell-opslens",
-            "apiKeySecretName": "cywell-opslens-mcp-header",
-            "userTokenForwarding": true,
-            "endpoint": "https://cywell-opslens-api.cywell-opslens.svc.cluster.local/mcp"
-          },
-          "consolePlugin": {
-            "enabled": true,
-            "name": "cywell-opslens"
-          }
-        }
-      }
       ]
     capabilities: Basic Install
     categories: OpenShift Optional, Monitoring, AI/Machine Learning

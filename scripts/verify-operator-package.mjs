@@ -433,6 +433,19 @@ function validateCsvAlmExamples(csv) {
     fail("CSV alm-examples release path", "alm-examples must retain an explicit approved-install example");
   }
 
+  const firstExample = examples[0];
+  if (
+    firstExample?.kind === "OpsLensInstallation" &&
+    firstExample?.metadata?.annotations?.["opslens.cywell.io/profile"] === "crc-lightweight"
+  ) {
+    pass("CSV alm-examples default path", "crc-lightweight example is first to keep CRC demos off pgvector/vLLM by default");
+  } else {
+    fail(
+      "CSV alm-examples default path",
+      "crc-lightweight alm-example must be first so OperatorHub users do not default into pgvector/vLLM"
+    );
+  }
+
   const crcExample = examples.find(
     (example) =>
       example?.kind === "OpsLensInstallation" &&
