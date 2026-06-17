@@ -138,7 +138,7 @@ Latest non-mutating checks:
 | --- | --- | --- |
 | `npm run verify:web-shell` | PASS | 0 fail, 37 checks after the Assistant ask execution path lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run verify:crc-demo-readiness` | PASS | 0 fail, 0 warn, 14 checks; OperatorHub first example, lightweight sample, UI copy, handoff commands, and arm64 tar are aligned |
+| `npm run verify:crc-demo-readiness` | PASS | 0 fail, 0 warn, 14 checks; writes JSON and Markdown evidence for OperatorHub first example, lightweight sample, UI copy, handoff commands, and arm64 tar alignment |
 | `npm run overnight:checkpoint` | PASS | 10/10 local checkpoint gates passed after Lane 59; evidence includes start/finish Git state and CRC demo readiness |
 | `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Assistant ask execution path lane |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, access path, CRC install signal, post-install smoke path, readiness command labels, navigation, Assistant labels, integration contract, ask execution path, and mode matrix |

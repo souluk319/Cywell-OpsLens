@@ -6,7 +6,8 @@ import { dirname, resolve } from "node:path";
 import { parseAllDocuments } from "yaml";
 
 const defaults = {
-  evidenceOut: "test-results/cywell-opslens-crc-demo-readiness.json"
+  evidenceOut: "test-results/cywell-opslens-crc-demo-readiness.json",
+  markdownOut: "test-results/cywell-opslens-crc-demo-readiness.md"
 };
 
 const paths = {
@@ -40,7 +41,8 @@ function parseArgs(argv) {
     }
   }
   return {
-    evidenceOut: values.get("evidence-out") ?? defaults.evidenceOut
+    evidenceOut: values.get("evidence-out") ?? defaults.evidenceOut,
+    markdownOut: values.get("markdown-out") ?? defaults.markdownOut
   };
 }
 
@@ -169,6 +171,48 @@ function tarSummary(path) {
   }
   const stat = statSync(resolve(path));
   return { exists: true, bytes: stat.size, lastModified: stat.mtime.toISOString() };
+}
+
+function renderMarkdown(evidence) {
+  const lines = [
+    "# Cywell OpsLens CRC Demo Readiness",
+    "",
+    `Generated: ${evidence.generatedAt}`,
+    `Status: \`${evidence.status}\``,
+    `Branch: \`${evidence.git.branch}\``,
+    `Head: \`${evidence.git.head}\``,
+    `Dirty: \`${String(evidence.git.dirty)}\``,
+    "",
+    "## Boundary",
+    "",
+    "- local evidence only",
+    "- no cluster mutation",
+    "- no registry mutation",
+    "- no `.env` or secret reads",
+    "",
+    "## Package Signals",
+    "",
+    `- First OperatorHub CR example: \`${evidence.packageSignals.firstAlmExampleName ?? "missing"}\``,
+    `- First example profile: \`${evidence.packageSignals.firstAlmExampleProfile ?? "missing"}\``,
+    `- Approved install example retained: \`${String(evidence.packageSignals.releaseExampleRetained)}\``,
+    `- First relatedImages: \`${evidence.packageSignals.relatedImagesFirstThree.join(" / ")}\``,
+    "",
+    "## Transfer Artifact",
+    "",
+    `- Exists: \`${String(evidence.transferTar.exists)}\``,
+    `- Size: \`${Math.round((evidence.transferTar.bytes ?? 0) / 1024 / 1024)} MiB\``,
+    "",
+    "## Checks",
+    "",
+    "| Status | Check | Detail |",
+    "| --- | --- | --- |"
+  ];
+
+  for (const check of evidence.checks) {
+    lines.push(`| ${check.status} | ${check.name} | ${String(check.detail).replace(/\|/g, "\\|")} |`);
+  }
+
+  return `${lines.join("\n")}\n`;
 }
 
 async function main() {
@@ -316,6 +360,8 @@ async function main() {
     throw new Error("CRC demo readiness evidence would include secret-like material");
   }
   await writeFile(resolve(options.evidenceOut), `${serialized}\n`, "utf8");
+  await mkdir(dirname(resolve(options.markdownOut)), { recursive: true });
+  await writeFile(resolve(options.markdownOut), renderMarkdown(evidence), "utf8");
 
   for (const check of checks) {
     console.log(`[${check.status}] ${check.name}: ${check.detail}`);
@@ -324,6 +370,7 @@ async function main() {
     `\nCywell OpsLens CRC demo readiness: status=${status}, ${failCount} fail, ${warnCount} warn, ${checks.length} checks`
   );
   console.log(`Evidence: ${resolve(options.evidenceOut)}`);
+  console.log(`Markdown: ${resolve(options.markdownOut)}`);
   if (failCount > 0) {
     process.exitCode = 1;
   }

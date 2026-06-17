@@ -838,6 +838,11 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The new local-only verifier ties together the first OperatorHub `alm-examples` entry, CRC lightweight sample, owned-image-first relatedImages, UI first-choice copy, handoff commands, and the arm64 CRC transfer tar.
 - Added this verifier to `npm run overnight:checkpoint`, so the 10-hour loop now checks the actual return-to-CRC demo path instead of only the broader lab/bootstrap packets.
 
+### 2026-06-18 - Lane 60
+
+- `npm run verify:crc-demo-readiness` now writes a human-readable Markdown summary next to the JSON evidence.
+- The Markdown output captures the local-only boundary, package signals, transfer artifact size, and each pass/warn/fail check for morning review without opening raw JSON.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
