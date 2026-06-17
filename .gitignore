@@ -8,6 +8,7 @@ test-results/
 coverage/
 *.tsbuildinfo
 *.log
+desktop.ini
 docs/release/evidence/external-runtime/*.draft.json
 docs/release/evidence/certification/*.draft.json
 docs/release/evidence/security/*.draft.json
