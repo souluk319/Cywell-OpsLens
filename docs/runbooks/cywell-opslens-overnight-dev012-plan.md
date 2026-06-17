@@ -882,6 +882,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The install signal now says `CRC ready = API/dashboard 1/1` and `CRC 준비 = API/대시보드 1/1`, so the local lightweight demo path is not confused with the approved pgvector/vLLM runtime path.
 - `npm run verify:web-shell`, `npx playwright test -g "AC-UI-004"`, and `npm run -w @kugnus/web build` passed.
 
+### 2026-06-18 - Lane 67
+
+- Aligned the TypeScript reconcile dry-run status with the Go live controller readiness contract.
+- Dry-run evidence now keeps `OpsLensInstallation` in `Installing` and marks API/dashboard/vector/model workload readiness as pending until the live controller observes the required workloads.
+- The CRC lightweight profile still marks intentionally absent `inmemory` and `mock-local` runtime services as locally satisfied, while API/dashboard remain live-observed readiness signals.
+- `npm run verify:operator:reconcile`, `npm run verify:operator:runtime`, and `npm run verify:operator` passed.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -893,10 +900,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 65: `a8dba38`
+- feature branch latest pushed head after Lane 66: `4652648`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
 - latest web shell verifier after Lane 65: PASS, 40 checks
-- latest overnight checkpoint after Lane 65: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
+- latest overnight checkpoint after Lane 66: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

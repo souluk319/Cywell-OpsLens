@@ -267,12 +267,34 @@ try {
     "missing MCPServer feature gate and cywell MCP server are explicit"
   );
   expectCheck(
-    "ValidateOnly status remains non-mutating",
-    validateOnlyPlan.statusPatch.phase === "Ready" &&
+    "ValidateOnly status remains non-mutating and workload-pending",
+    validateOnlyPlan.statusPatch.phase === "Installing" &&
       validateOnlyPlan.statusPatch.conditions.some(
         (condition) => condition.type === "AssistantSafety" && condition.status === "True"
-      ),
-    "status keeps assistant safety separate from operator install patching"
+      ) &&
+      validateOnlyPlan.statusPatch.conditions.some(
+        (condition) =>
+          condition.type === "WorkloadsAvailable" &&
+          condition.status === "False" &&
+          condition.reason === "WaitingForWorkloads"
+      ) &&
+      validateOnlyPlan.statusPatch.components.api.ready === false &&
+      validateOnlyPlan.statusPatch.components.dashboard.ready === false &&
+      validateOnlyPlan.statusPatch.components.vectorStore.ready === false &&
+      validateOnlyPlan.statusPatch.components.modelRuntime.ready === false,
+    "dry-run status remains plan-only and does not claim workload readiness before live observation"
+  );
+  expectCheck(
+    "CRC lightweight status skips absent external runtime readiness",
+    (() => {
+      const plan = buildOpsLensReconcilePlan(crcLightweightInstallation, baseOlsConfig);
+      return (
+        plan.statusPatch.components.vectorStore.ready === true &&
+        plan.statusPatch.components.modelRuntime.ready === true &&
+        plan.statusPatch.phase === "Installing"
+      );
+    })(),
+    "crc-lightweight status treats inmemory and mock-local as intentionally local-only while API/dashboard still await live observation"
   );
 
   const patchPlan = buildOpsLensReconcilePlan(patchInstallation, baseOlsConfig);

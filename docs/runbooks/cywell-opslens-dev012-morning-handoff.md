@@ -61,6 +61,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - AC-LAB-001 now explicitly treats `npm run verify:crc-demo-readiness` as the CRC demo gate, so the acceptance criteria, package contract, UI signal, and morning handoff all point at the same lightweight install path
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - the Operator status path no longer reports `OpsLensInstallation Ready` before required API/dashboard/vector/model workloads are observed as ready; unready required workloads keep the CR in `Installing`
+- the TypeScript dry-run status now follows the same no-false-Ready rule, so plan evidence no longer claims workload readiness before live controller observation
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes
 - OperatorHub `alm-examples` now exposes that CRC lightweight sample, so console-created CRs no longer default users into the pgvector/vLLM/PatchOLSConfig path during CRC demos
 - the CRC lightweight `alm-examples` entry is now first in the CSV, and `npm run verify:operator` fails if the first OperatorHub CR example drifts back to pgvector/vLLM
@@ -75,6 +76,7 @@ This is not a claim that production install is ready. The pre-cluster gate still
 ## Commits On This Branch
 
 ```text
+4652648 Clarify CRC ready signal
 ab0d142 Refresh Dev012 handoff lanes
 a8dba38 Test Korean navigation actions
 1b3e726 Clarify assistant ready state
@@ -167,7 +169,7 @@ Latest non-mutating checks:
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
 | `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |
-| `npm run verify:operator:reconcile` | PASS | 0 fail, 23 checks |
+| `npm run verify:operator:reconcile` | PASS | 0 fail, 24 checks; dry-run status remains `Installing` until live workload observation |
 | `npm run verify:operator:runtime` | PASS | 0 fail, 78 checks; includes workload readiness/no-false-Ready contract |
 | `npm run verify:operator` | PASS/WARN | 0 fail, 1 warn; live OLM smoke remains external |
 | `npm run verify:images:build` | PASS/WARN | 0 fail, 3 expected warnings; local build evidence uses `:build-verify` tag isolation |

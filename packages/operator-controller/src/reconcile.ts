@@ -779,13 +779,24 @@ function buildStatus(
 ): OpsLensReconcileStatus {
   const api = installation.spec.components.api;
   const dashboard = installation.spec.components.dashboard;
+  const vector = installation.spec.components.vectorStore;
   const runtime = installation.spec.components.modelRuntime;
   const rag = normalizeRagSettings(installation);
   const blocked = lightspeed.phase === "Invalid" || lightspeed.phase === "MissingOLSConfig";
+  const vectorProvider = vector.provider ?? "pgvector";
+  const runtimeProvider = runtime.provider ?? "vllm";
 
   return {
-    phase: blocked ? "Blocked" : lightspeed.phase === "PatchPlanned" ? "Installing" : "Ready",
+    phase: blocked ? "Blocked" : "Installing",
     conditions: [
+      {
+        type: "WorkloadsAvailable",
+        status: "False",
+        reason: blocked ? "Blocked" : "WaitingForWorkloads",
+        message: blocked
+          ? "Workload readiness is blocked until the reconciliation blocker is resolved."
+          : "Dry-run status does not claim workload readiness before the live controller observes Deployments and StatefulSets."
+      },
       {
         type: "LightspeedRegistration",
         status: blocked ? "False" : "True",
@@ -820,20 +831,23 @@ function buildStatus(
     ],
     components: {
       api: {
-        ready: true,
+        ready: false,
         service: api.serviceName ?? "cywell-opslens-api",
         image: api.image
       },
       dashboard: {
-        ready: true,
+        ready: false,
         service: dashboard.serviceName ?? "cywell-opslens-dashboard",
         image: dashboard.image
       },
       vectorStore: {
-        ready: true
+        ready: vectorProvider === "inmemory",
+        service: vectorProvider === "inmemory" ? "inmemory" : "cywell-opslens-vector",
+        image: vector.image
       },
       modelRuntime: {
-        ready: true,
+        ready: runtimeProvider === "mock-local",
+        service: runtimeProvider === "mock-local" ? "mock-local" : "cywell-opslens-vllm",
         image: runtime.image
       }
     },
