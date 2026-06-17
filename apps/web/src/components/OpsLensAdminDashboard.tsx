@@ -456,6 +456,14 @@ const adminCopy = {
     adminAsk: "admin ask",
     rbacReviewsMissing: "RBAC reviews missing",
     networkFirstActionsMissing: "network first actions missing",
+    caseCount: "case count",
+    failedChecks: "failed checks",
+    namespace: "namespace",
+    reader: "reader",
+    clusterRole: "ClusterRole",
+    policy: "policy",
+    rules: "rules",
+    secretsIncluded: "secrets included",
     requiredImages: "required images",
     localInspect: "local inspect",
     remainingEvidence: "remaining evidence",
@@ -678,6 +686,14 @@ const adminCopy = {
     adminAsk: "관리자 요청",
     rbacReviewsMissing: "RBAC 검토 누락",
     networkFirstActionsMissing: "네트워크 첫 작업 누락",
+    caseCount: "사례 수",
+    failedChecks: "실패 점검",
+    namespace: "네임스페이스",
+    reader: "읽기 계정",
+    clusterRole: "ClusterRole",
+    policy: "정책",
+    rules: "규칙",
+    secretsIncluded: "Secret 포함",
     requiredImages: "필수 이미지",
     localInspect: "로컬 검사",
     remainingEvidence: "남은 근거",
@@ -4186,17 +4202,38 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-ocp-network-handoff-api-fallback"
             >
               <div className="admin-evidence-line">
-                <span>{networkHandoffApiFallback.artifactStatus}</span>
-                <span>{networkHandoffApiFallback.actionMode}</span>
-                <span>cases={networkHandoffApiFallback.caseCount}</span>
-                <span>failedChecks={networkHandoffApiFallback.failedCheckCount}</span>
-                <span>
-                  clusterMutationAttempted=
-                  {String(networkHandoffApiFallback.clusterMutationAttempted)}
+                <span title={networkHandoffApiFallback.artifactStatus}>
+                  {statusText(
+                    language,
+                    networkHandoffApiFallback.artifactStatus
+                  )}
+                </span>
+                <span title={networkHandoffApiFallback.actionMode}>
+                  {actionModeText(
+                    language,
+                    networkHandoffApiFallback.actionMode
+                  )}
                 </span>
                 <span>
-                  registryMutationAttempted=
-                  {String(networkHandoffApiFallback.registryMutationAttempted)}
+                  {copy.caseCount}: {networkHandoffApiFallback.caseCount}
+                </span>
+                <span>
+                  {copy.failedChecks}:{" "}
+                  {networkHandoffApiFallback.failedCheckCount}
+                </span>
+                <span>
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
+                    networkHandoffApiFallback.clusterMutationAttempted
+                  )}
+                </span>
+                <span>
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
+                    networkHandoffApiFallback.registryMutationAttempted
+                  )}
                 </span>
               </div>
               <div
@@ -4205,9 +4242,15 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {networkHandoffApiFallback.cases.map((testCase) => (
                   <span key={testCase.classification}>
-                    {testCase.classification}:{testCase.owner}:{testCase.ticketId}
-                    :first={testCase.firstActionId}:approval=
-                    {String(testCase.networkChangeRequiresExplicitApproval)}
+                    {copy.classification}:{" "}
+                    {statusText(language, testCase.classification)} /{" "}
+                    {copy.owner}: {testCase.owner} / {copy.ticket}:{" "}
+                    {testCase.ticketId} / {copy.firstAction}:{" "}
+                    {testCase.firstActionId} / {copy.requiresApproval}:{" "}
+                    {booleanText(
+                      language,
+                      testCase.networkChangeRequiresExplicitApproval
+                    )}
                   </span>
                 ))}
               </div>
@@ -4230,50 +4273,60 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             >
               <div className="card-title-row compact">
                 <div>
-                  <h4>OCP Auth/RBAC Plan</h4>
-                  <small>{authRbacPlan.actionMode}</small>
+                  <h4>{copy.authRbacPlan}</h4>
+                  <small title={authRbacPlan.actionMode}>
+                    {actionModeText(language, authRbacPlan.actionMode)}
+                  </small>
                 </div>
                 <ShieldCheck size={18} aria-hidden="true" />
               </div>
               <div className="admin-evidence-line">
-                <span>{authRbacPlan.artifactStatus}</span>
-                <span>classification={authRbacPlan.classification}</span>
-                <span>
-                  clusterMutationAttempted=
-                  {String(authRbacPlan.clusterMutationAttempted)}
+                <span title={authRbacPlan.artifactStatus}>
+                  {statusText(language, authRbacPlan.artifactStatus)}
+                </span>
+                <span title={authRbacPlan.classification}>
+                  {copy.classification}:{" "}
+                  {statusText(language, authRbacPlan.classification)}
                 </span>
                 <span>
-                  registryMutationAttempted=
-                  {String(authRbacPlan.registryMutationAttempted)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, authRbacPlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, authRbacPlan.registryMutationAttempted)}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Namespace</span>
+                  <span>{copy.namespace}</span>
                   <strong>{authRbacPlan.rbac.namespace}</strong>
                 </div>
                 <div>
-                  <span>Reader</span>
+                  <span>{copy.reader}</span>
                   <strong>{authRbacPlan.rbac.serviceAccount}</strong>
                 </div>
                 <div>
-                  <span>ClusterRole</span>
+                  <span>{copy.clusterRole}</span>
                   <strong>
-                    {authRbacPlan.rbac.clusterRole} rules=
+                    {authRbacPlan.rbac.clusterRole} / {copy.rules}:{" "}
                     {authRbacPlan.rbac.ruleCount}
                   </strong>
                 </div>
                 <div>
-                  <span>Policy</span>
+                  <span>{copy.policy}</span>
                   <strong>
-                    readOnly={String(authRbacPlan.rbac.readOnlyOnly)},
-                    secrets={String(authRbacPlan.rbac.secretsIncluded)}
+                    {copy.readOnlyTools}:{" "}
+                    {booleanText(language, authRbacPlan.rbac.readOnlyOnly)},{" "}
+                    {copy.secretsIncluded}:{" "}
+                    {booleanText(language, authRbacPlan.rbac.secretsIncluded)}
                   </strong>
                 </div>
                 <div>
-                  <span>Commands</span>
+                  <span>{copy.readOnlyCommands}</span>
                   <strong>
-                    readOnly={authRbacPlan.readOnlyCommands.length}, gated=
+                    {copy.readOnlyCommands}:{" "}
+                    {authRbacPlan.readOnlyCommands.length}, {copy.gatedCommands}:{" "}
                     {authRbacPlan.approvalGatedCommands.length}
                   </strong>
                 </div>
@@ -4284,7 +4337,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {authRbacPlan.readOnlyCommands.slice(0, 4).map((command) => (
                   <span key={command.id}>
-                    {command.id} mutation={String(command.mutation)}
+                    {command.id}: {copy.mutationAllowed}{" "}
+                    {booleanText(language, command.mutation)}
                   </span>
                 ))}
               </div>
@@ -4294,8 +4348,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {authRbacPlan.approvalGatedCommands.slice(0, 3).map((command) => (
                   <span key={command.id}>
-                    {command.id} approval=
-                    {String(command.requiresExplicitApproval)}
+                    {command.id}: {copy.requiresApproval}{" "}
+                    {booleanText(language, command.requiresExplicitApproval)}
                   </span>
                 ))}
               </div>
@@ -4303,16 +4357,31 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 className="admin-evidence-line"
                 data-testid="opslens-ocp-auth-rbac-plan-context"
               >
-                <span>context={authRbacPlan.ocContext.contextStatus}</span>
-                <span>auth={authRbacPlan.ocContext.authStatus}</span>
-                <span>server={authRbacPlan.ocContext.serverStatus}</span>
                 <span>
-                  kubeconfigEnv=
-                  {String(authRbacPlan.ocContext.kubeconfigEnvConfigured)}
+                  {copy.context}:{" "}
+                  {statusText(language, authRbacPlan.ocContext.contextStatus)}
                 </span>
                 <span>
-                  defaultKubeconfig=
-                  {String(authRbacPlan.ocContext.defaultKubeconfigPresent)}
+                  {copy.auth}:{" "}
+                  {statusText(language, authRbacPlan.ocContext.authStatus)}
+                </span>
+                <span>
+                  {copy.server}:{" "}
+                  {statusText(language, authRbacPlan.ocContext.serverStatus)}
+                </span>
+                <span>
+                  {copy.kubeconfigEnv}:{" "}
+                  {booleanText(
+                    language,
+                    authRbacPlan.ocContext.kubeconfigEnvConfigured
+                  )}
+                </span>
+                <span>
+                  {copy.defaultKubeconfig}:{" "}
+                  {booleanText(
+                    language,
+                    authRbacPlan.ocContext.defaultKubeconfigPresent
+                  )}
                 </span>
               </div>
               {authRbacPlan.ticketPacket ? (
@@ -4321,17 +4390,26 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   data-testid="opslens-ocp-auth-rbac-plan-ticket"
                 >
                   <span>
-                    {authRbacPlan.ticketPacket.id}:{authRbacPlan.ticketPacket.owner}
-                    :{authRbacPlan.ticketPacket.classification}:first=
-                    {authRbacPlan.ticketPacket.firstReadOnlyAction.id}:approval=
-                    {authRbacPlan.ticketPacket.approvalGatedAction.id}
-                    :requiresApproval=
-                    {String(
+                    {copy.ticket}: {authRbacPlan.ticketPacket.id} /{" "}
+                    {copy.owner}: {authRbacPlan.ticketPacket.owner} /{" "}
+                    {copy.classification}:{" "}
+                    {statusText(
+                      language,
+                      authRbacPlan.ticketPacket.classification
+                    )}{" "}
+                    / {copy.firstAction}:{" "}
+                    {authRbacPlan.ticketPacket.firstReadOnlyAction.id} /{" "}
+                    {copy.approvalAction}:{" "}
+                    {authRbacPlan.ticketPacket.approvalGatedAction.id} /{" "}
+                    {copy.requiresApproval}:{" "}
+                    {booleanText(
+                      language,
                       authRbacPlan.ticketPacket.approvalGatedAction
                         .requiresExplicitApproval
                     )}
-                    :mutationAllowed=
-                    {String(
+                    / {copy.mutationAllowed}:{" "}
+                    {booleanText(
+                      language,
                       authRbacPlan.ticketPacket.mutationBoundary
                         .mutationAllowedByThisVerifier
                     )}

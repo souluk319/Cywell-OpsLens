@@ -381,6 +381,37 @@ expectCheck(
 );
 
 expectCheck(
+  "localized auth rbac plan labels",
+  adminSource.includes("copy.namespace") &&
+    adminSource.includes("copy.reader") &&
+    adminSource.includes("copy.clusterRole") &&
+    adminSource.includes("copy.secretsIncluded") &&
+    adminSource.includes('"읽기 계정"') &&
+    !adminSource.includes("cases={networkHandoffApiFallback.caseCount}") &&
+    !adminSource.includes("failedChecks={networkHandoffApiFallback.failedCheckCount}") &&
+    !adminSource.includes("clusterMutationAttempted=\n                  {String(networkHandoffApiFallback.clusterMutationAttempted)}") &&
+    !adminSource.includes(":first={testCase.firstActionId}:approval=") &&
+    !adminSource.includes("<h4>OCP Auth/RBAC Plan</h4>") &&
+    !adminSource.includes("classification={authRbacPlan.classification}") &&
+    !adminSource.includes("clusterMutationAttempted=\n                  {String(authRbacPlan.clusterMutationAttempted)}") &&
+    !adminSource.includes("<span>Namespace</span>") &&
+    !adminSource.includes("<span>Reader</span>") &&
+    !adminSource.includes("<span>Policy</span>") &&
+    !adminSource.includes("readOnly={String(authRbacPlan.rbac.readOnlyOnly)}") &&
+    !adminSource.includes("secrets={String(authRbacPlan.rbac.secretsIncluded)}") &&
+    !adminSource.includes("readOnly={authRbacPlan.readOnlyCommands.length}, gated=") &&
+    !adminSource.includes("{command.id} approval=\n                    {String(command.requiresExplicitApproval)}") &&
+    !adminSource.includes("context={authRbacPlan.ocContext.contextStatus}") &&
+    !adminSource.includes("auth={authRbacPlan.ocContext.authStatus}") &&
+    !adminSource.includes("server={authRbacPlan.ocContext.serverStatus}") &&
+    !adminSource.includes("kubeconfigEnv=\n                  {String(authRbacPlan.ocContext.kubeconfigEnvConfigured)}") &&
+    !adminSource.includes("defaultKubeconfig=\n                  {String(authRbacPlan.ocContext.defaultKubeconfigPresent)}") &&
+    !adminSource.includes(":requiresApproval=\n                    {String(\n                      authRbacPlan.ticketPacket.approvalGatedAction") &&
+    !adminSource.includes(":mutationAllowed=\n                    {String(\n                      authRbacPlan.ticketPacket.mutationBoundary"),
+  "Auth/RBAC and network fallback cards use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
   "localized remediation proposal labels",
   !adminSource.includes("<span>Mode</span>") &&
     !adminSource.includes("<span>Patch</span>") &&
