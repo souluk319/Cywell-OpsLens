@@ -121,7 +121,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Home", "Overview"],
     breadcrumbKo: ["홈", "개요"],
     command: "Open live cluster summary with evidence-backed availability signals.",
-    commandKo: "근거 기반 가용성 신호로 live cluster 요약을 엽니다."
+    commandKo: "근거 기반 가용성 신호로 현재 클러스터 요약을 엽니다."
   },
   {
     id: "alerting",
@@ -158,7 +158,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Observe", "Metrics"],
     breadcrumbKo: ["관측", "메트릭"],
     command: "Jump to metric queries, incident scoring, and read-only pipeline evidence.",
-    commandKo: "metric query, incident score, read-only pipeline 근거로 이동합니다."
+    commandKo: "메트릭 질의, 장애 점수, 읽기 전용 처리 근거로 이동합니다."
   },
   {
     id: "logs",
@@ -183,7 +183,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Resources", "Workloads"],
     breadcrumbKo: ["리소스", "워크로드"],
     command: "Preset the read-only explorer to pods and deployments.",
-    commandKo: "read-only explorer를 pod와 deployment 중심으로 설정합니다.",
+    commandKo: "읽기 전용 탐색기를 파드와 배포 중심으로 설정합니다.",
     resourcePreset: {
       query: "deployments pods replicasets",
       preferredResources: ["apps/v1/deployments", "v1/pods", "apps/v1/replicasets"]
@@ -199,7 +199,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Resources", "Networking"],
     breadcrumbKo: ["리소스", "네트워킹"],
     command: "Preset the read-only explorer to routes, services, and ingresses.",
-    commandKo: "read-only explorer를 route, service, ingress 중심으로 설정합니다.",
+    commandKo: "읽기 전용 탐색기를 라우트, 서비스, 인그레스 중심으로 설정합니다.",
     resourcePreset: {
       query: "routes services ingresses",
       preferredResources: [
@@ -219,7 +219,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Resources", "Storage"],
     breadcrumbKo: ["리소스", "스토리지"],
     command: "Preset the read-only explorer to PVC, PV, and StorageClass resources.",
-    commandKo: "read-only explorer를 PVC, PV, StorageClass 중심으로 설정합니다.",
+    commandKo: "읽기 전용 탐색기를 PVC, PV, 스토리지 클래스 중심으로 설정합니다.",
     resourcePreset: {
       query: "persistentvolumeclaims persistentvolumes storageclasses",
       preferredResources: [
@@ -239,7 +239,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Resources", "Administration"],
     breadcrumbKo: ["리소스", "관리"],
     command: "Review RBAC, install readiness, release evidence, and approval gates.",
-    commandKo: "RBAC, 설치 준비도, release evidence, 승인 gate를 검토합니다."
+    commandKo: "RBAC, 설치 준비도, 배포 근거, 승인 게이트를 검토합니다."
   },
   {
     id: "opslens-admin",
@@ -251,7 +251,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Cywell", "OpsLens Admin"],
     breadcrumbKo: ["Cywell", "OpsLens 관리"],
     command: "Operate the OpsLens RAG, evaluation, runtime, and 100% closure dashboard.",
-    commandKo: "OpsLens RAG, 평가, runtime, 100% 완료 대시보드를 운영합니다."
+    commandKo: "OpsLens RAG, 평가, 실행 환경, 100% 완료 대시보드를 운영합니다."
   },
   {
     id: "opsbrain",
@@ -333,15 +333,15 @@ const shellCopy = {
     api: "API",
     appLauncher: "애플리케이션 런처",
     appLauncherCommand:
-      "애플리케이션 런처가 OpsLens 준비도 command strip으로 이동했습니다.",
+      "애플리케이션 런처가 OpsLens 준비도 명령 영역으로 이동했습니다.",
     create: "생성",
     createCommand:
-      "생성 메뉴는 plan-only workflow만 엽니다. OpsLens는 cluster mutation을 apply하지 않습니다.",
+      "생성 메뉴는 계획 수립 흐름만 엽니다. OpsLens는 클러스터 변경을 실행하지 않습니다.",
     help: "도움말",
-    helpCommand: "도움말이 KOMSCO AI Assistant를 읽기 전용 모드로 열었습니다.",
+    helpCommand: "도움말이 KOMSCO AI Assistant를 읽기 전용으로 열었습니다.",
     notifications: "알림",
     notificationsCommand:
-      "알림이 active incident queue와 firing alert 위치로 이동했습니다.",
+      "알림이 진행 중인 장애 대기열과 발생 중인 경고 위치로 이동했습니다.",
     openNavigation: "탐색 열기",
     collapseNavigation: "탐색 접기",
     readOnly: "읽기 전용",
@@ -355,27 +355,27 @@ const shellCopy = {
     remaining: "남음",
     next: "다음",
     command: "명령",
-    closeAssistant: "Cywell OpsLens assistant 닫기",
-    openAssistant: "Cywell OpsLens assistant 열기",
-    assistantTitle: "Cywell OpsLens assistant",
+    closeAssistant: "Cywell OpsLens 어시스턴트 닫기",
+    openAssistant: "Cywell OpsLens 어시스턴트 열기",
+    assistantTitle: "Cywell OpsLens 어시스턴트",
     consolePluginMode: "콘솔 플러그인",
-    standaloneDevMode: "독립 개발",
+    standaloneDevMode: "독립 미리보기",
     pluginApi: "플러그인 API 프록시",
     localApi: "로컬 API 경로",
     consolePluginModeTitle:
       "OpenShift 콘솔이 플러그인 iframe과 플러그인 API 프록시로 OpsLens를 호스팅 중입니다.",
     standaloneDevModeTitle:
-      "로컬 개발 shell입니다. OpenShift 콘솔 chrome과 Lightspeed drawer는 여기에는 주입되지 않습니다.",
+      "로컬 미리보기 화면입니다. OpenShift 콘솔 상단 메뉴와 Lightspeed 서랍은 이 화면에 주입되지 않습니다.",
     consolePluginScope: "라우트 + 프록시 모드",
-    standaloneScope: "미리보기 shell",
+    standaloneScope: "미리보기 화면",
     consolePluginScopeTitle:
-      "설치된 ConsolePlugin 적용 범위: OpsLens 라우트, 런처 항목, UserToken API 프록시, MCP 준비도 화면입니다. 기본 OpenShift chrome과 Lightspeed drawer는 OpenShift 소유로 유지됩니다.",
+      "설치된 콘솔 플러그인 적용 범위: OpsLens 라우트, 런처 항목, 사용자 토큰 API 프록시, MCP 준비도 화면입니다. 기본 OpenShift 상단 메뉴와 Lightspeed 서랍은 OpenShift 소유로 유지됩니다.",
     standaloneScopeTitle:
-      "독립 미리보기 범위: 로컬 shell과 로컬 API 경로입니다. 콘솔 내부 라우팅과 프록시는 ConsolePlugin 설치 후 검증합니다.",
+      "독립 미리보기 범위: 로컬 화면과 로컬 API 경로입니다. 콘솔 내부 라우팅과 프록시는 콘솔 플러그인 설치 후 검증합니다.",
     consoleContextPrimary: "OpenShift 콘솔 플러그인",
-    consoleContextSecondary: "UserToken 프록시 / 활성 콘솔 컨텍스트",
-    standaloneContextPrimary: "CRC lab 미리보기",
-    standaloneContextSecondary: "로컬 fixture 시나리오 / 회사 OCP mutation 없음",
+    consoleContextSecondary: "사용자 토큰 프록시 / 활성 콘솔 컨텍스트",
+    standaloneContextPrimary: "CRC 실습 환경 미리보기",
+    standaloneContextSecondary: "로컬 검증 시나리오 / 회사 OCP 변경 없음",
     opsLensStatus: "Cywell OpsLens 상태",
     openShiftUtilities: "OpenShift 콘솔 유틸리티"
   }

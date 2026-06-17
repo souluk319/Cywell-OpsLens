@@ -429,6 +429,20 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
   - CRC lab image map/bootstrap/handoff
 - It writes JSON and Markdown evidence under `test-results/` and stops on the first failed gate.
 
+### 2026-06-17 - Lane 14
+
+- Polished the customer-facing Korean shell copy so the standalone/CRC status area no longer exposes developer-only terms like fixture, mutation, or shell in Korean mode.
+- Protected the copy with `npm run verify:web-shell`.
+- Browser DOM verification on `http://127.0.0.1:5173/index.html` showed:
+  - `contextPrimary=CRC 실습 환경 미리보기`
+  - `runtimeSurface=독립 미리보기`
+  - old Korean `fixture/shell` strings absent
+- Passed:
+  - `npm run -w @kugnus/web build`
+  - `npm run verify:web-shell`
+  - `npm run verify:console-plugin`
+  - `npm run overnight:checkpoint`
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

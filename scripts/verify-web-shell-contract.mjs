@@ -184,6 +184,22 @@ expectCheck(
   "language toggle persists the selected language and updates the document language"
 );
 
+expectCheck(
+  "customer-facing Korean shell copy",
+  appSource.includes("CRC 실습 환경 미리보기") &&
+    appSource.includes("로컬 검증 시나리오 / 회사 OCP 변경 없음") &&
+    appSource.includes("미리보기 화면") &&
+    appSource.includes("계획 수립 흐름만 엽니다") &&
+    appSource.includes("진행 중인 장애 대기열") &&
+    appSource.includes("읽기 전용 탐색기를 파드와 배포 중심으로 설정합니다.") &&
+    !appSource.includes("로컬 fixture 시나리오") &&
+    !appSource.includes("회사 OCP mutation 없음") &&
+    !appSource.includes("미리보기 shell") &&
+    !appSource.includes("plan-only workflow만") &&
+    !appSource.includes("active incident queue와"),
+  "Korean shell copy avoids developer-only terms on the customer-facing navigation and status surfaces"
+);
+
 const failCount = checks.filter((check) => check.status === "FAIL").length;
 pass("web shell evidence export", `${resolve(evidenceOut)} written`);
 
