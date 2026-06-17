@@ -251,6 +251,23 @@ Every checkpoint:
 - Passed `npm run verify:operator:reconcile`, `npm run verify:operator:runtime`, and `npm run verify:operator`.
 - Note: local `gofmt` is unavailable on this Windows workspace; Go formatting was reviewed in-place and remains covered by the container build/tooling lane.
 
+### 2026-06-17 - Lane 4
+
+- Added `docs/runbooks/cywell-opslens-crc-live-handoff.md` as the next-day live CRC recovery and demo handoff.
+- Captured the working mental model explicitly:
+  - Windows remains the development workspace.
+  - MacBook CRC remains the target OCP.
+  - OperatorHub install creates the Operator.
+  - `OpsLensInstallation` applies the product resources.
+- Documented the `18443` Lightspeed tunnel, `19443` dashboard access, `v0.1.1-crc` catalog/image signal, and the CRC lightweight profile.
+- Named the known live failure classes so tomorrow's work starts from cause-level checks instead of repeated waiting:
+  - stale catalog/subscription image
+  - package server cache
+  - pgvector SCC/permission issue
+  - vLLM image pull gap
+  - wrong local tunnel port
+  - TLS dashboard URL mismatch
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
