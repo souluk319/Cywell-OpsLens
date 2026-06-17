@@ -387,6 +387,7 @@ try {
     crcLightweightInstallation.metadata?.annotations?.["opslens.cywell.io/profile"] === "crc-lightweight" &&
       crcLightweightInstallation.spec.components.vectorStore.provider === "inmemory" &&
       crcLightweightInstallation.spec.components.modelRuntime.provider === "mock-local" &&
+      crcLightweightInstallation.spec.components.modelRuntime.replicas === 0 &&
       crcLightweightInstallation.spec.lightspeedRegistration.mode === "ValidateOnly" &&
       Boolean(crcLightweightApi) &&
       Boolean(findResource(crcLightweightPlan, "Deployment", "cywell-opslens-dashboard")) &&

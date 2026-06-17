@@ -343,6 +343,23 @@ Every checkpoint:
   - Create utility opened the Assistant in plan-only mode
   - Enter in the Assistant draft changed the request id to a new `plan-*` value through `local-vite-proxy`
 
+### 2026-06-17 - Lane 9
+
+- Tightened the CRC lightweight install contract after the live CRC session exposed repeated `vLLM ImagePullBackOff` and pgvector permission friction.
+- Confirmed the Go controller and TS dry-run builder already skip external runtime resources when:
+  - `vectorStore.provider=inmemory`
+  - `modelRuntime.provider=mock-local`
+- Fixed the remaining schema/sample mismatch:
+  - `modelRuntime.replicas` now accepts `0` in config and bundle CRDs.
+  - the CRC lightweight sample declares `modelRuntime.replicas: 0`.
+  - `verify:operator:package` now enforces the schema and sample contract.
+- Added `verify:operator:package` as an alias for the operator package verifier so the package gate has an obvious command name.
+- Passed:
+  - `npm run verify:operator:package` - 0 fail, 1 expected live-runtime warning, 134 checks
+  - `npm run verify:operator:reconcile` - 0 fail, 23 checks
+  - `npm run verify:operator:runtime` - 0 fail, 77 checks
+- Remaining boundary: this is repo/local evidence only; live CRC OLM reinstall still requires a newly built/pushed bundle/catalog image.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

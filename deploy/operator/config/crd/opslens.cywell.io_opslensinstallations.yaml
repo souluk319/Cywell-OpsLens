@@ -127,7 +127,7 @@ spec:
                           default: gemma-4-opslens
                         replicas:
                           type: integer
-                          minimum: 1
+                          minimum: 0
                           default: 1
                         gpu:
                           type: object

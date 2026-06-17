@@ -24,6 +24,7 @@ spec:
     modelRuntime:
       provider: mock-local
       model: local-rag-runtime
+      replicas: 0
       gpu:
         enabled: false
         deviceClass: nvidia.com/gpu

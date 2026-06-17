@@ -21,6 +21,7 @@
     "verify:rag:approval-queue": "npm run -w @kugnus/rag build && node ./scripts/verify-rag-approval-queue.mjs",
     "verify:rag:production-readiness": "node ./scripts/verify-rag-production-readiness.mjs",
     "verify:operator": "node ./scripts/verify-operator-package.mjs",
+    "verify:operator:package": "node ./scripts/verify-operator-package.mjs",
     "verify:operator:dry-run": "node ./scripts/verify-operator-dry-run.mjs",
     "verify:ocp:target-profile": "node ./scripts/verify-ocp-target-profile.mjs",
     "verify:ocp:connectivity": "node ./scripts/verify-ocp-connectivity-diagnostic.mjs",

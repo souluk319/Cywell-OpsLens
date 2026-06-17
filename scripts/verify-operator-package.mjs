@@ -240,6 +240,19 @@ function validateCrd(crd, sourceName) {
     fail(`${sourceName} registration modes`, "expected ValidateOnly default and PatchOLSConfig enum");
   }
 
+  const components = spec?.properties?.components?.properties ?? {};
+  const vectorProvider = components.vectorStore?.properties?.provider;
+  const modelRuntime = components.modelRuntime?.properties ?? {};
+  if (
+    vectorProvider?.enum?.includes("inmemory") &&
+    modelRuntime.provider?.enum?.includes("mock-local") &&
+    modelRuntime.replicas?.minimum === 0
+  ) {
+    pass(`${sourceName} CRC runtime disable schema`, "inmemory/mock-local and modelRuntime.replicas=0 are accepted");
+  } else {
+    fail(`${sourceName} CRC runtime disable schema`, "CRD must allow inmemory vector store, mock-local runtime, and modelRuntime.replicas minimum=0");
+  }
+
   const endpoint = spec?.properties?.lightspeedRegistration?.properties?.endpoint;
   if (endpoint?.default?.endsWith("/mcp")) {
     pass(`${sourceName} MCP endpoint default`, endpoint.default);
@@ -348,11 +361,12 @@ function validateCrcSample(sample) {
     sample?.metadata?.annotations?.["opslens.cywell.io/profile"] === "crc-lightweight" &&
     sample?.spec?.components?.vectorStore?.provider === "inmemory" &&
     sample?.spec?.components?.modelRuntime?.provider === "mock-local" &&
+    sample?.spec?.components?.modelRuntime?.replicas === 0 &&
     sample?.spec?.components?.modelRuntime?.gpu?.enabled === false
   ) {
-    pass("CRC sample lightweight runtime", "inmemory vector store and mock-local model runtime avoid pgvector/vLLM workloads");
+    pass("CRC sample lightweight runtime", "inmemory vector store and mock-local replicas=0 avoid pgvector/vLLM workloads");
   } else {
-    fail("CRC sample lightweight runtime", "CRC sample must use inmemory + mock-local with GPU disabled");
+    fail("CRC sample lightweight runtime", "CRC sample must use inmemory + mock-local replicas=0 with GPU disabled");
   }
 
   if (sample?.spec?.lightspeedRegistration?.mode === "ValidateOnly") {
