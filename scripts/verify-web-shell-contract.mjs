@@ -193,6 +193,12 @@ expectCheck(
     assistantSource.includes("내부 실행 문서") &&
     assistantSource.includes("네임스페이스") &&
     assistantSource.includes("필터") &&
+    assistantSource.includes("answerTextLabels") &&
+    assistantSource.includes("CRC 미리보기") &&
+    assistantSource.includes("근거 3건") &&
+    assistantSource.includes("ClusterVersion이 업그레이드 차단 상태를 보고했습니다.") &&
+    assistantSource.includes("Operator 조건이 버전 진행을 차단하고 있음") &&
+    assistantSource.includes("정확한 ClusterVersion 조건 메시지") &&
     evidenceSource.includes("컨텍스트 발행 데이터") &&
     evidenceSource.includes("const evidenceCopy") &&
     overviewSource.includes("const overviewCopy") &&

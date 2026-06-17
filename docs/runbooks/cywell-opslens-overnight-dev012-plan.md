@@ -3,7 +3,7 @@
 Generated: 2026-06-17 KST
 Branch: `feat/OpsLens-Dev0.1.2`
 Start head: `cf791e1`
-Latest pushed head: `3942a6a`
+Latest pushed head before Lane 19: `5a6dc1e`
 Base ref: `origin/main` at `5ad0b75`
 
 ## Goal
@@ -506,6 +506,27 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
   - no `콘솔형 live overview`, `활성 incident queue`, or `컨텍스트 발행 payload` in the visible primary shell.
 - Remaining gap: backend evidence payloads can still contain English diagnostic phrases such as `previous pod logs`. Those are evidence content, not static shell labels; a later lane should add a reviewed evidence-text display dictionary rather than hiding raw evidence.
 
+### 2026-06-17 - Lane 19
+
+- Polished the Assistant answer body in KO mode so the customer no longer sees a Korean shell wrapped around the English demo triage answer.
+- Added a reviewed Assistant display dictionary for known static answer text while preserving source evidence values for unknown/live payloads.
+- Localized the visible demo context values:
+  - `prod-ocp` -> `CRC 미리보기`
+  - `Alerts` -> `경고`
+  - `3 evidence items` -> `근거 3건`
+  - `source=platform, state=firing` -> `source=platform, state=발생 중`
+- Localized known demo answer sections, including:
+  - current judgment
+  - inspected evidence labels
+  - candidate cause labels and reasons
+  - plan steps
+  - rollback path
+  - risks
+  - missing evidence
+  - citations
+- Protected the Assistant answer display contract in `npm run verify:web-shell`.
+- Remaining gap: live backend evidence can still contain English diagnostic phrases. That remains intentional until a reviewed evidence-text dictionary is added for live payload classes; raw evidence should not be silently rewritten without traceability.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -517,9 +538,9 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head: `3942a6a`
+- feature branch latest pushed head before Lane 19: `5a6dc1e`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier: PASS, 9 checks
+- latest web shell verifier after Lane 19: PASS, 11 checks
 - latest CRC handoff tar: `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`
 
 ## First Command Set
