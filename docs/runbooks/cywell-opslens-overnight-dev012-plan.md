@@ -855,6 +855,27 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The masthead user menu now shows `kubeadmin`, matching the OpenShift console demo identity and preserving top-right menu placement.
 - `npm run verify:web-shell`, `npm run -w @kugnus/web build`, `npx playwright test -g "AC-UI-004"`, in-app browser DOM checks, and `npm run overnight:checkpoint` all passed.
 
+### 2026-06-18 - Lane 63
+
+- Added click-through Playwright coverage for masthead utility buttons and evidence actions.
+- `AC-UI-005` now clicks nav collapse, app launcher, notifications, create, help, evidence logs/YAML/alerts tabs, and evidence Ask buttons.
+- This protects the user-facing claim that shell controls are not dead buttons.
+- `npm run verify:web-shell`, `npx playwright test -g "AC-UI-005"`, and `npm run overnight:checkpoint` passed.
+
+### 2026-06-18 - Lane 64
+
+- Clarified the assistant ready state.
+- The ready badge now says `API connected / plan-only` and `API 연결됨 / 계획 전용`; local fallback copy remains reserved for disconnected/fallback mode.
+- Updated `AC-CTX-001` to expect the current `API connected` chip and customer-facing `CRC preview` cluster chip while preserving raw payload checks.
+- `npm run verify:web-shell`, `npx playwright test -g "AC-CTX-001"`, `npm run -w @kugnus/web build`, and `npm run overnight:checkpoint` passed.
+
+### 2026-06-18 - Lane 65
+
+- Added Korean left-navigation click-through coverage.
+- `AC-UI-006` switches to KO and clicks overview, alerting, dashboards, metrics, logs, workloads, networking, storage, administration, OpsLens Admin, and OpsBrain.
+- This protects the customer-facing claim that translated navigation is functional, not only translated text.
+- `npm run verify:web-shell`, `npx playwright test -g "AC-UI-006"`, and `npm run overnight:checkpoint` passed.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -866,10 +887,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 62: `005e5e4`
+- feature branch latest pushed head after Lane 65: `a8dba38`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 62: PASS, 38 checks
-- latest overnight checkpoint after Lane 62: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
+- latest web shell verifier after Lane 65: PASS, 40 checks
+- latest overnight checkpoint after Lane 65: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

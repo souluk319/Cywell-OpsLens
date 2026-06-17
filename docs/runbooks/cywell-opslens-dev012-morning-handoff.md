@@ -40,8 +40,11 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the masthead now shows a visible certification boundary explaining that the current build is a local demo, not a Partner/OperatorHub submission, and certified readiness still needs security/release evidence
 - the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
 - the Assistant connection card now includes a KO/EN mode matrix for answer source, token/proxy path, and the non-mutating chat boundary; this directly addresses the “why does the chatbot look unconnected?” demo risk
+- the Assistant ready badge now says `API connected / plan-only` and `API 연결됨 / 계획 전용`, while fallback still says local fallback, so a connected plan-only route no longer looks like a disconnected chatbot
 - the Assistant connection card now shows a KO/EN integration contract separating standalone preview, installed ConsolePlugin UserToken proxy, and the native OpenShift Lightspeed drawer
 - the Assistant prompt now shows the KO/EN ask execution path: Enter sends to the current OpsLens API route, fallback stays local plan-only, and Shift+Enter adds a line
+- the masthead utility buttons and evidence Ask/View actions are covered by a click-through Playwright contract instead of only static handler checks
+- the Korean left navigation is now covered by a click-through Playwright contract for overview, alerting, dashboards, metrics, logs, workloads, networking, storage, administration, OpsLens Admin, and OpsBrain
 - the masthead now shows a KO/EN return checklist for reconnecting Mac CRC, opening the ConsolePlugin route, and running read-only smoke before demo
 - the first-viewport readiness command strip now localizes completion status, passed requirements, remaining items, next gate, and next check instead of showing raw `needs-evidence`, `남음=`, `다음=`, or `cmd=` fragments
 - the masthead now shows the demo access path: installed view uses the Console route, the forwarded dashboard uses HTTPS on 19443, and Assistant/API traffic follows the active proxy mode
@@ -71,6 +74,10 @@ This is not a claim that production install is ready. The pre-cluster gate still
 ## Commits On This Branch
 
 ```text
+a8dba38 Test Korean navigation actions
+1b3e726 Clarify assistant ready state
+15d2f6a Test shell utility actions
+51dd685 Refresh Dev012 handoff status
 005e5e4 Polish KOMSCO console shell
 3339766 Document CRC demo readiness gate
 122e232 Summarize CRC demo readiness
@@ -146,12 +153,15 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 38 checks after the KOMSCO shell polish lane; covers KO assistant branding and `kubeadmin` masthead parity |
+| `npm run verify:web-shell` | PASS | 0 fail, 40 checks after the assistant ready-state and Korean navigation-action lanes |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
 | `npm run verify:crc-demo-readiness` | PASS | 0 fail, 0 warn, 14 checks; writes JSON and Markdown evidence for OperatorHub first example, lightweight sample, UI copy, handoff commands, and arm64 tar alignment |
-| `npm run overnight:checkpoint` | PASS | 10/10 local checkpoint gates passed on head `005e5e4`; evidence includes start/finish Git state and CRC demo readiness |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the KOMSCO shell polish lane |
+| `npm run overnight:checkpoint` | PASS | 10/10 local checkpoint gates passed on head `a8dba38`; evidence includes start/finish Git state and CRC demo readiness |
+| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the assistant ready-state lane |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead `kubeadmin`, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, access path, CRC install signal, post-install smoke path, readiness command labels, navigation, KOMSCO assistant labels, integration contract, ask execution path, and mode matrix |
+| `npx playwright test -g "AC-UI-005"` | PASS | Masthead utilities, evidence tabs, and evidence Ask buttons click through to visible state changes |
+| `npx playwright test -g "AC-CTX-001"` | PASS | Assistant context sync now expects `API connected` plus `API connected / plan-only`, and visible cluster context says `CRC preview` |
+| `npx playwright test -g "AC-UI-006"` | PASS | Korean left navigation click-through covers all console navigation items |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
 | `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |
