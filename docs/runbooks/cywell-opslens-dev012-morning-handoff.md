@@ -37,6 +37,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the community submission card now avoids raw labels such as `head=`, `dirty=`, `parity=`, `externalSubmissionAttempted=`, `registryMutationAttempted=`, `mutationAllowedByThisVerifier=`, `:next=`, and `:approval=` while preserving community submission command IDs, action IDs, and ticket evidence values
 - the external runtime plan card now avoids raw labels such as `registryMutationAttempted=`, `clusterMutationAttempted=`, `mutationAllowedByThisVerifier=`, `draft=`, `templates missing`, `drafts missing`, `:mutation=`, `:approval=`, and `:next=` while preserving runtime image IDs and mirror command evidence values
 - the owned image provenance card now has an explicit KO/EN title and avoids raw labels such as `mutationAllowedByThisVerifier=` while preserving image IDs and local inspect evidence values
+- the release publish plan card now avoids raw labels such as `registryMutationAttempted=`, `clusterMutationAttempted=`, `mutationAllowedByThisVerifier=`, `:mutation=`, `:approval=`, `:secret=`, `packet=`, `exists=`, and `releasePublishExecuted=` while preserving release command IDs, ticket IDs, and publish packet evidence values
 - the roadmap completion card now avoids raw labels such as `head=`, `dirty=`, `mutationBoundaryPassed=`, `externalState=`, `localOnly=`, `externalGates=`, `localGates=`, `next=`, `external=`, `tickets=`, `readOnly=`, `setup=`, and `approval=` while preserving percent complete, gate IDs, command IDs, ticket IDs, and critical-path action IDs
 - the pre-cluster install gate now avoids raw labels such as `safeToRunClusterInstall=`, `strictExitWouldFail=`, `Failed Gates`, `First Blocker`, `external=`, `local=`, `live=`, `prep=`, `failed=`, `firstBlocked=`, `remainingExternalState=`, `staleExternal=`, `directLive=`, `localPrep=`, `planStrict=`, `sources=`, `readOnly=`, `approvalNotRun=`, `status=`, `firstLane=`, and `mutationAllowed=` while preserving gate IDs, owner IDs, command IDs, source IDs, and approval-gated command evidence
 - the primary dashboard, evidence pane, console overview, and Assistant status/context fields now avoid customer-visible mixed Korean/English labels such as `live overview`, `incident queue`, `payload`, raw `fallback/loading` UI status chips, and English context chip labels
@@ -164,10 +165,11 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 43 checks after the assistant ready-state, Korean navigation-action, release/action queue, external runtime review, and security scan label lanes |
+| `npm run verify:web-shell` | PASS | 0 fail, 48 checks after the release/action queue, external runtime review, security scan, certification, community submission, external runtime plan, owned provenance, and release publish label lanes |
+| `npm run -w @kugnus/web build` | PASS | TypeScript, Vite, and ConsolePlugin bundle completed after the release publish label lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
 | `npm run verify:crc-demo-readiness` | PASS | 0 fail, 0 warn, 14 checks; writes JSON and Markdown evidence for OperatorHub first example, lightweight sample, UI copy, handoff commands, and arm64 tar alignment |
-| `npm run overnight:checkpoint` | PASS | 10/10 local checkpoint gates passed on head `a8dba38`; evidence includes start/finish Git state and CRC demo readiness |
+| `npm run overnight:checkpoint` | PASS | latest clean overnight loop before Lane 75 passed 10/10 local gates on head `1413887`; evidence includes start/finish Git state and CRC demo readiness |
 | `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the assistant ready-state lane |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead `kubeadmin`, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, access path, CRC install signal, post-install smoke path, readiness command labels, navigation, KOMSCO assistant labels, integration contract, ask execution path, and mode matrix |
 | `npx playwright test -g "AC-UI-005"` | PASS | Masthead utilities, evidence tabs, and evidence Ask buttons click through to visible state changes |

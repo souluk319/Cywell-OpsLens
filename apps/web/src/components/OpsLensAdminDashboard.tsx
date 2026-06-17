@@ -549,6 +549,16 @@ const adminCopy = {
     releaseEligible: "release eligible",
     finalReady: "final ready",
     promotionCommands: "promotion commands",
+    publishCommands: "publish commands",
+    firstPublishActions: "first publish actions",
+    releaseTicket: "release ticket",
+    publishDecision: "publish decision",
+    registryLoginExecuted: "registry login executed",
+    releasePublishExecuted: "release publish executed",
+    humanSecretRequired: "human secret required",
+    explicitApproval: "explicit approval",
+    publishRequiresApproval: "publish requires approval",
+    firstPublishActionsClear: "first publish actions clear",
     reviewedInput: "reviewed input",
     zeroCritical: "zero critical",
     registryPacket: "registry packet",
@@ -920,6 +930,16 @@ const adminCopy = {
     releaseEligible: "릴리스 가능",
     finalReady: "최종 준비",
     promotionCommands: "승격 명령",
+    publishCommands: "게시 명령",
+    firstPublishActions: "첫 게시 작업",
+    releaseTicket: "릴리스 티켓",
+    publishDecision: "게시 결정",
+    registryLoginExecuted: "레지스트리 로그인 실행",
+    releasePublishExecuted: "릴리스 게시 실행",
+    humanSecretRequired: "사람 Secret 입력 필요",
+    explicitApproval: "명시 승인",
+    publishRequiresApproval: "게시 승인 필요",
+    firstPublishActionsClear: "첫 게시 작업 없음",
     reviewedInput: "검토된 입력",
     zeroCritical: "치명 0건",
     registryPacket: "레지스트리 패킷",
@@ -7939,33 +7959,39 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-release-publish-plan"
             >
               <div className="admin-evidence-line">
-                <span>{releasePlan.actionMode}</span>
                 <span>
-                  registryMutationAttempted=
-                  {String(releasePlan.registryMutationAttempted)}
+                  <strong>{copy.releasePublish}</strong>:{" "}
+                  {actionModeText(language, releasePlan.actionMode)}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(releasePlan.clusterMutationAttempted)}
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, releasePlan.registryMutationAttempted)}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(releasePlan.mutationAllowedByThisVerifier)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, releasePlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(
+                    language,
+                    releasePlan.mutationAllowedByThisVerifier
+                  )}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Approvals</span>
-                  <strong>{releasePlan.requiredApprovals.join(", ")}</strong>
+                  <span>{copy.approvals}</span>
+                  <strong>{listOrNone(copy, releasePlan.requiredApprovals)}</strong>
                 </div>
                 <div>
-                  <span>Publish Commands</span>
+                  <span>{copy.publishCommands}</span>
                   <strong>
                     {releasePlan.mutatingCommands.length
                       ? releasePlan.mutatingCommands
                           .map((command) => command.id)
                           .join(", ")
-                      : "blocked until evidence exists"}
+                      : copy.blockedUntilEvidenceExists}
                   </strong>
                 </div>
               </div>
@@ -7976,13 +8002,16 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {releasePlan.firstPublishActions.length ? (
                   releasePlan.firstPublishActions.map((action) => (
                     <span key={action.id}>
-                      {action.id}:{action.owner}:{action.nextCommand}:mutation=
-                      {String(action.mutation)}:approval=
-                      {String(action.requiresExplicitApproval)}
+                      {action.id}: {copy.owner} {action.owner} /{" "}
+                      {copy.nextCommand} {action.nextCommand} /{" "}
+                      {copy.policyMutation}{" "}
+                      {booleanText(language, action.mutation)} /{" "}
+                      {copy.approvalRequired}{" "}
+                      {booleanText(language, action.requiresExplicitApproval)}
                     </span>
                   ))
                 ) : (
-                  <span>first publish actions clear</span>
+                  <span>{copy.firstPublishActionsClear}</span>
                 )}
               </div>
               <div
@@ -7990,17 +8019,23 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-release-publish-ticket"
               >
                 <span>
-                  {releasePlan.ticketPacket.id}:{releasePlan.ticketPacket.owner}:
-                  {releasePlan.ticketPacket.classification}:first=
-                  {releasePlan.ticketPacket.firstReadOnlyAction.id}:approval=
-                  {releasePlan.ticketPacket.approvalGatedAction.id}
-                  :requiresApproval=
-                  {String(
+                  {copy.releaseTicket}: {releasePlan.ticketPacket.id} /{" "}
+                  {copy.owner} {releasePlan.ticketPacket.owner} /{" "}
+                  {copy.classification}{" "}
+                  {releasePlan.ticketPacket.classification} /{" "}
+                  {copy.firstReadOnly}{" "}
+                  {releasePlan.ticketPacket.firstReadOnlyAction.id} /{" "}
+                  {copy.approvalAction}{" "}
+                  {releasePlan.ticketPacket.approvalGatedAction.id} /{" "}
+                  {copy.requiresApproval}{" "}
+                  {booleanText(
+                    language,
                     releasePlan.ticketPacket.approvalGatedAction
                       .requiresExplicitApproval
-                  )}
-                  :mutationAllowed=
-                  {String(
+                  )}{" "}
+                  / {copy.mutationByVerifier}{" "}
+                  {booleanText(
+                    language,
                     releasePlan.ticketPacket.mutationBoundary
                       .mutationAllowedByThisVerifier
                   )}
@@ -8011,32 +8046,51 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-release-publish-decision-action"
               >
                 <span>
-                  {releasePlan.publishDecisionAction.id}:
-                  {releasePlan.publishDecisionAction.owner}:status=
-                  {releasePlan.publishDecisionAction.status}:first=
-                  {releasePlan.publishDecisionAction.readOnlyPreflightCommandId}
-                  :setup=
-                  {releasePlan.publishDecisionAction.humanSetupCommandIds.join(
-                    ","
-                  ) || "none"}
-                  :approval=
-                  {releasePlan.publishDecisionAction.approvalGatedCommandIds
-                    .slice(0, 3)
-                    .join(",") || "none"}
-                  :secret=
-                  {String(
+                  {copy.publishDecision}: {releasePlan.publishDecisionAction.id}{" "}
+                  / {copy.owner} {releasePlan.publishDecisionAction.owner} /{" "}
+                  {copy.status}{" "}
+                  {statusText(language, releasePlan.publishDecisionAction.status)}{" "}
+                  / {copy.firstReadOnly}{" "}
+                  {
+                    releasePlan.publishDecisionAction
+                      .readOnlyPreflightCommandId
+                  }{" "}
+                  / {copy.setupCommands}{" "}
+                  {listOrNone(
+                    copy,
+                    releasePlan.publishDecisionAction.humanSetupCommandIds
+                  )}{" "}
+                  / {copy.approvalGated}{" "}
+                  {listOrNone(
+                    copy,
+                    releasePlan.publishDecisionAction.approvalGatedCommandIds.slice(
+                      0,
+                      3
+                    )
+                  )}{" "}
+                  / {copy.humanSecretRequired}{" "}
+                  {booleanText(
+                    language,
                     releasePlan.publishDecisionAction.requiresHumanSecretInput
-                  )}
-                  :explicitApproval=
-                  {String(
+                  )}{" "}
+                  / {copy.explicitApproval}{" "}
+                  {booleanText(
+                    language,
                     releasePlan.publishDecisionAction.requiresExplicitApproval
-                  )}
-                  :mutationAllowed=
-                  {String(releasePlan.publishDecisionAction.mutationAllowed)}
-                  :writesLocalEvidence=
-                  {String(releasePlan.publishDecisionAction.writesLocalEvidence)}
-                  :publishRequiresExplicitApproval=
-                  {String(
+                  )}{" "}
+                  / {copy.mutationAllowed}{" "}
+                  {booleanText(
+                    language,
+                    releasePlan.publishDecisionAction.mutationAllowed
+                  )}{" "}
+                  / {copy.writesLocalEvidence}{" "}
+                  {booleanText(
+                    language,
+                    releasePlan.publishDecisionAction.writesLocalEvidence
+                  )}{" "}
+                  / {copy.publishRequiresApproval}{" "}
+                  {booleanText(
+                    language,
                     releasePlan.publishDecisionAction
                       .publishRequiresExplicitApproval
                   )}
@@ -8047,53 +8101,63 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-release-manager-publish-packet"
               >
                 <span>
-                  packet=
+                  {copy.releaseManagerPacket}:{" "}
                   {releasePlan.releaseManagerPacket.markdownPath
                     .split(/[\\/]/)
                     .pop() ?? releasePlan.releaseManagerPacket.markdownPath}
                 </span>
                 <span>
-                  exists={String(releasePlan.releaseManagerPacket.exists)}
+                  {copy.exists}:{" "}
+                  {booleanText(language, releasePlan.releaseManagerPacket.exists)}
                 </span>
                 <span>
-                  ticket={releasePlan.releaseManagerPacket.ticketId}
+                  {copy.ticket}: {releasePlan.releaseManagerPacket.ticketId}
                 </span>
                 <span>
-                  decision=
+                  {copy.decision}:{" "}
                   {releasePlan.releaseManagerPacket.publishDecisionActionId}
                 </span>
                 <span>
-                  first={releasePlan.releaseManagerPacket.firstReadOnlyActionId}
+                  {copy.firstReadOnly}:{" "}
+                  {releasePlan.releaseManagerPacket.firstReadOnlyActionId}
                 </span>
                 <span>
-                  setup=
-                  {releasePlan.releaseManagerPacket.humanSetupCommandIds.join(
-                    ","
-                  ) || "none"}
+                  {copy.setupCommands}:{" "}
+                  {listOrNone(
+                    copy,
+                    releasePlan.releaseManagerPacket.humanSetupCommandIds
+                  )}
                 </span>
                 <span>
-                  approval=
-                  {releasePlan.releaseManagerPacket.approvalGatedCommandIds
-                    .slice(0, 3)
-                    .join(",") || "none"}
+                  {copy.approvalGated}:{" "}
+                  {listOrNone(
+                    copy,
+                    releasePlan.releaseManagerPacket.approvalGatedCommandIds.slice(
+                      0,
+                      3
+                    )
+                  )}
                 </span>
                 <span>
-                  registryLoginExecuted=
-                  {String(
+                  {copy.registryLoginExecuted}:{" "}
+                  {booleanText(
+                    language,
                     releasePlan.releaseManagerPacket
                       .registryLoginExecutedByVerifier
                   )}
                 </span>
                 <span>
-                  releasePublishExecuted=
-                  {String(
+                  {copy.releasePublishExecuted}:{" "}
+                  {booleanText(
+                    language,
                     releasePlan.releaseManagerPacket
                       .releasePublishExecutedByVerifier
                   )}
                 </span>
                 <span>
-                  registryMutationAttempted=
-                  {String(
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
                     releasePlan.releaseManagerPacket.mutationBoundary
                       .registryMutationAttempted
                   )}

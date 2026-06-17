@@ -103,6 +103,11 @@ const ownedImageProvenanceSource = sourceSection(
   'data-testid="opslens-owned-image-provenance"',
   'data-testid="opslens-release-publish-plan"'
 );
+const releasePublishPlanSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-release-publish-plan"',
+  "</article>"
+);
 const certificationReadinessSource = sourceSection(
   adminSource,
   'data-testid="opslens-certification-readiness"',
@@ -951,6 +956,46 @@ expectCheck(
     !ownedImageProvenanceSource.includes("<span>Local Inspect</span>") &&
     !ownedImageProvenanceSource.includes("<span>Missing Evidence</span>"),
   "Owned image provenance rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized release publish plan labels",
+  releasePublishPlanSource.includes("copy.releasePublish") &&
+    releasePublishPlanSource.includes("actionModeText(language, releasePlan.actionMode)") &&
+    releasePublishPlanSource.includes("copy.publishCommands") &&
+    releasePublishPlanSource.includes("copy.releaseTicket") &&
+    releasePublishPlanSource.includes("copy.publishDecision") &&
+    releasePublishPlanSource.includes("copy.releaseManagerPacket") &&
+    releasePublishPlanSource.includes("copy.registryLoginExecuted") &&
+    releasePublishPlanSource.includes("copy.releasePublishExecuted") &&
+    releasePublishPlanSource.includes("copy.publishRequiresApproval") &&
+    releasePublishPlanSource.includes("listOrNone(copy, releasePlan.requiredApprovals)") &&
+    releasePublishPlanSource.includes("statusText(language, releasePlan.publishDecisionAction.status)") &&
+    !releasePublishPlanSource.includes("{releasePlan.actionMode}") &&
+    !releasePublishPlanSource.includes("registryMutationAttempted=") &&
+    !releasePublishPlanSource.includes("clusterMutationAttempted=") &&
+    !releasePublishPlanSource.includes("mutationAllowedByThisVerifier=") &&
+    !releasePublishPlanSource.includes("<span>Approvals</span>") &&
+    !releasePublishPlanSource.includes("<span>Publish Commands</span>") &&
+    !releasePublishPlanSource.includes("blocked until evidence exists") &&
+    !releasePublishPlanSource.includes("first publish actions clear") &&
+    !releasePublishPlanSource.includes(":mutation=") &&
+    !releasePublishPlanSource.includes(":approval=") &&
+    !releasePublishPlanSource.includes(":requiresApproval=") &&
+    !releasePublishPlanSource.includes(":mutationAllowed=") &&
+    !releasePublishPlanSource.includes(":secret=") &&
+    !releasePublishPlanSource.includes(":explicitApproval=") &&
+    !releasePublishPlanSource.includes(":writesLocalEvidence=") &&
+    !releasePublishPlanSource.includes(":publishRequiresExplicitApproval=") &&
+    !releasePublishPlanSource.includes("packet=") &&
+    !releasePublishPlanSource.includes("exists=") &&
+    !releasePublishPlanSource.includes("ticket=") &&
+    !releasePublishPlanSource.includes("decision=") &&
+    !releasePublishPlanSource.includes("first=") &&
+    !releasePublishPlanSource.includes("setup=") &&
+    !releasePublishPlanSource.includes("registryLoginExecuted=") &&
+    !releasePublishPlanSource.includes("releasePublishExecuted="),
+  "Release publish plan rows use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(
