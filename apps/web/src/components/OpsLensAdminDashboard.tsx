@@ -67,6 +67,8 @@ function booleanText(language: UiLanguage, value: unknown) {
 
 function statusText(language: UiLanguage, status: string | undefined) {
   if (!status) return language === "ko" ? "근거 필요" : "needs evidence";
+  const normalizedStatus = status.trim();
+  const normalizedKey = normalizedStatus.toLowerCase();
 
   const labels: Record<UiLanguage, Record<string, string>> = {
     en: {
@@ -92,6 +94,8 @@ function statusText(language: UiLanguage, status: string | undefined) {
       missing: "missing",
       unknown: "unknown",
       pass: "pass",
+      warn: "warn",
+      fail: "fail",
       planned: "planned",
       none: "none"
     },
@@ -118,12 +122,18 @@ function statusText(language: UiLanguage, status: string | undefined) {
       missing: "누락",
       unknown: "알 수 없음",
       pass: "통과",
+      warn: "주의",
+      fail: "실패",
       planned: "계획됨",
       none: "없음"
     }
   };
 
-  return labels[language][status] ?? status;
+  return (
+    labels[language][normalizedStatus] ??
+    labels[language][normalizedKey] ??
+    status
+  );
 }
 
 function actionModeText(language: UiLanguage, mode: string | undefined) {
@@ -284,6 +294,42 @@ const adminCopy = {
     toolMode: "mode",
     category: "category",
     dashboardSurface: "surface",
+    installReadiness: "Install Readiness",
+    lightspeedMcp: "Lightspeed MCP",
+    environment: "environment",
+    extensionPoint: "extension point",
+    aiOpsPipeline: "AI Ops pipeline",
+    consoleDashboard: "console dashboard",
+    operator: "operator",
+    ocpConnectivity: "OCP connectivity",
+    operatorPackage: "operator package",
+    operatorDryRun: "operator dry-run",
+    operatorBoundary: "operator boundary",
+    installPlan: "install plan",
+    ragIngestion: "RAG ingestion",
+    certificationEvidence: "certification evidence",
+    communitySubmission: "community submission",
+    catalogToolchain: "catalog toolchain",
+    labBootstrap: "lab bootstrap",
+    labHandoff: "lab handoff",
+    imageBuilds: "image builds",
+    ownedProvenance: "owned provenance",
+    externalRuntime: "external runtime",
+    runtimeReview: "runtime review",
+    securityScan: "security scan",
+    releasePublish: "release publish",
+    releaseRefresh: "release refresh",
+    releaseBundle: "release bundle",
+    releaseAction: "release action",
+    roadmapCompletion: "roadmap completion",
+    completionGate: "completion gate",
+    preClusterGate: "pre-cluster gate",
+    evidenceCheckpoint: "evidence checkpoint",
+    liveHandoff: "live handoff",
+    networkHandoff: "network handoff",
+    handoffFallback: "handoff fallback",
+    authRbacPlan: "auth/RBAC plan",
+    certification: "certification",
     complete: "complete",
     passed: "passed",
     remaining: "remaining",
@@ -373,6 +419,42 @@ const adminCopy = {
     toolMode: "모드",
     category: "분류",
     dashboardSurface: "화면",
+    installReadiness: "설치 준비도",
+    lightspeedMcp: "Lightspeed MCP",
+    environment: "환경 격리",
+    extensionPoint: "확장 지점",
+    aiOpsPipeline: "AI Ops 파이프라인",
+    consoleDashboard: "콘솔 대시보드",
+    operator: "오퍼레이터",
+    ocpConnectivity: "OCP 연결성",
+    operatorPackage: "오퍼레이터 패키지",
+    operatorDryRun: "오퍼레이터 dry-run",
+    operatorBoundary: "오퍼레이터 경계",
+    installPlan: "설치 계획",
+    ragIngestion: "RAG 적재",
+    certificationEvidence: "인증 근거",
+    communitySubmission: "커뮤니티 제출",
+    catalogToolchain: "카탈로그 도구체인",
+    labBootstrap: "랩 부트스트랩",
+    labHandoff: "랩 인계",
+    imageBuilds: "이미지 빌드",
+    ownedProvenance: "소유 이미지 출처",
+    externalRuntime: "외부 런타임",
+    runtimeReview: "런타임 검토",
+    securityScan: "보안 스캔",
+    releasePublish: "릴리스 게시",
+    releaseRefresh: "릴리스 갱신",
+    releaseBundle: "릴리스 번들",
+    releaseAction: "릴리스 작업",
+    roadmapCompletion: "로드맵 완료",
+    completionGate: "완료 게이트",
+    preClusterGate: "사전 클러스터 게이트",
+    evidenceCheckpoint: "근거 체크포인트",
+    liveHandoff: "실시간 인계",
+    networkHandoff: "네트워크 인계",
+    handoffFallback: "인계 대체 경로",
+    authRbacPlan: "인증/RBAC 계획",
+    certification: "인증",
     complete: "완료율",
     passed: "통과",
     remaining: "남은 항목",
@@ -2076,70 +2158,195 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
           data-testid="opslens-install-readiness"
         >
           <div className="card-title-row">
-            <h3>Install Readiness</h3>
+            <h3>{copy.installReadiness}</h3>
             <ShieldCheck size={18} aria-hidden="true" />
           </div>
           <div className="readiness-grid">
             {overview
-              ? Object.entries({
-                  "Lightspeed MCP": overview.installReadiness.lightspeedMcp,
-                  Environment:
-                    overview.installReadiness.environmentIsolation,
-                  "Extension Point":
-                    overview.installReadiness.lightspeedExtensionPoint,
-                  "AI Ops Pipeline": overview.aiops.incidentPipeline.status,
-                  "Console Dashboard": overview.installReadiness.consoleDashboard,
-                  Operator: overview.installReadiness.operatorPackaging,
-                  "OCP Connectivity": overview.installReadiness.ocpConnectivity,
-                  "Operator Package": overview.installReadiness.operatorPackage,
-                  "Operator Dry-run": overview.installReadiness.operatorDryRun,
-                  "Operator Boundary":
-                    overview.installReadiness.operatorRuntimeBoundary,
-                  "Install Plan": overview.installReadiness.installPlan,
-                  "RAG Ingestion":
-                    overview.installReadiness.approvalPlan.ragIngestion.status,
-                  "Certification Evidence":
-                    overview.installReadiness.certificationReadiness,
-                  "Community Submission":
-                    overview.installReadiness.communityOperatorSubmission,
-                  "Catalog Toolchain":
-                    overview.installReadiness.catalogToolchain,
-                  "Lab Bootstrap": overview.installReadiness.labBootstrap,
-                  "Lab Handoff": overview.installReadiness.labHandoff,
-                  "Image Builds": overview.installReadiness.imageBuilds,
-                  "Owned Provenance":
-                    overview.installReadiness.ownedImageProvenance,
-                  "External Runtime":
-                    overview.installReadiness.externalRuntimeImages,
-                  "Runtime Review":
-                    overview.installReadiness.externalRuntimeReviewPacket,
-                  "Security Scan": overview.installReadiness.securityScan,
-                  "Release Publish": overview.installReadiness.releasePublish,
-                  "Release Refresh": overview.installReadiness.releaseRefresh,
-                  "Release Bundle":
-                    overview.installReadiness.releaseEvidenceBundle,
-                  "Release Action": overview.installReadiness.releaseActionQueue,
-                  "Roadmap Completion":
-                    overview.installReadiness.roadmapCompletion.status,
-                  "Completion Gate":
-                    overview.installReadiness.completionGate.status,
-                  "Pre-cluster Gate":
-                    overview.installReadiness.preClusterInstallGate.status,
-                  "Evidence Checkpoint":
-                    overview.installReadiness.evidenceCheckpoint,
-                  "Live Handoff": overview.installReadiness.liveHandoff,
-                  "Network Handoff":
-                    overview.installReadiness.ocpNetworkHandoff,
-                  "Handoff Fallback":
-                    overview.installReadiness.ocpNetworkHandoffApiFallback,
-                  "Auth/RBAC Plan":
-                    overview.installReadiness.ocpAuthRbacPlan,
-                  Certification: overview.installReadiness.certification
-                }).map(([label, value]) => (
-                  <div key={label}>
+              ? [
+                  {
+                    id: "lightspeed-mcp",
+                    label: copy.lightspeedMcp,
+                    value: overview.installReadiness.lightspeedMcp
+                  },
+                  {
+                    id: "environment",
+                    label: copy.environment,
+                    value: overview.installReadiness.environmentIsolation
+                  },
+                  {
+                    id: "extension-point",
+                    label: copy.extensionPoint,
+                    value: overview.installReadiness.lightspeedExtensionPoint
+                  },
+                  {
+                    id: "aiops-pipeline",
+                    label: copy.aiOpsPipeline,
+                    value: overview.aiops.incidentPipeline.status
+                  },
+                  {
+                    id: "console-dashboard",
+                    label: copy.consoleDashboard,
+                    value: overview.installReadiness.consoleDashboard
+                  },
+                  {
+                    id: "operator",
+                    label: copy.operator,
+                    value: overview.installReadiness.operatorPackaging
+                  },
+                  {
+                    id: "ocp-connectivity",
+                    label: copy.ocpConnectivity,
+                    value: overview.installReadiness.ocpConnectivity
+                  },
+                  {
+                    id: "operator-package",
+                    label: copy.operatorPackage,
+                    value: overview.installReadiness.operatorPackage
+                  },
+                  {
+                    id: "operator-dry-run",
+                    label: copy.operatorDryRun,
+                    value: overview.installReadiness.operatorDryRun
+                  },
+                  {
+                    id: "operator-boundary",
+                    label: copy.operatorBoundary,
+                    value: overview.installReadiness.operatorRuntimeBoundary
+                  },
+                  {
+                    id: "install-plan",
+                    label: copy.installPlan,
+                    value: overview.installReadiness.installPlan
+                  },
+                  {
+                    id: "rag-ingestion",
+                    label: copy.ragIngestion,
+                    value: overview.installReadiness.approvalPlan.ragIngestion.status
+                  },
+                  {
+                    id: "certification-evidence",
+                    label: copy.certificationEvidence,
+                    value: overview.installReadiness.certificationReadiness
+                  },
+                  {
+                    id: "community-submission",
+                    label: copy.communitySubmission,
+                    value: overview.installReadiness.communityOperatorSubmission
+                  },
+                  {
+                    id: "catalog-toolchain",
+                    label: copy.catalogToolchain,
+                    value: overview.installReadiness.catalogToolchain
+                  },
+                  {
+                    id: "lab-bootstrap",
+                    label: copy.labBootstrap,
+                    value: overview.installReadiness.labBootstrap
+                  },
+                  {
+                    id: "lab-handoff",
+                    label: copy.labHandoff,
+                    value: overview.installReadiness.labHandoff
+                  },
+                  {
+                    id: "image-builds",
+                    label: copy.imageBuilds,
+                    value: overview.installReadiness.imageBuilds
+                  },
+                  {
+                    id: "owned-provenance",
+                    label: copy.ownedProvenance,
+                    value: overview.installReadiness.ownedImageProvenance
+                  },
+                  {
+                    id: "external-runtime",
+                    label: copy.externalRuntime,
+                    value: overview.installReadiness.externalRuntimeImages
+                  },
+                  {
+                    id: "runtime-review",
+                    label: copy.runtimeReview,
+                    value: overview.installReadiness.externalRuntimeReviewPacket
+                  },
+                  {
+                    id: "security-scan",
+                    label: copy.securityScan,
+                    value: overview.installReadiness.securityScan
+                  },
+                  {
+                    id: "release-publish",
+                    label: copy.releasePublish,
+                    value: overview.installReadiness.releasePublish
+                  },
+                  {
+                    id: "release-refresh",
+                    label: copy.releaseRefresh,
+                    value: overview.installReadiness.releaseRefresh
+                  },
+                  {
+                    id: "release-bundle",
+                    label: copy.releaseBundle,
+                    value: overview.installReadiness.releaseEvidenceBundle
+                  },
+                  {
+                    id: "release-action",
+                    label: copy.releaseAction,
+                    value: overview.installReadiness.releaseActionQueue
+                  },
+                  {
+                    id: "roadmap-completion",
+                    label: copy.roadmapCompletion,
+                    value: overview.installReadiness.roadmapCompletion.status
+                  },
+                  {
+                    id: "completion-gate",
+                    label: copy.completionGate,
+                    value: overview.installReadiness.completionGate.status
+                  },
+                  {
+                    id: "pre-cluster-gate",
+                    label: copy.preClusterGate,
+                    value: overview.installReadiness.preClusterInstallGate.status
+                  },
+                  {
+                    id: "evidence-checkpoint",
+                    label: copy.evidenceCheckpoint,
+                    value: overview.installReadiness.evidenceCheckpoint
+                  },
+                  {
+                    id: "live-handoff",
+                    label: copy.liveHandoff,
+                    value: overview.installReadiness.liveHandoff
+                  },
+                  {
+                    id: "network-handoff",
+                    label: copy.networkHandoff,
+                    value: overview.installReadiness.ocpNetworkHandoff
+                  },
+                  {
+                    id: "handoff-fallback",
+                    label: copy.handoffFallback,
+                    value: overview.installReadiness.ocpNetworkHandoffApiFallback
+                  },
+                  {
+                    id: "auth-rbac-plan",
+                    label: copy.authRbacPlan,
+                    value: overview.installReadiness.ocpAuthRbacPlan
+                  },
+                  {
+                    id: "certification",
+                    label: copy.certification,
+                    value: overview.installReadiness.certification
+                  }
+                ].map(({ id, label, value }) => (
+                  <div key={id}>
                     <span>{label}</span>
-                    <strong className={`freshness ${statusClass(value)}`}>
-                      {value}
+                    <strong
+                      className={`freshness ${statusClass(String(value))}`}
+                      title={String(value)}
+                    >
+                      {statusText(language, String(value))}
                     </strong>
                   </div>
                 ))
@@ -2165,8 +2372,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             >
               <div className="card-title-row compact">
                 <div>
-                  <h4>Completion Gate</h4>
-                  <small>{completionGate.actionMode}</small>
+                  <h4>{copy.completionGate}</h4>
+                  <small>{actionModeText(language, completionGate.actionMode)}</small>
                 </div>
                 <Gauge size={18} aria-hidden="true" />
               </div>
@@ -2645,8 +2852,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             >
               <div className="card-title-row compact">
                 <div>
-                  <h4>Roadmap Completion</h4>
-                  <small>{roadmapCompletion.actionMode}</small>
+                  <h4>{copy.roadmapCompletion}</h4>
+                  <small>{actionModeText(language, roadmapCompletion.actionMode)}</small>
                 </div>
                 <Gauge size={18} aria-hidden="true" />
               </div>

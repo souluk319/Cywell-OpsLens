@@ -18,6 +18,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the OCP Resource Explorer Korean surface now avoids leftover developer English for fallback/RBAC/owner relationship states
 - the OCP Resource Explorer detail fallback chip no longer hardcodes English `to` in KO mode
 - the OpsLens Admin completion, live handoff, and owned-image provenance summary cards now avoid customer-visible raw labels such as `Remaining`, `gap=...`, `assistantMutationAllowed=...`, `Local Inspect`, and `Remaining Evidence`
+- the OpsLens Admin install-readiness grid now uses stable item IDs plus KO/EN labels instead of hardcoded English object keys such as `Image Builds`, `Owned Provenance`, and `Auth/RBAC Plan`
 - the primary dashboard, evidence pane, console overview, and Assistant status/context fields now avoid customer-visible mixed Korean/English labels such as `live overview`, `incident queue`, `payload`, raw `fallback/loading` UI status chips, and English context chip labels
 - the Assistant answer body now has a reviewed KO display dictionary for the known demo triage answer, including current judgment, evidence labels, cause candidates, risks, missing evidence, plan, rollback path, citations, and context values such as `CRC 미리보기` and `근거 3건`
 - the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
@@ -74,6 +75,7 @@ fb72b17 Isolate local image build tags
 fa38a6d Localize coverage matrix labels
 d36e33e Polish resource fallback wording
 5b770a8 Localize coverage diagnostic status
+9dadb71 Polish admin summary labels
 ```
 
 ## Verified Gates
@@ -82,10 +84,10 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 13 checks after the Admin summary label lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 14 checks after the Admin readiness grid label lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 30 |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Admin summary label lane |
+| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 31 |
+| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Admin readiness grid label lane |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, navigation, Assistant labels, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |

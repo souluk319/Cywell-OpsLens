@@ -635,6 +635,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Extended shared display helpers for common live classification values such as `api-ready`, `auth-or-rbac`, `token-missing`, `tls-handshake-failed`, `tcp-timeout`, and `dns-unresolved`.
 - Added a dedicated `localized admin summary labels` gate to `npm run verify:web-shell`.
 
+### 2026-06-18 - Lane 31
+
+- Polished the OpsLens Admin install-readiness grid so KO mode no longer renders hardcoded English section keys such as `Install Readiness`, `Image Builds`, `Owned Provenance`, or `Auth/RBAC Plan`.
+- Replaced the English-keyed `Object.entries` map with stable item IDs plus language-owned labels.
+- The grid now runs readiness values through `statusText`, while preserving the raw status value in the element title and in the freshness class decision.
+- `npm run verify:web-shell` now includes a `localized install readiness grid` gate to reject the old English-keyed grid.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -646,10 +653,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 29: `5b770a8`
+- feature branch latest pushed head after Lane 30: `9dadb71`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 30: PASS, 13 checks
-- latest overnight checkpoint after Lane 30: PASS, 9/9 local gates
+- latest web shell verifier after Lane 31: PASS, 14 checks
+- latest overnight checkpoint after Lane 31: PASS, 9/9 local gates
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

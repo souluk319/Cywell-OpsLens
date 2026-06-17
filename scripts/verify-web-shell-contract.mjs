@@ -260,11 +260,16 @@ expectCheck(
     adminSource.includes("읽기 전용 도구") &&
     adminSource.includes("실시간 준비도") &&
     adminSource.includes("클러스터 변경 시도") &&
+    adminSource.includes("설치 준비도") &&
     adminSource.includes("어시스턴트 변경 허용") &&
     adminSource.includes("남은 근거") &&
+    adminSource.includes("copy.installReadiness") &&
+    adminSource.includes("copy.ownedProvenance") &&
+    adminSource.includes("copy.authRbacPlan") &&
     adminSource.includes("copy.currentGap") &&
     adminSource.includes("copy.requiredImages") &&
     adminSource.includes("copy.localInspect") &&
+    adminSource.includes("statusText(language, String(value))") &&
     adminSource.includes("statusText(language, liveHandoff.currentGapClassification)") &&
     adminSource.includes("statusText(language, image.status)") &&
     adminSource.includes("actionModeText(language, tool.actionMode)") &&
@@ -281,6 +286,17 @@ expectCheck(
     !adminSource.includes("assistantMutationAllowed=") &&
     !adminSource.includes("<span>gap={liveHandoff.currentGapClassification}</span>"),
   "Admin completion, live handoff, and owned-image summary cards use bilingual labels instead of raw developer labels"
+);
+
+expectCheck(
+  "localized install readiness grid",
+  !adminSource.includes("<h3>Install Readiness</h3>") &&
+    !adminSource.includes('"Image Builds": overview.installReadiness.imageBuilds') &&
+    !adminSource.includes('"Owned Provenance"') &&
+    !adminSource.includes('"Auth/RBAC Plan":') &&
+    adminSource.includes("id: \"owned-provenance\"") &&
+    adminSource.includes("id: \"auth-rbac-plan\""),
+  "Admin install readiness grid uses stable ids plus bilingual labels instead of English object keys"
 );
 
 expectCheck(
