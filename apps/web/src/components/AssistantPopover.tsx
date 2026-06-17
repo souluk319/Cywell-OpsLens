@@ -50,6 +50,7 @@ const assistantCopy = {
     error: "last error",
     retry: "Retry API",
     pending: "pending",
+    actionMode: "action mode",
     prompt: "Ask from current context",
     asking: "Asking",
     ask: "Ask",
@@ -64,10 +65,10 @@ const assistantCopy = {
     citations: "Citations"
   },
   ko: {
-    ariaLabel: "Cywell OpsLens assistant",
+    ariaLabel: "Cywell OpsLens 어시스턴트",
     eyebrow: "KOMSCO AI Assistant",
     readyStatus: "로컬 계획 전용",
-    close: "assistant 닫기",
+    close: "어시스턴트 닫기",
     request: "요청",
     model: "모델",
     context: "컨텍스트",
@@ -76,6 +77,7 @@ const assistantCopy = {
     error: "마지막 오류",
     retry: "API 재시도",
     pending: "대기 중",
+    actionMode: "동작 모드",
     prompt: "현재 컨텍스트로 질문",
     asking: "질문 중",
     ask: "질문",
@@ -90,6 +92,115 @@ const assistantCopy = {
     citations: "인용"
   }
 } as const;
+
+const statusLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    loading: "loading",
+    fallback: "fallback"
+  },
+  ko: {
+    loading: "연결 확인 중",
+    fallback: "로컬 대체 응답"
+  }
+};
+
+const actionModeLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    readOnly: "read-only",
+    planOnly: "plan-only"
+  },
+  ko: {
+    readOnly: "읽기 전용",
+    planOnly: "계획 전용"
+  }
+};
+
+const confidenceLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    high: "high",
+    medium: "medium",
+    low: "low"
+  },
+  ko: {
+    high: "높음",
+    medium: "보통",
+    low: "낮음"
+  }
+};
+
+const trustLevelLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    official: "official",
+    approved: "approved",
+    "cluster-snapshot": "cluster snapshot",
+    draft: "draft"
+  },
+  ko: {
+    official: "공식",
+    approved: "승인됨",
+    "cluster-snapshot": "클러스터 스냅샷",
+    draft: "초안"
+  }
+};
+
+const evidenceTypeLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    alert: "alert",
+    log: "log",
+    event: "event",
+    yaml: "YAML",
+    runbook: "runbook",
+    cluster: "cluster",
+    "official-doc": "official doc",
+    "internal-runbook": "internal runbook"
+  },
+  ko: {
+    alert: "경고",
+    log: "로그",
+    event: "이벤트",
+    yaml: "YAML",
+    runbook: "실행 문서",
+    cluster: "클러스터",
+    "official-doc": "공식 문서",
+    "internal-runbook": "내부 실행 문서"
+  }
+};
+
+const contextChipLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    Cluster: "Cluster",
+    Namespace: "Namespace",
+    Page: "Page",
+    Filters: "Filters",
+    Attached: "Attached",
+    RBAC: "RBAC"
+  },
+  ko: {
+    Cluster: "클러스터",
+    Namespace: "네임스페이스",
+    Page: "화면",
+    Filters: "필터",
+    Attached: "첨부",
+    RBAC: "RBAC"
+  }
+};
+
+const contextChipValueLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    Alerts: "Alerts"
+  },
+  ko: {
+    Alerts: "경고"
+  }
+};
+
+function localizedLabel(
+  labels: Record<UiLanguage, Record<string, string>>,
+  language: UiLanguage,
+  value: string
+) {
+  return labels[language][value] ?? value;
+}
 
 export function AssistantPopover({
   draft,
@@ -110,6 +221,10 @@ export function AssistantPopover({
   onClose
 }: AssistantPopoverProps) {
   const copy = assistantCopy[language];
+  const statusLabel =
+    apiStatus === "ready"
+      ? copy.readyStatus
+      : localizedLabel(statusLabels, language, apiStatus);
 
   function handleDraftKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
@@ -146,7 +261,7 @@ export function AssistantPopover({
             className={`status-pill ${apiStatus === "ready" ? "ready" : "danger"}`}
             data-testid="assistant-connection-status"
           >
-            {apiStatus === "ready" ? copy.readyStatus : apiStatus}
+            {statusLabel}
           </span>
           <button
             className="icon-button"
@@ -175,8 +290,8 @@ export function AssistantPopover({
       <div className="context-chip-list" data-testid="context-chips">
         {contextChips.map((chip) => (
           <span className="context-chip" key={`${chip.label}-${chip.value}`}>
-            <strong>{chip.label}</strong>
-            {chip.value}
+            <strong>{localizedLabel(contextChipLabels, language, chip.label)}</strong>
+            {localizedLabel(contextChipValueLabels, language, chip.value)}
           </span>
         ))}
       </div>
@@ -229,7 +344,7 @@ export function AssistantPopover({
           </div>
           <p>{answer.judgment}</p>
           <span className="status-pill read-only">
-            actionMode={answer.actionMode}
+            {copy.actionMode}: {localizedLabel(actionModeLabels, language, answer.actionMode)}
           </span>
         </section>
 
@@ -241,7 +356,7 @@ export function AssistantPopover({
           <ul className="evidence-list">
             {answer.inspectedEvidence.map((source) => (
               <li key={source.id}>
-                <span>{source.type}</span>
+                <span>{localizedLabel(evidenceTypeLabels, language, source.type)}</span>
                 <strong>{source.label}</strong>
               </li>
             ))}
@@ -256,7 +371,7 @@ export function AssistantPopover({
           {answer.candidates.map((candidate) => (
             <div className="candidate-row" key={candidate.label}>
               <span className={`confidence ${candidate.confidence}`}>
-                {candidate.confidence}
+                {localizedLabel(confidenceLabels, language, candidate.confidence)}
               </span>
               <div>
                 <strong>{candidate.label}</strong>
@@ -331,7 +446,7 @@ export function AssistantPopover({
             {answer.citations.map((source) => (
               <li key={source.id}>
                 <strong>{source.label}</strong>
-                <span>{source.trustLevel}</span>
+                <span>{localizedLabel(trustLevelLabels, language, source.trustLevel)}</span>
               </li>
             ))}
           </ul>

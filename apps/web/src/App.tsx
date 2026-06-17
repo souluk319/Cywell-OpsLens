@@ -133,7 +133,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Observe", "Alerting"],
     breadcrumbKo: ["관측", "경고"],
     command: "Inspect firing alerts and keep the assistant off the evidence table.",
-    commandKo: "발생 중인 alert를 확인하고 Assistant가 근거 표를 가리지 않게 합니다.",
+    commandKo: "발생 중인 경고를 확인하고 어시스턴트가 근거 표를 가리지 않게 합니다.",
     evidenceView: "alerts"
   },
   {
@@ -146,7 +146,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Observe", "Dashboards"],
     breadcrumbKo: ["관측", "대시보드"],
     command: "Return to the OpsLens operations dashboard and triage queue.",
-    commandKo: "OpsLens 운영 대시보드와 triage queue로 이동합니다."
+    commandKo: "OpsLens 운영 대시보드와 분류 대기열로 이동합니다."
   },
   {
     id: "metrics",
@@ -170,7 +170,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Observe", "Logs"],
     breadcrumbKo: ["관측", "로그"],
     command: "Switch the evidence pane to pod logs before asking for a plan.",
-    commandKo: "계획 요청 전에 근거 패널을 pod log로 전환합니다.",
+    commandKo: "계획 요청 전에 근거 패널을 Pod 로그로 전환합니다.",
     evidenceView: "logs"
   },
   {
@@ -263,7 +263,7 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     breadcrumb: ["Cywell", "OpsBrain"],
     breadcrumbKo: ["Cywell", "OpsBrain"],
     command: "Open the no-fine-tuning growth loop: memory, evaluator, risk gate, and required keys.",
-    commandKo: "파인튜닝 없는 성장 루프, memory, evaluator, risk gate, 필수 key를 엽니다."
+    commandKo: "파인튜닝 없는 성장 루프, 메모리, 평가기, 위험 게이트, 필수 키를 엽니다."
   }
 ];
 

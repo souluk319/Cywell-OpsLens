@@ -186,9 +186,21 @@ expectCheck(
     appSource.includes("<OcpResourceExplorer") &&
     appSource.includes("<OpsLensAdminDashboard language={language}") &&
     appSource.includes("language={language}") &&
+    assistantSource.includes("연결 확인 중") &&
+    assistantSource.includes("동작 모드") &&
+    assistantSource.includes("contextChipLabels") &&
+    assistantSource.includes("공식 문서") &&
+    assistantSource.includes("내부 실행 문서") &&
+    assistantSource.includes("네임스페이스") &&
+    assistantSource.includes("필터") &&
+    evidenceSource.includes("컨텍스트 발행 데이터") &&
     evidenceSource.includes("const evidenceCopy") &&
     overviewSource.includes("const overviewCopy") &&
+    overviewSource.includes("콘솔형 실시간 개요") &&
+    overviewSource.includes("실제 OCP 연결") &&
     dashboardSource.includes("const dashboardCopy") &&
+    dashboardSource.includes("활성 장애 대기열") &&
+    dashboardSource.includes("오래된 근거") &&
     explorerSource.includes("const explorerCopy") &&
     explorerSource.includes("실시간 OpenShift API") &&
     explorerSource.includes("대체 응답") &&
@@ -213,12 +225,23 @@ expectCheck(
 
 expectCheck(
   "customer-facing Korean shell copy",
-  appSource.includes("CRC 실습 환경 미리보기") &&
+    appSource.includes("CRC 실습 환경 미리보기") &&
     appSource.includes("로컬 검증 시나리오 / 회사 OCP 변경 없음") &&
     appSource.includes("미리보기 화면") &&
     appSource.includes("계획 수립 흐름만 엽니다") &&
     appSource.includes("진행 중인 장애 대기열") &&
+    appSource.includes("분류 대기열") &&
+    appSource.includes("필수 키") &&
     appSource.includes("읽기 전용 탐색기를 파드와 배포 중심으로 설정합니다.") &&
+    !appSource.includes("발생 중인 alert") &&
+    !appSource.includes("Assistant가") &&
+    !appSource.includes("triage queue로") &&
+    !appSource.includes("근거 패널을 pod log") &&
+    !appSource.includes("필수 key") &&
+    !assistantSource.includes("assistant 닫기") &&
+    !evidenceSource.includes("컨텍스트 발행 payload") &&
+    !overviewSource.includes("콘솔형 live overview") &&
+    !dashboardSource.includes("활성 incident queue") &&
     !appSource.includes("로컬 fixture 시나리오") &&
     !appSource.includes("회사 OCP mutation 없음") &&
     !appSource.includes("미리보기 shell") &&

@@ -487,6 +487,25 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
   - `소유자와 하위 리소스`
   - no `fallback` or `Owner References` text in the visible explorer section.
 
+### 2026-06-17 - Lane 18
+
+- Polished the customer-facing KO surface for the primary dashboard, evidence pane, console overview, and Assistant status fields.
+- Replaced visible mixed-language labels in KO mode, including:
+  - `콘솔형 live overview` -> `콘솔형 실시간 개요`
+  - `live OCP` -> `실제 OCP 연결`
+  - `활성 incident queue` -> `활성 장애 대기열`
+  - `컨텍스트 발행 payload` -> `컨텍스트 발행 데이터`
+  - `assistant 닫기` -> `어시스턴트 닫기`
+  - `fallback/loading/actionMode/high/medium/low/trustLevel` status chips -> localized display labels where they are UI labels rather than raw evidence.
+  - Assistant context chip labels and evidence types such as `Cluster`, `Namespace`, `official-doc`, and `internal-runbook` -> localized display labels while preserving the source values.
+- Protected the copy in `npm run verify:web-shell`.
+- Browser DOM verification in KO mode showed:
+  - `콘솔형 실시간 개요`
+  - `활성 장애 대기열`
+  - `컨텍스트 발행 데이터`
+  - no `콘솔형 live overview`, `활성 incident queue`, or `컨텍스트 발행 payload` in the visible primary shell.
+- Remaining gap: backend evidence payloads can still contain English diagnostic phrases such as `previous pod logs`. Those are evidence content, not static shell labels; a later lane should add a reviewed evidence-text display dictionary rather than hiding raw evidence.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

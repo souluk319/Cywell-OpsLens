@@ -40,16 +40,19 @@ const dashboardCopy = {
     modelHealth: "Model Health",
     route: "Route",
     provider: "Provider",
-    latency: "Latency"
+    latency: "Latency",
+    riskUpgrade: "upgrade",
+    riskCrashLoop: "crashloop",
+    riskStorage: "storage"
   },
   ko: {
     breadcrumb: "관리자 / 관측 / Cywell OpsLens",
     title: "운영 대시보드",
     summary: "클러스터 요약",
-    critical: "critical",
+    critical: "긴급",
     firing: "발생 중",
-    staleSource: "오래된 소스",
-    activeIncidentQueue: "활성 incident queue",
+    staleSource: "오래된 근거",
+    activeIncidentQueue: "활성 장애 대기열",
     severitySorted: "심각도순",
     clusterHealth: "클러스터 상태",
     operators: "Operator",
@@ -57,18 +60,42 @@ const dashboardCopy = {
     nodes: "노드",
     readyNodes: "12개 정상",
     workloads: "워크로드",
-    crashloopWorkloads: "4개 crashloop",
+    crashloopWorkloads: "4개 CrashLoop",
     riskRadar: "리스크 레이더",
     riskRadarLabel: "리스크 레이더",
     recentChanges: "최근 변경",
     knowledgeHealth: "지식 상태",
     citation: "인용",
     modelHealth: "모델 상태",
-    route: "Route",
-    provider: "Provider",
-    latency: "Latency"
+    route: "경로",
+    provider: "제공자",
+    latency: "지연 시간",
+    riskUpgrade: "업그레이드",
+    riskCrashLoop: "CrashLoop",
+    riskStorage: "스토리지"
   }
 } as const;
+
+const freshnessLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    fresh: "fresh",
+    stale: "stale",
+    missing: "missing"
+  },
+  ko: {
+    fresh: "최신",
+    stale: "오래됨",
+    missing: "없음"
+  }
+};
+
+function localizedLabel(
+  labels: Record<UiLanguage, Record<string, string>>,
+  language: UiLanguage,
+  value: string
+) {
+  return labels[language][value] ?? value;
+}
 
 export function OperationsDashboard({ dashboard, language }: OperationsDashboardProps) {
   const copy = dashboardCopy[language];
@@ -155,13 +182,13 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           </div>
           <div className="radar-bars" aria-label={copy.riskRadarLabel}>
             <span style={{ "--bar": "78%" } as CSSProperties}>
-              upgrade
+              {copy.riskUpgrade}
             </span>
             <span style={{ "--bar": "61%" } as CSSProperties}>
-              crashloop
+              {copy.riskCrashLoop}
             </span>
             <span style={{ "--bar": "44%" } as CSSProperties}>
-              storage
+              {copy.riskStorage}
             </span>
           </div>
         </article>
@@ -193,7 +220,7 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
             {dashboard.knowledgeSources.map((source) => (
               <div className="source-row" key={source.id}>
                 <span className={`freshness ${source.freshness}`}>
-                  {source.freshness}
+                  {localizedLabel(freshnessLabels, language, source.freshness)}
                 </span>
                 <strong>{source.name}</strong>
                 <small>

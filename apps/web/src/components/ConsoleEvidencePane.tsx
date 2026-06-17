@@ -47,11 +47,47 @@ const evidenceCopy = {
     count: "건수",
     status: "상태",
     duration: "지속 시간",
-    contextPayload: "컨텍스트 발행 payload",
+    contextPayload: "컨텍스트 발행 데이터",
     podLogs: "Pod 로그",
     yamlLabel: "ClusterVersion YAML"
   }
 } as const;
+
+const severityLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    critical: "critical",
+    warning: "warning",
+    info: "info",
+    success: "success"
+  },
+  ko: {
+    critical: "긴급",
+    warning: "경고",
+    info: "정보",
+    success: "정상"
+  }
+};
+
+const statusLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    firing: "firing",
+    investigating: "investigating",
+    watching: "watching"
+  },
+  ko: {
+    firing: "발생 중",
+    investigating: "확인 중",
+    watching: "관찰 중"
+  }
+};
+
+function localizedLabel(
+  labels: Record<UiLanguage, Record<string, string>>,
+  language: UiLanguage,
+  value: string
+) {
+  return labels[language][value] ?? value;
+}
 
 const logLines = [
   "2026-06-12T03:11:42Z previous container exited with code 1",
@@ -159,12 +195,12 @@ export function ConsoleEvidencePane({
                       </td>
                       <td>
                         <span className={`severity-chip ${risk.severity}`}>
-                          {risk.severity}
+                          {localizedLabel(severityLabels, language, risk.severity)}
                         </span>
                       </td>
                       <td>{risk.affected}</td>
                       <td>{risk.count}</td>
-                      <td>{risk.status}</td>
+                      <td>{localizedLabel(statusLabels, language, risk.status)}</td>
                       <td>{risk.duration}</td>
                     </tr>
                   ))}

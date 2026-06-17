@@ -14,6 +14,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the masthead now shows the install/apply flow: OperatorHub installs the Operator, OpsLensInstallation applies the product, ConsolePlugin provides the route
 - the OCP Coverage Matrix now follows the same KO/EN toggle as the rest of the shell
 - the OCP Resource Explorer Korean surface now avoids leftover developer English for fallback/RBAC/owner relationship states
+- the primary dashboard, evidence pane, console overview, and Assistant status/context fields now avoid customer-visible mixed Korean/English labels such as `live overview`, `incident queue`, `payload`, raw `fallback/loading` UI status chips, and English context chip labels
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes
@@ -156,6 +157,7 @@ That sample intentionally uses:
 | vLLM not suitable for CRC demo yet | external image/mirror/runtime evidence gap | keep CRC lightweight profile, mirror/runtime review later |
 | pgvector restricted SCC issue | default pgvector image wants filesystem permissions restricted SCC blocks | keep in-memory profile for demo or design a secure supported Postgres profile |
 | native OpenShift Lightspeed drawer not rebranded | OpenShift-owned console surface | keep OpsLens as route/plugin mod unless a verified console-extension lane is approved |
+| dynamic evidence text still partly English | backend/read-only evidence payloads preserve raw diagnostic phrases such as pod-log failure context | add a reviewed display dictionary for evidence phrases without hiding raw evidence |
 | final release/certification | external registry/security/certification evidence not complete | do not claim certified readiness |
 
 ## Do Not Do
