@@ -797,6 +797,59 @@ function buildCommandPlan(state) {
   return { readOnly, humanSetup, approvalGated, next };
 }
 
+function buildMachineRolePlan(state, commandPlan) {
+  const workstationCommandIds = commandPlan.readOnly
+    .filter((command) => command.where.includes("company workstation"))
+    .map((command) => command.id);
+  const labHostReadOnlyCommandIds = commandPlan.readOnly
+    .filter((command) => command.where.includes("home Windows lab"))
+    .map((command) => command.id);
+  const approvalGatedCommandIds = commandPlan.approvalGated.map(
+    (command) => command.id
+  );
+  const missingTags = portableImages.filter(
+    (tag) => !(state.imageTar.repoTags ?? []).includes(tag)
+  );
+  const transferReady =
+    state.imageTar.exists === true &&
+    state.imageTar.sizeLooksValid !== false &&
+    missingTags.length === 0;
+
+  return {
+    workstation: {
+      role: "repo-workstation",
+      description:
+        "Build and verify Cywell OpsLens artifacts from this repository; do not touch OpenShift cluster state.",
+      firstCommandId: commandPlan.next.id,
+      firstCommand: commandPlan.next.command,
+      commandIds: workstationCommandIds,
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false
+    },
+    transfer: {
+      role: "portable-image-transfer",
+      artifactPath: resolve(options.imageTar),
+      ready: transferReady,
+      missingTags,
+      commandTemplate:
+        "copy test-results/cywell-opslens-crc-images.tar to the dedicated CRC lab host, then docker load it there",
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false
+    },
+    labHost: {
+      role: "dedicated-crc-lab-host",
+      description:
+        "Run CRC/OCP read-only checks against the personal lab target before any approval-gated project, registry, install, or OLSConfig action.",
+      firstReadOnlyCommandId: labHostReadOnlyCommandIds[0] ?? "none",
+      readOnlyCommandIds: labHostReadOnlyCommandIds,
+      approvalGatedCommandIds,
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false,
+      companyOcpUsed: false
+    }
+  };
+}
+
 function statusFor(state) {
   if (!state.git.clean) return "NEEDS_CLEAN_WORKTREE";
   if (!state.tools.git.available || !state.tools.node.available || !state.tools.npm.available) return "NEEDS_TOOLING";
@@ -853,6 +906,20 @@ async function writeMarkdown(path, report) {
     "```powershell",
     report.commandPlan.next.command,
     "```",
+    "",
+    "## Machine Role Plan",
+    "",
+    `- Workstation role: ${report.machineRolePlan.workstation.role}`,
+    `- Workstation first command: ${report.machineRolePlan.workstation.firstCommandId} -> ${report.machineRolePlan.workstation.firstCommand}`,
+    `- Workstation commands: ${report.machineRolePlan.workstation.commandIds.join(", ") || "none"}`,
+    `- Transfer artifact ready: ${String(report.machineRolePlan.transfer.ready)}`,
+    `- Transfer missing tags: ${report.machineRolePlan.transfer.missingTags.join(", ") || "none"}`,
+    `- Transfer command template: ${report.machineRolePlan.transfer.commandTemplate}`,
+    `- Lab host role: ${report.machineRolePlan.labHost.role}`,
+    `- Lab host first read-only command: ${report.machineRolePlan.labHost.firstReadOnlyCommandId}`,
+    `- Lab host read-only commands: ${report.machineRolePlan.labHost.readOnlyCommandIds.join(", ") || "none"}`,
+    `- Lab host approval-gated commands: ${report.machineRolePlan.labHost.approvalGatedCommandIds.join(", ") || "none"}`,
+    `- Company OCP used: ${String(report.machineRolePlan.labHost.companyOcpUsed)}`,
     "",
     "## What Is Ready",
     "",
@@ -985,6 +1052,27 @@ const state = {
   ocpClassification
 };
 const commandPlan = buildCommandPlan(state);
+const machineRolePlan = buildMachineRolePlan(state, commandPlan);
+if (
+  machineRolePlan.workstation.firstCommandId &&
+  machineRolePlan.transfer.clusterMutationAllowed === false &&
+  machineRolePlan.transfer.registryMutationAllowed === false &&
+  machineRolePlan.labHost.companyOcpUsed === false &&
+  machineRolePlan.labHost.clusterMutationAllowed === false &&
+  machineRolePlan.labHost.registryMutationAllowed === false &&
+  machineRolePlan.labHost.approvalGatedCommandIds.length ===
+    commandPlan.approvalGated.length
+) {
+  pass(
+    "lab bootstrap machine role plan",
+    `workstation=${machineRolePlan.workstation.firstCommandId} transferReady=${String(machineRolePlan.transfer.ready)} labHostFirst=${machineRolePlan.labHost.firstReadOnlyCommandId}`
+  );
+} else {
+  fail(
+    "lab bootstrap machine role plan",
+    "machine role plan must separate workstation, transfer, lab host, and disabled mutation boundaries"
+  );
+}
 const status = statusFor(state);
 const mode = options.labMachine ? "lab-machine" : "remote-prep";
 const currentJudgment =
@@ -1039,6 +1127,7 @@ const report = {
   sources,
   registryTrapMatrix: registryTrapMatrix(),
   commandPlan,
+  machineRolePlan,
   currentJudgment,
   checks
 };

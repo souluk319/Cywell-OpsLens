@@ -2067,6 +2067,34 @@ export interface OpsLensLabBootstrapSummary {
   readOnlyCommands: OpsLensLabCommandSummary[];
   humanSetupCommands: OpsLensLabCommandSummary[];
   approvalGatedCommands: OpsLensLabCommandSummary[];
+  machineRolePlan: {
+    workstation: {
+      role: string;
+      firstCommandId: string;
+      firstCommand: string;
+      commandIds: string[];
+      clusterMutationAllowed: boolean;
+      registryMutationAllowed: boolean;
+    };
+    transfer: {
+      role: string;
+      artifactPath: string;
+      ready: boolean;
+      missingTags: string[];
+      commandTemplate: string;
+      clusterMutationAllowed: boolean;
+      registryMutationAllowed: boolean;
+    };
+    labHost: {
+      role: string;
+      firstReadOnlyCommandId: string;
+      readOnlyCommandIds: string[];
+      approvalGatedCommandIds: string[];
+      clusterMutationAllowed: boolean;
+      registryMutationAllowed: boolean;
+      companyOcpUsed: boolean;
+    };
+  };
   mutationBoundary: {
     clusterMutationAttempted: boolean;
     registryMutationAttempted: boolean;

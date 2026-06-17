@@ -9773,6 +9773,7 @@ type LabBootstrapEvidenceArtifact = {
     approvalGated?: LabCommandEvidence[];
     next?: LabCommandEvidence;
   };
+  machineRolePlan?: OpsLensLabBootstrapSummary["machineRolePlan"];
   mutationBoundary?: {
     clusterMutationAttempted?: boolean;
     registryMutationAttempted?: boolean;
@@ -9931,6 +9932,69 @@ function labHandoffMachineRolePlanFallback(
   };
 }
 
+function normalizeLabBootstrapMachineRolePlan(
+  plan: OpsLensLabBootstrapSummary["machineRolePlan"] | undefined,
+  nextCommand: OpsLensLabCommandSummary,
+  readOnlyCommands: OpsLensLabCommandSummary[],
+  approvalGatedCommands: OpsLensLabCommandSummary[],
+  imageTar: { exists: boolean; missingTags?: string[] }
+): OpsLensLabBootstrapSummary["machineRolePlan"] {
+  const fallbackArtifactPath = labBootstrapEvidencePath().replace(
+    /cywell-opslens-lab-bootstrap-plan\.json$/u,
+    "cywell-opslens-crc-images.tar"
+  );
+  const missingTags = plan?.transfer?.missingTags ?? imageTar.missingTags ?? [];
+  return {
+    workstation: {
+      role: plan?.workstation?.role ?? "repo-workstation",
+      firstCommandId:
+        plan?.workstation?.firstCommandId ?? nextCommand.id ?? "unknown",
+      firstCommand:
+        plan?.workstation?.firstCommand ?? nextCommand.command ?? "unknown",
+      commandIds:
+        plan?.workstation?.commandIds ??
+        readOnlyCommands
+          .filter((command) => command.where.includes("company workstation"))
+          .map((command) => command.id),
+      clusterMutationAllowed:
+        plan?.workstation?.clusterMutationAllowed === true,
+      registryMutationAllowed:
+        plan?.workstation?.registryMutationAllowed === true
+    },
+    transfer: {
+      role: plan?.transfer?.role ?? "portable-image-transfer",
+      artifactPath: plan?.transfer?.artifactPath ?? fallbackArtifactPath,
+      ready: plan?.transfer?.ready ?? (imageTar.exists && missingTags.length === 0),
+      missingTags,
+      commandTemplate:
+        plan?.transfer?.commandTemplate ??
+        "copy test-results/cywell-opslens-crc-images.tar to the dedicated CRC lab host, then docker load it there",
+      clusterMutationAllowed: plan?.transfer?.clusterMutationAllowed === true,
+      registryMutationAllowed: plan?.transfer?.registryMutationAllowed === true
+    },
+    labHost: {
+      role: plan?.labHost?.role ?? "dedicated-crc-lab-host",
+      firstReadOnlyCommandId:
+        plan?.labHost?.firstReadOnlyCommandId ??
+        readOnlyCommands.find((command) =>
+          command.where.includes("home Windows lab")
+        )?.id ??
+        "none",
+      readOnlyCommandIds:
+        plan?.labHost?.readOnlyCommandIds ??
+        readOnlyCommands
+          .filter((command) => command.where.includes("home Windows lab"))
+          .map((command) => command.id),
+      approvalGatedCommandIds:
+        plan?.labHost?.approvalGatedCommandIds ??
+        approvalGatedCommands.map((command) => command.id),
+      clusterMutationAllowed: plan?.labHost?.clusterMutationAllowed === true,
+      registryMutationAllowed: plan?.labHost?.registryMutationAllowed === true,
+      companyOcpUsed: plan?.labHost?.companyOcpUsed === true
+    }
+  };
+}
+
 function missingLabBootstrapSummary(
   reason: string,
   status: OpsLensLabBootstrapReadiness = "needs-evidence"
@@ -9978,6 +10042,18 @@ function missingLabBootstrapSummary(
     readOnlyCommands: [],
     humanSetupCommands: [],
     approvalGatedCommands: [],
+    machineRolePlan: normalizeLabBootstrapMachineRolePlan(
+      undefined,
+      mapLabCommand(undefined, {
+        id: "generate-lab-bootstrap",
+        command: "npm run verify:lab-bootstrap",
+        phase: "local-self-check",
+        purpose: "Generate lab bootstrap evidence before CRC install rehearsal."
+      }),
+      [],
+      [],
+      { exists: false, missingTags: [] }
+    ),
     mutationBoundary: {
       clusterMutationAttempted: false,
       registryMutationAttempted: false,
@@ -10033,6 +10109,11 @@ function getLabBootstrapReadiness(): {
     const approvalGatedCommands = (artifact.commandPlan?.approvalGated ?? []).map(
       (command) => mapLabCommand(command, { requiresExplicitApproval: true })
     );
+    const nextCommand = mapLabCommand(artifact.commandPlan?.next, {
+      id: "lab-bootstrap-next",
+      command: "npm run verify:lab-bootstrap",
+      phase: "local-self-check"
+    });
     const plan: OpsLensLabBootstrapSummary = {
       status,
       artifactStatus: artifact.status ?? "unknown",
@@ -10081,14 +10162,20 @@ function getLabBootstrapReadiness(): {
         allOwnedCatalogReady:
           artifact.imageRefPlan?.allOwnedCatalogReady === true
       },
-      nextCommand: mapLabCommand(artifact.commandPlan?.next, {
-        id: "lab-bootstrap-next",
-        command: "npm run verify:lab-bootstrap",
-        phase: "local-self-check"
-      }),
+      nextCommand,
       readOnlyCommands,
       humanSetupCommands,
       approvalGatedCommands,
+      machineRolePlan: normalizeLabBootstrapMachineRolePlan(
+        artifact.machineRolePlan,
+        nextCommand,
+        readOnlyCommands,
+        approvalGatedCommands,
+        {
+          exists: artifact.imageTar?.exists === true,
+          missingTags: artifact.machineRolePlan?.transfer?.missingTags ?? []
+        }
+      ),
       mutationBoundary: {
         clusterMutationAttempted:
           artifact.mutationBoundary?.clusterMutationAttempted === true,
@@ -10116,6 +10203,7 @@ function getLabBootstrapReadiness(): {
         `lab bootstrap head=${plan.headSha} dirty=${String(plan.worktreeDirty)} tier=${plan.labTier}`,
         `lab capacity cpu=${plan.machine.cpuCount}/${plan.machine.minCpuCores} ram=${plan.machine.ramGb}/${plan.machine.minRamGb} gpuCandidate=${String(plan.gpuRuntimeCandidate)}`,
         `lab next=${plan.nextCommand.id}:${plan.nextCommand.command}`,
+        `lab bootstrap machine roles workstation=${plan.machineRolePlan.workstation.role}:${plan.machineRolePlan.workstation.firstCommandId} transferReady=${String(plan.machineRolePlan.transfer.ready)} labHost=${plan.machineRolePlan.labHost.role}:${plan.machineRolePlan.labHost.firstReadOnlyCommandId} companyOcpUsed=${String(plan.machineRolePlan.labHost.companyOcpUsed)}`,
         `lab mutations cluster=${String(plan.mutationBoundary.clusterMutationAttempted)} registry=${String(plan.mutationBoundary.registryMutationAttempted)} allowed=${String(plan.mutationBoundary.mutationAllowedByThisVerifier)}`,
         "admin overview reads lab bootstrap evidence only; it does not create projects, push images, apply manifests, or patch OLSConfig"
       ]

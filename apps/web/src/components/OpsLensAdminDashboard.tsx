@@ -4868,6 +4868,36 @@ export function OpsLensAdminDashboard() {
                 data-testid="opslens-lab-machine-role-plan"
               >
                 <span>
+                  bootstrapWorkstation=
+                  {labBootstrapPlan.machineRolePlan.workstation.role}:
+                  {labBootstrapPlan.machineRolePlan.workstation.firstCommandId}
+                </span>
+                <span>
+                  bootstrapTransfer=
+                  {labBootstrapPlan.machineRolePlan.transfer.role}:ready=
+                  {String(labBootstrapPlan.machineRolePlan.transfer.ready)}
+                </span>
+                <span>
+                  bootstrapMissing=
+                  {labBootstrapPlan.machineRolePlan.transfer.missingTags.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
+                  bootstrapLabHost=
+                  {labBootstrapPlan.machineRolePlan.labHost.role}:first=
+                  {
+                    labBootstrapPlan.machineRolePlan.labHost
+                      .firstReadOnlyCommandId
+                  }
+                </span>
+                <span>
+                  bootstrapApproval=
+                  {labBootstrapPlan.machineRolePlan.labHost.approvalGatedCommandIds.join(
+                    ","
+                  ) || "none"}
+                </span>
+                <span>
                   workstation=
                   {labHandoffPlan.machineRolePlan.workstation.role}:
                   {labHandoffPlan.machineRolePlan.workstation.firstCommandId}
