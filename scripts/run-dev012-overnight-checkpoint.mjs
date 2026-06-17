@@ -52,7 +52,8 @@ const steps = [
   npmStep("lab-image-map", ["verify:lab-image-map"]),
   npmStep("lab-bootstrap", ["verify:lab-bootstrap"]),
   npmStep("crc-demo-readiness", ["verify:crc-demo-readiness"]),
-  npmStep("lab-handoff", ["verify:lab-handoff"])
+  npmStep("lab-handoff", ["verify:lab-handoff"]),
+  npmStep("dev012-handoff", ["verify:dev012-handoff"])
 ];
 
 function parseArgs(argv) {

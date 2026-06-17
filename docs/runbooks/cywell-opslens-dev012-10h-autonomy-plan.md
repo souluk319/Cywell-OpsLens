@@ -26,6 +26,7 @@ The overnight loop must keep the product moving toward a credible OpenShift Cons
 | Operator reconcile behavior is protected | `npm run verify:operator:reconcile` | reconcile verifier output | Live CRC may still require explicit dev overrides for external runtime components. |
 | CRC demo path is still first-class | `npm run verify:crc-demo-readiness` | `test-results/cywell-opslens-crc-demo-readiness.md` | Generated CRC catalog context must publish `cywell-opslens-operator.v0.1.2` with `v0.1.2-dev-crc`; Route-backed entrypoint must stay visible in `oc get opslensinstallation` status and live Route evidence remains separate from local evidence. |
 | Handoff is readable after sleep/commute | `npm run overnight:checkpoint` | `test-results/cywell-opslens-dev012-overnight-checkpoint.md` | If Mac sleeps, reconnect becomes the first morning action. |
+| Handoff freshness is protected | `npm run verify:dev012-handoff` | `test-results/cywell-opslens-dev012-handoff-readiness.json` | The 10-hour autonomy plan, morning handoff, overnight lane log, and AC-UI-007 proxy evidence must stay aligned and local and non-mutating. |
 
 ## Execution Lanes
 
@@ -114,6 +115,7 @@ Validation:
 
 - `npm run overnight:checkpoint`
 - `git status --short --branch`
+- `npm run verify:dev012-handoff`
 
 ## Automated Loop
 
@@ -135,6 +137,7 @@ It runs these gates every 30 minutes for 20 iterations:
 8. `npm run verify:lab-bootstrap`
 9. `npm run verify:crc-demo-readiness`
 10. `npm run verify:lab-handoff`
+11. `npm run verify:dev012-handoff`
 
 Output:
 

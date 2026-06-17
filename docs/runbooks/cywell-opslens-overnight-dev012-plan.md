@@ -1052,6 +1052,16 @@ Checkpoint cadence:
   - `npm run verify:console-plugin`
   - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-007"`
 
+### 2026-06-18 - Lane 86
+
+- Added a handoff freshness verifier for the unattended window.
+- `npm run verify:dev012-handoff` checks that the 10-hour autonomy plan, morning handoff, overnight lane log, acceptance criteria, web-shell verifier, and AC-UI-007 Playwright test agree on the installed ConsolePlugin/UserToken proxy contract.
+- The verifier also checks route-backed smoke commands and scans the handoff docs for token/secret assignment patterns, keeping this lane local and non-mutating.
+- The overnight checkpoint now runs 11/11 local gates by adding `dev012-handoff` after `lab-handoff`.
+- Protected with:
+  - `npm run verify:dev012-handoff`
+  - `npm run overnight:checkpoint`
+
 ## Current Known State
 
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
@@ -1059,9 +1069,9 @@ Checkpoint cadence:
 - feature branch head at plan creation: `cf791e1`
 - feature branch latest pushed head before Lane 77: `6834383`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 78: PASS, 51 checks
+- latest web shell verifier after Lane 85: PASS, 54 checks, including installed ConsolePlugin proxy-mode AC-UI-007 coverage
 - latest assistant smoke browser check after Lane 78: PASS, `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, `클러스터 변경: 차단`
-- latest overnight checkpoint after Lane 79: writes morning decision, step totals, safe entrypoints, and blocked actions in both JSON and Markdown
+- latest overnight checkpoint after Lane 86: writes morning decision, step totals, safe entrypoints, blocked actions, CRC demo readiness, and handoff freshness in both JSON and Markdown
 - 10-hour autonomy plan: `docs/runbooks/cywell-opslens-dev012-10h-autonomy-plan.md`
 - latest operator runtime verifier after Lane 81: PASS, 88 checks, including dashboard Route parity and CRC lightweight stale runtime cleanup parity
 - latest web shell verifier after Lane 82: PASS, 51 checks, including route-backed CRC install signal copy

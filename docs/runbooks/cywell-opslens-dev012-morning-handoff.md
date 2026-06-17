@@ -67,6 +67,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the masthead API status chip is localized instead of showing raw `loading/ready/fallback` state values in Korean mode
 - the KO/EN shell test now covers every left navigation section, every left navigation item, the active breadcrumb, command feedback, and the KOMSCO Assistant, so language switching cannot leave only part of the console shell translated
 - the installed ConsolePlugin preview path now has a dedicated Playwright contract proving `surface=console-plugin` plus the plugin API base shows ConsolePlugin mode, UserToken proxy routing, the proxied action-plan endpoint, and read-only/plan-only Assistant boundary in both English and Korean
+- the 10-hour autonomy handoff is now protected by `npm run verify:dev012-handoff`, so the plan, morning handoff, overnight lane log, AC-UI-007 proxy test, route-backed smoke commands, and secret hygiene are checked as a local evidence packet
 - the OpsLens Admin Lightspeed/MCP card now uses customer-facing labels for routing score, response score, read-only tools, selected tool, redaction, mutation boundary, live readiness, network readiness, and next command instead of raw developer `key=value` fragments
 - the Assistant now keeps the raw API error as evidence but adds a KO/EN interpretation for disconnected routes, missing endpoints, auth/RBAC rejection, and API service failures
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
@@ -178,14 +179,15 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 51 checks after the Assistant smoke, release/action queue, external runtime review, security scan, certification, community submission, external runtime plan, owned provenance, release publish, install approval, catalog toolchain, and lab readiness label lanes |
+| `npm run verify:web-shell` | PASS | 0 fail, 54 checks after the installed ConsolePlugin proxy-mode lane; includes AC-UI-007 coverage for `surface=console-plugin`, UserToken proxy routing, and read-only/plan-only Assistant copy |
 | `npm run -w @kugnus/web build` | PASS | TypeScript, Vite, and ConsolePlugin bundle completed after the Assistant smoke lane |
 | `npx playwright test -g "AC-UI-004\\|AC-CTX-001"` | PASS | KO/EN shell and Assistant smoke card render; context sync/action plan API are ready and cluster mutation is blocked |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN shell now shows the route-backed CRC install signal and 19443 as port-forward fallback |
 | in-app browser smoke | PASS | Assistant popover showed `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, and `클러스터 변경: 차단` |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
 | `npm run verify:crc-demo-readiness` | PASS | 0 fail, 0 warn, 14 checks; writes JSON and Markdown evidence for OperatorHub first example, lightweight sample, UI copy, handoff commands, and arm64 tar alignment |
-| `npm run overnight:checkpoint` | PASS | latest clean checkpoint after Lane 77 passed 10/10 local gates on a clean worktree; evidence includes start/finish Git state and CRC demo readiness |
+| `npm run verify:dev012-handoff` | PASS | 0 fail; verifies the 10-hour autonomy plan, morning handoff, overnight lane log, AC-UI-007 proxy evidence, route-backed smoke commands, and secret hygiene |
+| `npm run overnight:checkpoint` | PASS | latest clean checkpoint after Lane 86 passes 11/11 local gates on a clean worktree; evidence includes start/finish Git state, CRC demo readiness, and handoff freshness |
 | `npx playwright test -g "AC-UI-005"` | PASS | Masthead utilities, evidence tabs, and evidence Ask buttons click through to visible state changes |
 | `npx playwright test -g "AC-CTX-001"` | PASS | Assistant context sync now expects `API connected` plus `API connected / plan-only`, and visible cluster context says `CRC preview` |
 | `npx playwright test -g "AC-UI-006"` | PASS | Korean left navigation click-through covers all console navigation items |
