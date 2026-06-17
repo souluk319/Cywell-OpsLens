@@ -832,6 +832,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The KO/EN masthead now tells the operator to use the `CRC lightweight` example first, before the `oc get opslensinstallation,deploy,pod,svc` readiness check.
 - `npm run verify:web-shell` and `AC-UI-004` now check this copy so the UI stays aligned with the OperatorHub package contract.
 
+### 2026-06-18 - Lane 59
+
+- Added `npm run verify:crc-demo-readiness`.
+- The new local-only verifier ties together the first OperatorHub `alm-examples` entry, CRC lightweight sample, owned-image-first relatedImages, UI first-choice copy, handoff commands, and the arm64 CRC transfer tar.
+- Added this verifier to `npm run overnight:checkpoint`, so the 10-hour loop now checks the actual return-to-CRC demo path instead of only the broader lab/bootstrap packets.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -846,7 +852,7 @@ Checkpoint cadence:
 - feature branch latest pushed head after Lane 54: `a19209f`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
 - latest web shell verifier after Lane 55: PASS, 37 checks
-- latest overnight checkpoint after Lane 55: PASS, 9/9 local gates, structured Git state stamped
+- latest overnight checkpoint after Lane 59: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

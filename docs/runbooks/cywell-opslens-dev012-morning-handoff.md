@@ -52,6 +52,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the Assistant now keeps the raw API error as evidence but adds a KO/EN interpretation for disconnected routes, missing endpoints, auth/RBAC rejection, and API service failures
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
 - the overnight checkpoint evidence now stamps start/finish branch, head, worktree dirty flag, dirty entry count, and dirty entries so a green loop can be audited against the actual Git state
+- the overnight checkpoint now includes `npm run verify:crc-demo-readiness`, which checks the CRC lightweight OperatorHub path, UI first-choice copy, handoff commands, and arm64 transfer tar as one local evidence packet
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - the Operator status path no longer reports `OpsLensInstallation Ready` before required API/dashboard/vector/model workloads are observed as ready; unready required workloads keep the CR in `Installing`
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes
@@ -137,7 +138,8 @@ Latest non-mutating checks:
 | --- | --- | --- |
 | `npm run verify:web-shell` | PASS | 0 fail, 37 checks after the Assistant ask execution path lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 55; evidence includes start/finish Git state |
+| `npm run verify:crc-demo-readiness` | PASS | 0 fail, 0 warn, 14 checks; OperatorHub first example, lightweight sample, UI copy, handoff commands, and arm64 tar are aligned |
+| `npm run overnight:checkpoint` | PASS | 10/10 local checkpoint gates passed after Lane 59; evidence includes start/finish Git state and CRC demo readiness |
 | `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Assistant ask execution path lane |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, access path, CRC install signal, post-install smoke path, readiness command labels, navigation, Assistant labels, integration contract, ask execution path, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
