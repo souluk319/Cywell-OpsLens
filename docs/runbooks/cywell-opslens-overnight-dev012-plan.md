@@ -926,6 +926,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Runtime images, evidence templates, draft intake, mirror commands, and first plan actions now use KO/EN labels instead of raw fragments such as `registryMutationAttempted=`, `clusterMutationAttempted=`, `mutationAllowedByThisVerifier=`, `draft=`, `templates missing`, `drafts missing`, `:mutation=`, `:approval=`, or `:next=`.
 - Added a `verify:web-shell` gate so the external runtime plan section cannot drift back to raw developer labels, while preserving runtime image and mirror command IDs as evidence identifiers.
 
+### 2026-06-18 - Lane 74
+
+- Polished the owned image provenance card in OpsLens Admin.
+- The card now has an explicit KO/EN title and shows registry mutation, cluster mutation, verifier mutation allowance, required images, local inspect status, and remaining evidence with labels instead of raw fragments such as `mutationAllowedByThisVerifier=`.
+- Added a `verify:web-shell` gate so the owned image provenance section cannot drift back to raw developer labels, while preserving image IDs and local inspect evidence.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -937,9 +943,9 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head before Lane 73: `6d7867b`
+- feature branch latest pushed head before Lane 74: `3537ef5`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 73: PASS, 46 checks
+- latest web shell verifier after Lane 74: PASS, 47 checks
 - latest overnight checkpoint after Lane 70: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation

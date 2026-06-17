@@ -7858,10 +7858,16 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               className="install-approval-summary"
               data-testid="opslens-owned-image-provenance"
             >
+              <div className="card-title-row compact">
+                <div>
+                  <h4>{copy.ownedProvenance}</h4>
+                  <small>
+                    {actionModeText(language, ownedImageProvenancePlan.actionMode)}
+                  </small>
+                </div>
+                <Download size={18} aria-hidden="true" />
+              </div>
               <div className="admin-evidence-line">
-                <span>
-                  {actionModeText(language, ownedImageProvenancePlan.actionMode)}
-                </span>
                 <span>
                   {copy.registryMutationAttempted}:{" "}
                   {booleanText(
@@ -7877,8 +7883,11 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   )}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(ownedImageProvenancePlan.mutationAllowedByThisVerifier)}
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(
+                    language,
+                    ownedImageProvenancePlan.mutationAllowedByThisVerifier
+                  )}
                 </span>
               </div>
               <div className="approval-summary-grid">
@@ -7897,7 +7906,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                       ? ownedImageProvenancePlan.images
                           .map(
                             (image) =>
-                              `${image.name}:${statusText(language, image.status)}`
+                              `${image.name}: ${statusText(language, image.status)}`
                           )
                           .join(", ")
                       : copy.blockedUntilEvidenceExists}

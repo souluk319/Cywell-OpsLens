@@ -98,6 +98,11 @@ const securityScanSource = sourceSection(
   'data-testid="opslens-security-scan-plan"',
   'data-testid="opslens-owned-image-provenance"'
 );
+const ownedImageProvenanceSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-owned-image-provenance"',
+  'data-testid="opslens-release-publish-plan"'
+);
 const certificationReadinessSource = sourceSection(
   adminSource,
   'data-testid="opslens-certification-readiness"',
@@ -928,6 +933,24 @@ expectCheck(
     !externalRuntimePlanSource.includes(":next=") &&
     !externalRuntimePlanSource.includes("firstPlanActions=missing"),
   "External runtime plan rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized owned image provenance labels",
+  ownedImageProvenanceSource.includes("copy.ownedProvenance") &&
+    ownedImageProvenanceSource.includes("actionModeText(language, ownedImageProvenancePlan.actionMode)") &&
+    ownedImageProvenanceSource.includes("copy.requiredImages") &&
+    ownedImageProvenanceSource.includes("copy.localInspect") &&
+    ownedImageProvenanceSource.includes("copy.remainingEvidence") &&
+    ownedImageProvenanceSource.includes("copy.mutationByVerifier") &&
+    !ownedImageProvenanceSource.includes("{ownedImageProvenancePlan.actionMode}") &&
+    !ownedImageProvenanceSource.includes("registryMutationAttempted=") &&
+    !ownedImageProvenanceSource.includes("clusterMutationAttempted=") &&
+    !ownedImageProvenanceSource.includes("mutationAllowedByThisVerifier=") &&
+    !ownedImageProvenanceSource.includes("<span>Required Images</span>") &&
+    !ownedImageProvenanceSource.includes("<span>Local Inspect</span>") &&
+    !ownedImageProvenanceSource.includes("<span>Missing Evidence</span>"),
+  "Owned image provenance rows use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(
