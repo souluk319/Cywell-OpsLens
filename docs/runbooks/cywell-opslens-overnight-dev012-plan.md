@@ -621,6 +621,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The detail fallback now uses language-owned transition copy instead of hardcoded `to`.
 - `npm run verify:web-shell` now rejects the old `requestedApiVersion} to` pattern.
 
+### 2026-06-18 - Lane 29
+
+- Localized OCP Coverage Diagnostic finding status chips for KO mode.
+- The UI now renders `정상`, `주의`, `위험`, `근거 없음`, `건너뜀`, and `오류` instead of raw `ok`, `warning`, `critical`, `missing`, `skipped`, or `error` chips.
+- Raw diagnostic labels, messages, and evidence remain intact for traceability.
+- `npm run verify:web-shell` protects the diagnostic status display-map contract.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

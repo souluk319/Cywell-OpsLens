@@ -4,6 +4,7 @@ import type {
   OcpCoverageGapType,
   OcpCoverageListStatus,
   OcpCoverageMatrixResponse,
+  OcpDiagnosticFindingStatus,
   OcpResourceCoverageEntry
 } from "@kugnus/contracts";
 import { useEffect, useMemo, useState } from "react";
@@ -184,6 +185,25 @@ const scopeLabels = {
     namespace: "네임스페이스"
   }
 } satisfies Record<UiLanguage, Record<OcpResourceCoverageEntry["scope"], string>>;
+
+const diagnosticStatusLabels = {
+  en: {
+    ok: "ok",
+    warning: "warning",
+    critical: "critical",
+    missing: "missing",
+    skipped: "skipped",
+    error: "error"
+  },
+  ko: {
+    ok: "정상",
+    warning: "주의",
+    critical: "위험",
+    missing: "근거 없음",
+    skipped: "건너뜀",
+    error: "오류"
+  }
+} satisfies Record<UiLanguage, Record<OcpDiagnosticFindingStatus, string>>;
 
 const statusOrder: Record<OcpCoverageListStatus, number> = {
   error: 0,
@@ -509,7 +529,7 @@ export function OcpCoverageMatrix({ language }: OcpCoverageMatrixProps) {
               {diagnostic.findings.map((item) => (
                 <div className="diagnostic-finding" key={item.id}>
                   <span className={`status-pill ${item.status === "ok" ? "ready" : item.status === "skipped" || item.status === "missing" ? "read-only" : "danger"}`}>
-                    {item.status}
+                    {diagnosticStatusLabels[language][item.status]}
                   </span>
                   <strong>{item.label}</strong>
                   <p>{item.message}</p>

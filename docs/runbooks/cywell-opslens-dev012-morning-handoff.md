@@ -14,6 +14,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the masthead now shows the install/apply flow: OperatorHub installs the Operator, OpsLensInstallation applies the product, ConsolePlugin provides the route
 - the OCP Coverage Matrix now follows the same KO/EN toggle as the rest of the shell
 - the OCP Coverage Matrix now localizes scope/status/gap chips instead of showing raw enum text like `policy-blocked`, `not-probed`, or `all-namespaces` in KO mode
+- the OCP Coverage Diagnostic status chips now localize `ok/warning/critical/missing/skipped/error` without rewriting raw evidence
 - the OCP Resource Explorer Korean surface now avoids leftover developer English for fallback/RBAC/owner relationship states
 - the OCP Resource Explorer detail fallback chip no longer hardcodes English `to` in KO mode
 - the primary dashboard, evidence pane, console overview, and Assistant status/context fields now avoid customer-visible mixed Korean/English labels such as `live overview`, `incident queue`, `payload`, raw `fallback/loading` UI status chips, and English context chip labels
@@ -79,7 +80,7 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 12 checks after the OCP Resource Explorer fallback wording lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 12 checks after the OCP Coverage Diagnostic status-label lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
 | `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 28 |
 | `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Resource Explorer fallback wording lane |

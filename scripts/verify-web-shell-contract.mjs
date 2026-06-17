@@ -245,11 +245,14 @@ expectCheck(
     coverageSource.includes("const listStatusLabels") &&
     coverageSource.includes("const detailStatusLabels") &&
     coverageSource.includes("const scopeLabels") &&
+    coverageSource.includes("const diagnosticStatusLabels") &&
     coverageSource.includes("변환 웹훅 오류") &&
     coverageSource.includes("모든 네임스페이스") &&
     coverageSource.includes("권한 거부") &&
+    coverageSource.includes("근거 없음") &&
     coverageSource.includes("gapTypeLabels[language][entry.gap.type]") &&
     coverageSource.includes("scopeLabels[language][entry.scope]") &&
+    coverageSource.includes("diagnosticStatusLabels[language][item.status]") &&
     coverageSource.includes("범위 행을 선택하면 읽기 전용 진단 근거를 확인합니다.") &&
     adminSource.includes("const adminCopy") &&
     adminSource.includes("우회 명령 방어 점검") &&
