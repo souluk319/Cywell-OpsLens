@@ -59,6 +59,66 @@ function percentText(value: number | undefined) {
   return typeof value === "number" ? `${Math.round(value * 100)}%` : "--";
 }
 
+function booleanText(language: UiLanguage, value: boolean | undefined) {
+  if (typeof value !== "boolean") return "--";
+  if (language === "ko") return value ? "예" : "아니오";
+  return value ? "yes" : "no";
+}
+
+function statusText(language: UiLanguage, status: string | undefined) {
+  if (!status) return language === "ko" ? "근거 필요" : "needs evidence";
+
+  const labels: Record<UiLanguage, Record<string, string>> = {
+    en: {
+      "needs-evidence": "needs evidence",
+      "needs-configuration": "needs configuration",
+      "needs-live-evidence": "needs live evidence",
+      "needs-live-check": "needs live check",
+      "approval-required": "approval required",
+      "ready-for-live-registration-review": "ready for live registration review",
+      "ready-for-handoff": "ready for handoff",
+      "live-ready": "live ready",
+      ready: "ready",
+      pass: "pass",
+      planned: "planned"
+    },
+    ko: {
+      "needs-evidence": "근거 필요",
+      "needs-configuration": "설정 필요",
+      "needs-live-evidence": "실시간 근거 필요",
+      "needs-live-check": "실시간 확인 필요",
+      "approval-required": "승인 필요",
+      "ready-for-live-registration-review": "실시간 등록 검토 준비",
+      "ready-for-handoff": "인계 준비",
+      "live-ready": "실시간 준비 완료",
+      ready: "준비됨",
+      pass: "통과",
+      planned: "계획됨"
+    }
+  };
+
+  return labels[language][status] ?? status;
+}
+
+function actionModeText(language: UiLanguage, mode: string | undefined) {
+  if (!mode) return "--";
+  const labels: Record<UiLanguage, Record<string, string>> = {
+    en: {
+      readOnly: "read-only",
+      planOnly: "plan-only",
+      ValidateOnly: "validate-only",
+      PatchOLSConfig: "patch OLSConfig"
+    },
+    ko: {
+      readOnly: "읽기 전용",
+      planOnly: "계획 전용",
+      ValidateOnly: "검증 전용",
+      PatchOLSConfig: "OLSConfig 패치"
+    }
+  };
+  return labels[language][mode] ?? mode;
+}
+
 function statusClass(status: string) {
   if (
     status === "indexed" ||
@@ -167,7 +227,35 @@ const adminCopy = {
     rejectQueuedEvidence: "Reject queued RAG evidence",
     planRagIngestionJob: "Plan RAG ingestion job",
     tokenUsage: "Token Usage",
-    lightspeedMcpTools: "Lightspeed MCP Tools"
+    lightspeedMcpTools: "Lightspeed MCP Tools",
+    tools: "tools",
+    endpoint: "endpoint",
+    readOnlyTools: "read-only tools",
+    blockedTool: "blocked tool",
+    routingScore: "routing score",
+    routingStatus: "routing status",
+    responseScore: "response score",
+    threshold: "threshold",
+    head: "head",
+    trojanHorseCheck: "Trojan horse check",
+    selectedTool: "selected tool",
+    citations: "citations",
+    redaction: "redaction",
+    mutationAllowed: "mutation allowed",
+    handoffMode: "handoff mode",
+    handoffStatus: "handoff status",
+    artifact: "artifact",
+    liveReadiness: "live readiness",
+    network: "network",
+    templateReady: "template ready",
+    clusterMutationAttempted: "cluster mutation attempted",
+    approvalGated: "approval-gated",
+    readOnlyCommands: "read-only commands",
+    gatedCommands: "gated commands",
+    nextCommand: "next command",
+    toolMode: "mode",
+    category: "category",
+    dashboardSurface: "surface"
   },
   ko: {
     adminTitle: "관리 대시보드",
@@ -212,7 +300,35 @@ const adminCopy = {
     rejectQueuedEvidence: "대기 중인 RAG 근거 반려",
     planRagIngestionJob: "RAG 적재 작업 계획",
     tokenUsage: "토큰 사용량",
-    lightspeedMcpTools: "Lightspeed MCP 도구"
+    lightspeedMcpTools: "Lightspeed MCP 도구",
+    tools: "도구",
+    endpoint: "엔드포인트",
+    readOnlyTools: "읽기 전용 도구",
+    blockedTool: "차단 도구",
+    routingScore: "라우팅 점수",
+    routingStatus: "라우팅 상태",
+    responseScore: "응답 점수",
+    threshold: "기준값",
+    head: "HEAD",
+    trojanHorseCheck: "우회 명령 방어 점검",
+    selectedTool: "선택 도구",
+    citations: "인용",
+    redaction: "비식별 처리",
+    mutationAllowed: "변경 허용",
+    handoffMode: "인계 모드",
+    handoffStatus: "인계 상태",
+    artifact: "산출물",
+    liveReadiness: "실시간 준비도",
+    network: "네트워크",
+    templateReady: "템플릿 준비",
+    clusterMutationAttempted: "클러스터 변경 시도",
+    approvalGated: "승인 필요 항목",
+    readOnlyCommands: "읽기 전용 명령",
+    gatedCommands: "승인 필요 명령",
+    nextCommand: "다음 명령",
+    toolMode: "모드",
+    category: "분류",
+    dashboardSurface: "화면"
   }
 } satisfies Record<UiLanguage, Record<string, string>>;
 
@@ -1308,39 +1424,60 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             <ShieldCheck size={18} aria-hidden="true" />
           </div>
           <div className="admin-evidence-line">
-            <span>{numberText(lightspeedMcp?.toolCount)} tools</span>
-            <span>{lightspeedMcp?.endpoint ?? "/mcp"}</span>
-            <span>readOnly={numberText(lightspeedMcp?.readOnlyCount)}</span>
-            <span>apply_remediation excluded</span>
+            <span>
+              {copy.tools}: {numberText(lightspeedMcp?.toolCount)}
+            </span>
+            <span>
+              {copy.endpoint}: {lightspeedMcp?.endpoint ?? "/mcp"}
+            </span>
+            <span>
+              {copy.readOnlyTools}: {numberText(lightspeedMcp?.readOnlyCount)}
+            </span>
+            <span>{copy.blockedTool}: apply_remediation</span>
             <span data-testid="opslens-lightspeed-routing-score">
-              routing={numberText(lightspeedMcp?.routing?.selectedPasses)}/
+              {copy.routingScore}: {numberText(lightspeedMcp?.routing?.selectedPasses)}/
               {numberText(lightspeedMcp?.routing?.total)}
             </span>
           </div>
           <div className="admin-evidence-line">
-            <span>{lightspeedMcp?.routing?.status ?? "needs-evidence"}</span>
             <span>
-              responses={numberText(lightspeedMcp?.routing?.responsePasses)}/
+              {copy.routingStatus}:{" "}
+              {statusText(language, lightspeedMcp?.routing?.status)}
+            </span>
+            <span>
+              {copy.responseScore}: {numberText(lightspeedMcp?.routing?.responsePasses)}/
               {numberText(lightspeedMcp?.routing?.total)}
             </span>
-            <span>threshold={numberText(lightspeedMcp?.routing?.threshold)}</span>
-            <span>head={lightspeedMcp?.routing?.headSha ?? "missing"}</span>
+            <span>
+              {copy.threshold}: {numberText(lightspeedMcp?.routing?.threshold)}
+            </span>
+            <span>
+              {copy.head}: {lightspeedMcp?.routing?.headSha ?? "missing"}
+            </span>
           </div>
           <div
             className="admin-evidence-line"
             data-testid="opslens-lightspeed-trojan-horse"
           >
-            <span>{lightspeedMcp?.trojanHorse.status ?? "needs-evidence"}</span>
-            <span>tool={lightspeedMcp?.trojanHorse.selectedTool ?? "missing"}</span>
             <span>
-              citations={numberText(lightspeedMcp?.trojanHorse.citationCount)}
+              {copy.trojanHorseCheck}:{" "}
+              {statusText(language, lightspeedMcp?.trojanHorse.status)}
             </span>
             <span>
-              redaction={String(lightspeedMcp?.trojanHorse.redactionPassed)}
+              {copy.selectedTool}:{" "}
+              {lightspeedMcp?.trojanHorse.selectedTool ?? "missing"}
             </span>
             <span>
-              mutationAllowed=
-              {String(lightspeedMcp?.trojanHorse.mutationAllowed)}
+              {copy.citations}:{" "}
+              {numberText(lightspeedMcp?.trojanHorse.citationCount)}
+            </span>
+            <span>
+              {copy.redaction}:{" "}
+              {booleanText(language, lightspeedMcp?.trojanHorse.redactionPassed)}
+            </span>
+            <span>
+              {copy.mutationAllowed}:{" "}
+              {booleanText(language, lightspeedMcp?.trojanHorse.mutationAllowed)}
             </span>
           </div>
           {lightspeedMcp?.integrationHandoff ? (
@@ -1349,30 +1486,48 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-lightspeed-integration-handoff"
             >
               <div className="admin-evidence-line">
-                <span>{lightspeedMcp.integrationHandoff.actionMode}</span>
-                <span>{lightspeedMcp.integrationHandoff.status}</span>
                 <span>
-                  artifact={lightspeedMcp.integrationHandoff.artifactStatus}
+                  {copy.handoffMode}:{" "}
+                  {actionModeText(language, lightspeedMcp.integrationHandoff.actionMode)}
                 </span>
                 <span>
-                  live={lightspeedMcp.integrationHandoff.liveReadiness.classification}
+                  {copy.handoffStatus}:{" "}
+                  {statusText(language, lightspeedMcp.integrationHandoff.status)}
                 </span>
                 <span>
-                  network=
-                  {lightspeedMcp.integrationHandoff.liveReadiness.networkClassification}
+                  {copy.artifact}:{" "}
+                  {statusText(language, lightspeedMcp.integrationHandoff.artifactStatus)}
                 </span>
                 <span>
-                  templateReady=
-                  {String(lightspeedMcp.integrationHandoff.olsconfig.templateReady)}
+                  {copy.liveReadiness}:{" "}
+                  {statusText(
+                    language,
+                    lightspeedMcp.integrationHandoff.liveReadiness.classification
+                  )}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(
+                  {copy.network}:{" "}
+                  {statusText(
+                    language,
+                    lightspeedMcp.integrationHandoff.liveReadiness.networkClassification
+                  )}
+                </span>
+                <span>
+                  {copy.templateReady}:{" "}
+                  {booleanText(
+                    language,
+                    lightspeedMcp.integrationHandoff.olsconfig.templateReady
+                  )}
+                </span>
+                <span>
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
                     lightspeedMcp.integrationHandoff.clusterMutationAttempted
                   )}
                 </span>
                 <span>
-                  approvalGated=
+                  {copy.approvalGated}:{" "}
                   {numberText(
                     lightspeedMcp.integrationHandoff.approvalGatedCommands.length
                   )}
@@ -1383,19 +1538,19 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-lightspeed-integration-handoff-commands"
               >
                 <span>
-                  readOnly=
+                  {copy.readOnlyCommands}:{" "}
                   {numberText(
                     lightspeedMcp.integrationHandoff.readOnlyCommands.length
                   )}
                 </span>
                 <span>
-                  gated=
+                  {copy.gatedCommands}:{" "}
                   {numberText(
                     lightspeedMcp.integrationHandoff.approvalGatedCommands.length
                   )}
                 </span>
                 <span>
-                  next=
+                  {copy.nextCommand}:{" "}
                   {lightspeedMcp.integrationHandoff.liveReadiness.nextCommand}
                 </span>
               </div>
@@ -1413,11 +1568,15 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                     tool.actionMode === "planOnly" ? "stale" : "fresh"
                   }`}
                 >
-                  {tool.actionMode}
+                  {actionModeText(language, tool.actionMode)}
                 </span>
                 <strong>{tool.name}</strong>
-                <small>{tool.category}</small>
-                <small>{tool.dashboardSurface}</small>
+                <small>
+                  {copy.category}: {tool.category}
+                </small>
+                <small>
+                  {copy.dashboardSurface}: {tool.dashboardSurface}
+                </small>
               </div>
             ))}
           </div>

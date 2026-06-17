@@ -222,7 +222,14 @@ expectCheck(
     coverageSource.includes("const coverageCopy") &&
     coverageSource.includes("OCP 읽기 범위 매트릭스") &&
     coverageSource.includes("범위 행을 선택하면 읽기 전용 진단 근거를 확인합니다.") &&
-    adminSource.includes("const adminCopy"),
+    adminSource.includes("const adminCopy") &&
+    adminSource.includes("우회 명령 방어 점검") &&
+    adminSource.includes("라우팅 점수") &&
+    adminSource.includes("읽기 전용 도구") &&
+    adminSource.includes("실시간 준비도") &&
+    adminSource.includes("클러스터 변경 시도") &&
+    adminSource.includes("actionModeText(language, tool.actionMode)") &&
+    adminSource.includes("booleanText(language, lightspeedMcp?.trojanHorse.mutationAllowed)"),
   "primary console panels, coverage matrix, admin dashboard, and the resource explorer receive the selected language and own bilingual copy"
 );
 

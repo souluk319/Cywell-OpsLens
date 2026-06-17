@@ -539,6 +539,17 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Localized the masthead API status chip so KO mode shows `API 연결 확인 중`, `API 연결됨`, or `API 로컬 대체 응답` instead of raw `API loading/ready/fallback`.
 - Protected the connection decision card and localized API chip contract in `npm run verify:web-shell`.
 
+### 2026-06-18 - Lane 21
+
+- Polished the OpsLens Admin Lightspeed/MCP card so customer-visible KO mode no longer leads with developer log fragments like `readOnly=`, `routing=`, `responses=`, or `mutationAllowed=`.
+- Added shared display helpers for:
+  - status values such as `needs-evidence`, `ready`, and `live-ready`
+  - boolean values such as redaction and mutation permission
+  - action modes such as `readOnly`, `planOnly`, and `ValidateOnly`
+- The Lightspeed section now uses explicit labels for routing score, response score, read-only tools, selected tool, redaction, mutation boundary, live readiness, network, template readiness, and next command.
+- Raw evidence values such as tool names, endpoint paths, head SHA, and next command remain visible because they are operational evidence, not UI chrome.
+- Protected the localized Lightspeed/MCP admin contract in `npm run verify:web-shell`.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
