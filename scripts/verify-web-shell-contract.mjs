@@ -261,11 +261,16 @@ expectCheck(
     adminSource.includes("실시간 준비도") &&
     adminSource.includes("클러스터 변경 시도") &&
     adminSource.includes("설치 준비도") &&
+    adminSource.includes("모니터링 프록시") &&
+    adminSource.includes("수락된 알림") &&
     adminSource.includes("어시스턴트 변경 허용") &&
     adminSource.includes("남은 근거") &&
     adminSource.includes("copy.installReadiness") &&
     adminSource.includes("copy.ownedProvenance") &&
     adminSource.includes("copy.authRbacPlan") &&
+    adminSource.includes("copy.monitoringProxy") &&
+    adminSource.includes("copy.acceptedAlerts") &&
+    adminSource.includes("copy.rawAlertReturned") &&
     adminSource.includes("copy.currentGap") &&
     adminSource.includes("copy.requiredImages") &&
     adminSource.includes("copy.localInspect") &&
@@ -297,6 +302,21 @@ expectCheck(
     adminSource.includes("id: \"owned-provenance\"") &&
     adminSource.includes("id: \"auth-rbac-plan\""),
   "Admin install readiness grid uses stable ids plus bilingual labels instead of English object keys"
+);
+
+expectCheck(
+  "localized aiops intake labels",
+  !adminSource.includes("<h3>Incident Metrics</h3>") &&
+    !adminSource.includes("<h3>AI Ops Pipeline</h3>") &&
+    !adminSource.includes("<span>Monitoring Proxy</span>") &&
+    !adminSource.includes("<span>Alertmanager</span>") &&
+    !adminSource.includes("accepted={alertmanagerIntake") &&
+    !adminSource.includes("rawAlertReturned=") &&
+    !adminSource.includes("missingQueries=") &&
+    !adminSource.includes("<span>Live Smoke</span>") &&
+    !adminSource.includes("<span>Selected Pod</span>") &&
+    adminSource.includes("copy.metricSamples"),
+  "Admin AI Ops and Alertmanager summary labels use bilingual copy instead of raw key/value UI labels"
 );
 
 expectCheck(

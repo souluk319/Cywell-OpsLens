@@ -141,6 +141,7 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
   const labels: Record<UiLanguage, Record<string, string>> = {
     en: {
       readOnly: "read-only",
+      readOnlyEvidenceOnly: "read-only evidence",
       planOnly: "plan-only",
       handoffOnly: "handoff only",
       ValidateOnly: "validate-only",
@@ -148,6 +149,7 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
     },
     ko: {
       readOnly: "읽기 전용",
+      readOnlyEvidenceOnly: "읽기 전용 근거",
       planOnly: "계획 전용",
       handoffOnly: "인계 전용",
       ValidateOnly: "검증 전용",
@@ -294,6 +296,25 @@ const adminCopy = {
     toolMode: "mode",
     category: "category",
     dashboardSurface: "surface",
+    incidentMetrics: "Incident Metrics",
+    liveSmoke: "live smoke",
+    selectedPod: "selected pod",
+    monitoringProxy: "Monitoring Proxy",
+    enabled: "enabled",
+    reachable: "reachable",
+    approvalRequired: "approval required",
+    missingQueries: "missing queries",
+    ticket: "ticket",
+    firstAction: "first action",
+    approvalAction: "approval action",
+    requiresApproval: "requires approval",
+    alertmanager: "Alertmanager",
+    acceptedAlerts: "accepted alerts",
+    rawAlertReturned: "raw alert returned",
+    vectorWriteAttempted: "vector write attempted",
+    ingestionJobCreated: "ingestion job created",
+    triggerEvidence: "trigger evidence",
+    metricSamples: "samples",
     installReadiness: "Install Readiness",
     lightspeedMcp: "Lightspeed MCP",
     environment: "environment",
@@ -419,6 +440,25 @@ const adminCopy = {
     toolMode: "모드",
     category: "분류",
     dashboardSurface: "화면",
+    incidentMetrics: "장애 지표",
+    liveSmoke: "실시간 스모크",
+    selectedPod: "선택된 Pod",
+    monitoringProxy: "모니터링 프록시",
+    enabled: "활성화",
+    reachable: "연결 가능",
+    approvalRequired: "승인 필요",
+    missingQueries: "누락 쿼리",
+    ticket: "티켓",
+    firstAction: "첫 작업",
+    approvalAction: "승인 작업",
+    requiresApproval: "승인 필요",
+    alertmanager: "Alertmanager",
+    acceptedAlerts: "수락된 알림",
+    rawAlertReturned: "원본 알림 반환",
+    vectorWriteAttempted: "벡터 쓰기 시도",
+    ingestionJobCreated: "적재 작업 생성",
+    triggerEvidence: "트리거 근거",
+    metricSamples: "샘플",
     installReadiness: "설치 준비도",
     lightspeedMcp: "Lightspeed MCP",
     environment: "환경 격리",
@@ -1894,17 +1934,19 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
           data-testid="opslens-incident-metrics"
         >
           <div className="card-title-row">
-            <h3>Incident Metrics</h3>
+            <h3>{copy.incidentMetrics}</h3>
             <Gauge size={18} aria-hidden="true" />
           </div>
           <div className="metric-query-list">
             {metricQueries?.map((query) => (
               <div className="metric-query-row" key={`${query.name}-${query.query}`}>
                 <span className={`freshness ${statusClass(query.status)}`}>
-                  {query.status}
+                  {statusText(language, query.status)}
                 </span>
                 <strong>{query.name}</strong>
-                <small>{query.sampleCount} samples</small>
+                <small>
+                  {query.sampleCount} {copy.metricSamples}
+                </small>
               </div>
             ))}
           </div>
@@ -1988,30 +2030,35 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
           data-testid="opslens-aiops-pipeline"
         >
           <div className="card-title-row">
-            <h3>AI Ops Pipeline</h3>
+            <h3>{copy.aiOpsPipeline}</h3>
             <ListChecks size={18} aria-hidden="true" />
           </div>
           <div className="readiness-grid">
             <div>
-              <span>Status</span>
+              <span>{copy.status}</span>
               <strong
                 className={`freshness ${statusClass(
                   aiopsPipeline?.status ?? "needs-live-evidence"
                 )}`}
               >
-                {aiopsPipeline?.status ?? "needs-live-evidence"}
+                {statusText(
+                  language,
+                  aiopsPipeline?.status ?? "needs-live-evidence"
+                )}
               </strong>
             </div>
             <div>
-              <span>Live Smoke</span>
-              <strong>{aiopsPipeline?.liveSmokeStatus ?? "missing"}</strong>
+              <span>{copy.liveSmoke}</span>
+              <strong>
+                {statusText(language, aiopsPipeline?.liveSmokeStatus ?? "missing")}
+              </strong>
             </div>
             <div>
-              <span>Head</span>
+              <span>{copy.head}</span>
               <strong>{aiopsPipeline?.headSha ?? "missing"}</strong>
             </div>
             <div>
-              <span>Selected Pod</span>
+              <span>{copy.selectedPod}</span>
               <strong>
                 {aiopsPipeline?.selectedPod
                   ? `${aiopsPipeline.selectedPod.namespace}/${aiopsPipeline.selectedPod.name}`
@@ -2023,22 +2070,27 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             className="admin-evidence-line"
             data-testid="opslens-aiops-pipeline-evidence"
           >
-            <span>{aiopsPipeline?.actionMode ?? "readOnlyEvidenceOnly"}</span>
             <span>
-              clusterMutationAttempted=
-              {String(aiopsPipeline?.clusterMutationAttempted ?? false)}
+              {actionModeText(
+                language,
+                aiopsPipeline?.actionMode ?? "readOnlyEvidenceOnly"
+              )}
             </span>
             <span>
-              vectorWriteAttempted=
-              {String(aiopsPipeline?.vectorWriteAttempted ?? false)}
+              {copy.clusterMutationAttempted}:{" "}
+              {booleanText(language, aiopsPipeline?.clusterMutationAttempted ?? false)}
             </span>
             <span>
-              ingestionJobCreated=
-              {String(aiopsPipeline?.ingestionJobCreated ?? false)}
+              {copy.vectorWriteAttempted}:{" "}
+              {booleanText(language, aiopsPipeline?.vectorWriteAttempted ?? false)}
+            </span>
+            <span>
+              {copy.ingestionJobCreated}:{" "}
+              {booleanText(language, aiopsPipeline?.ingestionJobCreated ?? false)}
             </span>
             <span>verify:aiops</span>
             <span>
-              triggerEvidence=
+              {copy.triggerEvidence}:{" "}
               {(aiopsPipeline?.triggerEvidenceRequired ?? []).join("/")}
             </span>
           </div>
@@ -2046,22 +2098,35 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             className="admin-evidence-line"
             data-testid="opslens-aiops-monitoring-proxy-handoff"
           >
-            <span>Monitoring Proxy</span>
-            <span>{monitoringProxyHandoff?.actionMode ?? "handoffOnly"}</span>
-            <span>status={monitoringProxyHandoff?.status ?? "needs-evidence"}</span>
+            <span>{copy.monitoringProxy}</span>
+            <span>
+              {actionModeText(
+                language,
+                monitoringProxyHandoff?.actionMode ?? "handoffOnly"
+              )}
+            </span>
+            <span>
+              {copy.status}:{" "}
+              {statusText(
+                language,
+                monitoringProxyHandoff?.status ?? "needs-evidence"
+              )}
+            </span>
             <span>owner={monitoringProxyHandoff?.owner ?? "cluster-sre"}</span>
             <span>
-              enabled={String(monitoringProxyHandoff?.enabled ?? false)}
+              {copy.enabled}:{" "}
+              {booleanText(language, monitoringProxyHandoff?.enabled ?? false)}
             </span>
             <span>
-              reachable={String(monitoringProxyHandoff?.reachable ?? false)}
+              {copy.reachable}:{" "}
+              {booleanText(language, monitoringProxyHandoff?.reachable ?? false)}
             </span>
             <span>
-              approvalRequired=
-              {String(monitoringProxyHandoff?.approvalRequired ?? true)}
+              {copy.approvalRequired}:{" "}
+              {booleanText(language, monitoringProxyHandoff?.approvalRequired ?? true)}
             </span>
             <span>
-              missingQueries=
+              {copy.missingQueries}:{" "}
               {(monitoringProxyHandoff?.missingQueries ?? []).length}
             </span>
             <span>
@@ -2071,7 +2136,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               )}
             </span>
             <span>
-              ticket=
+              {copy.ticket}:{" "}
               {monitoringProxyHandoff?.ticketPacket?.id ??
                 "cluster-sre-monitoring-proxy-ticket"}
             </span>
@@ -2087,18 +2152,19 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </span>
             ))}
             <span>
-              first=
+              {copy.firstAction}:{" "}
               {monitoringProxyHandoff?.ticketPacket?.firstReadOnlyAction.id ??
                 "aiops-monitoring-proxy-smoke"}
             </span>
             <span>
-              approval=
+              {copy.approvalAction}:{" "}
               {monitoringProxyHandoff?.ticketPacket?.approvalGatedAction.id ??
                 "approval-gated-enable-monitoring-proxy-path"}
             </span>
             <span>
-              requiresApproval=
-              {String(
+              {copy.requiresApproval}:{" "}
+              {booleanText(
+                language,
                 monitoringProxyHandoff?.ticketPacket?.approvalGatedAction
                   .requiresExplicitApproval ?? true
               )}
@@ -2108,36 +2174,41 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             className="admin-evidence-line"
             data-testid="opslens-alertmanager-intake"
           >
-            <span>Alertmanager</span>
+            <span>{copy.alertmanager}</span>
             <span>
               {alertmanagerIntake?.artifactType ??
                 "opslens.alertmanager-incident-intake.v0.1"}
             </span>
             <span>
-              accepted={alertmanagerIntake?.acceptedCount ?? 0}/
+              {copy.acceptedAlerts}: {alertmanagerIntake?.acceptedCount ?? 0}/
               {alertmanagerIntake?.alertCount ?? 0}
             </span>
             <span>
-              rawAlertReturned=
-              {String(alertmanagerIntake?.rawAlertReturned ?? false)}
+              {copy.rawAlertReturned}:{" "}
+              {booleanText(language, alertmanagerIntake?.rawAlertReturned ?? false)}
             </span>
             <span>
-              clusterMutationAttempted=
-              {String(alertmanagerIntake?.clusterMutationAttempted ?? false)}
+              {copy.clusterMutationAttempted}:{" "}
+              {booleanText(
+                language,
+                alertmanagerIntake?.clusterMutationAttempted ?? false
+              )}
             </span>
             <span>
-              mutationAllowed=
-              {String(alertmanagerIntake?.mutationAllowed ?? false)}
+              {copy.mutationAllowed}:{" "}
+              {booleanText(language, alertmanagerIntake?.mutationAllowed ?? false)}
             </span>
           </div>
           <div className="metric-query-list">
             {aiopsPipeline?.metricQueries.map((query) => (
               <div className="metric-query-row" key={query.name}>
                 <span className={`freshness ${statusClass(query.status)}`}>
-                  {query.status}
+                  {statusText(language, query.status)}
                 </span>
                 <strong>{query.name}</strong>
-                <small>{query.sampleCount} samples</small>
+                <small>
+                  {query.sampleCount} {copy.metricSamples}
+                </small>
               </div>
             ))}
           </div>
