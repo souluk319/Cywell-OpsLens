@@ -304,6 +304,21 @@ expectCheck(
 );
 
 expectCheck(
+  "localized dynamic assistant evidence phrases",
+  assistantSource.includes("answerPhraseLabels") &&
+    assistantSource.includes('"이전 Pod 로그"') &&
+    assistantSource.includes('"사용 가능한 Pod 후보가 없음"') &&
+    assistantSource.includes('"라벨 셀렉터 없음"') &&
+    assistantSource.includes('"로그 읽음: 최근"') &&
+    assistantSource.includes('"이벤트 조회 대상"') &&
+    assistantSource.includes('"권한 거부"') &&
+    assistantSource.includes("answerPhraseLabels[language].reduce") &&
+    assistantSource.includes("text.split(source).join(replacement)") &&
+    assistantSource.includes("const exact = answerTextLabels[language][value]"),
+  "Assistant display text applies a reviewed phrase dictionary to live evidence phrases without changing raw answer data"
+);
+
+expectCheck(
   "localized admin summary labels",
   !adminSource.includes("<span>Remaining</span>") &&
     !adminSource.includes("<span>Required Images</span>") &&

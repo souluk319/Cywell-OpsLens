@@ -738,6 +738,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The UI still preserves head SHA, gate IDs, owner IDs, command IDs, evidence source IDs, and approval-gated command IDs as evidence.
 - `npm run verify:web-shell` now includes a `localized pre-cluster install gate labels` gate.
 
+### 2026-06-18 - Lane 45
+
+- Added a reviewed Assistant phrase dictionary for live/backend evidence text so KO mode can explain common diagnostic fragments without rewriting raw answer data.
+- The display path now handles repeated phrase classes such as `previous pod logs`, `pod logs`, `no pod candidate was available`, `no label selector`, `logs read for last`, `events listed for`, `Forbidden`, `Unauthorized`, `connection refused`, `timed out`, `missing evidence`, `read-only`, and `plan-only`.
+- Exact reviewed answer translations still win first; phrase replacement only applies when the live answer text has no exact display translation.
+- `npm run verify:web-shell` now includes a `localized dynamic assistant evidence phrases` gate.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -751,8 +758,8 @@ Checkpoint cadence:
 - feature branch head at plan creation: `cf791e1`
 - feature branch latest pushed head after Lane 43: `de4d0be`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 44: PASS, 26 checks
-- latest overnight checkpoint after Lane 44: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 45: PASS, 27 checks
+- latest overnight checkpoint after Lane 45: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

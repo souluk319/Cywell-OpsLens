@@ -304,6 +304,36 @@ const answerTextLabels: Record<UiLanguage, Record<string, string>> = {
   }
 };
 
+const answerPhraseLabels: Record<UiLanguage, Array<[string, string]>> = {
+  en: [],
+  ko: [
+    ["previous pod logs", "이전 Pod 로그"],
+    ["previous logs read when available", "사용 가능한 경우 이전 로그 읽음"],
+    ["pod logs", "Pod 로그"],
+    ["no pod candidate was available", "사용 가능한 Pod 후보가 없음"],
+    ["pod candidates listed with", "Pod 후보 조회"],
+    ["no label selector", "라벨 셀렉터 없음"],
+    ["labelSelector=", "라벨 셀렉터="],
+    ["logs read for last", "로그 읽음: 최근"],
+    ["events listed for", "이벤트 조회 대상"],
+    ["metric queries", "메트릭 쿼리"],
+    ["prometheus query", "Prometheus 쿼리"],
+    ["readiness probe", "readiness 점검"],
+    ["ImagePullBackOff", "ImagePullBackOff"],
+    ["CreateContainerConfigError", "CreateContainerConfigError"],
+    ["CrashLoopBackOff", "CrashLoopBackOff"],
+    ["Forbidden", "권한 거부"],
+    ["Unauthorized", "인증 실패"],
+    ["not found", "찾을 수 없음"],
+    ["connection refused", "연결 거부"],
+    ["timed out", "시간 초과"],
+    ["missing evidence", "부족한 근거"],
+    ["read-only", "읽기 전용"],
+    ["plan-only", "계획 전용"],
+    ["minutes", "분"]
+  ]
+};
+
 function localizedLabel(
   labels: Record<UiLanguage, Record<string, string>>,
   language: UiLanguage,
@@ -313,7 +343,13 @@ function localizedLabel(
 }
 
 function localizedText(language: UiLanguage, value: string) {
-  return answerTextLabels[language][value] ?? value;
+  const exact = answerTextLabels[language][value];
+  if (exact) return exact;
+
+  return answerPhraseLabels[language].reduce(
+    (text, [source, replacement]) => text.split(source).join(replacement),
+    value
+  );
 }
 
 function routeModeLabel(language: UiLanguage, mode: string) {
