@@ -826,6 +826,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The CSV must now list owned images first: `operator`, `api`, `dashboard`; external runtime images such as vLLM and pgvector remain declared but cannot become the first package signal.
 - This guards the CRC install diagnosis path where a pgvector-first related image looked like stale package evidence.
 
+### 2026-06-18 - Lane 58
+
+- Added a first-viewport CRC install profile signal to the web shell.
+- The KO/EN masthead now tells the operator to use the `CRC lightweight` example first, before the `oc get opslensinstallation,deploy,pod,svc` readiness check.
+- `npm run verify:web-shell` and `AC-UI-004` now check this copy so the UI stays aligned with the OperatorHub package contract.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

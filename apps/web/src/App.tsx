@@ -389,6 +389,7 @@ const shellCopy = {
     accessDashboardHttps: "Dashboard uses HTTPS 19443",
     accessApiProxy: "Assistant/API follows proxy mode",
     applySignalBoundary: "CRC install signal",
+    applySignalProfile: "Use CRC lightweight example first",
     applySignalCommand: "Check: oc get opslensinstallation,deploy,pod,svc",
     applySignalReady: "Ready = API/dashboard 1/1",
     applySignalStale: "Old quay.io image means stale catalog",
@@ -474,6 +475,7 @@ const shellCopy = {
     accessDashboardHttps: "대시보드는 HTTPS 19443",
     accessApiProxy: "어시스턴트/API는 프록시 모드 연동",
     applySignalBoundary: "CRC 설치 신호",
+    applySignalProfile: "CRC lightweight 예제를 먼저 선택",
     applySignalCommand: "확인: oc get opslensinstallation,deploy,pod,svc",
     applySignalReady: "Ready = API/대시보드 1/1",
     applySignalStale: "quay.io 구버전 이미지는 stale catalog",
@@ -996,6 +998,9 @@ export default function App() {
               data-testid="apply-signal-strip"
               aria-label={copy.applySignalBoundary}
             >
+              <span className="status-pill ready" data-testid="apply-signal-profile">
+                {copy.applySignalProfile}
+              </span>
               <span className="status-pill read-only" data-testid="apply-signal-command">
                 {copy.applySignalCommand}
               </span>

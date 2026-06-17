@@ -45,6 +45,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the first-viewport readiness command strip now localizes completion status, passed requirements, remaining items, next gate, and next check instead of showing raw `needs-evidence`, `남음=`, `다음=`, or `cmd=` fragments
 - the masthead now shows the demo access path: installed view uses the Console route, the forwarded dashboard uses HTTPS on 19443, and Assistant/API traffic follows the active proxy mode
 - the masthead now shows the CRC install signal: run `oc get opslensinstallation,deploy,pod,svc`, expect API/dashboard `1/1`, and treat an old `quay.io` operator image as stale catalog evidence
+- the masthead now says to choose the CRC lightweight example first, matching the OperatorHub `alm-examples` order and avoiding the pgvector/vLLM path during local demo setup
 - the masthead now shows the post-install smoke path: open the ConsolePlugin route, ask KOMSCO AI Assistant, and keep OLSConfig in `ValidateOnly` unless an explicit patch is approved
 - the masthead API status chip is localized instead of showing raw `loading/ready/fallback` state values in Korean mode
 - the OpsLens Admin Lightspeed/MCP card now uses customer-facing labels for routing score, response score, read-only tools, selected tool, redaction, mutation boundary, live readiness, network readiness, and next command instead of raw developer `key=value` fragments

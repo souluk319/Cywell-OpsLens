@@ -257,6 +257,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("access-api-proxy")).toContainText(
       "어시스턴트/API는 프록시 모드 연동"
     );
+    await expect(page.getByTestId("apply-signal-profile")).toContainText(
+      "CRC lightweight 예제를 먼저 선택"
+    );
     await expect(page.getByTestId("apply-signal-command")).toContainText(
       "확인: oc get opslensinstallation,deploy,pod,svc"
     );
@@ -390,6 +393,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("access-api-proxy")).toContainText(
       "Assistant/API follows proxy mode"
+    );
+    await expect(page.getByTestId("apply-signal-profile")).toContainText(
+      "Use CRC lightweight example first"
     );
     await expect(page.getByTestId("apply-signal-command")).toContainText(
       "Check: oc get opslensinstallation,deploy,pod,svc"
