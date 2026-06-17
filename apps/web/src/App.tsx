@@ -286,7 +286,7 @@ const shellCopy = {
     createCommand:
       "Create opened a plan-only workflow. OpsLens will not apply cluster mutations.",
     help: "Help",
-    helpCommand: "Help opened the context-aware assistant in read-only mode.",
+    helpCommand: "Help opened the KOMSCO AI Assistant in read-only mode.",
     notifications: "Notifications",
     notificationsCommand:
       "Notifications focused the active incident queue and firing alerts.",
@@ -306,6 +306,14 @@ const shellCopy = {
     closeAssistant: "Close Cywell OpsLens assistant",
     openAssistant: "Open Cywell OpsLens assistant",
     assistantTitle: "Cywell OpsLens assistant",
+    consolePluginMode: "Console plugin",
+    standaloneDevMode: "Standalone dev",
+    pluginApi: "plugin API proxy",
+    localApi: "local API path",
+    consolePluginModeTitle:
+      "OpenShift Console is hosting OpsLens through the plugin iframe and plugin API proxy.",
+    standaloneDevModeTitle:
+      "Local dev shell; OpenShift console chrome and Lightspeed drawer are not injected here.",
     opsLensStatus: "Cywell OpsLens status",
     openShiftUtilities: "OpenShift console utilities"
   },
@@ -319,7 +327,7 @@ const shellCopy = {
     createCommand:
       "생성 메뉴는 plan-only workflow만 엽니다. OpsLens는 cluster mutation을 apply하지 않습니다.",
     help: "도움말",
-    helpCommand: "도움말이 context-aware assistant를 읽기 전용 모드로 열었습니다.",
+    helpCommand: "도움말이 KOMSCO AI Assistant를 읽기 전용 모드로 열었습니다.",
     notifications: "알림",
     notificationsCommand:
       "알림이 active incident queue와 firing alert 위치로 이동했습니다.",
@@ -339,10 +347,23 @@ const shellCopy = {
     closeAssistant: "Cywell OpsLens assistant 닫기",
     openAssistant: "Cywell OpsLens assistant 열기",
     assistantTitle: "Cywell OpsLens assistant",
+    consolePluginMode: "콘솔 플러그인",
+    standaloneDevMode: "독립 개발",
+    pluginApi: "플러그인 API 프록시",
+    localApi: "로컬 API 경로",
+    consolePluginModeTitle:
+      "OpenShift 콘솔이 플러그인 iframe과 플러그인 API 프록시로 OpsLens를 호스팅 중입니다.",
+    standaloneDevModeTitle:
+      "로컬 개발 shell입니다. OpenShift 콘솔 chrome과 Lightspeed drawer는 여기에는 주입되지 않습니다.",
     opsLensStatus: "Cywell OpsLens 상태",
     openShiftUtilities: "OpenShift 콘솔 유틸리티"
   }
 } as const;
+
+interface RuntimeProfile {
+  surface: "console-plugin" | "standalone-dev";
+  apiBaseAttached: boolean;
+}
 
 function findNavigationItem(id: ConsoleNavId) {
   return (
@@ -372,6 +393,27 @@ function navBreadcrumb(item: ConsoleNavigationItem, language: UiLanguage) {
 
 function navCommand(item: ConsoleNavigationItem, language: UiLanguage) {
   return language === "ko" ? item.commandKo : item.command;
+}
+
+function readRuntimeProfile(): RuntimeProfile {
+  if (typeof window === "undefined") {
+    return {
+      surface: "standalone-dev",
+      apiBaseAttached: false
+    };
+  }
+
+  const params = new URL(window.location.href).searchParams;
+  const surface = params.get("surface");
+  const apiBase = params.get("apiBase") ?? "";
+  const pluginProxyAttached =
+    surface === "console-plugin" &&
+    apiBase.includes("/api/proxy/plugin/cywell-opslens/");
+
+  return {
+    surface: pluginProxyAttached ? "console-plugin" : "standalone-dev",
+    apiBaseAttached: Boolean(apiBase)
+  };
 }
 
 export default function App() {
@@ -509,6 +551,8 @@ export default function App() {
   const completionGate = adminOverview?.installReadiness.completionGate;
   const activeNavigation = findNavigationItem(activeNavId);
   const copy = shellCopy[language];
+  const runtimeProfile = useMemo(() => readRuntimeProfile(), []);
+  const isConsolePlugin = runtimeProfile.surface === "console-plugin";
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -656,6 +700,20 @@ export default function App() {
               data-testid="api-status"
             >
               {copy.api} {apiStatus}
+            </span>
+            <span
+              className={`status-pill ${isConsolePlugin ? "ready" : "warning"}`}
+              data-testid="runtime-surface"
+              title={
+                isConsolePlugin
+                  ? copy.consolePluginModeTitle
+                  : copy.standaloneDevModeTitle
+              }
+            >
+              {isConsolePlugin ? copy.consolePluginMode : copy.standaloneDevMode}
+            </span>
+            <span className="status-pill read-only" data-testid="api-route-mode">
+              {runtimeProfile.apiBaseAttached ? copy.pluginApi : copy.localApi}
             </span>
             <span className="status-pill read-only">
               <ShieldCheck size={15} aria-hidden="true" />
@@ -858,7 +916,10 @@ export default function App() {
             />
             <OcpConsoleOverview language={language} />
             <OcpCoverageMatrix />
-            <OcpResourceExplorer navigationPreset={resourcePreset} />
+            <OcpResourceExplorer
+              language={language}
+              navigationPreset={resourcePreset}
+            />
           </section>
         </main>
       </div>

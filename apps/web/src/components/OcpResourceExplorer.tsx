@@ -31,6 +31,7 @@ import {
   fetchOcpResourceList
 } from "../lib/api";
 import { stringify as stringifyYaml } from "yaml";
+import type { UiLanguage } from "../i18n";
 
 function scoreDefaultResource(resource: OcpApiResource) {
   if (resource.apiVersion === "v1" && resource.name === "pods") return 0;
@@ -55,7 +56,163 @@ export interface OcpResourcePreset {
 
 interface OcpResourceExplorerProps {
   navigationPreset?: OcpResourcePreset | null;
+  language: UiLanguage;
 }
+
+const explorerCopy = {
+  en: {
+    eyebrow: "Live OpenShift API",
+    title: "OCP Resource Explorer",
+    refresh: "Refresh",
+    discovering: "discovering",
+    reachable: "OCP reachable",
+    unavailable: "OCP unavailable",
+    versionUnknown: "version unknown",
+    userUnknown: "user unknown",
+    resources: "resources",
+    tlsVerify: "TLS verify",
+    apiResources: "API Resources",
+    searchApiResources: "Search API resources",
+    kind: "Kind",
+    resource: "Resource",
+    apiVersion: "API Version",
+    scope: "Scope",
+    read: "Read",
+    namespaced: "namespaced",
+    cluster: "cluster",
+    list: "list",
+    blocked: "blocked",
+    readOnlyList: "Read-only Resource List",
+    noMutateVerbs: "no mutate verbs",
+    namespace: "Namespace",
+    allNamespaces: "All namespaces",
+    labelSelector: "Label selector",
+    fieldSelector: "Field selector",
+    fullRead: "full read",
+    load: "Load",
+    readVerbs: "read verbs",
+    noListableResource: "No listable resource selected",
+    previous: "Previous",
+    next: "Next",
+    page: "Page",
+    loadingItems: "Loading resource items...",
+    name: "Name",
+    created: "Created",
+    status: "Status",
+    redacted: "redacted",
+    statusAttached: "status attached",
+    metadata: "metadata",
+    noItems: "No items returned for this scope.",
+    selectObject: "Select an item to inspect the sanitized object.",
+    objectView: "Object view",
+    objectJson: "Object JSON",
+    objectYaml: "Object YAML",
+    objectPrefix: "Object",
+    fallback: "fallback",
+    requested: "requested",
+    served: "served",
+    redactedCount: "redacted",
+    loadingObject: "Loading object detail...",
+    involvedEvents: "Involved Events",
+    events: "events",
+    loadingEvents: "Loading events...",
+    eventFallback: "Event",
+    noMessage: "No message",
+    noEvents: "No events returned for this object.",
+    selectEvents: "Select an item to inspect events.",
+    podLogs: "Pod Logs",
+    podOnly: "pod only",
+    loadingPodLogs: "Loading pod logs...",
+    noLogLines: "No log lines returned.",
+    selectPodLogs: "Select a Pod to inspect logs.",
+    relatedResources: "Related Resources",
+    owners: "owners",
+    children: "children",
+    loadingRelated: "Loading related resources...",
+    ownerReferences: "Owner References",
+    controller: "controller",
+    noOwners: "No owner references returned.",
+    ownedChildren: "Owned Children",
+    noChildren: "No owned children found in scanned resources.",
+    selectRelated: "Select an item to inspect owner and child resources."
+  },
+  ko: {
+    eyebrow: "Live OpenShift API",
+    title: "OCP 리소스 탐색기",
+    refresh: "새로고침",
+    discovering: "탐색 중",
+    reachable: "OCP 연결됨",
+    unavailable: "OCP 사용 불가",
+    versionUnknown: "버전 미확인",
+    userUnknown: "사용자 미확인",
+    resources: "개 리소스",
+    tlsVerify: "TLS 검증",
+    apiResources: "API 리소스",
+    searchApiResources: "API 리소스 검색",
+    kind: "Kind",
+    resource: "리소스",
+    apiVersion: "API 버전",
+    scope: "범위",
+    read: "읽기",
+    namespaced: "네임스페이스",
+    cluster: "클러스터",
+    list: "목록",
+    blocked: "차단",
+    readOnlyList: "읽기 전용 리소스 목록",
+    noMutateVerbs: "변경 verb 없음",
+    namespace: "네임스페이스",
+    allNamespaces: "모든 네임스페이스",
+    labelSelector: "Label selector",
+    fieldSelector: "Field selector",
+    fullRead: "전체 읽기",
+    load: "불러오기",
+    readVerbs: "읽기 verb",
+    noListableResource: "목록 조회 가능한 리소스가 선택되지 않았습니다",
+    previous: "이전",
+    next: "다음",
+    page: "페이지",
+    loadingItems: "리소스 항목을 불러오는 중...",
+    name: "이름",
+    created: "생성",
+    status: "상태",
+    redacted: "마스킹됨",
+    statusAttached: "상태 있음",
+    metadata: "메타데이터",
+    noItems: "이 범위에서 반환된 항목이 없습니다.",
+    selectObject: "항목을 선택하면 민감정보가 제거된 객체를 확인합니다.",
+    objectView: "객체 보기",
+    objectJson: "객체 JSON",
+    objectYaml: "객체 YAML",
+    objectPrefix: "객체",
+    fallback: "fallback",
+    requested: "요청",
+    served: "제공",
+    redactedCount: "마스킹",
+    loadingObject: "객체 상세를 불러오는 중...",
+    involvedEvents: "관련 이벤트",
+    events: "개 이벤트",
+    loadingEvents: "이벤트를 불러오는 중...",
+    eventFallback: "이벤트",
+    noMessage: "메시지 없음",
+    noEvents: "이 객체의 이벤트가 반환되지 않았습니다.",
+    selectEvents: "항목을 선택하면 이벤트를 확인합니다.",
+    podLogs: "Pod 로그",
+    podOnly: "pod only",
+    loadingPodLogs: "Pod 로그를 불러오는 중...",
+    noLogLines: "반환된 로그 라인이 없습니다.",
+    selectPodLogs: "Pod를 선택하면 로그를 확인합니다.",
+    relatedResources: "관련 리소스",
+    owners: "개 owner",
+    children: "개 child",
+    loadingRelated: "관련 리소스를 불러오는 중...",
+    ownerReferences: "Owner References",
+    controller: "controller",
+    noOwners: "반환된 owner reference가 없습니다.",
+    ownedChildren: "Owned Children",
+    noChildren: "스캔한 리소스에서 owned child를 찾지 못했습니다.",
+    selectRelated: "항목을 선택하면 owner와 child 리소스를 확인합니다."
+  }
+} as const;
 
 const readVerbs = ["get", "list", "watch"] as const;
 
@@ -102,8 +259,10 @@ function formatMatrixAccess(
 }
 
 export function OcpResourceExplorer({
-  navigationPreset = null
+  navigationPreset = null,
+  language
 }: OcpResourceExplorerProps) {
+  const copy = explorerCopy[language];
   const [discovery, setDiscovery] = useState<OcpApiResourcesResponse | null>(
     null
   );
@@ -415,14 +574,14 @@ export function OcpResourceExplorer({
           sortMapEntries: false
         })
       : JSON.stringify(detail.raw, null, 2)
-    : "Select an item to inspect the sanitized object.";
+    : copy.selectObject;
 
   return (
     <section className="ocp-explorer" aria-labelledby="ocp-explorer-title">
       <div className="section-heading compact">
         <div>
-          <p className="eyebrow">Live OpenShift API</p>
-          <h2 id="ocp-explorer-title">OCP Resource Explorer</h2>
+          <p className="eyebrow">{copy.eyebrow}</p>
+          <h2 id="ocp-explorer-title">{copy.title}</h2>
         </div>
         <button
           className="text-icon-button"
@@ -430,22 +589,22 @@ export function OcpResourceExplorer({
           onClick={() => void refreshDiscovery()}
         >
           <RefreshCw size={16} aria-hidden="true" />
-          Refresh
+          {copy.refresh}
         </button>
       </div>
 
       <div className="ocp-status-strip" data-testid="ocp-status">
         <span className={`status-pill ${status?.reachable ? "ready" : "danger"}`}>
           {loading
-            ? "discovering"
+            ? copy.discovering
             : status?.reachable
-              ? "OCP reachable"
-              : "OCP unavailable"}
+              ? copy.reachable
+              : copy.unavailable}
         </span>
-        <span>{status?.gitVersion ?? "version unknown"}</span>
-        <span>{status?.userName ?? "user unknown"}</span>
-        <span>{status?.discoveredResourceCount ?? 0} resources</span>
-        <span>TLS verify {status?.tlsVerify === false ? "off" : "on"}</span>
+        <span>{status?.gitVersion ?? copy.versionUnknown}</span>
+        <span>{status?.userName ?? copy.userUnknown}</span>
+        <span>{status?.discoveredResourceCount ?? 0} {copy.resources}</span>
+        <span>{copy.tlsVerify} {status?.tlsVerify === false ? "off" : "on"}</span>
       </div>
 
       {error || status?.error ? (
@@ -458,11 +617,11 @@ export function OcpResourceExplorer({
       <div className="ocp-explorer-grid">
         <article className="console-panel resource-catalog-panel">
           <div className="panel-title-row">
-            <h3>API Resources</h3>
+            <h3>{copy.apiResources}</h3>
             <label className="resource-search">
               <Search size={15} aria-hidden="true" />
               <input
-                aria-label="Search API resources"
+                aria-label={copy.searchApiResources}
                 data-testid="ocp-resource-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -475,11 +634,11 @@ export function OcpResourceExplorer({
             <table className="resource-table" data-testid="ocp-resource-table">
               <thead>
                 <tr>
-                  <th>Kind</th>
-                  <th>Resource</th>
-                  <th>API Version</th>
-                  <th>Scope</th>
-                  <th>Read</th>
+                  <th>{copy.kind}</th>
+                  <th>{copy.resource}</th>
+                  <th>{copy.apiVersion}</th>
+                  <th>{copy.scope}</th>
+                  <th>{copy.read}</th>
                 </tr>
               </thead>
               <tbody>
@@ -493,7 +652,7 @@ export function OcpResourceExplorer({
                     <td>{resource.kind}</td>
                     <td>{resource.name}</td>
                     <td>{resource.apiVersion}</td>
-                    <td>{resource.namespaced ? "namespaced" : "cluster"}</td>
+                    <td>{resource.namespaced ? copy.namespaced : copy.cluster}</td>
                     <td>
                       <button
                         className="mini-button"
@@ -508,7 +667,7 @@ export function OcpResourceExplorer({
                           }
                         }}
                       >
-                        {resource.safeToList ? "list" : "blocked"}
+                        {resource.safeToList ? copy.list : copy.blocked}
                       </button>
                     </td>
                   </tr>
@@ -520,21 +679,21 @@ export function OcpResourceExplorer({
 
         <article className="console-panel resource-list-panel">
           <div className="panel-title-row">
-            <h3>Read-only Resource List</h3>
-            <span className="status-pill read-only">no mutate verbs</span>
+            <h3>{copy.readOnlyList}</h3>
+            <span className="status-pill read-only">{copy.noMutateVerbs}</span>
           </div>
 
           <div className="resource-query-controls">
             <label>
-              Namespace
+              {copy.namespace}
               <select
-                aria-label="Namespace"
+                aria-label={copy.namespace}
                 data-testid="ocp-namespace-select"
                 disabled={!selectedResource?.namespaced}
                 value={namespace}
                 onChange={(event) => setNamespace(event.target.value)}
               >
-                <option value="">All namespaces</option>
+                <option value="">{copy.allNamespaces}</option>
                 {namespaces.map((item) => (
                   <option key={item.metadata.name} value={item.metadata.name}>
                     {item.metadata.name}
@@ -543,9 +702,9 @@ export function OcpResourceExplorer({
               </select>
             </label>
             <label>
-              Label selector
+              {copy.labelSelector}
               <input
-                aria-label="Label selector"
+                aria-label={copy.labelSelector}
                 data-testid="ocp-label-selector"
                 value={labelSelector}
                 onChange={(event) => setLabelSelector(event.target.value)}
@@ -553,9 +712,9 @@ export function OcpResourceExplorer({
               />
             </label>
             <label>
-              Field selector
+              {copy.fieldSelector}
               <input
-                aria-label="Field selector"
+                aria-label={copy.fieldSelector}
                 data-testid="ocp-field-selector"
                 value={fieldSelector}
                 onChange={(event) => setFieldSelector(event.target.value)}
@@ -568,7 +727,7 @@ export function OcpResourceExplorer({
                 type="checkbox"
                 onChange={(event) => setFull(event.target.checked)}
               />
-              full read
+              {copy.fullRead}
             </label>
             <button
               className="text-icon-button"
@@ -578,7 +737,7 @@ export function OcpResourceExplorer({
               onClick={() => void loadSelectedResource()}
             >
               <Database size={16} aria-hidden="true" />
-              Load
+              {copy.load}
             </button>
           </div>
 
@@ -590,7 +749,7 @@ export function OcpResourceExplorer({
                   {selectedResource.apiVersion}/{selectedResource.name}
                 </span>
                 <small>
-                  read verbs:{" "}
+                  {copy.readVerbs}:{" "}
                   {selectedResource.verbs
                     .filter((verb) => ["get", "list", "watch"].includes(verb))
                     .join(", ")}
@@ -603,9 +762,9 @@ export function OcpResourceExplorer({
                     className="resource-fallback"
                     data-testid="ocp-resource-fallback"
                   >
-                    <span className="status-pill warning">fallback</span>
+                    <span className="status-pill warning">{copy.fallback}</span>
                     <small>
-                      requested {list.fallback.requestedApiVersion}, served{" "}
+                      {copy.requested} {list.fallback.requestedApiVersion}, {copy.served}{" "}
                       {list.fallback.servedApiVersion}
                     </small>
                     <small>{list.fallback.evidence.join(" | ")}</small>
@@ -620,7 +779,7 @@ export function OcpResourceExplorer({
                 </div>
               </>
             ) : (
-              <span>No listable resource selected</span>
+              <span>{copy.noListableResource}</span>
             )}
           </div>
 
@@ -633,9 +792,9 @@ export function OcpResourceExplorer({
               onClick={() => void loadPreviousPage()}
             >
               <ChevronLeft size={16} aria-hidden="true" />
-              Previous
+              {copy.previous}
             </button>
-            <span>Page {pageIndex + 1}</span>
+            <span>{copy.page} {pageIndex + 1}</span>
             <button
               className="text-icon-button"
               data-testid="ocp-next-page"
@@ -643,21 +802,21 @@ export function OcpResourceExplorer({
               type="button"
               onClick={() => void loadNextPage()}
             >
-              Next
+              {copy.next}
               <ChevronRight size={16} aria-hidden="true" />
             </button>
           </div>
 
           <div className="resource-items" data-testid="ocp-resource-items">
-            {listLoading ? <p>Loading resource items...</p> : null}
+            {listLoading ? <p>{copy.loadingItems}</p> : null}
             {!listLoading && list ? (
               <table className="resource-table compact">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Namespace</th>
-                    <th>Created</th>
-                    <th>Status</th>
+                    <th>{copy.name}</th>
+                    <th>{copy.namespace}</th>
+                    <th>{copy.created}</th>
+                    <th>{copy.status}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -676,10 +835,10 @@ export function OcpResourceExplorer({
                       <td>{item.metadata.creationTimestamp ?? "-"}</td>
                       <td>
                         {item.dataRedacted
-                          ? "redacted"
+                          ? copy.redacted
                           : item.status
-                            ? "status attached"
-                            : "metadata"}
+                            ? copy.statusAttached
+                            : copy.metadata}
                       </td>
                     </tr>
                   ))}
@@ -687,7 +846,7 @@ export function OcpResourceExplorer({
               </table>
             ) : null}
             {!listLoading && list && list.items.length === 0 ? (
-              <p>No items returned for this scope.</p>
+              <p>{copy.noItems}</p>
             ) : null}
           </div>
         </article>
@@ -698,11 +857,11 @@ export function OcpResourceExplorer({
           <div className="panel-title-row">
             <h3>
               <FileCode2 size={16} aria-hidden="true" />
-              Object {detailView === "yaml" ? "YAML" : "JSON"}
+              {copy.objectPrefix} {detailView === "yaml" ? "YAML" : "JSON"}
             </h3>
-            <div className="segmented-control" aria-label="Object view">
+            <div className="segmented-control" aria-label={copy.objectView}>
               <button
-                aria-label="Object JSON"
+                aria-label={copy.objectJson}
                 aria-pressed={detailView === "json"}
                 data-testid="ocp-detail-json-tab"
                 type="button"
@@ -711,7 +870,7 @@ export function OcpResourceExplorer({
                 JSON
               </button>
               <button
-                aria-label="Object YAML"
+                aria-label={copy.objectYaml}
                 aria-pressed={detailView === "yaml"}
                 data-testid="ocp-detail-yaml-tab"
                 type="button"
@@ -728,17 +887,17 @@ export function OcpResourceExplorer({
                 className="status-pill warning"
                 data-testid="ocp-detail-fallback"
               >
-                fallback {detail.fallback.requestedApiVersion} to{" "}
+                {copy.fallback} {detail.fallback.requestedApiVersion} to{" "}
                 {detail.fallback.servedApiVersion}
               </span>
             ) : null}
             <span className="status-pill read-only">
-              redacted {detail?.redaction.sensitiveFieldRedactionCount ?? 0}
+              {copy.redactedCount} {detail?.redaction.sensitiveFieldRedactionCount ?? 0}
             </span>
           </div>
           <pre className="object-json" data-testid="ocp-resource-detail">
             {detailLoading
-              ? "Loading object detail..."
+              ? copy.loadingObject
               : detailText}
           </pre>
         </article>
@@ -747,30 +906,30 @@ export function OcpResourceExplorer({
           <div className="panel-title-row">
             <h3>
               <Database size={16} aria-hidden="true" />
-              Involved Events
+              {copy.involvedEvents}
             </h3>
             <span className="status-pill read-only">
               {formatAccess(events?.access)}
             </span>
             <span className="status-pill read-only">
-              {events?.items.length ?? 0} events
+              {events?.items.length ?? 0} {copy.events}
             </span>
           </div>
           <div className="event-list" data-testid="ocp-resource-events">
-            {detailLoading ? <p>Loading events...</p> : null}
+            {detailLoading ? <p>{copy.loadingEvents}</p> : null}
             {!detailLoading && events?.items.length ? (
               events.items.map((event) => (
                 <div className="event-row" key={`${event.namespace}/${event.name}`}>
-                  <strong>{event.reason ?? event.type ?? "Event"}</strong>
+                  <strong>{event.reason ?? event.type ?? copy.eventFallback}</strong>
                   <span>{event.lastTimestamp ?? event.firstTimestamp ?? "-"}</span>
-                  <p>{event.message ?? "No message"}</p>
+                  <p>{event.message ?? copy.noMessage}</p>
                 </div>
               ))
             ) : null}
             {!detailLoading && events && events.items.length === 0 ? (
-              <p>No events returned for this object.</p>
+              <p>{copy.noEvents}</p>
             ) : null}
-            {!detailLoading && !events ? <p>Select an item to inspect events.</p> : null}
+            {!detailLoading && !events ? <p>{copy.selectEvents}</p> : null}
           </div>
         </article>
 
@@ -778,21 +937,21 @@ export function OcpResourceExplorer({
           <div className="panel-title-row">
             <h3>
               <ScrollText size={16} aria-hidden="true" />
-              Pod Logs
+              {copy.podLogs}
             </h3>
             <span className="status-pill read-only">
               {formatAccess(logs?.access)}
             </span>
             <span className="status-pill read-only">
-              {logs?.container ?? "pod only"}
+              {logs?.container ?? copy.podOnly}
             </span>
           </div>
           <pre className="log-viewport compact" data-testid="ocp-pod-logs">
             {detailLoading
-              ? "Loading pod logs..."
+              ? copy.loadingPodLogs
               : logs
-                ? logs.logs || "No log lines returned."
-                : "Select a Pod to inspect logs."}
+                ? logs.logs || copy.noLogLines
+                : copy.selectPodLogs}
           </pre>
         </article>
 
@@ -800,34 +959,34 @@ export function OcpResourceExplorer({
           <div className="panel-title-row">
             <h3>
               <GitBranch size={16} aria-hidden="true" />
-              Related Resources
+              {copy.relatedResources}
             </h3>
             <span className="status-pill read-only">
-              {related?.owners.length ?? 0} owners
+              {related?.owners.length ?? 0} {copy.owners}
             </span>
             <span className="status-pill read-only">
-              {related?.children.length ?? 0} children
+              {related?.children.length ?? 0} {copy.children}
             </span>
           </div>
           <div className="related-resources" data-testid="ocp-related-resources">
-            {detailLoading ? <p>Loading related resources...</p> : null}
+            {detailLoading ? <p>{copy.loadingRelated}</p> : null}
             {!detailLoading && related ? (
               <>
                 <div>
-                  <strong>Owner References</strong>
+                  <strong>{copy.ownerReferences}</strong>
                   {related.owners.length ? (
                     related.owners.map((owner) => (
                       <p key={`${owner.uid ?? owner.kind}/${owner.name}`}>
                         {owner.kind}/{owner.name}
-                        {owner.controller ? " controller" : ""}
+                        {owner.controller ? ` ${copy.controller}` : ""}
                       </p>
                     ))
                   ) : (
-                    <p>No owner references returned.</p>
+                    <p>{copy.noOwners}</p>
                   )}
                 </div>
                 <div>
-                  <strong>Owned Children</strong>
+                  <strong>{copy.ownedChildren}</strong>
                   {related.children.length ? (
                     related.children.map((child) => (
                       <button
@@ -842,13 +1001,13 @@ export function OcpResourceExplorer({
                       </button>
                     ))
                   ) : (
-                    <p>No owned children found in scanned resources.</p>
+                    <p>{copy.noChildren}</p>
                   )}
                 </div>
               </>
             ) : null}
             {!detailLoading && !related ? (
-              <p>Select an item to inspect owner and child resources.</p>
+              <p>{copy.selectRelated}</p>
             ) : null}
           </div>
         </article>
