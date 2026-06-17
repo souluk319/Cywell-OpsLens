@@ -9,6 +9,7 @@ Base ref: `origin/main`
 Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 
 - the local web shell has KOMSCO/OpsLens assistant branding and KO/EN contracts protected by a verifier
+- Korean assistant surfaces now use `KOMSCO AI 어시스턴트` instead of mixed English branding, and the masthead user menu matches the OpenShift demo identity `kubeadmin`
 - the Korean shell status copy has been polished so customer-facing CRC/preview surfaces avoid developer-only wording
 - the shell now names standalone preview versus ConsolePlugin route/proxy mode
 - the masthead now shows the install/apply flow: OperatorHub installs the Operator, OpsLensInstallation applies the product, ConsolePlugin provides the route
@@ -53,6 +54,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
 - the overnight checkpoint evidence now stamps start/finish branch, head, worktree dirty flag, dirty entry count, and dirty entries so a green loop can be audited against the actual Git state
 - the overnight checkpoint now includes `npm run verify:crc-demo-readiness`, which checks the CRC lightweight OperatorHub path, UI first-choice copy, handoff commands, and arm64 transfer tar as one local evidence packet
+- AC-LAB-001 now explicitly treats `npm run verify:crc-demo-readiness` as the CRC demo gate, so the acceptance criteria, package contract, UI signal, and morning handoff all point at the same lightweight install path
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - the Operator status path no longer reports `OpsLensInstallation Ready` before required API/dashboard/vector/model workloads are observed as ready; unready required workloads keep the CR in `Installing`
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes
@@ -69,6 +71,14 @@ This is not a claim that production install is ready. The pre-cluster gate still
 ## Commits On This Branch
 
 ```text
+005e5e4 Polish KOMSCO console shell
+3339766 Document CRC demo readiness gate
+122e232 Summarize CRC demo readiness
+424767e Add CRC demo readiness gate
+3fdb50b Surface CRC lightweight install choice
+54c5357 Order OperatorHub related images
+d2a43cb Prioritize CRC OperatorHub example
+2f943b2 Surface assistant ask path
 acbe113 Clarify OpsLens shell mode
 cf791e1 Tighten web shell evidence
 d45a9b1 Plan Dev 0.1.2 overnight loop
@@ -136,12 +146,12 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 37 checks after the Assistant ask execution path lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 38 checks after the KOMSCO shell polish lane; covers KO assistant branding and `kubeadmin` masthead parity |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
 | `npm run verify:crc-demo-readiness` | PASS | 0 fail, 0 warn, 14 checks; writes JSON and Markdown evidence for OperatorHub first example, lightweight sample, UI copy, handoff commands, and arm64 tar alignment |
-| `npm run overnight:checkpoint` | PASS | 10/10 local checkpoint gates passed after Lane 59; evidence includes start/finish Git state and CRC demo readiness |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Assistant ask execution path lane |
-| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, access path, CRC install signal, post-install smoke path, readiness command labels, navigation, Assistant labels, integration contract, ask execution path, and mode matrix |
+| `npm run overnight:checkpoint` | PASS | 10/10 local checkpoint gates passed on head `005e5e4`; evidence includes start/finish Git state and CRC demo readiness |
+| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the KOMSCO shell polish lane |
+| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead `kubeadmin`, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, access path, CRC install signal, post-install smoke path, readiness command labels, navigation, KOMSCO assistant labels, integration contract, ask execution path, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
 | `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |
