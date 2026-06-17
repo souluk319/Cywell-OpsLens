@@ -13,6 +13,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the shell now names standalone preview versus ConsolePlugin route/proxy mode
 - the masthead now shows the install/apply flow: OperatorHub installs the Operator, OpsLensInstallation applies the product, ConsolePlugin provides the route
 - the OCP Coverage Matrix now follows the same KO/EN toggle as the rest of the shell
+- the OCP Coverage Matrix now localizes scope/status/gap chips instead of showing raw enum text like `policy-blocked`, `not-probed`, or `all-namespaces` in KO mode
 - the OCP Resource Explorer Korean surface now avoids leftover developer English for fallback/RBAC/owner relationship states
 - the primary dashboard, evidence pane, console overview, and Assistant status/context fields now avoid customer-visible mixed Korean/English labels such as `live overview`, `incident queue`, `payload`, raw `fallback/loading` UI status chips, and English context chip labels
 - the Assistant answer body now has a reviewed KO display dictionary for the known demo triage answer, including current judgment, evidence labels, cause candidates, risks, missing evidence, plan, rollback path, citations, and context values such as `CRC 미리보기` and `근거 3건`
@@ -62,7 +63,7 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 12 checks after the Assistant mode matrix lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 12 checks after the OCP Coverage Matrix display-label lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
 | `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 19 |
 | `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Assistant mode matrix lane |

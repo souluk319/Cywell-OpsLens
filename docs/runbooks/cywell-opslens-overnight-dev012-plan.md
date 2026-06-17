@@ -608,6 +608,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - CRC handoff remains pinned to explicit `v0.1.2-dev-crc` images; build verification no longer mutates those lab tags.
 - Expected result: running the Go/API/dashboard/bundle build gate can no longer break `npm run verify:lab-image-map` by changing local CRC image architecture.
 
+### 2026-06-18 - Lane 27
+
+- Polished the OCP Coverage Matrix so KO mode no longer shows raw enum chips such as `policy-blocked`, `not-probed`, `conversion-webhook-error`, or `all-namespaces`.
+- Added language-specific display maps for list status, detail status, gap type, and scope.
+- Preserved raw API/evidence messages in titles and evidence cells so diagnostic traceability is not hidden.
+- Protected the display-map contract in `npm run verify:web-shell`.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

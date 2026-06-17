@@ -1,5 +1,6 @@
 import type {
   OcpCoverageDiagnosticResponse,
+  OcpCoverageDetailStatus,
   OcpCoverageGapType,
   OcpCoverageListStatus,
   OcpCoverageMatrixResponse,
@@ -103,6 +104,86 @@ const coverageCopy = {
     selectRow: "범위 행을 선택하면 읽기 전용 진단 근거를 확인합니다."
   }
 } satisfies Record<UiLanguage, Record<string, string>>;
+
+const listStatusLabels = {
+  en: {
+    listed: "listed",
+    empty: "empty",
+    denied: "denied",
+    blocked: "blocked",
+    unsupported: "unsupported",
+    skipped: "skipped",
+    error: "error"
+  },
+  ko: {
+    listed: "조회됨",
+    empty: "비어 있음",
+    denied: "권한 거부",
+    blocked: "정책 차단",
+    unsupported: "미지원",
+    skipped: "건너뜀",
+    error: "오류"
+  }
+} satisfies Record<UiLanguage, Record<OcpCoverageListStatus, string>>;
+
+const detailStatusLabels = {
+  en: {
+    read: "read",
+    empty: "empty",
+    denied: "denied",
+    unsupported: "unsupported",
+    skipped: "skipped",
+    error: "error"
+  },
+  ko: {
+    read: "조회됨",
+    empty: "비어 있음",
+    denied: "권한 거부",
+    unsupported: "미지원",
+    skipped: "건너뜀",
+    error: "오류"
+  }
+} satisfies Record<UiLanguage, Record<OcpCoverageDetailStatus, string>>;
+
+const gapTypeLabels = {
+  en: {
+    none: "no gap",
+    "not-probed": "not probed",
+    "policy-blocked": "policy blocked",
+    "list-unsupported": "list unsupported",
+    "rbac-denied": "RBAC denied",
+    empty: "empty result",
+    "cluster-api-error": "cluster API error",
+    "conversion-webhook-error": "conversion webhook error",
+    timeout: "timeout",
+    "unknown-error": "unknown error"
+  },
+  ko: {
+    none: "차이 없음",
+    "not-probed": "미검사",
+    "policy-blocked": "정책 차단",
+    "list-unsupported": "목록 미지원",
+    "rbac-denied": "RBAC 거부",
+    empty: "빈 결과",
+    "cluster-api-error": "클러스터 API 오류",
+    "conversion-webhook-error": "변환 웹훅 오류",
+    timeout: "시간 초과",
+    "unknown-error": "알 수 없는 오류"
+  }
+} satisfies Record<UiLanguage, Record<OcpCoverageGapType, string>>;
+
+const scopeLabels = {
+  en: {
+    cluster: "cluster",
+    "all-namespaces": "all namespaces",
+    namespace: "namespace"
+  },
+  ko: {
+    cluster: "클러스터",
+    "all-namespaces": "모든 네임스페이스",
+    namespace: "네임스페이스"
+  }
+} satisfies Record<UiLanguage, Record<OcpResourceCoverageEntry["scope"], string>>;
 
 const statusOrder: Record<OcpCoverageListStatus, number> = {
   error: 0,
@@ -371,10 +452,10 @@ export function OcpCoverageMatrix({ language }: OcpCoverageMatrixProps) {
                   <TableProperties size={14} aria-hidden="true" />
                   {formatResource(entry)}
                 </td>
-                <td>{entry.scope}</td>
+                <td>{scopeLabels[language][entry.scope]}</td>
                 <td>
                   <span className={`status-pill ${statusClass(entry.list.status)}`}>
-                    {entry.list.status}
+                    {listStatusLabels[language][entry.list.status]}
                   </span>
                 </td>
                 <td>
@@ -382,11 +463,11 @@ export function OcpCoverageMatrix({ language }: OcpCoverageMatrixProps) {
                     className={`status-pill ${gapClass(entry.gap.type)}`}
                     title={entry.gap.message}
                   >
-                    {entry.gap.type}
+                    {gapTypeLabels[language][entry.gap.type]}
                   </span>
                 </td>
                 <td>{entry.list.sampleItemCount}</td>
-                <td>{entry.detail.status}</td>
+                <td>{detailStatusLabels[language][entry.detail.status]}</td>
                 <td>{entry.evidence[1] ?? copy.readOnlyEvidence}</td>
                 <td>
                   <button
@@ -420,7 +501,7 @@ export function OcpCoverageMatrix({ language }: OcpCoverageMatrixProps) {
                 {diagnostic.resource.apiVersion}/{diagnostic.resource.name}
               </strong>
               <span className={`status-pill ${gapClass(diagnostic.coverage.gap.type)}`}>
-                {diagnostic.coverage.gap.type}
+                {gapTypeLabels[language][diagnostic.coverage.gap.type]}
               </span>
               <span>{diagnostic.coverage.gap.message}</span>
             </div>
