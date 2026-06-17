@@ -1029,6 +1029,17 @@ Checkpoint cadence:
   - `npm run verify:operator:runtime`
   - `npm run overnight:checkpoint`
 
+### 2026-06-18 - Lane 84
+
+- Hardened the KO/EN shell contract for the OpenShift-style navigation.
+- Added stable test IDs for left navigation section headings and the active breadcrumb.
+- Playwright now checks Korean and English labels for every left navigation section, every left navigation item, the active breadcrumb, command feedback, and the KOMSCO Assistant in one language toggle path.
+- This directly protects the customer-visible scenario where the language toggle works but only part of the console shell appears translated.
+- Protected with:
+  - `npm run verify:web-shell`
+  - `npm run -w @kugnus/web build`
+  - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-004"`
+
 ## Current Known State
 
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)

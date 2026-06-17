@@ -358,9 +358,38 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("readiness-next-command")).toContainText(
       "다음 점검"
     );
-    await expect(page.getByTestId("console-nav-alerting")).toContainText(
-      "경고"
-    );
+    const localizedNavigation = [
+      ["overview", "개요", "Overview"],
+      ["alerting", "경고", "Alerting"],
+      ["dashboards", "대시보드", "Dashboards"],
+      ["metrics", "메트릭", "Metrics"],
+      ["logs", "로그", "Logs"],
+      ["workloads", "워크로드", "Workloads"],
+      ["networking", "네트워킹", "Networking"],
+      ["storage", "스토리지", "Storage"],
+      ["administration", "관리", "Administration"],
+      ["opslens-admin", "OpsLens 관리", "OpsLens Admin"],
+      ["opsbrain", "OpsBrain", "OpsBrain"]
+    ] as const;
+    const localizedSections = [
+      ["home", "홈", "Home"],
+      ["observe", "관측", "Observe"],
+      ["resources", "리소스", "Resources"],
+      ["cywell", "Cywell", "Cywell"]
+    ] as const;
+
+    for (const [section, koLabel] of localizedSections) {
+      await expect(page.getByTestId(`console-nav-section-${section}`)).toContainText(
+        koLabel
+      );
+    }
+    for (const [navId, koLabel] of localizedNavigation) {
+      await expect(page.getByTestId(`console-nav-${navId}`)).toContainText(
+        koLabel
+      );
+    }
+    await expect(page.getByTestId("console-breadcrumb")).toContainText("관측");
+    await expect(page.getByTestId("console-breadcrumb")).toContainText("경고");
     await expect(page.getByTestId("console-navigation-feedback")).toContainText(
       "경고"
     );
@@ -509,6 +538,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("readiness-next-command")).toContainText(
       "next check"
+    );
+    for (const [section, , enLabel] of localizedSections) {
+      await expect(page.getByTestId(`console-nav-section-${section}`)).toContainText(
+        enLabel
+      );
+    }
+    for (const [navId, , enLabel] of localizedNavigation) {
+      await expect(page.getByTestId(`console-nav-${navId}`)).toContainText(
+        enLabel
+      );
+    }
+    await expect(page.getByTestId("console-breadcrumb")).toContainText("Observe");
+    await expect(page.getByTestId("console-breadcrumb")).toContainText("Alerting");
+    await expect(page.getByTestId("console-navigation-feedback")).toContainText(
+      "Alerting"
     );
     await expect(page.getByTestId("assistant-integration-contract")).toContainText(
       "Integration contract"

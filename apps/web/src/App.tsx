@@ -1139,7 +1139,10 @@ export default function App() {
           <nav className="nav-section" aria-label={copy.administratorNavigation}>
             {navigationSections.map((section) => (
               <div className="nav-group" key={section}>
-                <span className="nav-heading">
+                <span
+                  className="nav-heading"
+                  data-testid={`console-nav-section-${section.toLowerCase()}`}
+                >
                   {language === "ko" ? sectionLabelsKo[section] : section}
                 </span>
                 {consoleNavigation
@@ -1167,7 +1170,11 @@ export default function App() {
 
         <main className="workspace" data-testid="workspace">
           <section className="main-stage" data-testid="main-stage">
-            <div className="breadcrumb-row" aria-label={copy.breadcrumb}>
+            <div
+              className="breadcrumb-row"
+              aria-label={copy.breadcrumb}
+              data-testid="console-breadcrumb"
+            >
               {navBreadcrumb(activeNavigation, language).map((crumb) => (
                 <span key={crumb}>{crumb}</span>
               ))}

@@ -1312,9 +1312,32 @@ expectCheck(
 );
 
 expectCheck(
+  "localized navigation structure",
+  appSource.includes('data-testid={`console-nav-section-${section.toLowerCase()}`}') &&
+    appSource.includes('data-testid="console-breadcrumb"') &&
+    appSource.includes("sectionLabelsKo") &&
+    appSource.includes('Home: "홈"') &&
+    appSource.includes('Observe: "관측"') &&
+    appSource.includes('Resources: "리소스"') &&
+    appSource.includes("navLabel(item, language)") &&
+    appSource.includes("navBreadcrumb(activeNavigation, language)"),
+  "console navigation sections, items, and breadcrumb have stable localized render points"
+);
+
+expectCheck(
   "localized interactive shell e2e",
   e2eSource.includes("AC-UI-004 keeps KO/EN switching consistent across shell and assistant") &&
     e2eSource.includes('getByTestId("language-ko-toggle")') &&
+    e2eSource.includes('const localizedNavigation = [') &&
+    e2eSource.includes('const localizedSections = [') &&
+    e2eSource.includes('getByTestId(`console-nav-section-${section}`)') &&
+    e2eSource.includes('getByTestId(`console-nav-${navId}`)') &&
+    e2eSource.includes('getByTestId("console-breadcrumb")') &&
+    e2eSource.includes("워크로드") &&
+    e2eSource.includes("네트워킹") &&
+    e2eSource.includes("스토리지") &&
+    e2eSource.includes("Administration") &&
+    e2eSource.includes("Resources") &&
     e2eSource.includes("OperatorHub: 오퍼레이터") &&
     e2eSource.includes("OpsLensInstallation: 제품 적용") &&
     e2eSource.includes("ConsolePlugin: 콘솔 라우트") &&
