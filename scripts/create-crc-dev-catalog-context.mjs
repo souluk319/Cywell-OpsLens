@@ -25,6 +25,8 @@ const defaults = {
   sourceVersion: "0.1.0",
   devVersion: "0.1.2",
   devImageTag: "v0.1.2-dev-crc",
+  targetPlatform: "linux/arm64",
+  targetArchitecture: "arm64",
   timeoutMs: 10000
 };
 
@@ -71,6 +73,8 @@ const options = {
   sourceVersion: args.get("source-version") ?? defaults.sourceVersion,
   devVersion: args.get("dev-version") ?? defaults.devVersion,
   devImageTag: args.get("dev-image-tag") ?? defaults.devImageTag,
+  targetPlatform: args.get("target-platform") ?? defaults.targetPlatform,
+  targetArchitecture: args.get("target-architecture") ?? defaults.targetArchitecture,
   timeoutMs: Number(args.get("timeout-ms") ?? defaults.timeoutMs)
 };
 
@@ -323,6 +327,9 @@ async function localImage(tag) {
   const result = await runCapture("docker", ["image", "inspect", tag, "--format", "{{.Id}}|{{.Architecture}}|{{.Os}}"]);
   if (!result.ok || !result.stdout) return { tag, present: false };
   const [imageId, architecture, os] = result.stdout.split("|");
+  if (architecture !== options.targetArchitecture) {
+    fail("local image architecture", `${tag} is ${architecture}/${os}; expected ${options.targetArchitecture}`);
+  }
   return { tag, present: true, imageId, architecture, os };
 }
 
@@ -484,8 +491,8 @@ async function main() {
   }
 
   const commands = {
-    buildBundle: `docker build -f ${paths.bundleDockerfile} -t ${localImageName("bundle")} -t ${localImageName("bundle", options.devImageTag)} ${outDir}`,
-    buildCatalog: `docker build -f ${paths.dockerfile} -t ${localImageName("catalog")} -t ${localImageName("catalog", options.devImageTag)} ${outDir}`,
+    buildBundle: `docker buildx build --platform ${options.targetPlatform} --load -f ${paths.bundleDockerfile} -t ${localImageName("bundle")} -t ${localImageName("bundle", options.devImageTag)} ${outDir}`,
+    buildCatalog: `docker buildx build --platform ${options.targetPlatform} --load -f ${paths.dockerfile} -t ${localImageName("catalog")} -t ${localImageName("catalog", options.devImageTag)} ${outDir}`,
     tagLocalImages: ownedImages
       .map(([component]) => `docker tag ${localImageName(component)} ${localImageName(component, options.devImageTag)}`)
       .join(" && "),
@@ -513,7 +520,9 @@ async function main() {
       opmImage: options.opmImage,
       sourceVersion: options.sourceVersion,
       devVersion: options.devVersion,
-      devCsvName
+      devCsvName,
+      targetPlatform: options.targetPlatform,
+      targetArchitecture: options.targetArchitecture
     },
     outputs: paths,
     replacements: uniqueReplacements,

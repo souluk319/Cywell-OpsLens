@@ -19,6 +19,7 @@ const defaults = {
   ocpConnectivityEvidence: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
   imageTar: "test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar",
   crcImageTag: "v0.1.2-dev-crc",
+  targetArchitecture: "arm64",
   csv: "deploy/operator/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml",
   fbc: "deploy/catalog/fbc/catalog.yaml",
   catalogSource: "deploy/catalog/openshift/catalogsource.yaml",
@@ -82,6 +83,7 @@ const options = {
     parsed.values.get("ocp-connectivity-evidence") ?? defaults.ocpConnectivityEvidence,
   imageTar: parsed.values.get("image-tar") ?? defaults.imageTar,
   crcImageTag: parsed.values.get("crc-image-tag") ?? defaults.crcImageTag,
+  targetArchitecture: parsed.values.get("target-architecture") ?? defaults.targetArchitecture,
   manifestPaths: [
     parsed.values.get("csv") ?? defaults.csv,
     parsed.values.get("fbc") ?? defaults.fbc,
@@ -332,7 +334,11 @@ async function inspectDockerImage(tag) {
     return { tag, present: false };
   }
   const [imageId, size, architecture, os] = result.stdout.split("|");
-  pass("local image", `${tag} present (${architecture}/${os})`);
+  if (architecture === options.targetArchitecture) {
+    pass("local image", `${tag} present (${architecture}/${os})`);
+  } else {
+    fail("local image architecture", `${tag} is ${architecture}/${os}; expected ${options.targetArchitecture}`);
+  }
   return {
     tag,
     present: true,

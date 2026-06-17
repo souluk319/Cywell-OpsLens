@@ -13,6 +13,7 @@ const defaults = {
   registry: "<crc-registry>",
   namespace: "cywell-opslens",
   labImageTag: "v0.1.2-dev-crc",
+  targetArchitecture: "arm64",
   evidenceOut: "test-results/cywell-opslens-lab-image-map-preview.json",
   markdownOut: "test-results/cywell-opslens-lab-image-map-preview.md",
   k8sYamlOut: "test-results/cywell-opslens-lab-image-map-k8s-preview.yaml",
@@ -101,6 +102,7 @@ const options = {
   registry: args.get("registry") ?? defaults.registry,
   namespace: args.get("namespace") ?? defaults.namespace,
   labImageTag: args.get("lab-image-tag") ?? defaults.labImageTag,
+  targetArchitecture: args.get("target-architecture") ?? defaults.targetArchitecture,
   evidenceOut: args.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: args.get("markdown-out") ?? defaults.markdownOut,
   k8sYamlOut: args.get("k8s-yaml-out") ?? defaults.k8sYamlOut,
@@ -177,7 +179,11 @@ async function localImage(tag) {
     return { tag, present: false };
   }
   const [imageId, size, architecture, os] = result.stdout.split("|");
-  pass("local image", `${tag} present (${architecture}/${os})`);
+  if (architecture === options.targetArchitecture) {
+    pass("local image", `${tag} present (${architecture}/${os})`);
+  } else {
+    fail("local image architecture", `${tag} is ${architecture}/${os}; expected ${options.targetArchitecture}`);
+  }
   return { tag, present: true, imageId, sizeBytes: Number(size), architecture, os };
 }
 
@@ -564,6 +570,7 @@ const report = {
   registry: options.registry,
   namespace: options.namespace,
   labImageTag: options.labImageTag,
+  targetArchitecture: options.targetArchitecture,
   imageRows,
   replacements: preview.replacementEvents,
   externalRuntimeGaps,

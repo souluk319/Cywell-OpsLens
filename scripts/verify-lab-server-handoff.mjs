@@ -26,6 +26,7 @@ const defaults = {
   installPlanEvidence: "test-results/cywell-opslens-install-approval-plan.json",
   imageTar: "test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar",
   crcImageTag: "v0.1.2-dev-crc",
+  targetArchitecture: "arm64",
   timeoutMs: 10000
 };
 
@@ -102,6 +103,7 @@ const options = {
   installPlanEvidence: parsed.get("install-plan-evidence") ?? defaults.installPlanEvidence,
   imageTar: parsed.get("image-tar") ?? defaults.imageTar,
   crcImageTag: parsed.get("crc-image-tag") ?? defaults.crcImageTag,
+  targetArchitecture: parsed.get("target-architecture") ?? defaults.targetArchitecture,
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
 };
 
@@ -270,7 +272,11 @@ async function dockerImage(image) {
     };
   }
   const [id, size, architecture, os] = result.stdout.split("|");
-  pass(`${image.id} local image`, `${image.localTag} present (${architecture}/${os})`);
+  if (architecture === options.targetArchitecture) {
+    pass(`${image.id} local image`, `${image.localTag} present (${architecture}/${os})`);
+  } else {
+    fail(`${image.id} local image architecture`, `${image.localTag} is ${architecture}/${os}; expected ${options.targetArchitecture}`);
+  }
   return {
     ...image,
     present: true,

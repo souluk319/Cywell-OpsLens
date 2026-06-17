@@ -372,6 +372,15 @@ Every checkpoint:
 - Updated the CRC live and morning handoffs so the first expected package signal is `currentCSV: cywell-opslens-operator.v0.1.2` plus `v0.1.2-dev-crc`.
 - Interpretation: local `:verify` can remain a build-stage tag, but anything copied to or pulled by CRC must use the explicit branch tag.
 
+### 2026-06-17 - Lane 11
+
+- Added Mac CRC architecture protection after Windows Docker rebuilt local images as `amd64`.
+- The CRC handoff verifiers now default to `targetArchitecture=arm64` and fail if local owned images are not arm64.
+- Rebuilt the five CRC handoff images with `docker buildx --platform linux/arm64 --load`.
+- Recreated `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`.
+- Verified the tar contains five `v0.1.2-dev-crc` tags and that local image inspect reports `ARCH=arm64 OS=linux`.
+- Interpretation: version tag alone is not enough; Mac CRC transfer artifacts must also prove architecture.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

@@ -133,6 +133,18 @@ npm run verify:lab-image-map
 
 The generated commands must reference `v0.1.2-dev-crc`, not the ambiguous live-cluster `:verify` tag.
 
+The MacBook CRC node is `arm64`. Before copying image tar files, prove the local images are arm64:
+
+```powershell
+docker image inspect cywell/opslens-operator:v0.1.2-dev-crc cywell/opslens-api:v0.1.2-dev-crc cywell/opslens-dashboard:v0.1.2-dev-crc cywell/opslens-operator-bundle:v0.1.2-dev-crc cywell/opslens-catalog:v0.1.2-dev-crc --format "{{.RepoTags}} ARCH={{.Architecture}} OS={{.Os}}"
+```
+
+Expected transfer artifact:
+
+```text
+test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar
+```
+
 ## Apply The Lightweight CRC Profile
 
 Preferred CRC demo profile:

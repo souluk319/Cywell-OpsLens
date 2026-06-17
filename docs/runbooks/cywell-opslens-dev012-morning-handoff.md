@@ -76,6 +76,14 @@ If port-forwards died, rebuild them from:
 docs/runbooks/cywell-opslens-crc-live-handoff.md
 ```
 
+If images must be moved again, use the versioned arm64 artifact:
+
+```text
+test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar
+```
+
+Do not trust a Mac CRC install package unless `docker image inspect` shows `ARCH=arm64` for the five `v0.1.2-dev-crc` images.
+
 ## Product Boundary To Remember
 
 OperatorHub install is only the Operator install.
