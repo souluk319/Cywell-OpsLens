@@ -433,6 +433,35 @@ expectCheck(
 );
 
 expectCheck(
+  "localized completion gate labels",
+  adminSource.includes("copy.readyToClaim100") &&
+    adminSource.includes("copy.cleanupDeletionAllowed") &&
+    adminSource.includes("copy.bundleMatchesRoadmap") &&
+    adminSource.includes('"100% 주장 준비"') &&
+    !adminSource.includes("head={completionGate.headSha}") &&
+    !adminSource.includes("dirty={String(completionGate.worktreeDirty)}") &&
+    !adminSource.includes("readyToClaim100={String(completionGate.readyToClaim100)}") &&
+    !adminSource.includes("mutationBoundaryPassed=\n                  {String(completionGate.mutationBoundaryPassed)}") &&
+    !adminSource.includes("{gate.actionId}:next={gate.nextCommand}:external=") &&
+    !adminSource.includes(":tickets=\n                    {gate.ticketIds.join") &&
+    !adminSource.includes(":readOnly=\n                    {gate.readOnlyCommandIds") &&
+    !adminSource.includes("{requirement.id}={String(requirement.passed)}") &&
+    !adminSource.includes("owner={completionGate.claimPacket.owner}") &&
+    !adminSource.includes("status={completionGate.claimPacket.status}") &&
+    !adminSource.includes("readyToClaim100=\n                  {String(completionGate.claimPacket.readyToClaim100)}") &&
+    !adminSource.includes("sources=\n                  {completionGate.claimPacket.sourceEvidenceChecklist") &&
+    !adminSource.includes("failedSources=\n                  {completionGate.claimPacket.failedSourceEvidenceIds") &&
+    !adminSource.includes("criticalPath=\n                  {completionGate.claimPacket.actionQueueCriticalPathCount}") &&
+    !adminSource.includes("cleanupDeletionAllowed=\n                  {String(completionGate.ownerPacketCleanup.deletionAllowed)}") &&
+    !adminSource.includes("{row.owner}:status={row.status}:first=") &&
+    !adminSource.includes("bundleStatus={completionGate.releaseEvidenceBundle.status}") &&
+    !adminSource.includes("bundleMatchesRoadmap=\n                  {String(") &&
+    !adminSource.includes("actionQueueReady={String(completionGate.actionQueue.ready)}") &&
+    !adminSource.includes("unsafeTickets=\n                  {completionGate.actionQueue.unsafeTickets.join"),
+  "Completion gate cards use bilingual labels for 100% claim and closeout evidence instead of raw key/value UI labels"
+);
+
+expectCheck(
   "localized remediation proposal labels",
   !adminSource.includes("<span>Mode</span>") &&
     !adminSource.includes("<span>Patch</span>") &&

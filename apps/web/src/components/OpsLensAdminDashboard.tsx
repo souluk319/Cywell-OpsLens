@@ -471,6 +471,21 @@ const adminCopy = {
     postApprovalSmoke: "post-approval smoke",
     forbidden: "forbidden",
     blockedUntilHandoffExists: "blocked until handoff exists",
+    dirty: "dirty",
+    readyToClaim100: "ready to claim 100%",
+    completionGates: "gates",
+    failedRequirements: "failed requirements",
+    failedSources: "failed sources",
+    closure: "closure",
+    criticalPath: "critical path",
+    cleanupDeletionAllowed: "cleanup deletion allowed",
+    bundleStatus: "bundle status",
+    bundleMatchesRoadmap: "bundle matches roadmap",
+    publishReady: "publish ready",
+    installReady: "install ready",
+    actionQueueReady: "action queue ready",
+    unsafeTickets: "unsafe tickets",
+    setupCommands: "setup commands",
     requiredImages: "required images",
     localInspect: "local inspect",
     remainingEvidence: "remaining evidence",
@@ -708,6 +723,21 @@ const adminCopy = {
     postApprovalSmoke: "승인 후 스모크",
     forbidden: "금지 항목",
     blockedUntilHandoffExists: "인계 근거 전까지 대기",
+    dirty: "변경 있음",
+    readyToClaim100: "100% 주장 준비",
+    completionGates: "게이트",
+    failedRequirements: "실패 기준",
+    failedSources: "실패 소스",
+    closure: "종결",
+    criticalPath: "핵심 경로",
+    cleanupDeletionAllowed: "정리 삭제 허용",
+    bundleStatus: "번들 상태",
+    bundleMatchesRoadmap: "번들/로드맵 일치",
+    publishReady: "게시 준비",
+    installReady: "설치 준비",
+    actionQueueReady: "작업 대기열 준비",
+    unsafeTickets: "위험 티켓",
+    setupCommands: "설정 명령",
     requiredImages: "필수 이미지",
     localInspect: "로컬 검사",
     remainingEvidence: "남은 근거",
@@ -2834,15 +2864,23 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 <Gauge size={18} aria-hidden="true" />
               </div>
               <div className="admin-evidence-line">
-                <span>{completionGate.artifactStatus}</span>
-                <span>head={completionGate.headSha}</span>
-                <span>dirty={String(completionGate.worktreeDirty)}</span>
-                <span>
-                  readyToClaim100={String(completionGate.readyToClaim100)}
+                <span title={completionGate.artifactStatus}>
+                  {statusText(language, completionGate.artifactStatus)}
                 </span>
                 <span>
-                  mutationBoundaryPassed=
-                  {String(completionGate.mutationBoundaryPassed)}
+                  {copy.head}: {completionGate.headSha}
+                </span>
+                <span>
+                  {copy.dirty}:{" "}
+                  {booleanText(language, completionGate.worktreeDirty)}
+                </span>
+                <span>
+                  {copy.readyToClaim100}:{" "}
+                  {booleanText(language, completionGate.readyToClaim100)}
+                </span>
+                <span>
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(language, completionGate.mutationBoundaryPassed)}
                 </span>
               </div>
               <div className="approval-summary-grid">
@@ -2886,20 +2924,23 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {completionGate.remainingTo100.slice(0, 8).map((gate) => (
                   <span key={`${gate.stage}-${gate.gateId}`}>
-                    {gate.gateId}:{gate.lane}:{gate.owner}:{gate.priority}:
-                    {gate.actionId}:next={gate.nextCommand}:external=
-                    {String(gate.externalStateRequired)}:tickets=
-                    {gate.ticketIds.join(",") || "none"}:readOnly=
-                    {gate.readOnlyCommandIds.slice(0, 3).join(",") || "none"}
-                    :setup=
-                    {gate.setupCommandIds.slice(0, 3).join(",") || "none"}
-                    :approval=
+                    {gate.gateId}: {gate.lane} / {copy.owner} {gate.owner} /{" "}
+                    {copy.priority} {gate.priority} / {copy.nextCommand}{" "}
+                    {gate.nextCommand} / {copy.external}{" "}
+                    {booleanText(language, gate.externalStateRequired)} /{" "}
+                    {copy.ticket} {gate.ticketIds.join(",") || copy.none} /{" "}
+                    {copy.readOnlyCommands}{" "}
+                    {gate.readOnlyCommandIds.slice(0, 3).join(",") ||
+                      copy.none}{" "}
+                    / {copy.setupCommands}{" "}
+                    {gate.setupCommandIds.slice(0, 3).join(",") || copy.none}{" "}
+                    / {copy.gatedCommands}{" "}
                     {gate.approvalGatedCommandIds.slice(0, 3).join(",") ||
-                      "none"}
+                      copy.none}
                   </span>
                 ))}
                 {completionGate.remainingTo100.length === 0 ? (
-                  <span>none</span>
+                  <span>{copy.none}</span>
                 ) : null}
               </div>
               <div
@@ -2908,7 +2949,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {completionGate.claimRequirements.map((requirement) => (
                   <span key={requirement.id}>
-                    {requirement.id}={String(requirement.passed)}
+                    {requirement.id}: {copy.passed}{" "}
+                    {booleanText(language, requirement.passed)}
                   </span>
                 ))}
               </div>
@@ -2916,64 +2958,82 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 className="admin-evidence-line"
                 data-testid="opslens-completion-gate-claim-packet"
               >
-                <span>owner={completionGate.claimPacket.owner}</span>
-                <span>status={completionGate.claimPacket.status}</span>
                 <span>
-                  packet=
+                  {copy.owner}: {completionGate.claimPacket.owner}
+                </span>
+                <span>
+                  {copy.status}:{" "}
+                  {statusText(language, completionGate.claimPacket.status)}
+                </span>
+                <span>
+                  {copy.packet}:{" "}
                   {completionGate.claimPacket.markdownPath
                     .split(/[\\/]/)
                     .pop()}
                 </span>
-                <span>exists={String(completionGate.claimPacket.exists)}</span>
                 <span>
-                  readyToClaim100=
-                  {String(completionGate.claimPacket.readyToClaim100)}
+                  {copy.exists}:{" "}
+                  {booleanText(language, completionGate.claimPacket.exists)}
                 </span>
                 <span>
-                  remaining={completionGate.claimPacket.remainingRequirements}
+                  {copy.readyToClaim100}:{" "}
+                  {booleanText(language, completionGate.claimPacket.readyToClaim100)}
                 </span>
                 <span>
-                  gates=
+                  {copy.remaining}:{" "}
+                  {completionGate.claimPacket.remainingRequirements}
+                </span>
+                <span>
+                  {copy.completionGates}:{" "}
                   {completionGate.claimPacket.remainingGateIds.join(",") ||
-                    "none"}
+                    copy.none}
                 </span>
                 <span>
-                  failed=
+                  {copy.failedRequirements}:{" "}
                   {completionGate.claimPacket.failedClaimRequirementIds.join(
                     ","
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  sources=
+                  {copy.sourceArtifacts}:{" "}
                   {completionGate.claimPacket.sourceEvidenceChecklist
                     .map(
                       (source) =>
-                        `${source.id}:${source.fresh && source.acceptable && !source.mutationViolation ? "pass" : "needs-evidence"}`
+                        `${source.id}:${
+                          source.fresh &&
+                          source.acceptable &&
+                          !source.mutationViolation
+                            ? statusText(language, "pass")
+                            : statusText(language, "needs-evidence")
+                        }`
                     )
-                    .join(",") || "none"}
+                    .join(",") || copy.none}
                 </span>
                 <span>
-                  failedSources=
+                  {copy.failedSources}:{" "}
                   {completionGate.claimPacket.failedSourceEvidenceIds.join(
                     ","
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  closure=
+                  {copy.closure}:{" "}
                   {completionGate.claimPacket.gateClosureMatrix
                     .map(
                       (gate) =>
                         `${gate.gateId}:${gate.owner}:${gate.closesClaimRequirementIds.length}`
                     )
-                    .join(",") || "none"}
+                    .join(",") || copy.none}
                 </span>
                 <span>
-                  criticalPath=
+                  {copy.criticalPath}:{" "}
                   {completionGate.claimPacket.actionQueueCriticalPathCount}
                 </span>
                 <span>
-                  mutationBoundaryPassed=
-                  {String(completionGate.claimPacket.mutationBoundaryPassed)}
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(
+                    language,
+                    completionGate.claimPacket.mutationBoundaryPassed
+                  )}
                 </span>
               </div>
               <div
@@ -2982,24 +3042,30 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {completionGate.ownerCloseoutPackets.map((packet) => (
                   <span key={packet.owner}>
-                    {packet.owner}:gates={packet.gateIds.join(",") || "none"}
-                    :tickets={packet.ticketIds.join(",") || "none"}:next=
-                    {packet.firstNextCommand}:approvalRequired=
-                    {String(packet.approvalRequired)}:readOnly=
+                    {copy.owner}: {packet.owner} / {copy.completionGates}{" "}
+                    {packet.gateIds.join(",") || copy.none} / {copy.ticket}{" "}
+                    {packet.ticketIds.join(",") || copy.none} /{" "}
+                    {copy.nextCommand} {packet.firstNextCommand} /{" "}
+                    {copy.requiresApproval}{" "}
+                    {booleanText(language, packet.approvalRequired)} /{" "}
+                    {copy.readOnlyCommands}{" "}
                     {packet.readOnlyCommandIds.slice(0, 3).join(",") ||
-                      "none"}
-                    :setup=
-                    {packet.setupCommandIds.slice(0, 3).join(",") || "none"}
-                    :approval=
+                      copy.none}{" "}
+                    / {copy.setupCommands}{" "}
+                    {packet.setupCommandIds.slice(0, 3).join(",") || copy.none}{" "}
+                    / {copy.gatedCommands}{" "}
                     {packet.approvalGatedCommandIds.slice(0, 3).join(",") ||
-                      "none"}:packet=
-                    {packet.markdownPath.split(/[\\/]/).pop()}:exists=
-                    {String(packet.exists)}
+                      copy.none}{" "}
+                    / {copy.packet} {packet.markdownPath.split(/[\\/]/).pop()}{" "}
+                    / {copy.exists} {booleanText(language, packet.exists)}
                   </span>
                 ))}
                 <span>
-                  cleanupDeletionAllowed=
-                  {String(completionGate.ownerPacketCleanup.deletionAllowed)}
+                  {copy.cleanupDeletionAllowed}:{" "}
+                  {booleanText(
+                    language,
+                    completionGate.ownerPacketCleanup.deletionAllowed
+                  )}
                 </span>
               </div>
               <div
@@ -3008,17 +3074,19 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {completionGate.closeoutExecutionPlan.map((row) => (
                   <span key={row.owner}>
-                    {row.owner}:status={row.status}:first=
-                    {row.firstNextCommand}:readOnly=
-                    {row.firstReadOnlyCommandId}:setup=
-                    {row.firstSetupCommandId}:approval=
-                    {row.firstApprovalGatedCommandId}:approvalRequired=
-                    {String(row.approvalRequired)}:mutationAllowed=
-                    {String(row.mutationAllowedByThisVerifier)}
+                    {copy.owner}: {row.owner} / {copy.status}{" "}
+                    {statusText(language, row.status)} / {copy.firstAction}{" "}
+                    {row.firstNextCommand} / {copy.readOnlyCommands}{" "}
+                    {row.firstReadOnlyCommandId} / {copy.setupCommands}{" "}
+                    {row.firstSetupCommandId} / {copy.approvalAction}{" "}
+                    {row.firstApprovalGatedCommandId} / {copy.requiresApproval}{" "}
+                    {booleanText(language, row.approvalRequired)} /{" "}
+                    {copy.mutationAllowed}{" "}
+                    {booleanText(language, row.mutationAllowedByThisVerifier)}
                   </span>
                 ))}
                 {completionGate.closeoutExecutionPlan.length === 0 ? (
-                  <span>none</span>
+                  <span>{copy.none}</span>
                 ) : null}
               </div>
               <div
@@ -3026,36 +3094,45 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-completion-gate-boundary"
               >
                 <span>
-                  bundleStatus={completionGate.releaseEvidenceBundle.status}
+                  {copy.bundleStatus}:{" "}
+                  {statusText(
+                    language,
+                    completionGate.releaseEvidenceBundle.status
+                  )}
                 </span>
                 <span>
-                  bundleMatchesRoadmap=
-                  {String(
+                  {copy.bundleMatchesRoadmap}:{" "}
+                  {booleanText(
+                    language,
                     completionGate.releaseEvidenceBundle.bundleMatchesRoadmap
                   )}
                 </span>
                 <span>
-                  publishReady=
-                  {String(
+                  {copy.publishReady}:{" "}
+                  {booleanText(
+                    language,
                     completionGate.releaseEvidenceBundle.decision.publishReady
                   )}
                 </span>
                 <span>
-                  installReady=
-                  {String(
+                  {copy.installReady}:{" "}
+                  {booleanText(
+                    language,
                     completionGate.releaseEvidenceBundle.decision.installReady
                   )}
                 </span>
                 <span>
-                  actionQueueReady={String(completionGate.actionQueue.ready)}
+                  {copy.actionQueueReady}:{" "}
+                  {booleanText(language, completionGate.actionQueue.ready)}
                 </span>
                 <span>
-                  criticalPath={completionGate.actionQueue.criticalPathCount}
+                  {copy.criticalPath}:{" "}
+                  {completionGate.actionQueue.criticalPathCount}
                 </span>
                 <span>
-                  unsafeTickets=
+                  {copy.unsafeTickets}:{" "}
                   {completionGate.actionQueue.unsafeTickets.join(",") ||
-                    "none"}
+                    copy.none}
                 </span>
               </div>
               <div className="remediation-notes">
