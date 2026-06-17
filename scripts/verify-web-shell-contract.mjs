@@ -88,6 +88,16 @@ const releaseActionQueueSource = sourceSection(
   'data-testid="opslens-release-action-queue"',
   'data-testid="opslens-evidence-checkpoint"'
 );
+const catalogToolchainSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-catalog-toolchain"',
+  'data-testid="opslens-lab-readiness"'
+);
+const labReadinessSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-lab-readiness"',
+  'data-testid="opslens-certification-readiness"'
+);
 const externalRuntimeReviewSource = sourceSection(
   adminSource,
   'data-testid="opslens-external-runtime-review-packet"',
@@ -805,6 +815,92 @@ expectCheck(
     !securityScanSource.includes(":ticket=") &&
     !securityScanSource.includes(":ready="),
   "Security scan and review rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized catalog toolchain labels",
+  catalogToolchainSource.includes("copy.catalogToolchain") &&
+    catalogToolchainSource.includes("statusText(language, catalogToolchainPlan.artifactStatus)") &&
+    catalogToolchainSource.includes("actionModeText(language, catalogToolchainPlan.actionMode)") &&
+    adminSource.includes('toolchainPlanOnly: "도구체인 계획 전용"') &&
+    catalogToolchainSource.includes("copy.registryAuthConfigured") &&
+    catalogToolchainSource.includes("copy.registryBaseReadable") &&
+    catalogToolchainSource.includes("copy.nextAction") &&
+    catalogToolchainSource.includes("copy.handoff") &&
+    catalogToolchainSource.includes("copy.cli") &&
+    catalogToolchainSource.includes("copy.localArtifact") &&
+    !catalogToolchainSource.includes("{catalogToolchainPlan.artifactStatus}") &&
+    !catalogToolchainSource.includes("{catalogToolchainPlan.actionMode}") &&
+    !catalogToolchainSource.includes("registryAuthConfigured=") &&
+    !catalogToolchainSource.includes("registryBaseReadable=") &&
+    !catalogToolchainSource.includes("registryMutationAttempted=") &&
+    !catalogToolchainSource.includes("clusterMutationAttempted=") &&
+    !catalogToolchainSource.includes("<span>Next Action</span>") &&
+    !catalogToolchainSource.includes("<span>Handoff</span>") &&
+    !catalogToolchainSource.includes("<span>CLI</span>") &&
+    !catalogToolchainSource.includes("<span>Read-only Checks</span>") &&
+    !catalogToolchainSource.includes("<span>Setup Needed</span>") &&
+    !catalogToolchainSource.includes("<span>Local Artifact</span>") &&
+    !catalogToolchainSource.includes("blocked until evidence exists"),
+  "Catalog toolchain rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized lab readiness labels",
+  labReadinessSource.includes("copy.dedicatedCrcLabReadiness") &&
+    labReadinessSource.includes("actionModeText(language, labBootstrapPlan.actionMode)") &&
+    adminSource.includes('localEvidenceOnly: "로컬 근거 전용"') &&
+    adminSource.includes('"needs-local-artifacts": "로컬 산출물 필요"') &&
+    adminSource.includes('"needs-current-evidence": "최신 근거 필요"') &&
+    adminSource.includes('"needs-capacity-review": "용량 검토 필요"') &&
+    adminSource.includes('"external-runtime-review-required": "외부 런타임 검토 필요"') &&
+    labReadinessSource.includes("statusText(language, labBootstrapPlan.artifactStatus)") &&
+    labReadinessSource.includes("statusText(language, labHandoffPlan.artifactStatus)") &&
+    labReadinessSource.includes("statusText(language, labBootstrapPlan.labTier)") &&
+    labReadinessSource.includes("statusText(language, labBootstrapPlan.runtimePlacement)") &&
+    labReadinessSource.includes("copy.labTier") &&
+    labReadinessSource.includes("copy.cpuRam") &&
+    labReadinessSource.includes("copy.gpuRuntime") &&
+    labReadinessSource.includes("copy.recommendedCrc") &&
+    labReadinessSource.includes("copy.imageMap") &&
+    labReadinessSource.includes("copy.portableTar") &&
+    labReadinessSource.includes("copy.handoffSources") &&
+    labReadinessSource.includes("copy.bootstrapWorkstation") &&
+    labReadinessSource.includes("copy.bootstrapTransfer") &&
+    labReadinessSource.includes("copy.bootstrapLabHost") &&
+    labReadinessSource.includes("copy.labApproval") &&
+    labReadinessSource.includes("copy.companyOcpUsed") &&
+    !labReadinessSource.includes("<h4>Dedicated CRC Lab Readiness</h4>") &&
+    !labReadinessSource.includes("{labBootstrapPlan.actionMode}") &&
+    !labReadinessSource.includes("head={labBootstrapPlan.headSha}") &&
+    !labReadinessSource.includes("dirty={String(labBootstrapPlan.worktreeDirty)}") &&
+    !labReadinessSource.includes("clusterMutationAttempted=") &&
+    !labReadinessSource.includes("registryMutationAttempted=") &&
+    !labReadinessSource.includes("<span>Lab Tier</span>") &&
+    !labReadinessSource.includes("<span>CPU / RAM</span>") &&
+    !labReadinessSource.includes("<span>GPU Runtime</span>") &&
+    !labReadinessSource.includes("<span>Recommended CRC</span>") &&
+    !labReadinessSource.includes("<span>Image Map</span>") &&
+    !labReadinessSource.includes("blocking={") &&
+    !labReadinessSource.includes("external={") &&
+    !labReadinessSource.includes("<span>Portable Tar</span>") &&
+    !labReadinessSource.includes("exists={String") &&
+    !labReadinessSource.includes("missingTags=") &&
+    !labReadinessSource.includes("<span>Handoff Sources</span>") &&
+    !labReadinessSource.includes("bootstrapWorkstation=") &&
+    !labReadinessSource.includes("bootstrapTransfer=") &&
+    !labReadinessSource.includes(":ready=") &&
+    !labReadinessSource.includes("bootstrapMissing=") &&
+    !labReadinessSource.includes("bootstrapLabHost=") &&
+    !labReadinessSource.includes(":first=") &&
+    !labReadinessSource.includes("bootstrapApproval=") &&
+    !labReadinessSource.includes("workstation=") &&
+    !labReadinessSource.includes("transfer=") &&
+    !labReadinessSource.includes("transferMissing=") &&
+    !labReadinessSource.includes("labHost=") &&
+    !labReadinessSource.includes("labApproval=") &&
+    !labReadinessSource.includes("companyOcpUsed="),
+  "CRC lab readiness rows use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(

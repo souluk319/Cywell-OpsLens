@@ -74,8 +74,12 @@ function statusText(language: UiLanguage, status: string | undefined) {
     en: {
       "needs-evidence": "needs evidence",
       "needs-configuration": "needs configuration",
+      "needs-local-artifacts": "needs local artifacts",
+      "needs-current-evidence": "needs current evidence",
+      "needs-capacity-review": "needs capacity review",
       "needs-live-evidence": "needs live evidence",
       "needs-live-check": "needs live check",
+      "external-runtime-review-required": "external runtime review required",
       "approval-required": "approval required",
       "approval-gated": "approval-gated",
       "blocked-by-missing-tooling": "blocked by missing tooling",
@@ -100,6 +104,8 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "dns-unresolved": "DNS unresolved",
       "api-unreachable": "API unreachable",
       ready: "ready",
+      stale: "stale",
+      candidate: "candidate",
       missing: "missing",
       unknown: "unknown",
       pass: "pass",
@@ -111,8 +117,12 @@ function statusText(language: UiLanguage, status: string | undefined) {
     ko: {
       "needs-evidence": "근거 필요",
       "needs-configuration": "설정 필요",
+      "needs-local-artifacts": "로컬 산출물 필요",
+      "needs-current-evidence": "최신 근거 필요",
+      "needs-capacity-review": "용량 검토 필요",
       "needs-live-evidence": "실시간 근거 필요",
       "needs-live-check": "실시간 확인 필요",
+      "external-runtime-review-required": "외부 런타임 검토 필요",
       "approval-required": "승인 필요",
       "approval-gated": "승인 대기",
       "blocked-by-missing-tooling": "도구 누락으로 차단",
@@ -137,6 +147,8 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "dns-unresolved": "DNS 해석 실패",
       "api-unreachable": "API 연결 불가",
       ready: "준비됨",
+      stale: "오래됨",
+      candidate: "후보",
       missing: "누락",
       unknown: "알 수 없음",
       pass: "통과",
@@ -171,7 +183,9 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       certificationReadinessOnly: "certification readiness only",
       communitySubmissionOnly: "community submission only",
       submissionDraftOnly: "submission draft only",
-      approvalPlanOnly: "approval plan only"
+      approvalPlanOnly: "approval plan only",
+      toolchainPlanOnly: "toolchain plan only",
+      localEvidenceOnly: "local evidence only"
     },
     ko: {
       readOnly: "읽기 전용",
@@ -187,7 +201,9 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       certificationReadinessOnly: "인증 준비도 전용",
       communitySubmissionOnly: "커뮤니티 제출 전용",
       submissionDraftOnly: "제출 초안 전용",
-      approvalPlanOnly: "승인 계획 전용"
+      approvalPlanOnly: "승인 계획 전용",
+      toolchainPlanOnly: "도구체인 계획 전용",
+      localEvidenceOnly: "로컬 근거 전용"
     }
   };
   return labels[language][mode] ?? mode;
@@ -498,8 +514,36 @@ const adminCopy = {
     externalSubmissionAttempted: "external submission attempted",
     communityFirstActionsMissing: "community submission first actions missing",
     catalogToolchain: "catalog toolchain",
+    registryAuthConfigured: "registry auth configured",
+    registryBaseReadable: "registry base readable",
+    nextAction: "next action",
+    handoff: "handoff",
+    cli: "CLI",
+    localArtifact: "local artifact",
     labBootstrap: "lab bootstrap",
     labHandoff: "lab handoff",
+    dedicatedCrcLabReadiness: "dedicated CRC lab readiness",
+    labTier: "lab tier",
+    cpuRam: "CPU / RAM",
+    gpuRuntime: "GPU runtime",
+    recommendedCrc: "recommended CRC",
+    imageMap: "image map",
+    imageBlocking: "blocking",
+    externalRuntimeImages: "external runtime",
+    portableTar: "portable tar",
+    missingTags: "missing tags",
+    handoffSources: "handoff sources",
+    bootstrapWorkstation: "bootstrap workstation",
+    bootstrapTransfer: "bootstrap transfer",
+    bootstrapMissing: "bootstrap missing",
+    bootstrapLabHost: "bootstrap lab host",
+    bootstrapApproval: "bootstrap approval",
+    workstation: "workstation",
+    transfer: "transfer",
+    transferMissing: "transfer missing",
+    labHost: "lab host",
+    labApproval: "lab approval",
+    companyOcpUsed: "company OCP used",
     certificationReadiness: "certification readiness",
     submissionCli: "submission CLI",
     gateCounts: "gate counts",
@@ -879,8 +923,36 @@ const adminCopy = {
     externalSubmissionAttempted: "외부 제출 시도",
     communityFirstActionsMissing: "커뮤니티 제출 첫 작업 누락",
     catalogToolchain: "카탈로그 도구체인",
+    registryAuthConfigured: "레지스트리 인증 설정",
+    registryBaseReadable: "레지스트리 기본 읽기",
+    nextAction: "다음 작업",
+    handoff: "인계",
+    cli: "CLI",
+    localArtifact: "로컬 산출물",
     labBootstrap: "랩 부트스트랩",
     labHandoff: "랩 인계",
+    dedicatedCrcLabReadiness: "전용 CRC 랩 준비도",
+    labTier: "랩 등급",
+    cpuRam: "CPU / RAM",
+    gpuRuntime: "GPU 런타임",
+    recommendedCrc: "권장 CRC",
+    imageMap: "이미지 맵",
+    imageBlocking: "차단",
+    externalRuntimeImages: "외부 런타임",
+    portableTar: "이동용 tar",
+    missingTags: "누락 태그",
+    handoffSources: "인계 소스",
+    bootstrapWorkstation: "부트스트랩 작업 PC",
+    bootstrapTransfer: "부트스트랩 전송",
+    bootstrapMissing: "부트스트랩 누락",
+    bootstrapLabHost: "부트스트랩 랩 호스트",
+    bootstrapApproval: "부트스트랩 승인",
+    workstation: "작업 PC",
+    transfer: "전송",
+    transferMissing: "전송 누락",
+    labHost: "랩 호스트",
+    labApproval: "랩 승인",
+    companyOcpUsed: "회사 OCP 사용",
     certificationReadiness: "인증 준비도",
     submissionCli: "제출 CLI",
     gateCounts: "게이트 수",
@@ -6155,85 +6227,91 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-catalog-toolchain"
             >
               <div className="admin-evidence-line">
-                <span>{catalogToolchainPlan.artifactStatus}</span>
-                <span>{catalogToolchainPlan.actionMode}</span>
                 <span>
-                  registryAuthConfigured=
-                  {String(catalogToolchainPlan.registryAuthConfigured)}
+                  <strong>{copy.catalogToolchain}</strong>:{" "}
+                  {statusText(language, catalogToolchainPlan.artifactStatus)} /{" "}
+                  {actionModeText(language, catalogToolchainPlan.actionMode)}
                 </span>
                 <span>
-                  registryBaseReadable=
-                  {String(catalogToolchainPlan.registryBaseReadable)}
+                  {copy.registryAuthConfigured}:{" "}
+                  {booleanText(language, catalogToolchainPlan.registryAuthConfigured)}
                 </span>
                 <span>
-                  registryMutationAttempted=
-                  {String(catalogToolchainPlan.registryMutationAttempted)}
+                  {copy.registryBaseReadable}:{" "}
+                  {booleanText(language, catalogToolchainPlan.registryBaseReadable)}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(catalogToolchainPlan.clusterMutationAttempted)}
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, catalogToolchainPlan.registryMutationAttempted)}
+                </span>
+                <span>
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, catalogToolchainPlan.clusterMutationAttempted)}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Next Action</span>
+                  <span>{copy.nextAction}</span>
                   <strong>
-                    {catalogToolchainPlan.nextAction.id}:
+                    {catalogToolchainPlan.nextAction.id} / {copy.owner}:{" "}
                     {catalogToolchainPlan.nextAction.owner}
                   </strong>
                 </div>
                 <div>
-                  <span>Handoff</span>
+                  <span>{copy.handoff}</span>
                   <strong>
                     {catalogToolchainPlan.markdownPath !== "missing"
                       ? catalogToolchainPlan.markdownPath
                           .split(/[\\/]/)
                           .pop()
-                      : "missing"}
+                      : statusText(language, "missing")}
                   </strong>
                 </div>
                 <div>
-                  <span>CLI</span>
+                  <span>{copy.cli}</span>
                   <strong>
                     {catalogToolchainPlan.cli.length
                       ? catalogToolchainPlan.cli
                           .map(
                             (tool) =>
-                              `${tool.name}:${tool.available ? "ready" : "missing"}`
+                              `${tool.name}: ${statusText(
+                                language,
+                                tool.available ? "ready" : "missing"
+                              )}`
                           )
                           .join(", ")
-                      : "blocked until evidence exists"}
+                      : copy.blockedUntilEvidenceExists}
                   </strong>
                 </div>
                 <div>
-                  <span>Read-only Checks</span>
+                  <span>{copy.readOnlyCommands}</span>
                   <strong>
                     {catalogToolchainPlan.readOnlyCommands.length
                       ? catalogToolchainPlan.readOnlyCommands
                           .slice(0, 4)
                           .map((command) => command.id)
                           .join(", ")
-                      : "none"}
+                      : copy.none}
                   </strong>
                 </div>
                 <div>
-                  <span>Setup Needed</span>
+                  <span>{copy.setupCommands}</span>
                   <strong>
                     {catalogToolchainPlan.setupCommands.length
                       ? catalogToolchainPlan.setupCommands
                           .map((command) => command.id)
                           .join(", ")
-                      : "none"}
+                      : copy.none}
                   </strong>
                 </div>
                 <div>
-                  <span>Local Artifact</span>
+                  <span>{copy.localArtifact}</span>
                   <strong>
                     {catalogToolchainPlan.localArtifactCommands.length
                       ? catalogToolchainPlan.localArtifactCommands
                           .map((command) => command.id)
                           .join(", ")
-                      : "none"}
+                      : copy.none}
                   </strong>
                 </div>
               </div>
@@ -6261,26 +6339,41 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             >
               <div className="card-title-row compact">
                 <div>
-                  <h4>Dedicated CRC Lab Readiness</h4>
-                  <small>{labBootstrapPlan.actionMode}</small>
+                  <h4>{copy.dedicatedCrcLabReadiness}</h4>
+                  <small>
+                    {actionModeText(language, labBootstrapPlan.actionMode)}
+                  </small>
                 </div>
                 <ListChecks size={18} aria-hidden="true" />
               </div>
               <div className="admin-evidence-line">
-                <span>{labBootstrapPlan.artifactStatus}</span>
-                <span>{labHandoffPlan.artifactStatus}</span>
-                <span>head={labBootstrapPlan.headSha}</span>
-                <span>dirty={String(labBootstrapPlan.worktreeDirty)}</span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(
+                  {copy.labBootstrap}:{" "}
+                  {statusText(language, labBootstrapPlan.artifactStatus)}
+                </span>
+                <span>
+                  {copy.labHandoff}:{" "}
+                  {statusText(language, labHandoffPlan.artifactStatus)}
+                </span>
+                <span>
+                  {copy.head}: {labBootstrapPlan.headSha}
+                </span>
+                <span>
+                  {copy.dirty}:{" "}
+                  {booleanText(language, labBootstrapPlan.worktreeDirty)}
+                </span>
+                <span>
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
                     labBootstrapPlan.mutationBoundary.clusterMutationAttempted ||
                       labHandoffPlan.mutationBoundary.clusterMutationAttempted
                   )}
                 </span>
                 <span>
-                  registryMutationAttempted=
-                  {String(
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
                     labBootstrapPlan.mutationBoundary.registryMutationAttempted ||
                       labHandoffPlan.mutationBoundary.registryMutationAttempted
                   )}
@@ -6288,26 +6381,26 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Lab Tier</span>
-                  <strong>{labBootstrapPlan.labTier}</strong>
+                  <span>{copy.labTier}</span>
+                  <strong>{statusText(language, labBootstrapPlan.labTier)}</strong>
                 </div>
                 <div>
-                  <span>CPU / RAM</span>
+                  <span>{copy.cpuRam}</span>
                   <strong>
                     {labBootstrapPlan.machine.cpuCount} cores /{" "}
                     {labBootstrapPlan.machine.ramGb}GiB
                   </strong>
                 </div>
                 <div>
-                  <span>GPU Runtime</span>
+                  <span>{copy.gpuRuntime}</span>
                   <strong>
                     {labBootstrapPlan.gpuRuntimeCandidate
-                      ? "candidate"
-                      : labBootstrapPlan.runtimePlacement}
+                      ? statusText(language, "candidate")
+                      : statusText(language, labBootstrapPlan.runtimePlacement)}
                   </strong>
                 </div>
                 <div>
-                  <span>Recommended CRC</span>
+                  <span>{copy.recommendedCrc}</span>
                   <strong>
                     {labBootstrapPlan.recommendedCrc.memoryGb}GiB /{" "}
                     {labBootstrapPlan.recommendedCrc.cpuCores} CPU /{" "}
@@ -6315,30 +6408,37 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   </strong>
                 </div>
                 <div>
-                  <span>Image Map</span>
+                  <span>{copy.imageMap}</span>
                   <strong>
-                    blocking={labBootstrapPlan.imageRefPlan.blockingCount},
-                    external={labBootstrapPlan.imageRefPlan.externalRuntimeCount}
+                    {copy.imageBlocking}:{" "}
+                    {labBootstrapPlan.imageRefPlan.blockingCount},{" "}
+                    {copy.externalRuntimeImages}:{" "}
+                    {labBootstrapPlan.imageRefPlan.externalRuntimeCount}
                   </strong>
                 </div>
                 <div>
-                  <span>Portable Tar</span>
+                  <span>{copy.portableTar}</span>
                   <strong>
-                    exists={String(labHandoffPlan.imageTar.exists)},
-                    missingTags=
-                    {labHandoffPlan.imageTar.missingTags.join(",") || "none"}
+                    {copy.exists}:{" "}
+                    {booleanText(language, labHandoffPlan.imageTar.exists)},{" "}
+                    {copy.missingTags}:{" "}
+                    {listOrNone(copy, labHandoffPlan.imageTar.missingTags)}
                   </strong>
                 </div>
                 <div>
-                  <span>Handoff Sources</span>
+                  <span>{copy.handoffSources}</span>
                   <strong>
                     {labHandoffPlan.sourceArtifacts
                       .slice(0, 4)
                       .map(
                         (source) =>
-                          `${source.id}:${source.fresh ? "fresh" : "stale"}`
+                          `${source.id}: ${
+                            source.fresh
+                              ? statusText(language, "ready")
+                              : statusText(language, "stale")
+                          }`
                       )
-                      .join(", ") || "missing"}
+                      .join(", ") || statusText(language, "missing")}
                   </strong>
                 </div>
               </div>
@@ -6352,67 +6452,81 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-lab-machine-role-plan"
               >
                 <span>
-                  bootstrapWorkstation=
-                  {labBootstrapPlan.machineRolePlan.workstation.role}:
+                  {copy.bootstrapWorkstation}:{" "}
+                  {labBootstrapPlan.machineRolePlan.workstation.role} /{" "}
+                  {copy.firstReadOnly}:{" "}
                   {labBootstrapPlan.machineRolePlan.workstation.firstCommandId}
                 </span>
                 <span>
-                  bootstrapTransfer=
-                  {labBootstrapPlan.machineRolePlan.transfer.role}:ready=
-                  {String(labBootstrapPlan.machineRolePlan.transfer.ready)}
+                  {copy.bootstrapTransfer}:{" "}
+                  {labBootstrapPlan.machineRolePlan.transfer.role} /{" "}
+                  {copy.ready}:{" "}
+                  {booleanText(language, labBootstrapPlan.machineRolePlan.transfer.ready)}
                 </span>
                 <span>
-                  bootstrapMissing=
-                  {labBootstrapPlan.machineRolePlan.transfer.missingTags.join(
-                    ","
-                  ) || "none"}
+                  {copy.bootstrapMissing}:{" "}
+                  {listOrNone(
+                    copy,
+                    labBootstrapPlan.machineRolePlan.transfer.missingTags
+                  )}
                 </span>
                 <span>
-                  bootstrapLabHost=
-                  {labBootstrapPlan.machineRolePlan.labHost.role}:first=
+                  {copy.bootstrapLabHost}:{" "}
+                  {labBootstrapPlan.machineRolePlan.labHost.role} /{" "}
+                  {copy.firstReadOnly}:{" "}
                   {
                     labBootstrapPlan.machineRolePlan.labHost
                       .firstReadOnlyCommandId
                   }
                 </span>
                 <span>
-                  bootstrapApproval=
-                  {labBootstrapPlan.machineRolePlan.labHost.approvalGatedCommandIds.join(
-                    ","
-                  ) || "none"}
+                  {copy.bootstrapApproval}:{" "}
+                  {listOrNone(
+                    copy,
+                    labBootstrapPlan.machineRolePlan.labHost
+                      .approvalGatedCommandIds
+                  )}
                 </span>
                 <span>
-                  workstation=
-                  {labHandoffPlan.machineRolePlan.workstation.role}:
+                  {copy.workstation}:{" "}
+                  {labHandoffPlan.machineRolePlan.workstation.role} /{" "}
+                  {copy.firstReadOnly}:{" "}
                   {labHandoffPlan.machineRolePlan.workstation.firstCommandId}
                 </span>
                 <span>
-                  transfer=
-                  {labHandoffPlan.machineRolePlan.transfer.role}:ready=
-                  {String(labHandoffPlan.machineRolePlan.transfer.ready)}
+                  {copy.transfer}: {labHandoffPlan.machineRolePlan.transfer.role}{" "}
+                  / {copy.ready}:{" "}
+                  {booleanText(language, labHandoffPlan.machineRolePlan.transfer.ready)}
                 </span>
                 <span>
-                  transferMissing=
-                  {labHandoffPlan.machineRolePlan.transfer.missingTags.join(
-                    ","
-                  ) || "none"}
+                  {copy.transferMissing}:{" "}
+                  {listOrNone(
+                    copy,
+                    labHandoffPlan.machineRolePlan.transfer.missingTags
+                  )}
                 </span>
                 <span>
-                  labHost={labHandoffPlan.machineRolePlan.labHost.role}:first=
+                  {copy.labHost}: {labHandoffPlan.machineRolePlan.labHost.role}{" "}
+                  / {copy.firstReadOnly}:{" "}
                   {
                     labHandoffPlan.machineRolePlan.labHost
                       .firstReadOnlyCommandId
                   }
                 </span>
                 <span>
-                  labApproval=
-                  {labHandoffPlan.machineRolePlan.labHost.approvalGatedCommandIds.join(
-                    ","
-                  ) || "none"}
+                  {copy.labApproval}:{" "}
+                  {listOrNone(
+                    copy,
+                    labHandoffPlan.machineRolePlan.labHost
+                      .approvalGatedCommandIds
+                  )}
                 </span>
                 <span>
-                  companyOcpUsed=
-                  {String(labHandoffPlan.machineRolePlan.labHost.companyOcpUsed)}
+                  {copy.companyOcpUsed}:{" "}
+                  {booleanText(
+                    language,
+                    labHandoffPlan.machineRolePlan.labHost.companyOcpUsed
+                  )}
                 </span>
               </div>
               <div className="remediation-notes">

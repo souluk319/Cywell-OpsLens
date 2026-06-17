@@ -938,6 +938,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Release publish mode, approval roles, publish commands, first publish actions, release ticket, publish decision action, and release manager packet now use KO/EN labels instead of raw fragments such as `registryMutationAttempted=`, `clusterMutationAttempted=`, `mutationAllowedByThisVerifier=`, `:mutation=`, `:approval=`, `:secret=`, `packet=`, `exists=`, or `releasePublishExecuted=`.
 - Added a `verify:web-shell` gate so the release publish plan section cannot drift back to raw developer labels, while preserving command/action IDs as evidence identifiers.
 
+### 2026-06-18 - Lane 76
+
+- Polished the catalog toolchain and CRC lab readiness cards in OpsLens Admin.
+- Catalog registry auth/readability, next action, handoff, CLI, read-only/setup/local artifact commands, lab bootstrap/handoff status, lab tier, image map, portable tar, handoff sources, and workstation/transfer/lab host role plans now use KO/EN labels instead of raw fragments such as `registryAuthConfigured=`, `registryBaseReadable=`, `registryMutationAttempted=`, `clusterMutationAttempted=`, `head=`, `dirty=`, `blocking=`, `exists=`, `missingTags=`, `bootstrapWorkstation=`, `:ready=`, `:first=`, or `companyOcpUsed=`.
+- Added KO/EN status/action-mode mappings for `toolchainPlanOnly`, `localEvidenceOnly`, `NEEDS_LOCAL_ARTIFACTS`, `NEEDS_CURRENT_EVIDENCE`, `NEEDS_CAPACITY_REVIEW`, and `external-runtime-review-required`.
+- Added `verify:web-shell` gates so the catalog and lab readiness sections cannot drift back to raw developer labels.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -949,9 +956,9 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head before Lane 75: `1413887`
+- feature branch latest pushed head before Lane 76: `1121e9d`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 75: PASS, 48 checks
+- latest web shell verifier after Lane 76: PASS, 50 checks
 - latest overnight checkpoint after Lane 70: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
