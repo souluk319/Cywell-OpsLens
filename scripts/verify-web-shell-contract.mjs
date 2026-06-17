@@ -124,6 +124,42 @@ expectCheck(
 );
 
 expectCheck(
+  "interactive shell action contracts",
+  appSource.includes('data-testid="nav-collapse-toggle"') &&
+    appSource.includes('data-testid="masthead-app-launcher"') &&
+    appSource.includes('data-testid="masthead-notifications"') &&
+    appSource.includes('data-testid="masthead-create"') &&
+    appSource.includes('data-testid="masthead-help"') &&
+    appSource.includes('data-testid={`console-nav-${item.id}`}') &&
+    appSource.includes("function activateNavigation") &&
+    appSource.includes("setActiveNavId(item.id)") &&
+    appSource.includes("setNavigationCommand(navCommand(item, language))") &&
+    appSource.includes("setEvidenceView(item.evidenceView)") &&
+    appSource.includes("setResourcePreset({") &&
+    appSource.includes("function runUtilityAction") &&
+    appSource.includes("setNavigationCommand(label)") &&
+    appSource.includes("setAssistantOpen(true)") &&
+    appSource.includes("scrollToNavigationTarget(targetSelector)") &&
+    evidenceSource.includes('data-testid="evidence-view-alerts"') &&
+    evidenceSource.includes('data-testid="evidence-view-logs"') &&
+    evidenceSource.includes('data-testid="evidence-view-yaml"') &&
+    evidenceSource.includes('data-testid="evidence-ask-alerts"') &&
+    evidenceSource.includes('data-testid="evidence-ask-logs"') &&
+    evidenceSource.includes('data-testid="evidence-ask-yaml"') &&
+    assistantSource.includes('data-testid="assistant-draft"') &&
+    assistantSource.includes('data-testid="assistant-ask-button"') &&
+    assistantSource.includes('data-testid="assistant-request-id"') &&
+    assistantSource.includes('data-testid="assistant-retry-api"') &&
+    assistantSource.includes('data-testid="assistant-close"') &&
+    assistantSource.includes("handleDraftKeyDown") &&
+    assistantSource.includes('event.key !== "Enter"') &&
+    assistantSource.includes("event.shiftKey") &&
+    assistantSource.includes("event.preventDefault()") &&
+    assistantSource.includes("onAsk()"),
+  "left navigation, masthead utilities, evidence tabs, and assistant controls expose stable test ids and state-changing handlers"
+);
+
+expectCheck(
   "language prop contract",
   appSource.includes('useState<UiLanguage>') &&
     appSource.includes("<OperationsDashboard dashboard={dashboard} language={language}") &&

@@ -151,6 +151,7 @@ export function AssistantPopover({
           <button
             className="icon-button"
             type="button"
+            data-testid="assistant-retry-api"
             title={copy.retry}
             aria-label={copy.retry}
             onClick={onRetryConnection}
@@ -161,6 +162,7 @@ export function AssistantPopover({
           <button
             className="icon-button"
             type="button"
+            data-testid="assistant-close"
             title={copy.close}
             aria-label={copy.close}
             onClick={onClose}
@@ -181,7 +183,7 @@ export function AssistantPopover({
 
       <div className="api-trace" data-testid="api-trace">
         <span>{copy.request}</span>
-        <strong>{requestId}</strong>
+        <strong data-testid="assistant-request-id">{requestId}</strong>
         <span>{copy.model}</span>
         <strong>{model}</strong>
         <span>{copy.context}</span>
@@ -202,6 +204,7 @@ export function AssistantPopover({
         <label htmlFor="kugnus-draft">{copy.prompt}</label>
         <textarea
           id="kugnus-draft"
+          data-testid="assistant-draft"
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={handleDraftKeyDown}
@@ -209,6 +212,7 @@ export function AssistantPopover({
         <button
           className="text-icon-button"
           type="button"
+          data-testid="assistant-ask-button"
           onClick={onAsk}
           disabled={busy || draft.trim().length === 0}
         >

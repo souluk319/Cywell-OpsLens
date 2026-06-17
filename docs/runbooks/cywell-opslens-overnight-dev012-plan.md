@@ -321,6 +321,28 @@ Every checkpoint:
   - `secondary=로컬 fixture 시나리오 / 회사 OCP mutation 없음`
   - `hasOldProdContext=false`
 
+### 2026-06-17 - Lane 8
+
+- Hardened the visible shell controls so the UI has stable, testable action contracts instead of ambiguous clickable chrome.
+- Added stable test ids for:
+  - nav collapse toggle
+  - masthead app launcher, notifications, create, and help actions
+  - language toggles
+  - evidence view tabs and evidence Ask buttons
+  - Assistant draft, Ask, Retry API, Close, and request id
+- Extended `npm run verify:web-shell` to assert the action contracts for navigation, utility actions, evidence tabs, and Assistant Enter handling.
+- Passed:
+  - `npm run -w @kugnus/web build`
+  - `npm run verify:web-shell`
+  - `npm run verify:console-plugin`
+- Browser verification on `http://127.0.0.1:5173/index.html` showed:
+  - nav collapse changed `navCollapsed=false -> true`
+  - Logs nav activated `console-nav-logs` and showed the log viewport
+  - YAML evidence tab showed the YAML textarea
+  - Workloads nav activated `console-nav-workloads` and preset `deployments pods replicasets`
+  - Create utility opened the Assistant in plan-only mode
+  - Enter in the Assistant draft changed the request id to a new `plan-*` value through `local-vite-proxy`
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -333,7 +355,7 @@ Checkpoint cadence:
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier: PASS, 8 checks
+- latest web shell verifier: PASS, 9 checks
 
 ## First Command Set
 

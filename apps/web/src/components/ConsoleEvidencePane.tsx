@@ -93,6 +93,7 @@ export function ConsoleEvidencePane({
         <div className="segmented-control" aria-label={copy.evidenceView}>
           <button
             type="button"
+            data-testid="evidence-view-alerts"
             aria-pressed={evidenceView === "alerts"}
             onClick={() => onEvidenceViewChange("alerts")}
           >
@@ -101,6 +102,7 @@ export function ConsoleEvidencePane({
           </button>
           <button
             type="button"
+            data-testid="evidence-view-logs"
             aria-pressed={evidenceView === "logs"}
             onClick={() => onEvidenceViewChange("logs")}
           >
@@ -109,6 +111,7 @@ export function ConsoleEvidencePane({
           </button>
           <button
             type="button"
+            data-testid="evidence-view-yaml"
             aria-pressed={evidenceView === "yaml"}
             onClick={() => onEvidenceViewChange("yaml")}
           >
@@ -123,7 +126,12 @@ export function ConsoleEvidencePane({
           <article className="console-panel">
             <div className="panel-title-row">
               <h3>{copy.firingAlerts}</h3>
-              <button className="text-icon-button" type="button" onClick={onAsk}>
+              <button
+                className="text-icon-button"
+                type="button"
+                data-testid="evidence-ask-alerts"
+                onClick={onAsk}
+              >
                 <Bot size={16} aria-hidden="true" />
                 {copy.askOpsLens}
               </button>
@@ -176,7 +184,12 @@ export function ConsoleEvidencePane({
         <article className="console-panel log-panel">
           <div className="panel-title-row">
             <h3>{copy.podLogs}</h3>
-            <button className="text-icon-button" type="button" onClick={onAsk}>
+            <button
+              className="text-icon-button"
+              type="button"
+              data-testid="evidence-ask-logs"
+              onClick={onAsk}
+            >
               <Bot size={16} aria-hidden="true" />
               {copy.askOpsLens}
             </button>
@@ -191,7 +204,12 @@ export function ConsoleEvidencePane({
         <article className="console-panel yaml-panel">
           <div className="panel-title-row">
             <h3>{mockContext.resource?.kind} YAML</h3>
-            <button className="text-icon-button" type="button" onClick={onAsk}>
+            <button
+              className="text-icon-button"
+              type="button"
+              data-testid="evidence-ask-yaml"
+              onClick={onAsk}
+            >
               <Bot size={16} aria-hidden="true" />
               {copy.askOpsLens}
             </button>

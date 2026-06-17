@@ -702,6 +702,7 @@ export default function App() {
           <button
             className="icon-button masthead-menu"
             type="button"
+            data-testid="nav-collapse-toggle"
             aria-label={navCollapsed ? copy.openNavigation : copy.collapseNavigation}
             aria-pressed={!navCollapsed}
             onClick={() => setNavCollapsed((collapsed) => !collapsed)}
@@ -777,6 +778,7 @@ export default function App() {
             >
               <button
                 aria-pressed={language === "ko"}
+                data-testid="language-ko-toggle"
                 type="button"
                 onClick={() => setLanguage("ko")}
               >
@@ -784,6 +786,7 @@ export default function App() {
               </button>
               <button
                 aria-pressed={language === "en"}
+                data-testid="language-en-toggle"
                 type="button"
                 onClick={() => setLanguage("en")}
               >
@@ -798,6 +801,7 @@ export default function App() {
             <button
               className="icon-button"
               type="button"
+              data-testid="masthead-app-launcher"
               title={copy.appLauncher}
               aria-label={copy.appLauncher}
               onClick={() =>
@@ -812,6 +816,7 @@ export default function App() {
             <button
               className="icon-button notification-button"
               type="button"
+              data-testid="masthead-notifications"
               title={copy.notifications}
               aria-label={copy.notifications}
               onClick={() =>
@@ -827,6 +832,7 @@ export default function App() {
             <button
               className="icon-button"
               type="button"
+              data-testid="masthead-create"
               title={copy.create}
               aria-label={copy.create}
               onClick={() =>
@@ -842,6 +848,7 @@ export default function App() {
             <button
               className="icon-button"
               type="button"
+              data-testid="masthead-help"
               title={copy.help}
               aria-label={copy.help}
               onClick={() =>
