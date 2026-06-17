@@ -527,6 +527,18 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Protected the Assistant answer display contract in `npm run verify:web-shell`.
 - Remaining gap: live backend evidence can still contain English diagnostic phrases. That remains intentional until a reviewed evidence-text dictionary is added for live payload classes; raw evidence should not be silently rewritten without traceability.
 
+### 2026-06-17 - Lane 20
+
+- Added an Assistant connection decision card so the chat surface explains whether it is using the configured OpsLens API route, still checking, or showing the local plan-only fallback.
+- The fallback copy now says plainly that OpsLens is not pretending live AI is connected when the API route does not answer.
+- Added customer-facing route mode labels for:
+  - local Vite proxy
+  - custom API base
+  - ConsolePlugin UserToken proxy
+  - server render
+- Localized the masthead API status chip so KO mode shows `API 연결 확인 중`, `API 연결됨`, or `API 로컬 대체 응답` instead of raw `API loading/ready/fallback`.
+- Protected the connection decision card and localized API chip contract in `npm run verify:web-shell`.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

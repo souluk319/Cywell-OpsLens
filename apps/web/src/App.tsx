@@ -389,6 +389,22 @@ const shellCopy = {
   }
 } as const;
 
+const apiStatusLabels: Record<
+  UiLanguage,
+  Record<"loading" | "ready" | "fallback", string>
+> = {
+  en: {
+    loading: "checking",
+    ready: "connected",
+    fallback: "local fallback"
+  },
+  ko: {
+    loading: "연결 확인 중",
+    ready: "연결됨",
+    fallback: "로컬 대체 응답"
+  }
+};
+
 interface RuntimeProfile {
   surface: "console-plugin" | "standalone-dev";
   apiBaseAttached: boolean;
@@ -749,7 +765,7 @@ export default function App() {
               className={`status-pill ${apiStatus === "ready" ? "ready" : "danger"}`}
               data-testid="api-status"
             >
-              {copy.api} {apiStatus}
+              {copy.api} {apiStatusLabels[language][apiStatus]}
             </span>
             <span
               className={`status-pill ${isConsolePlugin ? "ready" : "warning"}`}

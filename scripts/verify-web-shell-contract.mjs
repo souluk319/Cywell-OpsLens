@@ -135,6 +135,9 @@ expectCheck(
     assistantSource.includes('data-testid="assistant-api-route-mode"') &&
     assistantSource.includes('data-testid="assistant-action-plan-path"') &&
     assistantSource.includes('data-testid="assistant-last-api-error"') &&
+    assistantSource.includes('data-testid="assistant-connection-summary"') &&
+    assistantSource.includes("연결 판정") &&
+    assistantSource.includes("실제 AI 연결처럼 보이게 꾸미지 않고") &&
     assistantSource.includes("Retry API") &&
     apiSource.includes("console-plugin-user-token-proxy") &&
     apiSource.includes("local-vite-proxy"),
@@ -186,6 +189,9 @@ expectCheck(
     appSource.includes("<OcpResourceExplorer") &&
     appSource.includes("<OpsLensAdminDashboard language={language}") &&
     appSource.includes("language={language}") &&
+    appSource.includes("apiStatusLabels") &&
+    appSource.includes("로컬 대체 응답") &&
+    appSource.includes("연결 확인 중") &&
     assistantSource.includes("연결 확인 중") &&
     assistantSource.includes("동작 모드") &&
     assistantSource.includes("contextChipLabels") &&
@@ -238,7 +244,9 @@ expectCheck(
     appSource.includes("진행 중인 장애 대기열") &&
     appSource.includes("분류 대기열") &&
     appSource.includes("필수 키") &&
+    appSource.includes("{copy.api} {apiStatusLabels[language][apiStatus]}") &&
     appSource.includes("읽기 전용 탐색기를 파드와 배포 중심으로 설정합니다.") &&
+    !appSource.includes("{copy.api} {apiStatus}") &&
     !appSource.includes("발생 중인 alert") &&
     !appSource.includes("Assistant가") &&
     !appSource.includes("triage queue로") &&

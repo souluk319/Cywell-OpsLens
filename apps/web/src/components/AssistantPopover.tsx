@@ -93,6 +93,47 @@ const assistantCopy = {
   }
 } as const;
 
+const connectionCopy = {
+  en: {
+    title: "Connection decision",
+    loadingDetail:
+      "OpsLens is checking the context sync and action plan route before answering.",
+    readyDetail:
+      "The action plan API answered. The visible response is coming through the configured OpsLens API route.",
+    fallbackDetail:
+      "The API route did not answer, so OpsLens is showing the local plan-only answer instead of pretending live AI is connected.",
+    routePrefix: "Route",
+    boundary: "Chat remains read-only/plan-only; it does not mutate the cluster.",
+    retryHint:
+      "Use Retry API after the dashboard API tunnel or ConsolePlugin proxy is restored.",
+    modes: {
+      "console-plugin-user-token-proxy": "ConsolePlugin UserToken proxy",
+      "custom-api-base": "custom API base",
+      "local-vite-proxy": "local Vite proxy",
+      "server-render": "server render"
+    }
+  },
+  ko: {
+    title: "연결 판정",
+    loadingDetail:
+      "OpsLens가 답변 전에 컨텍스트 동기화와 계획 API 경로를 확인하고 있습니다.",
+    readyDetail:
+      "계획 API가 응답했습니다. 현재 답변은 설정된 OpsLens API 경로를 통해 생성된 것입니다.",
+    fallbackDetail:
+      "API 경로가 응답하지 않아, 실제 AI 연결처럼 보이게 꾸미지 않고 로컬 계획 전용 답변을 표시합니다.",
+    routePrefix: "경로",
+    boundary: "챗봇은 읽기 전용/계획 전용이며 클러스터를 변경하지 않습니다.",
+    retryHint:
+      "대시보드 API 터널이나 ConsolePlugin 프록시를 복구한 뒤 API 재시도를 누르십시오.",
+    modes: {
+      "console-plugin-user-token-proxy": "ConsolePlugin 사용자 토큰 프록시",
+      "custom-api-base": "사용자 지정 API 경로",
+      "local-vite-proxy": "로컬 Vite 프록시",
+      "server-render": "서버 렌더링"
+    }
+  }
+} as const;
+
 const statusLabels: Record<UiLanguage, Record<string, string>> = {
   en: {
     loading: "loading",
@@ -257,6 +298,11 @@ function localizedText(language: UiLanguage, value: string) {
   return answerTextLabels[language][value] ?? value;
 }
 
+function routeModeLabel(language: UiLanguage, mode: string) {
+  const modeLabels = connectionCopy[language].modes as Record<string, string>;
+  return modeLabels[mode] ?? mode;
+}
+
 export function AssistantPopover({
   draft,
   contextChips,
@@ -276,10 +322,22 @@ export function AssistantPopover({
   onClose
 }: AssistantPopoverProps) {
   const copy = assistantCopy[language];
+  const connection = connectionCopy[language];
   const statusLabel =
     apiStatus === "ready"
       ? copy.readyStatus
       : localizedLabel(statusLabels, language, apiStatus);
+  const connectionDetail =
+    apiStatus === "ready"
+      ? connection.readyDetail
+      : apiStatus === "loading"
+        ? connection.loadingDetail
+        : connection.fallbackDetail;
+  const connectionItems = [
+    `${connection.routePrefix}: ${routeModeLabel(language, apiRouteMode)}`,
+    connection.boundary,
+    ...(apiStatus === "fallback" ? [connection.retryHint] : [])
+  ];
 
   function handleDraftKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
@@ -368,6 +426,19 @@ export function AssistantPopover({
             <strong data-testid="assistant-last-api-error">{lastApiError}</strong>
           </>
         ) : null}
+      </div>
+
+      <div
+        className={`assistant-connection-summary ${apiStatus}`}
+        data-testid="assistant-connection-summary"
+      >
+        <strong>{connection.title}</strong>
+        <p>{connectionDetail}</p>
+        <ul>
+          {connectionItems.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </div>
 
       <div className="prompt-box">

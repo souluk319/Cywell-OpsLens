@@ -16,6 +16,8 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the OCP Resource Explorer Korean surface now avoids leftover developer English for fallback/RBAC/owner relationship states
 - the primary dashboard, evidence pane, console overview, and Assistant status/context fields now avoid customer-visible mixed Korean/English labels such as `live overview`, `incident queue`, `payload`, raw `fallback/loading` UI status chips, and English context chip labels
 - the Assistant answer body now has a reviewed KO display dictionary for the known demo triage answer, including current judgment, evidence labels, cause candidates, risks, missing evidence, plan, rollback path, citations, and context values such as `CRC 미리보기` and `근거 3건`
+- the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
+- the masthead API status chip is localized instead of showing raw `loading/ready/fallback` state values in Korean mode
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes
