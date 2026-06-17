@@ -139,7 +139,18 @@ expectCheck(
     assistantSource.includes('data-testid="assistant-action-plan-path"') &&
     assistantSource.includes('data-testid="assistant-last-api-error"') &&
     assistantSource.includes('data-testid="assistant-connection-summary"') &&
+    assistantSource.includes('data-testid="assistant-mode-matrix"') &&
+    assistantSource.includes('data-testid="assistant-answer-source"') &&
+    assistantSource.includes('data-testid="assistant-token-path"') &&
+    assistantSource.includes('data-testid="assistant-mutation-boundary"') &&
     assistantSource.includes("연결 판정") &&
+    assistantSource.includes("답변 출처") &&
+    assistantSource.includes("OpenShift 사용자 토큰 프록시") &&
+    assistantSource.includes("실행 안 함") &&
+    assistantSource.includes("answer source") &&
+    assistantSource.includes("local plan-only fallback") &&
+    assistantSource.includes("OpenShift UserToken proxy") &&
+    assistantSource.includes("not executed") &&
     assistantSource.includes("실제 AI 연결처럼 보이게 꾸미지 않고") &&
     assistantSource.includes("오류 해석") &&
     assistantSource.includes("포트 포워딩/ConsolePlugin 프록시가 끊겼습니다.") &&
@@ -248,6 +259,12 @@ expectCheck(
     e2eSource.includes("ConsolePlugin: 콘솔 라우트") &&
     e2eSource.includes("KOMSCO AI 어시스턴트") &&
     e2eSource.includes("KOMSCO AI Assistant") &&
+    e2eSource.includes('getByTestId("assistant-mode-matrix")') &&
+    e2eSource.includes("답변 출처") &&
+    e2eSource.includes("클러스터 변경") &&
+    e2eSource.includes("실행 안 함") &&
+    e2eSource.includes("answer source") &&
+    e2eSource.includes("cluster changes") &&
     e2eSource.includes("Ask from current context") &&
     e2eSource.includes("현재 컨텍스트로 질문"),
   "Playwright covers KO/EN switching across masthead, install flow, navigation, and the KOMSCO assistant"

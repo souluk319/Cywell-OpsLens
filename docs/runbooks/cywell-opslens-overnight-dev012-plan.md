@@ -572,6 +572,20 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Kept the approved-install example explicit with pgvector, vLLM, and `PatchOLSConfig` so production-facing behavior is still visible but not the only path.
 - Extended `npm run verify:operator` so the bundle fails if OperatorHub no longer exposes the CRC-safe example.
 
+### 2026-06-18 - Lane 24
+
+- Added an Assistant connection mode matrix so the chat surface now names:
+  - answer source: live OpsLens API route versus local plan-only fallback
+  - token path: OpenShift UserToken proxy versus local dev proxy/tunnel
+  - mutation boundary: cluster changes are not executed from chat
+- Localized the mode matrix in KO/EN, including `답변 출처`, `토큰 경로`, and `클러스터 변경`.
+- Extended the AC-UI-004 Playwright path so language switching verifies the Assistant mode matrix alongside masthead, install flow, navigation, and Ask button labels.
+- Protected the mode matrix contract in `npm run verify:web-shell`.
+- Verified:
+  - `npm run verify:web-shell`
+  - `npm run -w @kugnus/web build`
+  - `npx playwright test -g "AC-UI-004"`
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -585,7 +599,7 @@ Checkpoint cadence:
 - feature branch head at plan creation: `cf791e1`
 - feature branch latest pushed head before Lane 19: `5a6dc1e`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 19: PASS, 11 checks
+- latest web shell verifier after Lane 24: PASS, 12 checks
 - latest CRC handoff tar: `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`
 
 ## First Command Set

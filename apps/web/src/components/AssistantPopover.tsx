@@ -49,6 +49,14 @@ const assistantCopy = {
     endpoint: "endpoint",
     error: "last error",
     errorInterpretation: "interpretation",
+    answerSource: "answer source",
+    sourceLive: "OpsLens API route",
+    sourceFallback: "local plan-only fallback",
+    tokenPath: "token path",
+    tokenConsole: "OpenShift UserToken proxy",
+    tokenLocal: "local dev proxy or tunnel",
+    mutationBoundaryShort: "cluster changes",
+    mutationBoundaryValue: "not executed",
     retry: "Retry API",
     pending: "pending",
     actionMode: "action mode",
@@ -77,6 +85,14 @@ const assistantCopy = {
     endpoint: "엔드포인트",
     error: "마지막 오류",
     errorInterpretation: "오류 해석",
+    answerSource: "답변 출처",
+    sourceLive: "OpsLens API 경로",
+    sourceFallback: "로컬 계획 전용 대체 응답",
+    tokenPath: "토큰 경로",
+    tokenConsole: "OpenShift 사용자 토큰 프록시",
+    tokenLocal: "로컬 개발 프록시 또는 터널",
+    mutationBoundaryShort: "클러스터 변경",
+    mutationBoundaryValue: "실행 안 함",
     retry: "API 재시도",
     pending: "대기 중",
     actionMode: "동작 모드",
@@ -379,6 +395,12 @@ export function AssistantPopover({
     connection.boundary,
     ...(apiStatus === "fallback" ? [connection.retryHint] : [])
   ];
+  const answerSource =
+    apiStatus === "ready" ? copy.sourceLive : copy.sourceFallback;
+  const tokenPath =
+    apiRouteMode === "console-plugin-user-token-proxy"
+      ? copy.tokenConsole
+      : copy.tokenLocal;
 
   function handleDraftKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
@@ -484,6 +506,22 @@ export function AssistantPopover({
             <li key={item}>{item}</li>
           ))}
         </ul>
+        <dl className="assistant-mode-matrix" data-testid="assistant-mode-matrix">
+          <div>
+            <dt>{copy.answerSource}</dt>
+            <dd data-testid="assistant-answer-source">{answerSource}</dd>
+          </div>
+          <div>
+            <dt>{copy.tokenPath}</dt>
+            <dd data-testid="assistant-token-path">{tokenPath}</dd>
+          </div>
+          <div>
+            <dt>{copy.mutationBoundaryShort}</dt>
+            <dd data-testid="assistant-mutation-boundary">
+              {copy.mutationBoundaryValue}
+            </dd>
+          </div>
+        </dl>
       </div>
 
       <div className="prompt-box">

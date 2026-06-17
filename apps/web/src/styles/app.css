@@ -2188,6 +2188,41 @@ button {
   padding-left: 18px;
 }
 
+.assistant-mode-matrix {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 4px 0 0;
+}
+
+.assistant-mode-matrix div {
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid rgba(79, 82, 85, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.assistant-mode-matrix dt,
+.assistant-mode-matrix dd {
+  margin: 0;
+}
+
+.assistant-mode-matrix dt {
+  color: #6a6e73;
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.assistant-mode-matrix dd {
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  color: #151515;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
 .prompt-box {
   display: grid;
   gap: 6px;
