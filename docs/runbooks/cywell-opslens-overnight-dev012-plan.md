@@ -710,6 +710,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The UI still preserves service account names, ClusterRole names, ticket IDs, command IDs, and evidence status values for auditability.
 - `npm run verify:web-shell` now includes a `localized auth rbac plan labels` gate.
 
+### 2026-06-18 - Lane 41
+
+- Polished the live handoff post-approval smoke card, the surface that explains whether the CRC/OCP apply path has enough RBAC, Lightspeed, and source-artifact evidence after approval.
+- KO mode no longer exposes raw labels such as `classification=`, `rbac=`, `unknown=`, `lightspeedClassification=`, `lightspeedAuthReady=`, `sources=...fresh=`, `Read-only Commands`, `Action Hints`, `Post-approval Smoke`, or `Forbidden` in that card.
+- The UI still preserves command IDs, evidence artifact IDs, RBAC count ratios, and smoke command names.
+- `npm run verify:web-shell` now includes a `localized live handoff smoke labels` gate.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -721,10 +728,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 39: `bfe8704`
+- feature branch latest pushed head after Lane 40: `3786512`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 40: PASS, 22 checks
-- latest overnight checkpoint after Lane 40: PASS, 9/9 local gates, structured Git dirty state present
+- latest web shell verifier after Lane 41: PASS, 23 checks
+- latest overnight checkpoint after Lane 41: PASS, 9/9 local gates, structured Git dirty state present
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

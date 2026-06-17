@@ -464,6 +464,13 @@ const adminCopy = {
     policy: "policy",
     rules: "rules",
     secretsIncluded: "secrets included",
+    rbac: "RBAC",
+    unknown: "unknown",
+    lightspeedAuthReady: "Lightspeed auth ready",
+    actionHints: "action hints",
+    postApprovalSmoke: "post-approval smoke",
+    forbidden: "forbidden",
+    blockedUntilHandoffExists: "blocked until handoff exists",
     requiredImages: "required images",
     localInspect: "local inspect",
     remainingEvidence: "remaining evidence",
@@ -694,6 +701,13 @@ const adminCopy = {
     policy: "정책",
     rules: "규칙",
     secretsIncluded: "Secret 포함",
+    rbac: "RBAC",
+    unknown: "미확인",
+    lightspeedAuthReady: "Lightspeed 인증 준비",
+    actionHints: "작업 힌트",
+    postApprovalSmoke: "승인 후 스모크",
+    forbidden: "금지 항목",
+    blockedUntilHandoffExists: "인계 근거 전까지 대기",
     requiredImages: "필수 이미지",
     localInspect: "로컬 검사",
     remainingEvidence: "남은 근거",
@@ -4434,7 +4448,9 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-live-handoff"
             >
               <div className="admin-evidence-line">
-                <span>{liveHandoff.artifactStatus}</span>
+                <span title={liveHandoff.artifactStatus}>
+                  {statusText(language, liveHandoff.artifactStatus)}
+                </span>
                 <span>{actionModeText(language, liveHandoff.actionMode)}</span>
                 <span title={liveHandoff.currentGapClassification}>
                   {copy.currentGap}:{" "}
@@ -4461,74 +4477,87 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-live-handoff-post-approval-smoke"
               >
                 <span>
-                  classification=
-                  {liveHandoff.postApprovalSmoke.ocpClassification}
+                  {copy.classification}:{" "}
+                  {statusText(
+                    language,
+                    liveHandoff.postApprovalSmoke.ocpClassification
+                  )}
                 </span>
                 <span>
-                  rbac=
+                  {copy.rbac}:{" "}
                   {liveHandoff.postApprovalSmoke.requiredRbacAllowedCount}/
                   {liveHandoff.postApprovalSmoke.requiredRbacReviewCount}
                 </span>
                 <span>
-                  unknown=
+                  {copy.unknown}:{" "}
                   {liveHandoff.postApprovalSmoke.requiredRbacUnknownCount}
                 </span>
                 <span>
-                  lightspeedClassification=
-                  {liveHandoff.postApprovalSmoke.lightspeedClassification}
+                  {copy.lightspeedMcp}:{" "}
+                  {statusText(
+                    language,
+                    liveHandoff.postApprovalSmoke.lightspeedClassification
+                  )}
                 </span>
                 <span>
-                  lightspeedAuthReady=
-                  {String(liveHandoff.postApprovalSmoke.lightspeedAuthReady)}
+                  {copy.lightspeedAuthReady}:{" "}
+                  {booleanText(
+                    language,
+                    liveHandoff.postApprovalSmoke.lightspeedAuthReady
+                  )}
                 </span>
-                <span>
-                  sources=
-                  {liveHandoff.postApprovalSmoke.sourceArtifacts.length
-                    ? liveHandoff.postApprovalSmoke.sourceArtifacts
-                        .slice(0, 2)
-                        .map(
-                          (source) =>
-                            `${source.id}:${source.status}:fresh=${String(
-                              source.fresh
-                            )}`
-                        )
-                        .join(", ")
-                    : "missing"}
-                </span>
+                {liveHandoff.postApprovalSmoke.sourceArtifacts.length ? (
+                  liveHandoff.postApprovalSmoke.sourceArtifacts
+                    .slice(0, 2)
+                    .map((source) => (
+                      <span key={source.id}>
+                        {copy.sourceArtifacts}: {source.id} / {copy.status}{" "}
+                        {statusText(language, source.status)} / {copy.fresh}{" "}
+                        {booleanText(language, source.fresh)}
+                      </span>
+                    ))
+                ) : (
+                  <span>
+                    {copy.sourceArtifacts}: {copy.none}
+                  </span>
+                )}
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Read-only Commands</span>
+                  <span>{copy.readOnlyCommands}</span>
                   <strong>
                     {liveHandoff.readOnlyCommands.length
                       ? liveHandoff.readOnlyCommands
                           .slice(0, 4)
                           .map((command) => command.id)
                           .join(", ")
-                      : "blocked until handoff exists"}
+                      : copy.blockedUntilHandoffExists}
                   </strong>
                 </div>
                 <div>
-                  <span>Action Hints</span>
+                  <span>{copy.actionHints}</span>
                   <strong>
                     {liveHandoff.actionHints.length
                       ? liveHandoff.actionHints
                           .slice(0, 2)
                           .map((hint) => hint.id)
                           .join(", ")
-                      : "none"}
+                      : copy.none}
                   </strong>
                 </div>
                 <div>
-                  <span>Post-approval Smoke</span>
+                  <span>{copy.postApprovalSmoke}</span>
                   <strong>
                     {liveHandoff.postApprovalSmoke.requiredAfterAuthRbacApproval
-                      ? `${liveHandoff.postApprovalSmoke.artifactStatus} rbac=${liveHandoff.postApprovalSmoke.requiredRbacAllowedCount}/${liveHandoff.postApprovalSmoke.requiredRbacReviewCount} unknown=${liveHandoff.postApprovalSmoke.requiredRbacUnknownCount}`
+                      ? `${statusText(
+                          language,
+                          liveHandoff.postApprovalSmoke.artifactStatus
+                        )} ${copy.rbac}: ${liveHandoff.postApprovalSmoke.requiredRbacAllowedCount}/${liveHandoff.postApprovalSmoke.requiredRbacReviewCount} ${copy.unknown}: ${liveHandoff.postApprovalSmoke.requiredRbacUnknownCount}`
                       : "verify:ocp:live-reader-smoke"}
                   </strong>
                 </div>
                 <div>
-                  <span>Forbidden</span>
+                  <span>{copy.forbidden}</span>
                   <strong>
                     {liveHandoff.forbiddenCommands.slice(0, 3).join(", ")}
                   </strong>

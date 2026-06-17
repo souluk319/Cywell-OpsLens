@@ -412,6 +412,27 @@ expectCheck(
 );
 
 expectCheck(
+  "localized live handoff smoke labels",
+  adminSource.includes("copy.postApprovalSmoke") &&
+    adminSource.includes("copy.lightspeedAuthReady") &&
+    adminSource.includes("copy.blockedUntilHandoffExists") &&
+    adminSource.includes('"승인 후 스모크"') &&
+    !adminSource.includes("classification=\n                  {liveHandoff.postApprovalSmoke.ocpClassification}") &&
+    !adminSource.includes("rbac=\n                  {liveHandoff.postApprovalSmoke.requiredRbacAllowedCount}") &&
+    !adminSource.includes("unknown=\n                  {liveHandoff.postApprovalSmoke.requiredRbacUnknownCount}") &&
+    !adminSource.includes("lightspeedClassification=\n                  {liveHandoff.postApprovalSmoke.lightspeedClassification}") &&
+    !adminSource.includes("lightspeedAuthReady=\n                  {String(liveHandoff.postApprovalSmoke.lightspeedAuthReady)}") &&
+    !adminSource.includes("sources=\n                  {liveHandoff.postApprovalSmoke.sourceArtifacts.length") &&
+    !adminSource.includes("<span>Read-only Commands</span>") &&
+    !adminSource.includes("<span>Action Hints</span>") &&
+    !adminSource.includes("<span>Post-approval Smoke</span>") &&
+    !adminSource.includes("<span>Forbidden</span>") &&
+    !adminSource.includes(":fresh=${String(\n                              source.fresh") &&
+    !adminSource.includes("artifactStatus} rbac=${liveHandoff.postApprovalSmoke.requiredRbacAllowedCount}"),
+  "Live handoff post-approval smoke rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
   "localized remediation proposal labels",
   !adminSource.includes("<span>Mode</span>") &&
     !adminSource.includes("<span>Patch</span>") &&
