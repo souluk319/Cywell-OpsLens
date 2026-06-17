@@ -11,11 +11,11 @@ spec:
   targetNamespace: cywell-opslens
   components:
     api:
-      image: image-registry.openshift-image-registry.svc:5000/cywell-opslens/cywell-opslens-api:v0.1.1-crc
+      image: image-registry.openshift-image-registry.svc:5000/cywell-opslens/cywell-opslens-api:v0.1.2-dev-crc
       replicas: 1
       serviceName: cywell-opslens-api
     dashboard:
-      image: image-registry.openshift-image-registry.svc:5000/cywell-opslens/cywell-opslens-dashboard:v0.1.1-crc
+      image: image-registry.openshift-image-registry.svc:5000/cywell-opslens/cywell-opslens-dashboard:v0.1.2-dev-crc
       replicas: 1
       serviceName: cywell-opslens-dashboard
     vectorStore:

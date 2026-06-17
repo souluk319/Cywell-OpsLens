@@ -23,8 +23,8 @@ const defaults = {
   sourceBundleAnnotations: "deploy/operator/bundle/metadata/annotations.yaml",
   opmImage: "quay.io/operator-framework/opm:v1.47.0",
   sourceVersion: "0.1.0",
-  devVersion: "0.1.1",
-  devImageTag: "v0.1.1-crc",
+  devVersion: "0.1.2",
+  devImageTag: "v0.1.2-dev-crc",
   timeoutMs: 10000
 };
 
@@ -130,6 +130,14 @@ async function loadYaml(path) {
 function targetImage(component) {
   const row = ownedImages.find(([name]) => name === component);
   return `${options.registry}/${options.namespace}/${row[2]}:${options.devImageTag}`;
+}
+
+function localImageName(component, tag = "verify") {
+  const repo =
+    component === "bundle"
+      ? "opslens-operator-bundle"
+      : `opslens-${component}`;
+  return `cywell/${repo}:${tag}`;
 }
 
 function csvName(version) {
@@ -341,6 +349,16 @@ async function writeMarkdown(path, report) {
     report.commands.buildCatalog,
     "```",
     "",
+    "## Versioned Local Tags",
+    "",
+    "```powershell",
+    report.commands.tagLocalImages,
+    "```",
+    "",
+    "```powershell",
+    report.commands.saveVersionedImages,
+    "```",
+    "",
     "## CRC Push Commands",
     "",
     ...report.commands.pushImages.map((command) => ["```bash", command, "```", ""].join("\n")),
@@ -391,6 +409,13 @@ async function main() {
   const bundle = replacedFbc.find((doc) => doc.schema === "olm.bundle");
   const bundleCsv = replacedBundleCsv.find((doc) => doc.kind === "ClusterServiceVersion");
   const devCsvName = csvName(options.devVersion);
+  if (options.devImageTag === "verify" || options.devImageTag.endsWith(":verify")) {
+    fail("CRC dev image tag", `devImageTag=${options.devImageTag} would recreate the stale :verify trap`);
+  } else if (options.devImageTag.includes(options.devVersion)) {
+    pass("CRC dev image tag", `${options.devImageTag} is versioned for ${options.devVersion}`);
+  } else {
+    fail("CRC dev image tag", `${options.devImageTag} does not include devVersion=${options.devVersion}`);
+  }
   if ((channel?.entries ?? []).some((entry) => entry.name === devCsvName)) {
     pass("CRC dev channel CSV", devCsvName);
   } else {
@@ -448,7 +473,7 @@ async function main() {
   const localImages = await Promise.all(
     ownedImages
       .filter(([component]) => component !== "catalog")
-      .map(([component]) => localImage(`cywell/opslens-${component === "bundle" ? "operator-bundle" : component}:verify`).then((image) => ({ component, ...image })))
+      .map(([component]) => localImage(localImageName(component)).then((image) => ({ component, ...image })))
   );
   for (const image of localImages) {
     if (image.present) {
@@ -459,11 +484,17 @@ async function main() {
   }
 
   const commands = {
-    buildBundle: `docker build -f ${paths.bundleDockerfile} -t cywell/opslens-operator-bundle:verify ${outDir}`,
-    buildCatalog: `docker build -f ${paths.dockerfile} -t cywell/opslens-catalog:verify ${outDir}`,
+    buildBundle: `docker build -f ${paths.bundleDockerfile} -t ${localImageName("bundle")} -t ${localImageName("bundle", options.devImageTag)} ${outDir}`,
+    buildCatalog: `docker build -f ${paths.dockerfile} -t ${localImageName("catalog")} -t ${localImageName("catalog", options.devImageTag)} ${outDir}`,
+    tagLocalImages: ownedImages
+      .map(([component]) => `docker tag ${localImageName(component)} ${localImageName(component, options.devImageTag)}`)
+      .join(" && "),
+    saveVersionedImages: `docker save ${ownedImages
+      .map(([component]) => localImageName(component, options.devImageTag))
+      .join(" ")} -o .\\test-results\\cywell-opslens-crc-${options.devImageTag}-arm64.tar`,
     pushImages: ownedImages.map(
       ([component, , repo]) =>
-        `docker tag cywell/opslens-${component === "bundle" ? "operator-bundle" : component}:verify ${options.registry}/${options.namespace}/${repo}:${options.devImageTag} && docker push ${options.registry}/${options.namespace}/${repo}:${options.devImageTag}`
+        `docker tag ${localImageName(component, options.devImageTag)} ${options.registry}/${options.namespace}/${repo}:${options.devImageTag} && docker push ${options.registry}/${options.namespace}/${repo}:${options.devImageTag}`
     ),
     applyCatalog: `oc apply -f ${paths.catalogSource}`,
     applySubscription: `oc apply -f ${paths.subscription}`

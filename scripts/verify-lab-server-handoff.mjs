@@ -24,7 +24,8 @@ const defaults = {
   lightspeedReadinessEvidence: "test-results/cywell-opslens-lightspeed-readiness.json",
   lightspeedPatchPreviewEvidence: "test-results/cywell-opslens-lightspeed-patch-preview.json",
   installPlanEvidence: "test-results/cywell-opslens-install-approval-plan.json",
-  imageTar: "test-results/cywell-opslens-crc-images.tar",
+  imageTar: "test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar",
+  crcImageTag: "v0.1.2-dev-crc",
   timeoutMs: 10000
 };
 
@@ -32,31 +33,36 @@ const expectedImages = [
   {
     id: "api",
     localTag: "cywell/opslens-api:verify",
-    registryTag: "<crc-registry>/cywell-opslens/cywell-opslens-api:verify",
+    portableTag: `cywell/opslens-api:${defaults.crcImageTag}`,
+    registryTag: `<crc-registry>/cywell-opslens/cywell-opslens-api:${defaults.crcImageTag}`,
     requiredFor: ["mcp", "api", "aiops"]
   },
   {
     id: "dashboard",
     localTag: "cywell/opslens-dashboard:verify",
-    registryTag: "<crc-registry>/cywell-opslens/cywell-opslens-dashboard:verify",
+    portableTag: `cywell/opslens-dashboard:${defaults.crcImageTag}`,
+    registryTag: `<crc-registry>/cywell-opslens/cywell-opslens-dashboard:${defaults.crcImageTag}`,
     requiredFor: ["console-plugin", "dashboard"]
   },
   {
     id: "operator",
     localTag: "cywell/opslens-operator:verify",
-    registryTag: "<crc-registry>/cywell-opslens/cywell-opslens-operator:verify",
+    portableTag: `cywell/opslens-operator:${defaults.crcImageTag}`,
+    registryTag: `<crc-registry>/cywell-opslens/cywell-opslens-operator:${defaults.crcImageTag}`,
     requiredFor: ["operator", "install"]
   },
   {
     id: "bundle",
     localTag: "cywell/opslens-operator-bundle:verify",
-    registryTag: "<crc-registry>/cywell-opslens/cywell-opslens-operator-bundle:verify",
+    portableTag: `cywell/opslens-operator-bundle:${defaults.crcImageTag}`,
+    registryTag: `<crc-registry>/cywell-opslens/cywell-opslens-operator-bundle:${defaults.crcImageTag}`,
     requiredFor: ["olm", "bundle", "install"]
   },
   {
     id: "catalog",
     localTag: "cywell/opslens-catalog:verify",
-    registryTag: "<crc-registry>/cywell-opslens/cywell-opslens-catalog:verify",
+    portableTag: `cywell/opslens-catalog:${defaults.crcImageTag}`,
+    registryTag: `<crc-registry>/cywell-opslens/cywell-opslens-catalog:${defaults.crcImageTag}`,
     requiredFor: ["olm", "catalog", "install"]
   }
 ];
@@ -95,11 +101,16 @@ const options = {
     parsed.get("lightspeed-patch-preview-evidence") ?? defaults.lightspeedPatchPreviewEvidence,
   installPlanEvidence: parsed.get("install-plan-evidence") ?? defaults.installPlanEvidence,
   imageTar: parsed.get("image-tar") ?? defaults.imageTar,
+  crcImageTag: parsed.get("crc-image-tag") ?? defaults.crcImageTag,
   timeoutMs: Number(parsed.get("timeout-ms") ?? defaults.timeoutMs)
 };
 
 const checks = [];
 const startedAt = new Date().toISOString();
+
+function portableTag(image) {
+  return image.portableTag.replace(defaults.crcImageTag, options.crcImageTag);
+}
 
 function sanitize(value) {
   return String(value ?? "")
@@ -350,7 +361,7 @@ function imageTarSummary(path) {
   const minExpectedBytes = 100 * 1024 * 1024;
   const manifest = tarManifestRepoTags(path);
   const missingTags = expectedImages
-    .map((image) => image.localTag)
+    .map((image) => portableTag(image))
     .filter((tag) => !manifest.repoTags.includes(tag));
   if (stat.size >= minExpectedBytes && missingTags.length === 0) {
     pass("CRC image tar", `${path} exists size=${Math.round(stat.size / 1024 / 1024)}MiB with all required tags`);
@@ -372,9 +383,12 @@ function imageTarSummary(path) {
 }
 
 function buildCommands(state) {
-  const saveCommand = `docker save ${expectedImages
-    .map((image) => image.localTag)
-    .join(" ")} -o .\\test-results\\cywell-opslens-crc-images.tar`;
+  const tagCommand = expectedImages
+    .map((image) => `docker tag ${image.localTag} ${portableTag(image)}`)
+    .join(" && ");
+  const saveCommand = `${tagCommand} && docker save ${expectedImages
+    .map((image) => portableTag(image))
+    .join(" ")} -o ${options.imageTar}`;
   const readOnlyCommands = [
     {
       id: "lab-handoff-refresh",
@@ -480,7 +494,7 @@ function buildCommands(state) {
     {
       id: "push-images-to-crc-registry",
       command:
-        "docker tag cywell/opslens-api:verify <registry>/cywell-opslens/cywell-opslens-api:verify && docker push <registry>/cywell-opslens/cywell-opslens-api:verify",
+        `docker tag cywell/opslens-api:${options.crcImageTag} <registry>/cywell-opslens/cywell-opslens-api:${options.crcImageTag} && docker push <registry>/cywell-opslens/cywell-opslens-api:${options.crcImageTag}`,
       where: "dedicated-crc-lab-host",
       mutation: true,
       requiresExplicitApproval: true,
@@ -578,8 +592,7 @@ function buildMachineRolePlan(state, commandPlan) {
       artifactPath: resolve(options.imageTar),
       ready: transferReady,
       missingTags: state.imageTar.missingTags ?? [],
-      commandTemplate:
-        "copy test-results/cywell-opslens-crc-images.tar to the dedicated CRC lab host, then docker load it there",
+      commandTemplate: `copy ${options.imageTar} to the dedicated CRC lab host, then docker load it there`,
       clusterMutationAllowed: false,
       registryMutationAllowed: false
     },

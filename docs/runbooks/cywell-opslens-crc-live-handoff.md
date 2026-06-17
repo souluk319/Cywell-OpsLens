@@ -110,7 +110,7 @@ This distinction matters:
 Normal install evidence:
 
 ```bash
-oc get packagemanifest cywell-opslens -n default -o yaml | grep -E 'currentCSV|v0.1.1-crc|cywell-opslens-operator' -n
+oc get packagemanifest cywell-opslens -n default -o yaml | grep -E 'currentCSV|v0.1.2-dev-crc|cywell-opslens-operator' -n
 oc get subscription,csv,deploy,pod -A | grep cywell
 oc get crd opslensinstallations.opslens.cywell.io
 ```
@@ -118,11 +118,20 @@ oc get crd opslensinstallations.opslens.cywell.io
 Expected package signal for the CRC build:
 
 ```text
-currentCSV: cywell-opslens-operator.v0.1.1
-image-registry.openshift-image-registry.svc:5000/cywell-opslens/cywell-opslens-operator:v0.1.1-crc
+currentCSV: cywell-opslens-operator.v0.1.2
+image-registry.openshift-image-registry.svc:5000/cywell-opslens/cywell-opslens-operator:v0.1.2-dev-crc
 ```
 
 If the pod image is still `quay.io/cywell/opslens-operator:0.1.0`, the stale catalog or stale subscription path is still active. Stop and refresh the catalog/subscription intentionally instead of waiting.
+
+Before rebuilding or pushing CRC catalog images, regenerate the versioned CRC handoff packet:
+
+```powershell
+npm run lab:catalog:crc
+npm run verify:lab-image-map
+```
+
+The generated commands must reference `v0.1.2-dev-crc`, not the ambiguous live-cluster `:verify` tag.
 
 ## Apply The Lightweight CRC Profile
 

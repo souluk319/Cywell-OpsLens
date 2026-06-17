@@ -66,7 +66,7 @@ On the MacBook SSH terminal:
 ```bash
 crc status
 oc whoami && oc project -q
-oc get packagemanifest cywell-opslens -n default -o yaml | grep -E 'currentCSV|v0.1.1-crc|cywell-opslens-operator' -n
+oc get packagemanifest cywell-opslens -n default -o yaml | grep -E 'currentCSV|v0.1.2-dev-crc|cywell-opslens-operator' -n
 oc get opslensinstallation,deploy,pod,svc,route -n cywell-opslens
 ```
 
@@ -109,6 +109,7 @@ That sample intentionally uses:
 - do not paste `.env` values into docs or chat
 - do not push images or patch OLSConfig unless explicitly approved
 - do not wait on a pod still pulling `quay.io/cywell/opslens-operator:0.1.0`; that is stale catalog/subscription state
+- do not reuse CRC cluster image tag `:verify`; publish the branch handoff as `v0.1.2-dev-crc`
 - do not treat `http://127.0.0.1:19443` as the dashboard URL; use `https://`
 
 ## Smallest Next Engineering Step

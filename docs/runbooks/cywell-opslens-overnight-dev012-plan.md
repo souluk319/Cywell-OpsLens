@@ -259,7 +259,7 @@ Every checkpoint:
   - MacBook CRC remains the target OCP.
   - OperatorHub install creates the Operator.
   - `OpsLensInstallation` applies the product resources.
-- Documented the `18443` Lightspeed tunnel, `19443` dashboard access, `v0.1.1-crc` catalog/image signal, and the CRC lightweight profile.
+- Documented the `18443` Lightspeed tunnel, `19443` dashboard access, the CRC catalog/image signal, and the CRC lightweight profile.
 - Named the known live failure classes so tomorrow's work starts from cause-level checks instead of repeated waiting:
   - stale catalog/subscription image
   - package server cache
@@ -359,6 +359,18 @@ Every checkpoint:
   - `npm run verify:operator:reconcile` - 0 fail, 23 checks
   - `npm run verify:operator:runtime` - 0 fail, 77 checks
 - Remaining boundary: this is repo/local evidence only; live CRC OLM reinstall still requires a newly built/pushed bundle/catalog image.
+
+### 2026-06-17 - Lane 10
+
+- Fixed the CRC catalog/image handoff contract that caused repeated stale-install confusion during the live Mac CRC session.
+- The CRC dev catalog generator now defaults to:
+  - CSV `cywell-opslens-operator.v0.1.2`
+  - image tag `v0.1.2-dev-crc`
+  - versioned local tags before tar export and registry push
+- The lab image-map verifier now rejects the ambiguous live-cluster `:verify` target tag and emits versioned tag/save/push commands.
+- The CRC lightweight sample now uses `v0.1.2-dev-crc` API/dashboard images to match `spec.version: 0.1.2-dev`.
+- Updated the CRC live and morning handoffs so the first expected package signal is `currentCSV: cywell-opslens-operator.v0.1.2` plus `v0.1.2-dev-crc`.
+- Interpretation: local `:verify` can remain a build-stage tag, but anything copied to or pulled by CRC must use the explicit branch tag.
 
 Checkpoint cadence:
 

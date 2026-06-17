@@ -12,6 +12,7 @@ const execFileAsync = promisify(execFile);
 const defaults = {
   registry: "<crc-registry>",
   namespace: "cywell-opslens",
+  labImageTag: "v0.1.2-dev-crc",
   evidenceOut: "test-results/cywell-opslens-lab-image-map-preview.json",
   markdownOut: "test-results/cywell-opslens-lab-image-map-preview.md",
   k8sYamlOut: "test-results/cywell-opslens-lab-image-map-k8s-preview.yaml",
@@ -99,6 +100,7 @@ const args = parseArgs(process.argv.slice(2));
 const options = {
   registry: args.get("registry") ?? defaults.registry,
   namespace: args.get("namespace") ?? defaults.namespace,
+  labImageTag: args.get("lab-image-tag") ?? defaults.labImageTag,
   evidenceOut: args.get("evidence-out") ?? defaults.evidenceOut,
   markdownOut: args.get("markdown-out") ?? defaults.markdownOut,
   k8sYamlOut: args.get("k8s-yaml-out") ?? defaults.k8sYamlOut,
@@ -180,7 +182,11 @@ async function localImage(tag) {
 }
 
 function targetFor(entry) {
-  return `${options.registry}/${options.namespace}/${entry.repo}:verify`;
+  return `${options.registry}/${options.namespace}/${entry.repo}:${options.labImageTag}`;
+}
+
+function versionedLocalTag(localTag) {
+  return localTag.replace(/:verify$/u, `:${options.labImageTag}`);
 }
 
 function replacementBySource() {
@@ -313,11 +319,12 @@ function buildCommandPlan(imageRows, previewPaths, status) {
   const tagPushCommands = imageRows.map((row) => ({
     id: `push-${row.component}`,
     phase: "approval-gated-registry",
-    command: `docker tag ${row.localTag} ${row.target} && docker push ${row.target}`,
+    command: `docker tag ${row.versionedLocalTag} ${row.target} && docker push ${row.target}`,
     mutation: true,
     requiresExplicitApproval: true,
     purpose: `Make ${row.component} image pullable by the dedicated CRC lab.`
   }));
+  const tarName = `.\\test-results\\cywell-opslens-crc-${options.labImageTag}-arm64.tar`;
   return {
     readOnlyCommands: [
       {
@@ -341,11 +348,18 @@ function buildCommandPlan(imageRows, previewPaths, status) {
     ],
     localSetupCommands: [
       {
-        id: "package-images",
-        command:
-          "docker save cywell/opslens-api:verify cywell/opslens-dashboard:verify cywell/opslens-operator:verify cywell/opslens-operator-bundle:verify cywell/opslens-catalog:verify -o .\\test-results\\cywell-opslens-crc-images.tar",
+        id: "tag-versioned-images",
+        command: imageRows
+          .map((row) => `docker tag ${row.localTag} ${row.versionedLocalTag}`)
+          .join(" && "),
         mutation: false,
-        purpose: "Package the local Operator/API/dashboard/bundle/catalog images before moving them to the lab host."
+        purpose: "Create versioned local image aliases so CRC handoff does not reuse the ambiguous :verify tag."
+      },
+      {
+        id: "package-images",
+        command: `docker save ${imageRows.map((row) => row.versionedLocalTag).join(" ")} -o ${tarName}`,
+        mutation: false,
+        purpose: "Package the versioned Operator/API/dashboard/bundle/catalog images before moving them to the lab host."
       }
     ],
     approvalGatedCommands: tagPushCommands,
@@ -485,6 +499,11 @@ const worktreeStatus = await gitStatusShort();
 const git = { branch, headSha, baseRef, clean: worktreeStatus.length === 0, worktreeStatus };
 if (git.clean) pass("current worktree", `dirty=false head=${headSha}`);
 else warn("current worktree", `dirty=true entries=${worktreeStatus.length}`);
+if (options.labImageTag === "verify" || options.labImageTag.endsWith(":verify")) {
+  fail("CRC lab image tag", `labImageTag=${options.labImageTag} would make the live cluster reuse the ambiguous :verify tag`);
+} else {
+  pass("CRC lab image tag", `${options.labImageTag} is explicit and versioned`);
+}
 
 const localImages = [];
 for (const entry of ownedImageMap) {
@@ -494,6 +513,7 @@ const localByTag = new Map(localImages.map((image) => [image.tag, image]));
 const imageRows = ownedImageMap.map((entry) => ({
   ...entry,
   target: targetFor(entry),
+  versionedLocalTag: versionedLocalTag(entry.localTag),
   localPresent: localByTag.get(entry.localTag)?.present === true
 }));
 
@@ -543,6 +563,7 @@ const report = {
   },
   registry: options.registry,
   namespace: options.namespace,
+  labImageTag: options.labImageTag,
   imageRows,
   replacements: preview.replacementEvents,
   externalRuntimeGaps,

@@ -17,7 +17,8 @@ const defaults = {
   labHandoffEvidence: "test-results/cywell-opslens-lab-server-handoff.json",
   ocpTargetProfileEvidence: "test-results/cywell-opslens-ocp-target-profile.json",
   ocpConnectivityEvidence: "test-results/cywell-opslens-ocp-connectivity-diagnostic.json",
-  imageTar: "test-results/cywell-opslens-crc-images.tar",
+  imageTar: "test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar",
+  crcImageTag: "v0.1.2-dev-crc",
   csv: "deploy/operator/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml",
   fbc: "deploy/catalog/fbc/catalog.yaml",
   catalogSource: "deploy/catalog/openshift/catalogsource.yaml",
@@ -39,11 +40,11 @@ const ownedImages = [
 ];
 
 const portableImages = [
-  "cywell/opslens-api:verify",
-  "cywell/opslens-dashboard:verify",
-  "cywell/opslens-operator:verify",
-  "cywell/opslens-operator-bundle:verify",
-  "cywell/opslens-catalog:verify"
+  `cywell/opslens-api:${defaults.crcImageTag}`,
+  `cywell/opslens-dashboard:${defaults.crcImageTag}`,
+  `cywell/opslens-operator:${defaults.crcImageTag}`,
+  `cywell/opslens-operator-bundle:${defaults.crcImageTag}`,
+  `cywell/opslens-catalog:${defaults.crcImageTag}`
 ];
 
 function parseArgs(argv) {
@@ -80,6 +81,7 @@ const options = {
   ocpConnectivityEvidence:
     parsed.values.get("ocp-connectivity-evidence") ?? defaults.ocpConnectivityEvidence,
   imageTar: parsed.values.get("image-tar") ?? defaults.imageTar,
+  crcImageTag: parsed.values.get("crc-image-tag") ?? defaults.crcImageTag,
   manifestPaths: [
     parsed.values.get("csv") ?? defaults.csv,
     parsed.values.get("fbc") ?? defaults.fbc,
@@ -95,6 +97,14 @@ const options = {
 };
 
 const checks = [];
+
+function versionedLocalTag(localTag) {
+  return localTag.replace(/:verify$/u, `:${options.crcImageTag}`);
+}
+
+function portableImageTags() {
+  return portableImages.map((tag) => tag.replace(defaults.crcImageTag, options.crcImageTag));
+}
 
 function sanitize(value) {
   return sanitizeCommonSensitive(value)
@@ -260,7 +270,7 @@ function inspectTar(path) {
   } else {
     warn("portable image tar", `${path} exists but size=${stat.size} bytes looks too small`);
   }
-  for (const tag of portableImages) {
+  for (const tag of portableImageTags()) {
     if (repoTags.includes(tag)) {
       pass("portable image tar tag", `${tag} included`);
     } else {
@@ -335,11 +345,11 @@ async function inspectDockerImage(tag) {
 
 function imageRole(image) {
   const text = String(image);
-  if (/opslens-api/.test(text)) return { category: "owned-core", component: "api", localTag: "cywell/opslens-api:verify", portable: true };
-  if (/opslens-dashboard/.test(text)) return { category: "owned-core", component: "dashboard", localTag: "cywell/opslens-dashboard:verify", portable: true };
-  if (/opslens-operator-bundle/.test(text)) return { category: "olm-package", component: "bundle", localTag: "cywell/opslens-operator-bundle:verify", portable: true };
-  if (/opslens-operator/.test(text)) return { category: "owned-core", component: "operator", localTag: "cywell/opslens-operator:verify", portable: true };
-  if (/opslens-catalog/.test(text)) return { category: "olm-catalog", component: "catalog", localTag: "cywell/opslens-catalog:verify", portable: true };
+  if (/opslens-api/.test(text)) return { category: "owned-core", component: "api", localTag: "cywell/opslens-api:verify", portableTag: versionedLocalTag("cywell/opslens-api:verify"), portable: true };
+  if (/opslens-dashboard/.test(text)) return { category: "owned-core", component: "dashboard", localTag: "cywell/opslens-dashboard:verify", portableTag: versionedLocalTag("cywell/opslens-dashboard:verify"), portable: true };
+  if (/opslens-operator-bundle/.test(text)) return { category: "olm-package", component: "bundle", localTag: "cywell/opslens-operator-bundle:verify", portableTag: versionedLocalTag("cywell/opslens-operator-bundle:verify"), portable: true };
+  if (/opslens-operator/.test(text)) return { category: "owned-core", component: "operator", localTag: "cywell/opslens-operator:verify", portableTag: versionedLocalTag("cywell/opslens-operator:verify"), portable: true };
+  if (/opslens-catalog/.test(text)) return { category: "olm-catalog", component: "catalog", localTag: "cywell/opslens-catalog:verify", portableTag: versionedLocalTag("cywell/opslens-catalog:verify"), portable: true };
   if (/opslens-vllm/.test(text)) return { category: "external-runtime", component: "vllm", localTag: undefined, portable: false };
   if (/pgvector/.test(text)) return { category: "external-runtime", component: "pgvector", localTag: undefined, portable: false };
   return { category: "unknown", component: "unknown", localTag: undefined, portable: false };
@@ -399,7 +409,7 @@ function buildImageRefPlan(refs, images, imageTar) {
   const rows = refs.map((ref) => {
     const role = imageRole(ref.image);
     const local = role.localTag ? localByTag.get(role.localTag) : undefined;
-    const tarIncluded = role.localTag ? imageTar.repoTags.includes(role.localTag) : false;
+    const tarIncluded = role.portableTag ? imageTar.repoTags.includes(role.portableTag) : false;
     const pullability =
       role.category === "external-runtime"
         ? "external-runtime-review-required"
@@ -418,7 +428,7 @@ function buildImageRefPlan(refs, images, imageTar) {
       pullability,
       desiredLabRef:
         role.localTag && role.category !== "external-runtime"
-          ? `<crc-registry>/cywell-opslens/${role.localTag.replace("cywell/", "cywell-").replace(":verify", ":verify")}`
+          ? `<crc-registry>/cywell-opslens/${role.localTag.replace("cywell/", "cywell-").replace(":verify", `:${options.crcImageTag}`)}`
           : undefined
     };
   });
@@ -657,9 +667,12 @@ function registryTrapMatrix() {
 }
 
 function buildCommandPlan(state) {
-  const windowsTar = ".\\test-results\\cywell-opslens-crc-images.tar";
+  const portableTags = portableImageTags();
+  const tagImages = ownedImages
+    .map((tag) => `docker tag ${tag} ${versionedLocalTag(tag)}`)
+    .join(" && ");
   const saveImages =
-    "docker save cywell/opslens-api:verify cywell/opslens-dashboard:verify cywell/opslens-operator:verify cywell/opslens-operator-bundle:verify cywell/opslens-catalog:verify -o .\\test-results\\cywell-opslens-crc-images.tar";
+    `${tagImages} && docker save ${portableTags.join(" ")} -o ${options.imageTar}`;
   const readOnly = [
     {
       id: "refresh-bootstrap",
@@ -723,7 +736,7 @@ function buildCommandPlan(state) {
     {
       id: "copy-image-tar",
       where: "operator action",
-      command: `Copy ${windowsTar} to the home Windows lab host, then run docker load -i <copied-tar-path>`,
+      command: `Copy ${options.imageTar} to the home Windows lab host, then run docker load -i <copied-tar-path>`,
       mutation: false,
       purpose: "Move already-built images to the lab Docker engine."
     },
@@ -831,8 +844,7 @@ function buildMachineRolePlan(state, commandPlan) {
       artifactPath: resolve(options.imageTar),
       ready: transferReady,
       missingTags,
-      commandTemplate:
-        "copy test-results/cywell-opslens-crc-images.tar to the dedicated CRC lab host, then docker load it there",
+      commandTemplate: `copy ${options.imageTar} to the dedicated CRC lab host, then docker load it there`,
       clusterMutationAllowed: false,
       registryMutationAllowed: false
     },
