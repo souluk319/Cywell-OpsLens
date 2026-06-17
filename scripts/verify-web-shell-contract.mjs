@@ -115,6 +115,20 @@ expectCheck(
 );
 
 expectCheck(
+  "visible runtime profile boundary",
+  appSource.includes('data-testid="runtime-profile-strip"') &&
+    appSource.includes('data-testid="runtime-profile-crc"') &&
+    appSource.includes('data-testid="runtime-profile-approved"') &&
+    appSource.includes("CRC demo uses in-memory RAG + mock model") &&
+    appSource.includes("Approved install requires pgvector/vLLM evidence") &&
+    appSource.includes("CRC 데모는 인메모리 RAG + 목 모델 사용") &&
+    appSource.includes("승인 설치는 pgvector/vLLM 근거 필요") &&
+    stylesSource.includes(".runtime-profile-strip") &&
+    stylesSource.includes(".runtime-profile-strip .status-pill"),
+  "masthead visibly separates CRC lightweight runtime from approved pgvector/vLLM runtime evidence"
+);
+
+expectCheck(
   "console plugin proxy detection",
   appSource.includes('surface === "console-plugin"') &&
     appSource.includes('/api/proxy/plugin/cywell-opslens/') &&
@@ -617,8 +631,12 @@ expectCheck(
     e2eSource.includes("ConsolePlugin: 콘솔 라우트") &&
     e2eSource.includes("OpsLens가 라우트/API/MCP 화면을 추가") &&
     e2eSource.includes("OpenShift 기본 메뉴와 Lightspeed 서랍은 유지") &&
+    e2eSource.includes("CRC 데모는 인메모리 RAG + 목 모델 사용") &&
+    e2eSource.includes("승인 설치는 pgvector/vLLM 근거 필요") &&
     e2eSource.includes("OpsLens adds route/API/MCP surfaces") &&
     e2eSource.includes("OpenShift keeps native chrome and Lightspeed drawer") &&
+    e2eSource.includes("CRC demo uses in-memory RAG + mock model") &&
+    e2eSource.includes("Approved install requires pgvector/vLLM evidence") &&
     e2eSource.includes("KOMSCO AI 어시스턴트") &&
     e2eSource.includes("KOMSCO AI Assistant") &&
     e2eSource.includes('getByTestId("assistant-mode-matrix")') &&

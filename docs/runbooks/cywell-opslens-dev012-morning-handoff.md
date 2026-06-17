@@ -35,6 +35,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the Assistant answer body now has a reviewed KO display dictionary for the known demo triage answer, including current judgment, evidence labels, cause candidates, risks, missing evidence, plan, rollback path, citations, and context values such as `CRC 미리보기` and `근거 3건`
 - the Assistant display path now adds a reviewed phrase dictionary for live/backend evidence fragments such as `previous pod logs`, `pod logs`, `no pod candidate was available`, `no label selector`, `logs read for last`, `events listed for`, `Forbidden`, `Unauthorized`, `connection refused`, `timed out`, `missing evidence`, `read-only`, and `plan-only` without changing the raw answer payload
 - the masthead now shows a visible mod-boundary strip explaining that OpsLens adds route/API/MCP surfaces while native OpenShift chrome and the Lightspeed drawer remain OpenShift-owned
+- the masthead now shows a visible runtime-profile strip explaining that the CRC demo uses in-memory RAG plus a mock model, while approved installs require pgvector/vLLM evidence
 - the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
 - the Assistant connection card now includes a KO/EN mode matrix for answer source, token/proxy path, and the non-mutating chat boundary; this directly addresses the “why does the chatbot look unconnected?” demo risk
 - the masthead API status chip is localized instead of showing raw `loading/ready/fallback` state values in Korean mode
@@ -106,6 +107,7 @@ def83cc Localize completion gate
 de4d0be Localize roadmap completion
 6df86dd Localize pre-cluster gate
 712398b Localize assistant evidence phrases
+c661a06 Clarify OpsLens mod boundary
 ```
 
 ## Verified Gates
@@ -114,11 +116,11 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 28 checks after the visible OpsLens mod boundary lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 29 checks after the visible runtime profile boundary lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 46; evidence includes start/finish Git state |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the visible OpsLens mod boundary lane |
-| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, navigation, Assistant labels, and mode matrix |
+| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 47; evidence includes start/finish Git state |
+| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the visible runtime profile boundary lane |
+| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, runtime profile, navigation, Assistant labels, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
 | `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |
@@ -223,8 +225,8 @@ That sample intentionally uses:
 | --- | --- | --- |
 | pre-cluster install not green | source evidence stale and live OCP/Lightspeed evidence incomplete | refresh live evidence after reconnect |
 | live handoff not fully current | local artifact is ready but live CRC evidence is intentionally not refreshed without the target session | reconnect Mac CRC and refresh read-only evidence |
-| vLLM not suitable for CRC demo yet | external image/mirror/runtime evidence gap | keep CRC lightweight profile, mirror/runtime review later |
-| pgvector restricted SCC issue | default pgvector image wants filesystem permissions restricted SCC blocks | keep in-memory profile for demo or design a secure supported Postgres profile |
+| vLLM not suitable for CRC demo yet | external image/mirror/runtime evidence gap; UI now names the CRC mock-model profile separately | keep CRC lightweight profile, mirror/runtime review later |
+| pgvector restricted SCC issue | default pgvector image wants filesystem permissions restricted SCC blocks; UI now names the in-memory CRC profile separately | keep in-memory profile for demo or design a secure supported Postgres profile |
 | native OpenShift Lightspeed drawer not rebranded | OpenShift-owned console surface | keep OpsLens as route/plugin mod unless a verified console-extension lane is approved |
 | unknown live evidence phrases can still appear raw | common backend/read-only evidence phrase classes now have reviewed KO display replacements; unknown strings remain raw to preserve traceability | extend the phrase dictionary only after seeing repeated live payload classes |
 | final release/certification | external registry/security/certification evidence not complete | do not claim certified readiness |

@@ -333,7 +333,10 @@ const shellCopy = {
     installStepConsolePlugin: "ConsolePlugin: route",
     modBoundary: "Mod boundary",
     modAdds: "OpsLens adds route/API/MCP surfaces",
-    modKeeps: "OpenShift keeps native chrome and Lightspeed drawer"
+    modKeeps: "OpenShift keeps native chrome and Lightspeed drawer",
+    runtimeBoundary: "Runtime profile",
+    runtimeCrc: "CRC demo uses in-memory RAG + mock model",
+    runtimeApproved: "Approved install requires pgvector/vLLM evidence"
   },
   ko: {
     activeSurface: "현재 화면",
@@ -391,7 +394,10 @@ const shellCopy = {
     installStepConsolePlugin: "ConsolePlugin: 콘솔 라우트",
     modBoundary: "적용 범위",
     modAdds: "OpsLens가 라우트/API/MCP 화면을 추가",
-    modKeeps: "OpenShift 기본 메뉴와 Lightspeed 서랍은 유지"
+    modKeeps: "OpenShift 기본 메뉴와 Lightspeed 서랍은 유지",
+    runtimeBoundary: "런타임 프로필",
+    runtimeCrc: "CRC 데모는 인메모리 RAG + 목 모델 사용",
+    runtimeApproved: "승인 설치는 pgvector/vLLM 근거 필요"
   }
 } as const;
 
@@ -827,6 +833,21 @@ export default function App() {
               </span>
               <span className="status-pill warning" data-testid="mod-boundary-keeps">
                 {copy.modKeeps}
+              </span>
+            </div>
+            <div
+              className="runtime-profile-strip"
+              data-testid="runtime-profile-strip"
+              aria-label={copy.runtimeBoundary}
+            >
+              <span className="status-pill ready" data-testid="runtime-profile-crc">
+                {copy.runtimeCrc}
+              </span>
+              <span
+                className="status-pill warning"
+                data-testid="runtime-profile-approved"
+              >
+                {copy.runtimeApproved}
               </span>
             </div>
             <div

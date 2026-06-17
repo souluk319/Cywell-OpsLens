@@ -163,7 +163,8 @@ button {
 }
 
 .install-flow-strip,
-.mod-boundary-strip {
+.mod-boundary-strip,
+.runtime-profile-strip {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
@@ -172,7 +173,8 @@ button {
 }
 
 .install-flow-strip .status-pill,
-.mod-boundary-strip .status-pill {
+.mod-boundary-strip .status-pill,
+.runtime-profile-strip .status-pill {
   padding-inline: 8px;
 }
 

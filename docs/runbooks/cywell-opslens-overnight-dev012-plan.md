@@ -752,6 +752,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - This directly guards against the "installing OpsLens rewrites the entire OpenShift console" misunderstanding while keeping the ConsolePlugin route/proxy value clear.
 - `npm run verify:web-shell` now includes a `visible OpsLens mod boundary` gate, and `AC-UI-004` checks the KO/EN mod-boundary copy in the browser.
 
+### 2026-06-18 - Lane 47
+
+- Added a visible runtime profile strip so the CRC demo path does not look like a failed production pgvector/vLLM install.
+- The KO/EN shell now separates `CRC demo uses in-memory RAG + mock model` from `Approved install requires pgvector/vLLM evidence`.
+- This keeps the pgvector/vLLM gap honest while making the demo-safe runtime profile visible without opening docs.
+- `npm run verify:web-shell` now includes a `visible runtime profile boundary` gate, and `AC-UI-004` checks the KO/EN runtime profile copy in the browser.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -763,10 +770,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 45: `712398b`
+- feature branch latest pushed head after Lane 46: `c661a06`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 46: PASS, 28 checks
-- latest overnight checkpoint after Lane 46: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 47: PASS, 29 checks
+- latest overnight checkpoint after Lane 47: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

@@ -224,6 +224,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("mod-boundary-keeps")).toContainText(
       "OpenShift 기본 메뉴와 Lightspeed 서랍은 유지"
     );
+    await expect(page.getByTestId("runtime-profile-crc")).toContainText(
+      "CRC 데모는 인메모리 RAG + 목 모델 사용"
+    );
+    await expect(page.getByTestId("runtime-profile-approved")).toContainText(
+      "승인 설치는 pgvector/vLLM 근거 필요"
+    );
     await expect(page.getByTestId("console-nav-alerting")).toContainText(
       "경고"
     );
@@ -267,6 +273,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("mod-boundary-keeps")).toContainText(
       "OpenShift keeps native chrome and Lightspeed drawer"
+    );
+    await expect(page.getByTestId("runtime-profile-crc")).toContainText(
+      "CRC demo uses in-memory RAG + mock model"
+    );
+    await expect(page.getByTestId("runtime-profile-approved")).toContainText(
+      "Approved install requires pgvector/vLLM evidence"
     );
     await expect(page.getByTestId("assistant-mode-matrix")).toContainText(
       "answer source"
