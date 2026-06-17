@@ -279,6 +279,12 @@ expectCheck(
     adminSource.includes("copy.writePolicy") &&
     adminSource.includes("copy.rawMemoryWrite") &&
     adminSource.includes("copy.nightlyLoop") &&
+    adminSource.includes("copy.contractReady") &&
+    adminSource.includes("copy.auditAppendOnly") &&
+    adminSource.includes("copy.queueMetadataWrite") &&
+    adminSource.includes("계약 준비") &&
+    adminSource.includes("대기열 메타데이터 쓰기") &&
+    adminSource.includes("감사 추가 전용") &&
     adminSource.includes("copy.currentGap") &&
     adminSource.includes("copy.requiredImages") &&
     adminSource.includes("copy.localInspect") &&
@@ -356,6 +362,24 @@ expectCheck(
     !adminSource.includes("fineTuning={String(opsBrain.selfImprover.automaticFineTuningAllowed)}") &&
     !adminSource.includes("nightlyLoop={String(opsBrain.selfImprover.nightlyLoopPlanned)}"),
   "OpsBrain panels use bilingual labels for growth, guard, memory, routing, and self-improvement status"
+);
+
+expectCheck(
+  "localized rag production labels",
+  !adminSource.includes("contractReady={String(ragProductionReadiness.contractReady)}") &&
+    !adminSource.includes("queueLive={String(ragProductionReadiness.productionQueueLive)}") &&
+    !adminSource.includes("workerLive={String(ragProductionReadiness.ingestionWorkerLive)}") &&
+    !adminSource.includes("vectorAudit=") &&
+    !adminSource.includes("rawMarkdown=") &&
+    !adminSource.includes("auditAppendOnly=") &&
+    !adminSource.includes("approvals={ragProductionReadiness.requiredApprovals.join") &&
+    !adminSource.includes("ticket={ragProductionReadiness.ticketPacket.id}") &&
+    !adminSource.includes("first={ragProductionReadiness.ticketPacket.firstReadOnlyAction.id}") &&
+    !adminSource.includes("queueMetadataWrite=") &&
+    !adminSource.includes("approved={String(queueIngestionPlan.approvedForIngestion)}") &&
+    !adminSource.includes(":next={action.nextCommand}:mutation={String(action.mutation)}") &&
+    !adminSource.includes("<span>approvals {item.approvals.length}</span>"),
+  "RAG production and approval queue panels use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(

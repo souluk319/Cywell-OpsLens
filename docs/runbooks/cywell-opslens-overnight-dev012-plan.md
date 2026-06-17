@@ -663,6 +663,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Status chips now use the same display helper as the rest of the Admin dashboard while preserving raw implementation IDs and evidence strings where they matter.
 - `npm run verify:web-shell` now includes a `localized opsbrain guard labels` gate.
 
+### 2026-06-18 - Lane 35
+
+- Polished the RAG production readiness and approval queue panels so KO mode no longer exposes raw labels such as `contractReady=`, `queueLive=`, `workerLive=`, `vectorAudit=`, `rawMarkdown=`, `auditAppendOnly=`, `queueMetadataWrite=`, or `approved=`.
+- Production first-action rows now use language-owned labels for next command, mutation boundary, and approval requirement while keeping action IDs, owner IDs, and command IDs visible as evidence.
+- Approval queue inventory and ingestion-plan rows now use language-owned labels for approvals, read-only command boundaries, vector-write policy, metadata writes, and ingestion-job creation.
+- `npm run verify:web-shell` now includes a `localized rag production labels` gate.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -674,10 +681,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 33: `42223ff`
+- feature branch latest pushed head after Lane 34: `8128733`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 34: PASS, 17 checks
-- latest overnight checkpoint after Lane 34: PASS, 9/9 local gates
+- latest web shell verifier after Lane 35: PASS, 18 checks
+- latest overnight checkpoint after Lane 35: PASS, 9/9 local gates
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

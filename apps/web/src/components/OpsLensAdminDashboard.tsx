@@ -267,6 +267,15 @@ const adminCopy = {
     requiredKeys: "Required Keys And Tokens",
     valuesRedacted: "values redacted",
     ragDocuments: "RAG Documents",
+    contractReady: "contract ready",
+    queueLive: "queue live",
+    workerLive: "worker live",
+    vectorAudit: "vector audit",
+    rawMarkdown: "raw markdown",
+    auditAppendOnly: "audit append-only",
+    approvals: "approvals",
+    queueMetadataWrite: "queue metadata write",
+    approved: "approved",
     validateUploadIntake: "Validate upload intake",
     document: "Document",
     status: "Status",
@@ -437,6 +446,15 @@ const adminCopy = {
     requiredKeys: "필요 키와 토큰",
     valuesRedacted: "값은 비공개",
     ragDocuments: "RAG 문서",
+    contractReady: "계약 준비",
+    queueLive: "대기열 가동",
+    workerLive: "적재 워커 가동",
+    vectorAudit: "벡터 감사",
+    rawMarkdown: "원본 마크다운",
+    auditAppendOnly: "감사 추가 전용",
+    approvals: "승인",
+    queueMetadataWrite: "대기열 메타데이터 쓰기",
+    approved: "승인됨",
     validateUploadIntake: "업로드 입력 검증",
     document: "문서",
     status: "상태",
@@ -1386,41 +1404,70 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-rag-production-readiness"
             >
               <div className="admin-evidence-line">
-                <span>{ragProductionReadiness.actionMode}</span>
-                <span>{ragProductionReadiness.status}</span>
                 <span>
-                  contractReady={String(ragProductionReadiness.contractReady)}
+                  {actionModeText(language, ragProductionReadiness.actionMode)}
+                </span>
+                <span>{statusText(language, ragProductionReadiness.status)}</span>
+                <span>
+                  {copy.contractReady}:{" "}
+                  {booleanText(language, ragProductionReadiness.contractReady)}
                 </span>
                 <span>
-                  queueLive={String(ragProductionReadiness.productionQueueLive)}
+                  {copy.queueLive}:{" "}
+                  {booleanText(
+                    language,
+                    ragProductionReadiness.productionQueueLive
+                  )}
                 </span>
                 <span>
-                  workerLive={String(ragProductionReadiness.ingestionWorkerLive)}
+                  {copy.workerLive}:{" "}
+                  {booleanText(
+                    language,
+                    ragProductionReadiness.ingestionWorkerLive
+                  )}
                 </span>
                 <span>
-                  vectorAudit=
-                  {String(ragProductionReadiness.vectorWriteAuditSinkLive)}
+                  {copy.vectorAudit}:{" "}
+                  {booleanText(
+                    language,
+                    ragProductionReadiness.vectorWriteAuditSinkLive
+                  )}
                 </span>
                 <span>
-                  vectorWrite={String(ragProductionReadiness.vectorWriteAttempted)}
+                  {copy.vectorWrite}:{" "}
+                  {booleanText(
+                    language,
+                    ragProductionReadiness.vectorWriteAttempted
+                  )}
                 </span>
                 <span>
-                  ingestionJobCreated=
-                  {String(ragProductionReadiness.ingestionJobCreated)}
+                  {copy.ingestionJobCreated}:{" "}
+                  {booleanText(
+                    language,
+                    ragProductionReadiness.ingestionJobCreated
+                  )}
                 </span>
               </div>
               <div className="admin-evidence-line">
                 <span>{ragProductionReadiness.components.queue.backendClass}</span>
                 <span>
-                  rawMarkdown=
-                  {String(ragProductionReadiness.components.queue.storesRawMarkdown)}
+                  {copy.rawMarkdown}:{" "}
+                  {booleanText(
+                    language,
+                    ragProductionReadiness.components.queue.storesRawMarkdown
+                  )}
                 </span>
                 <span>
-                  auditAppendOnly=
-                  {String(ragProductionReadiness.components.vectorWriteAuditSink.appendOnly)}
+                  {copy.auditAppendOnly}:{" "}
+                  {booleanText(
+                    language,
+                    ragProductionReadiness.components.vectorWriteAuditSink
+                      .appendOnly
+                  )}
                 </span>
                 <span>
-                  approvals={ragProductionReadiness.requiredApprovals.join(",")}
+                  {copy.approvals}:{" "}
+                  {ragProductionReadiness.requiredApprovals.join(",")}
                 </span>
               </div>
               <div
@@ -1430,9 +1477,12 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {ragProductionReadiness.firstProductionActions.length ? (
                   ragProductionReadiness.firstProductionActions.map((action) => (
                     <span key={action.id}>
-                      {action.id}:{action.owner}:{action.status}:next=
-                      {action.nextCommand}:mutation={String(action.mutation)}
-                      :approval={String(action.requiresExplicitApproval)}
+                      {action.id} / {action.owner} /{" "}
+                      {statusText(language, action.status)} / {copy.nextCommand}:{" "}
+                      {action.nextCommand} / {copy.mutationAllowed}:{" "}
+                      {booleanText(language, action.mutation)} /{" "}
+                      {copy.approvalRequired}:{" "}
+                      {booleanText(language, action.requiresExplicitApproval)}
                     </span>
                   ))
                 ) : (
@@ -1444,25 +1494,28 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-rag-production-ticket"
               >
                 <span>
-                  ticket={ragProductionReadiness.ticketPacket.id}
+                  {copy.ticket}: {ragProductionReadiness.ticketPacket.id}
                 </span>
                 <span>
-                  first={ragProductionReadiness.ticketPacket.firstReadOnlyAction.id}
+                  {copy.firstAction}:{" "}
+                  {ragProductionReadiness.ticketPacket.firstReadOnlyAction.id}
                 </span>
                 <span>
-                  approval=
+                  {copy.approvalAction}:{" "}
                   {ragProductionReadiness.ticketPacket.approvalGatedAction.id}
                 </span>
                 <span>
-                  requiresApproval=
-                  {String(
+                  {copy.requiresApproval}:{" "}
+                  {booleanText(
+                    language,
                     ragProductionReadiness.ticketPacket.approvalGatedAction
                       .requiresExplicitApproval
                   )}
                 </span>
                 <span>
-                  ingestionApproval=
-                  {String(
+                  {copy.approvalRequired}:{" "}
+                  {booleanText(
+                    language,
                     ragProductionReadiness.ticketPacket.mutationBoundary
                       .ingestionRequiresExplicitApproval
                   )}
@@ -1475,16 +1528,20 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             data-testid="opslens-rag-approval-queue-inventory"
           >
             <div className="admin-evidence-line">
-              <span>{queueInventory?.mode ?? "designOnly"}</span>
+              <span>{actionModeText(language, queueInventory?.mode ?? "designOnly")}</span>
               <span>{numberText(queueInventory?.itemCount)} {copy.queued}</span>
-              <span>readOnly=true</span>
+              <span>{copy.readOnlyCommands}: {booleanText(language, true)}</span>
               <span>
-                vectorWrite={String(
+                {copy.vectorWrite}:{" "}
+                {booleanText(
+                  language,
                   queueInventory?.policy.vectorWriteAllowed ?? false
                 )}
               </span>
               <span>
-                approvalMutation={String(
+                {copy.policyMutation}:{" "}
+                {booleanText(
+                  language,
                   queueInventory?.policy.approvalMutationAllowed ?? false
                 )}
               </span>
@@ -1494,7 +1551,9 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 <span>{item.queueItemId}</span>
                 <span>{item.state}</span>
                 <span>{item.tenantId}</span>
-                <span>approvals {item.approvals.length}</span>
+                <span>
+                  {copy.approvals}: {item.approvals.length}
+                </span>
                 {item.state === "pending-human-approval" ? (
                   <>
                     <button
@@ -1538,19 +1597,26 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 className="admin-evidence-line"
                 data-testid="opslens-rag-approval-review"
               >
-                <span>{queueReview.actionMode}</span>
+                <span>{actionModeText(language, queueReview.actionMode)}</span>
                 <span>{queueReview.decision}</span>
                 <span>{queueReview.state}</span>
                 <span>
-                  queueMetadataWrite=
-                  {String(queueReview.policy.queueMetadataWriteAllowed)}
+                  {copy.queueMetadataWrite}:{" "}
+                  {booleanText(
+                    language,
+                    queueReview.policy.queueMetadataWriteAllowed
+                  )}
                 </span>
                 <span>
-                  vectorWrite={String(queueReview.policy.vectorWriteAllowed)}
+                  {copy.vectorWrite}:{" "}
+                  {booleanText(language, queueReview.policy.vectorWriteAllowed)}
                 </span>
                 <span>
-                  ingestionJobCreated=
-                  {String(queueReview.content.ingestionJobCreated)}
+                  {copy.ingestionJobCreated}:{" "}
+                  {booleanText(
+                    language,
+                    queueReview.content.ingestionJobCreated
+                  )}
                 </span>
               </div>
             ) : null}
@@ -1559,17 +1625,27 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 className="admin-evidence-line"
                 data-testid="opslens-rag-ingestion-plan"
               >
-                <span>{queueIngestionPlan.actionMode}</span>
-                <span>{queueIngestionPlan.plannedJob.status}</span>
+                <span>{actionModeText(language, queueIngestionPlan.actionMode)}</span>
                 <span>
-                  approved={String(queueIngestionPlan.approvedForIngestion)}
+                  {statusText(language, queueIngestionPlan.plannedJob.status)}
                 </span>
                 <span>
-                  vectorWrite={String(queueIngestionPlan.policy.vectorWriteAllowed)}
+                  {copy.approved}:{" "}
+                  {booleanText(language, queueIngestionPlan.approvedForIngestion)}
                 </span>
                 <span>
-                  ingestionJobCreated=
-                  {String(queueIngestionPlan.content.ingestionJobCreated)}
+                  {copy.vectorWrite}:{" "}
+                  {booleanText(
+                    language,
+                    queueIngestionPlan.policy.vectorWriteAllowed
+                  )}
+                </span>
+                <span>
+                  {copy.ingestionJobCreated}:{" "}
+                  {booleanText(
+                    language,
+                    queueIngestionPlan.content.ingestionJobCreated
+                  )}
                 </span>
               </div>
             ) : null}
