@@ -222,6 +222,25 @@ Every checkpoint:
 6. Never commit `.env`, secrets, ignored evidence, or `desktop.ini`.
 7. If blocked, write the blocker with exact evidence instead of retrying random commands.
 
+The local non-mutating checkpoint runner is:
+
+```powershell
+npm run overnight:checkpoint
+```
+
+The 10-hour unattended safety loop is:
+
+```powershell
+npm run overnight:loop
+```
+
+The loop runs 20 iterations at a 30-minute interval and writes:
+
+- `test-results/cywell-opslens-dev012-overnight-checkpoint.json`
+- `test-results/cywell-opslens-dev012-overnight-checkpoint.md`
+
+It intentionally does not patch OCP, create secrets, push images, or read `.env` values.
+
 ## Execution Log
 
 ### 2026-06-17 - Lane 1
@@ -396,6 +415,19 @@ Every checkpoint:
   - `npm run verify:lab-bootstrap` - 0 fail, expected evidence freshness warnings
   - `npm run verify:lab-handoff` - 0 fail, live evidence freshness warnings remain
 - Overnight execution should now continue with product hardening, not another unversioned install attempt.
+
+### 2026-06-17 - Lane 13
+
+- Added `scripts/run-dev012-overnight-checkpoint.mjs` as a local non-mutating checkpoint runner.
+- Added npm aliases:
+  - `npm run overnight:checkpoint`
+  - `npm run overnight:loop`
+- The runner executes the safe local gates only:
+  - web shell
+  - ConsolePlugin assets
+  - operator package/reconcile/runtime
+  - CRC lab image map/bootstrap/handoff
+- It writes JSON and Markdown evidence under `test-results/` and stops on the first failed gate.
 
 Checkpoint cadence:
 

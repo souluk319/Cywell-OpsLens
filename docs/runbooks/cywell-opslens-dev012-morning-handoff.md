@@ -110,6 +110,22 @@ Leave it powered, awake, and on the same reachable network path. The useful back
 
 If the Mac sleeps, the work is still recoverable, but the live verification loop becomes a morning reconnect task instead of an overnight loop.
 
+## Overnight Safety Loop
+
+From the Windows workspace, the safe local checkpoint is:
+
+```powershell
+npm run overnight:checkpoint
+```
+
+The unattended 10-hour loop is:
+
+```powershell
+npm run overnight:loop
+```
+
+The loop only runs local non-mutating gates and writes evidence under `test-results/`. It does not patch OCP, create secrets, push images, or read `.env`.
+
 ## Product Boundary To Remember
 
 OperatorHub install is only the Operator install.

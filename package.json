@@ -44,6 +44,8 @@
     "verify:lab-bootstrap": "node ./scripts/verify-lab-bootstrap-plan.mjs",
     "verify:lab-handoff": "node ./scripts/verify-lab-server-handoff.mjs",
     "verify:lab-image-map": "node ./scripts/verify-lab-image-map-preview.mjs",
+    "overnight:checkpoint": "node ./scripts/run-dev012-overnight-checkpoint.mjs --once",
+    "overnight:loop": "node ./scripts/run-dev012-overnight-checkpoint.mjs --iterations 20 --interval-minutes 30",
     "lab:catalog:crc": "node ./scripts/create-crc-dev-catalog-context.mjs",
     "verify:owned-image-provenance": "node ./scripts/verify-owned-image-provenance.mjs",
     "verify:security-scan-plan": "node ./scripts/verify-security-scan-plan.mjs",
