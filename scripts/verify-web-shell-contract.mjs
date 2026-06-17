@@ -341,6 +341,15 @@ expectCheck(
 );
 
 expectCheck(
+  "localized monitoring proxy handoff labels",
+  !adminSource.includes('<span>owner={monitoringProxyHandoff?.owner ?? "cluster-sre"}</span>') &&
+    !adminSource.includes("mutationAllowedByThisVerifier=\n              {String(\n                monitoringProxyHandoff?.mutationAllowedByThisVerifier") &&
+    !adminSource.includes('<span>{monitoringProxyHandoff?.nextCommand ?? "npm run verify:aiops"}</span>') &&
+    !adminSource.includes("{command.id}:mutation={String(command.mutation)}"),
+  "Monitoring proxy handoff rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
   "localized remediation proposal labels",
   !adminSource.includes("<span>Mode</span>") &&
     !adminSource.includes("<span>Patch</span>") &&

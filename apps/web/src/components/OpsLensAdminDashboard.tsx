@@ -2404,7 +2404,9 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 monitoringProxyHandoff?.status ?? "needs-evidence"
               )}
             </span>
-            <span>owner={monitoringProxyHandoff?.owner ?? "cluster-sre"}</span>
+            <span>
+              {copy.owner}: {monitoringProxyHandoff?.owner ?? "cluster-sre"}
+            </span>
             <span>
               {copy.enabled}:{" "}
               {booleanText(language, monitoringProxyHandoff?.enabled ?? false)}
@@ -2422,8 +2424,9 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               {(monitoringProxyHandoff?.missingQueries ?? []).length}
             </span>
             <span>
-              mutationAllowedByThisVerifier=
-              {String(
+              {copy.mutationByVerifier}:{" "}
+              {booleanText(
+                language,
                 monitoringProxyHandoff?.mutationAllowedByThisVerifier ?? false
               )}
             </span>
@@ -2437,10 +2440,14 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             className="admin-evidence-line"
             data-testid="opslens-aiops-monitoring-proxy-commands"
           >
-            <span>{monitoringProxyHandoff?.nextCommand ?? "npm run verify:aiops"}</span>
+            <span>
+              {copy.nextCommand}:{" "}
+              {monitoringProxyHandoff?.nextCommand ?? "npm run verify:aiops"}
+            </span>
             {(monitoringProxyHandoff?.readOnlyCommands ?? []).map((command) => (
               <span key={command.id}>
-                {command.id}:mutation={String(command.mutation)}
+                {command.id} / {copy.mutationAllowed}:{" "}
+                {booleanText(language, command.mutation)}
               </span>
             ))}
             <span>

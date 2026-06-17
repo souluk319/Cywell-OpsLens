@@ -24,6 +24,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the Cywell OpsBrain panels now avoid raw guard labels such as `fineTuningRequired=`, `actionMode=`, `write=`, `mutationAllowed=`, `golden=`, `next=`, `groundedTarget=`, `routingPlanned=`, `rawMemoryWrite=`, `fineTuning=`, and `nightlyLoop=` while preserving implementation and evidence strings
 - the RAG production readiness and approval queue panels now avoid raw labels such as `contractReady=`, `queueLive=`, `workerLive=`, `vectorAudit=`, `rawMarkdown=`, `auditAppendOnly=`, `queueMetadataWrite=`, and `approved=` while preserving action IDs and command IDs as evidence
 - the Runtime readiness and live handoff panels now avoid raw labels such as `pgvector=`, `vllm=`, `liveProbe=`, `runtimeOwner=`, `dataOwner=`, `writesLocalEvidence=`, and `mutationAllowedByThisVerifier=` while preserving provider/component/action IDs
+- the AI Ops monitoring proxy handoff rows now avoid raw labels such as `owner=`, `mutationAllowedByThisVerifier=`, and `command.id:mutation=true/false` while preserving command IDs and ticket IDs
 - the primary dashboard, evidence pane, console overview, and Assistant status/context fields now avoid customer-visible mixed Korean/English labels such as `live overview`, `incident queue`, `payload`, raw `fallback/loading` UI status chips, and English context chip labels
 - the Assistant answer body now has a reviewed KO display dictionary for the known demo triage answer, including current judgment, evidence labels, cause candidates, risks, missing evidence, plan, rollback path, citations, and context values such as `CRC 미리보기` and `근거 3건`
 - the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
@@ -88,6 +89,7 @@ c96c4ce Localize admin readiness grid
 8128733 Localize OpsBrain guard labels
 8f6693f Localize RAG production labels
 81555b2 Stamp overnight loop git state
+f67c5c8 Localize runtime handoff labels
 ```
 
 ## Verified Gates
@@ -96,10 +98,10 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 19 checks after the runtime handoff label lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 20 checks after the monitoring proxy handoff label lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 37; evidence includes start/finish Git dirty state |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the runtime handoff label lane |
+| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 38; evidence includes start/finish Git dirty state |
+| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the monitoring proxy handoff label lane |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, navigation, Assistant labels, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |

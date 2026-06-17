@@ -690,6 +690,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - `statusText` now normalizes underscore status values before lookup, so evidence statuses like `NEEDS_CURRENT_EVIDENCE` can render as customer-facing labels while raw evidence remains available elsewhere.
 - `npm run verify:web-shell` now includes a `localized runtime handoff labels` gate.
 
+### 2026-06-18 - Lane 38
+
+- Polished the AI Ops monitoring proxy handoff rows so KO mode no longer exposes raw labels such as `owner=`, `mutationAllowedByThisVerifier=`, plain next-command text, or `command.id:mutation=true/false`.
+- Monitoring proxy handoff now uses language-owned labels for owner, mutation boundary, next command, and read-only command mutation status while preserving command IDs and ticket IDs as evidence.
+- `npm run verify:web-shell` now includes a `localized monitoring proxy handoff labels` gate.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -701,10 +707,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 36: `81555b2`
+- feature branch latest pushed head after Lane 37: `f67c5c8`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 37: PASS, 19 checks
-- latest overnight checkpoint after Lane 37: PASS, 9/9 local gates, structured Git dirty state present
+- latest web shell verifier after Lane 38: PASS, 20 checks
+- latest overnight checkpoint after Lane 38: PASS, 9/9 local gates, structured Git dirty state present
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
