@@ -34,6 +34,7 @@ import {
   submitOpsLensRagApprovalQueue,
   validateOpsLensRagDocument
 } from "../lib/api";
+import type { UiLanguage } from "../i18n";
 
 const sampleDraftRunbook = `---
 id: customer-runbook:payments-timeout-triage
@@ -122,7 +123,105 @@ function runtimeEvidenceTicketText(action: OpsLensRuntimeLiveHandoffAction) {
   ].join(":");
 }
 
-export function OpsLensAdminDashboard() {
+const adminCopy = {
+  en: {
+    adminTitle: "Admin Dashboard",
+    docs: "docs",
+    tokens: "tokens",
+    opsBrainTitle: "No fine-tuning growth system",
+    growthLoop: "Growth Loop",
+    steps: "steps",
+    memoryTiers: "Memory Tiers",
+    tiers: "tiers",
+    riskGate: "Risk Gate",
+    evaluator: "Evaluator",
+    systemModules: "System Modules",
+    modules: "modules",
+    growthGovernance: "Growth Governance",
+    modelStrategy: "Model Strategy",
+    acceptance: "Acceptance",
+    gates: "gates",
+    memoryWriteGuard: "Memory Write Guard",
+    selfImprover: "Self-Improver",
+    requiredKeys: "Required Keys And Tokens",
+    valuesRedacted: "values redacted",
+    ragDocuments: "RAG Documents",
+    validateUploadIntake: "Validate upload intake",
+    document: "Document",
+    status: "Status",
+    chunks: "Chunks",
+    citation: "Citation",
+    tenant: "Tenant",
+    file: "File",
+    ragDocumentMarkdown: "RAG document markdown",
+    validating: "Validating",
+    validate: "Validate",
+    exporting: "Exporting",
+    exportEvidence: "Export Evidence",
+    queueing: "Queueing",
+    queueEvidence: "Queue Evidence",
+    pending: "pending",
+    rejected: "rejected",
+    queued: "queued",
+    approveQueuedEvidence: "Approve queued RAG evidence",
+    rejectQueuedEvidence: "Reject queued RAG evidence",
+    planRagIngestionJob: "Plan RAG ingestion job",
+    tokenUsage: "Token Usage",
+    lightspeedMcpTools: "Lightspeed MCP Tools"
+  },
+  ko: {
+    adminTitle: "관리 대시보드",
+    docs: "문서",
+    tokens: "토큰",
+    opsBrainTitle: "파인튜닝 없는 성장 시스템",
+    growthLoop: "성장 루프",
+    steps: "단계",
+    memoryTiers: "메모리 계층",
+    tiers: "계층",
+    riskGate: "위험 게이트",
+    evaluator: "평가기",
+    systemModules: "시스템 모듈",
+    modules: "모듈",
+    growthGovernance: "성장 거버넌스",
+    modelStrategy: "모델 전략",
+    acceptance: "완료 기준",
+    gates: "게이트",
+    memoryWriteGuard: "메모리 쓰기 가드",
+    selfImprover: "자가 개선기",
+    requiredKeys: "필요 키와 토큰",
+    valuesRedacted: "값은 비공개",
+    ragDocuments: "RAG 문서",
+    validateUploadIntake: "업로드 입력 검증",
+    document: "문서",
+    status: "상태",
+    chunks: "청크",
+    citation: "인용",
+    tenant: "테넌트",
+    file: "파일",
+    ragDocumentMarkdown: "RAG 문서 마크다운",
+    validating: "검증 중",
+    validate: "검증",
+    exporting: "내보내는 중",
+    exportEvidence: "근거 내보내기",
+    queueing: "대기열 등록 중",
+    queueEvidence: "근거 대기열 등록",
+    pending: "대기",
+    rejected: "거부",
+    queued: "대기열",
+    approveQueuedEvidence: "대기 중인 RAG 근거 승인",
+    rejectQueuedEvidence: "대기 중인 RAG 근거 반려",
+    planRagIngestionJob: "RAG 적재 작업 계획",
+    tokenUsage: "토큰 사용량",
+    lightspeedMcpTools: "Lightspeed MCP 도구"
+  }
+} satisfies Record<UiLanguage, Record<string, string>>;
+
+interface OpsLensAdminDashboardProps {
+  language: UiLanguage;
+}
+
+export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) {
+  const copy = adminCopy[language];
   const [overview, setOverview] = useState<OpsLensAdminOverviewResponse | null>(
     null
   );
@@ -490,16 +589,16 @@ export function OpsLensAdminDashboard() {
       <div className="section-heading compact">
         <div>
           <p className="eyebrow">Cywell OpsLens</p>
-          <h2 id="opslens-admin-title">Admin Dashboard</h2>
+          <h2 id="opslens-admin-title">{copy.adminTitle}</h2>
         </div>
         <div className="summary-strip" data-testid="opslens-admin-summary">
           <span>
             <DatabaseZap size={15} aria-hidden="true" />
-            {numberText(overview?.rag.documents.length)} docs
+            {numberText(overview?.rag.documents.length)} {copy.docs}
           </span>
           <span>
             <Gauge size={15} aria-hidden="true" />
-            {tokenUsedPercent}% tokens
+            {tokenUsedPercent}% {copy.tokens}
           </span>
           <span>
             <Cpu size={15} aria-hidden="true" />
@@ -523,7 +622,7 @@ export function OpsLensAdminDashboard() {
           <div className="opsbrain-headline">
             <div>
               <p className="eyebrow">Cywell OpsBrain</p>
-              <h3 id="opslens-opsbrain-title">No fine-tuning growth system</h3>
+              <h3 id="opslens-opsbrain-title">{copy.opsBrainTitle}</h3>
               <p>{opsBrain.productDefinition}</p>
             </div>
             <div className="opsbrain-badges">
@@ -544,9 +643,9 @@ export function OpsLensAdminDashboard() {
               <div className="card-title-row">
                 <h4>
                   <BrainCircuit size={16} aria-hidden="true" />
-                  Growth Loop
+                  {copy.growthLoop}
                 </h4>
-                <span>{opsBrain.growthLoop.length} steps</span>
+                <span>{opsBrain.growthLoop.length} {copy.steps}</span>
               </div>
               <ol className="opsbrain-step-list">
                 {opsBrain.growthLoop.map((step) => (
@@ -565,9 +664,9 @@ export function OpsLensAdminDashboard() {
               <div className="card-title-row">
                 <h4>
                   <DatabaseZap size={16} aria-hidden="true" />
-                  Memory Tiers
+                  {copy.memoryTiers}
                 </h4>
-                <span>{opsBrain.memoryTiers.length} tiers</span>
+                <span>{opsBrain.memoryTiers.length} {copy.tiers}</span>
               </div>
               <div className="opsbrain-memory-list">
                 {opsBrain.memoryTiers.map((tier) => (
@@ -587,7 +686,7 @@ export function OpsLensAdminDashboard() {
               <div className="card-title-row">
                 <h4>
                   <ShieldCheck size={16} aria-hidden="true" />
-                  Risk Gate
+                  {copy.riskGate}
                 </h4>
                 <span>mutationAllowed={String(opsBrain.riskGate.mutationAllowed)}</span>
               </div>
@@ -609,7 +708,7 @@ export function OpsLensAdminDashboard() {
               <div className="card-title-row">
                 <h4>
                   <ListChecks size={16} aria-hidden="true" />
-                  Evaluator
+                  {copy.evaluator}
                 </h4>
                 <span>golden={opsBrain.evaluator.goldenSetTarget}</span>
               </div>
@@ -630,9 +729,9 @@ export function OpsLensAdminDashboard() {
               <div className="card-title-row">
                 <h4>
                   <BrainCircuit size={16} aria-hidden="true" />
-                  System Modules
+                  {copy.systemModules}
                 </h4>
-                <span>{opsBrain.architectureModules.length} modules</span>
+                <span>{opsBrain.architectureModules.length} {copy.modules}</span>
               </div>
               <div className="opsbrain-module-list">
                 {opsBrain.architectureModules.map((module) => (
@@ -655,7 +754,7 @@ export function OpsLensAdminDashboard() {
               <div className="card-title-row">
                 <h4>
                   <ShieldCheck size={16} aria-hidden="true" />
-                  Growth Governance
+                  {copy.growthGovernance}
                 </h4>
                 <span>{opsBrain.growthGovernance.memoryPromotionMode}</span>
               </div>
@@ -687,7 +786,7 @@ export function OpsLensAdminDashboard() {
               <div className="card-title-row">
                 <h4>
                   <Gauge size={16} aria-hidden="true" />
-                  Model Strategy
+                  {copy.modelStrategy}
                 </h4>
                 <span>{opsBrain.modelStrategy.defaultMode}</span>
               </div>
@@ -719,9 +818,9 @@ export function OpsLensAdminDashboard() {
               <div className="card-title-row">
                 <h4>
                   <CheckCircle2 size={16} aria-hidden="true" />
-                  Acceptance
+                  {copy.acceptance}
                 </h4>
-                <span>{opsBrain.acceptanceCriteria.length} gates</span>
+                <span>{opsBrain.acceptanceCriteria.length} {copy.gates}</span>
               </div>
               <div className="opsbrain-contract-list">
                 {opsBrain.acceptanceCriteria.map((criterion) => (
@@ -741,7 +840,7 @@ export function OpsLensAdminDashboard() {
               <div className="card-title-row">
                 <h4>
                   <FileDiff size={16} aria-hidden="true" />
-                  Memory Write Guard
+                  {copy.memoryWriteGuard}
                 </h4>
                 <span>{opsBrain.memoryWriteGuard.mode}</span>
               </div>
@@ -762,7 +861,7 @@ export function OpsLensAdminDashboard() {
               <div className="card-title-row">
                 <h4>
                   <Activity size={16} aria-hidden="true" />
-                  Self-Improver
+                  {copy.selfImprover}
                 </h4>
                 <span>{opsBrain.selfImprover.mode}</span>
               </div>
@@ -787,9 +886,9 @@ export function OpsLensAdminDashboard() {
             <div className="card-title-row">
               <h4>
                 <KeyRound size={16} aria-hidden="true" />
-                Required Keys And Tokens
+                {copy.requiredKeys}
               </h4>
-              <span>values redacted</span>
+              <span>{copy.valuesRedacted}</span>
             </div>
             <div
               className="opsbrain-credential-list"
@@ -813,12 +912,12 @@ export function OpsLensAdminDashboard() {
       <div className="admin-grid">
         <article className="ops-card rag-admin-card" data-testid="opslens-rag-health">
           <div className="card-title-row">
-            <h3>RAG Documents</h3>
+            <h3>{copy.ragDocuments}</h3>
             <button
               className="icon-button"
               type="button"
-              title="Validate upload intake"
-              aria-label="Validate upload intake"
+              title={copy.validateUploadIntake}
+              aria-label={copy.validateUploadIntake}
               onClick={() => void runValidation()}
               disabled={validating}
             >
@@ -829,26 +928,26 @@ export function OpsLensAdminDashboard() {
             <table className="resource-table compact">
               <thead>
                 <tr>
-                  <th>Document</th>
-                  <th>Status</th>
-                  <th>Chunks</th>
-                  <th>Citation</th>
+                  <th>{copy.document}</th>
+                  <th>{copy.status}</th>
+                  <th>{copy.chunks}</th>
+                  <th>{copy.citation}</th>
                 </tr>
               </thead>
               <tbody>
                 {overview?.rag.documents.map((document) => (
                   <tr key={document.id}>
-                    <td data-label="Document">
+                    <td data-label={copy.document}>
                       <strong>{document.label}</strong>
                       <small>{document.tenantId}</small>
                     </td>
-                    <td data-label="Status">
+                    <td data-label={copy.status}>
                       <span className={`freshness ${statusClass(document.status)}`}>
                         {document.status}
                       </span>
                     </td>
-                    <td data-label="Chunks">{document.chunkCount}</td>
-                    <td data-label="Citation">{percentText(document.citationRate)}</td>
+                    <td data-label={copy.chunks}>{document.chunkCount}</td>
+                    <td data-label={copy.citation}>{percentText(document.citationRate)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -856,8 +955,8 @@ export function OpsLensAdminDashboard() {
           </div>
           <div className="admin-evidence-line" data-testid="opslens-upload-intake">
             <span>{overview?.rag.uploadIntake.mode ?? "validate-only"}</span>
-            <span>{numberText(overview?.rag.uploadIntake.pending)} pending</span>
-            <span>{numberText(overview?.rag.uploadIntake.rejected)} rejected</span>
+            <span>{numberText(overview?.rag.uploadIntake.pending)} {copy.pending}</span>
+            <span>{numberText(overview?.rag.uploadIntake.rejected)} {copy.rejected}</span>
           </div>
           {ragProductionReadiness ? (
             <div
@@ -955,7 +1054,7 @@ export function OpsLensAdminDashboard() {
           >
             <div className="admin-evidence-line">
               <span>{queueInventory?.mode ?? "designOnly"}</span>
-              <span>{numberText(queueInventory?.itemCount)} queued</span>
+              <span>{numberText(queueInventory?.itemCount)} {copy.queued}</span>
               <span>readOnly=true</span>
               <span>
                 vectorWrite={String(
@@ -979,7 +1078,7 @@ export function OpsLensAdminDashboard() {
                     <button
                       className="icon-button"
                       type="button"
-                      title="Approve queued RAG evidence"
+                      title={copy.approveQueuedEvidence}
                       aria-label={`Approve ${item.queueItemId}`}
                       onClick={() => void reviewQueueItem(item, "approve")}
                       disabled={reviewingItemId === `${item.queueItemId}-approve`}
@@ -989,7 +1088,7 @@ export function OpsLensAdminDashboard() {
                     <button
                       className="icon-button"
                       type="button"
-                      title="Reject queued RAG evidence"
+                      title={copy.rejectQueuedEvidence}
                       aria-label={`Reject ${item.queueItemId}`}
                       onClick={() => void reviewQueueItem(item, "reject")}
                       disabled={reviewingItemId === `${item.queueItemId}-reject`}
@@ -1002,7 +1101,7 @@ export function OpsLensAdminDashboard() {
                   <button
                     className="icon-button"
                     type="button"
-                    title="Plan RAG ingestion job"
+                    title={copy.planRagIngestionJob}
                     aria-label={`Plan ingestion ${item.queueItemId}`}
                     onClick={() => void planQueueIngestion(item)}
                     disabled={planningItemId === item.queueItemId}
@@ -1056,14 +1155,14 @@ export function OpsLensAdminDashboard() {
           <div className="rag-validation-form" data-testid="opslens-rag-validation">
             <div className="rag-validation-fields">
               <label>
-                Tenant
+                {copy.tenant}
                 <input
                   value={tenantId}
                   onChange={(event) => setTenantId(event.target.value)}
                 />
               </label>
               <label>
-                File
+                {copy.file}
                 <input
                   value={fileName}
                   onChange={(event) => setFileName(event.target.value)}
@@ -1071,7 +1170,7 @@ export function OpsLensAdminDashboard() {
               </label>
             </div>
             <textarea
-              aria-label="RAG document markdown"
+              aria-label={copy.ragDocumentMarkdown}
               value={markdown}
               onChange={(event) => setMarkdown(event.target.value)}
             />
@@ -1083,7 +1182,7 @@ export function OpsLensAdminDashboard() {
                 disabled={validating}
               >
                 <UploadCloud size={16} aria-hidden="true" />
-                {validating ? "Validating" : "Validate"}
+                {validating ? copy.validating : copy.validate}
               </button>
               {validation ? (
                 <span
@@ -1099,7 +1198,7 @@ export function OpsLensAdminDashboard() {
                 disabled={exporting}
               >
                 <Download size={16} aria-hidden="true" />
-                {exporting ? "Exporting" : "Export Evidence"}
+                {exporting ? copy.exporting : copy.exportEvidence}
               </button>
               <button
                 className="text-icon-button"
@@ -1108,7 +1207,7 @@ export function OpsLensAdminDashboard() {
                 disabled={queueing}
               >
                 <FileDiff size={16} aria-hidden="true" />
-                {queueing ? "Queueing" : "Queue Evidence"}
+                {queueing ? copy.queueing : copy.queueEvidence}
               </button>
             </div>
             {validation ? (
@@ -1170,7 +1269,7 @@ export function OpsLensAdminDashboard() {
 
         <article className="ops-card token-admin-card" data-testid="opslens-token-usage">
           <div className="card-title-row">
-            <h3>Token Usage</h3>
+            <h3>{copy.tokenUsage}</h3>
             <Activity size={18} aria-hidden="true" />
           </div>
           <div className="token-budget">
@@ -1205,7 +1304,7 @@ export function OpsLensAdminDashboard() {
           data-testid="opslens-mcp-tool-surface"
         >
           <div className="card-title-row">
-            <h3>Lightspeed MCP Tools</h3>
+            <h3>{copy.lightspeedMcpTools}</h3>
             <ShieldCheck size={18} aria-hidden="true" />
           </div>
           <div className="admin-evidence-line">

@@ -905,7 +905,7 @@ export default function App() {
               </a>
             </section>
             <OperationsDashboard dashboard={dashboard} language={language} />
-            <OpsLensAdminDashboard />
+            <OpsLensAdminDashboard language={language} />
             <ConsoleEvidencePane
               contextPayload={contextPayload}
               activeRisks={dashboard.activeRisks}

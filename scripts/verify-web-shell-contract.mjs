@@ -60,6 +60,7 @@ const evidenceSource = await readText("apps/web/src/components/ConsoleEvidencePa
 const overviewSource = await readText("apps/web/src/components/OcpConsoleOverview.tsx");
 const dashboardSource = await readText("apps/web/src/components/OperationsDashboard.tsx");
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
+const adminSource = await readText("apps/web/src/components/OpsLensAdminDashboard.tsx");
 const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 
@@ -106,12 +107,14 @@ expectCheck(
     appSource.includes("<OperationsDashboard dashboard={dashboard} language={language}") &&
     appSource.includes("<OcpConsoleOverview language={language}") &&
     appSource.includes("<OcpResourceExplorer") &&
+    appSource.includes("<OpsLensAdminDashboard language={language}") &&
     appSource.includes("language={language}") &&
     evidenceSource.includes("const evidenceCopy") &&
     overviewSource.includes("const overviewCopy") &&
     dashboardSource.includes("const dashboardCopy") &&
-    explorerSource.includes("const explorerCopy"),
-  "primary console panels and the resource explorer receive the selected language and own bilingual copy"
+    explorerSource.includes("const explorerCopy") &&
+    adminSource.includes("const adminCopy"),
+  "primary console panels, admin dashboard, and the resource explorer receive the selected language and own bilingual copy"
 );
 
 expectCheck(
