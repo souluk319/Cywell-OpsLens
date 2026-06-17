@@ -88,6 +88,11 @@ const releaseActionQueueSource = sourceSection(
   'data-testid="opslens-release-action-queue"',
   'data-testid="opslens-evidence-checkpoint"'
 );
+const installApprovalPlanSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-install-approval-plan"',
+  'data-testid="opslens-catalog-toolchain"'
+);
 const catalogToolchainSource = sourceSection(
   adminSource,
   'data-testid="opslens-catalog-toolchain"',
@@ -815,6 +820,63 @@ expectCheck(
     !securityScanSource.includes(":ticket=") &&
     !securityScanSource.includes(":ready="),
   "Security scan and review rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized install approval plan labels",
+  installApprovalPlanSource.includes("copy.installPlan") &&
+    installApprovalPlanSource.includes("actionModeText(language, approvalPlan.actionMode)") &&
+    installApprovalPlanSource.includes("copy.mutatingCommands") &&
+    installApprovalPlanSource.includes("copy.lightspeedRegistration") &&
+    installApprovalPlanSource.includes("copy.ragIngestion") &&
+    installApprovalPlanSource.includes("copy.configResource") &&
+    installApprovalPlanSource.includes("copy.willPatch") &&
+    installApprovalPlanSource.includes("copy.legacyConfigMapMutationAttempted") &&
+    installApprovalPlanSource.includes("copy.clusterAdminPacket") &&
+    installApprovalPlanSource.includes("copy.installDecision") &&
+    installApprovalPlanSource.includes("copy.installExecuted") &&
+    installApprovalPlanSource.includes("copy.installRequiresApproval") &&
+    installApprovalPlanSource.includes("copy.queueEvidence") &&
+    installApprovalPlanSource.includes("statusText(language, approvalPlan.ragIngestion.status)") &&
+    installApprovalPlanSource.includes("approvalPlan.lightspeedRegistration.mode") &&
+    installApprovalPlanSource.includes("statusText(language, approvalPlan.installDecisionAction.status)") &&
+    !installApprovalPlanSource.includes("{approvalPlan.actionMode}") &&
+    !installApprovalPlanSource.includes("clusterMutationAttempted=") &&
+    !installApprovalPlanSource.includes("mutationAllowedByThisVerifier=") &&
+    !installApprovalPlanSource.includes("<span>Approvals</span>") &&
+    !installApprovalPlanSource.includes("<span>Mutating Commands</span>") &&
+    !installApprovalPlanSource.includes("<span>Lightspeed Registration</span>") &&
+    !installApprovalPlanSource.includes("<span>RAG Ingestion</span>") &&
+    !installApprovalPlanSource.includes("jobCreated=") &&
+    !installApprovalPlanSource.includes("{approvalPlan.lightspeedRegistration.actionMode}") &&
+    !installApprovalPlanSource.includes("mode={approvalPlan.lightspeedRegistration.mode}") &&
+    !installApprovalPlanSource.includes("willPatch=") &&
+    !installApprovalPlanSource.includes("legacyConfigMapMutationAttempted=") &&
+    !installApprovalPlanSource.includes("first approval actions clear") &&
+    !installApprovalPlanSource.includes(":mutation=") &&
+    !installApprovalPlanSource.includes(":approval=") &&
+    !installApprovalPlanSource.includes(":requiresApproval=") &&
+    !installApprovalPlanSource.includes(":mutationAllowed=") &&
+    !installApprovalPlanSource.includes("packet=") &&
+    !installApprovalPlanSource.includes("exists=") &&
+    !installApprovalPlanSource.includes("ticket=") &&
+    !installApprovalPlanSource.includes("decision=") &&
+    !installApprovalPlanSource.includes("first=") &&
+    !installApprovalPlanSource.includes("approval=") &&
+    !installApprovalPlanSource.includes("installExecuted=") &&
+    !installApprovalPlanSource.includes(":status=") &&
+    !installApprovalPlanSource.includes(":lightspeed=") &&
+    !installApprovalPlanSource.includes(":rag=") &&
+    !installApprovalPlanSource.includes(":mode=") &&
+    !installApprovalPlanSource.includes(":ragStatus=") &&
+    !installApprovalPlanSource.includes(":writesLocalEvidence=") &&
+    !installApprovalPlanSource.includes(":clusterMutationAttempted=") &&
+    !installApprovalPlanSource.includes(":vectorWriteAttempted=") &&
+    !installApprovalPlanSource.includes(":ingestionJobCreated=") &&
+    !installApprovalPlanSource.includes(":installRequiresExplicitApproval=") &&
+    !installApprovalPlanSource.includes("queueEvidence=") &&
+    !installApprovalPlanSource.includes("vectorWriteAttempted="),
+  "Install approval plan rows use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(

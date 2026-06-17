@@ -209,6 +209,43 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
   return labels[language][mode] ?? mode;
 }
 
+function evidenceNoteText(
+  language: UiLanguage,
+  text: string | undefined,
+  copy: Record<string, string>
+) {
+  if (!text) return undefined;
+  return text
+    .replace(
+      /mode=PatchOLSConfig/g,
+      `${copy.toolMode}: ${actionModeText(language, "PatchOLSConfig")}`
+    )
+    .replace(
+      /clusterMutationAttempted=false/g,
+      `${copy.clusterMutationAttempted}: ${booleanText(language, false)}`
+    )
+    .replace(
+      /mutationAllowedByThisVerifier=false/g,
+      `${copy.mutationByVerifier}: ${booleanText(language, false)}`
+    )
+    .replace(
+      /legacyConfigMapMutationAttempted=false/g,
+      `${copy.legacyConfigMapMutationAttempted}: ${booleanText(language, false)}`
+    )
+    .replace(
+      /vectorWriteAttempted=false/g,
+      `${copy.vectorWriteAttempted}: ${booleanText(language, false)}`
+    )
+    .replace(
+      /ingestionJobCreated=false/g,
+      `${copy.ingestionJobCreated}: ${booleanText(language, false)}`
+    )
+    .replace(
+      /willPatch=true/g,
+      `${copy.willPatch}: ${booleanText(language, true)}`
+    );
+}
+
 function statusClass(status: string) {
   if (
     status === "indexed" ||
@@ -504,6 +541,17 @@ const adminCopy = {
     operatorDryRun: "operator dry-run",
     operatorBoundary: "operator boundary",
     installPlan: "install plan",
+    installDecision: "install decision",
+    clusterAdminPacket: "cluster admin packet",
+    mutatingCommands: "mutating commands",
+    lightspeedRegistration: "Lightspeed registration",
+    configResource: "config resource",
+    willPatch: "will patch",
+    legacyConfigMapMutationAttempted: "legacy ConfigMap mutation attempted",
+    lightspeedPreview: "Lightspeed preview",
+    ragReview: "RAG review",
+    installExecuted: "install executed",
+    installRequiresApproval: "install requires approval",
     ragIngestion: "RAG ingestion",
     certificationEvidence: "certification evidence",
     communitySubmission: "community submission",
@@ -913,6 +961,17 @@ const adminCopy = {
     operatorDryRun: "오퍼레이터 dry-run",
     operatorBoundary: "오퍼레이터 경계",
     installPlan: "설치 계획",
+    installDecision: "설치 결정",
+    clusterAdminPacket: "클러스터 관리자 패킷",
+    mutatingCommands: "변경 명령",
+    lightspeedRegistration: "Lightspeed 등록",
+    configResource: "설정 리소스",
+    willPatch: "패치 예정",
+    legacyConfigMapMutationAttempted: "기존 ConfigMap 변경 시도",
+    lightspeedPreview: "Lightspeed 미리보기",
+    ragReview: "RAG 검토",
+    installExecuted: "설치 실행",
+    installRequiresApproval: "설치 승인 필요",
     ragIngestion: "RAG 적재",
     certificationEvidence: "인증 근거",
     communitySubmission: "커뮤니티 제출",
@@ -5994,44 +6053,58 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-install-approval-plan"
             >
               <div className="admin-evidence-line">
-                <span>{approvalPlan.actionMode}</span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(approvalPlan.clusterMutationAttempted)}
+                  <strong>{copy.installPlan}</strong>:{" "}
+                  {actionModeText(language, approvalPlan.actionMode)}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(approvalPlan.mutationAllowedByThisVerifier)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, approvalPlan.clusterMutationAttempted)}
+                </span>
+                <span>
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(
+                    language,
+                    approvalPlan.mutationAllowedByThisVerifier
+                  )}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Approvals</span>
-                  <strong>{approvalPlan.requiredApprovals.join(", ")}</strong>
+                  <span>{copy.approvals}</span>
+                  <strong>{listOrNone(copy, approvalPlan.requiredApprovals)}</strong>
                 </div>
                 <div>
-                  <span>Mutating Commands</span>
+                  <span>{copy.mutatingCommands}</span>
                   <strong>
                     {approvalPlan.mutatingCommands.length
                       ? approvalPlan.mutatingCommands
                           .map((command) => command.id)
                           .join(", ")
-                      : "blocked until evidence exists"}
+                      : copy.blockedUntilEvidenceExists}
                   </strong>
                 </div>
                 <div>
-                  <span>Lightspeed Registration</span>
+                  <span>{copy.lightspeedRegistration}</span>
                   <strong>
-                    {approvalPlan.lightspeedRegistration.mode} /{" "}
+                    {actionModeText(
+                      language,
+                      approvalPlan.lightspeedRegistration.mode
+                    )}{" "}
+                    /{" "}
                     {approvalPlan.lightspeedRegistration.target.namespace}/
                     {approvalPlan.lightspeedRegistration.target.name}
                   </strong>
                 </div>
                 <div>
-                  <span>RAG Ingestion</span>
+                  <span>{copy.ragIngestion}</span>
                   <strong>
-                    {approvalPlan.ragIngestion.status} / jobCreated=
-                    {String(approvalPlan.ragIngestion.ingestionJobCreated)}
+                    {statusText(language, approvalPlan.ragIngestion.status)} /{" "}
+                    {copy.ingestionJobCreated}:{" "}
+                    {booleanText(
+                      language,
+                      approvalPlan.ragIngestion.ingestionJobCreated
+                    )}
                   </strong>
                 </div>
               </div>
@@ -6039,25 +6112,43 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 className="admin-evidence-line"
                 data-testid="opslens-lightspeed-registration-plan"
               >
-                <span>{approvalPlan.lightspeedRegistration.actionMode}</span>
                 <span>
+                  {copy.lightspeedRegistration}:{" "}
+                  {actionModeText(
+                    language,
+                    approvalPlan.lightspeedRegistration.actionMode
+                  )}
+                </span>
+                <span>
+                  {copy.configResource}:{" "}
                   {approvalPlan.lightspeedRegistration.configResourceKind}
                 </span>
-                <span>mode={approvalPlan.lightspeedRegistration.mode}</span>
                 <span>
-                  willPatch=
-                  {String(approvalPlan.lightspeedRegistration.willPatch)}
+                  {copy.toolMode}:{" "}
+                  {actionModeText(
+                    language,
+                    approvalPlan.lightspeedRegistration.mode
+                  )}
                 </span>
                 <span>
-                  legacyConfigMapMutationAttempted=
-                  {String(
+                  {copy.willPatch}:{" "}
+                  {booleanText(
+                    language,
+                    approvalPlan.lightspeedRegistration.willPatch
+                  )}
+                </span>
+                <span>
+                  {copy.legacyConfigMapMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
                     approvalPlan.lightspeedRegistration
                       .legacyConfigMapMutationAttempted
                   )}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
                     approvalPlan.lightspeedRegistration.clusterMutationAttempted
                   )}
                 </span>
@@ -6069,13 +6160,16 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {approvalPlan.firstApprovalActions.length ? (
                   approvalPlan.firstApprovalActions.map((action) => (
                     <span key={action.id}>
-                      {action.id}:{action.owner}:{action.nextCommand}:mutation=
-                      {String(action.mutation)}:approval=
-                      {String(action.requiresExplicitApproval)}
+                      {action.id}: {copy.owner} {action.owner} /{" "}
+                      {copy.nextCommand} {action.nextCommand} /{" "}
+                      {copy.policyMutation}{" "}
+                      {booleanText(language, action.mutation)} /{" "}
+                      {copy.approvalRequired}{" "}
+                      {booleanText(language, action.requiresExplicitApproval)}
                     </span>
                   ))
                 ) : (
-                  <span>first approval actions clear</span>
+                  <span>{copy.approvalNotRun}: {copy.none}</span>
                 )}
               </div>
               <div
@@ -6083,17 +6177,22 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-install-approval-ticket"
               >
                 <span>
-                  {approvalPlan.ticketPacket.id}:{approvalPlan.ticketPacket.owner}:
-                  {approvalPlan.ticketPacket.classification}:first=
-                  {approvalPlan.ticketPacket.firstReadOnlyAction.id}:approval=
-                  {approvalPlan.ticketPacket.approvalGatedAction.id}
-                  :requiresApproval=
-                  {String(
+                  {copy.ticket}: {approvalPlan.ticketPacket.id} / {copy.owner}{" "}
+                  {approvalPlan.ticketPacket.owner} / {copy.classification}{" "}
+                  {approvalPlan.ticketPacket.classification} /{" "}
+                  {copy.firstReadOnly}{" "}
+                  {approvalPlan.ticketPacket.firstReadOnlyAction.id} /{" "}
+                  {copy.approvalAction}{" "}
+                  {approvalPlan.ticketPacket.approvalGatedAction.id} /{" "}
+                  {copy.requiresApproval}{" "}
+                  {booleanText(
+                    language,
                     approvalPlan.ticketPacket.approvalGatedAction
                       .requiresExplicitApproval
-                  )}
-                  :mutationAllowed=
-                  {String(
+                  )}{" "}
+                  / {copy.mutationByVerifier}{" "}
+                  {booleanText(
+                    language,
                     approvalPlan.ticketPacket.mutationBoundary
                       .mutationAllowedByThisVerifier
                   )}
@@ -6104,39 +6203,47 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-install-cluster-admin-packet"
               >
                 <span>
-                  packet=
+                  {copy.clusterAdminPacket}:{" "}
                   {approvalPlan.clusterAdminPacket.markdownPath
                     .split(/[\\/]/)
                     .pop() ?? approvalPlan.clusterAdminPacket.markdownPath}
                 </span>
                 <span>
-                  exists={String(approvalPlan.clusterAdminPacket.exists)}
+                  {copy.exists}:{" "}
+                  {booleanText(language, approvalPlan.clusterAdminPacket.exists)}
                 </span>
                 <span>
-                  ticket={approvalPlan.clusterAdminPacket.ticketId}
+                  {copy.ticket}: {approvalPlan.clusterAdminPacket.ticketId}
                 </span>
                 <span>
-                  decision=
+                  {copy.decision}:{" "}
                   {approvalPlan.clusterAdminPacket.installDecisionActionId}
                 </span>
                 <span>
-                  first={approvalPlan.clusterAdminPacket.firstReadOnlyActionId}
+                  {copy.firstReadOnly}:{" "}
+                  {approvalPlan.clusterAdminPacket.firstReadOnlyActionId}
                 </span>
                 <span>
-                  approval=
-                  {approvalPlan.clusterAdminPacket.approvalGatedCommandIds
-                    .slice(0, 3)
-                    .join(",") || "none"}
+                  {copy.approvalGated}:{" "}
+                  {listOrNone(
+                    copy,
+                    approvalPlan.clusterAdminPacket.approvalGatedCommandIds.slice(
+                      0,
+                      3
+                    )
+                  )}
                 </span>
                 <span>
-                  installExecuted=
-                  {String(
+                  {copy.installExecuted}:{" "}
+                  {booleanText(
+                    language,
                     approvalPlan.clusterAdminPacket.installExecutedByVerifier
                   )}
                 </span>
                 <span>
-                  mutationAllowed=
-                  {String(
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(
+                    language,
                     approvalPlan.clusterAdminPacket.mutationBoundary
                       .mutationAllowedByThisVerifier
                   )}
@@ -6147,36 +6254,62 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-install-decision-action"
               >
                 <span>
-                  {approvalPlan.installDecisionAction.id}:
-                  {approvalPlan.installDecisionAction.owner}:status=
-                  {approvalPlan.installDecisionAction.status}:first=
-                  {approvalPlan.installDecisionAction.readOnlyPreflightCommandId}
-                  :lightspeed=
-                  {approvalPlan.installDecisionAction.lightspeedPreviewCommandId}
-                  :rag=
-                  {approvalPlan.installDecisionAction.ragIngestionReviewCommand}
-                  :approval=
-                  {approvalPlan.installDecisionAction.approvalGatedCommandIds
-                    .slice(0, 3)
-                    .join(",") || "none"}
-                  :mode=
-                  {approvalPlan.installDecisionAction.lightspeedRegistrationMode}
-                  :ragStatus=
-                  {approvalPlan.installDecisionAction.ragIngestionStatus}
-                  :mutationAllowed=
-                  {String(approvalPlan.installDecisionAction.mutationAllowed)}
-                  :writesLocalEvidence=
-                  {String(approvalPlan.installDecisionAction.writesLocalEvidence)}
-                  :clusterMutationAttempted=
-                  {String(
+                  {copy.installDecision}:{" "}
+                  {approvalPlan.installDecisionAction.id} / {copy.owner}{" "}
+                  {approvalPlan.installDecisionAction.owner} / {copy.status}{" "}
+                  {statusText(language, approvalPlan.installDecisionAction.status)}{" "}
+                  / {copy.firstReadOnly}{" "}
+                  {approvalPlan.installDecisionAction.readOnlyPreflightCommandId}{" "}
+                  / {copy.lightspeedPreview}{" "}
+                  {approvalPlan.installDecisionAction.lightspeedPreviewCommandId}{" "}
+                  / {copy.ragReview}{" "}
+                  {approvalPlan.installDecisionAction.ragIngestionReviewCommand}{" "}
+                  / {copy.approvalGated}{" "}
+                  {listOrNone(
+                    copy,
+                    approvalPlan.installDecisionAction.approvalGatedCommandIds.slice(
+                      0,
+                      3
+                    )
+                  )}{" "}
+                  / {copy.toolMode}{" "}
+                  {actionModeText(
+                    language,
+                    approvalPlan.installDecisionAction.lightspeedRegistrationMode
+                  )}{" "}
+                  / {copy.ragIngestion}{" "}
+                  {statusText(
+                    language,
+                    approvalPlan.installDecisionAction.ragIngestionStatus
+                  )}{" "}
+                  / {copy.mutationAllowed}{" "}
+                  {booleanText(
+                    language,
+                    approvalPlan.installDecisionAction.mutationAllowed
+                  )}{" "}
+                  / {copy.writesLocalEvidence}{" "}
+                  {booleanText(
+                    language,
+                    approvalPlan.installDecisionAction.writesLocalEvidence
+                  )}{" "}
+                  / {copy.clusterMutationAttempted}{" "}
+                  {booleanText(
+                    language,
                     approvalPlan.installDecisionAction.clusterMutationAttempted
-                  )}
-                  :vectorWriteAttempted=
-                  {String(approvalPlan.installDecisionAction.vectorWriteAttempted)}
-                  :ingestionJobCreated=
-                  {String(approvalPlan.installDecisionAction.ingestionJobCreated)}
-                  :installRequiresExplicitApproval=
-                  {String(
+                  )}{" "}
+                  / {copy.vectorWriteAttempted}{" "}
+                  {booleanText(
+                    language,
+                    approvalPlan.installDecisionAction.vectorWriteAttempted
+                  )}{" "}
+                  / {copy.ingestionJobCreated}{" "}
+                  {booleanText(
+                    language,
+                    approvalPlan.installDecisionAction.ingestionJobCreated
+                  )}{" "}
+                  / {copy.installRequiresApproval}{" "}
+                  {booleanText(
+                    language,
                     approvalPlan.installDecisionAction
                       .installRequiresExplicitApproval
                   )}
@@ -6196,26 +6329,37 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 className="admin-evidence-line"
                 data-testid="opslens-rag-ingestion-approval-plan"
               >
-                <span>{approvalPlan.ragIngestion.actionMode}</span>
                 <span>
-                  queueEvidence={approvalPlan.ragIngestion.queueEvidenceStatus}
+                  {copy.ragIngestion}:{" "}
+                  {actionModeText(language, approvalPlan.ragIngestion.actionMode)}
                 </span>
                 <span>
-                  vectorWriteAttempted=
-                  {String(approvalPlan.ragIngestion.vectorWriteAttempted)}
+                  {copy.queueEvidence}:{" "}
+                  {statusText(language, approvalPlan.ragIngestion.queueEvidenceStatus)}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(approvalPlan.ragIngestion.mutationAllowedByThisVerifier)}
+                  {copy.vectorWriteAttempted}:{" "}
+                  {booleanText(language, approvalPlan.ragIngestion.vectorWriteAttempted)}
+                </span>
+                <span>
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(
+                    language,
+                    approvalPlan.ragIngestion.mutationAllowedByThisVerifier
+                  )}
                 </span>
               </div>
               <div className="remediation-notes">
                 <p>
-                  {approvalPlan.risk[0] ??
+                  {evidenceNoteText(language, approvalPlan.risk[0], copy) ??
                     "Mutating install commands remain blocked until approval."}
                 </p>
                 <p>
-                  {approvalPlan.rollbackPath[0] ??
+                  {evidenceNoteText(
+                    language,
+                    approvalPlan.rollbackPath[0],
+                    copy
+                  ) ??
                     "Rollback path must be reviewed before install."}
                 </p>
               </div>

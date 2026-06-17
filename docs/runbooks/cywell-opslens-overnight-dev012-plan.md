@@ -945,6 +945,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Added KO/EN status/action-mode mappings for `toolchainPlanOnly`, `localEvidenceOnly`, `NEEDS_LOCAL_ARTIFACTS`, `NEEDS_CURRENT_EVIDENCE`, `NEEDS_CAPACITY_REVIEW`, and `external-runtime-review-required`.
 - Added `verify:web-shell` gates so the catalog and lab readiness sections cannot drift back to raw developer labels.
 
+### 2026-06-18 - Lane 77
+
+- Polished the install approval plan card in OpsLens Admin.
+- Install plan, mutating commands, Lightspeed registration, approval ticket, cluster-admin packet, install decision, and RAG ingestion approval rows now use KO/EN labels instead of raw fragments such as `clusterMutationAttempted=`, `mutationAllowedByThisVerifier=`, `jobCreated=`, `mode=`, `willPatch=`, `legacyConfigMapMutationAttempted=`, `:mutation=`, `:approval=`, `packet=`, `exists=`, `installExecuted=`, `queueEvidence=`, or `vectorWriteAttempted=`.
+- The risk/rollback note renderer now preserves evidence text while translating known raw fragments such as `mode=PatchOLSConfig` into customer-facing labels.
+- Added a `verify:web-shell` gate and browser DOM check so the install approval card cannot drift back to raw developer labels.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -956,9 +963,9 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head before Lane 76: `1121e9d`
+- feature branch latest pushed head before Lane 77: `6834383`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 76: PASS, 50 checks
+- latest web shell verifier after Lane 77: PASS, 51 checks
 - latest overnight checkpoint after Lane 70: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
