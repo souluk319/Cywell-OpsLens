@@ -59,7 +59,7 @@ function percentText(value: number | undefined) {
   return typeof value === "number" ? `${Math.round(value * 100)}%` : "--";
 }
 
-function booleanText(language: UiLanguage, value: boolean | undefined) {
+function booleanText(language: UiLanguage, value: unknown) {
   if (typeof value !== "boolean") return "--";
   if (language === "ko") return value ? "예" : "아니오";
   return value ? "yes" : "no";
@@ -78,9 +78,22 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "ready-for-live-registration-review": "ready for live registration review",
       "ready-for-handoff": "ready for handoff",
       "live-ready": "live ready",
+      "api-ready": "API ready",
+      "not-configured": "not configured",
+      "auth-failed": "authentication failed",
+      "auth-or-rbac": "auth/RBAC review",
+      "token-missing": "token missing",
+      "tls-handshake-failed": "TLS handshake failed",
+      "tcp-timeout": "TCP timeout",
+      "tcp-unreachable": "TCP unreachable",
+      "dns-unresolved": "DNS unresolved",
+      "api-unreachable": "API unreachable",
       ready: "ready",
+      missing: "missing",
+      unknown: "unknown",
       pass: "pass",
-      planned: "planned"
+      planned: "planned",
+      none: "none"
     },
     ko: {
       "needs-evidence": "근거 필요",
@@ -91,9 +104,22 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "ready-for-live-registration-review": "실시간 등록 검토 준비",
       "ready-for-handoff": "인계 준비",
       "live-ready": "실시간 준비 완료",
+      "api-ready": "API 준비 완료",
+      "not-configured": "설정 없음",
+      "auth-failed": "인증 실패",
+      "auth-or-rbac": "인증/RBAC 검토",
+      "token-missing": "토큰 없음",
+      "tls-handshake-failed": "TLS 핸드셰이크 실패",
+      "tcp-timeout": "TCP 시간 초과",
+      "tcp-unreachable": "TCP 연결 불가",
+      "dns-unresolved": "DNS 해석 실패",
+      "api-unreachable": "API 연결 불가",
       ready: "준비됨",
+      missing: "누락",
+      unknown: "알 수 없음",
       pass: "통과",
-      planned: "계획됨"
+      planned: "계획됨",
+      none: "없음"
     }
   };
 
@@ -106,12 +132,14 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
     en: {
       readOnly: "read-only",
       planOnly: "plan-only",
+      handoffOnly: "handoff only",
       ValidateOnly: "validate-only",
       PatchOLSConfig: "patch OLSConfig"
     },
     ko: {
       readOnly: "읽기 전용",
       planOnly: "계획 전용",
+      handoffOnly: "인계 전용",
       ValidateOnly: "검증 전용",
       PatchOLSConfig: "OLSConfig 패치"
     }
@@ -255,7 +283,23 @@ const adminCopy = {
     nextCommand: "next command",
     toolMode: "mode",
     category: "category",
-    dashboardSurface: "surface"
+    dashboardSurface: "surface",
+    complete: "complete",
+    passed: "passed",
+    remaining: "remaining",
+    external: "external",
+    local: "local",
+    blockers: "blockers",
+    currentGap: "current gap",
+    smoke: "smoke",
+    assistantMutationAllowed: "assistant mutation allowed",
+    registryMutationAttempted: "registry mutation attempted",
+    requiredImages: "required images",
+    localInspect: "local inspect",
+    remainingEvidence: "remaining evidence",
+    evidenceGaps: "gaps",
+    blockedUntilEvidenceExists: "blocked until evidence exists",
+    none: "none"
   },
   ko: {
     adminTitle: "관리 대시보드",
@@ -328,7 +372,23 @@ const adminCopy = {
     nextCommand: "다음 명령",
     toolMode: "모드",
     category: "분류",
-    dashboardSurface: "화면"
+    dashboardSurface: "화면",
+    complete: "완료율",
+    passed: "통과",
+    remaining: "남은 항목",
+    external: "외부 상태",
+    local: "로컬",
+    blockers: "차단 요소",
+    currentGap: "현재 gap",
+    smoke: "스모크",
+    assistantMutationAllowed: "어시스턴트 변경 허용",
+    registryMutationAttempted: "레지스트리 변경 시도",
+    requiredImages: "필수 이미지",
+    localInspect: "로컬 검사",
+    remainingEvidence: "남은 근거",
+    evidenceGaps: "개 gap",
+    blockedUntilEvidenceExists: "근거 생성 전까지 대기",
+    none: "없음"
   }
 } satisfies Record<UiLanguage, Record<string, string>>;
 
@@ -2124,36 +2184,36 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Complete</span>
+                  <span>{copy.complete}</span>
                   <strong>{completionGate.percentComplete}%</strong>
                 </div>
                 <div>
-                  <span>Passed</span>
+                  <span>{copy.passed}</span>
                   <strong>
                     {completionGate.passedRequirements}/
                     {completionGate.totalRequirements}
                   </strong>
                 </div>
                 <div>
-                  <span>Remaining</span>
+                  <span>{copy.remaining}</span>
                   <strong>{completionGate.remainingRequirements}</strong>
                 </div>
                 <div>
-                  <span>External</span>
+                  <span>{copy.external}</span>
                   <strong>{completionGate.remainingExternalStateCount}</strong>
                 </div>
                 <div>
-                  <span>Local</span>
+                  <span>{copy.local}</span>
                   <strong>{completionGate.remainingLocalOnlyCount}</strong>
                 </div>
                 <div>
-                  <span>Status</span>
+                  <span>{copy.status}</span>
                   <strong
                     className={`freshness ${statusClass(
                       completionGate.status
                     )}`}
                   >
-                    {completionGate.status}
+                    {statusText(language, completionGate.status)}
                   </strong>
                 </div>
               </div>
@@ -2601,32 +2661,32 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Complete</span>
+                  <span>{copy.complete}</span>
                   <strong>{roadmapCompletion.percentComplete}%</strong>
                 </div>
                 <div>
-                  <span>Passed</span>
+                  <span>{copy.passed}</span>
                   <strong>
                     {roadmapCompletion.passedRequirements}/
                     {roadmapCompletion.totalRequirements}
                   </strong>
                 </div>
                 <div>
-                  <span>Remaining</span>
+                  <span>{copy.remaining}</span>
                   <strong>{roadmapCompletion.remainingRequirements}</strong>
                 </div>
                 <div>
-                  <span>Blockers</span>
+                  <span>{copy.blockers}</span>
                   <strong>{roadmapCompletion.criticalPathBlockerCount}</strong>
                 </div>
                 <div>
-                  <span>Status</span>
+                  <span>{copy.status}</span>
                   <strong
                     className={`freshness ${statusClass(
                       roadmapCompletion.status
                     )}`}
                   >
-                    {roadmapCompletion.status}
+                    {statusText(language, roadmapCompletion.status)}
                   </strong>
                 </div>
               </div>
@@ -3013,8 +3073,9 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   )}
                 </span>
                 <span>
-                  assistantMutationAllowed=
-                  {String(
+                  {copy.assistantMutationAllowed}:{" "}
+                  {booleanText(
+                    language,
                     operatorRuntimeBoundary.parity.assistantMutationAllowed
                   )}
                 </span>
@@ -3598,18 +3659,25 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             >
               <div className="admin-evidence-line">
                 <span>{liveHandoff.artifactStatus}</span>
-                <span>{liveHandoff.actionMode}</span>
-                <span>gap={liveHandoff.currentGapClassification}</span>
-                <span>
-                  smoke={liveHandoff.postApprovalSmoke.artifactStatus}
+                <span>{actionModeText(language, liveHandoff.actionMode)}</span>
+                <span title={liveHandoff.currentGapClassification}>
+                  {copy.currentGap}:{" "}
+                  {statusText(language, liveHandoff.currentGapClassification)}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(liveHandoff.clusterMutationAttempted)}
+                  {copy.smoke}:{" "}
+                  {statusText(
+                    language,
+                    liveHandoff.postApprovalSmoke.artifactStatus
+                  )}
                 </span>
                 <span>
-                  registryMutationAttempted=
-                  {String(liveHandoff.registryMutationAttempted)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, liveHandoff.clusterMutationAttempted)}
+                </span>
+                <span>
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, liveHandoff.registryMutationAttempted)}
                 </span>
               </div>
               <div
@@ -6339,14 +6407,22 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-owned-image-provenance"
             >
               <div className="admin-evidence-line">
-                <span>{ownedImageProvenancePlan.actionMode}</span>
                 <span>
-                  registryMutationAttempted=
-                  {String(ownedImageProvenancePlan.registryMutationAttempted)}
+                  {actionModeText(language, ownedImageProvenancePlan.actionMode)}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(ownedImageProvenancePlan.clusterMutationAttempted)}
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
+                    ownedImageProvenancePlan.registryMutationAttempted
+                  )}
+                </span>
+                <span>
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
+                    ownedImageProvenancePlan.clusterMutationAttempted
+                  )}
                 </span>
                 <span>
                   mutationAllowedByThisVerifier=
@@ -6355,7 +6431,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Required Images</span>
+                  <span>{copy.requiredImages}</span>
                   <strong>
                     {ownedImageProvenancePlan.requiredImages.length
                       ? ownedImageProvenancePlan.requiredImages.join(", ")
@@ -6363,21 +6439,24 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   </strong>
                 </div>
                 <div>
-                  <span>Local Inspect</span>
+                  <span>{copy.localInspect}</span>
                   <strong>
                     {ownedImageProvenancePlan.images.length
                       ? ownedImageProvenancePlan.images
-                          .map((image) => `${image.name}:${image.status}`)
+                          .map(
+                            (image) =>
+                              `${image.name}:${statusText(language, image.status)}`
+                          )
                           .join(", ")
-                      : "blocked until evidence exists"}
+                      : copy.blockedUntilEvidenceExists}
                   </strong>
                 </div>
                 <div>
-                  <span>Remaining Evidence</span>
+                  <span>{copy.remainingEvidence}</span>
                   <strong>
                     {ownedImageProvenancePlan.missingEvidence.length
-                      ? `${ownedImageProvenancePlan.missingEvidence.length} gaps`
-                      : "none"}
+                      ? `${ownedImageProvenancePlan.missingEvidence.length} ${copy.evidenceGaps}`
+                      : copy.none}
                   </strong>
                 </div>
               </div>

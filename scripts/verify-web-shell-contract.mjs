@@ -260,9 +260,27 @@ expectCheck(
     adminSource.includes("읽기 전용 도구") &&
     adminSource.includes("실시간 준비도") &&
     adminSource.includes("클러스터 변경 시도") &&
+    adminSource.includes("어시스턴트 변경 허용") &&
+    adminSource.includes("남은 근거") &&
+    adminSource.includes("copy.currentGap") &&
+    adminSource.includes("copy.requiredImages") &&
+    adminSource.includes("copy.localInspect") &&
+    adminSource.includes("statusText(language, liveHandoff.currentGapClassification)") &&
+    adminSource.includes("statusText(language, image.status)") &&
     adminSource.includes("actionModeText(language, tool.actionMode)") &&
     adminSource.includes("booleanText(language, lightspeedMcp?.trojanHorse.mutationAllowed)"),
   "primary console panels, coverage matrix, admin dashboard, and the resource explorer receive the selected language and own bilingual copy"
+);
+
+expectCheck(
+  "localized admin summary labels",
+  !adminSource.includes("<span>Remaining</span>") &&
+    !adminSource.includes("<span>Required Images</span>") &&
+    !adminSource.includes("<span>Local Inspect</span>") &&
+    !adminSource.includes("<span>Remaining Evidence</span>") &&
+    !adminSource.includes("assistantMutationAllowed=") &&
+    !adminSource.includes("<span>gap={liveHandoff.currentGapClassification}</span>"),
+  "Admin completion, live handoff, and owned-image summary cards use bilingual labels instead of raw developer labels"
 );
 
 expectCheck(
