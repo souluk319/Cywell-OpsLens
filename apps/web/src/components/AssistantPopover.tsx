@@ -7,6 +7,7 @@ import type { KeyboardEvent } from "react";
 import {
   CheckCircle2,
   FileSearch,
+  RefreshCw,
   Route,
   ShieldAlert,
   SendHorizontal,
@@ -26,8 +27,12 @@ interface AssistantPopoverProps {
   busy: boolean;
   model: string;
   language: UiLanguage;
+  apiRouteMode: string;
+  actionPlanPath: string;
+  lastApiError: string | null;
   onDraftChange: (draft: string) => void;
   onAsk: () => void;
+  onRetryConnection: () => void;
   onClose: () => void;
 }
 
@@ -40,6 +45,10 @@ const assistantCopy = {
     request: "request",
     model: "model",
     context: "context",
+    route: "route",
+    endpoint: "endpoint",
+    error: "last error",
+    retry: "Retry API",
     pending: "pending",
     prompt: "Ask from current context",
     asking: "Asking",
@@ -62,6 +71,10 @@ const assistantCopy = {
     request: "요청",
     model: "모델",
     context: "컨텍스트",
+    route: "경로",
+    endpoint: "엔드포인트",
+    error: "마지막 오류",
+    retry: "API 재시도",
     pending: "대기 중",
     prompt: "현재 컨텍스트로 질문",
     asking: "질문 중",
@@ -88,8 +101,12 @@ export function AssistantPopover({
   busy,
   model,
   language,
+  apiRouteMode,
+  actionPlanPath,
+  lastApiError,
   onDraftChange,
   onAsk,
+  onRetryConnection,
   onClose
 }: AssistantPopoverProps) {
   const copy = assistantCopy[language];
@@ -134,6 +151,16 @@ export function AssistantPopover({
           <button
             className="icon-button"
             type="button"
+            title={copy.retry}
+            aria-label={copy.retry}
+            onClick={onRetryConnection}
+            disabled={busy || apiStatus === "loading"}
+          >
+            <RefreshCw size={16} aria-hidden="true" />
+          </button>
+          <button
+            className="icon-button"
+            type="button"
             title={copy.close}
             aria-label={copy.close}
             onClick={onClose}
@@ -159,6 +186,16 @@ export function AssistantPopover({
         <strong>{model}</strong>
         <span>{copy.context}</span>
         <strong>{audit?.contextHash ?? copy.pending}</strong>
+        <span>{copy.route}</span>
+        <strong data-testid="assistant-api-route-mode">{apiRouteMode}</strong>
+        <span>{copy.endpoint}</span>
+        <strong data-testid="assistant-action-plan-path">{actionPlanPath}</strong>
+        {lastApiError ? (
+          <>
+            <span>{copy.error}</span>
+            <strong data-testid="assistant-last-api-error">{lastApiError}</strong>
+          </>
+        ) : null}
       </div>
 
       <div className="prompt-box">

@@ -39,12 +39,41 @@ function getApiBase() {
   return apiBase.replace(/\/+$/, "");
 }
 
-function resolveApiPath(path: string) {
+export function resolveApiPath(path: string) {
   const apiBase = getApiBase();
   if (!apiBase) {
     return path;
   }
   return `${apiBase}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+export function getApiRouteDiagnostics() {
+  if (typeof window === "undefined") {
+    return {
+      mode: "server-render",
+      surface: "standalone-dev",
+      apiBaseAttached: false,
+      contextSyncPath: "/api/context/sync",
+      actionPlanPath: "/api/actions/plan"
+    };
+  }
+
+  const url = new URL(window.location.href);
+  const apiBase = getApiBase();
+  const surface = url.searchParams.get("surface") ?? "standalone-dev";
+  const mode = apiBase.includes("/api/proxy/plugin/cywell-opslens/")
+    ? "console-plugin-user-token-proxy"
+    : apiBase
+      ? "custom-api-base"
+      : "local-vite-proxy";
+
+  return {
+    mode,
+    surface,
+    apiBaseAttached: Boolean(apiBase),
+    contextSyncPath: resolveApiPath("/api/context/sync"),
+    actionPlanPath: resolveApiPath("/api/actions/plan")
+  };
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {

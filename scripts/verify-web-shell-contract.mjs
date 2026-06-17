@@ -62,6 +62,7 @@ const dashboardSource = await readText("apps/web/src/components/OperationsDashbo
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
 const adminSource = await readText("apps/web/src/components/OpsLensAdminDashboard.tsx");
 const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
+const apiSource = await readText("apps/web/src/lib/api.ts");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 
 expectCheck(
@@ -102,6 +103,20 @@ expectCheck(
     stylesSource.includes(".assistant-app-icon") &&
     stylesSource.includes(".launcher-icon-image"),
   "assistant header and floating launcher use the OpsLens icon asset"
+);
+
+expectCheck(
+  "assistant API route diagnostics",
+  appSource.includes("getApiRouteDiagnostics") &&
+    appSource.includes("lastApiError") &&
+    appSource.includes("onRetryConnection") &&
+    assistantSource.includes('data-testid="assistant-api-route-mode"') &&
+    assistantSource.includes('data-testid="assistant-action-plan-path"') &&
+    assistantSource.includes('data-testid="assistant-last-api-error"') &&
+    assistantSource.includes("Retry API") &&
+    apiSource.includes("console-plugin-user-token-proxy") &&
+    apiSource.includes("local-vite-proxy"),
+  "assistant surfaces local/proxy API route, last API error, and retry control instead of hiding fallback state"
 );
 
 expectCheck(

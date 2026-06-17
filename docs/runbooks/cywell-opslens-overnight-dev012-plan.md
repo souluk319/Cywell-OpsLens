@@ -284,6 +284,26 @@ Every checkpoint:
   - `verify:pre-cluster-install` returned `BLOCKED_BY_EVIDENCE_GAPS`, `safeToRunClusterInstall=false`, strict mode blocked by stale/lacking evidence.
 - Interpretation: continue local product hardening and live evidence refresh; do not pretend the remaining cluster-install gates are solved.
 
+### 2026-06-17 - Lane 6
+
+- Added assistant API route diagnostics so the chatbot surface no longer hides whether it is using local Vite proxy, a custom API base, or the ConsolePlugin UserToken proxy.
+- The Assistant popover now shows:
+  - route mode
+  - action-plan endpoint
+  - last API error when fallback is active
+  - retry control for the API/bootstrap path
+- Protected this behavior in `npm run verify:web-shell`.
+- Passed:
+  - `npm run -w @kugnus/web build`
+  - `npm run verify:web-shell`
+  - `npm run verify:console-plugin`
+- Browser verification on `http://127.0.0.1:5173/index.html` showed:
+  - `apiStatus=API ready`
+  - Assistant popover visible
+  - `routeMode=local-vite-proxy`
+  - `endpoint=/api/actions/plan`
+  - retry button visible and enabled
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

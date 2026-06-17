@@ -48,6 +48,7 @@ import {
   createActionPlan,
   fetchDashboardRisks,
   fetchOpsLensAdminOverview,
+  getApiRouteDiagnostics,
   syncConsoleContext
 } from "./lib/api";
 import type { UiLanguage } from "./i18n";
@@ -456,99 +457,104 @@ export default function App() {
   const [apiStatus, setApiStatus] = useState<"loading" | "ready" | "fallback">(
     "loading"
   );
+  const [lastApiError, setLastApiError] = useState<string | null>(null);
+
+  async function bootstrapApiState(isActive = () => true) {
+    try {
+      setApiStatus("loading");
+      const [contextResponse, plan] = await Promise.all([
+        syncConsoleContext({ context: mockContext }),
+        createActionPlan({
+          prompt: draft,
+          context: mockContext,
+          scenario: "ClusterNotUpgradeable"
+        })
+      ]);
+
+      if (!isActive()) {
+        return;
+      }
+
+      setContextSync(contextResponse);
+      setPlanResponse(plan);
+      setApiStatus("ready");
+      setLastApiError(null);
+
+      fetchDashboardRisks()
+        .then((dashboardResponse) => {
+          if (isActive()) {
+            setDashboard(dashboardResponse);
+          }
+        })
+        .catch(() => {
+          if (isActive()) {
+            setDashboard(mockDashboardResponse);
+          }
+        });
+
+      fetchOpsLensAdminOverview()
+        .then((overviewResponse) => {
+          if (isActive()) {
+            setAdminOverview(overviewResponse);
+          }
+        })
+        .catch(() => {
+          if (isActive()) {
+            setAdminOverview(null);
+          }
+        });
+    } catch (error) {
+      if (!isActive()) {
+        return;
+      }
+      setDashboard(mockDashboardResponse);
+      setContextSync({
+        accepted: false,
+        requestId: "ctx-fallback",
+        receivedAt: new Date().toISOString(),
+        contextHash: "local-fixture",
+        context: mockContext,
+        contextChips,
+        redactionCount: 0,
+        rbac: {
+          role: mockContext.rbac.role,
+          namespaceScope: mockContext.namespace,
+          deniedNamespaces: mockContext.rbac.deniedNamespaces
+        }
+      });
+      setPlanResponse({
+        requestId: "plan-fallback",
+        answer: assistantAnswer,
+        audit: {
+          requestId: "plan-fallback",
+          user: mockContext.user,
+          groups: [mockContext.rbac.role],
+          clusterId: mockContext.clusterId,
+          namespaceScope: mockContext.namespace,
+          contextHash: "local-fixture",
+          sources: assistantAnswer.inspectedEvidence.map(
+            (source) => source.id
+          ),
+          model: "local-fixture",
+          tokenUsage: {
+            input: 0,
+            output: 0
+          },
+          latencyMs: 0,
+          redactionCount: 0,
+          actionMode: assistantAnswer.actionMode
+        }
+      });
+      setApiStatus("fallback");
+      setLastApiError(
+        error instanceof Error ? error.message : "API request failed"
+      );
+    }
+  }
 
   useEffect(() => {
     let active = true;
-
-    async function bootstrapApiState() {
-      try {
-        const [contextResponse, plan] = await Promise.all([
-          syncConsoleContext({ context: mockContext }),
-          createActionPlan({
-            prompt: draft,
-            context: mockContext,
-            scenario: "ClusterNotUpgradeable"
-          })
-        ]);
-
-        if (!active) {
-          return;
-        }
-
-        setContextSync(contextResponse);
-        setPlanResponse(plan);
-        setApiStatus("ready");
-
-        fetchDashboardRisks()
-          .then((dashboardResponse) => {
-            if (active) {
-              setDashboard(dashboardResponse);
-            }
-          })
-          .catch(() => {
-            if (active) {
-              setDashboard(mockDashboardResponse);
-            }
-          });
-
-        fetchOpsLensAdminOverview()
-          .then((overviewResponse) => {
-            if (active) {
-              setAdminOverview(overviewResponse);
-            }
-          })
-          .catch(() => {
-            if (active) {
-              setAdminOverview(null);
-            }
-          });
-      } catch {
-        if (!active) {
-          return;
-        }
-        setDashboard(mockDashboardResponse);
-        setContextSync({
-          accepted: false,
-          requestId: "ctx-fallback",
-          receivedAt: new Date().toISOString(),
-          contextHash: "local-fixture",
-          context: mockContext,
-          contextChips,
-          redactionCount: 0,
-          rbac: {
-            role: mockContext.rbac.role,
-            namespaceScope: mockContext.namespace,
-            deniedNamespaces: mockContext.rbac.deniedNamespaces
-          }
-        });
-        setPlanResponse({
-          requestId: "plan-fallback",
-          answer: assistantAnswer,
-          audit: {
-            requestId: "plan-fallback",
-            user: mockContext.user,
-            groups: [mockContext.rbac.role],
-            clusterId: mockContext.clusterId,
-            namespaceScope: mockContext.namespace,
-            contextHash: "local-fixture",
-            sources: assistantAnswer.inspectedEvidence.map(
-              (source) => source.id
-            ),
-            model: "local-fixture",
-            tokenUsage: {
-              input: 0,
-              output: 0
-            },
-            latencyMs: 0,
-            redactionCount: 0,
-            actionMode: assistantAnswer.actionMode
-          }
-        });
-        setApiStatus("fallback");
-      }
-    }
-
-    void bootstrapApiState();
+    void bootstrapApiState(() => active);
 
     return () => {
       active = false;
@@ -564,6 +570,7 @@ export default function App() {
   const activeNavigation = findNavigationItem(activeNavId);
   const copy = shellCopy[language];
   const runtimeProfile = useMemo(() => readRuntimeProfile(), []);
+  const apiRoute = useMemo(() => getApiRouteDiagnostics(), []);
   const isConsolePlugin = runtimeProfile.surface === "console-plugin";
 
   useEffect(() => {
@@ -590,8 +597,14 @@ export default function App() {
       });
       setPlanResponse(plan);
       setApiStatus("ready");
-    } catch {
+      setLastApiError(null);
+    } catch (error) {
       setApiStatus("fallback");
+      setLastApiError(
+        error instanceof Error
+          ? error.message
+          : "Action plan API failed; local fixture answer is shown."
+      );
       setPlanResponse({
         requestId: "plan-fallback",
         answer: assistantAnswer,
@@ -958,8 +971,12 @@ export default function App() {
           busy={assistantBusy}
           model={planResponse?.audit.model ?? "pending"}
           language={language}
+          apiRouteMode={apiRoute.mode}
+          actionPlanPath={apiRoute.actionPlanPath}
+          lastApiError={lastApiError}
           onDraftChange={setDraft}
           onAsk={() => void askAssistant()}
+          onRetryConnection={() => void bootstrapApiState()}
           onClose={() => setAssistantOpen(false)}
         />
       ) : null}

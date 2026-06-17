@@ -2090,6 +2090,11 @@ button {
   height: 30px;
 }
 
+.assistant-controls .icon-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .context-chip-list {
   display: flex;
   flex-wrap: wrap;
