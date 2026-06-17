@@ -85,6 +85,10 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if err := r.reconcileDashboardRoute(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := r.reconcileDashboardNetworkPolicy(ctx, &installation, namespace); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -246,6 +250,37 @@ func (r *OpsLensInstallationReconciler) reconcileDashboardService(ctx context.Co
 	}, map[string]string{
 		serviceServingCertAnnotation: dashboardTLSSecretName,
 	})
+}
+
+func (r *OpsLensInstallationReconciler) reconcileDashboardRoute(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	name := valueOrDefault(installation.Spec.Components.Dashboard.ServiceName, "cywell-opslens-dashboard")
+	route := &unstructured.Unstructured{}
+	route.SetAPIVersion("route.openshift.io/v1")
+	route.SetKind("Route")
+	route.SetName(name)
+	route.SetNamespace(namespace)
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, route, func() error {
+		route.SetLabels(labels("dashboard"))
+		route.SetAnnotations(map[string]string{
+			"opslens.cywell.io/exposure": "dashboard-demo-route",
+		})
+		route.Object["spec"] = map[string]interface{}{
+			"to": map[string]interface{}{
+				"kind": "Service",
+				"name": name,
+			},
+			"port": map[string]interface{}{
+				"targetPort": "https",
+			},
+			"tls": map[string]interface{}{
+				"termination":                   "reencrypt",
+				"insecureEdgeTerminationPolicy": "Redirect",
+			},
+		}
+		return r.setControllerReferenceIfSameNamespace(installation, namespace, route)
+	})
+	return err
 }
 
 func (r *OpsLensInstallationReconciler) reconcileVectorService(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {

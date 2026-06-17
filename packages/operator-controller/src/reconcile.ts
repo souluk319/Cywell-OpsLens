@@ -133,6 +133,38 @@ function appPeer() {
   };
 }
 
+function dashboardRoute(
+  name: string,
+  namespace: string,
+  serviceName: string
+): KubernetesObject {
+  return {
+    apiVersion: "route.openshift.io/v1",
+    kind: "Route",
+    metadata: {
+      name,
+      namespace,
+      labels: labels("dashboard"),
+      annotations: {
+        "opslens.cywell.io/exposure": "dashboard-demo-route"
+      }
+    },
+    spec: {
+      to: {
+        kind: "Service",
+        name: serviceName
+      },
+      port: {
+        targetPort: "https"
+      },
+      tls: {
+        termination: "reencrypt",
+        insecureEdgeTerminationPolicy: "Redirect"
+      }
+    }
+  };
+}
+
 function ingressNetworkPolicy(
   name: string,
   namespace: string,
@@ -484,6 +516,7 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
     ], {
       [serviceServingCertAnnotation]: dashboardTlsSecretName
     }),
+    dashboardRoute("cywell-opslens-dashboard", namespace, dashboardServiceName),
     ingressNetworkPolicy(
       "cywell-opslens-dashboard-ingress",
       namespace,

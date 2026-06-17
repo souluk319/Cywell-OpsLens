@@ -54,6 +54,7 @@ Work:
 - keep OperatorHub, `OpsLensInstallation`, and ConsolePlugin clearly separated
 - keep the CRC lightweight example first
 - keep stale catalog/image symptoms explicit
+- keep `Route/cywell-opslens-dashboard` in the install contract so the installed UI has a route-backed entrypoint, not only a remembered port-forward
 - do not claim production or certified OperatorHub readiness
 
 Validation:

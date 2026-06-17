@@ -375,9 +375,10 @@ try {
     Boolean(findResource(patchPlan, "Deployment", "cywell-opslens-api")) &&
       Boolean(findResource(patchPlan, "StatefulSet", "cywell-opslens-vector")) &&
       Boolean(findResource(patchPlan, "Deployment", "cywell-opslens-vllm")) &&
+      Boolean(findResource(patchPlan, "Route", "cywell-opslens-dashboard")) &&
       Boolean(findResource(patchPlan, "ConsolePlugin", "cywell-opslens")) &&
       (patchPlan.cleanupResources ?? []).length === 0,
-    "API, vector store, model runtime, and ConsolePlugin resources are rendered"
+    "API, dashboard Route, vector store, model runtime, and ConsolePlugin resources are rendered"
   );
 
   const lightweightInstallation = deepClone(validateOnlyInstallation);
@@ -390,15 +391,16 @@ try {
   const lightweightApiEnvNames = envNames(lightweightApi);
   expectCheck(
     "CRC lightweight profile omits external runtime workloads",
-    Boolean(lightweightApi) &&
+      Boolean(lightweightApi) &&
       Boolean(findResource(lightweightPlan, "Deployment", "cywell-opslens-dashboard")) &&
+      Boolean(findResource(lightweightPlan, "Route", "cywell-opslens-dashboard")) &&
       Boolean(findResource(lightweightPlan, "ConsolePlugin", "cywell-opslens")) &&
       !findResource(lightweightPlan, "Secret", "cywell-opslens-postgres-auth") &&
       !findResource(lightweightPlan, "StatefulSet", "cywell-opslens-vector") &&
       !findResource(lightweightPlan, "Service", "cywell-opslens-vector") &&
       !findResource(lightweightPlan, "Deployment", "cywell-opslens-vllm") &&
       !findResource(lightweightPlan, "Service", "cywell-opslens-vllm"),
-    "inmemory + mock-local keeps CRC demo install to API, dashboard, ConsolePlugin, and local RAG"
+    "inmemory + mock-local keeps CRC demo install to API, dashboard, dashboard Route, ConsolePlugin, and local RAG"
   );
   expectCheck(
     "CRC lightweight profile prunes stale owned runtime resources",
@@ -432,13 +434,14 @@ try {
       crcLightweightInstallation.spec.lightspeedRegistration.mode === "ValidateOnly" &&
       Boolean(crcLightweightApi) &&
       Boolean(findResource(crcLightweightPlan, "Deployment", "cywell-opslens-dashboard")) &&
+      Boolean(findResource(crcLightweightPlan, "Route", "cywell-opslens-dashboard")) &&
       Boolean(findResource(crcLightweightPlan, "ConsolePlugin", "cywell-opslens")) &&
       !findResource(crcLightweightPlan, "Secret", "cywell-opslens-postgres-auth") &&
       !findResource(crcLightweightPlan, "StatefulSet", "cywell-opslens-vector") &&
       !findResource(crcLightweightPlan, "Service", "cywell-opslens-vector") &&
       !findResource(crcLightweightPlan, "Deployment", "cywell-opslens-vllm") &&
       !findResource(crcLightweightPlan, "Service", "cywell-opslens-vllm"),
-    "checked-in CRC sample installs API, dashboard, ConsolePlugin, and local RAG without pgvector/vLLM workloads"
+    "checked-in CRC sample installs API, dashboard, dashboard Route, ConsolePlugin, and local RAG without pgvector/vLLM workloads"
   );
   expectCheck(
     "CRC lightweight sample prunes stale owned runtime resources",

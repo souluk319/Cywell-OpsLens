@@ -993,6 +993,18 @@ Checkpoint cadence:
   - `npm run verify:operator:runtime`
   - `npm run verify:operator:package`
 
+### 2026-06-18 - Lane 81
+
+- Added an OpenShift dashboard Route to the Operator install contract.
+- The TypeScript reconcile plan, static app manifest, and Go controller now include `Route/cywell-opslens-dashboard`.
+- The Route points at `Service/cywell-opslens-dashboard`, target port `https`, with `reencrypt` TLS and redirect policy.
+- This narrows the live demo gap where the Operator installed services but the user still had to remember a port-forward to open the OpsLens page.
+- RBAC route permissions are now checked in both config RBAC and CSV RBAC.
+- Protected with:
+  - `npm run verify:operator:reconcile`
+  - `npm run verify:operator:runtime`
+  - `npm run verify:operator:package`
+
 ## Current Known State
 
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
@@ -1004,7 +1016,7 @@ Checkpoint cadence:
 - latest assistant smoke browser check after Lane 78: PASS, `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, `클러스터 변경: 차단`
 - latest overnight checkpoint after Lane 79: writes morning decision, step totals, safe entrypoints, and blocked actions in both JSON and Markdown
 - 10-hour autonomy plan: `docs/runbooks/cywell-opslens-dev012-10h-autonomy-plan.md`
-- latest operator runtime verifier after Lane 80: PASS, 84 checks, including CRC lightweight stale runtime cleanup parity
+- latest operator runtime verifier after Lane 81: PASS, 88 checks, including dashboard Route parity and CRC lightweight stale runtime cleanup parity
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
 - latest CRC handoff tar: `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`

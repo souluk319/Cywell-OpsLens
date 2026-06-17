@@ -72,6 +72,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the overnight checkpoint Markdown/JSON now writes a morning decision, step totals, safe entrypoints, safe next commands, blocked actions, and the MacBook keep-awake rationale so the user can resume without rereading the whole chat
 - `docs/runbooks/cywell-opslens-dev012-10h-autonomy-plan.md` is the human plan artifact for the unattended window; it states what the loop does, what it will not do, and how to resume if the Mac sleeps
 - the Operator now cleans up only owned stale pgvector/vLLM controllers, services, and the generated Postgres secret when the CR switches to the CRC lightweight `inmemory` plus `mock-local` profile; PVC data remains outside automatic cleanup
+- the Operator now creates `Route/cywell-opslens-dashboard` with reencrypt TLS, so an installed CRC demo has a route-backed page entrypoint instead of relying only on remembered port-forwards
 - AC-LAB-001 now explicitly treats `npm run verify:crc-demo-readiness` as the CRC demo gate, so the acceptance criteria, package contract, UI signal, and morning handoff all point at the same lightweight install path
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - the Operator status path no longer reports `OpsLensInstallation Ready` before required API/dashboard/vector/model workloads are observed as ready; unready required workloads keep the CR in `Installing`
@@ -186,8 +187,9 @@ Latest non-mutating checks:
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
 | `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |
-| `npm run verify:operator:reconcile` | PASS | 0 fail, 24 checks; dry-run status remains `Installing` until live workload observation |
-| `npm run verify:operator:runtime` | PASS | 0 fail, 84 checks; includes workload readiness/no-false-Ready and CRC lightweight stale runtime cleanup contracts |
+| `npm run verify:operator:reconcile` | PASS | 0 fail, 26 checks; dry-run status includes dashboard Route and remains `Installing` until live workload observation |
+| `npm run verify:operator:runtime` | PASS | 0 fail, 88 checks; includes workload readiness/no-false-Ready, dashboard Route, and CRC lightweight stale runtime cleanup contracts |
+| `npm run verify:operator:package` | PASS/WARN | 0 fail, 1 warn, 144 checks; static app manifest now includes the dashboard Route |
 | `npm run verify:operator` | PASS/WARN | 0 fail, 1 warn; live OLM smoke remains external |
 | `npm run verify:images:build` | PASS/WARN | 0 fail, 3 expected warnings; local build evidence uses `:build-verify` tag isolation |
 | `npm run verify:install-plan` | PASS/WARN | 0 fail, 7 warn; evidence freshness and Lightspeed gap remain |
@@ -201,13 +203,21 @@ Latest non-mutating checks:
 http://127.0.0.1:5173/index.html
 ```
 
-2. CRC dashboard through port-forward:
+2. CRC dashboard through the installed Route:
+
+```bash
+oc get route cywell-opslens-dashboard -n cywell-opslens
+```
+
+Open the returned Route host from a browser that can resolve the CRC apps domain.
+
+3. CRC dashboard through port-forward fallback:
 
 ```text
 https://127.0.0.1:19443
 ```
 
-3. OpenShift Console OperatorHub:
+4. OpenShift Console OperatorHub:
 
 Search `cywell`, then confirm the package shows `cywell-opslens-operator.v0.1.2`.
 
@@ -220,6 +230,7 @@ crc status
 oc whoami && oc project -q
 oc get packagemanifest cywell-opslens -n default -o yaml | grep -E 'currentCSV|v0.1.2-dev-crc|cywell-opslens-operator' -n
 oc get opslensinstallation,deploy,pod,svc,route -n cywell-opslens
+oc get route cywell-opslens-dashboard -n cywell-opslens
 ```
 
 If port-forwards died, rebuild them from:

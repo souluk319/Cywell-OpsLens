@@ -246,6 +246,26 @@ spec:
       port: 443
       targetPort: https
 ---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: cywell-opslens-dashboard
+  namespace: cywell-opslens
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: dashboard
+  annotations:
+    opslens.cywell.io/exposure: dashboard-demo-route
+spec:
+  to:
+    kind: Service
+    name: cywell-opslens-dashboard
+  port:
+    targetPort: https
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

@@ -311,6 +311,7 @@ try {
     ["NetworkPolicy", "cywell-opslens-api-ingress"],
     ["Deployment", "cywell-opslens-dashboard"],
     ["Service", "cywell-opslens-dashboard"],
+    ["Route", "cywell-opslens-dashboard"],
     ["NetworkPolicy", "cywell-opslens-dashboard-ingress"],
     ["StatefulSet", "cywell-opslens-vector"],
     ["Service", "cywell-opslens-vector"],
@@ -336,6 +337,7 @@ try {
     "reconcileAPINetworkPolicy",
     "reconcileDashboardDeployment",
     "reconcileDashboardService",
+    "reconcileDashboardRoute",
     "reconcileDashboardNetworkPolicy",
     "reconcileVectorStore",
     "reconcileVectorService",
@@ -409,6 +411,22 @@ try {
       controller.includes('TargetPort: intstr.FromString("https")') &&
       controller.includes('TargetPort: intstr.FromString("http")'),
     "API/dashboard HTTPS Services and vector/model HTTP Services mirror the TS plan ports"
+  );
+
+  const dashboardRoute = findResource(plan, "Route", "cywell-opslens-dashboard");
+  expectCheck(
+    "Go Dashboard Route parity",
+    dashboardRoute?.apiVersion === "route.openshift.io/v1" &&
+      dashboardRoute?.spec?.to?.kind === "Service" &&
+      dashboardRoute?.spec?.to?.name === "cywell-opslens-dashboard" &&
+      dashboardRoute?.spec?.port?.targetPort === "https" &&
+      dashboardRoute?.spec?.tls?.termination === "reencrypt" &&
+      dashboardRoute?.spec?.tls?.insecureEdgeTerminationPolicy === "Redirect" &&
+      controller.includes("reconcileDashboardRoute") &&
+      controller.includes("route.openshift.io/v1") &&
+      controller.includes("reencrypt") &&
+      controller.includes("dashboard-demo-route"),
+    "dashboard Route is reconciled to expose the installed OpsLens UI through OpenShift routing"
   );
 
   const apiNetworkPolicy = findResource(plan, "NetworkPolicy", "cywell-opslens-api-ingress");
@@ -675,6 +693,13 @@ try {
     hasRuleFor(clusterRole?.rules ?? [], "networking.k8s.io", "networkpolicies", ["get", "create", "patch"]) &&
       hasRuleFor(csvRules, "networking.k8s.io", "networkpolicies", ["get", "create", "patch"]),
     "config RBAC and CSV RBAC cover the NetworkPolicies reconciled by Go"
+  );
+
+  expectCheck(
+    "RBAC Dashboard Route parity",
+    hasRuleFor(clusterRole?.rules ?? [], "route.openshift.io", "routes", ["get", "create", "update", "patch"]) &&
+      hasRuleFor(csvRules, "route.openshift.io", "routes", ["get", "create", "update", "patch"]),
+    "config RBAC and CSV RBAC cover the dashboard Route reconciled by Go"
   );
 
   const olsConfigRoleVerbs = ruleVerbsFor(clusterRole?.rules ?? [], "ols.openshift.io", "olsconfigs");

@@ -518,6 +518,12 @@ function validateRbac(clusterRole, csv) {
     fail("config RBAC NetworkPolicy", "networkpolicies get/create/patch permissions are missing");
   }
 
+  if (hasRuleFor(rbacRules, "route.openshift.io", "routes", ["get", "create", "update", "patch"])) {
+    pass("config RBAC Dashboard Route", "operator can reconcile the dashboard Route");
+  } else {
+    fail("config RBAC Dashboard Route", "routes get/create/update/patch permissions are missing");
+  }
+
   if (hasRuleFor(rbacRules, "", "secrets", ["get", "create", "update", "patch"])) {
     pass("config RBAC Postgres Secret", "operator can create and rotate only the generated Postgres auth Secret");
   } else {
@@ -573,6 +579,12 @@ function validateRbac(clusterRole, csv) {
     pass("CSV RBAC NetworkPolicy", "can reconcile API/dashboard ingress NetworkPolicies");
   } else {
     fail("CSV RBAC NetworkPolicy", "networkpolicies permissions are missing");
+  }
+
+  if (hasRuleFor(csvRules, "route.openshift.io", "routes", ["get", "create", "update", "patch"])) {
+    pass("CSV RBAC Dashboard Route", "can reconcile the dashboard Route");
+  } else {
+    fail("CSV RBAC Dashboard Route", "routes permissions are missing");
   }
 
   if (hasRuleFor(csvRules, "", "secrets", ["get", "create", "update", "patch"])) {
@@ -698,6 +710,7 @@ function validateApps(apps) {
     ["NetworkPolicy", "cywell-opslens-api-ingress"],
     ["Deployment", "cywell-opslens-dashboard"],
     ["Service", "cywell-opslens-dashboard"],
+    ["Route", "cywell-opslens-dashboard"],
     ["NetworkPolicy", "cywell-opslens-dashboard-ingress"],
     ["StatefulSet", "cywell-opslens-vector"],
     ["Service", "cywell-opslens-vector"],
@@ -742,6 +755,7 @@ function validateApps(apps) {
   const apiNetworkPolicy = findDoc(apps, "NetworkPolicy", "cywell-opslens-api-ingress");
   const dashboard = findDoc(apps, "Deployment", "cywell-opslens-dashboard");
   const dashboardService = findDoc(apps, "Service", "cywell-opslens-dashboard");
+  const dashboardRoute = findDoc(apps, "Route", "cywell-opslens-dashboard");
   const dashboardNetworkPolicy = findDoc(apps, "NetworkPolicy", "cywell-opslens-dashboard-ingress");
   const apiContainer = api?.spec?.template?.spec?.containers?.[0] ?? {};
   const dashboardContainer = dashboard?.spec?.template?.spec?.containers?.[0] ?? {};
@@ -792,6 +806,19 @@ function validateApps(apps) {
     pass("ConsolePlugin HTTPS Services", "API and dashboard services use service-ca serving certs on port 443");
   } else {
     fail("ConsolePlugin HTTPS Services", "API/dashboard services must expose https:443 with service serving cert annotations");
+  }
+
+  if (
+    dashboardRoute?.apiVersion === "route.openshift.io/v1" &&
+    dashboardRoute?.spec?.to?.kind === "Service" &&
+    dashboardRoute?.spec?.to?.name === "cywell-opslens-dashboard" &&
+    dashboardRoute?.spec?.port?.targetPort === "https" &&
+    dashboardRoute?.spec?.tls?.termination === "reencrypt" &&
+    dashboardRoute?.spec?.tls?.insecureEdgeTerminationPolicy === "Redirect"
+  ) {
+    pass("Dashboard Route", "OpenShift Route exposes the dashboard Service with reencrypt TLS on the https target port");
+  } else {
+    fail("Dashboard Route", "dashboard Route must target Service/cywell-opslens-dashboard https with reencrypt TLS");
   }
 
   if (

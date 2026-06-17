@@ -76,7 +76,17 @@ $env:OPENSHIFT_LIGHTSPEED_BASE_URL="https://127.0.0.1:18443"
 
 Do not edit `.env` just to account for the tunnel. The override is safer because it dies with the PowerShell session.
 
-## Dashboard Port-Forward Chain
+## Dashboard Route And Port-Forward Fallback
+
+After the CRC lightweight `OpsLensInstallation` is applied, prefer the OpenShift Route:
+
+```bash
+oc get route cywell-opslens-dashboard -n cywell-opslens
+```
+
+If the Route exists, open the shown host from a browser that can resolve the CRC apps domain.
+
+Use the port-forward path only when the browser cannot resolve the CRC Route host or the Route has not reconciled yet.
 
 MacBook terminal:
 
@@ -177,6 +187,7 @@ Readiness check:
 
 ```bash
 oc get opslensinstallation,deploy,pod,svc,route -n cywell-opslens
+oc get route cywell-opslens-dashboard -n cywell-opslens
 ```
 
 Expected lightweight signal:
@@ -184,6 +195,7 @@ Expected lightweight signal:
 - `opslensinstallation` reaches `Ready`
 - API deployment is `1/1`
 - dashboard deployment is `1/1`
+- dashboard Route exists
 - no pgvector StatefulSet is required
 - no vLLM pod is required
 
