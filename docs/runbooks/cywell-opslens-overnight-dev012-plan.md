@@ -745,6 +745,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Exact reviewed answer translations still win first; phrase replacement only applies when the live answer text has no exact display translation.
 - `npm run verify:web-shell` now includes a `localized dynamic assistant evidence phrases` gate.
 
+### 2026-06-18 - Lane 46
+
+- Added a visible masthead mod-boundary strip so demo users do not need to discover critical scope information through tooltips.
+- The KO/EN shell now states that OpsLens adds route/API/MCP surfaces while native OpenShift chrome and the Lightspeed drawer remain OpenShift-owned.
+- This directly guards against the "installing OpsLens rewrites the entire OpenShift console" misunderstanding while keeping the ConsolePlugin route/proxy value clear.
+- `npm run verify:web-shell` now includes a `visible OpsLens mod boundary` gate, and `AC-UI-004` checks the KO/EN mod-boundary copy in the browser.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -756,10 +763,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 43: `de4d0be`
+- feature branch latest pushed head after Lane 45: `712398b`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 45: PASS, 27 checks
-- latest overnight checkpoint after Lane 45: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 46: PASS, 28 checks
+- latest overnight checkpoint after Lane 46: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

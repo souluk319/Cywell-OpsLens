@@ -218,6 +218,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("install-flow-consoleplugin")).toContainText(
       "ConsolePlugin: 콘솔 라우트"
     );
+    await expect(page.getByTestId("mod-boundary-adds")).toContainText(
+      "OpsLens가 라우트/API/MCP 화면을 추가"
+    );
+    await expect(page.getByTestId("mod-boundary-keeps")).toContainText(
+      "OpenShift 기본 메뉴와 Lightspeed 서랍은 유지"
+    );
     await expect(page.getByTestId("console-nav-alerting")).toContainText(
       "경고"
     );
@@ -255,6 +261,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("install-flow-cr")).toContainText(
       "OpsLensInstallation: product"
+    );
+    await expect(page.getByTestId("mod-boundary-adds")).toContainText(
+      "OpsLens adds route/API/MCP surfaces"
+    );
+    await expect(page.getByTestId("mod-boundary-keeps")).toContainText(
+      "OpenShift keeps native chrome and Lightspeed drawer"
     );
     await expect(page.getByTestId("assistant-mode-matrix")).toContainText(
       "answer source"

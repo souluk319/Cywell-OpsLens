@@ -330,7 +330,10 @@ const shellCopy = {
     installFlow: "Install flow",
     installStepOperatorHub: "OperatorHub: operator",
     installStepCustomResource: "OpsLensInstallation: product",
-    installStepConsolePlugin: "ConsolePlugin: route"
+    installStepConsolePlugin: "ConsolePlugin: route",
+    modBoundary: "Mod boundary",
+    modAdds: "OpsLens adds route/API/MCP surfaces",
+    modKeeps: "OpenShift keeps native chrome and Lightspeed drawer"
   },
   ko: {
     activeSurface: "현재 화면",
@@ -385,7 +388,10 @@ const shellCopy = {
     installFlow: "설치 흐름",
     installStepOperatorHub: "OperatorHub: 오퍼레이터",
     installStepCustomResource: "OpsLensInstallation: 제품 적용",
-    installStepConsolePlugin: "ConsolePlugin: 콘솔 라우트"
+    installStepConsolePlugin: "ConsolePlugin: 콘솔 라우트",
+    modBoundary: "적용 범위",
+    modAdds: "OpsLens가 라우트/API/MCP 화면을 추가",
+    modKeeps: "OpenShift 기본 메뉴와 Lightspeed 서랍은 유지"
   }
 } as const;
 
@@ -809,6 +815,18 @@ export default function App() {
               </span>
               <span className="status-pill read-only" data-testid="install-flow-consoleplugin">
                 {copy.installStepConsolePlugin}
+              </span>
+            </div>
+            <div
+              className="mod-boundary-strip"
+              data-testid="mod-boundary-strip"
+              aria-label={copy.modBoundary}
+            >
+              <span className="status-pill ready" data-testid="mod-boundary-adds">
+                {copy.modAdds}
+              </span>
+              <span className="status-pill warning" data-testid="mod-boundary-keeps">
+                {copy.modKeeps}
               </span>
             </div>
             <div

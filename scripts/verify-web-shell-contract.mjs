@@ -101,6 +101,20 @@ expectCheck(
 );
 
 expectCheck(
+  "visible OpsLens mod boundary",
+  appSource.includes('data-testid="mod-boundary-strip"') &&
+    appSource.includes('data-testid="mod-boundary-adds"') &&
+    appSource.includes('data-testid="mod-boundary-keeps"') &&
+    appSource.includes("OpsLens adds route/API/MCP surfaces") &&
+    appSource.includes("OpenShift keeps native chrome and Lightspeed drawer") &&
+    appSource.includes("OpsLens가 라우트/API/MCP 화면을 추가") &&
+    appSource.includes("OpenShift 기본 메뉴와 Lightspeed 서랍은 유지") &&
+    stylesSource.includes(".mod-boundary-strip") &&
+    stylesSource.includes(".mod-boundary-strip .status-pill"),
+  "masthead visibly explains what the OpsLens mod adds and what native OpenShift/Lightspeed surfaces still own"
+);
+
+expectCheck(
   "console plugin proxy detection",
   appSource.includes('surface === "console-plugin"') &&
     appSource.includes('/api/proxy/plugin/cywell-opslens/') &&
@@ -601,6 +615,10 @@ expectCheck(
     e2eSource.includes("OperatorHub: 오퍼레이터") &&
     e2eSource.includes("OpsLensInstallation: 제품 적용") &&
     e2eSource.includes("ConsolePlugin: 콘솔 라우트") &&
+    e2eSource.includes("OpsLens가 라우트/API/MCP 화면을 추가") &&
+    e2eSource.includes("OpenShift 기본 메뉴와 Lightspeed 서랍은 유지") &&
+    e2eSource.includes("OpsLens adds route/API/MCP surfaces") &&
+    e2eSource.includes("OpenShift keeps native chrome and Lightspeed drawer") &&
     e2eSource.includes("KOMSCO AI 어시스턴트") &&
     e2eSource.includes("KOMSCO AI Assistant") &&
     e2eSource.includes('getByTestId("assistant-mode-matrix")') &&

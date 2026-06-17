@@ -162,7 +162,8 @@ button {
   color: #003737;
 }
 
-.install-flow-strip {
+.install-flow-strip,
+.mod-boundary-strip {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
@@ -170,7 +171,8 @@ button {
   max-width: 100%;
 }
 
-.install-flow-strip .status-pill {
+.install-flow-strip .status-pill,
+.mod-boundary-strip .status-pill {
   padding-inline: 8px;
 }
 
