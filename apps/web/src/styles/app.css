@@ -133,6 +133,8 @@ button {
 
 .opslens-status-group {
   gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .console-native-actions {
@@ -158,6 +160,18 @@ button {
 .language-toggle button[aria-pressed="true"] {
   background: #e4f7f7;
   color: #003737;
+}
+
+.install-flow-strip {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.install-flow-strip .status-pill {
+  padding-inline: 8px;
 }
 
 .masthead-menu {

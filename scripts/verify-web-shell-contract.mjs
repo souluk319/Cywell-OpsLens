@@ -70,6 +70,7 @@ expectCheck(
   appSource.includes('data-testid="runtime-surface"') &&
     appSource.includes('data-testid="api-route-mode"') &&
     appSource.includes('data-testid="console-plugin-scope"') &&
+    appSource.includes('data-testid="install-flow-strip"') &&
     appSource.includes('data-testid="console-context-primary"') &&
     appSource.includes("CRC lab preview") &&
     appSource.includes("OpenShift ConsolePlugin") &&
@@ -79,6 +80,22 @@ expectCheck(
     appSource.includes("Route + proxy mode") &&
     appSource.includes("Preview shell"),
   "dashboard shell distinguishes standalone dev, ConsolePlugin mode, install scope, and non-company-OCP local context"
+);
+
+expectCheck(
+  "install flow status strip",
+  appSource.includes("OperatorHub: operator") &&
+    appSource.includes("OpsLensInstallation: product") &&
+    appSource.includes("ConsolePlugin: route") &&
+    appSource.includes("OperatorHub: 오퍼레이터") &&
+    appSource.includes("OpsLensInstallation: 제품 적용") &&
+    appSource.includes("ConsolePlugin: 콘솔 라우트") &&
+    appSource.includes('data-testid="install-flow-operatorhub"') &&
+    appSource.includes('data-testid="install-flow-cr"') &&
+    appSource.includes('data-testid="install-flow-consoleplugin"') &&
+    stylesSource.includes(".install-flow-strip") &&
+    stylesSource.includes("flex-wrap: wrap"),
+  "masthead exposes the OperatorHub -> OpsLensInstallation -> ConsolePlugin install/apply distinction"
 );
 
 expectCheck(

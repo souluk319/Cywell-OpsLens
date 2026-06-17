@@ -326,7 +326,11 @@ const shellCopy = {
     standaloneContextPrimary: "CRC lab preview",
     standaloneContextSecondary: "local fixture scenario / no company OCP mutation",
     opsLensStatus: "Cywell OpsLens status",
-    openShiftUtilities: "OpenShift console utilities"
+    openShiftUtilities: "OpenShift console utilities",
+    installFlow: "Install flow",
+    installStepOperatorHub: "OperatorHub: operator",
+    installStepCustomResource: "OpsLensInstallation: product",
+    installStepConsolePlugin: "ConsolePlugin: route"
   },
   ko: {
     activeSurface: "현재 화면",
@@ -377,7 +381,11 @@ const shellCopy = {
     standaloneContextPrimary: "CRC 실습 환경 미리보기",
     standaloneContextSecondary: "로컬 검증 시나리오 / 회사 OCP 변경 없음",
     opsLensStatus: "Cywell OpsLens 상태",
-    openShiftUtilities: "OpenShift 콘솔 유틸리티"
+    openShiftUtilities: "OpenShift 콘솔 유틸리티",
+    installFlow: "설치 흐름",
+    installStepOperatorHub: "OperatorHub: 오퍼레이터",
+    installStepCustomResource: "OpsLensInstallation: 제품 적용",
+    installStepConsolePlugin: "ConsolePlugin: 콘솔 라우트"
   }
 } as const;
 
@@ -772,6 +780,21 @@ export default function App() {
               <ShieldCheck size={15} aria-hidden="true" />
               {copy.readOnly}
             </span>
+            <div
+              className="install-flow-strip"
+              data-testid="install-flow-strip"
+              aria-label={copy.installFlow}
+            >
+              <span className="status-pill read-only" data-testid="install-flow-operatorhub">
+                {copy.installStepOperatorHub}
+              </span>
+              <span className="status-pill read-only" data-testid="install-flow-cr">
+                {copy.installStepCustomResource}
+              </span>
+              <span className="status-pill read-only" data-testid="install-flow-consoleplugin">
+                {copy.installStepConsolePlugin}
+              </span>
+            </div>
             <div
               className="segmented-control language-toggle"
               aria-label={copy.language}

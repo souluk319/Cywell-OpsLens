@@ -443,6 +443,16 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
   - `npm run verify:console-plugin`
   - `npm run overnight:checkpoint`
 
+### 2026-06-17 - Lane 15
+
+- Added a masthead install flow strip to make the demo distinction explicit:
+  - `OperatorHub: 오퍼레이터`
+  - `OpsLensInstallation: 제품 적용`
+  - `ConsolePlugin: 콘솔 라우트`
+- Protected it in `npm run verify:web-shell`.
+- Browser DOM verification confirmed the strip renders in Korean mode.
+- Interpretation: the UI now answers the repeated confusion directly: OperatorHub installs the Operator, `OpsLensInstallation` applies the product, and ConsolePlugin provides the console route/proxy surface.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
