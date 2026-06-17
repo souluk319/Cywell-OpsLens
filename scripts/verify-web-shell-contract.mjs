@@ -165,6 +165,23 @@ expectCheck(
 );
 
 expectCheck(
+  "visible demo access path",
+  appSource.includes('data-testid="access-boundary-strip"') &&
+    appSource.includes('data-testid="access-console-route"') &&
+    appSource.includes('data-testid="access-dashboard-https"') &&
+    appSource.includes('data-testid="access-api-proxy"') &&
+    appSource.includes("Installed view uses Console route") &&
+    appSource.includes("Dashboard uses HTTPS 19443") &&
+    appSource.includes("Assistant/API follows proxy mode") &&
+    appSource.includes("설치 화면은 콘솔 라우트 사용") &&
+    appSource.includes("대시보드는 HTTPS 19443") &&
+    appSource.includes("어시스턴트/API는 프록시 모드 연동") &&
+    stylesSource.includes(".access-boundary-strip") &&
+    stylesSource.includes(".access-boundary-strip .status-pill"),
+  "masthead keeps the installed Console route, HTTPS dashboard port-forward, and API proxy paths visible"
+);
+
+expectCheck(
   "console plugin proxy detection",
   appSource.includes('surface === "console-plugin"') &&
     appSource.includes('/api/proxy/plugin/cywell-opslens/') &&

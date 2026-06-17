@@ -166,7 +166,8 @@ button {
 .mod-boundary-strip,
 .runtime-profile-strip,
 .certification-boundary-strip,
-.demo-handoff-strip {
+.demo-handoff-strip,
+.access-boundary-strip {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
@@ -178,7 +179,8 @@ button {
 .mod-boundary-strip .status-pill,
 .runtime-profile-strip .status-pill,
 .certification-boundary-strip .status-pill,
-.demo-handoff-strip .status-pill {
+.demo-handoff-strip .status-pill,
+.access-boundary-strip .status-pill {
   padding-inline: 8px;
 }
 

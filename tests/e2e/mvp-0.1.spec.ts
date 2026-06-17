@@ -248,6 +248,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("handoff-smoke")).toContainText(
       "읽기 전용 스모크 실행"
     );
+    await expect(page.getByTestId("access-console-route")).toContainText(
+      "설치 화면은 콘솔 라우트 사용"
+    );
+    await expect(page.getByTestId("access-dashboard-https")).toContainText(
+      "대시보드는 HTTPS 19443"
+    );
+    await expect(page.getByTestId("access-api-proxy")).toContainText(
+      "어시스턴트/API는 프록시 모드 연동"
+    );
     await expect(page.getByTestId("readiness-status")).toContainText(
       "근거 필요"
     );
@@ -342,6 +351,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("handoff-smoke")).toContainText(
       "Run read-only smoke"
+    );
+    await expect(page.getByTestId("access-console-route")).toContainText(
+      "Installed view uses Console route"
+    );
+    await expect(page.getByTestId("access-dashboard-https")).toContainText(
+      "Dashboard uses HTTPS 19443"
+    );
+    await expect(page.getByTestId("access-api-proxy")).toContainText(
+      "Assistant/API follows proxy mode"
     );
     await expect(page.getByTestId("readiness-status")).toContainText(
       "needs evidence"

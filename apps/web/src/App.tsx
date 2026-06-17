@@ -384,6 +384,10 @@ const shellCopy = {
     certificationSubmit: "No Partner/OperatorHub submission",
     certificationEvidence:
       "Certified readiness needs security/release evidence",
+    accessBoundary: "Access path",
+    accessConsoleRoute: "Installed view uses Console route",
+    accessDashboardHttps: "Dashboard uses HTTPS 19443",
+    accessApiProxy: "Assistant/API follows proxy mode",
     handoffBoundary: "Return checklist",
     handoffReconnect: "Reconnect Mac CRC",
     handoffRoute: "Open ConsolePlugin route",
@@ -457,6 +461,10 @@ const shellCopy = {
     certificationLocal: "로컬 데모 빌드",
     certificationSubmit: "Partner/OperatorHub 제출 안 함",
     certificationEvidence: "인증 준비는 보안/릴리스 근거 필요",
+    accessBoundary: "접근 경로",
+    accessConsoleRoute: "설치 화면은 콘솔 라우트 사용",
+    accessDashboardHttps: "대시보드는 HTTPS 19443",
+    accessApiProxy: "어시스턴트/API는 프록시 모드 연동",
     handoffBoundary: "복귀 체크",
     handoffReconnect: "Mac CRC 재연결",
     handoffRoute: "콘솔 플러그인 라우트 열기",
@@ -950,6 +958,21 @@ export default function App() {
               </span>
               <span className="status-pill warning" data-testid="handoff-smoke">
                 {copy.handoffSmoke}
+              </span>
+            </div>
+            <div
+              className="access-boundary-strip"
+              data-testid="access-boundary-strip"
+              aria-label={copy.accessBoundary}
+            >
+              <span className="status-pill ready" data-testid="access-console-route">
+                {copy.accessConsoleRoute}
+              </span>
+              <span className="status-pill warning" data-testid="access-dashboard-https">
+                {copy.accessDashboardHttps}
+              </span>
+              <span className="status-pill read-only" data-testid="access-api-proxy">
+                {copy.accessApiProxy}
               </span>
             </div>
             <div

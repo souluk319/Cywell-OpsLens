@@ -786,6 +786,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The strip now uses language-owned labels for completion status, passed requirements, remaining items, next gate, and next check while preserving gate IDs and command strings as evidence.
 - `npm run verify:web-shell` now includes a `localized readiness command strip` gate, and `AC-UI-004` checks the KO/EN readiness strip in the browser.
 
+### 2026-06-18 - Lane 52
+
+- Added a visible demo access path strip so the first viewport explains which surface owns each route after install.
+- The KO/EN masthead now separates installed Console route access, dashboard HTTPS port-forward access on 19443, and Assistant/API proxy mode.
+- This directly addresses the repeated `http://127.0.0.1:19443` versus `https://...` and standalone-versus-installed access confusion without touching live CRC.
+- `npm run verify:web-shell` now includes a `visible demo access path` gate, and `AC-UI-004` checks the KO/EN access path labels in the browser.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -797,10 +804,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 50: `34c177d`
+- feature branch latest pushed head after Lane 51: `31611b4`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 51: PASS, 33 checks
-- latest overnight checkpoint after Lane 51: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 52: PASS, 34 checks
+- latest overnight checkpoint after Lane 52: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
