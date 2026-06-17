@@ -268,6 +268,22 @@ Every checkpoint:
   - wrong local tunnel port
   - TLS dashboard URL mismatch
 
+### 2026-06-17 - Lane 5
+
+- Refreshed the non-mutating local evidence gates after the CRC handoff update.
+- Passed:
+  - `npm run verify:web-shell`
+  - `npm run verify:console-plugin`
+  - `npm run verify:operator:reconcile`
+  - `npm run verify:operator:runtime`
+  - `npm run verify:operator`
+  - `npm run verify:install-plan`
+  - `npm run verify:pre-cluster-install`
+- Current install readiness is intentionally not green:
+  - `verify:install-plan` passed with warnings because several source evidence files are stale for current head and Lightspeed readiness still reports a known live gap.
+  - `verify:pre-cluster-install` returned `BLOCKED_BY_EVIDENCE_GAPS`, `safeToRunClusterInstall=false`, strict mode blocked by stale/lacking evidence.
+- Interpretation: continue local product hardening and live evidence refresh; do not pretend the remaining cluster-install gates are solved.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
