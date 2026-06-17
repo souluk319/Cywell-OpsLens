@@ -134,10 +134,16 @@ const explorerCopy = {
     noOwners: "No owner references returned.",
     ownedChildren: "Owned Children",
     noChildren: "No owned children found in scanned resources.",
-    selectRelated: "Select an item to inspect owner and child resources."
+    selectRelated: "Select an item to inspect owner and child resources.",
+    rbacPending: "RBAC pending",
+    rbacAllowed: "allowed",
+    rbacUnknown: "unknown",
+    rbacDenied: "denied",
+    unsupported: "unsupported",
+    pending: "pending"
   },
   ko: {
-    eyebrow: "Live OpenShift API",
+    eyebrow: "실시간 OpenShift API",
     title: "OCP 리소스 탐색기",
     refresh: "새로고침",
     discovering: "탐색 중",
@@ -149,7 +155,7 @@ const explorerCopy = {
     tlsVerify: "TLS 검증",
     apiResources: "API 리소스",
     searchApiResources: "API 리소스 검색",
-    kind: "Kind",
+    kind: "종류",
     resource: "리소스",
     apiVersion: "API 버전",
     scope: "범위",
@@ -159,14 +165,14 @@ const explorerCopy = {
     list: "목록",
     blocked: "차단",
     readOnlyList: "읽기 전용 리소스 목록",
-    noMutateVerbs: "변경 verb 없음",
+    noMutateVerbs: "변경 동작 없음",
     namespace: "네임스페이스",
     allNamespaces: "모든 네임스페이스",
-    labelSelector: "Label selector",
-    fieldSelector: "Field selector",
+    labelSelector: "레이블 선택자",
+    fieldSelector: "필드 선택자",
     fullRead: "전체 읽기",
     load: "불러오기",
-    readVerbs: "읽기 verb",
+    readVerbs: "읽기 동작",
     noListableResource: "목록 조회 가능한 리소스가 선택되지 않았습니다",
     previous: "이전",
     next: "다음",
@@ -184,7 +190,7 @@ const explorerCopy = {
     objectJson: "객체 JSON",
     objectYaml: "객체 YAML",
     objectPrefix: "객체",
-    fallback: "fallback",
+    fallback: "대체 응답",
     requested: "요청",
     served: "제공",
     redactedCount: "마스킹",
@@ -197,20 +203,26 @@ const explorerCopy = {
     noEvents: "이 객체의 이벤트가 반환되지 않았습니다.",
     selectEvents: "항목을 선택하면 이벤트를 확인합니다.",
     podLogs: "Pod 로그",
-    podOnly: "pod only",
+    podOnly: "Pod 전용",
     loadingPodLogs: "Pod 로그를 불러오는 중...",
     noLogLines: "반환된 로그 라인이 없습니다.",
     selectPodLogs: "Pod를 선택하면 로그를 확인합니다.",
     relatedResources: "관련 리소스",
-    owners: "개 owner",
-    children: "개 child",
+    owners: "개 소유자",
+    children: "개 하위",
     loadingRelated: "관련 리소스를 불러오는 중...",
-    ownerReferences: "Owner References",
-    controller: "controller",
-    noOwners: "반환된 owner reference가 없습니다.",
-    ownedChildren: "Owned Children",
-    noChildren: "스캔한 리소스에서 owned child를 찾지 못했습니다.",
-    selectRelated: "항목을 선택하면 owner와 child 리소스를 확인합니다."
+    ownerReferences: "소유자 참조",
+    controller: "컨트롤러",
+    noOwners: "반환된 소유자 참조가 없습니다.",
+    ownedChildren: "소유 하위 리소스",
+    noChildren: "스캔한 리소스에서 소유 하위 리소스를 찾지 못했습니다.",
+    selectRelated: "항목을 선택하면 소유자와 하위 리소스를 확인합니다.",
+    rbacPending: "RBAC 대기 중",
+    rbacAllowed: "허용",
+    rbacUnknown: "확인 불가",
+    rbacDenied: "거부",
+    unsupported: "미지원",
+    pending: "대기 중"
   }
 } as const;
 
@@ -222,40 +234,42 @@ function formatAccess(
     | OcpResourceDetailResponse["access"]["get"]
     | OcpEventsResponse["access"]
     | OcpPodLogsResponse["access"]
-    | undefined
+    | undefined,
+  copy: (typeof explorerCopy)[UiLanguage]
 ) {
   if (!access) {
-    return "RBAC pending";
+    return copy.rbacPending;
   }
   if (access.allowed) {
-    return `RBAC ${access.verb} allowed`;
+    return `RBAC ${access.verb} ${copy.rbacAllowed}`;
   }
   if (access.evaluationError) {
-    return `RBAC ${access.verb} unknown`;
+    return `RBAC ${access.verb} ${copy.rbacUnknown}`;
   }
-  return `RBAC ${access.verb} denied`;
+  return `RBAC ${access.verb} ${copy.rbacDenied}`;
 }
 
 function formatMatrixAccess(
   verb: (typeof readVerbs)[number],
   resource: OcpApiResource | undefined,
-  matrix: OcpResourceAccessMatrixResponse | null
+  matrix: OcpResourceAccessMatrixResponse | null,
+  copy: (typeof explorerCopy)[UiLanguage]
 ) {
   if (!resource?.verbs.includes(verb)) {
-    return `${verb} unsupported`;
+    return `${verb} ${copy.unsupported}`;
   }
 
   const access = matrix?.access[verb];
   if (!access) {
-    return `${verb} pending`;
+    return `${verb} ${copy.pending}`;
   }
   if (access.allowed) {
-    return `${verb} allowed`;
+    return `${verb} ${copy.rbacAllowed}`;
   }
   if (access.evaluationError) {
-    return `${verb} unknown`;
+    return `${verb} ${copy.rbacUnknown}`;
   }
-  return `${verb} denied`;
+  return `${verb} ${copy.rbacDenied}`;
 }
 
 export function OcpResourceExplorer({
@@ -755,7 +769,7 @@ export function OcpResourceExplorer({
                     .join(", ")}
                 </small>
                 <small data-testid="ocp-resource-access">
-                  {formatAccess(list?.access.list)}
+                  {formatAccess(list?.access.list, copy)}
                 </small>
                 {list?.fallback ? (
                   <div
@@ -773,7 +787,7 @@ export function OcpResourceExplorer({
                 <div className="access-matrix" data-testid="ocp-access-matrix">
                   {readVerbs.map((verb) => (
                     <span key={verb}>
-                      {formatMatrixAccess(verb, selectedResource, accessMatrix)}
+                      {formatMatrixAccess(verb, selectedResource, accessMatrix, copy)}
                     </span>
                   ))}
                 </div>
@@ -880,7 +894,7 @@ export function OcpResourceExplorer({
               </button>
             </div>
             <span className="status-pill read-only">
-              {formatAccess(detail?.access.get)}
+              {formatAccess(detail?.access.get, copy)}
             </span>
             {detail?.fallback ? (
               <span
@@ -909,7 +923,7 @@ export function OcpResourceExplorer({
               {copy.involvedEvents}
             </h3>
             <span className="status-pill read-only">
-              {formatAccess(events?.access)}
+              {formatAccess(events?.access, copy)}
             </span>
             <span className="status-pill read-only">
               {events?.items.length ?? 0} {copy.events}
@@ -940,7 +954,7 @@ export function OcpResourceExplorer({
               {copy.podLogs}
             </h3>
             <span className="status-pill read-only">
-              {formatAccess(logs?.access)}
+              {formatAccess(logs?.access, copy)}
             </span>
             <span className="status-pill read-only">
               {logs?.container ?? copy.podOnly}

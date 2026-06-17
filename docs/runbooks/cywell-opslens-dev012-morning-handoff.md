@@ -13,6 +13,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the shell now names standalone preview versus ConsolePlugin route/proxy mode
 - the masthead now shows the install/apply flow: OperatorHub installs the Operator, OpsLensInstallation applies the product, ConsolePlugin provides the route
 - the OCP Coverage Matrix now follows the same KO/EN toggle as the rest of the shell
+- the OCP Resource Explorer Korean surface now avoids leftover developer English for fallback/RBAC/owner relationship states
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes

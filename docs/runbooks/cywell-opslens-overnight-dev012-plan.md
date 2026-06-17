@@ -470,6 +470,23 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
   - `범위 진단`
   - no `OCP Coverage Matrix` or `Refresh` text in the coverage section.
 
+### 2026-06-17 - Lane 17
+
+- Polished the OCP Resource Explorer Korean surface after the Coverage Matrix localization.
+- Replaced remaining customer-visible developer English in KO mode, including:
+  - `Live OpenShift API` -> `실시간 OpenShift API`
+  - `fallback` -> `대체 응답`
+  - `Owner References` -> `소유자 참조`
+  - `Owned Children` -> `소유 하위 리소스`
+  - RBAC status suffixes -> `허용`, `확인 불가`, `거부`, `대기 중`
+- Protected the Resource Explorer localization contract in `npm run verify:web-shell`.
+- Browser DOM verification in KO mode showed:
+  - `실시간 OpenShift API`
+  - `변경 동작 없음`
+  - `RBAC 대기 중`
+  - `소유자와 하위 리소스`
+  - no `fallback` or `Owner References` text in the visible explorer section.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

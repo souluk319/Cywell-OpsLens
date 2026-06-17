@@ -190,6 +190,11 @@ expectCheck(
     overviewSource.includes("const overviewCopy") &&
     dashboardSource.includes("const dashboardCopy") &&
     explorerSource.includes("const explorerCopy") &&
+    explorerSource.includes("실시간 OpenShift API") &&
+    explorerSource.includes("대체 응답") &&
+    explorerSource.includes("소유자 참조") &&
+    explorerSource.includes("소유 하위 리소스") &&
+    explorerSource.includes("RBAC 대기 중") &&
     coverageSource.includes("const coverageCopy") &&
     coverageSource.includes("OCP 읽기 범위 매트릭스") &&
     coverageSource.includes("범위 행을 선택하면 읽기 전용 진단 근거를 확인합니다.") &&
