@@ -68,9 +68,12 @@ expectCheck(
   "runtime surface badge",
   appSource.includes('data-testid="runtime-surface"') &&
     appSource.includes('data-testid="api-route-mode"') &&
+    appSource.includes('data-testid="console-plugin-scope"') &&
     appSource.includes("Standalone dev") &&
-    appSource.includes("Console plugin"),
-  "dashboard shell distinguishes standalone dev mode from ConsolePlugin mode"
+    appSource.includes("Console plugin") &&
+    appSource.includes("Route + proxy mode") &&
+    appSource.includes("Preview shell"),
+  "dashboard shell distinguishes standalone dev, ConsolePlugin mode, and install scope"
 );
 
 expectCheck(

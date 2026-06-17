@@ -314,6 +314,12 @@ const shellCopy = {
       "OpenShift Console is hosting OpsLens through the plugin iframe and plugin API proxy.",
     standaloneDevModeTitle:
       "Local dev shell; OpenShift console chrome and Lightspeed drawer are not injected here.",
+    consolePluginScope: "Route + proxy mode",
+    standaloneScope: "Preview shell",
+    consolePluginScopeTitle:
+      "Installed ConsolePlugin scope: OpsLens route, launcher entry, UserToken API proxy, and MCP readiness surfaces. Native OpenShift chrome and Lightspeed drawer remain OpenShift-owned.",
+    standaloneScopeTitle:
+      "Standalone preview scope: local shell and local API path. Install as ConsolePlugin to verify in-console routing and proxy behavior.",
     opsLensStatus: "Cywell OpsLens status",
     openShiftUtilities: "OpenShift console utilities"
   },
@@ -355,6 +361,12 @@ const shellCopy = {
       "OpenShift 콘솔이 플러그인 iframe과 플러그인 API 프록시로 OpsLens를 호스팅 중입니다.",
     standaloneDevModeTitle:
       "로컬 개발 shell입니다. OpenShift 콘솔 chrome과 Lightspeed drawer는 여기에는 주입되지 않습니다.",
+    consolePluginScope: "라우트 + 프록시 모드",
+    standaloneScope: "미리보기 shell",
+    consolePluginScopeTitle:
+      "설치된 ConsolePlugin 적용 범위: OpsLens 라우트, 런처 항목, UserToken API 프록시, MCP 준비도 화면입니다. 기본 OpenShift chrome과 Lightspeed drawer는 OpenShift 소유로 유지됩니다.",
+    standaloneScopeTitle:
+      "독립 미리보기 범위: 로컬 shell과 로컬 API 경로입니다. 콘솔 내부 라우팅과 프록시는 ConsolePlugin 설치 후 검증합니다.",
     opsLensStatus: "Cywell OpsLens 상태",
     openShiftUtilities: "OpenShift 콘솔 유틸리티"
   }
@@ -714,6 +726,17 @@ export default function App() {
             </span>
             <span className="status-pill read-only" data-testid="api-route-mode">
               {runtimeProfile.apiBaseAttached ? copy.pluginApi : copy.localApi}
+            </span>
+            <span
+              className="status-pill read-only"
+              data-testid="console-plugin-scope"
+              title={
+                isConsolePlugin
+                  ? copy.consolePluginScopeTitle
+                  : copy.standaloneScopeTitle
+              }
+            >
+              {isConsolePlugin ? copy.consolePluginScope : copy.standaloneScope}
             </span>
             <span className="status-pill read-only">
               <ShieldCheck size={15} aria-hidden="true" />

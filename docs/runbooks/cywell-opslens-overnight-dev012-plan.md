@@ -218,6 +218,23 @@ Every checkpoint:
 4. Validate before committing.
 5. Commit and push only intentional files.
 6. Never commit `.env`, secrets, ignored evidence, or `desktop.ini`.
+
+## Execution Log
+
+### 2026-06-17 - Lane 1
+
+- Implemented KO/EN propagation into the OpsLens Admin dashboard surface.
+- Verified the visible Korean shell in-browser: `관리 대시보드`, `RAG 문서`, and `토큰 사용량` render under the KO toggle.
+- Passed `npm run -w @kugnus/web build` and `npm run verify:web-shell`.
+- Committed and pushed: `23fc447 Localize OpsLens admin shell`.
+
+### 2026-06-17 - Lane 2
+
+- Added a short shell status pill for the current install scope:
+  - standalone dev shows local preview scope
+  - ConsolePlugin mode shows route + proxy scope
+- Product boundary remains explicit: OpsLens can add the Operator-backed route, launcher entry, dashboard/API proxy, and MCP readiness surfaces; native OpenShift chrome and the Lightspeed drawer remain OpenShift-owned unless a separately verified console extension path changes them.
+- Protected the scope distinction in `npm run verify:web-shell`.
 7. If blocked, write the blocker with exact evidence instead of retrying random commands.
 
 Checkpoint cadence:
@@ -250,4 +267,3 @@ Expected:
 - no failures
 - no secret output
 - branch remains `feat/OpsLens-Dev0.1.2`
-
