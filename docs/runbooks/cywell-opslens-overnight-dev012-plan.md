@@ -550,6 +550,16 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Raw evidence values such as tool names, endpoint paths, head SHA, and next command remain visible because they are operational evidence, not UI chrome.
 - Protected the localized Lightspeed/MCP admin contract in `npm run verify:web-shell`.
 
+### 2026-06-18 - Lane 22
+
+- Added customer-facing Assistant API error interpretation next to the raw `lastApiError`.
+- The raw error remains visible as evidence, while KO/EN mode now explains whether the likely class is:
+  - disconnected API route, port-forward, or ConsolePlugin proxy
+  - route exists but endpoint is missing
+  - token/RBAC rejection
+  - API service-side failure
+- Protected the interpretation label and common port-forward/proxy failure copy in `npm run verify:web-shell`.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

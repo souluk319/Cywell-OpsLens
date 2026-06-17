@@ -138,6 +138,9 @@ expectCheck(
     assistantSource.includes('data-testid="assistant-connection-summary"') &&
     assistantSource.includes("연결 판정") &&
     assistantSource.includes("실제 AI 연결처럼 보이게 꾸미지 않고") &&
+    assistantSource.includes("오류 해석") &&
+    assistantSource.includes("포트 포워딩/ConsolePlugin 프록시가 끊겼습니다.") &&
+    assistantSource.includes("assistant-last-api-error-interpretation") &&
     assistantSource.includes("Retry API") &&
     apiSource.includes("console-plugin-user-token-proxy") &&
     apiSource.includes("local-vite-proxy"),

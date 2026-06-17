@@ -19,6 +19,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
 - the masthead API status chip is localized instead of showing raw `loading/ready/fallback` state values in Korean mode
 - the OpsLens Admin Lightspeed/MCP card now uses customer-facing labels for routing score, response score, read-only tools, selected tool, redaction, mutation boundary, live readiness, network readiness, and next command instead of raw developer `key=value` fragments
+- the Assistant now keeps the raw API error as evidence but adds a KO/EN interpretation for disconnected routes, missing endpoints, auth/RBAC rejection, and API service failures
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes

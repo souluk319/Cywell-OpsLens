@@ -48,6 +48,7 @@ const assistantCopy = {
     route: "route",
     endpoint: "endpoint",
     error: "last error",
+    errorInterpretation: "interpretation",
     retry: "Retry API",
     pending: "pending",
     actionMode: "action mode",
@@ -75,6 +76,7 @@ const assistantCopy = {
     route: "경로",
     endpoint: "엔드포인트",
     error: "마지막 오류",
+    errorInterpretation: "오류 해석",
     retry: "API 재시도",
     pending: "대기 중",
     actionMode: "동작 모드",
@@ -303,6 +305,45 @@ function routeModeLabel(language: UiLanguage, mode: string) {
   return modeLabels[mode] ?? mode;
 }
 
+function apiErrorInterpretation(language: UiLanguage, error: string | null) {
+  if (!error) return null;
+
+  const normalized = error.toLowerCase();
+  if (
+    normalized.includes("failed to fetch") ||
+    normalized.includes("could not connect") ||
+    normalized.includes("connection refused") ||
+    normalized.includes("econnrefused") ||
+    normalized.includes("networkerror")
+  ) {
+    return language === "ko"
+      ? "OpsLens API 경로가 열려 있지 않거나 포트 포워딩/ConsolePlugin 프록시가 끊겼습니다."
+      : "The OpsLens API route is not reachable, or the port-forward/ConsolePlugin proxy is disconnected.";
+  }
+
+  if (normalized.includes("failed with 404")) {
+    return language === "ko"
+      ? "요청 경로는 열렸지만 OpsLens API가 해당 엔드포인트를 제공하지 않습니다."
+      : "The route answered, but the OpsLens API does not expose that endpoint.";
+  }
+
+  if (normalized.includes("failed with 401") || normalized.includes("failed with 403")) {
+    return language === "ko"
+      ? "API는 응답했지만 인증 토큰 또는 RBAC 권한이 부족합니다."
+      : "The API answered, but the token or RBAC permissions are insufficient.";
+  }
+
+  if (/failed with 5\d\d/.test(normalized)) {
+    return language === "ko"
+      ? "API 서비스가 응답했지만 내부 오류를 반환했습니다. API Pod 로그와 readiness를 확인해야 합니다."
+      : "The API service answered with a server error. Check the API pod logs and readiness.";
+  }
+
+  return language === "ko"
+    ? "원문 오류를 유지합니다. 연결 경로, API Pod 상태, 프록시 설정을 순서대로 확인해야 합니다."
+    : "The raw error is preserved. Check route reachability, API pod status, and proxy configuration in order.";
+}
+
 export function AssistantPopover({
   draft,
   contextChips,
@@ -424,6 +465,10 @@ export function AssistantPopover({
           <>
             <span>{copy.error}</span>
             <strong data-testid="assistant-last-api-error">{lastApiError}</strong>
+            <span>{copy.errorInterpretation}</span>
+            <strong data-testid="assistant-last-api-error-interpretation">
+              {apiErrorInterpretation(language, lastApiError)}
+            </strong>
           </>
         ) : null}
       </div>
