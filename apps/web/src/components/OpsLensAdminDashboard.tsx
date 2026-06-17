@@ -80,6 +80,7 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "ready-for-live-registration-review": "ready for live registration review",
       "ready-for-handoff": "ready for handoff",
       "review-packet-ready": "review packet ready",
+      "needs-tooling": "needs tooling",
       "no-improving-candidate": "no improving candidate",
       "live-ready": "live ready",
       "api-ready": "API ready",
@@ -110,6 +111,7 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "ready-for-live-registration-review": "실시간 등록 검토 준비",
       "ready-for-handoff": "인계 준비",
       "review-packet-ready": "검토 패킷 준비",
+      "needs-tooling": "도구 필요",
       "no-improving-candidate": "개선 후보 없음",
       "live-ready": "실시간 준비 완료",
       "api-ready": "API 준비 완료",
@@ -152,7 +154,8 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       DesignOnly: "design-only",
       ValidateOnly: "validate-only",
       PatchOLSConfig: "patch OLSConfig",
-      reviewPacketOnly: "review packet only"
+      reviewPacketOnly: "review packet only",
+      scanPlanOnly: "scan plan only"
     },
     ko: {
       readOnly: "읽기 전용",
@@ -163,7 +166,8 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       DesignOnly: "설계 전용",
       ValidateOnly: "검증 전용",
       PatchOLSConfig: "OLSConfig 패치",
-      reviewPacketOnly: "검토 패킷 전용"
+      reviewPacketOnly: "검토 패킷 전용",
+      scanPlanOnly: "스캔 계획 전용"
     }
   };
   return labels[language][mode] ?? mode;
@@ -499,6 +503,27 @@ const adminCopy = {
     registryTicketsClear: "registry tickets clear",
     notRun: "not run",
     securityScan: "security scan",
+    scanCli: "scan CLI",
+    imageEvidence: "image evidence",
+    readOnlyEvidence: "read-only evidence",
+    approvalGatedSigning: "approval-gated signing",
+    finalReview: "final review",
+    vulnerabilityScan: "vulnerability scan",
+    sbom: "SBOM",
+    reviewEvidence: "review evidence",
+    securityReviewFirstActionsMissing: "security review first actions missing",
+    securityReviewTicketsClear: "security review tickets clear",
+    securityReviewFinalHandoffMissing: "security review final handoff missing",
+    evidenceWritten: "evidence written",
+    dockerFallback: "Docker fallback",
+    digestPinned: "digest pinned",
+    missingTargets: "missing targets",
+    draft: "draft",
+    sameHead: "same head",
+    decision: "decision",
+    explicitDecision: "explicit decision",
+    reviewer: "reviewer",
+    readyForFinalReview: "ready for final review",
     releasePublish: "release publish",
     releaseRefresh: "release refresh",
     releaseBundle: "release bundle",
@@ -811,6 +836,27 @@ const adminCopy = {
     registryTicketsClear: "레지스트리 티켓 없음",
     notRun: "미실행",
     securityScan: "보안 스캔",
+    scanCli: "스캔 CLI",
+    imageEvidence: "이미지 근거",
+    readOnlyEvidence: "읽기 전용 근거",
+    approvalGatedSigning: "승인 필요 서명",
+    finalReview: "최종 검토",
+    vulnerabilityScan: "취약점 스캔",
+    sbom: "SBOM",
+    reviewEvidence: "검토 근거",
+    securityReviewFirstActionsMissing: "보안 검토 첫 작업 누락",
+    securityReviewTicketsClear: "보안 검토 티켓 없음",
+    securityReviewFinalHandoffMissing: "보안 검토 최종 인계 누락",
+    evidenceWritten: "근거 작성",
+    dockerFallback: "Docker 대체 실행",
+    digestPinned: "digest 고정",
+    missingTargets: "누락 대상",
+    draft: "초안",
+    sameHead: "동일 HEAD",
+    decision: "결정",
+    explicitDecision: "명시 결정",
+    reviewer: "검토자",
+    readyForFinalReview: "최종 검토 준비",
     releasePublish: "릴리스 게시",
     releaseRefresh: "릴리스 갱신",
     releaseBundle: "릴리스 번들",
@@ -7317,83 +7363,94 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-security-scan-plan"
             >
               <div className="admin-evidence-line">
-                <span>{securityScanPlan.artifactStatus}</span>
-                <span>{securityScanPlan.actionMode}</span>
+                <span>{statusText(language, securityScanPlan.artifactStatus)}</span>
+                <span>{actionModeText(language, securityScanPlan.actionMode)}</span>
                 <span>
-                  registryMutationAttempted=
-                  {String(securityScanPlan.registryMutationAttempted)}
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(language, securityScanPlan.registryMutationAttempted)}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(securityScanPlan.clusterMutationAttempted)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(language, securityScanPlan.clusterMutationAttempted)}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(securityScanPlan.mutationAllowedByThisVerifier)}
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(language, securityScanPlan.mutationAllowedByThisVerifier)}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Scan CLI</span>
+                  <span>{copy.scanCli}</span>
                   <strong>
-                    {securityScanPlan.cli.length
-                      ? securityScanPlan.cli
-                          .map(
-                            (tool) =>
-                              `${tool.name}:${tool.available ? "ready" : "missing"}`
-                          )
-                          .join(", ")
-                      : "blocked until evidence exists"}
+                    {mappedList(copy, securityScanPlan.cli, (tool) =>
+                      `${tool.name} / ${copy.status}: ${statusText(
+                        language,
+                        tool.available ? "ready" : "missing"
+                      )}`
+                    )}
                   </strong>
                 </div>
                 <div>
-                  <span>Image Evidence</span>
+                  <span>{copy.imageEvidence}</span>
                   <strong>
-                    {securityScanPlan.images.length
-                      ? securityScanPlan.images
-                          .slice(0, 6)
-                          .map(
-                            (image) =>
-                              `${image.name}:scan=${String(image.vulnerabilityReportExists)} sbom=${String(image.sbomExists)} review=${String(image.reviewExists)}`
-                          )
-                          .join(", ")
-                      : "blocked until evidence exists"}
+                    {mappedList(
+                      copy,
+                      securityScanPlan.images,
+                      (image) =>
+                        [
+                          image.name,
+                          `${copy.vulnerabilityScan}: ${booleanText(
+                            language,
+                            image.vulnerabilityReportExists
+                          )}`,
+                          `${copy.sbom}: ${booleanText(language, image.sbomExists)}`,
+                          `${copy.reviewEvidence}: ${booleanText(
+                            language,
+                            image.reviewExists
+                          )}`
+                        ].join(" / "),
+                      6
+                    )}
                   </strong>
                 </div>
                 <div>
-                  <span>Read-only Evidence</span>
+                  <span>{copy.readOnlyEvidence}</span>
                   <strong>
                     {securityScanPlan.readOnlyCommands.length
                       ? securityScanPlan.readOnlyCommands
                           .slice(0, 5)
                           .map((command) => command.id)
                           .join(", ")
-                      : "none"}
+                      : copy.none}
                   </strong>
                 </div>
                 <div>
-                  <span>Approval-gated Signing</span>
+                  <span>{copy.approvalGatedSigning}</span>
                   <strong>
                     {securityScanPlan.approvalGatedCommands.length
                       ? securityScanPlan.approvalGatedCommands
                           .slice(0, 5)
                           .map((command) => command.id)
                           .join(", ")
-                      : "blocked until evidence exists"}
+                      : copy.blockedUntilEvidenceExists}
                   </strong>
                 </div>
                 <div>
-                  <span>Final Review</span>
+                  <span>{copy.finalReview}</span>
                   <strong>
-                    {securityScanPlan.securityReviewFinalHandoff.length
-                      ? securityScanPlan.securityReviewFinalHandoff
-                          .slice(0, 6)
-                          .map(
-                            (handoff) =>
-                              `${handoff.imageName}:${handoff.status} approval=${String(handoff.approvalRequired)}`
-                          )
-                          .join(", ")
-                      : "blocked until evidence exists"}
+                    {mappedList(
+                      copy,
+                      securityScanPlan.securityReviewFinalHandoff,
+                      (handoff) =>
+                        `${handoff.imageName} / ${copy.status}: ${statusText(
+                          language,
+                          handoff.status
+                        )} / ${copy.approvalRequired}: ${booleanText(
+                          language,
+                          handoff.approvalRequired
+                        )}`,
+                      6
+                    )}
                   </strong>
                 </div>
               </div>
@@ -7404,13 +7461,24 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {securityScanPlan.firstSecurityReviewActions.length ? (
                   securityScanPlan.firstSecurityReviewActions.map((action) => (
                     <span key={action.id}>
-                      {action.id}:{action.owner}:{action.status}:next=
-                      {action.nextCommand}:mutation={String(action.mutation)}
-                      :approval={String(action.requiresExplicitApproval)}
+                      {[
+                        action.id,
+                        `${copy.owner}: ${action.owner}`,
+                        `${copy.status}: ${statusText(language, action.status)}`,
+                        `${copy.nextCommand}: ${action.nextCommand}`,
+                        `${copy.mutationAllowed}: ${booleanText(
+                          language,
+                          action.mutation
+                        )}`,
+                        `${copy.approvalRequired}: ${booleanText(
+                          language,
+                          action.requiresExplicitApproval
+                        )}`
+                      ].join(" / ")}
                     </span>
                   ))
                 ) : (
-                  <span>security review first actions missing</span>
+                  <span>{copy.securityReviewFirstActionsMissing}</span>
                 )}
               </div>
               <div
@@ -7420,19 +7488,27 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {securityScanPlan.ticketPackets.length ? (
                   securityScanPlan.ticketPackets.map((ticket) => (
                     <span key={ticket.id}>
-                      {ticket.id}:{ticket.owner}:{ticket.severity}:image=
-                      {ticket.imageName}:classification={ticket.classification}
-                      :first={ticket.firstReadOnlyAction.id}:approval=
-                      {ticket.approvalGatedAction.id}:requiresApproval=
-                      {String(ticket.approvalGatedAction.requiresExplicitApproval)}
-                      :mutationAllowed=
-                      {String(
-                        ticket.mutationBoundary.mutationAllowedByThisVerifier
-                      )}
+                      {[
+                        ticket.id,
+                        `${copy.owner}: ${ticket.owner}`,
+                        `${copy.severity}: ${ticket.severity}`,
+                        `${copy.imageBuilds}: ${ticket.imageName}`,
+                        `${copy.classification}: ${ticket.classification}`,
+                        `${copy.firstAction}: ${ticket.firstReadOnlyAction.id}`,
+                        `${copy.approvalAction}: ${ticket.approvalGatedAction.id}`,
+                        `${copy.requiresApproval}: ${booleanText(
+                          language,
+                          ticket.approvalGatedAction.requiresExplicitApproval
+                        )}`,
+                        `${copy.mutationAllowed}: ${booleanText(
+                          language,
+                          ticket.mutationBoundary.mutationAllowedByThisVerifier
+                        )}`
+                      ].join(" / ")}
                     </span>
                   ))
                 ) : (
-                  <span>security review tickets clear</span>
+                  <span>{copy.securityReviewTicketsClear}</span>
                 )}
               </div>
               <div
@@ -7444,23 +7520,42 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                     .slice(0, 7)
                     .map((handoff) => (
                       <span key={`${handoff.imageName}-security-final`}>
-                        {handoff.imageName}:{handoff.status}:owner=
-                        {handoff.owner}:finalEvidence=
-                        {String(handoff.finalEvidenceExists)}:reviewApproved=
-                        {String(handoff.reviewApproved)}:missing=
-                        {handoff.missingEvidenceCount}:approvalRequired=
-                        {String(handoff.approvalRequired)}
-                        :requiresExplicitApproval=
-                        {String(handoff.requiresExplicitApproval)}
-                        :mutationAllowed={String(handoff.mutationAllowed)}
-                        :writesLocalEvidence=
-                        {String(handoff.writesLocalEvidence)}:next=
-                        {handoff.promotionCommand}:verify=
-                        {handoff.verificationCommand}
+                        {[
+                          handoff.imageName,
+                          `${copy.status}: ${statusText(language, handoff.status)}`,
+                          `${copy.owner}: ${handoff.owner}`,
+                          `${copy.finalEvidence}: ${booleanText(
+                            language,
+                            handoff.finalEvidenceExists
+                          )}`,
+                          `${copy.approved}: ${booleanText(
+                            language,
+                            handoff.reviewApproved
+                          )}`,
+                          `${copy.evidenceGaps}: ${handoff.missingEvidenceCount}`,
+                          `${copy.approvalRequired}: ${booleanText(
+                            language,
+                            handoff.approvalRequired
+                          )}`,
+                          `${copy.requiresApproval}: ${booleanText(
+                            language,
+                            handoff.requiresExplicitApproval
+                          )}`,
+                          `${copy.mutationAllowed}: ${booleanText(
+                            language,
+                            handoff.mutationAllowed
+                          )}`,
+                          `${copy.writesLocalEvidence}: ${booleanText(
+                            language,
+                            handoff.writesLocalEvidence
+                          )}`,
+                          `${copy.nextCommand}: ${handoff.promotionCommand}`,
+                          `${copy.validate}: ${handoff.verificationCommand}`
+                        ].join(" / ")}
                       </span>
                     ))
                 ) : (
-                  <span>security review final handoff missing</span>
+                  <span>{copy.securityReviewFinalHandoffMissing}</span>
                 )}
               </div>
               <div
@@ -7468,29 +7563,38 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-security-scan-runner-evidence"
               >
                 <span>
-                  status={securityScanPlan.runnerEvidence.status}
+                  {copy.status}:{" "}
+                  {statusText(language, securityScanPlan.runnerEvidence.status)}
                 </span>
                 <span>
-                  evidenceWritten=
-                  {String(securityScanPlan.runnerEvidence.evidenceWritten)}
+                  {copy.evidenceWritten}:{" "}
+                  {booleanText(
+                    language,
+                    securityScanPlan.runnerEvidence.evidenceWritten
+                  )}
                 </span>
                 <span>
-                  fresh={String(securityScanPlan.runnerEvidence.fresh)}
+                  {copy.fresh}:{" "}
+                  {booleanText(language, securityScanPlan.runnerEvidence.fresh)}
                 </span>
                 <span>
-                  dockerFallback=
-                  {String(
+                  {copy.dockerFallback}:{" "}
+                  {booleanText(
+                    language,
                     securityScanPlan.runnerEvidence.executeDockerFallback
                   )}
                 </span>
                 <span>
-                  digestPinned=
-                  {String(securityScanPlan.runnerEvidence.scannerDigestsPinned)}
+                  {copy.digestPinned}:{" "}
+                  {booleanText(
+                    language,
+                    securityScanPlan.runnerEvidence.scannerDigestsPinned
+                  )}
                 </span>
                 <span>
-                  missingTargets=
+                  {copy.missingTargets}:{" "}
                   {securityScanPlan.runnerEvidence.missingTargets.join(", ") ||
-                    "none"}
+                    copy.none}
                 </span>
               </div>
               <div
@@ -7499,15 +7603,34 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {securityScanPlan.images.slice(0, 7).map((image) => (
                   <span key={image.name}>
-                    {image.name}:draft={image.reviewDraft.evidenceState}
-                    :sameHead={String(image.reviewDraft.sameHead)}
-                    :decision={image.reviewDraft.decision}
-                    :explicitDecision={String(
-                      image.reviewDraft.explicitDecisionProvided
-                    )}
-                    :reviewer={String(image.reviewDraft.reviewerProvided)}
-                    :ticket={String(image.reviewDraft.ticketProvided)}
-                    :ready={String(image.reviewDraft.readyForFinalReview)}
+                    {[
+                      image.name,
+                      `${copy.draft}: ${statusText(
+                        language,
+                        image.reviewDraft.evidenceState
+                      )}`,
+                      `${copy.sameHead}: ${booleanText(
+                        language,
+                        image.reviewDraft.sameHead
+                      )}`,
+                      `${copy.decision}: ${image.reviewDraft.decision}`,
+                      `${copy.explicitDecision}: ${booleanText(
+                        language,
+                        image.reviewDraft.explicitDecisionProvided
+                      )}`,
+                      `${copy.reviewer}: ${booleanText(
+                        language,
+                        image.reviewDraft.reviewerProvided
+                      )}`,
+                      `${copy.ticket}: ${booleanText(
+                        language,
+                        image.reviewDraft.ticketProvided
+                      )}`,
+                      `${copy.readyForFinalReview}: ${booleanText(
+                        language,
+                        image.reviewDraft.readyForFinalReview
+                      )}`
+                    ].join(" / ")}
                   </span>
                 ))}
               </div>

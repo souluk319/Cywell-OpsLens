@@ -93,6 +93,11 @@ const externalRuntimeReviewSource = sourceSection(
   'data-testid="opslens-external-runtime-review-packet"',
   'data-testid="opslens-security-scan-plan"'
 );
+const securityScanSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-security-scan-plan"',
+  'data-testid="opslens-owned-image-provenance"'
+);
 
 expectCheck(
   "runtime surface badge",
@@ -730,6 +735,51 @@ expectCheck(
     !externalRuntimeReviewSource.includes(":registryLogin=") &&
     !externalRuntimeReviewSource.includes("not-run {command.id} approval="),
   "External runtime review packet rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized security scan labels",
+  adminSource.includes("copy.scanCli") &&
+    adminSource.includes('"needs-tooling": "도구 필요"') &&
+    adminSource.includes('scanPlanOnly: "스캔 계획 전용"') &&
+    adminSource.includes("copy.securityReviewTicketsClear") &&
+    adminSource.includes('"보안 검토 최종 인계 누락"') &&
+    securityScanSource.includes("statusText(language, securityScanPlan.artifactStatus)") &&
+    !securityScanSource.includes("{securityScanPlan.artifactStatus}") &&
+    !securityScanSource.includes("{securityScanPlan.actionMode}") &&
+    !securityScanSource.includes("registryMutationAttempted=") &&
+    !securityScanSource.includes("clusterMutationAttempted=") &&
+    !securityScanSource.includes("mutationAllowedByThisVerifier=") &&
+    !securityScanSource.includes("<span>Scan CLI</span>") &&
+    !securityScanSource.includes("<span>Image Evidence</span>") &&
+    !securityScanSource.includes("scan=${String") &&
+    !securityScanSource.includes(" sbom=${String") &&
+    !securityScanSource.includes(" review=${String") &&
+    !securityScanSource.includes(" approval=${String") &&
+    !securityScanSource.includes(":next=") &&
+    !securityScanSource.includes(":mutation={String") &&
+    !securityScanSource.includes(":approval={String") &&
+    !securityScanSource.includes(":first={ticket.firstReadOnlyAction.id}:approval=") &&
+    !securityScanSource.includes(":mutationAllowed=") &&
+    !securityScanSource.includes(":finalEvidence=") &&
+    !securityScanSource.includes(":reviewApproved=") &&
+    !securityScanSource.includes(":approvalRequired=") &&
+    !securityScanSource.includes(":requiresExplicitApproval=") &&
+    !securityScanSource.includes(":writesLocalEvidence=") &&
+    !securityScanSource.includes("status={securityScanPlan.runnerEvidence.status}") &&
+    !securityScanSource.includes("evidenceWritten=") &&
+    !securityScanSource.includes("fresh={String(securityScanPlan.runnerEvidence.fresh)}") &&
+    !securityScanSource.includes("dockerFallback=") &&
+    !securityScanSource.includes("digestPinned=") &&
+    !securityScanSource.includes("missingTargets=") &&
+    !securityScanSource.includes(":draft=") &&
+    !securityScanSource.includes(":sameHead=") &&
+    !securityScanSource.includes(":decision=") &&
+    !securityScanSource.includes(":explicitDecision=") &&
+    !securityScanSource.includes(":reviewer=") &&
+    !securityScanSource.includes(":ticket=") &&
+    !securityScanSource.includes(":ready="),
+  "Security scan and review rows use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(

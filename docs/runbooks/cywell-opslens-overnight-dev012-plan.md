@@ -902,6 +902,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Candidate handoff, final evidence handoff, registry tickets, reviewer actions, review commands, and packet status now use KO/EN labels instead of raw fragments such as `REVIEW_PACKET_READY`, `reviewPacketOnly`, `owner=`, `best=`, `critical=`, `finalEvidence=`, `approvalRequired=`, `registryPacket=`, or `not-run ... approval=`.
 - Added a `verify:web-shell` gate so the external runtime review section cannot drift back to raw developer labels.
 
+### 2026-06-18 - Lane 70
+
+- Polished the security scan and review packet in OpsLens Admin.
+- Scan CLI, image evidence, final review, first review actions, review tickets, runner evidence, and review drafts now use KO/EN labels instead of raw fragments such as `scan=`, `sbom=`, `review=`, `first=`, `approval=`, `finalEvidence=`, `reviewApproved=`, `digestPinned=`, `missingTargets=`, or `ready=`.
+- Added a `verify:web-shell` gate so the security scan/review section cannot drift back to raw developer labels.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -915,8 +921,8 @@ Checkpoint cadence:
 - feature branch head at plan creation: `cf791e1`
 - feature branch latest pushed head after Lane 66: `4652648`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 69: PASS, 42 checks
-- latest overnight checkpoint after Lane 69: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
+- latest web shell verifier after Lane 70: PASS, 43 checks
+- latest overnight checkpoint after Lane 70: PASS, 10/10 local gates, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
