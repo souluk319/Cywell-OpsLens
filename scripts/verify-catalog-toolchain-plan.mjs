@@ -251,10 +251,42 @@ function fbcSummary(documents) {
   };
 }
 
+function inspectIcon(icon) {
+  const base64data = icon?.base64data ?? "";
+  const buffer = base64data ? Buffer.from(base64data, "base64") : Buffer.alloc(0);
+  const hasPngSignature = buffer.slice(0, 8).toString("hex") === "89504e470d0a1a0a";
+  const hasEmbeddedMetadata = /xmp|adobe|Canva|Author|Attribution/i.test(
+    buffer.toString("latin1")
+  );
+  return {
+    base64data,
+    buffer,
+    hasPngSignature,
+    hasEmbeddedMetadata,
+    valid:
+      icon?.mediatype === "image/png" &&
+      base64data.length > 0 &&
+      hasPngSignature &&
+      !hasEmbeddedMetadata
+  };
+}
+
+function installModeMap(modes = []) {
+  return new Map(modes.map((mode) => [mode.type, mode.supported === true]));
+}
+
 function validateCatalogContracts({ csv, fbc, catalogDockerfile, catalogSource, subscription, scorecard }) {
   const relatedImages = new Map((csv?.spec?.relatedImages ?? []).map((entry) => [entry.name, entry.image]));
   const fbcParts = fbcSummary(fbc);
   const fbcImages = new Map((fbcParts.bundle?.relatedImages ?? []).map((entry) => [entry.name, entry.image]));
+  const csvIcon = inspectIcon(csv?.spec?.icon?.[0]);
+  const fbcPackageIcon = inspectIcon(fbcParts.package?.icon);
+  const fbcMetadata = (fbcParts.bundle?.properties ?? []).find(
+    (entry) => entry.type === "olm.csv.metadata"
+  )?.value;
+  const fbcIcon = inspectIcon(fbcMetadata?.icon?.[0]);
+  const csvInstallModes = installModeMap(csv?.spec?.installModes);
+  const fbcInstallModes = installModeMap(fbcMetadata?.installModes);
 
   expectCheck(
     "CSV package identity",
@@ -281,6 +313,103 @@ function validateCatalogContracts({ csv, fbc, catalogDockerfile, catalogSource, 
       `expected ${name}=${image}, got ${fbcImages.get(name) ?? "missing"}`
     );
   }
+  expectCheck(
+    "CSV install icon",
+    csvIcon.valid,
+    `image/png ${csvIcon.buffer.length} bytes, metadataStripped=${String(!csvIcon.hasEmbeddedMetadata)}`,
+    "CSV spec.icon must include a valid metadata-stripped image/png icon"
+  );
+  expectCheck(
+    "FBC install icon",
+    fbcIcon.valid,
+    `image/png ${fbcIcon.buffer.length} bytes, metadataStripped=${String(!fbcIcon.hasEmbeddedMetadata)}`,
+    "FBC olm.csv.metadata icon must include a valid metadata-stripped image/png icon"
+  );
+  expectCheck(
+    "FBC package icon",
+    fbcPackageIcon.valid,
+    `image/png ${fbcPackageIcon.buffer.length} bytes, metadataStripped=${String(!fbcPackageIcon.hasEmbeddedMetadata)}`,
+    "FBC olm.package icon must include a valid metadata-stripped image/png icon for OperatorHub cards"
+  );
+  expectCheck(
+    "FBC install icon parity",
+    fbcIcon.base64data === csvIcon.base64data && fbcPackageIcon.base64data === csvIcon.base64data,
+    "FBC package and csv metadata icons match CSV icon",
+    "FBC olm.package icon and olm.csv.metadata icon must match CSV spec.icon"
+  );
+  expectCheck(
+    "FBC search metadata display",
+    fbcMetadata?.displayName === csv?.spec?.displayName &&
+      typeof fbcMetadata?.description === "string" &&
+      fbcMetadata.description.toLowerCase().includes("openshift"),
+    `${fbcMetadata?.displayName ?? "missing"} search description present`,
+    "FBC olm.csv.metadata must mirror CSV displayName and include a searchable OpenShift description"
+  );
+  const fbcKeywords = new Set((fbcMetadata?.keywords ?? []).map((keyword) => String(keyword).toLowerCase()));
+  expectCheck(
+    "FBC search metadata keywords",
+    ["cywell", "opslens", "ops", "openshift", "lightspeed"].every((keyword) => fbcKeywords.has(keyword)),
+    "cywell/opslens/ops/openshift/lightspeed keywords present",
+    "FBC olm.csv.metadata must include Cywell OpsLens search keywords for console catalog indexing"
+  );
+  expectCheck(
+    "FBC search metadata annotations",
+    fbcMetadata?.annotations?.categories === csv?.metadata?.annotations?.categories &&
+      fbcMetadata?.annotations?.["com.redhat.openshift.versions"] ===
+        csv?.metadata?.annotations?.["com.redhat.openshift.versions"],
+    `categories=${fbcMetadata?.annotations?.categories ?? "missing"} openshift=${fbcMetadata?.annotations?.["com.redhat.openshift.versions"] ?? "missing"}`,
+    "FBC olm.csv.metadata annotations must mirror CSV categories and supported OpenShift range"
+  );
+  expectCheck(
+    "FBC install modes for console install",
+    fbcInstallModes.get("OwnNamespace") === true && fbcInstallModes.get("AllNamespaces") === true,
+    `OwnNamespace=${String(fbcInstallModes.get("OwnNamespace"))} AllNamespaces=${String(fbcInstallModes.get("AllNamespaces"))}`,
+    "FBC olm.csv.metadata installModes must support OwnNamespace or AllNamespaces so OpenShift Console can render the install flow"
+  );
+  expectCheck(
+    "FBC install mode parity",
+    ["OwnNamespace", "SingleNamespace", "MultiNamespace", "AllNamespaces"].every(
+      (mode) => fbcInstallModes.get(mode) === csvInstallModes.get(mode)
+    ),
+    "FBC installModes match CSV spec.installModes",
+    "FBC olm.csv.metadata installModes must mirror CSV spec.installModes"
+  );
+  const requiredPlatformLabels = {
+    "operatorframework.io/arch.amd64": "supported",
+    "operatorframework.io/arch.arm64": "supported",
+    "operatorframework.io/os.linux": "supported"
+  };
+  const csvPlatformLabels = csv?.metadata?.labels ?? {};
+  const fbcPlatformLabels = fbcMetadata?.labels ?? {};
+  expectCheck(
+    "CSV platform labels",
+    Object.entries(requiredPlatformLabels).every(([key, value]) => csvPlatformLabels[key] === value),
+    "linux amd64/arm64 labels present for OperatorHub architecture filtering",
+    "CSV metadata.labels must include operatorframework.io/os.linux and operatorframework.io/arch.amd64/arm64 so OpenShift Console does not hide the Operator on arm64 CRC"
+  );
+  expectCheck(
+    "FBC search metadata platform labels",
+    Object.entries(requiredPlatformLabels).every(
+      ([key, value]) => fbcPlatformLabels[key] === value && fbcPlatformLabels[key] === csvPlatformLabels[key]
+    ),
+    "FBC platform labels mirror CSV labels",
+    "FBC olm.csv.metadata.labels must mirror CSV platform labels for PackageManifest/Console indexing"
+  );
+  const csvOwnedCrds = csv?.spec?.customresourcedefinitions?.owned ?? [];
+  const fbcOwnedCrds = fbcMetadata?.customresourcedefinitions?.owned ?? [];
+  const csvOpsLensOwnedCrd = csvOwnedCrds.find(
+    (crd) => crd.name === "opslensinstallations.opslens.cywell.io"
+  );
+  const fbcOpsLensOwnedCrd = fbcOwnedCrds.find((crd) => crd.name === csvOpsLensOwnedCrd?.name);
+  expectCheck(
+    "FBC search metadata owned CRD",
+    Boolean(csvOpsLensOwnedCrd) &&
+      fbcOpsLensOwnedCrd?.kind === csvOpsLensOwnedCrd.kind &&
+      fbcOpsLensOwnedCrd?.version === csvOpsLensOwnedCrd.version &&
+      fbcOpsLensOwnedCrd?.displayName === csvOpsLensOwnedCrd.displayName,
+    "OpsLensInstallation owned CRD is exposed in FBC csv metadata",
+    "FBC olm.csv.metadata must expose the OpsLensInstallation owned CRD for console catalog cards"
+  );
   expectCheck(
     "catalog Dockerfile base",
     catalogDockerfile.includes("registry.redhat.io/openshift4/ose-operator-registry-rhel9"),

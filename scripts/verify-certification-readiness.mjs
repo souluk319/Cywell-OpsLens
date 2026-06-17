@@ -161,7 +161,7 @@ function validateCsv(csv) {
     categories: "OpenShift Optional, Monitoring, AI/Machine Learning",
     certified: "false",
     support: "Cywell",
-    "com.redhat.openshift.versions": "v4.16-v4.19",
+    "com.redhat.openshift.versions": "v4.16-v4.21",
     "operators.openshift.io/valid-subscription": "Contact Cywell",
     "features.operators.openshift.io/disconnected": "true",
     "features.operators.openshift.io/fips-compliant": "false",
@@ -207,7 +207,7 @@ function validateBundleMetadata(annotations, dockerfileText) {
     "operators.operatorframework.io.bundle.package.v1": "cywell-opslens",
     "operators.operatorframework.io.bundle.channels.v1": "alpha",
     "operators.operatorframework.io.bundle.channel.default.v1": "alpha",
-    "com.redhat.openshift.versions": "v4.16-v4.19"
+    "com.redhat.openshift.versions": "v4.16-v4.21"
   })) {
     expectCheck(
       `bundle annotation ${key}`,
@@ -220,7 +220,7 @@ function validateBundleMetadata(annotations, dockerfileText) {
   for (const text of [
     "operators.operatorframework.io.bundle.package.v1=cywell-opslens",
     "operators.operatorframework.io.bundle.channels.v1=alpha",
-    "com.redhat.openshift.versions=v4.16-v4.19"
+    "com.redhat.openshift.versions=v4.16-v4.21"
   ]) {
     expectCheck(
       `bundle Dockerfile label ${text}`,

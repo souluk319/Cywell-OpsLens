@@ -27,6 +27,25 @@ rules:
       - update
       - patch
   - apiGroups:
+      - opslens.cywell.io
+    resources:
+      - opslensinstallations/finalizers
+    verbs:
+      - update
+      - patch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
       - ""
     resources:
       - configmaps
@@ -37,6 +56,15 @@ rules:
       - get
       - list
       - watch
+      - create
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
       - create
       - update
       - patch

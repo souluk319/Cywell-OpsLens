@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cywell OpsLens Mac CRC Daily Reconnect Checklist</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fa;
+        --paper: #fff;
+        --ink: #1f2328;
+        --muted: #59636e;
+        --line: #d0d7de;
+        --blue: #0969da;
+        --green: #1a7f37;
+        --amber: #9a6700;
+        --red: #cf222e;
+        --code-bg: #f2f4f7;
+        --head: #eef3f8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 15px/1.58 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 36px 24px 56px;
+      }
+
+      article {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(31, 35, 40, 0.06);
+        padding: 32px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.25;
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 30px;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        border-top: 1px solid var(--line);
+        font-size: 22px;
+        margin-top: 34px;
+        padding-top: 28px;
+      }
+
+      h3 {
+        font-size: 17px;
+        margin-top: 22px;
+      }
+
+      p {
+        margin: 10px 0;
+      }
+
+      ul,
+      ol {
+        margin: 10px 0 10px 22px;
+        padding: 0;
+      }
+
+      li {
+        margin: 4px 0;
+      }
+
+      code,
+      pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      }
+
+      code {
+        background: var(--code-bg);
+        border-radius: 4px;
+        padding: 1px 5px;
+      }
+
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow-x: auto;
+        padding: 14px 16px;
+        white-space: pre;
+      }
+
+      table {
+        border-collapse: collapse;
+        margin: 14px 0;
+        width: 100%;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--head);
+        font-weight: 650;
+      }
+
+      .meta {
+        color: var(--muted);
+        margin-top: 8px;
+      }
+
+      .callout {
+        border: 1px solid var(--line);
+        border-left: 5px solid var(--blue);
+        border-radius: 6px;
+        margin: 16px 0;
+        padding: 12px 14px;
+      }
+
+      .good {
+        border-left-color: var(--green);
+      }
+
+      .warn {
+        border-left-color: var(--amber);
+      }
+
+      .danger {
+        border-left-color: var(--red);
+      }
+
+      .badge {
+        border-radius: 999px;
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        margin-right: 6px;
+        padding: 2px 8px;
+      }
+
+      .pass {
+        background: #dafbe1;
+        color: var(--green);
+      }
+
+      .warn-badge {
+        background: #fff8c5;
+        color: var(--amber);
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        main {
+          padding: 0;
+        }
+
+        article {
+          border: 0;
+          box-shadow: none;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article>
+        <header>
+          <h1>Cywell OpsLens Mac CRC Daily Reconnect Checklist</h1>
+          <p class="meta">
+            작성일: 2026-06-17 · 목적: 퇴근 후 MacBook 이동/재연결 뒤 회사 노트북에서 같은 개발 연결상태를 재현한다.
+          </p>
+        </header>
+
+        <section class="callout good">
+          <strong>현재 성공 상태:</strong> 회사 노트북에서 개발하고, MacBook의 CRC OpenShift를 target OCP로 사용하며,
+          SSH tunnel을 통해 Mac CRC의 OpenShift Lightspeed port-forward까지 접근 가능하다.
+        </section>
+
+        <h2>1. 현재 연결 구조</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>구간</th>
+              <th>역할</th>
+              <th>현재 판단</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>회사 노트북</td>
+              <td>개발 repo, <code>.env</code>, npm 검증 명령 실행 위치</td>
+              <td><span class="badge pass">ACTIVE</span>주 개발 워크스테이션</td>
+            </tr>
+            <tr>
+              <td>MacBook</td>
+              <td>CRC OpenShift 서버, Docker Desktop, FortiClient, Lightspeed port-forward 실행 위치</td>
+              <td><span class="badge pass">TARGET</span>개인 OCP lab</td>
+            </tr>
+            <tr>
+              <td>CRC OpenShift</td>
+              <td><code>cywell-opslens</code> namespace와 OpenShift Lightspeed 서비스 제공</td>
+              <td><span class="badge pass">RUNNING</span>v4.21 계열 확인</td>
+            </tr>
+            <tr>
+              <td>Windows SSH tunnel</td>
+              <td>회사 노트북 local port를 MacBook local Lightspeed port-forward로 연결</td>
+              <td><span class="badge pass">WORKING</span><code>18443 -&gt; Mac 8443</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>2. 내일 아침 복구 순서</h2>
+        <ol>
+          <li>MacBook을 켜고 네트워크에 연결한다.</li>
+          <li>MacBook에서 FortiClient를 연결한다. 회사 LLM/사내 endpoint가 필요하면 Mac 쪽 VPN이 중요하다.</li>
+          <li>회사 노트북에서 MacBook SSH 접속이 되는지 확인한다.</li>
+          <li>MacBook CRC가 Running인지 확인한다.</li>
+          <li>MacBook SSH 터미널 하나에서 Lightspeed port-forward를 켠다.</li>
+          <li>회사 노트북 PowerShell 하나에서 SSH local tunnel을 켠다.</li>
+          <li>회사 노트북 repo PowerShell에서 Lightspeed base URL을 <code>18443</code>으로 세션 override한다.</li>
+          <li>HTTP 404 응답으로 연결 경로가 살아 있는지 확인한다.</li>
+        </ol>
+
+        <h2>3. 터미널별로 해야 할 일</h2>
+
+        <h3>3.1 MacBook SSH 터미널 A: CRC 상태 확인</h3>
+        <pre><code>crc status
+oc whoami &amp;&amp; oc project -q
+oc get clusterversion
+oc get co</code></pre>
+        <p>정상 기준은 CRC VM Running, OpenShift Running, <code>oc whoami</code> 가능, cluster progressing false다.</p>
+
+        <h3>3.2 MacBook SSH 터미널 B: Lightspeed port-forward 유지</h3>
+        <pre><code>oc -n openshift-lightspeed port-forward svc/lightspeed-app-server 8443:8443</code></pre>
+        <p>이 창은 닫지 않는다. 정상 출력은 아래와 비슷하다.</p>
+        <pre><code>Forwarding from 127.0.0.1:8443 -&gt; 8443
+Forwarding from [::1]:8443 -&gt; 8443</code></pre>
+
+        <h3>3.3 MacBook SSH 터미널 C: Mac 내부에서 Lightspeed 확인</h3>
+        <pre><code>curl -k -sS --connect-timeout 5 -o /dev/null \
+  -w 'HTTP=%{http_code} TIME=%{time_total}\n' \
+  https://127.0.0.1:8443</code></pre>
+        <p><code>HTTP=404</code>면 정상이다. 루트 path가 없다는 뜻이지, 연결 실패가 아니다.</p>
+
+        <h3>3.4 회사 노트북 PowerShell A: SSH local tunnel 유지</h3>
+        <pre><code>ssh -N -L 18443:127.0.0.1:8443 souluk@kugnus-McBook</code></pre>
+        <p>비밀번호 입력 후 아무 출력 없이 멈춰 있으면 정상이다. 이 창도 닫지 않는다.</p>
+
+        <h3>3.5 회사 노트북 repo PowerShell B: 세션 override</h3>
+        <pre><code>cd C:\Users\soulu\cywell\Kugnus-Ops-Lens
+$env:OPENSHIFT_LIGHTSPEED_BASE_URL="https://127.0.0.1:18443"</code></pre>
+        <section class="callout warn">
+          이 값은 현재 PowerShell 창에서만 유효하다. 새 창을 열면 다시 설정해야 한다.
+          <code>.env</code> 파일을 바꾸지 않는 것을 권장한다.
+        </section>
+
+        <h3>3.6 회사 노트북 repo PowerShell B: 터널 경유 Lightspeed 확인</h3>
+        <pre><code>$envs=@{}; Get-Content .env | % {
+  if ($_ -match '^\s*([^#][A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$') {
+    $envs[$matches[1]]=$matches[2].Trim('"')
+  }
+}; $url=$envs.OPENSHIFT_LIGHTSPEED_BASE_URL -replace '127\.0\.0\.1:8443','127.0.0.1:18443'; curl.exe -k -sS --connect-timeout 5 -o NUL -w "HTTP=%{http_code} TIME=%{time_total}`n" -H "Authorization: Bearer $($envs.OPENSHIFT_LIGHTSPEED_API_TOKEN)" "$url"</code></pre>
+        <p><code>HTTP=404</code>면 회사 노트북에서 Mac CRC Lightspeed까지 경로가 살아 있는 것이다.</p>
+
+        <h2>4. 현재 이미지/registry 상태</h2>
+        <p>Mac CRC 내부 registry에는 아래 verify 이미지가 등록되어 있다.</p>
+        <ul>
+          <li><code>cywell-opslens-api:verify</code></li>
+          <li><code>cywell-opslens-dashboard:verify</code></li>
+          <li><code>cywell-opslens-operator:verify</code></li>
+        </ul>
+        <pre><code>oc get istag -n cywell-opslens</code></pre>
+        <p>세 tag가 보이면 이미지 적재 상태는 유지되고 있다. Docker Desktop 재시작이나 Mac 이동만으로 이 tag가 사라지지는 않는다.</p>
+
+        <h2>5. 헷갈리기 쉬운 포인트</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>상황</th>
+              <th>의미</th>
+              <th>조치</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>회사 노트북에서 <code>https://127.0.0.1:8443</code> 실패</td>
+              <td>회사 노트북 자기 자신의 8443을 본 것이다. Mac port-forward가 아니다.</td>
+              <td>Windows SSH tunnel을 켜고 <code>18443</code>으로 접근한다.</td>
+            </tr>
+            <tr>
+              <td>Mac에서 <code>https://127.0.0.1:8443</code>이 <code>HTTP=404</code></td>
+              <td>성공이다. 서버에는 닿았고 루트 path가 없을 뿐이다.</td>
+              <td>그대로 진행한다.</td>
+            </tr>
+            <tr>
+              <td><code>ssh -L 8443:...</code>가 <code>bind permission denied</code></td>
+              <td>회사 노트북의 8443 포트를 못 잡은 것이다.</td>
+              <td>회사 노트북 local port를 <code>18443</code>으로 쓴다.</td>
+            </tr>
+            <tr>
+              <td><code>lsof -nP -iTCP:8443 -sTCP:LISTEN</code> 출력 없음</td>
+              <td>Mac의 Lightspeed port-forward가 꺼져 있다.</td>
+              <td>Mac SSH에서 port-forward를 다시 켠다.</td>
+            </tr>
+            <tr>
+              <td>PowerShell override 후 새 창에서 다시 안 됨</td>
+              <td><code>$env:OPENSHIFT_LIGHTSPEED_BASE_URL</code>은 창 단위 설정이다.</td>
+              <td>새 창마다 override 명령을 다시 실행한다.</td>
+            </tr>
+            <tr>
+              <td>FortiClient 연결 없이 registry/CRC는 됨</td>
+              <td>registry push와 CRC 조작은 Mac 내부 작업이라 VPN이 필요 없을 수 있다.</td>
+              <td>회사 LLM/사내 endpoint 검증 전에는 Mac FortiClient를 연결한다.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>6. 내일 바로 이어갈 작업</h2>
+        <ol>
+          <li>이 문서의 복구 체크리스트대로 터널을 재현한다.</li>
+          <li>회사 노트북에서 Lightspeed base URL override가 살아 있는지 확인한다.</li>
+          <li>CRC의 <code>cywell-opslens</code> namespace에 API/Dashboard Deployment를 만든다.</li>
+          <li>Dashboard Route를 열어 실제 화면을 확인한다.</li>
+          <li>그 다음 Operator direct deploy 또는 OLM bundle/catalog 경로를 선택한다.</li>
+        </ol>
+
+        <h2>7. 하지 않을 것</h2>
+        <ul>
+          <li>회사 공용 OCP에는 연결하지 않는다.</li>
+          <li><code>.env</code>의 토큰이나 URL 값을 문서에 박지 않는다.</li>
+          <li>Mac에 repo나 secret 파일을 굳이 복사하지 않는다.</li>
+          <li>Lightspeed OLSConfig patch/apply는 배포와 readiness 확인 전에는 하지 않는다.</li>
+        </ul>
+
+        <footer class="callout">
+          <strong>운영 판단:</strong> 내일의 목표는 연결 자체가 아니라, 이 연결을 기반으로
+          Cywell OpsLens API와 Dashboard를 CRC 안에서 실제로 띄우는 것이다.
+        </footer>
+      </article>
+    </main>
+  </body>
+</html>

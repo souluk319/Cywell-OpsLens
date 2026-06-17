@@ -381,6 +381,19 @@ async function writeObjectTempFile(object, index) {
   return filePath;
 }
 
+function dryRunCloneWithUniqueName(object, index) {
+  const clone = JSON.parse(JSON.stringify(object));
+  const originalName = clone.metadata?.name ?? "resource";
+  const suffix = `dryrun-${index}`;
+  clone.metadata = clone.metadata ?? {};
+  clone.metadata.name = `${originalName}-${suffix}`.slice(0, 63).replace(/-+$/g, "");
+  clone.metadata.annotations = {
+    ...(clone.metadata.annotations ?? {}),
+    "opslens.cywell.io/dry-run-original-name": originalName
+  };
+  return clone;
+}
+
 const namespaceCache = new Map();
 
 async function namespaceExists(namespace) {
@@ -471,6 +484,39 @@ async function dryRunObject(object, sourcePath, index) {
       sourcePath,
       output
     };
+  }
+
+  if (object.kind === "StatefulSet" && output.includes("Forbidden: updates to statefulset spec")) {
+    const fallbackObject = dryRunCloneWithUniqueName(object, index);
+    const fallbackFilePath = await writeObjectTempFile(fallbackObject, `${index}-create-shape`);
+    const fallback = await runOc(["apply", "--dry-run=server", "--validate=true", "-f", fallbackFilePath, "-o", "name"]);
+    const fallbackOutput = [
+      fallback.stdout ? `stdout: ${fallback.stdout}` : "",
+      fallback.stderr ? `stderr: ${fallback.stderr}` : "",
+      fallback.message ? `message: ${fallback.message}` : "",
+      fallback.code !== undefined ? `code: ${fallback.code}` : "",
+      fallback.signal ? `signal: ${fallback.signal}` : ""
+    ]
+      .filter(Boolean)
+      .join("\n");
+    if (fallback.ok) {
+      warn("server dry-run live-state conflict", `${label(object)} hit an existing StatefulSet immutable-field update path; create-shape accepted as ${label(fallbackObject)}`, {
+        resource: label(object),
+        namespace,
+        sourcePath,
+        fallbackResource: label(fallbackObject),
+        originalOutput: output,
+        fallbackOutput
+      });
+      return {
+        status: "WARN",
+        label: label(object),
+        namespace,
+        sourcePath,
+        output,
+        fallbackOutput
+      };
+    }
   }
 
   fail("server dry-run", `${label(object)} rejected: ${output}`, {

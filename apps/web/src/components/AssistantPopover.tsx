@@ -3,6 +3,7 @@ import type {
   AuditEnvelope,
   ContextChip
 } from "@kugnus/contracts";
+import type { KeyboardEvent } from "react";
 import {
   Bot,
   CheckCircle2,
@@ -41,6 +42,17 @@ export function AssistantPopover({
   onAsk,
   onClose
 }: AssistantPopoverProps) {
+  function handleDraftKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+      return;
+    }
+
+    event.preventDefault();
+    if (!busy && draft.trim().length > 0) {
+      onAsk();
+    }
+  }
+
   return (
     <aside
       aria-label="Cywell OpsLens assistant"
@@ -103,6 +115,7 @@ export function AssistantPopover({
           id="kugnus-draft"
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
+          onKeyDown={handleDraftKeyDown}
         />
         <button
           className="text-icon-button"

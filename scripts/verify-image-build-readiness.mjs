@@ -27,7 +27,7 @@ const imageBuilds = [
     image: "quay.io/cywell/opslens-operator:0.1.0",
     context: "deploy/operator/controller-runtime",
     dockerfile: paths.operatorDockerfile,
-    requiredText: ["go build", "USER 65532:65532", "ENTRYPOINT"]
+    requiredText: ["go build", "ARG TARGETARCH", "GOARCH=${TARGETARCH}", "USER 65532:65532", "ENTRYPOINT"]
   },
   {
     name: "api",

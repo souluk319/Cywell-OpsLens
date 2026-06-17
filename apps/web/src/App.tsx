@@ -11,6 +11,7 @@ import {
   mockContext,
   mockDashboardResponse
 } from "@kugnus/contracts";
+import komscoLogo from "./assets/brand/komsco_logo.png";
 import {
   Activity,
   AlertTriangle,
@@ -18,11 +19,11 @@ import {
   Bot,
   Boxes,
   CircleHelp,
+  CirclePlus,
   DatabaseZap,
   Gauge,
   Grid3X3,
   HardDrive,
-  Menu,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
@@ -78,6 +79,7 @@ function firstNextCommand(overview: OpsLensAdminOverviewResponse | null) {
 }
 
 type EvidenceView = "alerts" | "logs" | "yaml";
+type UiLanguage = "ko" | "en";
 
 type ConsoleNavId =
   | "overview"
@@ -96,10 +98,13 @@ interface ConsoleNavigationItem {
   id: ConsoleNavId;
   section: "Home" | "Observe" | "Resources" | "Cywell";
   label: string;
+  labelKo: string;
   icon: LucideIcon;
   targetSelector: string;
   breadcrumb: string[];
+  breadcrumbKo: string[];
   command: string;
+  commandKo: string;
   evidenceView?: EvidenceView;
   resourcePreset?: Omit<OcpResourcePreset, "activationId">;
 }
@@ -109,57 +114,75 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     id: "overview",
     section: "Home",
     label: "Overview",
+    labelKo: "개요",
     icon: ServerCog,
     targetSelector: "#ocp-console-overview-title",
     breadcrumb: ["Home", "Overview"],
-    command: "Open live cluster summary with evidence-backed availability signals."
+    breadcrumbKo: ["홈", "개요"],
+    command: "Open live cluster summary with evidence-backed availability signals.",
+    commandKo: "근거 기반 가용성 신호로 live cluster 요약을 엽니다."
   },
   {
     id: "alerting",
     section: "Observe",
     label: "Alerting",
+    labelKo: "경고",
     icon: AlertTriangle,
     targetSelector: "#evidence-title",
     breadcrumb: ["Observe", "Alerting"],
+    breadcrumbKo: ["관측", "경고"],
     command: "Inspect firing alerts and keep the assistant off the evidence table.",
+    commandKo: "발생 중인 alert를 확인하고 Assistant가 근거 표를 가리지 않게 합니다.",
     evidenceView: "alerts"
   },
   {
     id: "dashboards",
     section: "Observe",
     label: "Dashboards",
+    labelKo: "대시보드",
     icon: TableProperties,
     targetSelector: "#dashboard-title",
     breadcrumb: ["Observe", "Dashboards"],
-    command: "Return to the OpsLens operations dashboard and triage queue."
+    breadcrumbKo: ["관측", "대시보드"],
+    command: "Return to the OpsLens operations dashboard and triage queue.",
+    commandKo: "OpsLens 운영 대시보드와 triage queue로 이동합니다."
   },
   {
     id: "metrics",
     section: "Observe",
     label: "Metrics",
+    labelKo: "메트릭",
     icon: Activity,
     targetSelector: "[data-testid='opslens-incident-metrics']",
     breadcrumb: ["Observe", "Metrics"],
-    command: "Jump to metric queries, incident scoring, and read-only pipeline evidence."
+    breadcrumbKo: ["관측", "메트릭"],
+    command: "Jump to metric queries, incident scoring, and read-only pipeline evidence.",
+    commandKo: "metric query, incident score, read-only pipeline 근거로 이동합니다."
   },
   {
     id: "logs",
     section: "Observe",
     label: "Logs",
+    labelKo: "로그",
     icon: ScrollText,
     targetSelector: "#evidence-title",
     breadcrumb: ["Observe", "Logs"],
+    breadcrumbKo: ["관측", "로그"],
     command: "Switch the evidence pane to pod logs before asking for a plan.",
+    commandKo: "계획 요청 전에 근거 패널을 pod log로 전환합니다.",
     evidenceView: "logs"
   },
   {
     id: "workloads",
     section: "Resources",
     label: "Workloads",
+    labelKo: "워크로드",
     icon: Boxes,
     targetSelector: "#ocp-explorer-title",
     breadcrumb: ["Resources", "Workloads"],
+    breadcrumbKo: ["리소스", "워크로드"],
     command: "Preset the read-only explorer to pods and deployments.",
+    commandKo: "read-only explorer를 pod와 deployment 중심으로 설정합니다.",
     resourcePreset: {
       query: "deployments pods replicasets",
       preferredResources: ["apps/v1/deployments", "v1/pods", "apps/v1/replicasets"]
@@ -169,10 +192,13 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     id: "networking",
     section: "Resources",
     label: "Networking",
+    labelKo: "네트워킹",
     icon: Network,
     targetSelector: "#ocp-explorer-title",
     breadcrumb: ["Resources", "Networking"],
+    breadcrumbKo: ["리소스", "네트워킹"],
     command: "Preset the read-only explorer to routes, services, and ingresses.",
+    commandKo: "read-only explorer를 route, service, ingress 중심으로 설정합니다.",
     resourcePreset: {
       query: "routes services ingresses",
       preferredResources: [
@@ -186,10 +212,13 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     id: "storage",
     section: "Resources",
     label: "Storage",
+    labelKo: "스토리지",
     icon: HardDrive,
     targetSelector: "#ocp-explorer-title",
     breadcrumb: ["Resources", "Storage"],
+    breadcrumbKo: ["리소스", "스토리지"],
     command: "Preset the read-only explorer to PVC, PV, and StorageClass resources.",
+    commandKo: "read-only explorer를 PVC, PV, StorageClass 중심으로 설정합니다.",
     resourcePreset: {
       query: "persistentvolumeclaims persistentvolumes storageclasses",
       preferredResources: [
@@ -203,32 +232,97 @@ const consoleNavigation: ConsoleNavigationItem[] = [
     id: "administration",
     section: "Resources",
     label: "Administration",
+    labelKo: "관리",
     icon: ShieldCheck,
     targetSelector: "#opslens-admin-title",
     breadcrumb: ["Resources", "Administration"],
-    command: "Review RBAC, install readiness, release evidence, and approval gates."
+    breadcrumbKo: ["리소스", "관리"],
+    command: "Review RBAC, install readiness, release evidence, and approval gates.",
+    commandKo: "RBAC, 설치 준비도, release evidence, 승인 gate를 검토합니다."
   },
   {
     id: "opslens-admin",
     section: "Cywell",
     label: "OpsLens Admin",
+    labelKo: "OpsLens 관리",
     icon: DatabaseZap,
     targetSelector: "#opslens-admin-title",
     breadcrumb: ["Cywell", "OpsLens Admin"],
-    command: "Operate the OpsLens RAG, evaluation, runtime, and 100% closure dashboard."
+    breadcrumbKo: ["Cywell", "OpsLens 관리"],
+    command: "Operate the OpsLens RAG, evaluation, runtime, and 100% closure dashboard.",
+    commandKo: "OpsLens RAG, 평가, runtime, 100% 완료 대시보드를 운영합니다."
   },
   {
     id: "opsbrain",
     section: "Cywell",
     label: "OpsBrain",
+    labelKo: "OpsBrain",
     icon: Bot,
     targetSelector: "[data-testid='opslens-opsbrain-system']",
     breadcrumb: ["Cywell", "OpsBrain"],
-    command: "Open the no-fine-tuning growth loop: memory, evaluator, risk gate, and required keys."
+    breadcrumbKo: ["Cywell", "OpsBrain"],
+    command: "Open the no-fine-tuning growth loop: memory, evaluator, risk gate, and required keys.",
+    commandKo: "파인튜닝 없는 성장 루프, memory, evaluator, risk gate, 필수 key를 엽니다."
   }
 ];
 
 const navigationSections = ["Home", "Observe", "Resources", "Cywell"] as const;
+
+const sectionLabelsKo: Record<(typeof navigationSections)[number], string> = {
+  Home: "홈",
+  Observe: "관측",
+  Resources: "리소스",
+  Cywell: "Cywell"
+};
+
+const shellCopy = {
+  en: {
+    activeSurface: "Active surface",
+    api: "API",
+    appLauncher: "Application launcher",
+    appLauncherCommand:
+      "Application launcher focused the OpsLens readiness command strip.",
+    create: "Create",
+    createCommand:
+      "Create opened a plan-only workflow. OpsLens will not apply cluster mutations.",
+    help: "Help",
+    helpCommand: "Help opened the context-aware assistant in read-only mode.",
+    notifications: "Notifications",
+    notificationsCommand:
+      "Notifications focused the active incident queue and firing alerts.",
+    openNavigation: "Open navigation",
+    collapseNavigation: "Collapse navigation",
+    readOnly: "read-only",
+    readiness: "100% Readiness",
+    closure: "Closure",
+    administratorNavigation: "Administrator navigation",
+    opsLensStatus: "Cywell OpsLens status",
+    openShiftUtilities: "OpenShift console utilities"
+  },
+  ko: {
+    activeSurface: "현재 화면",
+    api: "API",
+    appLauncher: "애플리케이션 런처",
+    appLauncherCommand:
+      "애플리케이션 런처가 OpsLens 준비도 command strip으로 이동했습니다.",
+    create: "생성",
+    createCommand:
+      "생성 메뉴는 plan-only workflow만 엽니다. OpsLens는 cluster mutation을 apply하지 않습니다.",
+    help: "도움말",
+    helpCommand: "도움말이 context-aware assistant를 읽기 전용 모드로 열었습니다.",
+    notifications: "알림",
+    notificationsCommand:
+      "알림이 active incident queue와 firing alert 위치로 이동했습니다.",
+    openNavigation: "탐색 열기",
+    collapseNavigation: "탐색 접기",
+    readOnly: "읽기 전용",
+    readiness: "100% 준비도",
+    closure: "완료 조건",
+    administratorNavigation: "관리자 탐색",
+    opsLensStatus: "Cywell OpsLens 상태",
+    openShiftUtilities: "OpenShift 콘솔 유틸리티"
+  }
+} as const;
 
 function findNavigationItem(id: ConsoleNavId) {
   return (
@@ -236,7 +330,32 @@ function findNavigationItem(id: ConsoleNavId) {
   );
 }
 
+function initialLanguage(): UiLanguage {
+  try {
+    const stored = window.localStorage.getItem("cywell-opslens-language");
+    if (stored === "ko" || stored === "en") {
+      return stored;
+    }
+  } catch {
+    // Ignore storage failures; language can still be toggled for this session.
+  }
+  return window.navigator.language.toLowerCase().startsWith("ko") ? "ko" : "en";
+}
+
+function navLabel(item: ConsoleNavigationItem, language: UiLanguage) {
+  return language === "ko" ? item.labelKo : item.label;
+}
+
+function navBreadcrumb(item: ConsoleNavigationItem, language: UiLanguage) {
+  return language === "ko" ? item.breadcrumbKo : item.breadcrumb;
+}
+
+function navCommand(item: ConsoleNavigationItem, language: UiLanguage) {
+  return language === "ko" ? item.commandKo : item.command;
+}
+
 export default function App() {
+  const [language, setLanguage] = useState<UiLanguage>(initialLanguage);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [draft, setDraft] = useState(
     "ClusterNotUpgradeable alert를 근거 중심으로 triage 해줘."
@@ -245,7 +364,7 @@ export default function App() {
   const [activeNavId, setActiveNavId] = useState<ConsoleNavId>("alerting");
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [navigationCommand, setNavigationCommand] = useState(
-    findNavigationItem("alerting").command
+    navCommand(findNavigationItem("alerting"), initialLanguage())
   );
   const [resourcePreset, setResourcePreset] =
     useState<OcpResourcePreset | null>(null);
@@ -369,6 +488,17 @@ export default function App() {
   const evidenceCount = (contextSync?.context ?? mockContext).attachedEvidence.length;
   const completionGate = adminOverview?.installReadiness.completionGate;
   const activeNavigation = findNavigationItem(activeNavId);
+  const copy = shellCopy[language];
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    try {
+      window.localStorage.setItem("cywell-opslens-language", language);
+    } catch {
+      // Ignore storage failures; the current session still reflects the selection.
+    }
+    setNavigationCommand(navCommand(findNavigationItem(activeNavId), language));
+  }, [activeNavId, language]);
 
   async function askAssistant() {
     const prompt = draft.trim();
@@ -413,15 +543,30 @@ export default function App() {
 
   function scrollToNavigationTarget(targetSelector: string) {
     window.requestAnimationFrame(() => {
-      document
-        .querySelector(targetSelector)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const target = document.querySelector<HTMLElement>(targetSelector);
+      const stage = document.querySelector<HTMLElement>(
+        "[data-testid='main-stage']"
+      );
+
+      if (!target) {
+        return;
+      }
+
+      if (stage?.contains(target)) {
+        const stageRect = stage.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const nextTop = stage.scrollTop + targetRect.top - stageRect.top - 12;
+        stage.scrollTo({ top: Math.max(0, nextTop), behavior: "auto" });
+        return;
+      }
+
+      target.scrollIntoView({ behavior: "auto", block: "start" });
     });
   }
 
   function activateNavigation(item: ConsoleNavigationItem) {
     setActiveNavId(item.id);
-    setNavigationCommand(item.command);
+    setNavigationCommand(navCommand(item, language));
     if (item.evidenceView) {
       setEvidenceView(item.evidenceView);
     }
@@ -460,7 +605,7 @@ export default function App() {
           <button
             className="icon-button masthead-menu"
             type="button"
-            aria-label={navCollapsed ? "Open navigation" : "Collapse navigation"}
+            aria-label={navCollapsed ? copy.openNavigation : copy.collapseNavigation}
             aria-pressed={!navCollapsed}
             onClick={() => setNavCollapsed((collapsed) => !collapsed)}
           >
@@ -472,10 +617,10 @@ export default function App() {
           </button>
           <div className="brand-block">
             <span className="brand-mark" aria-hidden="true">
-              K
+              <img src={komscoLogo} alt="" />
             </span>
             <div>
-              <p className="eyebrow">Red Hat OpenShift</p>
+              <p className="eyebrow">Red Hat OpenShift · KOMSCO Edition</p>
               <h1>Cywell OpsLens</h1>
             </div>
           </div>
@@ -485,60 +630,102 @@ export default function App() {
           </div>
         </div>
         <div className="masthead-actions" aria-label="Console utilities">
-          <span
-            className={`status-pill ${apiStatus === "ready" ? "ready" : "danger"}`}
-            data-testid="api-status"
+          <div className="opslens-status-group" aria-label={copy.opsLensStatus}>
+            <span
+              className={`status-pill ${apiStatus === "ready" ? "ready" : "danger"}`}
+              data-testid="api-status"
+            >
+              {copy.api} {apiStatus}
+            </span>
+            <span className="status-pill read-only">
+              <ShieldCheck size={15} aria-hidden="true" />
+              {copy.readOnly}
+            </span>
+            <div
+              className="segmented-control language-toggle"
+              aria-label="Language"
+            >
+              <button
+                aria-pressed={language === "ko"}
+                type="button"
+                onClick={() => setLanguage("ko")}
+              >
+                KO
+              </button>
+              <button
+                aria-pressed={language === "en"}
+                type="button"
+                onClick={() => setLanguage("en")}
+              >
+                EN
+              </button>
+            </div>
+          </div>
+          <div
+            className="console-native-actions"
+            aria-label={copy.openShiftUtilities}
           >
-            API {apiStatus}
-          </span>
-          <span className="status-pill read-only">
-            <ShieldCheck size={15} aria-hidden="true" />
-            read-only
-          </span>
-          <button
-            className="icon-button"
-            type="button"
-            title="Help"
-            aria-label="Help"
-            onClick={() =>
-              runUtilityAction(
-                "Help opened the context-aware assistant in read-only mode.",
-                "#evidence-title",
-                true
-              )
-            }
-          >
-            <CircleHelp size={18} aria-hidden="true" />
-          </button>
-          <button
-            className="icon-button"
-            type="button"
-            title="Notifications"
-            aria-label="Notifications"
-            onClick={() =>
-              runUtilityAction(
-                "Notifications focused the active incident queue and firing alerts.",
-                "#dashboard-title"
-              )
-            }
-          >
-            <Bell size={18} aria-hidden="true" />
-          </button>
-          <button
-            className="icon-button"
-            type="button"
-            title="Application launcher"
-            aria-label="Application launcher"
-            onClick={() =>
-              runUtilityAction(
-                "Application launcher focused the OpsLens readiness command strip.",
-                "[data-testid='opslens-readiness-command-strip']"
-              )
-            }
-          >
-            <Grid3X3 size={18} aria-hidden="true" />
-          </button>
-          <span className="user-menu">admin</span>
+            <button
+              className="icon-button"
+              type="button"
+              title={copy.appLauncher}
+              aria-label={copy.appLauncher}
+              onClick={() =>
+                runUtilityAction(
+                  copy.appLauncherCommand,
+                  "[data-testid='opslens-readiness-command-strip']"
+                )
+              }
+            >
+              <Grid3X3 size={18} aria-hidden="true" />
+            </button>
+            <button
+              className="icon-button notification-button"
+              type="button"
+              title={copy.notifications}
+              aria-label={copy.notifications}
+              onClick={() =>
+                runUtilityAction(
+                  copy.notificationsCommand,
+                  "#dashboard-title"
+                )
+              }
+            >
+              <Bell size={18} aria-hidden="true" />
+              <span className="notification-count">5</span>
+            </button>
+            <button
+              className="icon-button"
+              type="button"
+              title={copy.create}
+              aria-label={copy.create}
+              onClick={() =>
+                runUtilityAction(
+                  copy.createCommand,
+                  "#opslens-admin-title",
+                  true
+                )
+              }
+            >
+              <CirclePlus size={18} aria-hidden="true" />
+            </button>
+            <button
+              className="icon-button"
+              type="button"
+              title={copy.help}
+              aria-label={copy.help}
+              onClick={() =>
+                runUtilityAction(
+                  copy.helpCommand,
+                  "#evidence-title",
+                  true
+                )
+              }
+            >
+              <CircleHelp size={18} aria-hidden="true" />
+            </button>
+            <span className="user-menu">admin</span>
+          </div>
         </div>
       </header>
 
@@ -551,10 +738,12 @@ export default function App() {
           <div className="nav-perspective">
             <span>Administrator</span>
           </div>
-          <nav className="nav-section" aria-label="Administrator navigation">
+          <nav className="nav-section" aria-label={copy.administratorNavigation}>
             {navigationSections.map((section) => (
               <div className="nav-group" key={section}>
-                <span className="nav-heading">{section}</span>
+                <span className="nav-heading">
+                  {language === "ko" ? sectionLabelsKo[section] : section}
+                </span>
                 {consoleNavigation
                   .filter((item) => item.section === section)
                   .map((item) => {
@@ -569,7 +758,7 @@ export default function App() {
                         onClick={() => activateNavigation(item)}
                       >
                         <Icon size={15} aria-hidden="true" />
-                        {item.label}
+                        {navLabel(item, language)}
                       </button>
                     );
                   })}
@@ -581,7 +770,7 @@ export default function App() {
         <main className="workspace" data-testid="workspace">
           <section className="main-stage" data-testid="main-stage">
             <div className="breadcrumb-row" aria-label="Breadcrumb">
-              {activeNavigation.breadcrumb.map((crumb) => (
+              {navBreadcrumb(activeNavigation, language).map((crumb) => (
                 <span key={crumb}>{crumb}</span>
               ))}
             </div>
@@ -589,8 +778,8 @@ export default function App() {
               className="navigation-command-bar"
               data-testid="console-navigation-feedback"
             >
-              <span>Active surface</span>
-              <strong>{activeNavigation.label}</strong>
+              <span>{copy.activeSurface}</span>
+              <strong>{navLabel(activeNavigation, language)}</strong>
               <span>{navigationCommand}</span>
             </div>
             <section
@@ -601,7 +790,7 @@ export default function App() {
               <div className="readiness-command-main">
                 <div>
                   <p className="eyebrow">Cywell OpsLens</p>
-                  <h2>100% Readiness</h2>
+                  <h2>{copy.readiness}</h2>
                 </div>
                 <span
                   className={`freshness ${statusClass(completionGate?.status)}`}
@@ -634,7 +823,7 @@ export default function App() {
                 data-testid="opslens-readiness-jump"
               >
                 <Waypoints size={15} aria-hidden="true" />
-                Closure
+                {copy.closure}
               </a>
             </section>
             <OperationsDashboard dashboard={dashboard} />

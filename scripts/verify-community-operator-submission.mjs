@@ -260,8 +260,8 @@ function validateCi(ci) {
     "Community ci catalog mapping",
     stableMapping?.type === "olm.semver" &&
       requiredCatalogs.every((catalog) => catalogs.has(catalog)),
-    "stable.yaml maps v4.16-v4.19 with type=olm.semver",
-    "stable.yaml catalog mapping must include v4.16-v4.19 and type=olm.semver"
+    "stable.yaml maps v4.16-v4.21 with type=olm.semver",
+    "stable.yaml catalog mapping must include v4.16-v4.21 and type=olm.semver"
   );
 }
 
@@ -283,8 +283,8 @@ function validateCsv(csv) {
     "submission CSV package annotations",
     annotations.certified === "false" &&
       annotations.support === "Cywell" &&
-      annotations["com.redhat.openshift.versions"] === "v4.16-v4.19",
-    "certified=false support=Cywell openshift=v4.16-v4.19",
+      annotations["com.redhat.openshift.versions"] === "v4.16-v4.21",
+    "certified=false support=Cywell openshift=v4.16-v4.21",
     "CSV must keep Red Hat-oriented draft annotations"
   );
   expectCheck(
@@ -355,7 +355,7 @@ function validateBundleMetadata(annotations) {
     "operators.operatorframework.io.bundle.package.v1": defaults.packageName,
     "operators.operatorframework.io.bundle.channels.v1": "alpha",
     "operators.operatorframework.io.bundle.channel.default.v1": "alpha",
-    "com.redhat.openshift.versions": "v4.16-v4.19"
+    "com.redhat.openshift.versions": "v4.16-v4.21"
   };
   for (const [key, value] of Object.entries(expected)) {
     expectCheck(

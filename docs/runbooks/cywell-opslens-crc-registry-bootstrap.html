@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cywell OpsLens CRC Registry Bootstrap Runbook</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f8fa;
+        --paper: #ffffff;
+        --ink: #1f2328;
+        --muted: #59636e;
+        --line: #d0d7de;
+        --blue: #0969da;
+        --green: #1a7f37;
+        --amber: #9a6700;
+        --red: #cf222e;
+        --code-bg: #f2f4f7;
+        --table-head: #eef3f8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 15px/1.58 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 36px 24px 56px;
+      }
+
+      article {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 32px;
+        box-shadow: 0 8px 24px rgba(31, 35, 40, 0.06);
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.25;
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 30px;
+        letter-spacing: 0;
+      }
+
+      h2 {
+        border-top: 1px solid var(--line);
+        font-size: 22px;
+        margin-top: 34px;
+        padding-top: 28px;
+      }
+
+      h3 {
+        font-size: 17px;
+        margin-top: 22px;
+      }
+
+      p {
+        margin: 10px 0;
+      }
+
+      ul,
+      ol {
+        margin: 10px 0 10px 22px;
+        padding: 0;
+      }
+
+      li {
+        margin: 4px 0;
+      }
+
+      code,
+      pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      }
+
+      code {
+        background: var(--code-bg);
+        border-radius: 4px;
+        padding: 1px 5px;
+      }
+
+      pre {
+        background: var(--code-bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow-x: auto;
+        padding: 14px 16px;
+        white-space: pre;
+      }
+
+      table {
+        border-collapse: collapse;
+        margin: 14px 0;
+        width: 100%;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: var(--table-head);
+        font-weight: 650;
+      }
+
+      .meta {
+        color: var(--muted);
+        margin-top: 8px;
+      }
+
+      .callout {
+        border: 1px solid var(--line);
+        border-left: 5px solid var(--blue);
+        border-radius: 6px;
+        margin: 16px 0;
+        padding: 12px 14px;
+      }
+
+      .callout.good {
+        border-left-color: var(--green);
+      }
+
+      .callout.warn {
+        border-left-color: var(--amber);
+      }
+
+      .callout.danger {
+        border-left-color: var(--red);
+      }
+
+      .badge {
+        border-radius: 999px;
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        margin-right: 6px;
+        padding: 2px 8px;
+      }
+
+      .pass {
+        background: #dafbe1;
+        color: var(--green);
+      }
+
+      .warn-badge {
+        background: #fff8c5;
+        color: var(--amber);
+      }
+
+      .fail {
+        background: #ffebe9;
+        color: var(--red);
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        main {
+          padding: 0;
+        }
+
+        article {
+          border: 0;
+          box-shadow: none;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article>
+        <header>
+          <h1>Cywell OpsLens CRC Registry Bootstrap Runbook</h1>
+          <p class="meta">
+            작성일: 2026-06-17 · 대상: 개인 MacBook CRC OpenShift · 범위: 내부 registry 이미지 적재와 트러블슈팅
+          </p>
+        </header>
+
+        <section class="callout good">
+          <strong>현재 결론:</strong> MacBook CRC OpenShift 내부 registry에
+          <code>cywell-opslens-api:verify</code>, <code>cywell-opslens-dashboard:verify</code>,
+          <code>cywell-opslens-operator:verify</code> 이미지를 정상 등록했다.
+        </section>
+
+        <h2>1. 목표</h2>
+        <p>
+          회사 공용 OpenShift가 아니라 개인 MacBook의 CRC OpenShift를 Cywell OpsLens 개발/검증 대상 클러스터로 삼고,
+          회사 노트북에서 빌드한 verify 이미지를 MacBook CRC의 OpenShift internal registry에 올린다.
+        </p>
+        <ul>
+          <li>회사 공용 OCP 리소스와 충돌하지 않는 개인 실험 환경을 확보한다.</li>
+          <li>API, Dashboard, Operator 이미지를 CRC 내부에서 pull 가능한 상태로 만든다.</li>
+          <li>이후 Operator/Deployment/Console Plugin 설치 검증으로 넘어갈 수 있는 기반을 만든다.</li>
+        </ul>
+
+        <h2>2. 완료 조건</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>항목</th>
+              <th>완료 기준</th>
+              <th>검증 방법</th>
+              <th>상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>CRC 클러스터 상태</td>
+              <td>OpenShift가 Running이고 ClusterVersion/ClusterOperator가 정상</td>
+              <td><code>crc status</code>, <code>oc get clusterversion</code>, <code>oc get co</code></td>
+              <td><span class="badge pass">PASS</span>Running 확인</td>
+            </tr>
+            <tr>
+              <td>대상 project</td>
+              <td><code>cywell-opslens</code> project 접근 가능</td>
+              <td><code>oc whoami &amp;&amp; oc project -q</code></td>
+              <td><span class="badge pass">PASS</span><code>kubeadmin</code> / <code>cywell-opslens</code></td>
+            </tr>
+            <tr>
+              <td>Registry 인증</td>
+              <td>OpenShift image registry에 Docker credential 저장</td>
+              <td><code>oc registry login --to=/tmp/cywell-docker-config/config.json</code></td>
+              <td><span class="badge pass">PASS</span>credential 저장</td>
+            </tr>
+            <tr>
+              <td>Registry TLS</td>
+              <td>Docker Desktop이 CRC route CA를 신뢰</td>
+              <td>route CA를 Mac System Keychain에 trustRoot 등록 후 Docker Desktop 재시작</td>
+              <td><span class="badge pass">PASS</span>push TLS 통과</td>
+            </tr>
+            <tr>
+              <td>ImageStream</td>
+              <td>API/Dashboard/Operator ImageStream 존재</td>
+              <td><code>oc create imagestream ...</code></td>
+              <td><span class="badge pass">PASS</span>manifest 등록 성공</td>
+            </tr>
+            <tr>
+              <td>이미지 태그</td>
+              <td>세 이미지가 <code>:verify</code> tag로 조회됨</td>
+              <td><code>oc get istag -n cywell-opslens</code></td>
+              <td><span class="badge pass">PASS</span>세 tag 조회됨</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>3. 보안/기록 원칙</h2>
+        <ul>
+          <li>이 문서에는 토큰, 비밀번호, 정확한 사설 IP, 정확한 registry route host를 고정 기록하지 않는다.</li>
+          <li>명령은 <code>&lt;CRC_REGISTRY_ROUTE&gt;</code>, <code>&lt;PROJECT&gt;</code> 같은 변수로 표현한다.</li>
+          <li>회사 공용 OCP에는 적용하지 않는다. 이 runbook은 개인 MacBook CRC 전용이다.</li>
+          <li>초기 단계에서는 이미지 적재와 read-only 확인 중심으로 진행하고, cluster mutation은 명시된 CRC project 내부로 제한한다.</li>
+        </ul>
+
+        <h2>4. 권장 변수</h2>
+        <p>아래 변수는 실제 터미널에서만 설정한다. 문서나 Git에는 실제 값을 남기지 않는다.</p>
+        <pre><code>PROJECT=cywell-opslens
+REGISTRY_ROUTE=&lt;CRC image registry route host&gt;
+DOCKER_CONFIG_DIR=/tmp/cywell-docker-config</code></pre>
+
+        <h2>5. 성공한 최종 절차</h2>
+
+        <h3>5.1 CRC와 OCP 상태 확인</h3>
+        <pre><code>crc status
+oc whoami &amp;&amp; oc project -q
+oc get clusterversion
+oc get co</code></pre>
+        <p>확인 기준은 OpenShift Running, ClusterVersion Available True, ClusterOperator Available True/Progressing False/Degraded False다.</p>
+
+        <h3>5.2 Local image 존재 확인</h3>
+        <pre><code>docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^cywell/opslens-(api|dashboard|operator):verify$'</code></pre>
+        <p>Mac Docker Desktop에 다음 이미지가 있어야 했다.</p>
+        <ul>
+          <li><code>cywell/opslens-api:verify</code></li>
+          <li><code>cywell/opslens-dashboard:verify</code></li>
+          <li><code>cywell/opslens-operator:verify</code></li>
+        </ul>
+
+        <h3>5.3 Registry route와 권한 확인</h3>
+        <pre><code>oc get route default-route -n openshift-image-registry
+oc auth can-i update imagestreams/layers -n "$PROJECT"</code></pre>
+        <p><code>can-i</code> 결과가 <code>yes</code>면 push 권한은 있는 것이다.</p>
+
+        <h3>5.4 Docker credential 저장</h3>
+        <pre><code>mkdir -p "$DOCKER_CONFIG_DIR"
+oc registry login \
+  --registry="$REGISTRY_ROUTE" \
+  --to="$DOCKER_CONFIG_DIR/config.json" \
+  --skip-check</code></pre>
+
+        <h3>5.5 CRC registry route CA 추출</h3>
+        <pre><code>mkdir -p "$HOME/.docker/certs.d/$REGISTRY_ROUTE" "$HOME/.docker/certs.d/$REGISTRY_ROUTE:443"
+oc get secret router-ca -n openshift-ingress-operator \
+  -o jsonpath='{.data.tls\.crt}' \
+  | base64 -d &gt; "$HOME/.docker/certs.d/$REGISTRY_ROUTE/ca.crt"
+cp "$HOME/.docker/certs.d/$REGISTRY_ROUTE/ca.crt" \
+  "$HOME/.docker/certs.d/$REGISTRY_ROUTE:443/ca.crt"</code></pre>
+
+        <h3>5.6 CA가 맞는지 검증</h3>
+        <pre><code>openssl s_client -connect "$REGISTRY_ROUTE:443" -servername "$REGISTRY_ROUTE" &lt;/dev/null 2&gt;/dev/null \
+  | openssl x509 -noout -subject -issuer
+openssl x509 -in "$HOME/.docker/certs.d/$REGISTRY_ROUTE/ca.crt" -noout -subject
+curl --connect-timeout 5 -sS \
+  --cacert "$HOME/.docker/certs.d/$REGISTRY_ROUTE/ca.crt" \
+  "https://$REGISTRY_ROUTE/v2/"</code></pre>
+        <p><code>curl</code> 결과가 <code>UNAUTHORIZED</code>면 TLS 검증과 registry 도달은 성공이다. 인증이 필요한 registry API라는 뜻이다.</p>
+
+        <h3>5.7 Mac System Keychain에 CA 신뢰 등록</h3>
+        <section class="callout warn">
+          이 단계는 SSH 터미널에서 실패한다. MacBook 화면의 로컬 Terminal 앱에서 직접 실행해야 한다.
+        </section>
+        <pre><code>sudo security add-trusted-cert \
+  -d -r trustRoot \
+  -k /Library/Keychains/System.keychain \
+  "$HOME/.docker/certs.d/$REGISTRY_ROUTE/ca.crt"</code></pre>
+        <p>성공 후 Mac Docker Desktop을 재시작한다.</p>
+        <pre><code>docker info &gt;/dev/null &amp;&amp; echo DOCKER_READY</code></pre>
+
+        <h3>5.8 ImageStream 선생성</h3>
+        <pre><code>oc create imagestream cywell-opslens-api -n "$PROJECT"
+oc create imagestream cywell-opslens-dashboard -n "$PROJECT"
+oc create imagestream cywell-opslens-operator -n "$PROJECT"</code></pre>
+
+        <h3>5.9 이미지 tag/push</h3>
+        <pre><code>docker tag cywell/opslens-api:verify "$REGISTRY_ROUTE/$PROJECT/cywell-opslens-api:verify"
+DOCKER_CONFIG="$DOCKER_CONFIG_DIR" docker push "$REGISTRY_ROUTE/$PROJECT/cywell-opslens-api:verify"
+
+docker tag cywell/opslens-dashboard:verify "$REGISTRY_ROUTE/$PROJECT/cywell-opslens-dashboard:verify"
+DOCKER_CONFIG="$DOCKER_CONFIG_DIR" docker push "$REGISTRY_ROUTE/$PROJECT/cywell-opslens-dashboard:verify"
+
+docker tag cywell/opslens-operator:verify "$REGISTRY_ROUTE/$PROJECT/cywell-opslens-operator:verify"
+DOCKER_CONFIG="$DOCKER_CONFIG_DIR" docker push "$REGISTRY_ROUTE/$PROJECT/cywell-opslens-operator:verify"</code></pre>
+
+        <h3>5.10 최종 검증</h3>
+        <pre><code>oc get istag -n "$PROJECT"</code></pre>
+        <p>다음 세 tag가 보여야 한다.</p>
+        <ul>
+          <li><code>cywell-opslens-api:verify</code></li>
+          <li><code>cywell-opslens-dashboard:verify</code></li>
+          <li><code>cywell-opslens-operator:verify</code></li>
+        </ul>
+
+        <h2>6. 트러블슈팅 기록</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>증상</th>
+              <th>당시 판단</th>
+              <th>확정 원인</th>
+              <th>해결</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>docker push</code>가 registry route에서 <code>x509: certificate signed by unknown authority</code>로 실패</td>
+              <td>권한/네트워크/CA 후보를 분리해야 했음</td>
+              <td>Mac Docker Desktop이 CRC registry route CA를 신뢰하지 못함</td>
+              <td>router CA 추출 → Mac System Keychain에 trustRoot 등록 → Docker Desktop 재시작</td>
+            </tr>
+            <tr>
+              <td><code>curl -vk https://127.0.0.1:5000/v2/</code>가 <code>401 Unauthorized</code> 반환</td>
+              <td>실패처럼 보였지만 좋은 신호</td>
+              <td>registry API에 도달했고 인증만 필요한 상태</td>
+              <td>브라우저 접근 거부는 정상으로 판단, Docker 인증/TLS 문제로 범위 축소</td>
+            </tr>
+            <tr>
+              <td><code>0.0.0.0:5000 bind: address already in use</code></td>
+              <td>기존 port-forward 잔류 의심</td>
+              <td>Mac의 다른 프로세스가 5000 포트를 점유</td>
+              <td><code>lsof -nP -iTCP:5000 -sTCP:LISTEN</code>으로 확인 후 외부 포트를 5001로 변경</td>
+            </tr>
+            <tr>
+              <td><code>host.docker.internal:5001</code> push가 인증서 이름 불일치로 실패</td>
+              <td>Docker Desktop 내부 엔진이 Mac host로 접근은 가능</td>
+              <td>registry 인증서 CN/SAN이 <code>host.docker.internal</code>용이 아님</td>
+              <td>port-forward 우회 대신 registry route CA 신뢰 방식으로 전환</td>
+            </tr>
+            <tr>
+              <td><code>sudo security add-trusted-cert</code>가 SSH에서 <code>no user interaction was possible</code>로 실패</td>
+              <td>sudo 비밀번호 문제가 아니라 macOS 보안 정책 문제</td>
+              <td>System Keychain trust 변경은 GUI 사용자 상호작용이 필요</td>
+              <td>MacBook 로컬 Terminal 앱에서 직접 실행</td>
+            </tr>
+            <tr>
+              <td><code>docker run alpine</code>이 Keychain 접근 오류로 실패</td>
+              <td>OpenShift 문제가 아니라 Docker Hub pull 문제</td>
+              <td>SSH 세션에서 Docker credential helper가 Mac Keychain을 열 수 없었음</td>
+              <td>외부 pull이 필요 없는 로컬 Cywell 이미지로 검증 경로 변경</td>
+            </tr>
+            <tr>
+              <td>push 마지막에 <code>500 Internal Server Error</code></td>
+              <td>처음에는 Mac/CRC 디스크 98% 때문에 공간 부족도 의심</td>
+              <td>registry 로그상 <code>imagestreams.image.openshift.io "...api" not found</code></td>
+              <td>ImageStream을 먼저 생성한 뒤 push 재시도</td>
+            </tr>
+            <tr>
+              <td><code>oc get istag ...</code>가 NotFound</td>
+              <td>레이어는 올라갔지만 tag/manifest는 실패한 상태</td>
+              <td>ImageStream 부재로 manifest/tag 등록이 되지 않았음</td>
+              <td><code>oc create imagestream</code> 후 push 재실행</td>
+            </tr>
+            <tr>
+              <td><code>image-pruner</code> pod가 <code>ContainerCreating</code>에 오래 머무름</td>
+              <td>디스크 부족 가능성도 같이 의심</td>
+              <td>event상 직접 원인은 CNI/Multus Unauthorized였고, push 실패의 직접 원인은 아니었음</td>
+              <td>registry 로그에서 실제 <code>status=500</code> 원인을 추적하여 ImageStream 문제로 분리</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>7. 왜 이 과정이 중요했나</h2>
+        <p>
+          이번 문제는 단순히 명령을 여러 번 재시도해서 해결한 것이 아니라, 실패 지점을 계층별로 분리해서 해결했다.
+        </p>
+        <ol>
+          <li>권한: <code>oc auth can-i</code>, <code>oc registry login</code>으로 확인</li>
+          <li>네트워크: <code>curl /v2/</code>의 <code>401</code> 응답으로 확인</li>
+          <li>TLS: registry issuer와 router CA subject 비교, <code>curl --cacert</code>로 확인</li>
+          <li>Docker Desktop 신뢰 저장소: Mac System Keychain 등록으로 해결</li>
+          <li>OpenShift registry 객체 모델: ImageStream 선생성으로 manifest/tag 등록 해결</li>
+        </ol>
+        <p>
+          이 분리 덕분에 “Docker가 이상하다”, “CRC가 이상하다” 같은 막연한 결론 대신,
+          <strong>Mac Docker Desktop trust path</strong>와 <strong>OpenShift ImageStream 선행 조건</strong>이라는 실제 원인을 남길 수 있었다.
+        </p>
+
+        <h2>8. 현재 남은 일</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>다음 단계</th>
+              <th>설명</th>
+              <th>주의점</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>API/Dashboard 배포</td>
+              <td>내부 registry의 <code>:verify</code> 이미지를 사용해 <code>Deployment</code>, <code>Service</code>, 필요 시 <code>Route</code> 생성</td>
+              <td>우선 CRC namespace 내부에서만 수행</td>
+            </tr>
+            <tr>
+              <td>Operator 배포 경로 선택</td>
+              <td>직접 operator Deployment로 갈지, OLM bundle/catalog 경로로 갈지 결정</td>
+              <td>OLM 정식 경로에는 bundle/catalog 이미지가 추가로 필요</td>
+            </tr>
+            <tr>
+              <td>Lightspeed 연동</td>
+              <td>read-only readiness와 patch preview를 먼저 확인</td>
+              <td>OLSConfig 실제 patch는 명시 승인 전 금지</td>
+            </tr>
+            <tr>
+              <td>Console Plugin 등록</td>
+              <td>Cywell OpsLens를 OCP Console 경험에 붙이는 단계</td>
+              <td>먼저 dashboard/API가 CRC에서 정상 응답해야 함</td>
+            </tr>
+            <tr>
+              <td>디스크 정리</td>
+              <td>Mac host와 CRC VM 디스크 여유 확보</td>
+              <td>이미지 push/LLM/vLLM 실험 전에 여유 공간 필요</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>9. 하지 않을 것</h2>
+        <ul>
+          <li>회사 공용 OCP에는 이 실험 이미지를 push하거나 설정을 변경하지 않는다.</li>
+          <li>토큰, kubeconfig, registry credential, exact private route/IP를 Git에 남기지 않는다.</li>
+          <li>Lightspeed/OCP 리소스에 자동 apply/delete/scale을 하지 않는다.</li>
+          <li>ImageStream/Deployment 문제를 디스크 문제로 단정하지 않는다. 로그와 이벤트로 원인을 분리한다.</li>
+          <li>OLM 설치를 우회해 성공한 척하지 않는다. 직접 배포와 OLM 설치는 별도 경로로 기록한다.</li>
+        </ul>
+
+        <h2>10. 빠른 재현 체크리스트</h2>
+        <ol>
+          <li>Mac CRC가 Running인지 확인한다.</li>
+          <li><code>oc whoami</code>와 project가 맞는지 확인한다.</li>
+          <li>Mac Docker에 verify 이미지가 있는지 확인한다.</li>
+          <li>registry route credential을 <code>/tmp/cywell-docker-config</code>에 저장한다.</li>
+          <li>router CA를 추출하고 Mac System Keychain에 trustRoot로 등록한다.</li>
+          <li>Docker Desktop을 재시작한다.</li>
+          <li>ImageStream을 먼저 만든다.</li>
+          <li>이미지를 tag/push한다.</li>
+          <li><code>oc get istag</code>로 tag/digest를 확인한다.</li>
+        </ol>
+
+        <footer class="callout">
+          <strong>운영 판단:</strong> 이번 산출물의 핵심은 “성공 명령 모음”이 아니라 실패를 계층별로 분해한 기록이다.
+          다음 설치 단계에서도 같은 방식으로 권한, 네트워크, TLS, OpenShift 객체 계약, 애플리케이션 readiness를 분리해서 검증한다.
+        </footer>
+      </article>
+    </main>
+  </body>
+</html>

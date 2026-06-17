@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"strings"
@@ -58,6 +60,10 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if err := r.reconcilePostgresAuthSecret(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := r.reconcileAPIDeployment(ctx, &installation, namespace); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -82,20 +88,24 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
-	if err := r.reconcileVectorStore(ctx, &installation, namespace); err != nil {
-		return ctrl.Result{}, err
+	if valueOrDefault(installation.Spec.Components.VectorStore.Provider, "pgvector") != "inmemory" {
+		if err := r.reconcileVectorStore(ctx, &installation, namespace); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		if err := r.reconcileVectorService(ctx, &installation, namespace); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
-	if err := r.reconcileVectorService(ctx, &installation, namespace); err != nil {
-		return ctrl.Result{}, err
-	}
+	if installation.Spec.Components.ModelRuntime.Provider != "mock-local" {
+		if err := r.reconcileModelRuntime(ctx, &installation, namespace); err != nil {
+			return ctrl.Result{}, err
+		}
 
-	if err := r.reconcileModelRuntime(ctx, &installation, namespace); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	if err := r.reconcileModelRuntimeService(ctx, &installation, namespace); err != nil {
-		return ctrl.Result{}, err
+		if err := r.reconcileModelRuntimeService(ctx, &installation, namespace); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	if err := r.reconcileConsolePlugin(ctx, &installation, namespace); err != nil {
@@ -138,6 +148,43 @@ func (r *OpsLensInstallationReconciler) reconcileAPIServiceAccount(ctx context.C
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
 		serviceAccount.Labels = labels("api")
 		return r.setControllerReferenceIfSameNamespace(installation, namespace, serviceAccount)
+	})
+	return err
+}
+
+func (r *OpsLensInstallationReconciler) reconcilePostgresAuthSecret(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	if installation.Spec.Components.VectorStore.Provider != "" && installation.Spec.Components.VectorStore.Provider != "pgvector" {
+		return nil
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cywell-opslens-postgres-auth",
+			Namespace: namespace,
+		},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, secret, func() error {
+		secret.Labels = labels("vector-store")
+		secret.Type = corev1.SecretTypeOpaque
+		if secret.Data == nil {
+			secret.Data = map[string][]byte{}
+		}
+		password := string(secret.Data["password"])
+		if password == "" {
+			generated, err := randomHex(24)
+			if err != nil {
+				return err
+			}
+			password = generated
+			secret.Data["password"] = []byte(password)
+		}
+		secret.Data["url"] = []byte(fmt.Sprintf(
+			"postgres://opslens:%s@cywell-opslens-vector.%s.svc.cluster.local:5432/opslens?sslmode=disable",
+			password,
+			namespace,
+		))
+		return r.setControllerReferenceIfSameNamespace(installation, namespace, secret)
 	})
 	return err
 }
@@ -367,6 +414,7 @@ func (r *OpsLensInstallationReconciler) reconcileVectorStore(ctx context.Context
 		env = []corev1.EnvVar{
 			{Name: "POSTGRES_DB", Value: "opslens"},
 			{Name: "POSTGRES_USER", Value: "opslens"},
+			{Name: "PGDATA", Value: "/var/lib/postgresql/data/pgdata"},
 			{Name: "POSTGRES_PASSWORD", ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{Name: "cywell-opslens-postgres-auth"},
@@ -424,6 +472,14 @@ func (r *OpsLensInstallationReconciler) reconcileVectorStore(ctx context.Context
 		return r.setControllerReferenceIfSameNamespace(installation, namespace, statefulSet)
 	})
 	return err
+}
+
+func randomHex(byteCount int) (string, error) {
+	buffer := make([]byte, byteCount)
+	if _, err := rand.Read(buffer); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buffer), nil
 }
 
 func (r *OpsLensInstallationReconciler) reconcileModelRuntime(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
@@ -525,10 +581,42 @@ func (r *OpsLensInstallationReconciler) reconcileConsolePlugin(ctx context.Conte
 func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
 	settings := normalizeRAGSettings(installation)
 	name := valueOrDefault(installation.Spec.Components.API.ServiceName, "cywell-opslens-api")
+	vectorProvider := valueOrDefault(installation.Spec.Components.VectorStore.Provider, "pgvector")
+	modelProvider := valueOrDefault(installation.Spec.Components.ModelRuntime.Provider, "vllm")
 	replicas := int32(2)
 	if installation.Spec.Components.API.Replicas != nil {
 		replicas = *installation.Spec.Components.API.Replicas
 	}
+
+	env := []corev1.EnvVar{
+		{Name: "KUGNUS_API_HOST", Value: "0.0.0.0"},
+		{Name: "KUGNUS_API_PORT", Value: fmt.Sprintf("%d", httpsContainerPort)},
+		{Name: "PORT", Value: fmt.Sprintf("%d", httpsContainerPort)},
+		{Name: "CYWELL_OPSLENS_TLS_CERT_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.crt"},
+		{Name: "CYWELL_OPSLENS_TLS_KEY_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.key"},
+		{Name: "CYWELL_OPSLENS_VECTOR_PROVIDER", Value: vectorProvider},
+	}
+	if vectorProvider == "pgvector" {
+		env = append(env, corev1.EnvVar{Name: "CYWELL_OPSLENS_POSTGRES_URL", ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{Name: "cywell-opslens-postgres-auth"},
+				Key:                  "url",
+			},
+		}})
+	}
+	if modelProvider != "mock-local" {
+		env = append(env, corev1.EnvVar{Name: "CYWELL_OPSLENS_MODEL_URL", Value: "http://cywell-opslens-vllm:8000"})
+	}
+	env = append(env,
+		corev1.EnvVar{Name: "CYWELL_OPSLENS_RAG_RUNTIME_MODE", Value: "local"},
+		corev1.EnvVar{Name: "CYWELL_OPSLENS_ACTION_MODE", Value: "plan-only"},
+		corev1.EnvVar{Name: "CYWELL_OPSLENS_RAG_DOCUMENT_INTAKE_MODE", Value: settings.DocumentIntakeMode},
+		corev1.EnvVar{Name: "CYWELL_OPSLENS_RAG_EVIDENCE_EXPORT", Value: settings.EvidenceExport},
+		corev1.EnvVar{Name: "CYWELL_OPSLENS_RAG_RAW_DOCUMENT_RETURN_ALLOWED", Value: "false"},
+		corev1.EnvVar{Name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_MODE", Value: settings.ApprovalQueueMode},
+		corev1.EnvVar{Name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_ENQUEUE_ALLOWED", Value: "false"},
+		corev1.EnvVar{Name: "CYWELL_OPSLENS_RAG_REQUIRED_APPROVALS", Value: settings.RequiredApprovals},
+	)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -548,29 +636,7 @@ func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Conte
 				Name:            "api",
 				Image:           installation.Spec.Components.API.Image,
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Env: []corev1.EnvVar{
-					{Name: "KUGNUS_API_HOST", Value: "0.0.0.0"},
-					{Name: "KUGNUS_API_PORT", Value: fmt.Sprintf("%d", httpsContainerPort)},
-					{Name: "PORT", Value: fmt.Sprintf("%d", httpsContainerPort)},
-					{Name: "CYWELL_OPSLENS_TLS_CERT_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.crt"},
-					{Name: "CYWELL_OPSLENS_TLS_KEY_FILE", Value: "/var/run/secrets/cywell-opslens/tls/tls.key"},
-					{Name: "CYWELL_OPSLENS_VECTOR_PROVIDER", Value: valueOrDefault(installation.Spec.Components.VectorStore.Provider, "pgvector")},
-					{Name: "CYWELL_OPSLENS_POSTGRES_URL", ValueFrom: &corev1.EnvVarSource{
-						SecretKeyRef: &corev1.SecretKeySelector{
-							LocalObjectReference: corev1.LocalObjectReference{Name: "cywell-opslens-postgres-auth"},
-							Key:                  "url",
-						},
-					}},
-					{Name: "CYWELL_OPSLENS_MODEL_URL", Value: "http://cywell-opslens-vllm:8000"},
-					{Name: "CYWELL_OPSLENS_RAG_RUNTIME_MODE", Value: "local"},
-					{Name: "CYWELL_OPSLENS_ACTION_MODE", Value: "plan-only"},
-					{Name: "CYWELL_OPSLENS_RAG_DOCUMENT_INTAKE_MODE", Value: settings.DocumentIntakeMode},
-					{Name: "CYWELL_OPSLENS_RAG_EVIDENCE_EXPORT", Value: settings.EvidenceExport},
-					{Name: "CYWELL_OPSLENS_RAG_RAW_DOCUMENT_RETURN_ALLOWED", Value: "false"},
-					{Name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_MODE", Value: settings.ApprovalQueueMode},
-					{Name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_ENQUEUE_ALLOWED", Value: "false"},
-					{Name: "CYWELL_OPSLENS_RAG_REQUIRED_APPROVALS", Value: settings.RequiredApprovals},
-				},
+				Env: env,
 				Ports: []corev1.ContainerPort{
 					{Name: "https", ContainerPort: httpsContainerPort},
 				},

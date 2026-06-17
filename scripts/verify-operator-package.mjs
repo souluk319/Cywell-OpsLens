@@ -361,10 +361,28 @@ function validateRbac(clusterRole, csv) {
     fail("config RBAC NetworkPolicy", "networkpolicies get/create/patch permissions are missing");
   }
 
-  if (!hasRuleFor(rbacRules, "", "secrets", ["get"])) {
-    pass("config RBAC no Secret read", "operator does not receive raw Secret read permissions in MVP 0.1");
+  if (hasRuleFor(rbacRules, "", "secrets", ["get", "create", "update", "patch"])) {
+    pass("config RBAC Postgres Secret", "operator can create and rotate only the generated Postgres auth Secret");
   } else {
-    fail("config RBAC no Secret read", "secrets get/list/watch permissions must stay out of MVP 0.1");
+    fail("config RBAC Postgres Secret", "secrets get/create/update/patch permissions are required for generated Postgres auth");
+  }
+
+  if (!hasRuleFor(rbacRules, "", "secrets", ["list", "watch"])) {
+    pass("config RBAC no Secret watch", "operator does not receive broad Secret list/watch permissions");
+  } else {
+    fail("config RBAC no Secret watch", "secrets list/watch permissions must stay out of MVP 0.1");
+  }
+
+  if (hasRuleFor(rbacRules, "coordination.k8s.io", "leases", ["get", "create", "update", "patch"])) {
+    pass("config RBAC leader election", "operator can acquire controller-runtime leader election leases");
+  } else {
+    fail("config RBAC leader election", "leases get/create/update/patch permissions are missing");
+  }
+
+  if (hasRuleFor(rbacRules, "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"])) {
+    pass("config RBAC owner finalizers", "operator can set owner references that require finalizer access");
+  } else {
+    fail("config RBAC owner finalizers", "opslensinstallations/finalizers update/patch permissions are missing");
   }
 
   const csvRules = (csv?.spec?.install?.spec?.clusterPermissions ?? []).flatMap(
@@ -400,10 +418,28 @@ function validateRbac(clusterRole, csv) {
     fail("CSV RBAC NetworkPolicy", "networkpolicies permissions are missing");
   }
 
-  if (!hasRuleFor(csvRules, "", "secrets", ["get"])) {
-    pass("CSV RBAC no Secret read", "operator bundle does not grant raw Secret read permissions");
+  if (hasRuleFor(csvRules, "", "secrets", ["get", "create", "update", "patch"])) {
+    pass("CSV RBAC Postgres Secret", "can create and rotate generated Postgres auth Secret");
   } else {
-    fail("CSV RBAC no Secret read", "CSV must not grant secrets get/list/watch in MVP 0.1");
+    fail("CSV RBAC Postgres Secret", "secrets get/create/update/patch permissions are missing");
+  }
+
+  if (!hasRuleFor(csvRules, "", "secrets", ["list", "watch"])) {
+    pass("CSV RBAC no Secret watch", "operator bundle does not grant broad Secret list/watch permissions");
+  } else {
+    fail("CSV RBAC no Secret watch", "CSV must not grant secrets list/watch in MVP 0.1");
+  }
+
+  if (hasRuleFor(csvRules, "coordination.k8s.io", "leases", ["get", "create", "update", "patch"])) {
+    pass("CSV RBAC leader election", "can acquire controller-runtime leader election leases");
+  } else {
+    fail("CSV RBAC leader election", "leases permissions are missing");
+  }
+
+  if (hasRuleFor(csvRules, "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"])) {
+    pass("CSV RBAC owner finalizers", "can set owner references for reconciled child resources");
+  } else {
+    fail("CSV RBAC owner finalizers", "opslensinstallations/finalizers permissions are missing");
   }
 }
 
@@ -419,6 +455,21 @@ function validateCsv(csv) {
     pass("CSV owned CRD", "OpsLensInstallation is declared as owned");
   } else {
     fail("CSV owned CRD", "OpsLensInstallation CRD is not declared as owned");
+  }
+
+  const platformLabels = csv?.metadata?.labels ?? {};
+  const requiredPlatformLabels = {
+    "operatorframework.io/arch.amd64": "supported",
+    "operatorframework.io/arch.arm64": "supported",
+    "operatorframework.io/os.linux": "supported"
+  };
+  if (Object.entries(requiredPlatformLabels).every(([key, value]) => platformLabels[key] === value)) {
+    pass("CSV platform labels", "linux amd64/arm64 support is declared for OperatorHub filtering");
+  } else {
+    fail(
+      "CSV platform labels",
+      "CSV metadata.labels must include operatorframework.io/os.linux and operatorframework.io/arch.amd64/arm64"
+    );
   }
 
   if (csv?.spec?.install?.strategy === "deployment") {
@@ -443,6 +494,30 @@ function validateCsv(csv) {
     } else {
       fail(`CSV related image ${imageName}`, "missing");
     }
+  }
+
+  const icon = csv?.spec?.icon?.[0];
+  const iconData = icon?.base64data ?? "";
+  const iconBuffer = iconData ? Buffer.from(iconData, "base64") : Buffer.alloc(0);
+  const hasPngSignature = iconBuffer.slice(0, 8).toString("hex") === "89504e470d0a1a0a";
+  const hasEmbeddedMetadata = /xmp|adobe|Canva|Author|Attribution/i.test(
+    iconBuffer.toString("latin1")
+  );
+  if (
+    icon?.mediatype === "image/png" &&
+    iconData.length > 0 &&
+    hasPngSignature &&
+    !hasEmbeddedMetadata
+  ) {
+    pass(
+      "CSV install icon",
+      `image/png ${iconBuffer.length} bytes, metadataStripped=${String(!hasEmbeddedMetadata)}`
+    );
+  } else {
+    fail(
+      "CSV install icon",
+      "spec.icon must include a valid metadata-stripped image/png base64 icon"
+    );
   }
 }
 
@@ -867,7 +942,9 @@ async function validateControllerRuntimeSkeleton() {
     fail("Go OLSConfig patch source", "controller-runtime OLSConfig patch source path is incomplete");
   }
 
-  const builderVersion = dockerfile?.match(/^FROM golang:(\d+\.\d+\.\d+) AS builder$/m)?.[1];
+  const builderVersion = dockerfile?.match(
+    /^FROM(?:\s+--platform=\S+)?\s+golang:(\d+\.\d+\.\d+) AS builder$/m
+  )?.[1];
   const runtimeVersion = dockerfile?.match(/^FROM registry\.access\.redhat\.com\/ubi9\/ubi-minimal:(\d+\.\d+)$/m)?.[1];
   const versionAtLeast = (actual, minimum) => {
     if (!actual) return false;
@@ -885,6 +962,8 @@ async function validateControllerRuntimeSkeleton() {
   if (
     versionAtLeast(builderVersion, "1.25.11") &&
     dockerfile?.includes("go build -o manager ./main.go") &&
+    dockerfile.includes("ARG TARGETARCH") &&
+    dockerfile.includes("GOARCH=${TARGETARCH}") &&
     versionAtLeast(runtimeVersion, "9.8") &&
     dockerfile.includes("microdnf update -y") &&
     dockerfile.includes('ENTRYPOINT ["/manager"]')
@@ -896,7 +975,7 @@ async function validateControllerRuntimeSkeleton() {
   } else {
     fail(
       "Go manager Dockerfile",
-      `controller-runtime Dockerfile must use Go >=1.25.11, UBI >=9.8, runtime package update, go build, and /manager entrypoint; got go=${builderVersion ?? "missing"} ubi=${runtimeVersion ?? "missing"}`
+      `controller-runtime Dockerfile must use Go >=1.25.11, UBI >=9.8, TARGETARCH-aware go build, runtime package update, and /manager entrypoint; got go=${builderVersion ?? "missing"} ubi=${runtimeVersion ?? "missing"}`
     );
   }
 

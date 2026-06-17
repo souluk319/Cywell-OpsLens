@@ -12,7 +12,7 @@ Status: draft support policy for internal catalog and certification readiness.
 
 | Item | Target |
 |---|---|
-| OpenShift | v4.16-v4.19 readiness declaration |
+| OpenShift | v4.16-v4.21 readiness declaration |
 | Install path | OLM bundle, internal FBC catalog, Manual Subscription |
 | Namespace | `cywell-opslens` by default |
 | Lightspeed integration | Custom MCP server through OLSConfig, Technology Preview |

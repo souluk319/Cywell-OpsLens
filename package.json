@@ -42,6 +42,7 @@
     "verify:lab-bootstrap": "node ./scripts/verify-lab-bootstrap-plan.mjs",
     "verify:lab-handoff": "node ./scripts/verify-lab-server-handoff.mjs",
     "verify:lab-image-map": "node ./scripts/verify-lab-image-map-preview.mjs",
+    "lab:catalog:crc": "node ./scripts/create-crc-dev-catalog-context.mjs",
     "verify:owned-image-provenance": "node ./scripts/verify-owned-image-provenance.mjs",
     "verify:security-scan-plan": "node ./scripts/verify-security-scan-plan.mjs",
     "evidence:security-scan": "node ./scripts/create-security-scan-evidence.mjs",

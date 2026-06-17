@@ -293,6 +293,7 @@ try {
     ["Namespace", "cywell-opslens"],
     ["ServiceAccount", "cywell-opslens-api"],
     ["ConfigMap", "cywell-opslens-rag-policy"],
+    ["Secret", "cywell-opslens-postgres-auth"],
     ["Deployment", "cywell-opslens-api"],
     ["Service", "cywell-opslens-api"],
     ["NetworkPolicy", "cywell-opslens-api-ingress"],
@@ -342,7 +343,7 @@ try {
       controller.includes("Owns(&appsv1.Deployment{})") &&
       controller.includes("Owns(&appsv1.StatefulSet{})") &&
       controller.includes("Owns(&networkingv1.NetworkPolicy{})"),
-    "manager watches owned namespaced resources covered by the TS desired plan"
+    "manager watches owned namespaced resources without requiring broad Secret list/watch"
   );
 
   const apiDeployment = findResource(plan, "Deployment", "cywell-opslens-api");
@@ -421,8 +422,29 @@ try {
       controller.includes("vector-data") &&
       controller.includes("/var/lib/opslens/vector") &&
       controller.includes("/var/lib/postgresql/data") &&
+      controller.includes("/var/lib/postgresql/data/pgdata") &&
       controller.includes("corev1.ResourceStorage"),
     "vector store keeps the TS volume claim and provider-specific mount contract"
+  );
+
+  const postgresSecret = findResource(plan, "Secret", "cywell-opslens-postgres-auth");
+  expectCheck(
+    "Go Postgres auth Secret parity",
+    postgresSecret?.stringData?.url?.includes("cywell-opslens-vector.cywell-opslens.svc.cluster.local") &&
+      controller.includes("reconcilePostgresAuthSecret") &&
+      controller.includes("randomHex") &&
+      controller.includes("cywell-opslens-postgres-auth") &&
+      controller.includes("postgres://opslens:%s@cywell-opslens-vector.%s.svc.cluster.local:5432/opslens?sslmode=disable"),
+    "Postgres auth Secret is generated before API and vector workloads reference it"
+  );
+
+  expectCheck(
+    "Go CRC lightweight provider guards",
+    controller.includes('!= "inmemory"') &&
+      controller.includes('!= "mock-local"') &&
+      controller.includes('vectorProvider == "pgvector"') &&
+      controller.includes('modelProvider != "mock-local"'),
+    "inmemory vector store and mock-local model runtime avoid dangling Postgres/vLLM workloads and env"
   );
 
   const consolePlugin = findResource(plan, "ConsolePlugin", "cywell-opslens");
@@ -550,6 +572,29 @@ try {
     hasRuleFor(clusterRole?.rules ?? [], "", "serviceaccounts", ["get", "create", "patch"]) &&
       hasRuleFor(csvRules, "", "serviceaccounts", ["get", "create", "patch"]),
     "config RBAC and CSV RBAC cover the service account reconciled by Go"
+  );
+
+  expectCheck(
+    "RBAC Postgres Secret parity",
+    hasRuleFor(clusterRole?.rules ?? [], "", "secrets", ["get", "create", "update", "patch"]) &&
+      !hasRuleFor(clusterRole?.rules ?? [], "", "secrets", ["list", "watch"]) &&
+      hasRuleFor(csvRules, "", "secrets", ["get", "create", "update", "patch"]) &&
+      !hasRuleFor(csvRules, "", "secrets", ["list", "watch"]),
+    "config RBAC and CSV RBAC allow generated Postgres auth Secret reconciliation without broad Secret list/watch"
+  );
+
+  expectCheck(
+    "RBAC leader election parity",
+    hasRuleFor(clusterRole?.rules ?? [], "coordination.k8s.io", "leases", ["get", "create", "update", "patch"]) &&
+      hasRuleFor(csvRules, "coordination.k8s.io", "leases", ["get", "create", "update", "patch"]),
+    "config RBAC and CSV RBAC cover controller-runtime leader election leases"
+  );
+
+  expectCheck(
+    "RBAC owner finalizer parity",
+    hasRuleFor(clusterRole?.rules ?? [], "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"]) &&
+      hasRuleFor(csvRules, "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"]),
+    "config RBAC and CSV RBAC cover ownerReferences that need finalizer access"
   );
 
   expectCheck(

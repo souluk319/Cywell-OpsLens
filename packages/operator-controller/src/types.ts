@@ -11,6 +11,8 @@ export interface KubernetesObject {
   };
   spec?: Record<string, unknown>;
   data?: Record<string, string>;
+  stringData?: Record<string, string>;
+  type?: string;
 }
 
 export interface OpsLensInstallation {

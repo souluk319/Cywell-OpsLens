@@ -33,6 +33,19 @@ data:
   approvalQueueEnqueueAllowed: "false"
   requiredApprovals: rag-owner,cluster-sre
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cywell-opslens-postgres-auth
+  namespace: cywell-opslens
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: vector-store
+type: Opaque
+stringData:
+  password: "<generated-by-operator>"
+  url: "postgres://opslens:<generated-by-operator>@cywell-opslens-vector.cywell-opslens.svc.cluster.local:5432/opslens?sslmode=disable"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -290,6 +303,8 @@ spec:
               value: opslens
             - name: POSTGRES_USER
               value: opslens
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:

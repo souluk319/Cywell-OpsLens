@@ -210,6 +210,23 @@ function deployment(
   };
 }
 
+function postgresAuthSecret(namespace: string): KubernetesObject {
+  return {
+    apiVersion: "v1",
+    kind: "Secret",
+    metadata: {
+      name: "cywell-opslens-postgres-auth",
+      namespace,
+      labels: labels("vector-store")
+    },
+    type: "Opaque",
+    stringData: {
+      password: "<generated-by-operator>",
+      url: `postgres://opslens:<generated-by-operator>@cywell-opslens-vector.${namespace}.svc.cluster.local:5432/opslens?sslmode=disable`
+    }
+  };
+}
+
 export function buildOpsLensResources(installation: OpsLensInstallation): KubernetesObject[] {
   const namespace = namespaceFor(installation);
   const api = installation.spec.components.api;
@@ -222,6 +239,44 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
   const vectorProvider = vector.provider ?? "pgvector";
   const vectorImage = vector.image ?? "docker.io/pgvector/pgvector:pg16";
   const runtimeImage = runtime.image ?? "quay.io/cywell/opslens-vllm:0.1.0";
+  const apiEnv: Record<string, unknown>[] = [
+    { name: "KUGNUS_API_HOST", value: "0.0.0.0" },
+    { name: "KUGNUS_API_PORT", value: String(httpsContainerPort) },
+    { name: "PORT", value: String(httpsContainerPort) },
+    { name: "CYWELL_OPSLENS_TLS_CERT_FILE", value: `${tlsMountPath}/tls.crt` },
+    { name: "CYWELL_OPSLENS_TLS_KEY_FILE", value: `${tlsMountPath}/tls.key` },
+    { name: "CYWELL_OPSLENS_VECTOR_PROVIDER", value: vectorProvider }
+  ];
+
+  if (vectorProvider === "pgvector") {
+    apiEnv.push({
+      name: "CYWELL_OPSLENS_POSTGRES_URL",
+      valueFrom: {
+        secretKeyRef: {
+          name: "cywell-opslens-postgres-auth",
+          key: "url"
+        }
+      }
+    });
+  }
+
+  if (runtime.provider !== "mock-local") {
+    apiEnv.push({
+      name: "CYWELL_OPSLENS_MODEL_URL",
+      value: "http://cywell-opslens-vllm:8000"
+    });
+  }
+
+  apiEnv.push(
+    { name: "CYWELL_OPSLENS_RAG_RUNTIME_MODE", value: "local" },
+    { name: "CYWELL_OPSLENS_ACTION_MODE", value: "plan-only" },
+    { name: "CYWELL_OPSLENS_RAG_DOCUMENT_INTAKE_MODE", value: rag.env.documentIntakeMode },
+    { name: "CYWELL_OPSLENS_RAG_EVIDENCE_EXPORT", value: rag.env.evidenceExport },
+    { name: "CYWELL_OPSLENS_RAG_RAW_DOCUMENT_RETURN_ALLOWED", value: rag.env.rawDocumentReturnAllowed },
+    { name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_MODE", value: rag.env.approvalQueueMode },
+    { name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_ENQUEUE_ALLOWED", value: rag.env.approvalQueueEnqueueAllowed },
+    { name: "CYWELL_OPSLENS_RAG_REQUIRED_APPROVALS", value: rag.env.requiredApprovals }
+  );
   const resources: KubernetesObject[] = [
     {
       apiVersion: "v1",
@@ -263,78 +318,9 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
         requiredApprovals: rag.env.requiredApprovals
       }
     },
+    ...(vectorProvider === "pgvector" ? [postgresAuthSecret(namespace)] : []),
     deployment(apiServiceName, namespace, "api", api.image, api.replicas ?? 2, {
-      env: [
-        {
-          name: "KUGNUS_API_HOST",
-          value: "0.0.0.0"
-        },
-        {
-          name: "KUGNUS_API_PORT",
-          value: String(httpsContainerPort)
-        },
-        {
-          name: "PORT",
-          value: String(httpsContainerPort)
-        },
-        {
-          name: "CYWELL_OPSLENS_TLS_CERT_FILE",
-          value: `${tlsMountPath}/tls.crt`
-        },
-        {
-          name: "CYWELL_OPSLENS_TLS_KEY_FILE",
-          value: `${tlsMountPath}/tls.key`
-        },
-        {
-          name: "CYWELL_OPSLENS_VECTOR_PROVIDER",
-          value: vectorProvider
-        },
-        {
-          name: "CYWELL_OPSLENS_POSTGRES_URL",
-          valueFrom: {
-            secretKeyRef: {
-              name: "cywell-opslens-postgres-auth",
-              key: "url"
-            }
-          }
-        },
-        {
-          name: "CYWELL_OPSLENS_MODEL_URL",
-          value: "http://cywell-opslens-vllm:8000"
-        },
-        {
-          name: "CYWELL_OPSLENS_RAG_RUNTIME_MODE",
-          value: "local"
-        },
-        {
-          name: "CYWELL_OPSLENS_ACTION_MODE",
-          value: "plan-only"
-        },
-        {
-          name: "CYWELL_OPSLENS_RAG_DOCUMENT_INTAKE_MODE",
-          value: rag.env.documentIntakeMode
-        },
-        {
-          name: "CYWELL_OPSLENS_RAG_EVIDENCE_EXPORT",
-          value: rag.env.evidenceExport
-        },
-        {
-          name: "CYWELL_OPSLENS_RAG_RAW_DOCUMENT_RETURN_ALLOWED",
-          value: rag.env.rawDocumentReturnAllowed
-        },
-        {
-          name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_MODE",
-          value: rag.env.approvalQueueMode
-        },
-        {
-          name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_ENQUEUE_ALLOWED",
-          value: rag.env.approvalQueueEnqueueAllowed
-        },
-        {
-          name: "CYWELL_OPSLENS_RAG_REQUIRED_APPROVALS",
-          value: rag.env.requiredApprovals
-        }
-      ],
+      env: apiEnv,
       ports: [
         {
           name: "https",
@@ -457,115 +443,125 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
       "dashboard",
       [consoleNamespace]
     ),
-    {
-      apiVersion: "apps/v1",
-      kind: "StatefulSet",
-      metadata: {
-        name: "cywell-opslens-vector",
-        namespace,
-        labels: labels("vector-store")
-      },
-      spec: {
-        serviceName: "cywell-opslens-vector",
-        replicas: 1,
-        selector: {
-          matchLabels: labels("vector-store")
-        },
-        template: {
-          metadata: {
-            labels: labels("vector-store")
-          },
-          spec: {
-            containers: [
-              {
-                name: vectorProvider === "inmemory" ? "inmemory" : "pgvector",
-                image: vectorImage,
-                imagePullPolicy: "IfNotPresent",
-                env: vectorProvider === "pgvector"
-                  ? [
-                      {
-                        name: "POSTGRES_DB",
-                        value: "opslens"
-                      },
-                      {
-                        name: "POSTGRES_USER",
-                        value: "opslens"
-                      },
-                      {
-                        name: "POSTGRES_PASSWORD",
-                        valueFrom: {
-                          secretKeyRef: {
-                            name: "cywell-opslens-postgres-auth",
-                            key: "password"
-                          }
-                        }
-                      }
-                    ]
-                  : undefined,
-                ports: [
-                  {
-                    name: vectorProvider === "pgvector" ? "postgres" : "http",
-                    containerPort: vectorProvider === "pgvector" ? 5432 : 6333
-                  }
-                ],
-                volumeMounts: [
-                  {
-                    name: "vector-data",
-                    mountPath: vectorProvider === "pgvector" ? "/var/lib/postgresql/data" : "/var/lib/opslens/vector"
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        volumeClaimTemplates: [
+    ...(vectorProvider === "inmemory"
+      ? []
+      : [
           {
+            apiVersion: "apps/v1",
+            kind: "StatefulSet",
             metadata: {
-              name: "vector-data"
+              name: "cywell-opslens-vector",
+              namespace,
+              labels: labels("vector-store")
             },
             spec: {
-              accessModes: ["ReadWriteOnce"],
-              resources: {
-                requests: {
-                  storage: vector.storageSize ?? "20Gi"
+              serviceName: "cywell-opslens-vector",
+              replicas: 1,
+              selector: {
+                matchLabels: labels("vector-store")
+              },
+              template: {
+                metadata: {
+                  labels: labels("vector-store")
+                },
+                spec: {
+                  containers: [
+                    {
+                      name: "pgvector",
+                      image: vectorImage,
+                      imagePullPolicy: "IfNotPresent",
+                      env: [
+                        {
+                          name: "POSTGRES_DB",
+                          value: "opslens"
+                        },
+                        {
+                          name: "POSTGRES_USER",
+                          value: "opslens"
+                        },
+                        {
+                          name: "PGDATA",
+                          value: "/var/lib/postgresql/data/pgdata"
+                        },
+                        {
+                          name: "POSTGRES_PASSWORD",
+                          valueFrom: {
+                            secretKeyRef: {
+                              name: "cywell-opslens-postgres-auth",
+                              key: "password"
+                            }
+                          }
+                        }
+                      ],
+                      ports: [
+                        {
+                          name: "postgres",
+                          containerPort: 5432
+                        }
+                      ],
+                      volumeMounts: [
+                        {
+                          name: "vector-data",
+                          mountPath: "/var/lib/postgresql/data"
+                        }
+                      ]
+                    }
+                  ]
                 }
-              }
+              },
+              volumeClaimTemplates: [
+                {
+                  metadata: {
+                    name: "vector-data"
+                  },
+                  spec: {
+                    accessModes: ["ReadWriteOnce"],
+                    resources: {
+                      requests: {
+                        storage: vector.storageSize ?? "20Gi"
+                      }
+                    }
+                  }
+                }
+              ]
             }
-          }
-        ]
-      }
-    },
-    service("cywell-opslens-vector", namespace, "vector-store", [
-      {
-        name: "http",
-        port: vectorProvider === "pgvector" ? 5432 : 6333,
-        targetPort: vectorProvider === "pgvector" ? "postgres" : "http"
-      }
-    ]),
-    deployment("cywell-opslens-vllm", namespace, "model-runtime", runtimeImage, runtime.replicas ?? 1, {
-      args: ["--model", runtime.model],
-      ports: [
-        {
-          name: "http",
-          containerPort: 8000
-        }
-      ],
-      resources:
-        runtime.gpu?.enabled === false
-          ? undefined
-          : {
-              limits: {
-                [runtime.gpu?.deviceClass ?? "nvidia.com/gpu"]: String(runtime.gpu?.count ?? 1)
-              }
+          },
+          service("cywell-opslens-vector", namespace, "vector-store", [
+            {
+              name: "postgres",
+              port: 5432,
+              targetPort: "postgres"
             }
-    }),
-    service("cywell-opslens-vllm", namespace, "model-runtime", [
-      {
-        name: "http",
-        port: 8000,
-        targetPort: "http"
-      }
-    ])
+          ])
+        ]),
+    ...(runtime.provider === "mock-local"
+      ? []
+      : [
+          deployment("cywell-opslens-vllm", namespace, "model-runtime", runtimeImage, runtime.replicas ?? 1, {
+            args: ["--model", runtime.model],
+            ports: [
+              {
+                name: "http",
+                containerPort: 8000
+              }
+            ],
+            resources:
+              runtime.gpu?.enabled === false
+                ? undefined
+                : {
+                    limits: {
+                      [runtime.gpu?.deviceClass ?? "nvidia.com/gpu"]: String(runtime.gpu?.count ?? 1)
+                    }
+                  }
+          }),
+          service("cywell-opslens-vllm", namespace, "model-runtime", [
+            {
+              name: "http",
+              port: 8000,
+              targetPort: "http"
+            }
+          ])
+        ])
   ];
 
   if (installation.spec.consolePlugin?.enabled !== false) {

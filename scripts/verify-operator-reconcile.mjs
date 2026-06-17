@@ -48,6 +48,7 @@ const startedAt = new Date().toISOString();
 let evidenceContext = {
   validateOnlyPlan: undefined,
   patchPlan: undefined,
+  lightweightPlan: undefined,
   readyPlan: undefined,
   missingPlan: undefined
 };
@@ -105,6 +106,14 @@ function findResource(plan, kind, name) {
 
 function headerTypes(server) {
   return (server?.headers ?? []).map((header) => header.valueFrom?.type);
+}
+
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function envNames(resource) {
+  return new Set(resource?.spec?.template?.spec?.containers?.[0]?.env?.map((entry) => entry.name) ?? []);
 }
 
 async function runCapture(command, args) {
@@ -180,6 +189,7 @@ async function writeEvidence() {
     planSummaries: {
       validateOnly: summarizePlan(evidenceContext.validateOnlyPlan),
       patchOLSConfig: summarizePlan(evidenceContext.patchPlan),
+      crcLightweight: summarizePlan(evidenceContext.lightweightPlan),
       alreadyRegistered: summarizePlan(evidenceContext.readyPlan),
       missingOLSConfig: summarizePlan(evidenceContext.missingPlan)
     },
@@ -331,6 +341,35 @@ try {
       Boolean(findResource(patchPlan, "Deployment", "cywell-opslens-vllm")) &&
       Boolean(findResource(patchPlan, "ConsolePlugin", "cywell-opslens")),
     "API, vector store, model runtime, and ConsolePlugin resources are rendered"
+  );
+
+  const lightweightInstallation = deepClone(validateOnlyInstallation);
+  lightweightInstallation.spec.components.vectorStore.provider = "inmemory";
+  lightweightInstallation.spec.components.modelRuntime.provider = "mock-local";
+  lightweightInstallation.spec.components.modelRuntime.gpu = { enabled: false };
+  const lightweightPlan = buildOpsLensReconcilePlan(lightweightInstallation, baseOlsConfig);
+  evidenceContext.lightweightPlan = lightweightPlan;
+  const lightweightApi = findResource(lightweightPlan, "Deployment", "cywell-opslens-api");
+  const lightweightApiEnvNames = envNames(lightweightApi);
+  expectCheck(
+    "CRC lightweight profile omits external runtime workloads",
+    Boolean(lightweightApi) &&
+      Boolean(findResource(lightweightPlan, "Deployment", "cywell-opslens-dashboard")) &&
+      Boolean(findResource(lightweightPlan, "ConsolePlugin", "cywell-opslens")) &&
+      !findResource(lightweightPlan, "Secret", "cywell-opslens-postgres-auth") &&
+      !findResource(lightweightPlan, "StatefulSet", "cywell-opslens-vector") &&
+      !findResource(lightweightPlan, "Service", "cywell-opslens-vector") &&
+      !findResource(lightweightPlan, "Deployment", "cywell-opslens-vllm") &&
+      !findResource(lightweightPlan, "Service", "cywell-opslens-vllm"),
+    "inmemory + mock-local keeps CRC demo install to API, dashboard, ConsolePlugin, and local RAG"
+  );
+  expectCheck(
+    "CRC lightweight profile avoids dangling runtime env",
+    lightweightApiEnvNames.has("CYWELL_OPSLENS_VECTOR_PROVIDER") &&
+      !lightweightApiEnvNames.has("CYWELL_OPSLENS_POSTGRES_URL") &&
+      !lightweightApiEnvNames.has("CYWELL_OPSLENS_MODEL_URL") &&
+      lightweightPlan.policy.assistantMutationAllowed === false,
+    "API does not reference absent Postgres or vLLM services in the lightweight CRC profile"
   );
 
   const readyPlan = buildOpsLensReconcilePlan(patchInstallation, registeredOlsConfig);

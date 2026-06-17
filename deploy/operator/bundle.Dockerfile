@@ -5,6 +5,6 @@ LABEL operators.operatorframework.io.bundle.metadata.v1=metadata/
 LABEL operators.operatorframework.io.bundle.package.v1=cywell-opslens
 LABEL operators.operatorframework.io.bundle.channels.v1=alpha
 LABEL operators.operatorframework.io.bundle.channel.default.v1=alpha
-LABEL com.redhat.openshift.versions=v4.16-v4.19
+LABEL com.redhat.openshift.versions=v4.16-v4.21
 COPY bundle/manifests /manifests/
 COPY bundle/metadata /metadata/
