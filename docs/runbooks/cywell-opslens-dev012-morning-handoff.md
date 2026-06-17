@@ -36,6 +36,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the Assistant display path now adds a reviewed phrase dictionary for live/backend evidence fragments such as `previous pod logs`, `pod logs`, `no pod candidate was available`, `no label selector`, `logs read for last`, `events listed for`, `Forbidden`, `Unauthorized`, `connection refused`, `timed out`, `missing evidence`, `read-only`, and `plan-only` without changing the raw answer payload
 - the masthead now shows a visible mod-boundary strip explaining that OpsLens adds route/API/MCP surfaces while native OpenShift chrome and the Lightspeed drawer remain OpenShift-owned
 - the masthead now shows a visible runtime-profile strip explaining that the CRC demo uses in-memory RAG plus a mock model, while approved installs require pgvector/vLLM evidence
+- the masthead now shows a visible certification boundary explaining that the current build is a local demo, not a Partner/OperatorHub submission, and certified readiness still needs security/release evidence
 - the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
 - the Assistant connection card now includes a KO/EN mode matrix for answer source, token/proxy path, and the non-mutating chat boundary; this directly addresses the “why does the chatbot look unconnected?” demo risk
 - the masthead API status chip is localized instead of showing raw `loading/ready/fallback` state values in Korean mode
@@ -108,6 +109,7 @@ de4d0be Localize roadmap completion
 6df86dd Localize pre-cluster gate
 712398b Localize assistant evidence phrases
 c661a06 Clarify OpsLens mod boundary
+4bb1321 Clarify runtime profile boundary
 ```
 
 ## Verified Gates
@@ -116,11 +118,11 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 29 checks after the visible runtime profile boundary lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 30 checks after the visible certification boundary lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 47; evidence includes start/finish Git state |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the visible runtime profile boundary lane |
-| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, runtime profile, navigation, Assistant labels, and mode matrix |
+| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 48; evidence includes start/finish Git state |
+| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the visible certification boundary lane |
+| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, runtime profile, certification boundary, navigation, Assistant labels, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
 | `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |
@@ -229,7 +231,7 @@ That sample intentionally uses:
 | pgvector restricted SCC issue | default pgvector image wants filesystem permissions restricted SCC blocks; UI now names the in-memory CRC profile separately | keep in-memory profile for demo or design a secure supported Postgres profile |
 | native OpenShift Lightspeed drawer not rebranded | OpenShift-owned console surface | keep OpsLens as route/plugin mod unless a verified console-extension lane is approved |
 | unknown live evidence phrases can still appear raw | common backend/read-only evidence phrase classes now have reviewed KO display replacements; unknown strings remain raw to preserve traceability | extend the phrase dictionary only after seeing repeated live payload classes |
-| final release/certification | external registry/security/certification evidence not complete | do not claim certified readiness |
+| final release/certification | external registry/security/certification evidence not complete; UI now visibly marks this as a local demo boundary | do not claim certified readiness until release/security evidence is approved |
 
 ## Do Not Do
 

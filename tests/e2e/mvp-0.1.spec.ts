@@ -230,6 +230,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("runtime-profile-approved")).toContainText(
       "승인 설치는 pgvector/vLLM 근거 필요"
     );
+    await expect(page.getByTestId("certification-boundary-local")).toContainText(
+      "로컬 데모 빌드"
+    );
+    await expect(page.getByTestId("certification-boundary-submit")).toContainText(
+      "Partner/OperatorHub 제출 안 함"
+    );
+    await expect(
+      page.getByTestId("certification-boundary-evidence")
+    ).toContainText("인증 준비는 보안/릴리스 근거 필요");
     await expect(page.getByTestId("console-nav-alerting")).toContainText(
       "경고"
     );
@@ -280,6 +289,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("runtime-profile-approved")).toContainText(
       "Approved install requires pgvector/vLLM evidence"
     );
+    await expect(page.getByTestId("certification-boundary-local")).toContainText(
+      "Local demo build"
+    );
+    await expect(page.getByTestId("certification-boundary-submit")).toContainText(
+      "No Partner/OperatorHub submission"
+    );
+    await expect(
+      page.getByTestId("certification-boundary-evidence")
+    ).toContainText("Certified readiness needs security/release evidence");
     await expect(page.getByTestId("assistant-mode-matrix")).toContainText(
       "answer source"
     );

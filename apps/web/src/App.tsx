@@ -336,7 +336,12 @@ const shellCopy = {
     modKeeps: "OpenShift keeps native chrome and Lightspeed drawer",
     runtimeBoundary: "Runtime profile",
     runtimeCrc: "CRC demo uses in-memory RAG + mock model",
-    runtimeApproved: "Approved install requires pgvector/vLLM evidence"
+    runtimeApproved: "Approved install requires pgvector/vLLM evidence",
+    certificationBoundary: "Certification boundary",
+    certificationLocal: "Local demo build",
+    certificationSubmit: "No Partner/OperatorHub submission",
+    certificationEvidence:
+      "Certified readiness needs security/release evidence"
   },
   ko: {
     activeSurface: "현재 화면",
@@ -397,7 +402,11 @@ const shellCopy = {
     modKeeps: "OpenShift 기본 메뉴와 Lightspeed 서랍은 유지",
     runtimeBoundary: "런타임 프로필",
     runtimeCrc: "CRC 데모는 인메모리 RAG + 목 모델 사용",
-    runtimeApproved: "승인 설치는 pgvector/vLLM 근거 필요"
+    runtimeApproved: "승인 설치는 pgvector/vLLM 근거 필요",
+    certificationBoundary: "인증 경계",
+    certificationLocal: "로컬 데모 빌드",
+    certificationSubmit: "Partner/OperatorHub 제출 안 함",
+    certificationEvidence: "인증 준비는 보안/릴리스 근거 필요"
   }
 } as const;
 
@@ -848,6 +857,30 @@ export default function App() {
                 data-testid="runtime-profile-approved"
               >
                 {copy.runtimeApproved}
+              </span>
+            </div>
+            <div
+              className="certification-boundary-strip"
+              data-testid="certification-boundary-strip"
+              aria-label={copy.certificationBoundary}
+            >
+              <span
+                className="status-pill warning"
+                data-testid="certification-boundary-local"
+              >
+                {copy.certificationLocal}
+              </span>
+              <span
+                className="status-pill read-only"
+                data-testid="certification-boundary-submit"
+              >
+                {copy.certificationSubmit}
+              </span>
+              <span
+                className="status-pill warning"
+                data-testid="certification-boundary-evidence"
+              >
+                {copy.certificationEvidence}
               </span>
             </div>
             <div

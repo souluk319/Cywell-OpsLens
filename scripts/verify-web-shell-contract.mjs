@@ -129,6 +129,25 @@ expectCheck(
 );
 
 expectCheck(
+  "visible certification boundary",
+  appSource.includes('data-testid="certification-boundary-strip"') &&
+    appSource.includes('data-testid="certification-boundary-local"') &&
+    appSource.includes('data-testid="certification-boundary-submit"') &&
+    appSource.includes('data-testid="certification-boundary-evidence"') &&
+    appSource.includes("Local demo build") &&
+    appSource.includes("No Partner/OperatorHub submission") &&
+    appSource.includes(
+      "Certified readiness needs security/release evidence"
+    ) &&
+    appSource.includes("로컬 데모 빌드") &&
+    appSource.includes("Partner/OperatorHub 제출 안 함") &&
+    appSource.includes("인증 준비는 보안/릴리스 근거 필요") &&
+    stylesSource.includes(".certification-boundary-strip") &&
+    stylesSource.includes(".certification-boundary-strip .status-pill"),
+  "masthead visibly blocks local demo builds from being mistaken for certified or submitted OperatorHub readiness"
+);
+
+expectCheck(
   "console plugin proxy detection",
   appSource.includes('surface === "console-plugin"') &&
     appSource.includes('/api/proxy/plugin/cywell-opslens/') &&

@@ -759,6 +759,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - This keeps the pgvector/vLLM gap honest while making the demo-safe runtime profile visible without opening docs.
 - `npm run verify:web-shell` now includes a `visible runtime profile boundary` gate, and `AC-UI-004` checks the KO/EN runtime profile copy in the browser.
 
+### 2026-06-18 - Lane 48
+
+- Added a visible certification boundary strip so local CRC demo builds are not mistaken for Red Hat Partner or OperatorHub submission readiness.
+- The KO/EN shell now separates `Local demo build`, `No Partner/OperatorHub submission`, and `Certified readiness needs security/release evidence`.
+- This keeps the final release/certification gap honest on the first viewport while preserving the value of the local OperatorHub and ConsolePlugin demo.
+- `npm run verify:web-shell` now includes a `visible certification boundary` gate, and `AC-UI-004` checks the KO/EN certification boundary copy in the browser.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -770,10 +777,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 46: `c661a06`
+- feature branch latest pushed head after Lane 47: `4bb1321`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 47: PASS, 29 checks
-- latest overnight checkpoint after Lane 47: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 48: PASS, 30 checks
+- latest overnight checkpoint after Lane 48: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
