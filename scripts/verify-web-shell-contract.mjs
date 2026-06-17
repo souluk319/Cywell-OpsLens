@@ -271,6 +271,9 @@ expectCheck(
     adminSource.includes("copy.monitoringProxy") &&
     adminSource.includes("copy.acceptedAlerts") &&
     adminSource.includes("copy.rawAlertReturned") &&
+    adminSource.includes("copy.reviewGate") &&
+    adminSource.includes("copy.targetConfidence") &&
+    adminSource.includes("copy.runbooks") &&
     adminSource.includes("copy.currentGap") &&
     adminSource.includes("copy.requiredImages") &&
     adminSource.includes("copy.localInspect") &&
@@ -317,6 +320,21 @@ expectCheck(
     !adminSource.includes("<span>Selected Pod</span>") &&
     adminSource.includes("copy.metricSamples"),
   "Admin AI Ops and Alertmanager summary labels use bilingual copy instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized remediation proposal labels",
+  !adminSource.includes("<span>Mode</span>") &&
+    !adminSource.includes("<span>Patch</span>") &&
+    !adminSource.includes("<span>Current</span>") &&
+    !adminSource.includes("<span>Proposed</span>") &&
+    !adminSource.includes("reviewGate={String(proposal.reviewGate.required)}") &&
+    !adminSource.includes("targetConfidence={proposal.target.confidence}") &&
+    !adminSource.includes("logs={String(proposal.triggerEvidence.logs.currentRead)}") &&
+    !adminSource.includes("events={String(proposal.triggerEvidence.events.read)}") &&
+    !adminSource.includes("metrics=") &&
+    !adminSource.includes("runbooks={proposal.triggerEvidence.runbookCitations.length}"),
+  "Remediation proposal cards use bilingual labels while retaining operational field values"
 );
 
 expectCheck(

@@ -315,6 +315,15 @@ const adminCopy = {
     ingestionJobCreated: "ingestion job created",
     triggerEvidence: "trigger evidence",
     metricSamples: "samples",
+    patch: "patch",
+    current: "current",
+    proposed: "proposed",
+    reviewGate: "review gate",
+    targetConfidence: "target confidence",
+    logs: "logs",
+    events: "events",
+    metrics: "metrics",
+    runbooks: "runbooks",
     installReadiness: "Install Readiness",
     lightspeedMcp: "Lightspeed MCP",
     environment: "environment",
@@ -459,6 +468,15 @@ const adminCopy = {
     ingestionJobCreated: "적재 작업 생성",
     triggerEvidence: "트리거 근거",
     metricSamples: "샘플",
+    patch: "패치",
+    current: "현재값",
+    proposed: "제안값",
+    reviewGate: "검토 게이트",
+    targetConfidence: "대상 신뢰도",
+    logs: "로그",
+    events: "이벤트",
+    metrics: "메트릭",
+    runbooks: "런북",
     installReadiness: "설치 준비도",
     lightspeedMcp: "Lightspeed MCP",
     environment: "환경 격리",
@@ -1971,27 +1989,32 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 </div>
                 <div className="remediation-target-grid">
                   <div>
-                    <span>Mode</span>
-                    <strong>{proposal.actionMode}</strong>
+                    <span>{copy.toolMode}</span>
+                    <strong>{actionModeText(language, proposal.actionMode)}</strong>
                   </div>
                   <div>
-                    <span>Patch</span>
+                    <span>{copy.patch}</span>
                     <strong>{proposal.patchType}</strong>
                   </div>
                   <div>
-                    <span>Current</span>
+                    <span>{copy.current}</span>
                     <strong>{proposal.currentValue.value}</strong>
                   </div>
                   <div>
-                    <span>Proposed</span>
+                    <span>{copy.proposed}</span>
                     <strong>{proposal.proposedValue.value}</strong>
                   </div>
                 </div>
                 <pre className="remediation-yaml">{proposal.yamlPatch}</pre>
                 <div className="admin-evidence-line">
-                  <span>mutationAllowed=false</span>
-                  <span>reviewGate={String(proposal.reviewGate.required)}</span>
-                  <span>targetConfidence={proposal.target.confidence}</span>
+                  <span>{copy.mutationAllowed}: {booleanText(language, false)}</span>
+                  <span>
+                    {copy.reviewGate}:{" "}
+                    {booleanText(language, proposal.reviewGate.required)}
+                  </span>
+                  <span>
+                    {copy.targetConfidence}: {proposal.target.confidence}
+                  </span>
                   <span>{proposal.target.fieldPath}</span>
                 </div>
                 <div
@@ -1999,21 +2022,32 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   data-testid="opslens-remediation-trigger-evidence"
                 >
                   <span>
-                    logs={String(proposal.triggerEvidence.logs.currentRead)}:
+                    {copy.logs}:{" "}
+                    {booleanText(
+                      language,
+                      proposal.triggerEvidence.logs.currentRead
+                    )}
+                    /
                     {proposal.triggerEvidence.logs.windowMinutes}m
                   </span>
                   <span>
-                    events={String(proposal.triggerEvidence.events.read)}:
+                    {copy.events}:{" "}
+                    {booleanText(language, proposal.triggerEvidence.events.read)}
+                    /
                     {proposal.triggerEvidence.events.count}
                   </span>
                   <span>
-                    metrics=
+                    {copy.metrics}:{" "}
                     {proposal.triggerEvidence.metrics.queries
-                      .map((query) => `${query.name}:${query.status}`)
+                      .map(
+                        (query) =>
+                          `${query.name}:${statusText(language, query.status)}`
+                      )
                       .join(", ")}
                   </span>
                   <span>
-                    runbooks={proposal.triggerEvidence.runbookCitations.length}
+                    {copy.runbooks}:{" "}
+                    {proposal.triggerEvidence.runbookCitations.length}
                   </span>
                 </div>
                 <div className="remediation-notes">
