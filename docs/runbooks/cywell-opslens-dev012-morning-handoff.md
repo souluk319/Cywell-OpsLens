@@ -75,6 +75,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the Operator now cleans up only owned stale pgvector/vLLM controllers, services, and the generated Postgres secret when the CR switches to the CRC lightweight `inmemory` plus `mock-local` profile; PVC data remains outside automatic cleanup
 - the Operator now creates `Route/cywell-opslens-dashboard` with reencrypt TLS, so an installed CRC demo has a route-backed page entrypoint instead of relying only on remembered port-forwards
 - AC-LAB-001 now explicitly treats `npm run verify:crc-demo-readiness` as the CRC demo gate, so the acceptance criteria, package contract, UI signal, and morning handoff all point at the same lightweight install path
+- `npm run verify:crc-demo-readiness` now reads the generated CRC catalog context under `test-results/crc-dev-catalog` and fails if that generated context is not `cywell-opslens-operator.v0.1.2` plus `v0.1.2-dev-crc`
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - the Operator status path no longer reports `OpsLensInstallation Ready` before required API/dashboard/vector/model workloads are observed as ready; unready required workloads keep the CR in `Installing`
 - the TypeScript dry-run status now follows the same no-false-Ready rule, so plan evidence no longer claims workload readiness before live controller observation
@@ -233,6 +234,20 @@ oc get opslensinstallation,deploy,pod,svc,route -n cywell-opslens
 oc get route cywell-opslens-dashboard -n cywell-opslens
 oc get opslensinstallation cywell-opslens -n cywell-opslens -o jsonpath='{.status.dashboardRoute.name}{" | ready="}{.status.dashboardRoute.ready}{" | entry="}{.status.dashboardRoute.entryPoint}{"\n"}'
 ```
+
+On the Windows repo before rebuilding or pushing images:
+
+```powershell
+npm run lab:catalog:crc
+npm run verify:crc-demo-readiness
+```
+
+Important distinction:
+
+- source release bundle may still say `cywell-opslens-operator.v0.1.0`
+- generated CRC demo context must say `cywell-opslens-operator.v0.1.2`
+- generated CRC demo images must use `v0.1.2-dev-crc`
+- a live pod still pulling `quay.io/cywell/opslens-operator:0.1.0` is stale catalog/subscription state, not a thing to wait out
 
 If port-forwards died, rebuild them from:
 

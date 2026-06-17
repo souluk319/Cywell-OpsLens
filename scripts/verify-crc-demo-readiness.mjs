@@ -12,6 +12,11 @@ const defaults = {
 
 const paths = {
   csv: "deploy/operator/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml",
+  crcCatalogCsv:
+    "test-results/crc-dev-catalog/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml",
+  crcCatalogFbc: "test-results/crc-dev-catalog/fbc/catalog.yaml",
+  crcCatalogSource: "test-results/crc-dev-catalog/openshift/catalogsource-crc.yaml",
+  crcSubscription: "test-results/crc-dev-catalog/openshift/subscription-crc.yaml",
   crcSample:
     "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation_crc_lightweight.yaml",
   app: "apps/web/src/App.tsx",
@@ -21,6 +26,10 @@ const paths = {
   morningHandoff: "docs/runbooks/cywell-opslens-dev012-morning-handoff.md",
   tar: "test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar"
 };
+
+const crcDevVersion = "0.1.2";
+const crcDevCsv = `cywell-opslens-operator.v${crcDevVersion}`;
+const crcDevImageTag = "v0.1.2-dev-crc";
 
 const checks = [];
 
@@ -94,6 +103,23 @@ async function readYaml(path) {
     fail("YAML source", `${path}: ${error instanceof Error ? error.message : String(error)}`);
   }
   return undefined;
+}
+
+async function readYamlDocs(path) {
+  const text = await readText(path);
+  if (!text) return [];
+  try {
+    const docs = parseAllDocuments(text).filter((doc) => !doc.errors.length);
+    const values = docs.map((doc) => doc.toJSON()).filter(Boolean);
+    if (values.length > 0) {
+      pass("YAML source", `${path} loaded (${values.length} docs)`);
+      return values;
+    }
+    fail("YAML source", `${path} has no readable documents`);
+  } catch (error) {
+    fail("YAML source", `${path}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return [];
 }
 
 function gitValue(args, fallback) {
@@ -196,6 +222,8 @@ function renderMarkdown(evidence) {
     `- First example profile: \`${evidence.packageSignals.firstAlmExampleProfile ?? "missing"}\``,
     `- Approved install example retained: \`${String(evidence.packageSignals.releaseExampleRetained)}\``,
     `- First relatedImages: \`${evidence.packageSignals.relatedImagesFirstThree.join(" / ")}\``,
+    `- CRC generated CSV: \`${evidence.packageSignals.crcGeneratedCsv ?? "missing"}\``,
+    `- CRC generated image tag: \`${evidence.packageSignals.crcGeneratedImageTag ?? "missing"}\``,
     "",
     "## Transfer Artifact",
     "",
@@ -218,6 +246,10 @@ function renderMarkdown(evidence) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const csv = await readYaml(paths.csv);
+  const crcCatalogCsv = await readYaml(paths.crcCatalogCsv);
+  const crcCatalogFbcDocs = await readYamlDocs(paths.crcCatalogFbc);
+  const crcCatalogSource = await readYaml(paths.crcCatalogSource);
+  const crcSubscription = await readYaml(paths.crcSubscription);
   const crcSample = await readYaml(paths.crcSample);
   const app = await readText(paths.app);
   const webVerifier = await readText(paths.webVerifier);
@@ -289,6 +321,48 @@ async function main() {
     `first relatedImages are ${relatedImages.slice(0, 3).join("/") || "missing"}`
   );
 
+  const crcChannel = crcCatalogFbcDocs.find((doc) => doc?.schema === "olm.channel");
+  const crcBundle = crcCatalogFbcDocs.find((doc) => doc?.schema === "olm.bundle");
+  const crcGeneratedImages = [
+    ...(crcCatalogCsv?.spec?.relatedImages ?? []).map((image) => String(image.image ?? "")),
+    String(crcBundle?.image ?? ""),
+    String(crcCatalogSource?.spec?.image ?? "")
+  ].filter(Boolean);
+
+  expectCheck(
+    "CRC generated CSV version",
+    crcCatalogCsv?.metadata?.name === crcDevCsv && String(crcCatalogCsv?.spec?.version ?? "") === crcDevVersion,
+    `${paths.crcCatalogCsv} publishes ${crcDevCsv}`,
+    `${paths.crcCatalogCsv} must publish ${crcDevCsv}, not the source 0.1.0 CSV`
+  );
+  expectCheck(
+    "CRC generated FBC channel",
+    (crcChannel?.entries ?? []).some((entry) => entry?.name === crcDevCsv) &&
+      crcBundle?.name === crcDevCsv &&
+      String(crcBundle?.image ?? "").endsWith(`:${crcDevImageTag}`),
+    `generated FBC channel points at ${crcDevCsv} with ${crcDevImageTag}`,
+    "generated FBC must point at the CRC dev CSV and versioned bundle image"
+  );
+  expectCheck(
+    "CRC generated Subscription startingCSV",
+    crcSubscription?.spec?.startingCSV === crcDevCsv,
+    `generated Subscription starts at ${crcDevCsv}`,
+    `generated Subscription must use startingCSV ${crcDevCsv}`
+  );
+  expectCheck(
+    "CRC generated CatalogSource image",
+    String(crcCatalogSource?.spec?.image ?? "").endsWith(`:${crcDevImageTag}`),
+    `generated CatalogSource image uses ${crcDevImageTag}`,
+    `generated CatalogSource image must use ${crcDevImageTag}`
+  );
+  expectCheck(
+    "CRC generated images avoid stale operator",
+    crcGeneratedImages.every((image) => !image.includes("quay.io/cywell/opslens-operator:0.1.0")) &&
+      crcGeneratedImages.some((image) => image.includes(`cywell-opslens-operator:${crcDevImageTag}`)),
+    "generated CRC catalog replaces stale operator pull path with the internal versioned image",
+    "generated CRC catalog must not leave the operator install payload on quay.io/cywell/opslens-operator:0.1.0"
+  );
+
   const uiInstallProfileCopy = [
     "Use CRC lightweight example first",
     "CRC lightweight 예제를 먼저 선택",
@@ -352,7 +426,13 @@ async function main() {
       firstAlmExampleName: firstExample?.metadata?.name ?? null,
       firstAlmExampleProfile: profile(firstExample) || null,
       releaseExampleRetained: Boolean(releaseExample),
-      relatedImagesFirstThree: relatedImages.slice(0, 3)
+      relatedImagesFirstThree: relatedImages.slice(0, 3),
+      crcGeneratedCsv: crcCatalogCsv?.metadata?.name ?? null,
+      crcGeneratedImageTag: crcGeneratedImages.find((image) => image.includes(crcDevImageTag))
+        ? crcDevImageTag
+        : null,
+      crcGeneratedSubscriptionStartingCsv: crcSubscription?.spec?.startingCSV ?? null,
+      crcGeneratedCatalogSourceImage: crcCatalogSource?.spec?.image ?? null
     },
     transferTar: tar,
     checks

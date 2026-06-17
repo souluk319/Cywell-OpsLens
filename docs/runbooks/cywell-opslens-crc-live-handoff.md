@@ -138,10 +138,20 @@ Before rebuilding or pushing CRC catalog images, regenerate the versioned CRC ha
 
 ```powershell
 npm run lab:catalog:crc
+npm run verify:crc-demo-readiness
 npm run verify:lab-image-map
 ```
 
-The generated commands must reference `v0.1.2-dev-crc`, not the ambiguous live-cluster `:verify` tag.
+The checked-in release bundle may still be `cywell-opslens-operator.v0.1.0`; that is the source package contract. The CRC demo must trust the generated context under `test-results/crc-dev-catalog`, and that generated context must publish:
+
+```text
+test-results/crc-dev-catalog/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml -> cywell-opslens-operator.v0.1.2
+test-results/crc-dev-catalog/fbc/catalog.yaml -> cywell-opslens-operator.v0.1.2
+test-results/crc-dev-catalog/openshift/subscription-crc.yaml -> startingCSV cywell-opslens-operator.v0.1.2
+test-results/crc-dev-catalog/openshift/catalogsource-crc.yaml -> cywell-opslens-catalog:v0.1.2-dev-crc
+```
+
+The generated commands must reference `v0.1.2-dev-crc`, not the ambiguous live-cluster `:verify` tag and not the release-source `0.1.0` pull path. `npm run verify:crc-demo-readiness` fails if this CRC-generated context drifts back to stale `0.1.0` install payloads.
 
 The MacBook CRC node is `arm64`. Before copying image tar files, prove the local images are arm64:
 
