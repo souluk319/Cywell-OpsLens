@@ -124,6 +124,8 @@ expectCheck(
 );
 
 const failCount = checks.filter((check) => check.status === "FAIL").length;
+pass("web shell evidence export", `${resolve(evidenceOut)} written`);
+
 const evidence = {
   schema: "cywell.opslens.web-shell-contract.v0.1",
   artifactType: "opslens.web-shell-contract.v0.1",
@@ -146,7 +148,6 @@ const evidence = {
 
 await mkdir(resolve("test-results"), { recursive: true });
 await writeFile(resolve(evidenceOut), `${JSON.stringify(evidence, null, 2)}\n`);
-pass("web shell evidence export", `${resolve(evidenceOut)} written`);
 
 for (const check of checks) {
   console.log(`[${check.status}] ${check.name}: ${check.detail}`);
