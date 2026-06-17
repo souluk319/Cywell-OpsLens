@@ -560,6 +560,18 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
   - API service-side failure
 - Protected the interpretation label and common port-forward/proxy failure copy in `npm run verify:web-shell`.
 
+### 2026-06-18 - Lane 23
+
+- Closed the OperatorHub example gap that caused CRC users to create the heavyweight runtime path from the console.
+- Added a second `alm-examples` entry for the CRC lightweight `OpsLensInstallation` profile:
+  - `vectorStore.provider=inmemory`
+  - `modelRuntime.provider=mock-local`
+  - `modelRuntime.replicas=0`
+  - `lightspeedRegistration.mode=ValidateOnly`
+  - internal CRC API/dashboard image tags
+- Kept the approved-install example explicit with pgvector, vLLM, and `PatchOLSConfig` so production-facing behavior is still visible but not the only path.
+- Extended `npm run verify:operator` so the bundle fails if OperatorHub no longer exposes the CRC-safe example.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

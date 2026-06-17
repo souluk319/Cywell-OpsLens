@@ -398,6 +398,87 @@ function validateCrcSample(sample) {
   }
 }
 
+function readCsvAlmExamples(csv) {
+  const raw = csv?.metadata?.annotations?.["alm-examples"];
+  if (typeof raw !== "string" || raw.trim().length === 0) {
+    fail("CSV alm-examples parse", "metadata.annotations.alm-examples is missing");
+    return [];
+  }
+
+  try {
+    const examples = JSON.parse(raw);
+    if (Array.isArray(examples)) {
+      pass("CSV alm-examples parse", `${examples.length} OpsLensInstallation examples`);
+      return examples;
+    }
+    fail("CSV alm-examples parse", "alm-examples must be a JSON array");
+  } catch (error) {
+    fail("CSV alm-examples parse", error instanceof Error ? error.message : String(error));
+  }
+  return [];
+}
+
+function validateCsvAlmExamples(csv) {
+  const examples = readCsvAlmExamples(csv);
+  const releaseExample = examples.find(
+    (example) =>
+      example?.kind === "OpsLensInstallation" &&
+      example?.spec?.components?.vectorStore?.provider === "pgvector" &&
+      example?.spec?.components?.modelRuntime?.provider === "vllm" &&
+      example?.spec?.lightspeedRegistration?.mode === "PatchOLSConfig"
+  );
+  if (releaseExample) {
+    pass("CSV alm-examples release path", "pgvector/vLLM/PatchOLSConfig example remains explicit for approved installs");
+  } else {
+    fail("CSV alm-examples release path", "alm-examples must retain an explicit approved-install example");
+  }
+
+  const crcExample = examples.find(
+    (example) =>
+      example?.kind === "OpsLensInstallation" &&
+      example?.metadata?.annotations?.["opslens.cywell.io/profile"] === "crc-lightweight"
+  );
+  if (!crcExample) {
+    fail("CSV alm-examples CRC lightweight path", "OperatorHub must expose a crc-lightweight OpsLensInstallation example");
+    return;
+  }
+
+  const crcSpec = crcExample.spec ?? {};
+  if (
+    crcSpec.components?.vectorStore?.provider === "inmemory" &&
+    crcSpec.components?.modelRuntime?.provider === "mock-local" &&
+    crcSpec.components?.modelRuntime?.replicas === 0 &&
+    crcSpec.components?.modelRuntime?.gpu?.enabled === false &&
+    crcSpec.lightspeedRegistration?.mode === "ValidateOnly"
+  ) {
+    pass(
+      "CSV alm-examples CRC lightweight path",
+      "OperatorHub offers a demo-safe inmemory/mock-local/ValidateOnly example"
+    );
+  } else {
+    fail(
+      "CSV alm-examples CRC lightweight path",
+      "crc-lightweight alm-example must avoid pgvector, vLLM, GPU, and OLSConfig mutation"
+    );
+  }
+
+  const apiImage = crcSpec.components?.api?.image ?? "";
+  const dashboardImage = crcSpec.components?.dashboard?.image ?? "";
+  if (
+    apiImage.includes("image-registry.openshift-image-registry.svc:5000") &&
+    dashboardImage.includes("image-registry.openshift-image-registry.svc:5000") &&
+    !crcSpec.components?.vectorStore?.image &&
+    !crcSpec.components?.modelRuntime?.image
+  ) {
+    pass("CSV alm-examples CRC internal images", "API/dashboard use CRC internal images and heavy runtime images are omitted");
+  } else {
+    fail(
+      "CSV alm-examples CRC internal images",
+      "crc-lightweight alm-example must use internal API/dashboard images and omit pgvector/vLLM images"
+    );
+  }
+}
+
 function validateRbac(clusterRole, csv) {
   const rbacRules = clusterRole?.rules ?? [];
   if (hasRuleFor(rbacRules, "ols.openshift.io", "olsconfigs", ["get", "patch"])) {
@@ -534,6 +615,8 @@ function validateCsv(csv) {
       "CSV metadata.labels must include operatorframework.io/os.linux and operatorframework.io/arch.amd64/arm64"
     );
   }
+
+  validateCsvAlmExamples(csv);
 
   if (csv?.spec?.install?.strategy === "deployment") {
     pass("CSV install strategy", "deployment");
