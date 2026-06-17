@@ -8,6 +8,10 @@ const defaults = {
   intervalMinutes: 30,
   evidenceOut: "test-results/cywell-opslens-dev012-overnight-checkpoint.json",
   markdownOut: "test-results/cywell-opslens-dev012-overnight-checkpoint.md",
+  autonomyPlan:
+    "docs/runbooks/cywell-opslens-dev012-10h-autonomy-plan.md",
+  morningHandoff:
+    "docs/runbooks/cywell-opslens-dev012-morning-handoff.md",
   commandTimeoutMs: 10 * 60 * 1000
 };
 
@@ -88,6 +92,8 @@ function parseArgs(argv) {
         : defaults.commandTimeoutMs,
     evidenceOut: values.get("evidence-out") ?? defaults.evidenceOut,
     markdownOut: values.get("markdown-out") ?? defaults.markdownOut,
+    autonomyPlan: values.get("autonomy-plan") ?? defaults.autonomyPlan,
+    morningHandoff: values.get("morning-handoff") ?? defaults.morningHandoff,
     stopOnFail: values.get("stop-on-fail") !== "false"
   };
 }
@@ -233,7 +239,80 @@ async function gitStamp() {
   };
 }
 
+function stepTotals(report) {
+  const flatSteps = report.iterations.flatMap((iteration) => iteration.steps);
+  const passed = flatSteps.filter((step) => step.status === "PASS").length;
+  const failed = flatSteps.filter((step) => step.status !== "PASS").length;
+  return {
+    total: flatSteps.length,
+    passed,
+    failed
+  };
+}
+
+function handoffDecision(report) {
+  if (report.status !== "PASS") {
+    return {
+      status: "BLOCKED",
+      summary:
+        "A local gate failed. Do not continue install, image, or live CRC work until the failed step output is reviewed.",
+      firstAction:
+        "Open the failure section below, then inspect the JSON evidence for stdout/stderr."
+    };
+  }
+  if (report.gitFinish?.worktreeDirty) {
+    return {
+      status: "REVIEW",
+      summary:
+        "The gates passed, but the worktree changed during the loop. Review dirty entries before committing or installing.",
+      firstAction:
+        "Run git status --short --branch and inspect the listed dirty entries."
+    };
+  }
+  return {
+    status: "READY_FOR_NEXT_LOCAL_LANE",
+    summary:
+      "Local non-mutating gates are green on the stamped head. Continue the next product lane before any live CRC action.",
+    firstAction:
+      "Read the autonomy plan, then run a fresh checkpoint after the next code or runbook change."
+  };
+}
+
+function morningHandoff(report) {
+  const totals = stepTotals(report);
+  const decision = handoffDecision(report);
+  return {
+    decision,
+    stepTotals: totals,
+    operatorReadFirst: [
+      "This evidence is local and non-mutating.",
+      "A PASS means the local product gates are still coherent; it does not mean production or certified OperatorHub readiness.",
+      "Live CRC work still requires the MacBook CRC cluster, valid login, and explicit approval for any cluster mutation."
+    ],
+    safeEntrypoints: [
+      options.markdownOut,
+      options.evidenceOut,
+      options.autonomyPlan,
+      options.morningHandoff
+    ],
+    nextSafeCommands: [
+      "npm run verify:web-shell",
+      "npm run verify:crc-demo-readiness",
+      "npm run overnight:checkpoint"
+    ],
+    blockedActions: [
+      "Do not patch OLSConfig from this runner.",
+      "Do not create secrets or registry credentials from this runner.",
+      "Do not claim native OpenShift Lightspeed drawer rebranding without ConsolePlugin verification."
+    ],
+    leaveMacPoweredRationale:
+      "Leaving the MacBook awake preserves CRC, OpenShift console, Docker registry trust, and port-forward context for the next live demo pass; if it sleeps, continue from local evidence and reconnect live CRC manually."
+  };
+}
+
 function renderMarkdown(report) {
+  const totals = stepTotals(report);
+  const morning = report.morningHandoff ?? morningHandoff(report);
   const lines = [
     "# Cywell OpsLens Dev 0.1.2 Overnight Checkpoint",
     "",
@@ -243,10 +322,38 @@ function renderMarkdown(report) {
     `Start worktree dirty: \`${String(report.git.worktreeDirty)}\` (${report.git.dirtyEntryCount} entries)`,
     `Finish worktree dirty: \`${String(report.gitFinish?.worktreeDirty ?? "unknown")}\` (${report.gitFinish?.dirtyEntryCount ?? "unknown"} entries)`,
     `Status: \`${report.status}\``,
+    `Morning decision: \`${morning.decision.status}\``,
+    "",
+    "## Read This First",
+    "",
+    morning.decision.summary,
+    "",
+    `First action: ${morning.decision.firstAction}`,
+    "",
+    `Step totals: ${totals.passed}/${totals.total} passed, ${totals.failed} failed.`,
+    "",
+    "Safe entrypoints:",
+    "",
+    `- \`${options.autonomyPlan}\``,
+    `- \`${options.morningHandoff}\``,
+    `- \`${options.markdownOut}\``,
+    `- \`${options.evidenceOut}\``,
+    "",
+    "Safe next commands:",
+    "",
+    ...morning.nextSafeCommands.map((command) => `- \`${command}\``),
+    "",
+    "Blocked actions:",
+    "",
+    ...morning.blockedActions.map((action) => `- ${action}`),
     "",
     "## Scope",
     "",
     "This runner is local and non-mutating. It does not patch OCP, create secrets, push images, or read `.env` values.",
+    "",
+    "MacBook note:",
+    "",
+    morning.leaveMacPoweredRationale,
     "",
     "## Results",
     "",
@@ -305,13 +412,14 @@ function renderMarkdown(report) {
 
 const options = parseArgs(process.argv.slice(2));
 const report = {
-  schema: "cywell.opslens.dev012-overnight-checkpoint.v0.1",
+  schema: "cywell.opslens.dev012-overnight-checkpoint.v0.2",
   startedAt: nowIso(),
   finishedAt: null,
   status: "PASS",
   options,
   git: await gitStamp(),
   gitFinish: null,
+  morningHandoff: null,
   steps: steps.map((step) => ({ id: step.id, command: [step.command, ...step.args].join(" ") })),
   iterations: []
 };
@@ -353,6 +461,7 @@ for (let index = 1; index <= options.iterations; index += 1) {
 
 report.finishedAt = nowIso();
 report.gitFinish = await gitStamp();
+report.morningHandoff = morningHandoff(report);
 
 await mkdir(resolve("test-results"), { recursive: true });
 await writeFile(resolve(options.evidenceOut), `${JSON.stringify(report, null, 2)}\n`, "utf8");

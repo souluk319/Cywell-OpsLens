@@ -69,6 +69,8 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
 - the overnight checkpoint evidence now stamps start/finish branch, head, worktree dirty flag, dirty entry count, and dirty entries so a green loop can be audited against the actual Git state
 - the overnight checkpoint now includes `npm run verify:crc-demo-readiness`, which checks the CRC lightweight OperatorHub path, UI first-choice copy, handoff commands, and arm64 transfer tar as one local evidence packet
+- the overnight checkpoint Markdown/JSON now writes a morning decision, step totals, safe entrypoints, safe next commands, blocked actions, and the MacBook keep-awake rationale so the user can resume without rereading the whole chat
+- `docs/runbooks/cywell-opslens-dev012-10h-autonomy-plan.md` is the human plan artifact for the unattended window; it states what the loop does, what it will not do, and how to resume if the Mac sleeps
 - AC-LAB-001 now explicitly treats `npm run verify:crc-demo-readiness` as the CRC demo gate, so the acceptance criteria, package contract, UI signal, and morning handoff all point at the same lightweight install path
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - the Operator status path no longer reports `OpsLensInstallation Ready` before required API/dashboard/vector/model workloads are observed as ready; unready required workloads keep the CR in `Installing`
@@ -260,6 +262,18 @@ npm run overnight:loop
 ```
 
 The loop only runs local non-mutating gates and writes evidence under `test-results/`. It does not patch OCP, create secrets, push images, or read `.env`.
+
+The first file to read after returning is:
+
+```text
+test-results/cywell-opslens-dev012-overnight-checkpoint.md
+```
+
+That summary links back to the 10-hour plan and gives the current decision:
+
+- `READY_FOR_NEXT_LOCAL_LANE`: keep improving locally before live CRC work
+- `REVIEW`: gates passed but dirty entries need inspection
+- `BLOCKED`: inspect the failed step before any install/live action
 
 ## Product Boundary To Remember
 

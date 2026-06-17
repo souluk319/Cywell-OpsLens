@@ -962,6 +962,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The card makes the current state visible without pretending the native Lightspeed drawer has been replaced: `API connected / plan-only` can now be read together with `context sync ready`, `action plan API ready`, and `cluster mutation blocked`.
 - Protected the smoke card with `verify:web-shell`, `AC-UI-004`, `AC-CTX-001`, and an in-app browser observation.
 
+### 2026-06-18 - Lane 79
+
+- Added `docs/runbooks/cywell-opslens-dev012-10h-autonomy-plan.md` as the explicit 10-hour work plan for leaving the MacBook CRC target available while local non-mutating gates continue.
+- Hardened the overnight checkpoint Markdown/JSON evidence so every loop writes a morning decision, step totals, safe entrypoints, safe next commands, blocked actions, and a MacBook rationale.
+- The new checkpoint summary makes a PASS mean "continue the next local product lane" instead of implying production install, OLSConfig patching, registry mutation, or native Lightspeed drawer replacement.
+- The loop remains local and non-mutating: it does not patch OCP, create secrets, push images, or read `.env`.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -977,7 +984,8 @@ Checkpoint cadence:
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
 - latest web shell verifier after Lane 78: PASS, 51 checks
 - latest assistant smoke browser check after Lane 78: PASS, `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, `클러스터 변경: 차단`
-- latest overnight checkpoint after Lane 77: PASS, 10/10 local gates on a clean worktree, structured Git state stamped, CRC demo readiness included
+- latest overnight checkpoint after Lane 79: writes morning decision, step totals, safe entrypoints, and blocked actions in both JSON and Markdown
+- 10-hour autonomy plan: `docs/runbooks/cywell-opslens-dev012-10h-autonomy-plan.md`
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
