@@ -650,18 +650,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       page.getByTestId("assistant-smoke-mutation-boundary")
     ).toContainText("blocked");
 
+    const assistantDraft = page.getByTestId("assistant-draft");
+    const keyboardPrompt =
+      "현재 화면 증거만 기반으로 다음 확인 계획을 다시 만들어줘.";
+    await assistantDraft.fill(keyboardPrompt);
+    await assistantDraft.press("Shift+Enter");
+    await expect(assistantDraft).toHaveValue(`${keyboardPrompt}\n`);
+    await assistantDraft.type("줄바꿈 보존 후 Enter 전송.");
+    await expect(page.getByTestId("assistant-ask-button")).toBeEnabled();
+
     const planResponse = page.waitForResponse(
       (response) =>
         response.url().includes("/api/actions/plan") &&
         response.request().method() === "POST"
     );
-    await page
-      .getByLabel("Ask from current context")
-      .fill("현재 화면 증거만 기반으로 다음 확인 계획을 다시 만들어줘.");
-    await page
-      .getByTestId("assistant-popover")
-      .getByRole("button", { name: "Ask" })
-      .click();
+    await assistantDraft.press("Enter");
     await planResponse;
     await expect(page.getByTestId("api-trace")).toContainText(
       "mock-local-search-mode/triage"

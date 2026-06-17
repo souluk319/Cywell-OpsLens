@@ -1351,6 +1351,19 @@ expectCheck(
 );
 
 expectCheck(
+  "assistant keyboard execution e2e",
+  e2eSource.includes('const assistantDraft = page.getByTestId("assistant-draft")') &&
+    e2eSource.includes('press("Shift+Enter")') &&
+    e2eSource.includes('toHaveValue(`${keyboardPrompt}\\n`)') &&
+    e2eSource.includes('press("Enter")') &&
+    e2eSource.includes('getByTestId("assistant-ask-button")') &&
+    e2eSource.includes("줄바꿈 보존 후 Enter 전송.") &&
+    e2eSource.includes("/api/actions/plan") &&
+    e2eSource.includes("mock-local-search-mode/triage"),
+  "Playwright proves Shift+Enter keeps a newline and Enter submits the KOMSCO assistant to the active OpsLens API path"
+);
+
+expectCheck(
   "clickable utility shell e2e",
   e2eSource.includes("AC-UI-005 makes masthead utilities and evidence actions clickable") &&
     e2eSource.includes('getByTestId("nav-collapse-toggle")') &&
