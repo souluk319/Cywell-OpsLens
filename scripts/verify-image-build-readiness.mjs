@@ -9,6 +9,7 @@ import { parseAllDocuments } from "yaml";
 const execFileAsync = promisify(execFile);
 const args = new Set(process.argv.slice(2));
 const buildImages = args.has("--build");
+const localBuildTagSuffix = "build-verify";
 
 const paths = {
   csv: "deploy/operator/bundle/manifests/cywell-opslens-operator.clusterserviceversion.yaml",
@@ -120,7 +121,7 @@ function localBuildTag(image) {
   return image
     .replace(/^quay\.io\/cywell\//, "cywell/")
     .replace(/^docker\.io\/cywell\//, "cywell/")
-    .replace(/:[^:]+$/, ":verify");
+    .replace(/:[^:]+$/, `:${localBuildTagSuffix}`);
 }
 
 function outputTail(output) {
@@ -197,7 +198,7 @@ async function validateBundleAndCatalog() {
     {
       name: "bundle",
       image: "quay.io/cywell/opslens-operator-bundle:0.1.0",
-      localTag: "cywell/opslens-operator-bundle:verify",
+      localTag: `cywell/opslens-operator-bundle:${localBuildTagSuffix}`,
       context: "deploy/operator",
       dockerfile: paths.bundleDockerfile,
       reproducibleLocally: true
@@ -205,7 +206,7 @@ async function validateBundleAndCatalog() {
     {
       name: "catalog",
       image: "quay.io/cywell/opslens-catalog:0.1.0",
-      localTag: "cywell/opslens-catalog:verify",
+      localTag: `cywell/opslens-catalog:${localBuildTagSuffix}`,
       context: "deploy/catalog",
       dockerfile: paths.catalogDockerfile,
       reproducibleLocally: true
@@ -405,11 +406,18 @@ try {
   }
 
   const packagingBuilds = await validateBundleAndCatalog();
+  const allPlannedBuilds = [...internalBuilds, ...packagingBuilds];
+  expectCheck(
+    "local build tag isolation",
+    allPlannedBuilds.every((build) => build.localTag.endsWith(`:${localBuildTagSuffix}`)),
+    `actual local image builds use :${localBuildTagSuffix} and do not overwrite CRC lab :verify tags`,
+    "actual local image builds must not overwrite CRC lab :verify tags"
+  );
   if (buildImages) {
     if (!dockerAvailable) {
       fail("docker build execution", "--build was requested but docker is unavailable");
     } else {
-      for (const build of [...internalBuilds, ...packagingBuilds]) {
+      for (const build of allPlannedBuilds) {
         actualBuilds.push(await runDockerBuild(build));
       }
     }
@@ -443,6 +451,7 @@ try {
     worktreeStatus: worktreeStatus ? worktreeStatus.split(/\r?\n/) : [],
     status: checks.some((check) => check.status === "FAIL") ? "FAIL" : "PASS",
     dockerAvailable,
+    localBuildTagSuffix,
     actualBuildRequested: buildImages || actualBuilds.length > 0,
     actualBuildEvidencePreserved: !buildImages && actualBuilds.length > 0,
     mutationAllowed: false,

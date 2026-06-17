@@ -391,7 +391,7 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The lab image-map verifier now rejects the ambiguous live-cluster `:verify` target tag and emits versioned tag/save/push commands.
 - The CRC lightweight sample now uses `v0.1.2-dev-crc` API/dashboard images to match `spec.version: 0.1.2-dev`.
 - Updated the CRC live and morning handoffs so the first expected package signal is `currentCSV: cywell-opslens-operator.v0.1.2` plus `v0.1.2-dev-crc`.
-- Interpretation: local `:verify` can remain a build-stage tag, but anything copied to or pulled by CRC must use the explicit branch tag.
+- Interpretation after Lane 26: `:verify` is treated only as the legacy local CRC source tag. New local Docker build evidence uses `:build-verify`, and anything copied to or pulled by CRC must use the explicit branch tag.
 
 ### 2026-06-17 - Lane 11
 
@@ -600,6 +600,14 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Verified the Go source by building the local operator image through `npm run verify:images:build`.
 - `verify:images:build` temporarily overwrote local `:verify` tags with Windows/amd64 images, so the CRC lab `:verify` tags were restored from the pinned `v0.1.2-dev-crc` arm64 images before rerunning `npm run verify:lab-image-map`.
 
+### 2026-06-18 - Lane 26
+
+- Removed the repeat footgun where `npm run verify:images:build` could overwrite CRC lab `:verify` tags with workstation-built amd64 images.
+- `verify:images:build` now writes local build evidence to `cywell/opslens-*:build-verify`.
+- The image build evidence artifact records `localBuildTagSuffix=build-verify`.
+- CRC handoff remains pinned to explicit `v0.1.2-dev-crc` images; build verification no longer mutates those lab tags.
+- Expected result: running the Go/API/dashboard/bundle build gate can no longer break `npm run verify:lab-image-map` by changing local CRC image architecture.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -615,7 +623,7 @@ Checkpoint cadence:
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
 - latest web shell verifier after Lane 24: PASS, 12 checks
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
-- latest local image build gate after Lane 25: PASS, 0 fail, 3 external-runtime/catalog warnings
+- latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after restoring CRC tags: PASS, 0 fail, 3 expected external-runtime warnings
 - latest CRC handoff tar: `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`
 

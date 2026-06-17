@@ -27,6 +27,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes
 - OperatorHub `alm-examples` now exposes that CRC lightweight sample, so console-created CRs no longer default users into the pgvector/vLLM/PatchOLSConfig path during CRC demos
 - CRC catalog/image handoff now uses explicit `v0.1.2-dev-crc` tags instead of ambiguous `:verify`
+- local image build evidence now uses isolated `:build-verify` tags, so `npm run verify:images:build` no longer overwrites CRC arm64 `:verify` tags
 - the Mac CRC transfer artifact is pinned to `arm64/linux` and verified before handoff
 - the next-day live reconnect path is documented without secrets or exact private network values
 
@@ -72,7 +73,7 @@ Latest non-mutating checks:
 | `npm run verify:operator:reconcile` | PASS | 0 fail, 23 checks |
 | `npm run verify:operator:runtime` | PASS | 0 fail, 78 checks; includes workload readiness/no-false-Ready contract |
 | `npm run verify:operator` | PASS/WARN | 0 fail, 1 warn; live OLM smoke remains external |
-| `npm run verify:images:build` | PASS/WARN | 0 fail, 3 expected warnings; operator Go image built locally |
+| `npm run verify:images:build` | PASS/WARN | 0 fail, 3 expected warnings; local build evidence uses `:build-verify` tag isolation |
 | `npm run verify:install-plan` | PASS/WARN | 0 fail, 7 warn; evidence freshness and Lightspeed gap remain |
 | `npm run verify:pre-cluster-install` | PASS/WARN | 0 fail, 19 warn; `safeToRunClusterInstall=false` |
 
@@ -182,7 +183,7 @@ That sample intentionally uses:
 - do not paste `.env` values into docs or chat
 - do not push images or patch OLSConfig unless explicitly approved
 - do not wait on a pod still pulling `quay.io/cywell/opslens-operator:0.1.0`; that is stale catalog/subscription state
-- do not reuse CRC cluster image tag `:verify`; publish the branch handoff as `v0.1.2-dev-crc`
+- do not reuse CRC cluster image tag `:verify` for new build evidence; publish the branch handoff as `v0.1.2-dev-crc` and keep local build checks on `:build-verify`
 - do not treat `http://127.0.0.1:19443` as the dashboard URL; use `https://`
 
 ## Smallest Next Engineering Step
