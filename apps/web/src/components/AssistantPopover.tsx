@@ -38,7 +38,7 @@ interface AssistantPopoverProps {
 
 const assistantCopy = {
   en: {
-    ariaLabel: "Cywell OpsLens assistant",
+    ariaLabel: "KOMSCO AI Assistant",
     eyebrow: "KOMSCO AI Assistant",
     readyStatus: "local plan-only",
     close: "Close assistant",
@@ -85,8 +85,8 @@ const assistantCopy = {
     citations: "Citations"
   },
   ko: {
-    ariaLabel: "Cywell OpsLens 어시스턴트",
-    eyebrow: "KOMSCO AI Assistant",
+    ariaLabel: "KOMSCO AI 어시스턴트",
+    eyebrow: "KOMSCO AI 어시스턴트",
     readyStatus: "로컬 계획 전용",
     close: "어시스턴트 닫기",
     request: "요청",

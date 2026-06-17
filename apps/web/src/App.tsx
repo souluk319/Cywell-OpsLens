@@ -412,7 +412,7 @@ const shellCopy = {
     createCommand:
       "생성 메뉴는 계획 수립 흐름만 엽니다. OpsLens는 클러스터 변경을 실행하지 않습니다.",
     help: "도움말",
-    helpCommand: "도움말이 KOMSCO AI Assistant를 읽기 전용으로 열었습니다.",
+    helpCommand: "도움말이 KOMSCO AI 어시스턴트를 읽기 전용으로 열었습니다.",
     notifications: "알림",
     notificationsCommand:
       "알림이 진행 중인 장애 대기열과 발생 중인 경고 위치로 이동했습니다.",
@@ -1115,7 +1115,9 @@ export default function App() {
             >
               <CircleHelp size={18} aria-hidden="true" />
             </button>
-            <span className="user-menu">admin</span>
+            <span className="user-menu" data-testid="masthead-user-menu">
+              kubeadmin
+            </span>
           </div>
         </div>
       </header>

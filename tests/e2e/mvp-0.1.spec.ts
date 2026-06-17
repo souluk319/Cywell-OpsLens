@@ -203,6 +203,9 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
   }) => {
     await page.getByTestId("language-ko-toggle").click();
     await expect(page.locator("html")).toHaveAttribute("lang", "ko");
+    await expect(page.getByTestId("masthead-user-menu")).toContainText(
+      "kubeadmin"
+    );
     await expect(page.getByTestId("runtime-surface")).toContainText(
       "독립 미리보기"
     );
@@ -302,7 +305,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
 
     await openAssistant(page);
     await expect(page.getByTestId("assistant-popover")).toContainText(
-      "KOMSCO AI Assistant"
+      "KOMSCO AI 어시스턴트"
     );
     await expect(page.getByTestId("assistant-connection-summary")).toContainText(
       "연결 판정"

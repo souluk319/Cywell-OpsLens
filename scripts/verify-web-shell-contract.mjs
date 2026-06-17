@@ -230,12 +230,25 @@ expectCheck(
 expectCheck(
   "KOMSCO assistant branding",
   assistantSource.includes("KOMSCO AI Assistant") &&
+    assistantSource.includes('ariaLabel: "KOMSCO AI Assistant"') &&
+    assistantSource.includes('ariaLabel: "KOMSCO AI 어시스턴트"') &&
+    assistantSource.includes('eyebrow: "KOMSCO AI 어시스턴트"') &&
     appSource.includes("KOMSCO AI Assistant") &&
     appSource.includes("Open KOMSCO AI Assistant") &&
     appSource.includes("KOMSCO AI 어시스턴트") &&
+    appSource.includes("도움말이 KOMSCO AI 어시스턴트를 읽기 전용으로 열었습니다.") &&
     !assistantSource.includes("Context-aware assistant") &&
-    !appSource.includes("context-aware assistant"),
+    !appSource.includes("context-aware assistant") &&
+    !appSource.includes("KOMSCO AI Assistant를 읽기 전용"),
   "assistant copy and launcher accessibility labels are branded for KOMSCO instead of generic context-aware wording"
+);
+
+expectCheck(
+  "OpenShift masthead user parity",
+  appSource.includes('data-testid="masthead-user-menu"') &&
+    appSource.includes("kubeadmin") &&
+    !appSource.includes('className="user-menu">admin'),
+  "masthead keeps the OpenShift console user placement and kubeadmin demo identity"
 );
 
 expectCheck(
@@ -797,6 +810,8 @@ expectCheck(
     e2eSource.includes("remaining items") &&
     e2eSource.includes("next gate") &&
     e2eSource.includes("next check") &&
+    e2eSource.includes('getByTestId("masthead-user-menu")') &&
+    e2eSource.includes("kubeadmin") &&
     e2eSource.includes("KOMSCO AI 어시스턴트") &&
     e2eSource.includes("KOMSCO AI Assistant") &&
     e2eSource.includes('getByTestId("assistant-mode-matrix")') &&
