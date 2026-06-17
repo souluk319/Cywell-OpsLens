@@ -848,6 +848,29 @@ expectCheck(
 );
 
 expectCheck(
+  "localized navigation action e2e",
+  e2eSource.includes("AC-UI-006 makes Korean console navigation actionable") &&
+    e2eSource.includes('getByTestId("language-ko-toggle")') &&
+    e2eSource.includes('getByTestId("console-nav-overview")') &&
+    e2eSource.includes('getByTestId("console-nav-alerting")') &&
+    e2eSource.includes('getByTestId("console-nav-dashboards")') &&
+    e2eSource.includes('getByTestId("console-nav-metrics")') &&
+    e2eSource.includes('getByTestId("console-nav-logs")') &&
+    e2eSource.includes('getByTestId("console-nav-workloads")') &&
+    e2eSource.includes('getByTestId("console-nav-networking")') &&
+    e2eSource.includes('getByTestId("console-nav-storage")') &&
+    e2eSource.includes('getByTestId("console-nav-administration")') &&
+    e2eSource.includes('getByTestId("console-nav-opslens-admin")') &&
+    e2eSource.includes('getByTestId("console-nav-opsbrain")') &&
+    e2eSource.includes("현재 클러스터 요약") &&
+    e2eSource.includes("워크로드") &&
+    e2eSource.includes("네트워킹") &&
+    e2eSource.includes("스토리지") &&
+    e2eSource.includes("OpsLens 관리"),
+  "Playwright proves every console navigation item remains actionable after switching to Korean"
+);
+
+expectCheck(
   "localized shell persistence",
   appSource.includes('window.localStorage.setItem("cywell-opslens-language", language)') &&
     appSource.includes("document.documentElement.lang = language") &&

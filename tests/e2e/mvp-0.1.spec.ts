@@ -198,6 +198,65 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
   });
 
+  test("AC-UI-006 makes Korean console navigation actionable", async ({
+    page
+  }) => {
+    const feedback = page.getByTestId("console-navigation-feedback");
+
+    await page.getByTestId("language-ko-toggle").click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "ko");
+
+    await page.getByTestId("console-nav-overview").click();
+    await expect(feedback).toContainText("개요");
+    await expect(feedback).toContainText("현재 클러스터 요약");
+
+    await page.getByTestId("console-nav-alerting").click();
+    await expect(feedback).toContainText("경고");
+    await expect(page.getByTestId("alert-evidence-table")).toBeVisible();
+
+    await page.getByTestId("console-nav-dashboards").click();
+    await expect(feedback).toContainText("대시보드");
+    await expect(page.locator("#dashboard-title")).toBeVisible();
+
+    await page.getByTestId("console-nav-metrics").click();
+    await expect(feedback).toContainText("메트릭");
+    await expect(page.getByTestId("opslens-incident-metrics")).toBeVisible();
+
+    await page.getByTestId("console-nav-logs").click();
+    await expect(feedback).toContainText("로그");
+    await expect(page.getByTestId("log-viewport")).toBeVisible();
+
+    await page.getByTestId("console-nav-workloads").click();
+    await expect(feedback).toContainText("워크로드");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "deployments pods replicasets"
+    );
+
+    await page.getByTestId("console-nav-networking").click();
+    await expect(feedback).toContainText("네트워킹");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "routes services ingresses"
+    );
+
+    await page.getByTestId("console-nav-storage").click();
+    await expect(feedback).toContainText("스토리지");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "persistentvolumeclaims persistentvolumes storageclasses"
+    );
+
+    await page.getByTestId("console-nav-administration").click();
+    await expect(feedback).toContainText("관리");
+    await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
+
+    await page.getByTestId("console-nav-opslens-admin").click();
+    await expect(feedback).toContainText("OpsLens 관리");
+    await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
+
+    await page.getByTestId("console-nav-opsbrain").click();
+    await expect(feedback).toContainText("OpsBrain");
+    await expect(page.getByTestId("opslens-opsbrain-system")).toBeVisible();
+  });
+
   test("AC-UI-004 keeps KO/EN switching consistent across shell and assistant", async ({
     page
   }) => {
