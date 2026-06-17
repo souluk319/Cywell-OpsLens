@@ -61,6 +61,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the masthead now shows the demo access path: installed view uses the Console route, the forwarded dashboard uses HTTPS on 19443, and Assistant/API traffic follows the active proxy mode
 - the masthead now shows the CRC install signal: run `oc get opslensinstallation,deploy,pod,svc`, expect API/dashboard `1/1`, and treat an old `quay.io` operator image as stale catalog evidence
 - that CRC install signal now says `CRC ready = API/dashboard 1/1` and `CRC 준비 = API/대시보드 1/1`, so local-demo readiness is not confused with the approved pgvector/vLLM runtime path
+- the CRC install signal now includes `route` in the read-only status command and shows `Route = cywell-opslens-dashboard` as the expected installed page entrypoint
 - the masthead now says to choose the CRC lightweight example first, matching the OperatorHub `alm-examples` order and avoiding the pgvector/vLLM path during local demo setup
 - the masthead now shows the post-install smoke path: open the ConsolePlugin route, ask KOMSCO AI Assistant, and keep OLSConfig in `ValidateOnly` unless an explicit patch is approved
 - the masthead API status chip is localized instead of showing raw `loading/ready/fallback` state values in Korean mode
@@ -175,12 +176,11 @@ Latest non-mutating checks:
 | `npm run verify:web-shell` | PASS | 0 fail, 51 checks after the Assistant smoke, release/action queue, external runtime review, security scan, certification, community submission, external runtime plan, owned provenance, release publish, install approval, catalog toolchain, and lab readiness label lanes |
 | `npm run -w @kugnus/web build` | PASS | TypeScript, Vite, and ConsolePlugin bundle completed after the Assistant smoke lane |
 | `npx playwright test -g "AC-UI-004\\|AC-CTX-001"` | PASS | KO/EN shell and Assistant smoke card render; context sync/action plan API are ready and cluster mutation is blocked |
+| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN shell now shows the route-backed CRC install signal and 19443 as port-forward fallback |
 | in-app browser smoke | PASS | Assistant popover showed `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, and `클러스터 변경: 차단` |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
 | `npm run verify:crc-demo-readiness` | PASS | 0 fail, 0 warn, 14 checks; writes JSON and Markdown evidence for OperatorHub first example, lightweight sample, UI copy, handoff commands, and arm64 tar alignment |
 | `npm run overnight:checkpoint` | PASS | latest clean checkpoint after Lane 77 passed 10/10 local gates on a clean worktree; evidence includes start/finish Git state and CRC demo readiness |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the assistant ready-state lane |
-| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead `kubeadmin`, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, access path, CRC install signal, post-install smoke path, readiness command labels, navigation, KOMSCO assistant labels, integration contract, ask execution path, and mode matrix |
 | `npx playwright test -g "AC-UI-005"` | PASS | Masthead utilities, evidence tabs, and evidence Ask buttons click through to visible state changes |
 | `npx playwright test -g "AC-CTX-001"` | PASS | Assistant context sync now expects `API connected` plus `API connected / plan-only`, and visible cluster context says `CRC preview` |
 | `npx playwright test -g "AC-UI-006"` | PASS | Korean left navigation click-through covers all console navigation items |

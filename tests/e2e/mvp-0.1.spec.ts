@@ -314,7 +314,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "설치 화면은 콘솔 라우트 사용"
     );
     await expect(page.getByTestId("access-dashboard-https")).toContainText(
-      "대시보드는 HTTPS 19443"
+      "포트포워드 대체 경로는 HTTPS 19443"
     );
     await expect(page.getByTestId("access-api-proxy")).toContainText(
       "어시스턴트/API는 프록시 모드 연동"
@@ -323,10 +323,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "CRC lightweight 예제를 먼저 선택"
     );
     await expect(page.getByTestId("apply-signal-command")).toContainText(
-      "확인: oc get opslensinstallation,deploy,pod,svc"
+      "확인: oc get opslensinstallation,deploy,pod,svc,route"
     );
     await expect(page.getByTestId("apply-signal-ready")).toContainText(
       "CRC 준비 = API/대시보드 1/1"
+    );
+    await expect(page.getByTestId("apply-signal-route")).toContainText(
+      "Route = cywell-opslens-dashboard"
     );
     await expect(page.getByTestId("apply-signal-stale")).toContainText(
       "quay.io 구버전 이미지는 stale catalog"
@@ -463,7 +466,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Installed view uses Console route"
     );
     await expect(page.getByTestId("access-dashboard-https")).toContainText(
-      "Dashboard uses HTTPS 19443"
+      "Port-forward fallback uses HTTPS 19443"
     );
     await expect(page.getByTestId("access-api-proxy")).toContainText(
       "Assistant/API follows proxy mode"
@@ -472,10 +475,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Use CRC lightweight example first"
     );
     await expect(page.getByTestId("apply-signal-command")).toContainText(
-      "Check: oc get opslensinstallation,deploy,pod,svc"
+      "Check: oc get opslensinstallation,deploy,pod,svc,route"
     );
     await expect(page.getByTestId("apply-signal-ready")).toContainText(
       "CRC ready = API/dashboard 1/1"
+    );
+    await expect(page.getByTestId("apply-signal-route")).toContainText(
+      "Route = cywell-opslens-dashboard"
     );
     await expect(page.getByTestId("apply-signal-stale")).toContainText(
       "Old quay.io image means stale catalog"

@@ -243,10 +243,10 @@ expectCheck(
     appSource.includes('data-testid="access-dashboard-https"') &&
     appSource.includes('data-testid="access-api-proxy"') &&
     appSource.includes("Installed view uses Console route") &&
-    appSource.includes("Dashboard uses HTTPS 19443") &&
+    appSource.includes("Port-forward fallback uses HTTPS 19443") &&
     appSource.includes("Assistant/API follows proxy mode") &&
     appSource.includes("설치 화면은 콘솔 라우트 사용") &&
-    appSource.includes("대시보드는 HTTPS 19443") &&
+    appSource.includes("포트포워드 대체 경로는 HTTPS 19443") &&
     appSource.includes("어시스턴트/API는 프록시 모드 연동") &&
     stylesSource.includes(".access-boundary-strip") &&
     stylesSource.includes(".access-boundary-strip .status-pill"),
@@ -259,13 +259,15 @@ expectCheck(
     appSource.includes('data-testid="apply-signal-profile"') &&
     appSource.includes('data-testid="apply-signal-command"') &&
     appSource.includes('data-testid="apply-signal-ready"') &&
+    appSource.includes('data-testid="apply-signal-route"') &&
     appSource.includes('data-testid="apply-signal-stale"') &&
     appSource.includes("Use CRC lightweight example first") &&
-    appSource.includes("Check: oc get opslensinstallation,deploy,pod,svc") &&
+    appSource.includes("Check: oc get opslensinstallation,deploy,pod,svc,route") &&
     appSource.includes("CRC ready = API/dashboard 1/1") &&
+    appSource.includes("Route = cywell-opslens-dashboard") &&
     appSource.includes("Old quay.io image means stale catalog") &&
     appSource.includes("CRC lightweight 예제를 먼저 선택") &&
-    appSource.includes("확인: oc get opslensinstallation,deploy,pod,svc") &&
+    appSource.includes("확인: oc get opslensinstallation,deploy,pod,svc,route") &&
     appSource.includes("CRC 준비 = API/대시보드 1/1") &&
     appSource.includes("quay.io 구버전 이미지는 stale catalog") &&
     stylesSource.includes(".apply-signal-strip") &&
