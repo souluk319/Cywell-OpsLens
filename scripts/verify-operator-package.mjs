@@ -223,7 +223,36 @@ function validateCrd(crd, sourceName) {
     fail(`${sourceName} CRD status`, "status subresource is missing");
   }
 
+  const printerColumns = version?.additionalPrinterColumns ?? [];
+  if (
+    printerColumns.some(
+      (column) =>
+        column.name === "Route" &&
+        column.type === "string" &&
+        column.jsonPath === ".status.dashboardRoute.name"
+    )
+  ) {
+    pass(`${sourceName} CRD route column`, "oc get surfaces status.dashboardRoute.name");
+  } else {
+    fail(`${sourceName} CRD route column`, "Route printer column must read .status.dashboardRoute.name");
+  }
+
   const spec = version?.schema?.openAPIV3Schema?.properties?.spec;
+  const status = version?.schema?.openAPIV3Schema?.properties?.status;
+  const dashboardRoute = status?.properties?.dashboardRoute?.properties ?? {};
+  if (
+    dashboardRoute.ready?.type === "boolean" &&
+    dashboardRoute.name?.type === "string" &&
+    dashboardRoute.service?.type === "string" &&
+    dashboardRoute.host?.type === "string" &&
+    dashboardRoute.tls?.type === "string" &&
+    dashboardRoute.entryPoint?.type === "string"
+  ) {
+    pass(`${sourceName} CRD dashboard route status`, "dashboardRoute status records ready/name/service/host/tls/entryPoint");
+  } else {
+    fail(`${sourceName} CRD dashboard route status`, "status.dashboardRoute schema is missing route readiness fields");
+  }
+
   const required = spec?.required ?? [];
   for (const field of ["version", "components", "lightspeedRegistration"]) {
     if (required.includes(field)) {
@@ -1094,10 +1123,12 @@ async function validateControllerRuntimeSkeleton() {
     apiTypes?.includes("type OpsLensInstallationSpec struct") &&
     apiTypes.includes("RAG                    *OpsLensRAGPolicy") &&
     apiTypes.includes("LightspeedRegistration LightspeedRegistrationSpec") &&
+    apiTypes.includes("DashboardRoute          DashboardRouteStatus") &&
+    apiTypes.includes("type DashboardRouteStatus struct") &&
     apiTypes.includes("DeepCopyObject() runtime.Object") &&
     apiTypes.includes("SchemeBuilder.Register")
   ) {
-    pass("Go API types", "OpsLensInstallation API types include RAG policy and runtime object registration");
+    pass("Go API types", "OpsLensInstallation API types include RAG policy, dashboard Route status, and runtime object registration");
   } else {
     fail("Go API types", "OpsLensInstallation Go API types are incomplete");
   }
@@ -1116,9 +1147,11 @@ async function validateControllerRuntimeSkeleton() {
     controller.includes("CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_ENQUEUE_ALLOWED") &&
     controller.includes('Value: "false"') &&
     controller.includes("RagApprovalQueue") &&
+    controller.includes("observeDashboardRoute") &&
+    controller.includes("DashboardRouteAvailable") &&
     controller.includes("Status().Update")
   ) {
-    pass("Go reconcile skeleton", "controller-runtime reconcile path preserves Lightspeed, NetworkPolicy, and RAG safety contracts");
+    pass("Go reconcile skeleton", "controller-runtime reconcile path preserves Lightspeed, Route status, NetworkPolicy, and RAG safety contracts");
   } else {
     fail("Go reconcile skeleton", "controller-runtime reconcile skeleton is missing safety-critical contract text");
   }

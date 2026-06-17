@@ -423,10 +423,13 @@ try {
       dashboardRoute?.spec?.tls?.termination === "reencrypt" &&
       dashboardRoute?.spec?.tls?.insecureEdgeTerminationPolicy === "Redirect" &&
       controller.includes("reconcileDashboardRoute") &&
+      controller.includes("observeDashboardRoute") &&
+      controller.includes("DashboardRouteStatus") &&
+      controller.includes("DashboardRouteAvailable") &&
       controller.includes("route.openshift.io/v1") &&
       controller.includes("reencrypt") &&
       controller.includes("dashboard-demo-route"),
-    "dashboard Route is reconciled to expose the installed OpsLens UI through OpenShift routing"
+    "dashboard Route is reconciled and observed in status to expose the installed OpsLens UI through OpenShift routing"
   );
 
   const apiNetworkPolicy = findResource(plan, "NetworkPolicy", "cywell-opslens-api-ingress");
@@ -552,11 +555,15 @@ try {
       controller.includes("localOnlyComponent(\"inmemory\"") &&
       controller.includes("localOnlyComponent(\"mock-local\"") &&
       controller.includes("Type:    \"WorkloadsAvailable\"") &&
+      controller.includes("Type:    \"DashboardRouteAvailable\"") &&
       controller.includes("workloadReason = \"WaitingForWorkloads\"") &&
+      controller.includes("routeConditionReason = \"WaitingForRoute\"") &&
       controller.includes("phase = \"Installing\"") &&
-      controller.includes("Components: components") &&
+      controller.includes("Components:") &&
+      controller.includes("components") &&
+      controller.includes("DashboardRoute: dashboardRoute") &&
       controller.includes("r.buildStatus(ctx, &installation, namespace)"),
-    "Go status observes API/dashboard/vector/model workload readiness and keeps the CR Installing until required workloads are ready"
+    "Go status observes workload and dashboard Route readiness and keeps the CR Installing until required surfaces are ready"
   );
 
   expectCheck(

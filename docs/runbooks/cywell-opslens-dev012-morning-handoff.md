@@ -231,6 +231,7 @@ oc whoami && oc project -q
 oc get packagemanifest cywell-opslens -n default -o yaml | grep -E 'currentCSV|v0.1.2-dev-crc|cywell-opslens-operator' -n
 oc get opslensinstallation,deploy,pod,svc,route -n cywell-opslens
 oc get route cywell-opslens-dashboard -n cywell-opslens
+oc get opslensinstallation cywell-opslens -n cywell-opslens -o jsonpath='{.status.dashboardRoute.name}{" | ready="}{.status.dashboardRoute.ready}{" | entry="}{.status.dashboardRoute.entryPoint}{"\n"}'
 ```
 
 If port-forwards died, rebuild them from:

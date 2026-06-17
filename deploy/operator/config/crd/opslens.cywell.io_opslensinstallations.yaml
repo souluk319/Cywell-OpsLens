@@ -27,6 +27,9 @@ spec:
         - name: Lightspeed
           type: string
           jsonPath: .status.lightspeedRegistration.phase
+        - name: Route
+          type: string
+          jsonPath: .status.dashboardRoute.name
         - name: Version
           type: string
           jsonPath: .spec.version
@@ -265,6 +268,21 @@ spec:
                         type: string
                       image:
                         type: string
+                dashboardRoute:
+                  type: object
+                  properties:
+                    ready:
+                      type: boolean
+                    name:
+                      type: string
+                    service:
+                      type: string
+                    host:
+                      type: string
+                    tls:
+                      type: string
+                    entryPoint:
+                      type: string
                 lightspeedRegistration:
                   type: object
                   properties:

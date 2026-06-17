@@ -24,7 +24,7 @@ The overnight loop must keep the product moving toward a credible OpenShift Cons
 | ConsolePlugin contract survives | `npm run verify:console-plugin` | console plugin verifier output | Live browser route still needs Mac CRC to stay awake. |
 | Operator package does not drift | `npm run verify:operator:package` | operator package verifier output | Local CRC tags must not drift back to stale `quay.io` examples. |
 | Operator reconcile behavior is protected | `npm run verify:operator:reconcile` | reconcile verifier output | Live CRC may still require explicit dev overrides for external runtime components. |
-| CRC demo path is still first-class | `npm run verify:crc-demo-readiness` | `test-results/cywell-opslens-crc-demo-readiness.md` | Live CRC proof is separate from local evidence. |
+| CRC demo path is still first-class | `npm run verify:crc-demo-readiness` | `test-results/cywell-opslens-crc-demo-readiness.md` | Route-backed entrypoint must stay visible in `oc get opslensinstallation` status and live Route evidence remains separate from local evidence. |
 | Handoff is readable after sleep/commute | `npm run overnight:checkpoint` | `test-results/cywell-opslens-dev012-overnight-checkpoint.md` | If Mac sleeps, reconnect becomes the first morning action. |
 
 ## Execution Lanes
@@ -55,6 +55,7 @@ Work:
 - keep the CRC lightweight example first
 - keep stale catalog/image symptoms explicit
 - keep `Route/cywell-opslens-dashboard` in the install contract so the installed UI has a route-backed entrypoint, not only a remembered port-forward
+- keep `status.dashboardRoute` and the `Route` printer column visible so a Ready CR also tells the operator which installed page to open
 - do not claim production or certified OperatorHub readiness
 
 Validation:

@@ -188,14 +188,17 @@ Readiness check:
 ```bash
 oc get opslensinstallation,deploy,pod,svc,route -n cywell-opslens
 oc get route cywell-opslens-dashboard -n cywell-opslens
+oc get opslensinstallation cywell-opslens -n cywell-opslens -o jsonpath='{.status.dashboardRoute.name}{" | ready="}{.status.dashboardRoute.ready}{" | entry="}{.status.dashboardRoute.entryPoint}{"\n"}'
 ```
 
 Expected lightweight signal:
 
 - `opslensinstallation` reaches `Ready`
+- `opslensinstallation` shows `Route` as `cywell-opslens-dashboard`
 - API deployment is `1/1`
 - dashboard deployment is `1/1`
 - dashboard Route exists
+- `status.dashboardRoute.ready` is `true`
 - no pgvector StatefulSet is required
 - no vLLM pod is required
 

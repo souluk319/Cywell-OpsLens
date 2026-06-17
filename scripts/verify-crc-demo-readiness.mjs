@@ -309,16 +309,18 @@ async function main() {
       "opslens_v1alpha1_opslensinstallation_crc_lightweight.yaml",
       "oc apply -f ~/opslens_v1alpha1_opslensinstallation_crc_lightweight.yaml",
       "oc get opslensinstallation,deploy,pod,svc,route -n cywell-opslens",
-      "oc get route cywell-opslens-dashboard -n cywell-opslens"
+      "oc get route cywell-opslens-dashboard -n cywell-opslens",
+      ".status.dashboardRoute.name"
     ]) &&
       containsAll(morningHandoff, [
         "opslens_v1alpha1_opslensinstallation_crc_lightweight.yaml",
         "oc get packagemanifest cywell-opslens -n default",
         "oc get opslensinstallation,deploy,pod,svc,route -n cywell-opslens",
-        "oc get route cywell-opslens-dashboard -n cywell-opslens"
+        "oc get route cywell-opslens-dashboard -n cywell-opslens",
+        ".status.dashboardRoute.name"
       ]),
-    "live and morning handoffs point to the lightweight apply and read-only smoke commands",
-    "handoff docs must keep lightweight apply and read-only smoke commands visible"
+    "live and morning handoffs point to the lightweight apply, Route status, and read-only smoke commands",
+    "handoff docs must keep lightweight apply, status.dashboardRoute, and read-only smoke commands visible"
   );
 
   const tar = tarSummary(paths.tar);

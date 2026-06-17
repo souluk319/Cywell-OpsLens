@@ -96,6 +96,7 @@ type OpsLensInstallationStatus struct {
 	Phase                  string                            `json:"phase,omitempty"`
 	Conditions             []metav1.Condition                `json:"conditions,omitempty"`
 	Components             map[string]OpsLensComponentStatus `json:"components,omitempty"`
+	DashboardRoute          DashboardRouteStatus              `json:"dashboardRoute,omitempty"`
 	LightspeedRegistration LightspeedRegistrationStatus      `json:"lightspeedRegistration,omitempty"`
 	RAG                    RAGPolicyStatus                   `json:"rag,omitempty"`
 }
@@ -104,6 +105,15 @@ type OpsLensComponentStatus struct {
 	Ready   bool   `json:"ready"`
 	Service string `json:"service,omitempty"`
 	Image   string `json:"image,omitempty"`
+}
+
+type DashboardRouteStatus struct {
+	Ready      bool   `json:"ready"`
+	Name       string `json:"name,omitempty"`
+	Service    string `json:"service,omitempty"`
+	Host       string `json:"host,omitempty"`
+	TLS        string `json:"tls,omitempty"`
+	EntryPoint string `json:"entryPoint,omitempty"`
 }
 
 type LightspeedRegistrationStatus struct {

@@ -1008,6 +1008,53 @@ func (r *OpsLensInstallationReconciler) observeStatefulSetComponent(ctx context.
 	return component
 }
 
+func (r *OpsLensInstallationReconciler) observeDashboardRoute(ctx context.Context, namespace string, name string) (opslensv1alpha1.DashboardRouteStatus, string) {
+	status := opslensv1alpha1.DashboardRouteStatus{
+		Ready:      false,
+		Name:       name,
+		Service:    name,
+		TLS:        "reencrypt",
+		EntryPoint: "OpenShift Route",
+	}
+	message := fmt.Sprintf("%s Route is not observed yet", name)
+
+	route := &unstructured.Unstructured{}
+	route.SetAPIVersion("route.openshift.io/v1")
+	route.SetKind("Route")
+	if err := r.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, route); err != nil {
+		if apierrors.IsNotFound(err) {
+			return status, message
+		}
+		status.EntryPoint = "OpenShift Route status unreadable"
+		return status, fmt.Sprintf("%s Route readiness could not be read: %s", name, err.Error())
+	}
+
+	if service, found, _ := unstructured.NestedString(route.Object, "spec", "to", "name"); found && service != "" {
+		status.Service = service
+	}
+	if tls, found, _ := unstructured.NestedString(route.Object, "spec", "tls", "termination"); found && tls != "" {
+		status.TLS = tls
+	}
+	if host, found, _ := unstructured.NestedString(route.Object, "spec", "host"); found && host != "" {
+		status.Host = host
+	}
+	if status.Host == "" {
+		if ingresses, found, _ := unstructured.NestedSlice(route.Object, "status", "ingress"); found && len(ingresses) > 0 {
+			if ingress, ok := ingresses[0].(map[string]interface{}); ok {
+				if host, ok := ingress["host"].(string); ok {
+					status.Host = host
+				}
+			}
+		}
+	}
+
+	status.Ready = status.Service == name && status.Host != ""
+	if status.Ready {
+		return status, fmt.Sprintf("%s Route is admitted and targets Service/%s", name, status.Service)
+	}
+	return status, fmt.Sprintf("%s Route is waiting for admission or Service target service=%s hostSet=%t", name, status.Service, status.Host != "")
+}
+
 func localOnlyComponent(service string, image string, message string) observedComponent {
 	return observedComponent{
 		required: false,
@@ -1035,7 +1082,9 @@ func (r *OpsLensInstallationReconciler) buildStatus(ctx context.Context, install
 	vectorStore := installation.Spec.Components.VectorStore
 	modelRuntime := installation.Spec.Components.ModelRuntime
 	apiStatus := r.observeDeploymentComponent(ctx, namespace, "cywell-opslens-api", valueOrDefault(api.ServiceName, "cywell-opslens-api"), api.Image)
-	dashboardStatus := r.observeDeploymentComponent(ctx, namespace, "cywell-opslens-dashboard", valueOrDefault(dashboard.ServiceName, "cywell-opslens-dashboard"), dashboard.Image)
+	dashboardServiceName := valueOrDefault(dashboard.ServiceName, "cywell-opslens-dashboard")
+	dashboardStatus := r.observeDeploymentComponent(ctx, namespace, "cywell-opslens-dashboard", dashboardServiceName, dashboard.Image)
+	dashboardRoute, dashboardRouteMessage := r.observeDashboardRoute(ctx, namespace, dashboardServiceName)
 	vectorStatus := localOnlyComponent("inmemory", vectorStore.Image, "vector store uses in-memory provider for this profile")
 	if valueOrDefault(vectorStore.Provider, "pgvector") != "inmemory" {
 		vectorStatus = r.observeStatefulSetComponent(ctx, namespace, "cywell-opslens-vector", "cywell-opslens-vector", vectorStore.Image)
@@ -1069,20 +1118,33 @@ func (r *OpsLensInstallationReconciler) buildStatus(ctx context.Context, install
 		workloadReason = "WaitingForWorkloads"
 		workloadMessage = strings.Join(workloadMessages, "; ")
 	}
+	routeConditionStatus := metav1.ConditionTrue
+	routeConditionReason := "RouteAdmitted"
+	if !dashboardRoute.Ready {
+		routeConditionStatus = metav1.ConditionFalse
+		routeConditionReason = "WaitingForRoute"
+	}
 	phase := "Ready"
-	if !workloadsReady {
+	if !workloadsReady || !dashboardRoute.Ready {
 		phase = "Installing"
 	}
 
 	return opslensv1alpha1.OpsLensInstallationStatus{
-		Phase:      phase,
-		Components: components,
+		Phase:          phase,
+		Components:     components,
+		DashboardRoute: dashboardRoute,
 		Conditions: []metav1.Condition{
 			{
 				Type:    "WorkloadsAvailable",
 				Status:  workloadConditionStatus,
 				Reason:  workloadReason,
 				Message: workloadMessage,
+			},
+			{
+				Type:    "DashboardRouteAvailable",
+				Status:  routeConditionStatus,
+				Reason:  routeConditionReason,
+				Message: dashboardRouteMessage,
 			},
 			{
 				Type:    "LightspeedRegistration",
