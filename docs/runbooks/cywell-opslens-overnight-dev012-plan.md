@@ -1040,6 +1040,18 @@ Checkpoint cadence:
   - `npm run -w @kugnus/web build`
   - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-004"`
 
+### 2026-06-18 - Lane 85
+
+- Hardened the installed ConsolePlugin proxy-mode contract.
+- Added a targeted Playwright path that loads the dashboard with `surface=console-plugin` and the encoded plugin API base, matching the iframe route emitted by `OpsLensRoute`.
+- The test proves the masthead switches from standalone preview to ConsolePlugin mode, shows plugin API proxy routing, and exposes the assistant route as `console-plugin-user-token-proxy`.
+- The same path verifies English and Korean copy for UserToken proxy routing and the read-only/plan-only Assistant boundary.
+- Protected with:
+  - `npm run verify:web-shell`
+  - `npm run -w @kugnus/web build`
+  - `npm run verify:console-plugin`
+  - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-007"`
+
 ## Current Known State
 
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)

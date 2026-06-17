@@ -302,6 +302,23 @@ expectCheck(
 );
 
 expectCheck(
+  "installed console plugin proxy e2e",
+  e2eSource.includes("AC-UI-007 shows installed ConsolePlugin proxy mode distinctly") &&
+    e2eSource.includes("surface=console-plugin") &&
+    e2eSource.includes("encodeURIComponent(pluginApiBase)") &&
+    e2eSource.includes("/api/proxy/plugin/cywell-opslens/opslens-api/api/actions/plan") &&
+    e2eSource.includes("console-plugin-user-token-proxy") &&
+    e2eSource.includes("OpenShift UserToken proxy") &&
+    e2eSource.includes("plugin API proxy") &&
+    e2eSource.includes("Route + proxy mode") &&
+    e2eSource.includes("OpenShift 사용자 토큰 프록시") &&
+    e2eSource.includes("플러그인 API 프록시") &&
+    e2eSource.includes("라우트 + 프록시 모드") &&
+    e2eSource.includes("읽기 전용/계획 전용"),
+  "Playwright proves installed ConsolePlugin mode uses the UserToken proxy path and keeps the assistant read-only/plan-only"
+);
+
+expectCheck(
   "KOMSCO assistant branding",
   assistantSource.includes("KOMSCO AI Assistant") &&
     assistantSource.includes('ariaLabel: "KOMSCO AI Assistant"') &&

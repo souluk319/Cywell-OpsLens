@@ -21,7 +21,7 @@ The overnight loop must keep the product moving toward a credible OpenShift Cons
 | Gate | Pass/Fail Method | Evidence | Current Gap |
 | --- | --- | --- | --- |
 | Local shell is coherent | `npm run verify:web-shell` | `test-results/cywell-opslens-web-shell-contract.json` | Keep KO/EN shell, full left navigation, breadcrumb, KOMSCO, install-flow, and post-install smoke copy protected. |
-| ConsolePlugin contract survives | `npm run verify:console-plugin` | console plugin verifier output | Live browser route still needs Mac CRC to stay awake. |
+| ConsolePlugin contract survives | `npm run verify:console-plugin` plus targeted Playwright | console plugin verifier output and AC-UI-007 | Live browser route still needs Mac CRC to stay awake; local tests must still prove installed mode uses the UserToken proxy path. |
 | Operator package does not drift | `npm run verify:operator:package` | operator package verifier output | Local CRC tags must not drift back to stale `quay.io` examples, and the first OperatorHub CR example must be the same `metadata.name` as the checked-in lightweight sample. |
 | Operator reconcile behavior is protected | `npm run verify:operator:reconcile` | reconcile verifier output | Live CRC may still require explicit dev overrides for external runtime components. |
 | CRC demo path is still first-class | `npm run verify:crc-demo-readiness` | `test-results/cywell-opslens-crc-demo-readiness.md` | Generated CRC catalog context must publish `cywell-opslens-operator.v0.1.2` with `v0.1.2-dev-crc`; Route-backed entrypoint must stay visible in `oc get opslensinstallation` status and live Route evidence remains separate from local evidence. |
@@ -37,6 +37,7 @@ Work:
 
 - keep the left navigation, masthead utilities, Assistant, evidence tabs, and post-install smoke strip clickable and bilingual
 - keep the language toggle synchronized across nav sections, nav items, breadcrumb, command feedback, and Assistant copy
+- keep installed ConsolePlugin mode visibly separate from standalone preview, including UserToken proxy route and Assistant endpoint evidence
 - avoid customer-visible raw enum/key-value labels
 - preserve OpenShift-like top-right chrome order
 

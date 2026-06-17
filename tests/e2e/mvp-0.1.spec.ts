@@ -650,6 +650,74 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
   });
 
+  test("AC-UI-007 shows installed ConsolePlugin proxy mode distinctly", async ({
+    page
+  }) => {
+    const pluginApiBase = "/api/proxy/plugin/cywell-opslens/opslens-api";
+    await page.goto(
+      `/?surface=console-plugin&apiBase=${encodeURIComponent(pluginApiBase)}`
+    );
+
+    await expect(page.getByTestId("console-context-primary")).toContainText(
+      "OpenShift ConsolePlugin"
+    );
+    await expect(page.getByTestId("console-context-secondary")).toContainText(
+      "UserToken proxy"
+    );
+    await expect(page.getByTestId("runtime-surface")).toContainText(
+      "Console plugin"
+    );
+    await expect(page.getByTestId("api-route-mode")).toContainText(
+      "plugin API proxy"
+    );
+    await expect(page.getByTestId("console-plugin-scope")).toContainText(
+      "Route + proxy mode"
+    );
+
+    await openAssistant(page);
+    await expect(page.getByTestId("assistant-api-route-mode")).toContainText(
+      "console-plugin-user-token-proxy"
+    );
+    await expect(page.getByTestId("assistant-action-plan-path")).toContainText(
+      "/api/proxy/plugin/cywell-opslens/opslens-api/api/actions/plan"
+    );
+    await expect(page.getByTestId("assistant-token-path")).toContainText(
+      "OpenShift UserToken proxy"
+    );
+    await expect(page.getByTestId("assistant-integration-console")).toContainText(
+      "Installed ConsolePlugin uses the UserToken proxy"
+    );
+    await expect(page.getByTestId("assistant-connection-summary")).toContainText(
+      "Chat remains read-only/plan-only"
+    );
+
+    await page.getByTestId("language-ko-toggle").click();
+    await expect(page.getByTestId("console-context-primary")).toContainText(
+      "OpenShift 콘솔 플러그인"
+    );
+    await expect(page.getByTestId("console-context-secondary")).toContainText(
+      "사용자 토큰 프록시"
+    );
+    await expect(page.getByTestId("runtime-surface")).toContainText(
+      "콘솔 플러그인"
+    );
+    await expect(page.getByTestId("api-route-mode")).toContainText(
+      "플러그인 API 프록시"
+    );
+    await expect(page.getByTestId("console-plugin-scope")).toContainText(
+      "라우트 + 프록시 모드"
+    );
+    await expect(page.getByTestId("assistant-token-path")).toContainText(
+      "OpenShift 사용자 토큰 프록시"
+    );
+    await expect(page.getByTestId("assistant-integration-console")).toContainText(
+      "설치된 ConsolePlugin은 사용자 토큰 프록시"
+    );
+    await expect(page.getByTestId("assistant-connection-summary")).toContainText(
+      "읽기 전용/계획 전용"
+    );
+  });
+
   test("AC-CTX-001 renders context chips and publisher payload", async ({
     page
   }) => {

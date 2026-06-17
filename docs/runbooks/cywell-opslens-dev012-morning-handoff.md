@@ -66,6 +66,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the masthead now shows the post-install smoke path: open the ConsolePlugin route, ask KOMSCO AI Assistant, and keep OLSConfig in `ValidateOnly` unless an explicit patch is approved
 - the masthead API status chip is localized instead of showing raw `loading/ready/fallback` state values in Korean mode
 - the KO/EN shell test now covers every left navigation section, every left navigation item, the active breadcrumb, command feedback, and the KOMSCO Assistant, so language switching cannot leave only part of the console shell translated
+- the installed ConsolePlugin preview path now has a dedicated Playwright contract proving `surface=console-plugin` plus the plugin API base shows ConsolePlugin mode, UserToken proxy routing, the proxied action-plan endpoint, and read-only/plan-only Assistant boundary in both English and Korean
 - the OpsLens Admin Lightspeed/MCP card now uses customer-facing labels for routing score, response score, read-only tools, selected tool, redaction, mutation boundary, live readiness, network readiness, and next command instead of raw developer `key=value` fragments
 - the Assistant now keeps the raw API error as evidence but adds a KO/EN interpretation for disconnected routes, missing endpoints, auth/RBAC rejection, and API service failures
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
