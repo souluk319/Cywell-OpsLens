@@ -31,6 +31,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the OpsLens Admin Lightspeed/MCP card now uses customer-facing labels for routing score, response score, read-only tools, selected tool, redaction, mutation boundary, live readiness, network readiness, and next command instead of raw developer `key=value` fragments
 - the Assistant now keeps the raw API error as evidence but adds a KO/EN interpretation for disconnected routes, missing endpoints, auth/RBAC rejection, and API service failures
 - shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
+- the overnight checkpoint evidence now stamps start/finish branch, head, worktree dirty flag, dirty entry count, and dirty entries so a green loop can be audited against the actual Git state
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - the Operator status path no longer reports `OpsLensInstallation Ready` before required API/dashboard/vector/model workloads are observed as ready; unready required workloads keep the CR in `Installing`
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes
@@ -84,6 +85,7 @@ c96c4ce Localize admin readiness grid
 1315da3 Localize AI Ops intake labels
 42223ff Localize remediation proposal labels
 8128733 Localize OpsBrain guard labels
+8f6693f Localize RAG production labels
 ```
 
 ## Verified Gates
@@ -94,7 +96,7 @@ Latest non-mutating checks:
 | --- | --- | --- |
 | `npm run verify:web-shell` | PASS | 0 fail, 18 checks after the RAG production label lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 35 |
+| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 36; evidence includes start/finish Git dirty state |
 | `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the RAG production label lane |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, navigation, Assistant labels, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |

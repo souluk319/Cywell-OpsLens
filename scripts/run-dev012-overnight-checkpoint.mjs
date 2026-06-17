@@ -207,9 +207,28 @@ async function gitStamp() {
     },
     60 * 1000
   );
+  const statusStep = await runStep(
+    {
+      id: "git-status-short",
+      command: git,
+      args: ["status", "--short", "--branch"],
+      timeoutMs: 60 * 1000
+    },
+    60 * 1000
+  );
+  const statusLines = statusStep.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter(Boolean);
+  const branchLine = statusLines.find((line) => line.startsWith("##")) ?? "";
+  const dirtyEntries = statusLines.filter((line) => !line.startsWith("##"));
   return {
     branch: branchStep.stdout.trim() || "unknown",
-    head: headStep.stdout.trim() || "unknown"
+    head: headStep.stdout.trim() || "unknown",
+    branchLine,
+    worktreeDirty: dirtyEntries.length > 0,
+    dirtyEntryCount: dirtyEntries.length,
+    dirtyEntries: dirtyEntries.slice(0, 50)
   };
 }
 
@@ -220,6 +239,8 @@ function renderMarkdown(report) {
     `Generated: ${report.finishedAt}`,
     `Branch: \`${report.git.branch}\``,
     `Head: \`${report.git.head}\``,
+    `Start worktree dirty: \`${String(report.git.worktreeDirty)}\` (${report.git.dirtyEntryCount} entries)`,
+    `Finish worktree dirty: \`${String(report.gitFinish?.worktreeDirty ?? "unknown")}\` (${report.gitFinish?.dirtyEntryCount ?? "unknown"} entries)`,
     `Status: \`${report.status}\``,
     "",
     "## Scope",
@@ -255,6 +276,22 @@ function renderMarkdown(report) {
     }
   }
 
+  if (report.git.worktreeDirty || report.gitFinish?.worktreeDirty) {
+    lines.push("", "## Worktree State", "");
+    if (report.git.worktreeDirty) {
+      lines.push("- Start dirty entries:");
+      for (const entry of report.git.dirtyEntries) {
+        lines.push(`  - \`${entry}\``);
+      }
+    }
+    if (report.gitFinish?.worktreeDirty) {
+      lines.push("- Finish dirty entries:");
+      for (const entry of report.gitFinish.dirtyEntries) {
+        lines.push(`  - \`${entry}\``);
+      }
+    }
+  }
+
   lines.push("", "## Next Action", "");
   lines.push(
     report.status === "PASS"
@@ -273,9 +310,14 @@ const report = {
   status: "PASS",
   options,
   git: await gitStamp(),
+  gitFinish: null,
   steps: steps.map((step) => ({ id: step.id, command: [step.command, ...step.args].join(" ") })),
   iterations: []
 };
+
+console.log(
+  `Git start: branch=${report.git.branch} head=${report.git.head} dirty=${String(report.git.worktreeDirty)} entries=${report.git.dirtyEntryCount}`
+);
 
 for (let index = 1; index <= options.iterations; index += 1) {
   const iteration = {
@@ -309,6 +351,7 @@ for (let index = 1; index <= options.iterations; index += 1) {
 }
 
 report.finishedAt = nowIso();
+report.gitFinish = await gitStamp();
 
 await mkdir(resolve("test-results"), { recursive: true });
 await writeFile(resolve(options.evidenceOut), `${JSON.stringify(report, null, 2)}\n`, "utf8");
@@ -316,6 +359,9 @@ await writeFile(resolve(options.markdownOut), renderMarkdown(report), "utf8");
 
 console.log(
   `\nCywell OpsLens Dev 0.1.2 overnight checkpoint: status=${report.status}, iterations=${report.iterations.length}`
+);
+console.log(
+  `Git finish: branch=${report.gitFinish.branch} head=${report.gitFinish.head} dirty=${String(report.gitFinish.worktreeDirty)} entries=${report.gitFinish.dirtyEntryCount}`
 );
 console.log(`Evidence: ${resolve(options.evidenceOut)}`);
 console.log(`Summary: ${resolve(options.markdownOut)}`);

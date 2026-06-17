@@ -670,6 +670,18 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Approval queue inventory and ingestion-plan rows now use language-owned labels for approvals, read-only command boundaries, vector-write policy, metadata writes, and ingestion-job creation.
 - `npm run verify:web-shell` now includes a `localized rag production labels` gate.
 
+### 2026-06-18 - Lane 36
+
+- Hardened the overnight checkpoint runner evidence so each run now stamps start and finish Git state, not only the command output.
+- JSON and Markdown checkpoint evidence now includes:
+  - branch
+  - head
+  - start worktree dirty flag and dirty entry count
+  - finish worktree dirty flag and dirty entry count
+  - truncated dirty entry list when present
+- The runner prints the same Git start/finish summary to the loop log so an unattended session can be audited without opening the JSON first.
+- This closes the ambiguity where a checkpoint could be green while the only dirty-state proof was buried inside the `git-status` step stdout.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -681,10 +693,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 34: `8128733`
+- feature branch latest pushed head after Lane 35: `8f6693f`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
 - latest web shell verifier after Lane 35: PASS, 18 checks
-- latest overnight checkpoint after Lane 35: PASS, 9/9 local gates
+- latest overnight checkpoint after Lane 36: PASS, 9/9 local gates, structured Git dirty state present
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
