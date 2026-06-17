@@ -58,6 +58,13 @@ const assistantCopy = {
     mutationBoundaryShort: "cluster changes",
     mutationBoundaryValue: "not executed",
     retry: "Retry API",
+    integrationTitle: "Integration contract",
+    integrationStandalone:
+      "Standalone preview uses local API route or plan-only fallback.",
+    integrationConsole:
+      "Installed ConsolePlugin uses the UserToken proxy for OpsLens API.",
+    integrationLightspeed:
+      "Native Lightspeed drawer is separate; OpsLens MCP registration is explicit.",
     pending: "pending",
     actionMode: "action mode",
     prompt: "Ask from current context",
@@ -94,6 +101,13 @@ const assistantCopy = {
     mutationBoundaryShort: "클러스터 변경",
     mutationBoundaryValue: "실행 안 함",
     retry: "API 재시도",
+    integrationTitle: "연동 계약",
+    integrationStandalone:
+      "독립 미리보기는 로컬 API 경로 또는 계획 전용 대체 응답을 사용",
+    integrationConsole:
+      "설치된 ConsolePlugin은 사용자 토큰 프록시로 OpsLens API 사용",
+    integrationLightspeed:
+      "기본 Lightspeed 서랍은 별도이며 OpsLens MCP 등록은 명시 승인",
     pending: "대기 중",
     actionMode: "동작 모드",
     prompt: "현재 컨텍스트로 질문",
@@ -542,6 +556,22 @@ export function AssistantPopover({
             <li key={item}>{item}</li>
           ))}
         </ul>
+        <div
+          className="assistant-integration-contract"
+          data-testid="assistant-integration-contract"
+          aria-label={copy.integrationTitle}
+        >
+          <strong>{copy.integrationTitle}</strong>
+          <span data-testid="assistant-integration-standalone">
+            {copy.integrationStandalone}
+          </span>
+          <span data-testid="assistant-integration-console">
+            {copy.integrationConsole}
+          </span>
+          <span data-testid="assistant-integration-lightspeed">
+            {copy.integrationLightspeed}
+          </span>
+        </div>
         <dl className="assistant-mode-matrix" data-testid="assistant-mode-matrix">
           <div>
             <dt>{copy.answerSource}</dt>

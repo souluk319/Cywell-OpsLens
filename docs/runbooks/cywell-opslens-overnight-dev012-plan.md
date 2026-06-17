@@ -766,6 +766,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - This keeps the final release/certification gap honest on the first viewport while preserving the value of the local OperatorHub and ConsolePlugin demo.
 - `npm run verify:web-shell` now includes a `visible certification boundary` gate, and `AC-UI-004` checks the KO/EN certification boundary copy in the browser.
 
+### 2026-06-18 - Lane 49
+
+- Added a visible Assistant integration contract so the chatbot surface does not look broken when viewed as a standalone preview.
+- The KO/EN Assistant now separates standalone preview behavior, installed ConsolePlugin UserToken proxy behavior, and the native OpenShift Lightspeed drawer boundary.
+- This directly addresses the "why does our chatbot not behave like the OpenShift Lightspeed drawer?" demo risk without claiming native drawer rebranding.
+- `npm run verify:web-shell` now includes an `assistant integration contract` gate, and `AC-UI-004` checks the KO/EN integration contract in the browser.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -777,10 +784,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 47: `4bb1321`
+- feature branch latest pushed head after Lane 48: `8938501`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 48: PASS, 30 checks
-- latest overnight checkpoint after Lane 48: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 49: PASS, 31 checks
+- latest overnight checkpoint after Lane 49: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

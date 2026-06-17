@@ -2194,6 +2194,27 @@ button {
   padding-left: 18px;
 }
 
+.assistant-integration-contract {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid rgba(79, 82, 85, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.assistant-integration-contract strong {
+  font-size: 0.7rem;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.assistant-integration-contract span {
+  color: #3c3c3c;
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
 .assistant-mode-matrix {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

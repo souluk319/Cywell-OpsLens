@@ -253,6 +253,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("assistant-connection-summary")).toContainText(
       "연결 판정"
     );
+    await expect(page.getByTestId("assistant-integration-contract")).toContainText(
+      "연동 계약"
+    );
+    await expect(page.getByTestId("assistant-integration-standalone")).toContainText(
+      "독립 미리보기는 로컬 API 경로"
+    );
+    await expect(page.getByTestId("assistant-integration-console")).toContainText(
+      "설치된 ConsolePlugin은 사용자 토큰 프록시"
+    );
+    await expect(page.getByTestId("assistant-integration-lightspeed")).toContainText(
+      "기본 Lightspeed 서랍은 별도"
+    );
     await expect(page.getByTestId("assistant-mode-matrix")).toContainText(
       "답변 출처"
     );
@@ -298,6 +310,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("certification-boundary-evidence")
     ).toContainText("Certified readiness needs security/release evidence");
+    await expect(page.getByTestId("assistant-integration-contract")).toContainText(
+      "Integration contract"
+    );
+    await expect(page.getByTestId("assistant-integration-standalone")).toContainText(
+      "Standalone preview uses local API route"
+    );
+    await expect(page.getByTestId("assistant-integration-console")).toContainText(
+      "Installed ConsolePlugin uses the UserToken proxy"
+    );
+    await expect(page.getByTestId("assistant-integration-lightspeed")).toContainText(
+      "Native Lightspeed drawer is separate"
+    );
     await expect(page.getByTestId("assistant-mode-matrix")).toContainText(
       "answer source"
     );

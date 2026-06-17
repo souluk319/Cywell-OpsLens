@@ -209,6 +209,23 @@ expectCheck(
 );
 
 expectCheck(
+  "assistant integration contract",
+  assistantSource.includes('data-testid="assistant-integration-contract"') &&
+    assistantSource.includes('data-testid="assistant-integration-standalone"') &&
+    assistantSource.includes('data-testid="assistant-integration-console"') &&
+    assistantSource.includes('data-testid="assistant-integration-lightspeed"') &&
+    assistantSource.includes("Standalone preview uses local API route") &&
+    assistantSource.includes("Installed ConsolePlugin uses the UserToken proxy") &&
+    assistantSource.includes("Native Lightspeed drawer is separate") &&
+    assistantSource.includes("독립 미리보기는 로컬 API 경로") &&
+    assistantSource.includes("설치된 ConsolePlugin은 사용자 토큰 프록시") &&
+    assistantSource.includes("기본 Lightspeed 서랍은 별도") &&
+    stylesSource.includes(".assistant-integration-contract") &&
+    stylesSource.includes(".assistant-integration-contract span"),
+  "assistant visibly separates standalone preview, ConsolePlugin proxy integration, and native Lightspeed drawer ownership"
+);
+
+expectCheck(
   "interactive shell action contracts",
   appSource.includes('data-testid="nav-collapse-toggle"') &&
     appSource.includes('data-testid="masthead-app-launcher"') &&
