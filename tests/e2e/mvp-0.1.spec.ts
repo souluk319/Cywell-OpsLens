@@ -248,6 +248,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("handoff-smoke")).toContainText(
       "읽기 전용 스모크 실행"
     );
+    await expect(page.getByTestId("readiness-status")).toContainText(
+      "근거 필요"
+    );
+    await expect(page.getByTestId("readiness-passed")).toContainText(
+      "통과 요건"
+    );
+    await expect(page.getByTestId("readiness-remaining")).toContainText(
+      "남은 항목"
+    );
+    await expect(page.getByTestId("readiness-next-gate")).toContainText(
+      "다음 게이트"
+    );
+    await expect(page.getByTestId("readiness-next-command")).toContainText(
+      "다음 점검"
+    );
     await expect(page.getByTestId("console-nav-alerting")).toContainText(
       "경고"
     );
@@ -327,6 +342,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("handoff-smoke")).toContainText(
       "Run read-only smoke"
+    );
+    await expect(page.getByTestId("readiness-status")).toContainText(
+      "needs evidence"
+    );
+    await expect(page.getByTestId("readiness-passed")).toContainText(
+      "passed requirements"
+    );
+    await expect(page.getByTestId("readiness-remaining")).toContainText(
+      "remaining items"
+    );
+    await expect(page.getByTestId("readiness-next-gate")).toContainText(
+      "next gate"
+    );
+    await expect(page.getByTestId("readiness-next-command")).toContainText(
+      "next check"
     );
     await expect(page.getByTestId("assistant-integration-contract")).toContainText(
       "Integration contract"

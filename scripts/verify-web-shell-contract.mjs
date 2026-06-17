@@ -676,6 +676,31 @@ expectCheck(
 );
 
 expectCheck(
+  "localized readiness command strip",
+  appSource.includes('data-testid="readiness-status"') &&
+    appSource.includes('data-testid="readiness-passed"') &&
+    appSource.includes('data-testid="readiness-remaining"') &&
+    appSource.includes('data-testid="readiness-next-gate"') &&
+    appSource.includes('data-testid="readiness-next-command"') &&
+    appSource.includes("readinessStatusText(") &&
+    appSource.includes("근거 필요") &&
+    appSource.includes("남은 항목") &&
+    appSource.includes("다음 게이트") &&
+    appSource.includes("다음 점검") &&
+    appSource.includes("needs evidence") &&
+    appSource.includes("remaining items") &&
+    appSource.includes("next gate") &&
+    appSource.includes("next check") &&
+    appSource.includes("nextGateLabel(adminOverview, language)") &&
+    appSource.includes("firstNextCommand(adminOverview, language)") &&
+    !appSource.includes("{completionGate?.status ?? copy.loading}") &&
+    !appSource.includes("{copy.remaining}=") &&
+    !appSource.includes("{copy.next}=") &&
+    !appSource.includes("{copy.command}="),
+  "readiness command strip uses KO/EN labels for status, remaining items, next gate, and next check instead of raw key/value UI"
+);
+
+expectCheck(
   "localized interactive shell e2e",
   e2eSource.includes("AC-UI-004 keeps KO/EN switching consistent across shell and assistant") &&
     e2eSource.includes('getByTestId("language-ko-toggle")') &&
@@ -690,6 +715,15 @@ expectCheck(
     e2eSource.includes("OpenShift keeps native chrome and Lightspeed drawer") &&
     e2eSource.includes("CRC demo uses in-memory RAG + mock model") &&
     e2eSource.includes("Approved install requires pgvector/vLLM evidence") &&
+    e2eSource.includes('getByTestId("readiness-status")') &&
+    e2eSource.includes("근거 필요") &&
+    e2eSource.includes("남은 항목") &&
+    e2eSource.includes("다음 게이트") &&
+    e2eSource.includes("다음 점검") &&
+    e2eSource.includes("needs evidence") &&
+    e2eSource.includes("remaining items") &&
+    e2eSource.includes("next gate") &&
+    e2eSource.includes("next check") &&
     e2eSource.includes("KOMSCO AI 어시스턴트") &&
     e2eSource.includes("KOMSCO AI Assistant") &&
     e2eSource.includes('getByTestId("assistant-mode-matrix")') &&

@@ -68,16 +68,54 @@ function statusClass(status: string | undefined) {
   return "missing";
 }
 
-function nextGateLabel(overview: OpsLensAdminOverviewResponse | null) {
-  const gate = overview?.installReadiness.completionGate.remainingTo100[0];
-  if (!gate) return "none";
-  return `${gate.gateId}:${gate.owner}`;
+const readinessStatusLabels: Record<UiLanguage, Record<string, string>> = {
+  en: {
+    pass: "passed",
+    ready: "ready",
+    "live-ready": "live ready",
+    "needs-evidence": "needs evidence",
+    "needs-tooling": "needs tooling",
+    "approval-required": "approval required",
+    missing: "missing"
+  },
+  ko: {
+    pass: "통과",
+    ready: "준비됨",
+    "live-ready": "라이브 준비",
+    "needs-evidence": "근거 필요",
+    "needs-tooling": "도구 필요",
+    "approval-required": "승인 필요",
+    missing: "근거 없음"
+  }
+};
+
+function readinessStatusText(
+  status: string | undefined,
+  language: UiLanguage,
+  fallback: string
+) {
+  if (!status) return fallback;
+  return readinessStatusLabels[language][status] ?? status;
 }
 
-function firstNextCommand(overview: OpsLensAdminOverviewResponse | null) {
+function nextGateLabel(
+  overview: OpsLensAdminOverviewResponse | null,
+  language: UiLanguage
+) {
+  const gate = overview?.installReadiness.completionGate.remainingTo100[0];
+  if (!gate) return language === "ko" ? "없음" : "none";
+  return language === "ko"
+    ? `${gate.gateId} / 담당 ${gate.owner}`
+    : `${gate.gateId} / owner ${gate.owner}`;
+}
+
+function firstNextCommand(
+  overview: OpsLensAdminOverviewResponse | null,
+  language: UiLanguage
+) {
   return (
     overview?.installReadiness.completionGate.remainingTo100[0]?.nextCommand ??
-    "none"
+    (language === "ko" ? "없음" : "none")
   );
 }
 
@@ -302,8 +340,12 @@ const shellCopy = {
     language: "Language",
     loading: "loading",
     remaining: "remaining",
+    remainingRequirements: "remaining items",
+    passedRequirements: "passed requirements",
     next: "next",
+    nextGate: "next gate",
     command: "cmd",
+    nextCommand: "next check",
     closeAssistant: "Close KOMSCO AI Assistant",
     openAssistant: "Open KOMSCO AI Assistant",
     assistantTitle: "KOMSCO AI Assistant",
@@ -372,8 +414,12 @@ const shellCopy = {
     language: "언어",
     loading: "불러오는 중",
     remaining: "남음",
+    remainingRequirements: "남은 항목",
+    passedRequirements: "통과 요건",
     next: "다음",
+    nextGate: "다음 게이트",
     command: "명령",
+    nextCommand: "다음 점검",
     closeAssistant: "KOMSCO AI 어시스턴트 닫기",
     openAssistant: "KOMSCO AI 어시스턴트 열기",
     assistantTitle: "KOMSCO AI 어시스턴트",
@@ -1065,28 +1111,38 @@ export default function App() {
                 </div>
                 <span
                   className={`freshness ${statusClass(completionGate?.status)}`}
+                  data-testid="readiness-status"
                 >
-                  {completionGate?.status ?? copy.loading}
+                  {readinessStatusText(
+                    completionGate?.status,
+                    language,
+                    copy.loading
+                  )}
                 </span>
               </div>
               <div className="readiness-command-metrics">
-                <span>
+                <span data-testid="readiness-percent">
                   <Gauge size={15} aria-hidden="true" />
                   {completionGate
                     ? `${completionGate.percentComplete}%`
                     : "--%"}
                 </span>
-                <span>
+                <span data-testid="readiness-passed">
+                  {copy.passedRequirements}:{" "}
                   {completionGate
                     ? `${completionGate.passedRequirements}/${completionGate.totalRequirements}`
                     : "--/--"}
                 </span>
-                <span>
-                  {copy.remaining}=
+                <span data-testid="readiness-remaining">
+                  {copy.remainingRequirements}:{" "}
                   {completionGate?.remainingRequirements ?? "--"}
                 </span>
-                <span>{copy.next}={nextGateLabel(adminOverview)}</span>
-                <span>{copy.command}={firstNextCommand(adminOverview)}</span>
+                <span data-testid="readiness-next-gate">
+                  {copy.nextGate}: {nextGateLabel(adminOverview, language)}
+                </span>
+                <span data-testid="readiness-next-command">
+                  {copy.nextCommand}: {firstNextCommand(adminOverview, language)}
+                </span>
               </div>
               <a
                 className="text-icon-button readiness-jump"

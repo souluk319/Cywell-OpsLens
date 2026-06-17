@@ -780,6 +780,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - This makes the overnight loop useful when the operator returns after a long gap and needs a safe first screen for demo recovery.
 - `npm run verify:web-shell` now includes a `visible demo handoff checklist` gate, and `AC-UI-004` checks the KO/EN handoff checklist in the browser.
 
+### 2026-06-18 - Lane 51
+
+- Polished the first-viewport readiness command strip so KO mode no longer shows raw fragments such as `needs-evidence`, `남음=`, `다음=`, or `cmd=`.
+- The strip now uses language-owned labels for completion status, passed requirements, remaining items, next gate, and next check while preserving gate IDs and command strings as evidence.
+- `npm run verify:web-shell` now includes a `localized readiness command strip` gate, and `AC-UI-004` checks the KO/EN readiness strip in the browser.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -791,10 +797,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 49: `a5e9327`
+- feature branch latest pushed head after Lane 50: `34c177d`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 50: PASS, 32 checks
-- latest overnight checkpoint after Lane 50: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 51: PASS, 33 checks
+- latest overnight checkpoint after Lane 51: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
