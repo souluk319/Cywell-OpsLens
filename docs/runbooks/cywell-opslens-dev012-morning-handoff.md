@@ -171,7 +171,7 @@ Latest non-mutating checks:
 | `npm run -w @kugnus/web build` | PASS | TypeScript, Vite, and ConsolePlugin bundle completed after the install approval label lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
 | `npm run verify:crc-demo-readiness` | PASS | 0 fail, 0 warn, 14 checks; writes JSON and Markdown evidence for OperatorHub first example, lightweight sample, UI copy, handoff commands, and arm64 tar alignment |
-| `npm run overnight:checkpoint` | PASS | latest clean checkpoint after Lane 77 passed 10/10 local gates on head `b4266ac`; evidence includes start/finish Git state and CRC demo readiness |
+| `npm run overnight:checkpoint` | PASS | latest clean checkpoint after Lane 77 passed 10/10 local gates on a clean worktree; evidence includes start/finish Git state and CRC demo readiness |
 | `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the assistant ready-state lane |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead `kubeadmin`, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, access path, CRC install signal, post-install smoke path, readiness command labels, navigation, KOMSCO assistant labels, integration contract, ask execution path, and mode matrix |
 | `npx playwright test -g "AC-UI-005"` | PASS | Masthead utilities, evidence tabs, and evidence Ask buttons click through to visible state changes |

@@ -966,7 +966,7 @@ Checkpoint cadence:
 - feature branch latest pushed head before Lane 77: `6834383`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
 - latest web shell verifier after Lane 77: PASS, 51 checks
-- latest overnight checkpoint after Lane 77: PASS, 10/10 local gates on clean head `b4266ac`, structured Git state stamped, CRC demo readiness included
+- latest overnight checkpoint after Lane 77: PASS, 10/10 local gates on a clean worktree, structured Git state stamped, CRC demo readiness included
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
