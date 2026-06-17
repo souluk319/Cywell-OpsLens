@@ -682,6 +682,14 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The runner prints the same Git start/finish summary to the loop log so an unattended session can be audited without opening the JSON first.
 - This closes the ambiguity where a checkpoint could be green while the only dirty-state proof was buried inside the `git-status` step stdout.
 
+### 2026-06-18 - Lane 37
+
+- Polished the Runtime readiness and live handoff cards so KO mode no longer exposes raw labels such as `pgvector=`, `vllm=`, `liveProbe=`, `runtimeOwner=`, `dataOwner=`, `writesLocalEvidence=`, or `mutationAllowedByThisVerifier=`.
+- Runtime summary labels such as ready count, memory, and status now use the same language-owned copy as the rest of the Admin dashboard.
+- Runtime handoff actions and ticket rows now use language-owned labels for owner, priority, next command, read-only commands, approval requirement, mutation boundary, and live probe approval.
+- `statusText` now normalizes underscore status values before lookup, so evidence statuses like `NEEDS_CURRENT_EVIDENCE` can render as customer-facing labels while raw evidence remains available elsewhere.
+- `npm run verify:web-shell` now includes a `localized runtime handoff labels` gate.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -693,10 +701,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 35: `8f6693f`
+- feature branch latest pushed head after Lane 36: `81555b2`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 35: PASS, 18 checks
-- latest overnight checkpoint after Lane 36: PASS, 9/9 local gates, structured Git dirty state present
+- latest web shell verifier after Lane 37: PASS, 19 checks
+- latest overnight checkpoint after Lane 37: PASS, 9/9 local gates, structured Git dirty state present
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

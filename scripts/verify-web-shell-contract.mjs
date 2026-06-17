@@ -279,9 +279,16 @@ expectCheck(
     adminSource.includes("copy.writePolicy") &&
     adminSource.includes("copy.rawMemoryWrite") &&
     adminSource.includes("copy.nightlyLoop") &&
+    adminSource.includes("copy.runtimeOwner") &&
+    adminSource.includes("copy.dataOwner") &&
+    adminSource.includes("copy.liveProbe") &&
+    adminSource.includes("copy.mutationByVerifier") &&
     adminSource.includes("copy.contractReady") &&
     adminSource.includes("copy.auditAppendOnly") &&
     adminSource.includes("copy.queueMetadataWrite") &&
+    adminSource.includes("런타임 소유자") &&
+    adminSource.includes("실시간 점검") &&
+    adminSource.includes("검증기 변경 허용") &&
     adminSource.includes("계약 준비") &&
     adminSource.includes("대기열 메타데이터 쓰기") &&
     adminSource.includes("감사 추가 전용") &&
@@ -380,6 +387,26 @@ expectCheck(
     !adminSource.includes(":next={action.nextCommand}:mutation={String(action.mutation)}") &&
     !adminSource.includes("<span>approvals {item.approvals.length}</span>"),
   "RAG production and approval queue panels use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized runtime handoff labels",
+  !adminSource.includes("<dt>Ready</dt>") &&
+    !adminSource.includes("<dt>Memory</dt>") &&
+    !adminSource.includes("<dt>Status</dt>") &&
+    !adminSource.includes("pgvector={overview?.runtime.readiness.vectorStore.status") &&
+    !adminSource.includes("vllm={overview?.runtime.readiness.modelRuntime.status") &&
+    !adminSource.includes("liveProbe=") &&
+    !adminSource.includes("status={runtimeLiveHandoff?.status") &&
+    !adminSource.includes("runtimeOwner={runtimeLiveHandoff?.runtimePlatformOwner") &&
+    !adminSource.includes("dataOwner={runtimeLiveHandoff?.dataMlOwner") &&
+    !adminSource.includes("}:readOnly=\n                  {action.readOnlyCommandIds.join") &&
+    !adminSource.includes("owner={handoff.owner}:writesLocalEvidence=") &&
+    !adminSource.includes("mutationAllowedByThisVerifier=\n              {String(\n                runtimeLiveHandoff?.mutationAllowedByThisVerifier") &&
+    !adminSource.includes("<span>runtime live handoff clear</span>") &&
+    !adminSource.includes("<span>runtime evidence tickets clear</span>") &&
+    !adminSource.includes("<span>runtime live evidence handoff missing</span>"),
+  "Runtime readiness and live handoff panels use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(

@@ -68,7 +68,7 @@ function booleanText(language: UiLanguage, value: unknown) {
 function statusText(language: UiLanguage, status: string | undefined) {
   if (!status) return language === "ko" ? "근거 필요" : "needs evidence";
   const normalizedStatus = status.trim();
-  const normalizedKey = normalizedStatus.toLowerCase();
+  const normalizedKey = normalizedStatus.replace(/_/g, "-").toLowerCase();
 
   const labels: Record<UiLanguage, Record<string, string>> = {
     en: {
@@ -213,18 +213,31 @@ function shortTime(value: string) {
   }).format(new Date(value));
 }
 
-function runtimeEvidenceTicketText(action: OpsLensRuntimeLiveHandoffAction) {
+function runtimeEvidenceTicketText(
+  action: OpsLensRuntimeLiveHandoffAction,
+  language: UiLanguage,
+  copy: Record<string, string>
+) {
   const ticket = action.runtimeEvidenceTicketPacket;
-  if (!ticket) return "runtime evidence ticket missing";
+  if (!ticket) return copy.runtimeEvidenceTicketMissing;
   return [
     ticket.id,
-    ticket.owner,
-    `first=${ticket.firstReadOnlyAction.id}`,
-    `approval=${ticket.approvalGatedAction.id}`,
-    `requiresApproval=${String(ticket.approvalGatedAction.requiresExplicitApproval)}`,
-    `mutationAllowed=${String(ticket.mutationBoundary.mutationAllowedByThisVerifier)}`,
-    `liveProbeRequiresApproval=${String(ticket.mutationBoundary.liveProbeRequiresExplicitApproval)}`
-  ].join(":");
+    `${copy.owner}: ${ticket.owner}`,
+    `${copy.firstAction}: ${ticket.firstReadOnlyAction.id}`,
+    `${copy.approvalAction}: ${ticket.approvalGatedAction.id}`,
+    `${copy.requiresApproval}: ${booleanText(
+      language,
+      ticket.approvalGatedAction.requiresExplicitApproval
+    )}`,
+    `${copy.mutationAllowed}: ${booleanText(
+      language,
+      ticket.mutationBoundary.mutationAllowedByThisVerifier
+    )}`,
+    `${copy.liveProbe} ${copy.approvalRequired}: ${booleanText(
+      language,
+      ticket.mutationBoundary.liveProbeRequiresExplicitApproval
+    )}`
+  ].join(" / ");
 }
 
 const adminCopy = {
@@ -267,6 +280,21 @@ const adminCopy = {
     requiredKeys: "Required Keys And Tokens",
     valuesRedacted: "values redacted",
     ragDocuments: "RAG Documents",
+    readyReplicas: "ready",
+    memory: "memory",
+    owner: "owner",
+    priority: "priority",
+    runtimeOwner: "runtime owner",
+    dataOwner: "data/ML owner",
+    liveProbe: "live probe",
+    pgvector: "pgvector",
+    vllm: "vLLM",
+    runtimeLiveHandoffClear: "runtime live handoff clear",
+    runtimeEvidenceTicketsClear: "runtime evidence tickets clear",
+    runtimeEvidenceTicketMissing: "runtime evidence ticket missing",
+    runtimeLiveEvidenceMissing: "runtime live evidence handoff missing",
+    writesLocalEvidence: "writes local evidence",
+    mutationByVerifier: "mutation allowed by verifier",
     contractReady: "contract ready",
     queueLive: "queue live",
     workerLive: "worker live",
@@ -446,6 +474,21 @@ const adminCopy = {
     requiredKeys: "필요 키와 토큰",
     valuesRedacted: "값은 비공개",
     ragDocuments: "RAG 문서",
+    readyReplicas: "준비 수",
+    memory: "메모리",
+    owner: "소유자",
+    priority: "우선순위",
+    runtimeOwner: "런타임 소유자",
+    dataOwner: "데이터/ML 소유자",
+    liveProbe: "실시간 점검",
+    pgvector: "pgvector",
+    vllm: "vLLM",
+    runtimeLiveHandoffClear: "런타임 실시간 인계 이상 없음",
+    runtimeEvidenceTicketsClear: "런타임 근거 티켓 이상 없음",
+    runtimeEvidenceTicketMissing: "런타임 근거 티켓 누락",
+    runtimeLiveEvidenceMissing: "런타임 실시간 근거 인계 누락",
+    writesLocalEvidence: "로컬 근거 쓰기",
+    mutationByVerifier: "검증기 변경 허용",
     contractReady: "계약 준비",
     queueLive: "대기열 가동",
     workerLive: "적재 워커 가동",
@@ -1980,7 +2023,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               <dd>{overview?.runtime.model ?? "--"}</dd>
             </div>
             <div>
-              <dt>Ready</dt>
+              <dt>{copy.readyReplicas}</dt>
               <dd>
                 {overview
                   ? `${overview.runtime.readyReplicas}/${overview.runtime.replicas}`
@@ -1988,7 +2031,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </dd>
             </div>
             <div>
-              <dt>Memory</dt>
+              <dt>{copy.memory}</dt>
               <dd>
                 {latestGpu
                   ? `${latestGpu.memoryUsedGiB}/${latestGpu.memoryTotalGiB} GiB`
@@ -1996,24 +2039,29 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </dd>
             </div>
             <div>
-              <dt>Status</dt>
-              <dd>{overview?.runtime.readiness.status ?? "--"}</dd>
+              <dt>{copy.status}</dt>
+              <dd>{statusText(language, overview?.runtime.readiness.status)}</dd>
             </div>
           </dl>
           <div
             className="admin-evidence-line"
             data-testid="opslens-runtime-readiness"
           >
-            <span>{overview?.runtime.readiness.actionMode ?? "readOnly"}</span>
             <span>
-              pgvector={overview?.runtime.readiness.vectorStore.status ?? "--"}
+              {actionModeText(language, overview?.runtime.readiness.actionMode ?? "readOnly")}
             </span>
             <span>
-              vllm={overview?.runtime.readiness.modelRuntime.status ?? "--"}
+              {copy.pgvector}:{" "}
+              {statusText(language, overview?.runtime.readiness.vectorStore.status)}
             </span>
             <span>
-              liveProbe=
-              {String(
+              {copy.vllm}:{" "}
+              {statusText(language, overview?.runtime.readiness.modelRuntime.status)}
+            </span>
+            <span>
+              {copy.liveProbe}:{" "}
+              {booleanText(
+                language,
                 overview?.runtime.readiness.vectorStore.liveProbeEnabled ?? false
               )}
             </span>
@@ -2022,17 +2070,29 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             className="admin-evidence-line"
             data-testid="opslens-runtime-live-handoff"
           >
-            <span>{runtimeLiveHandoff?.actionMode ?? "handoffOnly"}</span>
-            <span>status={runtimeLiveHandoff?.status ?? "--"}</span>
             <span>
-              runtimeOwner={runtimeLiveHandoff?.runtimePlatformOwner ?? "--"}
+              {actionModeText(language, runtimeLiveHandoff?.actionMode ?? "handoffOnly")}
             </span>
-            <span>dataOwner={runtimeLiveHandoff?.dataMlOwner ?? "--"}</span>
             <span>
-              liveProbe={String(runtimeLiveHandoff?.liveProbeEnabled ?? false)}
+              {copy.status}: {statusText(language, runtimeLiveHandoff?.status)}
             </span>
-            <span>pgvector={runtimeLiveHandoff?.pgvectorStatus ?? "--"}</span>
-            <span>vllm={runtimeLiveHandoff?.vllmStatus ?? "--"}</span>
+            <span>
+              {copy.runtimeOwner}: {runtimeLiveHandoff?.runtimePlatformOwner ?? "--"}
+            </span>
+            <span>
+              {copy.dataOwner}: {runtimeLiveHandoff?.dataMlOwner ?? "--"}
+            </span>
+            <span>
+              {copy.liveProbe}:{" "}
+              {booleanText(language, runtimeLiveHandoff?.liveProbeEnabled ?? false)}
+            </span>
+            <span>
+              {copy.pgvector}:{" "}
+              {statusText(language, runtimeLiveHandoff?.pgvectorStatus)}
+            </span>
+            <span>
+              {copy.vllm}: {statusText(language, runtimeLiveHandoff?.vllmStatus)}
+            </span>
           </div>
           <div
             className="admin-evidence-line"
@@ -2041,13 +2101,14 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             {runtimeLiveHandoffActions.length > 0 ? (
               runtimeLiveHandoffActions.map((action) => (
                 <span key={action.id}>
-                  {action.id}:{action.owner}:{action.priority}:
-                  {action.nextCommand}:readOnly=
-                  {action.readOnlyCommandIds.join(", ")}
+                  {action.id} / {copy.owner}: {action.owner} /{" "}
+                  {copy.priority}: {action.priority} / {copy.nextCommand}:{" "}
+                  {action.nextCommand} / {copy.readOnlyCommands}:{" "}
+                  {action.readOnlyCommandIds.join(", ") || copy.none}
                 </span>
               ))
             ) : (
-              <span>runtime live handoff clear</span>
+              <span>{copy.runtimeLiveHandoffClear}</span>
             )}
           </div>
           <div
@@ -2060,12 +2121,12 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               runtimeLiveHandoffActions.map((action) =>
                 action.runtimeEvidenceTicketPacket ? (
                   <span key={`${action.id}-ticket`}>
-                    {runtimeEvidenceTicketText(action)}
+                    {runtimeEvidenceTicketText(action, language, copy)}
                   </span>
                 ) : null
               )
             ) : (
-              <span>runtime evidence tickets clear</span>
+              <span>{copy.runtimeEvidenceTicketsClear}</span>
             )}
           </div>
           <div
@@ -2075,15 +2136,20 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             {runtimeLiveEvidenceHandoff.length > 0 ? (
               runtimeLiveEvidenceHandoff.map((handoff) => (
                 <span key={`${handoff.provider}-${handoff.component}`}>
-                  {handoff.provider}:{handoff.status}:{handoff.classification}:
-                  owner={handoff.owner}:writesLocalEvidence=
-                  {String(handoff.writesLocalEvidence)}:requiresApproval=
-                  {String(handoff.requiresExplicitApproval)}:mutationAllowed=
-                  {String(handoff.mutationAllowed)}:{handoff.nextCommand}
+                  {handoff.provider} / {handoff.component} /{" "}
+                  {statusText(language, handoff.status)} /{" "}
+                  {statusText(language, handoff.classification)} / {copy.owner}:{" "}
+                  {handoff.owner} / {copy.writesLocalEvidence}:{" "}
+                  {booleanText(language, handoff.writesLocalEvidence)} /{" "}
+                  {copy.requiresApproval}:{" "}
+                  {booleanText(language, handoff.requiresExplicitApproval)} /{" "}
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(language, handoff.mutationAllowed)} /{" "}
+                  {copy.nextCommand}: {handoff.nextCommand}
                 </span>
               ))
             ) : (
-              <span>runtime live evidence handoff missing</span>
+              <span>{copy.runtimeLiveEvidenceMissing}</span>
             )}
           </div>
           <div
@@ -2091,25 +2157,35 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             data-testid="opslens-runtime-live-handoff-boundary"
           >
             <span>
-              mutationAllowedByThisVerifier=
-              {String(
+              {copy.mutationByVerifier}:{" "}
+              {booleanText(
+                language,
                 runtimeLiveHandoff?.mutationAllowedByThisVerifier ?? false
               )}
             </span>
             <span>
-              clusterMutationAttempted=
-              {String(runtimeLiveHandoff?.clusterMutationAttempted ?? false)}
+              {copy.clusterMutationAttempted}:{" "}
+              {booleanText(
+                language,
+                runtimeLiveHandoff?.clusterMutationAttempted ?? false
+              )}
             </span>
             <span>
-              registryMutationAttempted=
-              {String(runtimeLiveHandoff?.registryMutationAttempted ?? false)}
+              {copy.registryMutationAttempted}:{" "}
+              {booleanText(
+                language,
+                runtimeLiveHandoff?.registryMutationAttempted ?? false
+              )}
             </span>
             <span>
-              vectorWriteAttempted=
-              {String(runtimeLiveHandoff?.vectorWriteAttempted ?? false)}
+              {copy.vectorWriteAttempted}:{" "}
+              {booleanText(
+                language,
+                runtimeLiveHandoff?.vectorWriteAttempted ?? false
+              )}
             </span>
             <span>
-              approvalGated=
+              {copy.approvalGated}:{" "}
               {runtimeLiveHandoff?.approvalGatedCommandCount ?? 0}
             </span>
           </div>
