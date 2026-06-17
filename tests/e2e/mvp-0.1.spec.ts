@@ -316,6 +316,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("assistant-integration-lightspeed")).toContainText(
       "기본 Lightspeed 서랍은 별도"
     );
+    await expect(page.getByTestId("assistant-execution-path")).toContainText(
+      "질문 실행 경로"
+    );
+    await expect(page.getByTestId("assistant-execution-enter")).toContainText(
+      "Enter는 현재 OpsLens API 경로로 전송"
+    );
+    await expect(page.getByTestId("assistant-execution-fallback")).toContainText(
+      "대체 응답은 로컬 계획 전용으로 유지"
+    );
+    await expect(page.getByTestId("assistant-execution-newline")).toContainText(
+      "Shift+Enter는 줄바꿈"
+    );
     await expect(page.getByTestId("assistant-mode-matrix")).toContainText(
       "답변 출처"
     );
@@ -423,6 +435,18 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("assistant-integration-lightspeed")).toContainText(
       "Native Lightspeed drawer is separate"
+    );
+    await expect(page.getByTestId("assistant-execution-path")).toContainText(
+      "Ask execution path"
+    );
+    await expect(page.getByTestId("assistant-execution-enter")).toContainText(
+      "Enter sends to the current OpsLens API route"
+    );
+    await expect(page.getByTestId("assistant-execution-fallback")).toContainText(
+      "Fallback keeps the local plan-only answer visible"
+    );
+    await expect(page.getByTestId("assistant-execution-newline")).toContainText(
+      "Shift+Enter adds a line"
     );
     await expect(page.getByTestId("assistant-mode-matrix")).toContainText(
       "answer source"

@@ -40,6 +40,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
 - the Assistant connection card now includes a KO/EN mode matrix for answer source, token/proxy path, and the non-mutating chat boundary; this directly addresses the “why does the chatbot look unconnected?” demo risk
 - the Assistant connection card now shows a KO/EN integration contract separating standalone preview, installed ConsolePlugin UserToken proxy, and the native OpenShift Lightspeed drawer
+- the Assistant prompt now shows the KO/EN ask execution path: Enter sends to the current OpsLens API route, fallback stays local plan-only, and Shift+Enter adds a line
 - the masthead now shows a KO/EN return checklist for reconnecting Mac CRC, opening the ConsolePlugin route, and running read-only smoke before demo
 - the first-viewport readiness command strip now localizes completion status, passed requirements, remaining items, next gate, and next check instead of showing raw `needs-evidence`, `남음=`, `다음=`, or `cmd=` fragments
 - the masthead now shows the demo access path: installed view uses the Console route, the forwarded dashboard uses HTTPS on 19443, and Assistant/API traffic follows the active proxy mode
@@ -122,6 +123,7 @@ a5e9327 Clarify assistant integration contract
 31611b4 Localize readiness command strip
 1108e0d Clarify demo access path
 cfdd258 Surface CRC install signal
+a19209f Surface post-install smoke path
 ```
 
 ## Verified Gates
@@ -130,11 +132,11 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 36 checks after the visible post-install smoke path lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 37 checks after the Assistant ask execution path lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 54; evidence includes start/finish Git state |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the visible post-install smoke path lane |
-| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, access path, CRC install signal, post-install smoke path, readiness command labels, navigation, Assistant labels, integration contract, and mode matrix |
+| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 55; evidence includes start/finish Git state |
+| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Assistant ask execution path lane |
+| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, access path, CRC install signal, post-install smoke path, readiness command labels, navigation, Assistant labels, integration contract, ask execution path, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
 | `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |

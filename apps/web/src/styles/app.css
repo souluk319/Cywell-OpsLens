@@ -2271,6 +2271,37 @@ button {
   font-weight: 750;
 }
 
+.assistant-execution-path {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.assistant-execution-path strong,
+.assistant-execution-path span {
+  width: max-content;
+  max-width: 100%;
+  padding: 5px 7px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.assistant-execution-path strong {
+  border: 1px solid #73c5c5;
+  background: #e4f7f7;
+  color: #003737;
+}
+
+.assistant-execution-path span {
+  border: 1px solid #d2d2d2;
+  background: #fafafa;
+  color: #3c3c3c;
+}
+
 .prompt-box textarea {
   min-height: 72px;
   resize: vertical;

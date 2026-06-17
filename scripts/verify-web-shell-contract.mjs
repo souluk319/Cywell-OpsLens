@@ -294,6 +294,25 @@ expectCheck(
 );
 
 expectCheck(
+  "assistant ask execution path",
+  assistantSource.includes('data-testid="assistant-execution-path"') &&
+    assistantSource.includes('data-testid="assistant-execution-enter"') &&
+    assistantSource.includes('data-testid="assistant-execution-fallback"') &&
+    assistantSource.includes('data-testid="assistant-execution-newline"') &&
+    assistantSource.includes("Ask execution path") &&
+    assistantSource.includes("Enter sends to the current OpsLens API route") &&
+    assistantSource.includes("Fallback keeps the local plan-only answer visible") &&
+    assistantSource.includes("Shift+Enter adds a line") &&
+    assistantSource.includes("질문 실행 경로") &&
+    assistantSource.includes("Enter는 현재 OpsLens API 경로로 전송") &&
+    assistantSource.includes("대체 응답은 로컬 계획 전용으로 유지") &&
+    assistantSource.includes("Shift+Enter는 줄바꿈") &&
+    stylesSource.includes(".assistant-execution-path") &&
+    stylesSource.includes(".assistant-execution-path strong"),
+  "assistant makes Enter, API route, fallback, and Shift+Enter behavior visible"
+);
+
+expectCheck(
   "interactive shell action contracts",
   appSource.includes('data-testid="nav-collapse-toggle"') &&
     appSource.includes('data-testid="masthead-app-launcher"') &&

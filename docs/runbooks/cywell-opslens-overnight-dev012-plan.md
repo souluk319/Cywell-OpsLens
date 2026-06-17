@@ -807,6 +807,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - This directly addresses the demo risk that “installed” gets mistaken for “fully integrated and patched Lightspeed,” while still preserving the read-only/approval boundary.
 - `npm run verify:web-shell` now includes a `visible post-install smoke path` gate, and `AC-UI-004` checks the KO/EN smoke labels in the browser.
 
+### 2026-06-18 - Lane 55
+
+- Added a visible Assistant ask execution path inside the prompt area.
+- The KO/EN Assistant now names what happens when the operator presses Enter, what stays local when the API route falls back, and how Shift+Enter creates a newline.
+- This directly addresses the demo risk that the chat surface looks inert or mysterious when the API route is unavailable or running through the ConsolePlugin proxy.
+- `npm run verify:web-shell` now includes an `assistant ask execution path` gate, and `AC-UI-004` checks the KO/EN execution path labels in the browser.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -818,10 +825,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 53: `cfdd258`
+- feature branch latest pushed head after Lane 54: `a19209f`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 54: PASS, 36 checks
-- latest overnight checkpoint after Lane 54: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 55: PASS, 37 checks
+- latest overnight checkpoint after Lane 55: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

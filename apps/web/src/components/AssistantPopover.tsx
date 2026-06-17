@@ -65,6 +65,10 @@ const assistantCopy = {
       "Installed ConsolePlugin uses the UserToken proxy for OpsLens API.",
     integrationLightspeed:
       "Native Lightspeed drawer is separate; OpsLens MCP registration is explicit.",
+    executionTitle: "Ask execution path",
+    executionEnter: "Enter sends to the current OpsLens API route",
+    executionFallback: "Fallback keeps the local plan-only answer visible",
+    executionNewline: "Shift+Enter adds a line",
     pending: "pending",
     actionMode: "action mode",
     prompt: "Ask from current context",
@@ -108,6 +112,10 @@ const assistantCopy = {
       "설치된 ConsolePlugin은 사용자 토큰 프록시로 OpsLens API 사용",
     integrationLightspeed:
       "기본 Lightspeed 서랍은 별도이며 OpsLens MCP 등록은 명시 승인",
+    executionTitle: "질문 실행 경로",
+    executionEnter: "Enter는 현재 OpsLens API 경로로 전송",
+    executionFallback: "대체 응답은 로컬 계획 전용으로 유지",
+    executionNewline: "Shift+Enter는 줄바꿈",
     pending: "대기 중",
     actionMode: "동작 모드",
     prompt: "현재 컨텍스트로 질문",
@@ -592,6 +600,22 @@ export function AssistantPopover({
 
       <div className="prompt-box">
         <label htmlFor="kugnus-draft">{copy.prompt}</label>
+        <div
+          className="assistant-execution-path"
+          data-testid="assistant-execution-path"
+          aria-label={copy.executionTitle}
+        >
+          <strong>{copy.executionTitle}</strong>
+          <span data-testid="assistant-execution-enter">
+            {copy.executionEnter}
+          </span>
+          <span data-testid="assistant-execution-fallback">
+            {copy.executionFallback}
+          </span>
+          <span data-testid="assistant-execution-newline">
+            {copy.executionNewline}
+          </span>
+        </div>
         <textarea
           id="kugnus-draft"
           data-testid="assistant-draft"
