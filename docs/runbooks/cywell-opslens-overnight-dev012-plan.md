@@ -453,6 +453,23 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Browser DOM verification confirmed the strip renders in Korean mode.
 - Interpretation: the UI now answers the repeated confusion directly: OperatorHub installs the Operator, `OpsLensInstallation` applies the product, and ConsolePlugin provides the console route/proxy surface.
 
+### 2026-06-17 - Lane 16
+
+- Localized the OCP Coverage Matrix into the shared KO/EN shell language flow.
+- `OcpCoverageMatrix` now receives `language` from the app shell and owns bilingual copy for:
+  - title and eyebrow
+  - refresh/full-scan/export controls
+  - probe summary and totals
+  - table headers
+  - coverage diagnostic panel
+- Protected the coverage matrix language contract in `npm run verify:web-shell`.
+- Browser DOM verification in KO mode showed:
+  - `OCP 읽기 범위 매트릭스`
+  - `새로고침`
+  - `전체 스캔`
+  - `범위 진단`
+  - no `OCP Coverage Matrix` or `Refresh` text in the coverage section.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

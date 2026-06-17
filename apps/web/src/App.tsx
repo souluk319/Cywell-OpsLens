@@ -997,7 +997,7 @@ export default function App() {
               onAsk={openAssistantFromEvidence}
             />
             <OcpConsoleOverview language={language} />
-            <OcpCoverageMatrix />
+            <OcpCoverageMatrix language={language} />
             <OcpResourceExplorer
               language={language}
               navigationPreset={resourcePreset}

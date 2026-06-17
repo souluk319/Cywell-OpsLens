@@ -11,6 +11,98 @@ import {
   fetchOcpCoverageDiagnostic,
   fetchOcpCoverageMatrix
 } from "../lib/api";
+import type { UiLanguage } from "../i18n";
+
+const coverageCopy = {
+  en: {
+    eyebrow: "Read coverage",
+    title: "OCP Coverage Matrix",
+    refresh: "Refresh",
+    maxProbes: "Max probes",
+    maxCoverageProbes: "Max coverage probes",
+    sampleGet: "sample get",
+    fullScan: "Full scan",
+    export: "Export",
+    scanning: "scanning",
+    coverageReady: "coverage ready",
+    coverageUnavailable: "coverage unavailable",
+    discovered: "discovered",
+    safeList: "safe list",
+    probed: "probed",
+    detailRead: "sample get",
+    bounded: "bounded",
+    listed: "listed",
+    empty: "empty",
+    denied: "denied",
+    blocked: "blocked",
+    skipped: "skipped",
+    error: "error",
+    policyBlocked: "policy-blocked",
+    notProbed: "not-probed",
+    webhook: "webhook",
+    resource: "Resource",
+    scope: "Scope",
+    list: "List",
+    gap: "Gap",
+    sample: "Sample",
+    get: "Get",
+    evidence: "Evidence",
+    diagnostic: "Diagnostic",
+    diagnose: "Diagnose",
+    noEntries: "No coverage entries returned.",
+    diagnosticTitle: "Coverage Diagnostic",
+    diagnosing: "diagnosing",
+    readOnly: "read-only",
+    readOnlyEvidence: "read-only evidence",
+    readOnlyDiagnosticEvidence: "read-only diagnostic evidence",
+    nextChecks: "Next checks",
+    selectRow: "Select a coverage row to inspect read-only diagnostic evidence."
+  },
+  ko: {
+    eyebrow: "읽기 범위",
+    title: "OCP 읽기 범위 매트릭스",
+    refresh: "새로고침",
+    maxProbes: "최대 검사",
+    maxCoverageProbes: "최대 범위 검사 수",
+    sampleGet: "샘플 조회",
+    fullScan: "전체 스캔",
+    export: "내보내기",
+    scanning: "검사 중",
+    coverageReady: "범위 준비됨",
+    coverageUnavailable: "범위 확인 불가",
+    discovered: "발견",
+    safeList: "안전 목록",
+    probed: "검사됨",
+    detailRead: "샘플 조회",
+    bounded: "제한",
+    listed: "조회됨",
+    empty: "비어 있음",
+    denied: "거부됨",
+    blocked: "차단됨",
+    skipped: "건너뜀",
+    error: "오류",
+    policyBlocked: "정책 차단",
+    notProbed: "미검사",
+    webhook: "웹훅",
+    resource: "리소스",
+    scope: "범위",
+    list: "목록",
+    gap: "차이",
+    sample: "샘플",
+    get: "조회",
+    evidence: "근거",
+    diagnostic: "진단",
+    diagnose: "진단",
+    noEntries: "범위 항목이 반환되지 않았습니다.",
+    diagnosticTitle: "범위 진단",
+    diagnosing: "진단 중",
+    readOnly: "읽기 전용",
+    readOnlyEvidence: "읽기 전용 근거",
+    readOnlyDiagnosticEvidence: "읽기 전용 진단 근거",
+    nextChecks: "다음 확인",
+    selectRow: "범위 행을 선택하면 읽기 전용 진단 근거를 확인합니다."
+  }
+} satisfies Record<UiLanguage, Record<string, string>>;
 
 const statusOrder: Record<OcpCoverageListStatus, number> = {
   error: 0,
@@ -46,7 +138,12 @@ function formatResource(entry: OcpResourceCoverageEntry) {
   return `${entry.resource.apiVersion}/${entry.resource.name}`;
 }
 
-export function OcpCoverageMatrix() {
+interface OcpCoverageMatrixProps {
+  language: UiLanguage;
+}
+
+export function OcpCoverageMatrix({ language }: OcpCoverageMatrixProps) {
+  const copy = coverageCopy[language];
   const [coverage, setCoverage] = useState<OcpCoverageMatrixResponse | null>(
     null
   );
@@ -155,8 +252,8 @@ export function OcpCoverageMatrix() {
     <section className="ocp-coverage" aria-labelledby="ocp-coverage-title">
       <div className="section-heading compact">
         <div>
-          <p className="eyebrow">Read coverage</p>
-          <h2 id="ocp-coverage-title">OCP Coverage Matrix</h2>
+          <p className="eyebrow">{copy.eyebrow}</p>
+          <h2 id="ocp-coverage-title">{copy.title}</h2>
         </div>
         <button
           className="text-icon-button"
@@ -166,15 +263,15 @@ export function OcpCoverageMatrix() {
           onClick={() => void refreshCoverage()}
         >
           <RefreshCw size={16} aria-hidden="true" />
-          Refresh
+          {copy.refresh}
         </button>
       </div>
 
       <div className="coverage-controls">
         <label>
-          Max probes
+          {copy.maxProbes}
           <input
-            aria-label="Max coverage probes"
+            aria-label={copy.maxCoverageProbes}
             data-testid="ocp-coverage-max-probes"
             min={1}
             max={500}
@@ -189,7 +286,7 @@ export function OcpCoverageMatrix() {
             type="checkbox"
             onChange={(event) => setIncludeDetails(event.target.checked)}
           />
-          sample get
+          {copy.sampleGet}
         </label>
         <button
           className="text-icon-button"
@@ -199,7 +296,7 @@ export function OcpCoverageMatrix() {
           onClick={() => void refreshCoverage({ full: true })}
         >
           <ShieldCheck size={16} aria-hidden="true" />
-          Full scan
+          {copy.fullScan}
         </button>
         <button
           className="text-icon-button"
@@ -209,23 +306,23 @@ export function OcpCoverageMatrix() {
           onClick={exportEvidenceSnapshot}
         >
           <Download size={16} aria-hidden="true" />
-          Export
+          {copy.export}
         </button>
       </div>
 
       <div className="overview-status-strip" data-testid="ocp-coverage-status">
         <span className={`status-pill ${coverage?.status.reachable ? "ready" : "danger"}`}>
           {loading
-            ? "scanning"
+            ? copy.scanning
             : coverage?.status.reachable
-              ? "coverage ready"
-              : "coverage unavailable"}
+              ? copy.coverageReady
+              : copy.coverageUnavailable}
         </span>
-        <span>{coverage?.totals.discovered ?? 0} discovered</span>
-        <span>{coverage?.totals.safeToList ?? 0} safe list</span>
-        <span>{coverage?.totals.probed ?? 0} probed</span>
-        <span>{coverage?.totals.detailRead ?? 0} sample get</span>
-        <span>{lastFullScan ? "full scan" : `bounded ${coverage?.probe.requestedMaxResources ?? maxResources}`}</span>
+        <span>{coverage?.totals.discovered ?? 0} {copy.discovered}</span>
+        <span>{coverage?.totals.safeToList ?? 0} {copy.safeList}</span>
+        <span>{coverage?.totals.probed ?? 0} {copy.probed}</span>
+        <span>{coverage?.totals.detailRead ?? 0} {copy.detailRead}</span>
+        <span>{lastFullScan ? copy.fullScan : `${copy.bounded} ${coverage?.probe.requestedMaxResources ?? maxResources}`}</span>
       </div>
 
       {error ? (
@@ -236,20 +333,20 @@ export function OcpCoverageMatrix() {
       ) : null}
 
       <div className="coverage-summary" data-testid="ocp-coverage-totals">
-        <span className="status-pill ready">listed {coverage?.totals.listed ?? 0}</span>
-        <span className="status-pill read-only">empty {coverage?.totals.empty ?? 0}</span>
-        <span className="status-pill danger">denied {coverage?.totals.denied ?? 0}</span>
-        <span className="status-pill danger">blocked {coverage?.totals.blocked ?? 0}</span>
-        <span className="status-pill read-only">skipped {coverage?.totals.skipped ?? 0}</span>
-        <span className="status-pill danger">error {coverage?.totals.error ?? 0}</span>
+        <span className="status-pill ready">{copy.listed} {coverage?.totals.listed ?? 0}</span>
+        <span className="status-pill read-only">{copy.empty} {coverage?.totals.empty ?? 0}</span>
+        <span className="status-pill danger">{copy.denied} {coverage?.totals.denied ?? 0}</span>
+        <span className="status-pill danger">{copy.blocked} {coverage?.totals.blocked ?? 0}</span>
+        <span className="status-pill read-only">{copy.skipped} {coverage?.totals.skipped ?? 0}</span>
+        <span className="status-pill danger">{copy.error} {coverage?.totals.error ?? 0}</span>
         <span className="status-pill danger">
-          policy-blocked {coverage?.totals.gapTypes["policy-blocked"] ?? 0}
+          {copy.policyBlocked} {coverage?.totals.gapTypes["policy-blocked"] ?? 0}
         </span>
         <span className="status-pill read-only">
-          not-probed {coverage?.totals.gapTypes["not-probed"] ?? 0}
+          {copy.notProbed} {coverage?.totals.gapTypes["not-probed"] ?? 0}
         </span>
         <span className="status-pill danger">
-          webhook {coverage?.totals.gapTypes["conversion-webhook-error"] ?? 0}
+          {copy.webhook} {coverage?.totals.gapTypes["conversion-webhook-error"] ?? 0}
         </span>
       </div>
 
@@ -257,14 +354,14 @@ export function OcpCoverageMatrix() {
         <table className="resource-table compact" data-testid="ocp-coverage-table">
           <thead>
             <tr>
-              <th>Resource</th>
-              <th>Scope</th>
-              <th>List</th>
-              <th>Gap</th>
-              <th>Sample</th>
-              <th>Get</th>
-              <th>Evidence</th>
-              <th>Diagnostic</th>
+              <th>{copy.resource}</th>
+              <th>{copy.scope}</th>
+              <th>{copy.list}</th>
+              <th>{copy.gap}</th>
+              <th>{copy.sample}</th>
+              <th>{copy.get}</th>
+              <th>{copy.evidence}</th>
+              <th>{copy.diagnostic}</th>
             </tr>
           </thead>
           <tbody>
@@ -290,14 +387,14 @@ export function OcpCoverageMatrix() {
                 </td>
                 <td>{entry.list.sampleItemCount}</td>
                 <td>{entry.detail.status}</td>
-                <td>{entry.evidence[1] ?? "read-only evidence"}</td>
+                <td>{entry.evidence[1] ?? copy.readOnlyEvidence}</td>
                 <td>
                   <button
                     className="mini-button"
                     type="button"
                     onClick={() => void loadDiagnostic(entry)}
                   >
-                    Diagnose
+                    {copy.diagnose}
                   </button>
                 </td>
               </tr>
@@ -305,15 +402,15 @@ export function OcpCoverageMatrix() {
           </tbody>
         </table>
         {!loading && coverage && coverage.resources.length === 0 ? (
-          <p>No coverage entries returned.</p>
+          <p>{copy.noEntries}</p>
         ) : null}
       </div>
 
       <article className="console-panel coverage-diagnostic" data-testid="ocp-coverage-diagnostic">
         <div className="panel-title-row">
-          <h3>Coverage Diagnostic</h3>
+          <h3>{copy.diagnosticTitle}</h3>
           <span className="status-pill read-only">
-            {diagnosticLoading ? "diagnosing" : "read-only"}
+            {diagnosticLoading ? copy.diagnosing : copy.readOnly}
           </span>
         </div>
         {diagnostic ? (
@@ -335,12 +432,12 @@ export function OcpCoverageMatrix() {
                   </span>
                   <strong>{item.label}</strong>
                   <p>{item.message}</p>
-                  <small>{item.evidence[0] ?? "read-only diagnostic evidence"}</small>
+                  <small>{item.evidence[0] ?? copy.readOnlyDiagnosticEvidence}</small>
                 </div>
               ))}
             </div>
             <div className="diagnostic-next">
-              <strong>Next checks</strong>
+              <strong>{copy.nextChecks}</strong>
               <ul>
                 {diagnostic.nextChecks.slice(0, 4).map((check) => (
                   <li key={check}>{check}</li>
@@ -349,7 +446,7 @@ export function OcpCoverageMatrix() {
             </div>
           </>
         ) : (
-          <p>Select a coverage row to inspect read-only diagnostic evidence.</p>
+          <p>{copy.selectRow}</p>
         )}
       </article>
     </section>

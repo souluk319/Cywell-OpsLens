@@ -60,6 +60,7 @@ const evidenceSource = await readText("apps/web/src/components/ConsoleEvidencePa
 const overviewSource = await readText("apps/web/src/components/OcpConsoleOverview.tsx");
 const dashboardSource = await readText("apps/web/src/components/OperationsDashboard.tsx");
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
+const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const adminSource = await readText("apps/web/src/components/OpsLensAdminDashboard.tsx");
 const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
@@ -181,6 +182,7 @@ expectCheck(
   appSource.includes('useState<UiLanguage>') &&
     appSource.includes("<OperationsDashboard dashboard={dashboard} language={language}") &&
     appSource.includes("<OcpConsoleOverview language={language}") &&
+    appSource.includes("<OcpCoverageMatrix language={language}") &&
     appSource.includes("<OcpResourceExplorer") &&
     appSource.includes("<OpsLensAdminDashboard language={language}") &&
     appSource.includes("language={language}") &&
@@ -188,8 +190,11 @@ expectCheck(
     overviewSource.includes("const overviewCopy") &&
     dashboardSource.includes("const dashboardCopy") &&
     explorerSource.includes("const explorerCopy") &&
+    coverageSource.includes("const coverageCopy") &&
+    coverageSource.includes("OCP 읽기 범위 매트릭스") &&
+    coverageSource.includes("범위 행을 선택하면 읽기 전용 진단 근거를 확인합니다.") &&
     adminSource.includes("const adminCopy"),
-  "primary console panels, admin dashboard, and the resource explorer receive the selected language and own bilingual copy"
+  "primary console panels, coverage matrix, admin dashboard, and the resource explorer receive the selected language and own bilingual copy"
 );
 
 expectCheck(
