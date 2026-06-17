@@ -486,6 +486,19 @@ const adminCopy = {
     actionQueueReady: "action queue ready",
     unsafeTickets: "unsafe tickets",
     setupCommands: "setup commands",
+    safeClusterInstall: "safe cluster install",
+    strictExitWouldFail: "strict mode would fail",
+    failedGates: "failed gates",
+    firstBlocker: "first blocker",
+    commandPlan: "command plan",
+    directLive: "direct live",
+    localPreparation: "local prep",
+    aggregate: "aggregate",
+    staleExternal: "stale external",
+    firstReadOnly: "first read-only",
+    strictCommand: "strict command",
+    approvalNotRun: "approval not run",
+    gateRequirements: "gate requirements",
     requiredImages: "required images",
     localInspect: "local inspect",
     remainingEvidence: "remaining evidence",
@@ -738,6 +751,19 @@ const adminCopy = {
     actionQueueReady: "작업 대기열 준비",
     unsafeTickets: "위험 티켓",
     setupCommands: "설정 명령",
+    safeClusterInstall: "클러스터 설치 안전",
+    strictExitWouldFail: "strict 모드 실패",
+    failedGates: "실패 게이트",
+    firstBlocker: "첫 차단 요소",
+    commandPlan: "명령 계획",
+    directLive: "실시간 직접 점검",
+    localPreparation: "로컬 준비",
+    aggregate: "종합",
+    staleExternal: "오래된 외부 근거",
+    firstReadOnly: "첫 읽기 전용",
+    strictCommand: "strict 명령",
+    approvalNotRun: "미실행 승인 명령",
+    gateRequirements: "게이트 기준",
     requiredImages: "필수 이미지",
     localInspect: "로컬 검사",
     remainingEvidence: "남은 근거",
@@ -3154,74 +3180,85 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             >
               <div className="card-title-row compact">
                 <div>
-                  <h4>Pre-cluster Install Gate</h4>
-                  <small>{preClusterInstallGate.actionMode}</small>
+                  <h4>{copy.preClusterGate}</h4>
+                  <small title={preClusterInstallGate.actionMode}>
+                    {actionModeText(language, preClusterInstallGate.actionMode)}
+                  </small>
                 </div>
                 <ShieldCheck size={18} aria-hidden="true" />
               </div>
               <div className="admin-evidence-line">
-                <span>{preClusterInstallGate.artifactStatus}</span>
-                <span>head={preClusterInstallGate.headSha}</span>
-                <span>
-                  dirty={String(preClusterInstallGate.worktreeDirty)}
+                <span title={preClusterInstallGate.artifactStatus}>
+                  {statusText(language, preClusterInstallGate.artifactStatus)}
                 </span>
                 <span>
-                  safeToRunClusterInstall=
-                  {String(preClusterInstallGate.safeToRunClusterInstall)}
+                  {copy.head}: {preClusterInstallGate.headSha}
                 </span>
                 <span>
-                  strictExitWouldFail=
-                  {String(preClusterInstallGate.strictExitWouldFail)}
+                  {copy.dirty}:{" "}
+                  {booleanText(language, preClusterInstallGate.worktreeDirty)}
+                </span>
+                <span>
+                  {copy.safeClusterInstall}:{" "}
+                  {booleanText(
+                    language,
+                    preClusterInstallGate.safeToRunClusterInstall
+                  )}
+                </span>
+                <span>
+                  {copy.strictExitWouldFail}:{" "}
+                  {booleanText(language, preClusterInstallGate.strictExitWouldFail)}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Status</span>
+                  <span>{copy.status}</span>
                   <strong
                     className={`freshness ${statusClass(
                       preClusterInstallGate.status
                     )}`}
                   >
-                    {preClusterInstallGate.status}
+                    {statusText(language, preClusterInstallGate.status)}
                   </strong>
                 </div>
                 <div>
-                  <span>Failed Gates</span>
+                  <span>{copy.failedGates}</span>
                   <strong>{preClusterInstallGate.failedGateIds.length}</strong>
                 </div>
                 <div>
-                  <span>First Blocker</span>
+                  <span>{copy.firstBlocker}</span>
                   <strong>
-                    {preClusterInstallGate.firstBlockedGate?.id ?? "none"}
+                    {preClusterInstallGate.firstBlockedGate?.id ?? copy.none}
                   </strong>
                 </div>
                 <div>
-                  <span>External/Local</span>
+                  <span>{copy.external}/{copy.local}</span>
                   <strong>
-                    external=
+                    {copy.external}:{" "}
                     {preClusterInstallGate.blockerSummary.remainingExternalStateCount}
-                    , local=
+                    , {copy.local}:{" "}
                     {preClusterInstallGate.blockerSummary.remainingLocalOnlyCount}
                   </strong>
                 </div>
                 <div>
-                  <span>Sources</span>
+                  <span>{copy.sourceArtifacts}</span>
                   <strong>{preClusterInstallGate.sources.length}</strong>
                 </div>
                 <div>
-                  <span>Read-only</span>
+                  <span>{copy.readOnlyCommands}</span>
                   <strong>{preClusterInstallGate.readOnlyCommands.length}</strong>
                 </div>
                 <div>
-                  <span>Command Plan</span>
+                  <span>{copy.commandPlan}</span>
                   <strong>
-                    live={preClusterInstallGate.commandPlan.directLive.length},
-                    prep=
+                    {copy.directLive}:{" "}
+                    {preClusterInstallGate.commandPlan.directLive.length},{" "}
+                    {copy.localPreparation}:{" "}
                     {preClusterInstallGate.commandPlan.localPreparation.length}
                   </strong>
                 </div>
                 <div>
-                  <span>Approval</span>
+                  <span>{copy.approvalNotRun}</span>
                   <strong>
                     {preClusterInstallGate.approvalGatedCommandsNotRun.length}
                   </strong>
@@ -3233,7 +3270,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {preClusterInstallGate.gateRequirements.map((gate) => (
                   <span key={gate.id}>
-                    {gate.id}:{gate.owner}:{String(gate.passed)}:next=
+                    {gate.id}: {copy.owner} {gate.owner} / {copy.passed}{" "}
+                    {booleanText(language, gate.passed)} / {copy.nextCommand}{" "}
                     {gate.nextCommand}
                   </span>
                 ))}
@@ -3243,104 +3281,111 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-pre-cluster-install-gate-boundary"
               >
                 <span>
-                  failed=
-                  {preClusterInstallGate.failedGateIds.join(",") || "none"}
+                  {copy.failedGates}:{" "}
+                  {preClusterInstallGate.failedGateIds.join(",") || copy.none}
                 </span>
                 <span>
-                  firstBlocked=
-                  {preClusterInstallGate.firstBlockedGate?.id ?? "none"}:
-                  {preClusterInstallGate.firstBlockedGate?.owner ?? "none"}
+                  {copy.firstBlocker}:{" "}
+                  {preClusterInstallGate.firstBlockedGate?.id ?? copy.none} /{" "}
+                  {copy.owner}:{" "}
+                  {preClusterInstallGate.firstBlockedGate?.owner ?? copy.none}
                 </span>
                 <span>
-                  firstNext=
-                  {preClusterInstallGate.firstBlockedGate?.nextCommand ?? "none"}
+                  {copy.nextCommand}:{" "}
+                  {preClusterInstallGate.firstBlockedGate?.nextCommand ??
+                    copy.none}
                 </span>
                 <span>
-                  firstReadOnly=
+                  {copy.firstReadOnly}:{" "}
                   {preClusterInstallGate.firstBlockedGate?.readOnlyCommandId ??
-                    "none"}
+                    copy.none}
                 </span>
                 <span>
-                  remainingExternalState=
+                  {copy.external} {copy.completionGates}:{" "}
                   {preClusterInstallGate.blockerSummary.remainingExternalStateGateIds.join(
                     ","
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  remainingLocalOnly=
+                  {copy.local} {copy.completionGates}:{" "}
                   {preClusterInstallGate.blockerSummary.remainingLocalOnlyGateIds.join(
                     ","
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  staleExternal=
+                  {copy.staleExternal}:{" "}
                   {preClusterInstallGate.blockerSummary.staleExternalStateSourceIds.join(
                     ","
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  directLive=
+                  {copy.directLive}:{" "}
                   {preClusterInstallGate.blockerSummary.directExternalReadinessGateIds.join(
                     ","
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  localPrep=
+                  {copy.localPreparation}:{" "}
                   {preClusterInstallGate.blockerSummary.localPreparationGateIds.join(
                     ","
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  aggregate=
+                  {copy.aggregate}:{" "}
                   {preClusterInstallGate.blockerSummary.aggregateBlockedGateIds.join(
                     ","
-                  ) || "none"}
+                  ) || copy.none}
                 </span>
                 <span>
-                  planFirst=
+                  {copy.firstReadOnly}:{" "}
                   {preClusterInstallGate.commandPlan.firstReadOnlyCommandId}
                 </span>
                 <span>
-                  planStrict={preClusterInstallGate.commandPlan.strictCommandId}
+                  {copy.strictCommand}:{" "}
+                  {preClusterInstallGate.commandPlan.strictCommandId}
                 </span>
                 <span>
-                  planDirectLive=
+                  {copy.directLive}:{" "}
                   {preClusterInstallGate.commandPlan.directLive
                     .map((item) => `${item.gateId}:${item.command}`)
-                    .join("|") || "none"}
+                    .join("|") || copy.none}
                 </span>
                 <span>
-                  planLocalPrep=
+                  {copy.localPreparation}:{" "}
                   {preClusterInstallGate.commandPlan.localPreparation
                     .map((item) => `${item.gateId}:${item.command}`)
-                    .join("|") || "none"}
+                    .join("|") || copy.none}
                 </span>
                 <span>
-                  planAggregate=
+                  {copy.aggregate}:{" "}
                   {preClusterInstallGate.commandPlan.aggregate
                     .map((item) => `${item.gateId}:${item.command}`)
-                    .join("|") || "none"}
+                    .join("|") || copy.none}
                 </span>
                 <span>
-                  sources=
+                  {copy.sourceArtifacts}:{" "}
                   {preClusterInstallGate.sources
                     .map(
                       (source) =>
-                        `${source.id}:${source.fresh && !source.mutationViolation ? "pass" : "needs-evidence"}`
+                        `${source.id}:${
+                          source.fresh && !source.mutationViolation
+                            ? statusText(language, "pass")
+                            : statusText(language, "needs-evidence")
+                        }`
                     )
-                    .join(",") || "none"}
+                    .join(",") || copy.none}
                 </span>
                 <span>
-                  readOnly=
+                  {copy.readOnlyCommands}:{" "}
                   {preClusterInstallGate.readOnlyCommands
                     .map((command) => command.id)
-                    .join(",") || "none"}
+                    .join(",") || copy.none}
                 </span>
                 <span>
-                  approvalNotRun=
+                  {copy.approvalNotRun}:{" "}
                   {preClusterInstallGate.approvalGatedCommandsNotRun
                     .map((command) => command.id)
-                    .join(",") || "none"}
+                    .join(",") || copy.none}
                 </span>
               </div>
               <div
@@ -3349,21 +3394,23 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {preClusterInstallGate.ownerCommandPlan.map((row) => (
                   <span key={row.owner}>
-                    {row.owner}:status={row.status}:firstLane=
-                    {row.firstLane}:firstGate={row.firstGateId}:firstReadOnly=
-                    {row.firstReadOnlyCommandId}:strict={row.strictCommandId}
-                    :directLive=
-                    {row.directLiveGateIds.join(",") || "none"}:localPrep=
-                    {row.localPreparationGateIds.join(",") || "none"}
-                    :aggregate={row.aggregateGateIds.join(",") || "none"}
-                    :approvalNotRun=
-                    {row.approvalGatedCommandIds.join(",") || "none"}
-                    :mutationAllowed=
-                    {String(row.mutationAllowedByThisVerifier)}
+                    {copy.owner}: {row.owner} / {copy.status}{" "}
+                    {statusText(language, row.status)} / {copy.firstAction}{" "}
+                    {row.firstLane}:{row.firstGateId} / {copy.firstReadOnly}{" "}
+                    {row.firstReadOnlyCommandId} / {copy.strictCommand}{" "}
+                    {row.strictCommandId} / {copy.directLive}{" "}
+                    {row.directLiveGateIds.join(",") || copy.none} /{" "}
+                    {copy.localPreparation}{" "}
+                    {row.localPreparationGateIds.join(",") || copy.none} /{" "}
+                    {copy.aggregate} {row.aggregateGateIds.join(",") || copy.none}{" "}
+                    / {copy.approvalNotRun}{" "}
+                    {row.approvalGatedCommandIds.join(",") || copy.none} /{" "}
+                    {copy.mutationAllowed}{" "}
+                    {booleanText(language, row.mutationAllowedByThisVerifier)}
                   </span>
                 ))}
                 {preClusterInstallGate.ownerCommandPlan.length === 0 ? (
-                  <span>none</span>
+                  <span>{copy.none}</span>
                 ) : null}
               </div>
               <div className="remediation-notes">

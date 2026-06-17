@@ -731,6 +731,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - The UI still preserves head SHA, gate IDs, owner IDs, command IDs, ticket IDs, and critical-path action IDs as evidence.
 - `npm run verify:web-shell` now includes a `localized roadmap completion labels` gate.
 
+### 2026-06-18 - Lane 44
+
+- Polished the pre-cluster install gate, the surface that explains whether cluster install is safe to run.
+- KO mode no longer exposes raw labels such as `safeToRunClusterInstall=`, `strictExitWouldFail=`, `Failed Gates`, `First Blocker`, `external=`, `local=`, `live=`, `prep=`, `failed=`, `firstBlocked=`, `remainingExternalState=`, `staleExternal=`, `directLive=`, `localPrep=`, `planStrict=`, `sources=`, `readOnly=`, `approvalNotRun=`, `status=`, `firstLane=`, or `mutationAllowed=` in that card.
+- The UI still preserves head SHA, gate IDs, owner IDs, command IDs, evidence source IDs, and approval-gated command IDs as evidence.
+- `npm run verify:web-shell` now includes a `localized pre-cluster install gate labels` gate.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -742,10 +749,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 42: `def83cc`
+- feature branch latest pushed head after Lane 43: `de4d0be`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 43: PASS, 25 checks
-- latest overnight checkpoint after Lane 43: PASS, 9/9 local gates, structured Git dirty state present
+- latest web shell verifier after Lane 44: PASS, 26 checks
+- latest overnight checkpoint after Lane 44: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings

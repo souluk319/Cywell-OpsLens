@@ -30,6 +30,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the live handoff post-approval smoke card now avoids raw labels such as `classification=`, `rbac=`, `unknown=`, `lightspeedClassification=`, `lightspeedAuthReady=`, `sources=...fresh=`, `Read-only Commands`, `Action Hints`, `Post-approval Smoke`, and `Forbidden` while preserving RBAC count ratios, source artifact IDs, and command evidence
 - the completion gate card now avoids raw labels such as `head=`, `dirty=`, `readyToClaim100=`, `mutationBoundaryPassed=`, `tickets=`, `readOnly=`, `setup=`, `approval=`, `owner=`, `status=`, `exists=`, `sources=`, `failedSources=`, `criticalPath=`, `cleanupDeletionAllowed=`, `bundleStatus=`, `publishReady=`, `installReady=`, `actionQueueReady=`, and `unsafeTickets=` while preserving head SHA, gate IDs, command IDs, packet filenames, and unsafe ticket IDs
 - the roadmap completion card now avoids raw labels such as `head=`, `dirty=`, `mutationBoundaryPassed=`, `externalState=`, `localOnly=`, `externalGates=`, `localGates=`, `next=`, `external=`, `tickets=`, `readOnly=`, `setup=`, and `approval=` while preserving percent complete, gate IDs, command IDs, ticket IDs, and critical-path action IDs
+- the pre-cluster install gate now avoids raw labels such as `safeToRunClusterInstall=`, `strictExitWouldFail=`, `Failed Gates`, `First Blocker`, `external=`, `local=`, `live=`, `prep=`, `failed=`, `firstBlocked=`, `remainingExternalState=`, `staleExternal=`, `directLive=`, `localPrep=`, `planStrict=`, `sources=`, `readOnly=`, `approvalNotRun=`, `status=`, `firstLane=`, and `mutationAllowed=` while preserving gate IDs, owner IDs, command IDs, source IDs, and approval-gated command evidence
 - the primary dashboard, evidence pane, console overview, and Assistant status/context fields now avoid customer-visible mixed Korean/English labels such as `live overview`, `incident queue`, `payload`, raw `fallback/loading` UI status chips, and English context chip labels
 - the Assistant answer body now has a reviewed KO display dictionary for the known demo triage answer, including current judgment, evidence labels, cause candidates, risks, missing evidence, plan, rollback path, citations, and context values such as `CRC 미리보기` and `근거 3건`
 - the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
@@ -100,6 +101,7 @@ bfe8704 Localize OCP network handoff
 3786512 Localize auth RBAC plan
 673f5f3 Localize live handoff smoke
 def83cc Localize completion gate
+de4d0be Localize roadmap completion
 ```
 
 ## Verified Gates
@@ -108,10 +110,10 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 25 checks after the roadmap completion label lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 26 checks after the pre-cluster install gate label lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 43; evidence includes start/finish Git dirty state |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the roadmap completion label lane |
+| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 44; evidence includes start/finish Git state |
+| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the pre-cluster install gate label lane |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, navigation, Assistant labels, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |

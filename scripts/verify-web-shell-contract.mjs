@@ -482,6 +482,35 @@ expectCheck(
 );
 
 expectCheck(
+  "localized pre-cluster install gate labels",
+  adminSource.includes("copy.safeClusterInstall") &&
+    adminSource.includes("copy.strictExitWouldFail") &&
+    adminSource.includes("copy.approvalNotRun") &&
+    adminSource.includes('"클러스터 설치 안전"') &&
+    !adminSource.includes("<h4>Pre-cluster Install Gate</h4>") &&
+    !adminSource.includes("head={preClusterInstallGate.headSha}") &&
+    !adminSource.includes("dirty={String(preClusterInstallGate.worktreeDirty)}") &&
+    !adminSource.includes("safeToRunClusterInstall=\n                  {String(preClusterInstallGate.safeToRunClusterInstall)}") &&
+    !adminSource.includes("strictExitWouldFail=\n                  {String(preClusterInstallGate.strictExitWouldFail)}") &&
+    !adminSource.includes("<span>Failed Gates</span>") &&
+    !adminSource.includes("<span>First Blocker</span>") &&
+    !adminSource.includes("external=\n                    {preClusterInstallGate.blockerSummary.remainingExternalStateCount}") &&
+    !adminSource.includes("live={preClusterInstallGate.commandPlan.directLive.length}") &&
+    !adminSource.includes("{gate.id}:{gate.owner}:{String(gate.passed)}:next=") &&
+    !adminSource.includes("failed=\n                  {preClusterInstallGate.failedGateIds.join") &&
+    !adminSource.includes("firstBlocked=\n                  {preClusterInstallGate.firstBlockedGate?.id") &&
+    !adminSource.includes("remainingExternalState=\n                  {preClusterInstallGate.blockerSummary.remainingExternalStateGateIds") &&
+    !adminSource.includes("staleExternal=\n                  {preClusterInstallGate.blockerSummary.staleExternalStateSourceIds") &&
+    !adminSource.includes("planStrict={preClusterInstallGate.commandPlan.strictCommandId}") &&
+    !adminSource.includes("sources=\n                  {preClusterInstallGate.sources") &&
+    !adminSource.includes("readOnly=\n                  {preClusterInstallGate.readOnlyCommands") &&
+    !adminSource.includes("approvalNotRun=\n                  {preClusterInstallGate.approvalGatedCommandsNotRun") &&
+    !adminSource.includes("{row.owner}:status={row.status}:firstLane=") &&
+    !adminSource.includes(":mutationAllowed=\n                    {String(row.mutationAllowedByThisVerifier)}"),
+  "Pre-cluster install gate cards use bilingual labels for install safety, blockers, and command plans"
+);
+
+expectCheck(
   "localized remediation proposal labels",
   !adminSource.includes("<span>Mode</span>") &&
     !adminSource.includes("<span>Patch</span>") &&
