@@ -165,7 +165,8 @@ button {
 .install-flow-strip,
 .mod-boundary-strip,
 .runtime-profile-strip,
-.certification-boundary-strip {
+.certification-boundary-strip,
+.demo-handoff-strip {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
@@ -176,7 +177,8 @@ button {
 .install-flow-strip .status-pill,
 .mod-boundary-strip .status-pill,
 .runtime-profile-strip .status-pill,
-.certification-boundary-strip .status-pill {
+.certification-boundary-strip .status-pill,
+.demo-handoff-strip .status-pill {
   padding-inline: 8px;
 }
 

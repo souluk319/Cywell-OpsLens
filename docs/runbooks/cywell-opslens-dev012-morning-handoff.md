@@ -40,6 +40,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the Assistant now shows a connection decision card that separates connected API answers from local plan-only fallback, so the UI does not imply live AI is connected when the API route is down
 - the Assistant connection card now includes a KO/EN mode matrix for answer source, token/proxy path, and the non-mutating chat boundary; this directly addresses the “why does the chatbot look unconnected?” demo risk
 - the Assistant connection card now shows a KO/EN integration contract separating standalone preview, installed ConsolePlugin UserToken proxy, and the native OpenShift Lightspeed drawer
+- the masthead now shows a KO/EN return checklist for reconnecting Mac CRC, opening the ConsolePlugin route, and running read-only smoke before demo
 - the masthead API status chip is localized instead of showing raw `loading/ready/fallback` state values in Korean mode
 - the OpsLens Admin Lightspeed/MCP card now uses customer-facing labels for routing score, response score, read-only tools, selected tool, redaction, mutation boundary, live readiness, network readiness, and next command instead of raw developer `key=value` fragments
 - the Assistant now keeps the raw API error as evidence but adds a KO/EN interpretation for disconnected routes, missing endpoints, auth/RBAC rejection, and API service failures
@@ -112,6 +113,7 @@ de4d0be Localize roadmap completion
 c661a06 Clarify OpsLens mod boundary
 4bb1321 Clarify runtime profile boundary
 8938501 Clarify certification boundary
+a5e9327 Clarify assistant integration contract
 ```
 
 ## Verified Gates
@@ -120,11 +122,11 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 31 checks after the Assistant integration contract lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 32 checks after the visible demo handoff checklist lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 49; evidence includes start/finish Git state |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Assistant integration contract lane |
-| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, runtime profile, certification boundary, navigation, Assistant labels, integration contract, and mode matrix |
+| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 50; evidence includes start/finish Git state |
+| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the visible demo handoff checklist lane |
+| `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, mod boundary, runtime profile, certification boundary, demo handoff checklist, navigation, Assistant labels, integration contract, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
 | `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |
@@ -228,7 +230,7 @@ That sample intentionally uses:
 | Gap | Current Cause | Next Best Action |
 | --- | --- | --- |
 | pre-cluster install not green | source evidence stale and live OCP/Lightspeed evidence incomplete | refresh live evidence after reconnect |
-| live handoff not fully current | local artifact is ready but live CRC evidence is intentionally not refreshed without the target session | reconnect Mac CRC and refresh read-only evidence |
+| live handoff not fully current | local artifact is ready but live CRC evidence is intentionally not refreshed without the target session; masthead now shows the return checklist | reconnect Mac CRC and refresh read-only evidence |
 | vLLM not suitable for CRC demo yet | external image/mirror/runtime evidence gap; UI now names the CRC mock-model profile separately | keep CRC lightweight profile, mirror/runtime review later |
 | pgvector restricted SCC issue | default pgvector image wants filesystem permissions restricted SCC blocks; UI now names the in-memory CRC profile separately | keep in-memory profile for demo or design a secure supported Postgres profile |
 | native OpenShift Lightspeed drawer not rebranded | OpenShift-owned console surface; Assistant now visibly separates native drawer ownership from OpsLens MCP/proxy integration | keep OpsLens as route/plugin mod unless a verified console-extension lane is approved |

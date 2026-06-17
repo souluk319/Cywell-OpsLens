@@ -239,6 +239,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("certification-boundary-evidence")
     ).toContainText("인증 준비는 보안/릴리스 근거 필요");
+    await expect(page.getByTestId("handoff-reconnect")).toContainText(
+      "Mac CRC 재연결"
+    );
+    await expect(page.getByTestId("handoff-route")).toContainText(
+      "콘솔 플러그인 라우트 열기"
+    );
+    await expect(page.getByTestId("handoff-smoke")).toContainText(
+      "읽기 전용 스모크 실행"
+    );
     await expect(page.getByTestId("console-nav-alerting")).toContainText(
       "경고"
     );
@@ -310,6 +319,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("certification-boundary-evidence")
     ).toContainText("Certified readiness needs security/release evidence");
+    await expect(page.getByTestId("handoff-reconnect")).toContainText(
+      "Reconnect Mac CRC"
+    );
+    await expect(page.getByTestId("handoff-route")).toContainText(
+      "Open ConsolePlugin route"
+    );
+    await expect(page.getByTestId("handoff-smoke")).toContainText(
+      "Run read-only smoke"
+    );
     await expect(page.getByTestId("assistant-integration-contract")).toContainText(
       "Integration contract"
     );

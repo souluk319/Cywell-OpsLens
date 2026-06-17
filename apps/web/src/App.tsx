@@ -341,7 +341,11 @@ const shellCopy = {
     certificationLocal: "Local demo build",
     certificationSubmit: "No Partner/OperatorHub submission",
     certificationEvidence:
-      "Certified readiness needs security/release evidence"
+      "Certified readiness needs security/release evidence",
+    handoffBoundary: "Return checklist",
+    handoffReconnect: "Reconnect Mac CRC",
+    handoffRoute: "Open ConsolePlugin route",
+    handoffSmoke: "Run read-only smoke"
   },
   ko: {
     activeSurface: "현재 화면",
@@ -406,7 +410,11 @@ const shellCopy = {
     certificationBoundary: "인증 경계",
     certificationLocal: "로컬 데모 빌드",
     certificationSubmit: "Partner/OperatorHub 제출 안 함",
-    certificationEvidence: "인증 준비는 보안/릴리스 근거 필요"
+    certificationEvidence: "인증 준비는 보안/릴리스 근거 필요",
+    handoffBoundary: "복귀 체크",
+    handoffReconnect: "Mac CRC 재연결",
+    handoffRoute: "콘솔 플러그인 라우트 열기",
+    handoffSmoke: "읽기 전용 스모크 실행"
   }
 } as const;
 
@@ -881,6 +889,21 @@ export default function App() {
                 data-testid="certification-boundary-evidence"
               >
                 {copy.certificationEvidence}
+              </span>
+            </div>
+            <div
+              className="demo-handoff-strip"
+              data-testid="demo-handoff-strip"
+              aria-label={copy.handoffBoundary}
+            >
+              <span className="status-pill read-only" data-testid="handoff-reconnect">
+                {copy.handoffReconnect}
+              </span>
+              <span className="status-pill ready" data-testid="handoff-route">
+                {copy.handoffRoute}
+              </span>
+              <span className="status-pill warning" data-testid="handoff-smoke">
+                {copy.handoffSmoke}
               </span>
             </div>
             <div

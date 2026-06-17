@@ -148,6 +148,23 @@ expectCheck(
 );
 
 expectCheck(
+  "visible demo handoff checklist",
+  appSource.includes('data-testid="demo-handoff-strip"') &&
+    appSource.includes('data-testid="handoff-reconnect"') &&
+    appSource.includes('data-testid="handoff-route"') &&
+    appSource.includes('data-testid="handoff-smoke"') &&
+    appSource.includes("Reconnect Mac CRC") &&
+    appSource.includes("Open ConsolePlugin route") &&
+    appSource.includes("Run read-only smoke") &&
+    appSource.includes("Mac CRC 재연결") &&
+    appSource.includes("콘솔 플러그인 라우트 열기") &&
+    appSource.includes("읽기 전용 스모크 실행") &&
+    stylesSource.includes(".demo-handoff-strip") &&
+    stylesSource.includes(".demo-handoff-strip .status-pill"),
+  "masthead gives return-to-demo operators the next three non-mutating steps without opening the runbook"
+);
+
+expectCheck(
   "console plugin proxy detection",
   appSource.includes('surface === "console-plugin"') &&
     appSource.includes('/api/proxy/plugin/cywell-opslens/') &&

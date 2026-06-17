@@ -773,6 +773,13 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - This directly addresses the "why does our chatbot not behave like the OpenShift Lightspeed drawer?" demo risk without claiming native drawer rebranding.
 - `npm run verify:web-shell` now includes an `assistant integration contract` gate, and `AC-UI-004` checks the KO/EN integration contract in the browser.
 
+### 2026-06-18 - Lane 50
+
+- Added a visible demo handoff checklist so the return path is on the first viewport instead of buried in the runbook.
+- The KO/EN masthead now names the next non-mutating return steps: reconnect Mac CRC, open the ConsolePlugin route, and run read-only smoke.
+- This makes the overnight loop useful when the operator returns after a long gap and needs a safe first screen for demo recovery.
+- `npm run verify:web-shell` now includes a `visible demo handoff checklist` gate, and `AC-UI-004` checks the KO/EN handoff checklist in the browser.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
@@ -784,10 +791,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head after Lane 48: `8938501`
+- feature branch latest pushed head after Lane 49: `a5e9327`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 49: PASS, 31 checks
-- latest overnight checkpoint after Lane 49: PASS, 9/9 local gates, structured Git state stamped
+- latest web shell verifier after Lane 50: PASS, 32 checks
+- latest overnight checkpoint after Lane 50: PASS, 9/9 local gates, structured Git state stamped
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
