@@ -3368,6 +3368,25 @@ type PreClusterInstallGateArtifact = {
       mutation?: boolean;
     }>;
   };
+  ownerCommandPlan?: Array<{
+    owner?: string;
+    status?: string;
+    firstLane?: string;
+    firstGateId?: string;
+    firstCommand?: string;
+    firstEvidenceNeeded?: string;
+    firstReadOnlyCommandId?: string;
+    strictCommandId?: string;
+    directLiveGateIds?: string[];
+    localPreparationGateIds?: string[];
+    aggregateGateIds?: string[];
+    commandCount?: number;
+    approvalGatedCommandIds?: string[];
+    clusterMutationAllowed?: boolean;
+    registryMutationAllowed?: boolean;
+    vectorWriteAllowed?: boolean;
+    mutationAllowedByThisVerifier?: boolean;
+  }>;
   failedGateIds?: string[];
   missingEvidence?: string[];
   readOnlyCommands?: Array<{
@@ -11807,6 +11826,7 @@ function missingPreClusterInstallGateSummary(
       ],
       aggregate: []
     },
+    ownerCommandPlan: [],
     gateRequirements: [
       {
         id: "pre-cluster-install-gate-evidence",
@@ -12043,6 +12063,32 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
         mutation: item.mutation === true
       }))
     };
+    const ownerCommandPlan = (artifact.ownerCommandPlan ?? []).map((row) => ({
+      owner: row.owner ?? "unknown",
+      status: row.status ?? "blocked",
+      firstLane: row.firstLane ?? "unknown",
+      firstGateId: row.firstGateId ?? "unknown",
+      firstCommand: row.firstCommand ?? "unknown",
+      firstEvidenceNeeded: row.firstEvidenceNeeded ?? "missing",
+      firstReadOnlyCommandId: row.firstReadOnlyCommandId ?? "none",
+      strictCommandId: row.strictCommandId ?? "none",
+      directLiveGateIds: row.directLiveGateIds ?? [],
+      localPreparationGateIds: row.localPreparationGateIds ?? [],
+      aggregateGateIds: row.aggregateGateIds ?? [],
+      commandCount: row.commandCount ?? 0,
+      approvalGatedCommandIds: row.approvalGatedCommandIds ?? [],
+      clusterMutationAllowed: row.clusterMutationAllowed === true,
+      registryMutationAllowed: row.registryMutationAllowed === true,
+      vectorWriteAllowed: row.vectorWriteAllowed === true,
+      mutationAllowedByThisVerifier:
+        row.mutationAllowedByThisVerifier === true
+    }));
+    const approvalGatedCommandsNotRun = (
+      artifact.approvalGatedCommandsNotRun ?? []
+    ).map((command) => ({
+      id: command.id ?? "unknown",
+      purpose: command.purpose ?? "missing"
+    }));
     return {
       status,
       artifactStatus: artifact.status ?? "unknown",
@@ -12056,15 +12102,11 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
       firstBlockedGate,
       blockerSummary,
       commandPlan,
+      ownerCommandPlan,
       gateRequirements,
       sources,
       readOnlyCommands,
-      approvalGatedCommandsNotRun: (
-        artifact.approvalGatedCommandsNotRun ?? []
-      ).map((command) => ({
-        id: command.id ?? "unknown",
-        purpose: command.purpose ?? "missing"
-      })),
+      approvalGatedCommandsNotRun,
       clusterMutationAttempted: artifact.clusterMutationAttempted === true,
       registryMutationAttempted: artifact.registryMutationAttempted === true,
       vectorWriteAttempted: artifact.vectorWriteAttempted === true,
@@ -12080,6 +12122,7 @@ function getPreClusterInstallGateSummary(): OpsLensPreClusterInstallGateSummary 
         `pre-cluster first blocked gate=${firstBlockedGate?.id ?? "none"} owner=${firstBlockedGate?.owner ?? "none"} next=${firstBlockedGate?.nextCommand ?? "none"}`,
         `pre-cluster blocker summary externalState=${blockerSummary.remainingExternalStateCount} localOnly=${blockerSummary.remainingLocalOnlyCount} staleExternal=${blockerSummary.staleExternalStateSourceIds.join("|") || "none"} directLive=${blockerSummary.directExternalReadinessGateIds.join("|") || "none"} localPrep=${blockerSummary.localPreparationGateIds.join("|") || "none"}`,
         `pre-cluster command plan directLive=${commandPlan.directLive.length} localPrep=${commandPlan.localPreparation.length} aggregate=${commandPlan.aggregate.length} firstReadOnly=${commandPlan.firstReadOnlyCommandId}`,
+        `pre-cluster owner command plan owners=${ownerCommandPlan.map((row) => row.owner).join("|") || "none"}`,
         "pre-cluster install gate reads local evidence only; it does not approve install, patch, push, mirror, sign, apply, delete, or scale actions",
         ...(artifact.evidence ?? []).slice(0, 2)
       ]

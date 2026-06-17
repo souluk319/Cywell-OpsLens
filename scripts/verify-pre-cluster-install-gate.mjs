@@ -303,6 +303,60 @@ function commandPlanRows(gates, idSet) {
     }));
 }
 
+function ownerCommandPlanRows(commandPlan, approvalGatedCommandsNotRun) {
+  const approvalGatedCommandIds = approvalGatedCommandsNotRun.map(
+    (command) => command.id
+  );
+  const rows = [
+    ...commandPlan.directLive.map((item) => ({ ...item, lane: "direct-live" })),
+    ...commandPlan.localPreparation.map((item) => ({
+      ...item,
+      lane: "local-preparation"
+    })),
+    ...commandPlan.aggregate.map((item) => ({ ...item, lane: "aggregate" }))
+  ];
+  const byOwner = new Map();
+  for (const row of rows) {
+    const current = byOwner.get(row.owner) ?? {
+      owner: row.owner,
+      status: "blocked",
+      firstLane: row.lane,
+      firstGateId: row.gateId,
+      firstCommand: row.command,
+      firstEvidenceNeeded: row.evidenceNeeded,
+      firstReadOnlyCommandId: commandPlan.firstReadOnlyCommandId,
+      strictCommandId: commandPlan.strictCommandId,
+      directLiveGateIds: [],
+      localPreparationGateIds: [],
+      aggregateGateIds: [],
+      commandCount: 0,
+      approvalGatedCommandIds,
+      clusterMutationAllowed: false,
+      registryMutationAllowed: false,
+      vectorWriteAllowed: false,
+      mutationAllowedByThisVerifier: false
+    };
+    current.commandCount += 1;
+    if (row.lane === "direct-live") {
+      current.directLiveGateIds.push(row.gateId);
+    }
+    if (row.lane === "local-preparation") {
+      current.localPreparationGateIds.push(row.gateId);
+    }
+    if (row.lane === "aggregate") {
+      current.aggregateGateIds.push(row.gateId);
+    }
+    byOwner.set(row.owner, current);
+  }
+  return [...byOwner.values()].map((row) => ({
+    ...row,
+    directLiveGateIds: unique(row.directLiveGateIds),
+    localPreparationGateIds: unique(row.localPreparationGateIds),
+    aggregateGateIds: unique(row.aggregateGateIds),
+    approvalGatedCommandIds: unique(row.approvalGatedCommandIds)
+  }));
+}
+
 function buildMarkdown(artifact) {
   return [
     "# Cywell OpsLens Pre-Cluster Install Gate",
@@ -344,6 +398,17 @@ function buildMarkdown(artifact) {
           (item) => `  - ${item.gateId} (${item.owner}): \`${item.command}\``
         )
       : ["  - none"]),
+    "",
+    "## Owner Command Plan",
+    ...(artifact.ownerCommandPlan?.length
+      ? artifact.ownerCommandPlan.flatMap((row) => [
+          `- ${row.owner}: status=${row.status} firstLane=${row.firstLane} firstGate=${row.firstGateId}`,
+          `  firstReadOnly=${row.firstReadOnlyCommandId} strict=${row.strictCommandId}`,
+          `  command=\`${row.firstCommand}\``,
+          `  directLive=${row.directLiveGateIds.join(", ") || "none"} localPreparation=${row.localPreparationGateIds.join(", ") || "none"} aggregate=${row.aggregateGateIds.join(", ") || "none"}`,
+          `  approvalNotRun=${row.approvalGatedCommandIds.join(", ") || "none"} mutationAllowed=${String(row.mutationAllowedByThisVerifier)}`
+        ])
+      : ["- none"]),
     "",
     "## Gate Requirements",
     ...artifact.gateRequirements.map(
@@ -628,6 +693,44 @@ async function main() {
     localPreparation: commandPlanRows(failedGates, localPreparationGateIds),
     aggregate: commandPlanRows(failedGates, aggregateBlockedGateIds)
   };
+  const ownerCommandPlan = ownerCommandPlanRows(
+    commandPlan,
+    approvalGatedCommandsNotRun
+  );
+
+  if (
+    ownerCommandPlan.every(
+      (row) =>
+        row.owner &&
+        row.firstGateId &&
+        row.firstCommand &&
+        row.firstReadOnlyCommandId &&
+        row.strictCommandId &&
+        row.commandCount > 0
+    ) &&
+    ownerCommandPlan.every(
+      (row) =>
+        row.clusterMutationAllowed === false &&
+        row.registryMutationAllowed === false &&
+        row.vectorWriteAllowed === false &&
+        row.mutationAllowedByThisVerifier === false
+    ) &&
+    ownerCommandPlan.every(
+      (row) => row.approvalGatedCommandIds.length === approvalGatedCommandsNotRun.length
+    )
+  ) {
+    pass(
+      "pre-cluster owner command plan",
+      ownerCommandPlan.length > 0
+        ? `${ownerCommandPlan.length} owner row(s) expose first read-only command and approval-not-run boundary`
+        : "no owner command rows required"
+    );
+  } else {
+    fail(
+      "pre-cluster owner command plan",
+      "owner command rows must expose first read-only command, strict gate, approval-not-run ids, and disabled mutation flags"
+    );
+  }
 
   if (safeToRunClusterInstall) {
     pass("pre-cluster install gate", "all strict install gates are satisfied");
@@ -672,6 +775,7 @@ async function main() {
     firstBlockedGate,
     blockerSummary,
     commandPlan,
+    ownerCommandPlan,
     failedGateIds: failedGates.map((item) => item.id),
     missingEvidence: unique(failedGates.map((item) => item.evidenceNeeded)),
     blockers: unique([

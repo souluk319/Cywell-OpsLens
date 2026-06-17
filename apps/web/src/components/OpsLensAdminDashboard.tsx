@@ -2285,6 +2285,29 @@ export function OpsLensAdminDashboard() {
                     .join(",") || "none"}
                 </span>
               </div>
+              <div
+                className="admin-evidence-line"
+                data-testid="opslens-pre-cluster-owner-command-plan"
+              >
+                {preClusterInstallGate.ownerCommandPlan.map((row) => (
+                  <span key={row.owner}>
+                    {row.owner}:status={row.status}:firstLane=
+                    {row.firstLane}:firstGate={row.firstGateId}:firstReadOnly=
+                    {row.firstReadOnlyCommandId}:strict={row.strictCommandId}
+                    :directLive=
+                    {row.directLiveGateIds.join(",") || "none"}:localPrep=
+                    {row.localPreparationGateIds.join(",") || "none"}
+                    :aggregate={row.aggregateGateIds.join(",") || "none"}
+                    :approvalNotRun=
+                    {row.approvalGatedCommandIds.join(",") || "none"}
+                    :mutationAllowed=
+                    {String(row.mutationAllowedByThisVerifier)}
+                  </span>
+                ))}
+                {preClusterInstallGate.ownerCommandPlan.length === 0 ? (
+                  <span>none</span>
+                ) : null}
+              </div>
               <div className="remediation-notes">
                 <p>
                   {preClusterInstallGate.risk[0] ??

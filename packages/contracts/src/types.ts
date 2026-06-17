@@ -2908,6 +2908,25 @@ export interface OpsLensPreClusterInstallGateSummary {
       mutation: boolean;
     }>;
   };
+  ownerCommandPlan: Array<{
+    owner: string;
+    status: string;
+    firstLane: string;
+    firstGateId: string;
+    firstCommand: string;
+    firstEvidenceNeeded: string;
+    firstReadOnlyCommandId: string;
+    strictCommandId: string;
+    directLiveGateIds: string[];
+    localPreparationGateIds: string[];
+    aggregateGateIds: string[];
+    commandCount: number;
+    approvalGatedCommandIds: string[];
+    clusterMutationAllowed: boolean;
+    registryMutationAllowed: boolean;
+    vectorWriteAllowed: boolean;
+    mutationAllowedByThisVerifier: boolean;
+  }>;
   gateRequirements: Array<{
     id: string;
     owner: string;

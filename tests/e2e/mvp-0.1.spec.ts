@@ -4129,6 +4129,25 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
               mutation?: boolean;
             }>;
           };
+          ownerCommandPlan?: Array<{
+            owner?: string;
+            status?: string;
+            firstLane?: string;
+            firstGateId?: string;
+            firstCommand?: string;
+            firstEvidenceNeeded?: string;
+            firstReadOnlyCommandId?: string;
+            strictCommandId?: string;
+            directLiveGateIds?: string[];
+            localPreparationGateIds?: string[];
+            aggregateGateIds?: string[];
+            commandCount?: number;
+            approvalGatedCommandIds?: string[];
+            clusterMutationAllowed?: boolean;
+            registryMutationAllowed?: boolean;
+            vectorWriteAllowed?: boolean;
+            mutationAllowedByThisVerifier?: boolean;
+          }>;
           gateRequirements?: Array<{
             id?: string;
             owner?: string;
@@ -7074,6 +7093,25 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         id?: string;
         purpose?: string;
       }>;
+      ownerCommandPlan?: Array<{
+        owner?: string;
+        status?: string;
+        firstLane?: string;
+        firstGateId?: string;
+        firstCommand?: string;
+        firstEvidenceNeeded?: string;
+        firstReadOnlyCommandId?: string;
+        strictCommandId?: string;
+        directLiveGateIds?: string[];
+        localPreparationGateIds?: string[];
+        aggregateGateIds?: string[];
+        commandCount?: number;
+        approvalGatedCommandIds?: string[];
+        clusterMutationAllowed?: boolean;
+        registryMutationAllowed?: boolean;
+        vectorWriteAllowed?: boolean;
+        mutationAllowedByThisVerifier?: boolean;
+      }>;
     };
     const roadmapActionQueueSafety = roadmapPlan.stages
       ?.find((stage) => stage.id === "stage-5-redhat-gtm")
@@ -7542,6 +7580,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
           ...(preClusterInstallGate.commandPlan?.aggregate ?? [])
         ].every((item) => item.command && item.mutation === false)
       ).toBe(true);
+      expect(preClusterInstallGate.ownerCommandPlan?.length ?? 0).toBeGreaterThan(
+        0
+      );
+      expect(
+        preClusterInstallGate.ownerCommandPlan?.every(
+          (row) =>
+            row.owner &&
+            row.status === "blocked" &&
+            row.firstLane &&
+            row.firstGateId &&
+            row.firstCommand &&
+            row.firstEvidenceNeeded &&
+            row.firstReadOnlyCommandId === "refresh-release-chain" &&
+            row.strictCommandId === "pre-cluster-install-strict" &&
+            typeof row.commandCount === "number" &&
+            row.commandCount > 0 &&
+            Array.isArray(row.approvalGatedCommandIds) &&
+            row.approvalGatedCommandIds.includes("cluster-install-apply") &&
+            row.clusterMutationAllowed === false &&
+            row.registryMutationAllowed === false &&
+            row.vectorWriteAllowed === false &&
+            row.mutationAllowedByThisVerifier === false
+        )
+      ).toBe(true);
       expect(preClusterInstallGate.firstBlockedGate).toMatchObject({
         id: preClusterInstallGate.failedGateIds?.[0],
         mutation: false
@@ -7576,6 +7638,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       firstBlockedGate: preClusterInstallGate.firstBlockedGate,
       blockerSummary: preClusterInstallGate.blockerSummary,
       commandPlan: preClusterInstallGate.commandPlan,
+      ownerCommandPlan: preClusterInstallGate.ownerCommandPlan,
       clusterMutationAttempted: false,
       registryMutationAttempted: false,
       vectorWriteAttempted: false,
@@ -7592,6 +7655,11 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         (command) => command.id
       )
     ).toEqual(preClusterInstallGate.readOnlyCommands?.map((command) => command.id));
+    expect(
+      body.installReadiness?.preClusterInstallGate?.ownerCommandPlan?.map(
+        (row) => row.owner
+      )
+    ).toEqual(preClusterInstallGate.ownerCommandPlan?.map((row) => row.owner));
     expect(body.installReadiness?.evidence?.join(" ")).toContain(
       "Pre-cluster install gate"
     );
@@ -12153,6 +12221,21 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       await expect(
         page.getByTestId("opslens-pre-cluster-install-gate-boundary")
       ).toContainText("planAggregate=clean-current-head:");
+      await expect(
+        page.getByTestId("opslens-pre-cluster-owner-command-plan")
+      ).toContainText(
+        body.installReadiness.preClusterInstallGate.ownerCommandPlan?.[0]
+          ?.owner ?? "none"
+      );
+      await expect(
+        page.getByTestId("opslens-pre-cluster-owner-command-plan")
+      ).toContainText("firstReadOnly=refresh-release-chain");
+      await expect(
+        page.getByTestId("opslens-pre-cluster-owner-command-plan")
+      ).toContainText("approvalNotRun=cluster-install-apply");
+      await expect(
+        page.getByTestId("opslens-pre-cluster-owner-command-plan")
+      ).toContainText("mutationAllowed=false");
     }
     await expect(page.getByTestId("opslens-roadmap-completion")).toContainText(
       "roadmapEvidenceOnly"
