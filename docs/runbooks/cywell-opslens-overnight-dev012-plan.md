@@ -615,6 +615,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - Preserved raw API/evidence messages in titles and evidence cells so diagnostic traceability is not hidden.
 - Protected the display-map contract in `npm run verify:web-shell`.
 
+### 2026-06-18 - Lane 28
+
+- Removed a remaining mixed-language fallback chip in the OCP Resource Explorer detail panel.
+- The detail fallback now uses language-owned transition copy instead of hardcoded `to`.
+- `npm run verify:web-shell` now rejects the old `requestedApiVersion} to` pattern.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away

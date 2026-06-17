@@ -110,6 +110,7 @@ const explorerCopy = {
     objectPrefix: "Object",
     fallback: "fallback",
     requested: "requested",
+    transitionTo: "to",
     served: "served",
     redactedCount: "redacted",
     loadingObject: "Loading object detail...",
@@ -192,6 +193,7 @@ const explorerCopy = {
     objectPrefix: "객체",
     fallback: "대체 응답",
     requested: "요청",
+    transitionTo: "->",
     served: "제공",
     redactedCount: "마스킹",
     loadingObject: "객체 상세를 불러오는 중...",
@@ -901,7 +903,7 @@ export function OcpResourceExplorer({
                 className="status-pill warning"
                 data-testid="ocp-detail-fallback"
               >
-                {copy.fallback} {detail.fallback.requestedApiVersion} to{" "}
+                {copy.fallback} {detail.fallback.requestedApiVersion} {copy.transitionTo}{" "}
                 {detail.fallback.servedApiVersion}
               </span>
             ) : null}

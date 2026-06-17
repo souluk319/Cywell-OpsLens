@@ -236,6 +236,9 @@ expectCheck(
     explorerSource.includes("소유자 참조") &&
     explorerSource.includes("소유 하위 리소스") &&
     explorerSource.includes("RBAC 대기 중") &&
+    explorerSource.includes("transitionTo") &&
+    explorerSource.includes("{copy.transitionTo}") &&
+    !explorerSource.includes("requestedApiVersion} to") &&
     coverageSource.includes("const coverageCopy") &&
     coverageSource.includes("OCP 읽기 범위 매트릭스") &&
     coverageSource.includes("const gapTypeLabels") &&
