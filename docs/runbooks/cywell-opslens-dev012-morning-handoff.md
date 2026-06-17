@@ -38,24 +38,39 @@ This is not a claim that production install is ready. The pre-cluster gate still
 ## Commits On This Branch
 
 ```text
-6426291 Expose assistant connection mode
-1e8723f Test localized assistant shell
-a3ea61d Expose CRC lightweight OperatorHub example
-35c8d12 Explain assistant API fallback errors
-3df56c7 Polish Lightspeed admin labels
-168c86b Clarify assistant connection state
-5e48bce Localize assistant answer display
-5a6dc1e Polish Korean UI status labels
-3fb9a3a Polish Resource Explorer Korean copy
-1c1df71 Localize OCP coverage matrix
-b81f7ec Clarify OpsLens install flow
-9122027 Polish Korean shell copy
-1b18f3f Add Dev 0.1.2 overnight checkpoint loop
-3d528ea Refresh Dev 0.1.2 handoff plan
-3942a6a Enforce CRC arm64 handoff
-cc8bf3b Ignore Windows desktop metadata
-bab809b Harden CRC dev image handoff
+acbe113 Clarify OpsLens shell mode
+cf791e1 Tighten web shell evidence
+d45a9b1 Plan Dev 0.1.2 overnight loop
+23fc447 Localize OpsLens admin shell
+e1f2883 Harden ConsolePlugin mode diagnostics
+f7a7078 Harden CRC operator runtime defaults
+8c04d16 Update CRC live verification handoff
+7a65f71 Document Dev 0.1.2 morning handoff
+eb7de6e Surface assistant API diagnostics
+48e2cf6 Clarify CRC lab shell context
+3952914 Harden web shell action contracts
 f5a663f Allow CRC lightweight runtime disable
+bab809b Harden CRC dev image handoff
+cc8bf3b Ignore Windows desktop metadata
+3942a6a Enforce CRC arm64 handoff
+3d528ea Refresh Dev 0.1.2 handoff plan
+1b18f3f Add Dev 0.1.2 overnight checkpoint loop
+9122027 Polish Korean shell copy
+b81f7ec Clarify OpsLens install flow
+1c1df71 Localize OCP coverage matrix
+3fb9a3a Polish Resource Explorer Korean copy
+5a6dc1e Polish Korean UI status labels
+5e48bce Localize assistant answer display
+168c86b Clarify assistant connection state
+3df56c7 Polish Lightspeed admin labels
+35c8d12 Explain assistant API fallback errors
+a3ea61d Expose CRC lightweight OperatorHub example
+1e8723f Test localized assistant shell
+6426291 Expose assistant connection mode
+406a34f Gate operator readiness on workloads
+fb72b17 Isolate local image build tags
+fa38a6d Localize coverage matrix labels
+d36e33e Polish resource fallback wording
 ```
 
 ## Verified Gates
@@ -66,8 +81,8 @@ Latest non-mutating checks:
 | --- | --- | --- |
 | `npm run verify:web-shell` | PASS | 0 fail, 12 checks after the OCP Resource Explorer fallback wording lane |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
-| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 19 |
-| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Assistant mode matrix lane |
+| `npm run overnight:checkpoint` | PASS | 9/9 local checkpoint gates passed after Lane 28 |
+| `npm run -w @kugnus/web build` | PASS | Vite app and ConsolePlugin webpack build succeeded after the Resource Explorer fallback wording lane |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN switching covers masthead, install flow, navigation, Assistant labels, and mode matrix |
 | `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |

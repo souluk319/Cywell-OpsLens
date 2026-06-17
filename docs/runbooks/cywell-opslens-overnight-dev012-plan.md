@@ -632,12 +632,12 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
-- feature branch latest pushed head before Lane 19: `5a6dc1e`
+- feature branch latest pushed head after Lane 28: `d36e33e`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 24: PASS, 12 checks
+- latest web shell verifier after Lane 28: PASS, 12 checks
 - latest operator runtime verifier after Lane 25: PASS, 78 checks
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
-- latest lab image map after restoring CRC tags: PASS, 0 fail, 3 expected external-runtime warnings
+- latest lab image map after Lane 28: PASS, 0 fail, 2 expected external-runtime warnings
 - latest CRC handoff tar: `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`
 
 ## First Command Set
