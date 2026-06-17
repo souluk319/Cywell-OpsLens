@@ -65,6 +65,7 @@ const adminSource = await readText("apps/web/src/components/OpsLensAdminDashboar
 const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
 const stylesSource = await readText("apps/web/src/styles/app.css");
+const e2eSource = await readText("tests/e2e/mvp-0.1.spec.ts");
 
 expectCheck(
   "runtime surface badge",
@@ -112,9 +113,11 @@ expectCheck(
   "KOMSCO assistant branding",
   assistantSource.includes("KOMSCO AI Assistant") &&
     appSource.includes("KOMSCO AI Assistant") &&
+    appSource.includes("Open KOMSCO AI Assistant") &&
+    appSource.includes("KOMSCO AI 어시스턴트") &&
     !assistantSource.includes("Context-aware assistant") &&
     !appSource.includes("context-aware assistant"),
-  "assistant copy is branded for KOMSCO instead of generic context-aware wording"
+  "assistant copy and launcher accessibility labels are branded for KOMSCO instead of generic context-aware wording"
 );
 
 expectCheck(
@@ -234,6 +237,20 @@ expectCheck(
     adminSource.includes("actionModeText(language, tool.actionMode)") &&
     adminSource.includes("booleanText(language, lightspeedMcp?.trojanHorse.mutationAllowed)"),
   "primary console panels, coverage matrix, admin dashboard, and the resource explorer receive the selected language and own bilingual copy"
+);
+
+expectCheck(
+  "localized interactive shell e2e",
+  e2eSource.includes("AC-UI-004 keeps KO/EN switching consistent across shell and assistant") &&
+    e2eSource.includes('getByTestId("language-ko-toggle")') &&
+    e2eSource.includes("OperatorHub: 오퍼레이터") &&
+    e2eSource.includes("OpsLensInstallation: 제품 적용") &&
+    e2eSource.includes("ConsolePlugin: 콘솔 라우트") &&
+    e2eSource.includes("KOMSCO AI 어시스턴트") &&
+    e2eSource.includes("KOMSCO AI Assistant") &&
+    e2eSource.includes("Ask from current context") &&
+    e2eSource.includes("현재 컨텍스트로 질문"),
+  "Playwright covers KO/EN switching across masthead, install flow, navigation, and the KOMSCO assistant"
 );
 
 expectCheck(

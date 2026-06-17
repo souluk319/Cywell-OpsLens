@@ -198,6 +198,63 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
   });
 
+  test("AC-UI-004 keeps KO/EN switching consistent across shell and assistant", async ({
+    page
+  }) => {
+    await page.getByTestId("language-ko-toggle").click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "ko");
+    await expect(page.getByTestId("runtime-surface")).toContainText(
+      "독립 미리보기"
+    );
+    await expect(page.getByTestId("api-route-mode")).toContainText(
+      "로컬 API 경로"
+    );
+    await expect(page.getByTestId("install-flow-operatorhub")).toContainText(
+      "OperatorHub: 오퍼레이터"
+    );
+    await expect(page.getByTestId("install-flow-cr")).toContainText(
+      "OpsLensInstallation: 제품 적용"
+    );
+    await expect(page.getByTestId("install-flow-consoleplugin")).toContainText(
+      "ConsolePlugin: 콘솔 라우트"
+    );
+    await expect(page.getByTestId("console-nav-alerting")).toContainText(
+      "경고"
+    );
+    await expect(page.getByTestId("console-navigation-feedback")).toContainText(
+      "경고"
+    );
+
+    await openAssistant(page);
+    await expect(page.getByTestId("assistant-popover")).toContainText(
+      "KOMSCO AI Assistant"
+    );
+    await expect(page.getByTestId("assistant-connection-summary")).toContainText(
+      "연결 판정"
+    );
+    await expect(page.getByLabel("현재 컨텍스트로 질문")).toBeVisible();
+    await expect(page.getByTestId("assistant-ask-button")).toContainText("질문");
+    await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
+      "title",
+      "KOMSCO AI 어시스턴트"
+    );
+
+    await page.getByTestId("language-en-toggle").click();
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.getByTestId("runtime-surface")).toContainText(
+      "Standalone dev"
+    );
+    await expect(page.getByTestId("install-flow-cr")).toContainText(
+      "OpsLensInstallation: product"
+    );
+    await expect(page.getByLabel("Ask from current context")).toBeVisible();
+    await expect(page.getByTestId("assistant-ask-button")).toContainText("Ask");
+    await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
+      "title",
+      "KOMSCO AI Assistant"
+    );
+  });
+
   test("AC-CTX-001 renders context chips and publisher payload", async ({
     page
   }) => {
