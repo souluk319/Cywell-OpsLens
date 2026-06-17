@@ -826,6 +826,26 @@ expectCheck(
 );
 
 expectCheck(
+  "clickable utility shell e2e",
+  e2eSource.includes("AC-UI-005 makes masthead utilities and evidence actions clickable") &&
+    e2eSource.includes('getByTestId("nav-collapse-toggle")') &&
+    e2eSource.includes('getByTestId("masthead-app-launcher")') &&
+    e2eSource.includes('getByTestId("masthead-notifications")') &&
+    e2eSource.includes('getByTestId("masthead-create")') &&
+    e2eSource.includes('getByTestId("masthead-help")') &&
+    e2eSource.includes('getByTestId("evidence-view-logs")') &&
+    e2eSource.includes('getByTestId("evidence-view-yaml")') &&
+    e2eSource.includes('getByTestId("evidence-view-alerts")') &&
+    e2eSource.includes('getByTestId("evidence-ask-logs")') &&
+    e2eSource.includes('getByTestId("evidence-ask-yaml")') &&
+    e2eSource.includes('getByTestId("evidence-ask-alerts")') &&
+    e2eSource.includes("Application launcher focused") &&
+    e2eSource.includes("Create opened a plan-only workflow") &&
+    e2eSource.includes("Help opened the KOMSCO AI Assistant"),
+  "Playwright clicks masthead utilities, evidence tabs, and evidence ask buttons instead of relying only on static handlers"
+);
+
+expectCheck(
   "localized shell persistence",
   appSource.includes('window.localStorage.setItem("cywell-opslens-language", language)') &&
     appSource.includes("document.documentElement.lang = language") &&

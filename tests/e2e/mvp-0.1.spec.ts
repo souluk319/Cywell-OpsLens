@@ -471,6 +471,52 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
   });
 
+  test("AC-UI-005 makes masthead utilities and evidence actions clickable", async ({
+    page
+  }) => {
+    const feedback = page.getByTestId("console-navigation-feedback");
+    const frame = page.locator(".console-frame");
+
+    await page.getByTestId("nav-collapse-toggle").click();
+    await expect(frame).toHaveClass(/nav-collapsed/);
+    await page.getByTestId("nav-collapse-toggle").click();
+    await expect(frame).not.toHaveClass(/nav-collapsed/);
+
+    await page.getByTestId("masthead-app-launcher").click();
+    await expect(feedback).toContainText("Application launcher focused");
+
+    await page.getByTestId("masthead-notifications").click();
+    await expect(feedback).toContainText("Notifications focused");
+
+    await page.getByTestId("masthead-create").click();
+    await expect(feedback).toContainText("Create opened a plan-only workflow");
+    await expect(page.getByTestId("assistant-popover")).toBeVisible();
+    await page.getByTestId("assistant-close").click();
+    await expect(page.getByTestId("assistant-popover")).toHaveCount(0);
+
+    await page.getByTestId("masthead-help").click();
+    await expect(feedback).toContainText("Help opened the KOMSCO AI Assistant");
+    await expect(page.getByTestId("assistant-popover")).toBeVisible();
+    await page.getByTestId("assistant-close").click();
+
+    await page.getByTestId("evidence-view-logs").click();
+    await expect(page.getByTestId("log-viewport")).toBeVisible();
+    await page.getByTestId("evidence-ask-logs").click();
+    await expect(page.getByTestId("assistant-popover")).toBeVisible();
+    await page.getByTestId("assistant-close").click();
+
+    await page.getByTestId("evidence-view-yaml").click();
+    await expect(page.getByTestId("yaml-textarea")).toBeVisible();
+    await page.getByTestId("evidence-ask-yaml").click();
+    await expect(page.getByTestId("assistant-popover")).toBeVisible();
+    await page.getByTestId("assistant-close").click();
+
+    await page.getByTestId("evidence-view-alerts").click();
+    await expect(page.getByTestId("alert-evidence-table")).toBeVisible();
+    await page.getByTestId("evidence-ask-alerts").click();
+    await expect(page.getByTestId("assistant-popover")).toBeVisible();
+  });
+
   test("AC-CTX-001 renders context chips and publisher payload", async ({
     page
   }) => {
