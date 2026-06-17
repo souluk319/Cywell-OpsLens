@@ -88,6 +88,11 @@ const releaseActionQueueSource = sourceSection(
   'data-testid="opslens-release-action-queue"',
   'data-testid="opslens-evidence-checkpoint"'
 );
+const externalRuntimeReviewSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-external-runtime-review-packet"',
+  'data-testid="opslens-security-scan-plan"'
+);
 
 expectCheck(
   "runtime surface badge",
@@ -686,6 +691,45 @@ expectCheck(
     !releaseActionQueueSource.includes("catalogTicket=") &&
     !releaseActionQueueSource.includes("mutationAllowedByThisVerifier="),
   "Release refresh, bundle, and action queue rows use bilingual labels instead of raw key/value UI labels"
+);
+
+expectCheck(
+  "localized external runtime review labels",
+    adminSource.includes("function mappedList") &&
+    adminSource.includes('"review-packet-ready": "검토 패킷 준비"') &&
+    adminSource.includes('reviewPacketOnly: "검토 패킷 전용"') &&
+    adminSource.includes("copy.candidateHandoff") &&
+    adminSource.includes("copy.registryPacket") &&
+    adminSource.includes('"후보 인계"') &&
+    externalRuntimeReviewSource.includes("statusText(language, externalRuntimeReview.artifactStatus)") &&
+    !externalRuntimeReviewSource.includes("registryMutationAttempted=") &&
+    !externalRuntimeReviewSource.includes("{externalRuntimeReview.artifactStatus}") &&
+    !externalRuntimeReviewSource.includes("{externalRuntimeReview.actionMode}") &&
+    !externalRuntimeReviewSource.includes("clusterMutationAttempted=") &&
+    !externalRuntimeReviewSource.includes("mutationAllowedByThisVerifier=") &&
+    !externalRuntimeReviewSource.includes(" best=") &&
+    !externalRuntimeReviewSource.includes(" critical=") &&
+    !externalRuntimeReviewSource.includes(" high=") &&
+    !externalRuntimeReviewSource.includes(" eligible=") &&
+    !externalRuntimeReviewSource.includes(":owner=") &&
+    !externalRuntimeReviewSource.includes(":candidate=") &&
+    !externalRuntimeReviewSource.includes(":finalEvidence=") &&
+    !externalRuntimeReviewSource.includes(":requests=") &&
+    !externalRuntimeReviewSource.includes(":approvalRequired=") &&
+    !externalRuntimeReviewSource.includes(":requiresExplicitApproval=") &&
+    !externalRuntimeReviewSource.includes(":mutationAllowed=") &&
+    !externalRuntimeReviewSource.includes(":writesLocalEvidence=") &&
+    !externalRuntimeReviewSource.includes("owner={externalRuntimeReview.finalEvidenceAction.owner}") &&
+    !externalRuntimeReviewSource.includes("ready=") &&
+    !externalRuntimeReviewSource.includes("reviewedInput=") &&
+    !externalRuntimeReviewSource.includes("zeroCritical=") &&
+    !externalRuntimeReviewSource.includes("registryPacket=") &&
+    !externalRuntimeReviewSource.includes(":loginExecuted=") &&
+    !externalRuntimeReviewSource.includes(":authRequired=") &&
+    !externalRuntimeReviewSource.includes(":credentialStored=") &&
+    !externalRuntimeReviewSource.includes(":registryLogin=") &&
+    !externalRuntimeReviewSource.includes("not-run {command.id} approval="),
+  "External runtime review packet rows use bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(

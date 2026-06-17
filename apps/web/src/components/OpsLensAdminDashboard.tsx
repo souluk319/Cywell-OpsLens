@@ -79,6 +79,8 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "approval-required": "approval required",
       "ready-for-live-registration-review": "ready for live registration review",
       "ready-for-handoff": "ready for handoff",
+      "review-packet-ready": "review packet ready",
+      "no-improving-candidate": "no improving candidate",
       "live-ready": "live ready",
       "api-ready": "API ready",
       "not-configured": "not configured",
@@ -107,6 +109,8 @@ function statusText(language: UiLanguage, status: string | undefined) {
       "approval-required": "승인 필요",
       "ready-for-live-registration-review": "실시간 등록 검토 준비",
       "ready-for-handoff": "인계 준비",
+      "review-packet-ready": "검토 패킷 준비",
+      "no-improving-candidate": "개선 후보 없음",
       "live-ready": "실시간 준비 완료",
       "api-ready": "API 준비 완료",
       "not-configured": "설정 없음",
@@ -147,7 +151,8 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       designOnly: "design-only",
       DesignOnly: "design-only",
       ValidateOnly: "validate-only",
-      PatchOLSConfig: "patch OLSConfig"
+      PatchOLSConfig: "patch OLSConfig",
+      reviewPacketOnly: "review packet only"
     },
     ko: {
       readOnly: "읽기 전용",
@@ -157,7 +162,8 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       designOnly: "설계 전용",
       DesignOnly: "설계 전용",
       ValidateOnly: "검증 전용",
-      PatchOLSConfig: "OLSConfig 패치"
+      PatchOLSConfig: "OLSConfig 패치",
+      reviewPacketOnly: "검토 패킷 전용"
     }
   };
   return labels[language][mode] ?? mode;
@@ -289,6 +295,18 @@ function diagnosticsText(
             : `${diagnostic.id ?? copy.unknown}: ${String(diagnostic.value)}`
         )
         .join(" | ")
+    : copy.none;
+}
+
+function mappedList<T>(
+  copy: Record<string, string>,
+  values: T[] | undefined,
+  formatter: (value: T) => string,
+  limit?: number
+) {
+  const visibleValues = limit ? values?.slice(0, limit) : values;
+  return visibleValues && visibleValues.length
+    ? visibleValues.map(formatter).join(", ")
     : copy.none;
 }
 
@@ -456,6 +474,30 @@ const adminCopy = {
     ownedProvenance: "owned provenance",
     externalRuntime: "external runtime",
     runtimeReview: "runtime review",
+    sourceDigest: "source digest",
+    reviewerRequests: "reviewer requests",
+    finalEvidence: "final evidence",
+    candidateMatrix: "candidate matrix",
+    candidateHandoff: "candidate handoff",
+    finalHandoff: "final handoff",
+    bestCandidate: "best candidate",
+    candidate: "candidate",
+    criticalFindings: "critical",
+    highFindings: "high",
+    releaseEligible: "release eligible",
+    finalReady: "final ready",
+    promotionCommands: "promotion commands",
+    reviewedInput: "reviewed input",
+    zeroCritical: "zero critical",
+    registryPacket: "registry packet",
+    loginExecuted: "login executed",
+    authRequired: "auth required",
+    credentialStored: "credential stored",
+    registryLogin: "registry login",
+    reviewerActionsClear: "reviewer actions clear",
+    registryActionsClear: "registry actions clear",
+    registryTicketsClear: "registry tickets clear",
+    notRun: "not run",
     securityScan: "security scan",
     releasePublish: "release publish",
     releaseRefresh: "release refresh",
@@ -744,6 +786,30 @@ const adminCopy = {
     ownedProvenance: "소유 이미지 출처",
     externalRuntime: "외부 런타임",
     runtimeReview: "런타임 검토",
+    sourceDigest: "소스 digest",
+    reviewerRequests: "검토 요청",
+    finalEvidence: "최종 근거",
+    candidateMatrix: "후보 매트릭스",
+    candidateHandoff: "후보 인계",
+    finalHandoff: "최종 인계",
+    bestCandidate: "최선 후보",
+    candidate: "후보",
+    criticalFindings: "치명 등급",
+    highFindings: "높음 등급",
+    releaseEligible: "릴리스 가능",
+    finalReady: "최종 준비",
+    promotionCommands: "승격 명령",
+    reviewedInput: "검토된 입력",
+    zeroCritical: "치명 0건",
+    registryPacket: "레지스트리 패킷",
+    loginExecuted: "로그인 실행",
+    authRequired: "인증 필요",
+    credentialStored: "자격 저장",
+    registryLogin: "레지스트리 로그인",
+    reviewerActionsClear: "검토자 작업 없음",
+    registryActionsClear: "레지스트리 작업 없음",
+    registryTicketsClear: "레지스트리 티켓 없음",
+    notRun: "미실행",
     securityScan: "보안 스캔",
     releasePublish: "릴리스 게시",
     releaseRefresh: "릴리스 갱신",
@@ -6818,95 +6884,120 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               data-testid="opslens-external-runtime-review-packet"
             >
               <div className="admin-evidence-line">
-                <span>{externalRuntimeReview.artifactStatus}</span>
-                <span>{externalRuntimeReview.actionMode}</span>
+                <span>{statusText(language, externalRuntimeReview.artifactStatus)}</span>
+                <span>{actionModeText(language, externalRuntimeReview.actionMode)}</span>
                 <span>
-                  registryMutationAttempted=
-                  {String(externalRuntimeReview.registryMutationAttempted)}
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
+                    externalRuntimeReview.registryMutationAttempted
+                  )}
                 </span>
                 <span>
-                  clusterMutationAttempted=
-                  {String(externalRuntimeReview.clusterMutationAttempted)}
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
+                    externalRuntimeReview.clusterMutationAttempted
+                  )}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(externalRuntimeReview.mutationAllowedByThisVerifier)}
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(
+                    language,
+                    externalRuntimeReview.mutationAllowedByThisVerifier
+                  )}
                 </span>
               </div>
               <div className="approval-summary-grid">
                 <div>
-                  <span>Packet</span>
+                  <span>{copy.packet}</span>
                   <strong>
                     {externalRuntimeReview.markdownPath.split(/[\\/]/).pop() ??
                       externalRuntimeReview.markdownPath}
                   </strong>
                 </div>
                 <div>
-                  <span>Reviewer Requests</span>
+                  <span>{copy.reviewerRequests}</span>
                   <strong>
-                    {externalRuntimeReview.images
-                      .map(
-                        (image) =>
-                          `${image.name}:${image.reviewerRequests.length}`
-                      )
-                      .join(", ") || "none"}
+                    {mappedList(copy, externalRuntimeReview.images, (image) =>
+                      `${image.name} / ${copy.reviewerRequests}: ${image.reviewerRequests.length}`
+                    )}
                   </strong>
                 </div>
                 <div>
-                  <span>Source Digest</span>
+                  <span>{copy.sourceDigest}</span>
                   <strong>
-                    {externalRuntimeReview.images
-                      .map(
-                        (image) =>
-                          `${image.name}:${image.sourceDigestInspectionStatus}`
-                      )
-                      .join(", ") || "missing"}
+                    {mappedList(copy, externalRuntimeReview.images, (image) =>
+                      `${image.name} / ${copy.status}: ${statusText(
+                        language,
+                        image.sourceDigestInspectionStatus
+                      )}`
+                    )}
                   </strong>
                 </div>
                 <div>
-                  <span>Final Evidence</span>
+                  <span>{copy.finalEvidence}</span>
                   <strong>
-                    {externalRuntimeReview.images
-                      .map(
-                        (image) =>
-                          `${image.name}:${String(image.finalEvidenceExists)}`
-                      )
-                      .join(", ") || "missing"}
+                    {mappedList(copy, externalRuntimeReview.images, (image) =>
+                      `${image.name} / ${copy.exists}: ${booleanText(
+                        language,
+                        image.finalEvidenceExists
+                      )}`
+                    )}
                   </strong>
                 </div>
                 <div>
-                  <span>Candidate Matrix</span>
+                  <span>{copy.candidateMatrix}</span>
                   <strong>
-                    {externalRuntimeReview.images
-                      .map((image) => {
-                        const best = image.candidateMatrix.bestCandidate;
-                        return best
-                          ? `${image.name}:${image.candidateMatrix.status} best=${best.label} critical=${best.criticalFindings} high=${best.highFindings}`
-                          : `${image.name}:${image.candidateMatrix.status} best=missing`;
-                      })
-                      .join(", ") || "missing"}
+                    {mappedList(copy, externalRuntimeReview.images, (image) => {
+                      const best = image.candidateMatrix.bestCandidate;
+                      return [
+                        image.name,
+                        `${copy.status}: ${statusText(
+                          language,
+                          image.candidateMatrix.status
+                        )}`,
+                        `${copy.bestCandidate}: ${best?.label ?? copy.none}`,
+                        `${copy.criticalFindings}: ${
+                          best?.criticalFindings ?? copy.none
+                        }`,
+                        `${copy.highFindings}: ${best?.highFindings ?? copy.none}`
+                      ].join(" / ");
+                    })}
                   </strong>
                 </div>
                 <div>
-                  <span>Candidate Handoff</span>
+                  <span>{copy.candidateHandoff}</span>
                   <strong>
-                    {externalRuntimeReview.candidateHandoff
-                      .map(
-                        (handoff) =>
-                          `${handoff.imageName}:${handoff.status} eligible=${String(handoff.releaseEligible)}`
-                      )
-                      .join(", ") || "missing"}
+                    {mappedList(
+                      copy,
+                      externalRuntimeReview.candidateHandoff,
+                      (handoff) =>
+                        `${handoff.imageName} / ${copy.status}: ${statusText(
+                          language,
+                          handoff.status
+                        )} / ${copy.releaseEligible}: ${booleanText(
+                          language,
+                          handoff.releaseEligible
+                        )}`
+                    )}
                   </strong>
                 </div>
                 <div>
-                  <span>Final Handoff</span>
+                  <span>{copy.finalHandoff}</span>
                   <strong>
-                    {externalRuntimeReview.finalEvidenceHandoff
-                      .map(
-                        (handoff) =>
-                          `${handoff.imageName}:${handoff.status} approval=${String(handoff.approvalRequired)}`
-                      )
-                      .join(", ") || "missing"}
+                    {mappedList(
+                      copy,
+                      externalRuntimeReview.finalEvidenceHandoff,
+                      (handoff) =>
+                        `${handoff.imageName} / ${copy.status}: ${statusText(
+                          language,
+                          handoff.status
+                        )} / ${copy.approvalRequired}: ${booleanText(
+                          language,
+                          handoff.approvalRequired
+                        )}`
+                    )}
                   </strong>
                 </div>
               </div>
@@ -6916,7 +7007,27 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {externalRuntimeReview.candidateHandoff.map((handoff) => (
                   <span key={`${handoff.imageName}-candidate-handoff`}>
-                    {`${handoff.imageName}:${handoff.status}:owner=${handoff.owner}:candidate=${handoff.candidateImage}:critical=${handoff.criticalFindings}:high=${handoff.highFindings}:releaseEligible=${String(handoff.releaseEligible)}:approvalRequired=${String(handoff.approvalRequired)}:mutationAllowed=${String(handoff.mutationAllowed)}:next=${handoff.nextCommand}`}
+                    {[
+                      handoff.imageName,
+                      `${copy.status}: ${statusText(language, handoff.status)}`,
+                      `${copy.owner}: ${handoff.owner}`,
+                      `${copy.candidate}: ${handoff.candidateImage}`,
+                      `${copy.criticalFindings}: ${handoff.criticalFindings}`,
+                      `${copy.highFindings}: ${handoff.highFindings}`,
+                      `${copy.releaseEligible}: ${booleanText(
+                        language,
+                        handoff.releaseEligible
+                      )}`,
+                      `${copy.approvalRequired}: ${booleanText(
+                        language,
+                        handoff.approvalRequired
+                      )}`,
+                      `${copy.mutationAllowed}: ${booleanText(
+                        language,
+                        handoff.mutationAllowed
+                      )}`,
+                      `${copy.nextCommand}: ${handoff.nextCommand}`
+                    ].join(" / ")}
                   </span>
                 ))}
               </div>
@@ -6926,7 +7037,35 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {externalRuntimeReview.finalEvidenceHandoff.map((handoff) => (
                   <span key={`${handoff.imageName}-final-handoff`}>
-                    {`${handoff.imageName}:${handoff.status}:owner=${handoff.owner}:finalEvidence=${String(handoff.finalEvidenceExists)}:requests=${handoff.reviewerRequestCount}:missing=${handoff.missingEvidenceCount}:approvalRequired=${String(handoff.approvalRequired)}:requiresExplicitApproval=${String(handoff.requiresExplicitApproval)}:mutationAllowed=${String(handoff.mutationAllowed)}:writesLocalEvidence=${String(handoff.writesLocalEvidence)}:next=${handoff.promotionCommand}:verify=${handoff.verificationCommand}`}
+                    {[
+                      handoff.imageName,
+                      `${copy.status}: ${statusText(language, handoff.status)}`,
+                      `${copy.owner}: ${handoff.owner}`,
+                      `${copy.finalEvidence}: ${booleanText(
+                        language,
+                        handoff.finalEvidenceExists
+                      )}`,
+                      `${copy.reviewerRequests}: ${handoff.reviewerRequestCount}`,
+                      `${copy.evidenceGaps}: ${handoff.missingEvidenceCount}`,
+                      `${copy.approvalRequired}: ${booleanText(
+                        language,
+                        handoff.approvalRequired
+                      )}`,
+                      `${copy.requiresApproval}: ${booleanText(
+                        language,
+                        handoff.requiresExplicitApproval
+                      )}`,
+                      `${copy.mutationAllowed}: ${booleanText(
+                        language,
+                        handoff.mutationAllowed
+                      )}`,
+                      `${copy.writesLocalEvidence}: ${booleanText(
+                        language,
+                        handoff.writesLocalEvidence
+                      )}`,
+                      `${copy.nextCommand}: ${handoff.promotionCommand}`,
+                      `${copy.validate}: ${handoff.verificationCommand}`
+                    ].join(" / ")}
                   </span>
                 ))}
               </div>
@@ -6936,53 +7075,60 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 <span>{externalRuntimeReview.finalEvidenceAction.id}</span>
                 <span>
-                  owner={externalRuntimeReview.finalEvidenceAction.owner}
+                  {copy.owner}: {externalRuntimeReview.finalEvidenceAction.owner}
                 </span>
                 <span>
-                  status={externalRuntimeReview.finalEvidenceAction.status}
+                  {copy.status}:{" "}
+                  {statusText(
+                    language,
+                    externalRuntimeReview.finalEvidenceAction.status
+                  )}
                 </span>
                 <span>
-                  ready=
+                  {copy.finalReady}:{" "}
                   {externalRuntimeReview.finalEvidenceAction.finalEvidenceReadyCount}
                   /{externalRuntimeReview.finalEvidenceAction.imageCount}
                 </span>
                 <span>
-                  requests=
+                  {copy.reviewerRequests}:{" "}
                   {externalRuntimeReview.finalEvidenceAction.reviewerRequestCount}
                 </span>
                 <span>
-                  missing=
+                  {copy.evidenceGaps}:{" "}
                   {externalRuntimeReview.finalEvidenceAction.missingEvidenceCount}
                 </span>
                 <span>
-                  first=
+                  {copy.firstReadOnly}:{" "}
                   {externalRuntimeReview.finalEvidenceAction.firstReadOnlyCommand}
                 </span>
                 <span>
-                  verify=
+                  {copy.validate}:{" "}
                   {externalRuntimeReview.finalEvidenceAction.verificationCommand}
                 </span>
                 <span>
-                  promote=
+                  {copy.promotionCommands}:{" "}
                   {externalRuntimeReview.finalEvidenceAction.promotionCommands
                     .slice(0, 2)
                     .join(", ")}
                 </span>
                 <span>
-                  writesLocalEvidence=
-                  {String(
+                  {copy.writesLocalEvidence}:{" "}
+                  {booleanText(
+                    language,
                     externalRuntimeReview.finalEvidenceAction.writesLocalEvidence
                   )}
                 </span>
                 <span>
-                  reviewedInput=
-                  {String(
+                  {copy.reviewedInput}:{" "}
+                  {booleanText(
+                    language,
                     externalRuntimeReview.finalEvidenceAction.requiresReviewedInput
                   )}
                 </span>
                 <span>
-                  mutationAllowed=
-                  {String(
+                  {copy.mutationAllowed}:{" "}
+                  {booleanText(
+                    language,
                     externalRuntimeReview.finalEvidenceAction.mutationAllowed
                   )}
                 </span>
@@ -6993,11 +7139,25 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {externalRuntimeReview.images.map((image) => (
                   <span key={`${image.name}-candidate`}>
-                    {image.name}:candidate={image.candidateMatrix.status}
-                    {image.candidateMatrix.bestCandidate
-                      ? ` critical=${image.candidateMatrix.bestCandidate.criticalFindings} high=${image.candidateMatrix.bestCandidate.highFindings}`
-                      : " best=missing"} zeroCritical=
-                    {image.candidateMatrix.zeroCriticalCount}
+                    {[
+                      image.name,
+                      `${copy.candidate}: ${statusText(
+                        language,
+                        image.candidateMatrix.status
+                      )}`,
+                      `${copy.bestCandidate}: ${
+                        image.candidateMatrix.bestCandidate?.label ?? copy.none
+                      }`,
+                      `${copy.criticalFindings}: ${
+                        image.candidateMatrix.bestCandidate?.criticalFindings ??
+                        copy.none
+                      }`,
+                      `${copy.highFindings}: ${
+                        image.candidateMatrix.bestCandidate?.highFindings ??
+                        copy.none
+                      }`,
+                      `${copy.zeroCritical}: ${image.candidateMatrix.zeroCriticalCount}`
+                    ].join(" / ")}
                   </span>
                 ))}
               </div>
@@ -7008,12 +7168,19 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {externalRuntimeReview.firstReviewerActions.length ? (
                   externalRuntimeReview.firstReviewerActions.map((action) => (
                     <span key={`${action.imageName}-${action.role}`}>
-                      {action.imageName}:{action.role}:{action.nextCommand}:
-                      finalEvidence={String(action.finalEvidenceExists)}
+                      {[
+                        action.imageName,
+                        `${copy.owner}: ${action.role}`,
+                        `${copy.nextCommand}: ${action.nextCommand}`,
+                        `${copy.finalEvidence}: ${booleanText(
+                          language,
+                          action.finalEvidenceExists
+                        )}`
+                      ].join(" / ")}
                     </span>
                   ))
                 ) : (
-                  <span>first reviewer actions clear</span>
+                  <span>{copy.reviewerActionsClear}</span>
                 )}
               </div>
               <div
@@ -7023,13 +7190,24 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {externalRuntimeReview.firstRegistryActions.length ? (
                   externalRuntimeReview.firstRegistryActions.map((action) => (
                     <span key={action.id}>
-                      {action.id}:{action.owner}:{action.status}:next=
-                      {action.nextCommand}:mutation={String(action.mutation)}
-                      :approval={String(action.requiresExplicitApproval)}
+                      {[
+                        action.id,
+                        `${copy.owner}: ${action.owner}`,
+                        `${copy.status}: ${statusText(language, action.status)}`,
+                        `${copy.nextCommand}: ${action.nextCommand}`,
+                        `${copy.mutationAllowed}: ${booleanText(
+                          language,
+                          action.mutation
+                        )}`,
+                        `${copy.approvalRequired}: ${booleanText(
+                          language,
+                          action.requiresExplicitApproval
+                        )}`
+                      ].join(" / ")}
                     </span>
                   ))
                 ) : (
-                  <span>registry first actions clear</span>
+                  <span>{copy.registryActionsClear}</span>
                 )}
               </div>
               <div
@@ -7037,14 +7215,17 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-external-runtime-registry-tickets"
               >
                 <span>
-                  registryPacket=
+                  {copy.registryPacket}:{" "}
                   {externalRuntimeReview.registryAdminPacket.markdownPath
                     .split(/[\\/]/)
                     .pop()}
-                  :exists=
-                  {String(externalRuntimeReview.registryAdminPacket.exists)}
-                  :loginExecuted=
-                  {String(
+                  {" / "}
+                  {copy.exists}:{" "}
+                  {booleanText(language, externalRuntimeReview.registryAdminPacket.exists)}
+                  {" / "}
+                  {copy.loginExecuted}:{" "}
+                  {booleanText(
+                    language,
                     externalRuntimeReview.registryAdminPacket
                       .registryLoginExecutedByVerifier
                   )}
@@ -7052,27 +7233,37 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 {externalRuntimeReview.ticketPackets.length ? (
                   externalRuntimeReview.ticketPackets.map((ticket) => (
                     <span key={ticket.id}>
-                      {ticket.id}:{ticket.owner}:{ticket.severity}:image=
-                      {ticket.imageName}:classification={ticket.classification}
-                      :authRequired=
-                      {String(ticket.registryAuthBoundary?.authRequired ?? false)}
-                      :credentialStored=
-                      {String(
-                        ticket.registryAuthBoundary?.credentialStoredByVerifier ??
-                          false
-                      )}
-                      :registryLogin=
-                      {String(
-                        ticket.registryAuthBoundary
-                          ?.registryLoginExecutedByVerifier ?? false
-                      )}
-                      :first={ticket.firstReadOnlyAction.id}:approval=
-                      {ticket.approvalGatedAction.id}:requiresApproval=
-                      {String(ticket.approvalGatedAction.requiresExplicitApproval)}
+                      {[
+                        ticket.id,
+                        `${copy.owner}: ${ticket.owner}`,
+                        `${copy.severity}: ${ticket.severity}`,
+                        `${copy.imageBuilds}: ${ticket.imageName}`,
+                        `${copy.classification}: ${ticket.classification}`,
+                        `${copy.authRequired}: ${booleanText(
+                          language,
+                          ticket.registryAuthBoundary?.authRequired ?? false
+                        )}`,
+                        `${copy.credentialStored}: ${booleanText(
+                          language,
+                          ticket.registryAuthBoundary
+                            ?.credentialStoredByVerifier ?? false
+                        )}`,
+                        `${copy.registryLogin}: ${booleanText(
+                          language,
+                          ticket.registryAuthBoundary
+                            ?.registryLoginExecutedByVerifier ?? false
+                        )}`,
+                        `${copy.firstAction}: ${ticket.firstReadOnlyAction.id}`,
+                        `${copy.approvalAction}: ${ticket.approvalGatedAction.id}`,
+                        `${copy.requiresApproval}: ${booleanText(
+                          language,
+                          ticket.approvalGatedAction.requiresExplicitApproval
+                        )}`
+                      ].join(" / ")}
                     </span>
                   ))
                 ) : (
-                  <span>registry tickets clear</span>
+                  <span>{copy.registryTicketsClear}</span>
                 )}
               </div>
               <div
@@ -7095,15 +7286,16 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   .slice(0, 3)
                   .map((command) => (
                     <span key={command.id}>
-                      {command.id} mutation={String(command.mutation)}
+                      {command.id} / {copy.mutationAllowed}:{" "}
+                      {booleanText(language, command.mutation)}
                     </span>
                   ))}
                 {externalRuntimeReview.approvalGatedCommands
                   .slice(0, 3)
                   .map((command) => (
                     <span key={command.id}>
-                      not-run {command.id} approval=
-                      {String(command.requiresExplicitApproval)}
+                      {copy.notRun}: {command.id} / {copy.approvalRequired}:{" "}
+                      {booleanText(language, command.requiresExplicitApproval)}
                     </span>
                   ))}
               </div>
