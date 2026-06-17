@@ -521,13 +521,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     page
   }) => {
     await openAssistant(page);
-    await expect(page.getByTestId("api-status")).toContainText("API ready");
+    await expect(page.getByTestId("api-status")).toContainText("API connected");
     await expect(page.getByTestId("assistant-connection-status")).toContainText(
-      "local plan-only"
+      "API connected / plan-only"
     );
     await expect(page.getByTestId("context-chips")).toContainText("Cluster");
     await expect(page.getByTestId("context-chips")).toContainText(
-      "prod-ocp"
+      "CRC preview"
     );
     await expect(page.getByTestId("context-chips")).toContainText(
       "openshift-cluster-version"

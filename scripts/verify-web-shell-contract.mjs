@@ -279,6 +279,8 @@ expectCheck(
     assistantSource.includes("OpenShift 사용자 토큰 프록시") &&
     assistantSource.includes("실행 안 함") &&
     assistantSource.includes("answer source") &&
+    assistantSource.includes('readyStatus: "API connected / plan-only"') &&
+    assistantSource.includes('readyStatus: "API 연결됨 / 계획 전용"') &&
     assistantSource.includes("local plan-only fallback") &&
     assistantSource.includes("OpenShift UserToken proxy") &&
     assistantSource.includes("not executed") &&

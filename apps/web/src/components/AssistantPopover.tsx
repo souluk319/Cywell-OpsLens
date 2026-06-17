@@ -40,7 +40,7 @@ const assistantCopy = {
   en: {
     ariaLabel: "KOMSCO AI Assistant",
     eyebrow: "KOMSCO AI Assistant",
-    readyStatus: "local plan-only",
+    readyStatus: "API connected / plan-only",
     close: "Close assistant",
     request: "request",
     model: "model",
@@ -87,7 +87,7 @@ const assistantCopy = {
   ko: {
     ariaLabel: "KOMSCO AI 어시스턴트",
     eyebrow: "KOMSCO AI 어시스턴트",
-    readyStatus: "로컬 계획 전용",
+    readyStatus: "API 연결됨 / 계획 전용",
     close: "어시스턴트 닫기",
     request: "요청",
     model: "모델",
