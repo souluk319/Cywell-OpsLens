@@ -654,6 +654,15 @@ function validateCsv(csv) {
       fail(`CSV related image ${imageName}`, "missing");
     }
   }
+  const firstRelatedImages = relatedImages.slice(0, 3);
+  if (JSON.stringify(firstRelatedImages) === JSON.stringify(["operator", "api", "dashboard"])) {
+    pass("CSV related image default order", "owned images are listed before external runtime images");
+  } else {
+    fail(
+      "CSV related image default order",
+      `first relatedImages must be operator/api/dashboard, got ${firstRelatedImages.join("/") || "missing"}`
+    );
+  }
 
   const icon = csv?.spec?.icon?.[0];
   const iconData = icon?.base64data ?? "";

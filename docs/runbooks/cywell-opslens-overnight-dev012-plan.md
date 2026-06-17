@@ -820,6 +820,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - `npm run verify:operator` now fails if the first OperatorHub CR example is not the `crc-lightweight` profile.
 - This turns the repeated CRC install failure class into a package contract: local demos default to in-memory RAG, mock-local model runtime, and `ValidateOnly`; approved installs still keep the explicit pgvector/vLLM/PatchOLSConfig example.
 
+### 2026-06-18 - Lane 57
+
+- Added a `relatedImages` ordering gate to `npm run verify:operator`.
+- The CSV must now list owned images first: `operator`, `api`, `dashboard`; external runtime images such as vLLM and pgvector remain declared but cannot become the first package signal.
+- This guards the CRC install diagnosis path where a pgvector-first related image looked like stale package evidence.
+
 Checkpoint cadence:
 
 - every 30 minutes while the user is away
