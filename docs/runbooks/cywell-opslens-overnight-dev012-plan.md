@@ -218,6 +218,7 @@ Every checkpoint:
 4. Validate before committing.
 5. Commit and push only intentional files.
 6. Never commit `.env`, secrets, ignored evidence, or `desktop.ini`.
+7. If blocked, write the blocker with exact evidence instead of retrying random commands.
 
 ## Execution Log
 
@@ -235,7 +236,20 @@ Every checkpoint:
   - ConsolePlugin mode shows route + proxy scope
 - Product boundary remains explicit: OpsLens can add the Operator-backed route, launcher entry, dashboard/API proxy, and MCP readiness surfaces; native OpenShift chrome and the Lightspeed drawer remain OpenShift-owned unless a separately verified console extension path changes them.
 - Protected the scope distinction in `npm run verify:web-shell`.
-7. If blocked, write the blocker with exact evidence instead of retrying random commands.
+
+### 2026-06-17 - Lane 3
+
+- Fixed the Go controller owner reference path so reconciled child resources use `blockOwnerDeletion=false` and no longer require `opslensinstallations/finalizers` permission.
+- Removed the now-unneeded finalizer RBAC from both config RBAC and the Operator CSV.
+- Added `deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation_crc_lightweight.yaml` for CRC demos:
+  - internal CRC API/dashboard images
+  - `vectorStore.provider=inmemory`
+  - `modelRuntime.provider=mock-local`
+  - `lightspeedRegistration.mode=ValidateOnly`
+  - ConsolePlugin enabled
+- Extended Operator verifiers so the CRC lightweight sample and no-finalizer RBAC contract are checked automatically.
+- Passed `npm run verify:operator:reconcile`, `npm run verify:operator:runtime`, and `npm run verify:operator`.
+- Note: local `gofmt` is unavailable on this Windows workspace; Go formatting was reviewed in-place and remains covered by the container build/tooling lane.
 
 Checkpoint cadence:
 

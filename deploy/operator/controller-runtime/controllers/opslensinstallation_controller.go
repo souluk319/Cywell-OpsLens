@@ -905,7 +905,29 @@ func (r *OpsLensInstallationReconciler) setControllerReferenceIfSameNamespace(in
 	if installation.Namespace != namespace {
 		return nil
 	}
-	return controllerutil.SetControllerReference(installation, object, r.Scheme)
+	controller := true
+	blockOwnerDeletion := false
+	ownerReference := metav1.OwnerReference{
+		APIVersion:         opslensv1alpha1.GroupVersion.String(),
+		Kind:               "OpsLensInstallation",
+		Name:               installation.Name,
+		UID:                installation.UID,
+		Controller:         &controller,
+		BlockOwnerDeletion: &blockOwnerDeletion,
+	}
+	ownerReferences := object.GetOwnerReferences()
+	nextOwnerReferences := make([]metav1.OwnerReference, 0, len(ownerReferences)+1)
+	for _, existing := range ownerReferences {
+		if existing.APIVersion == ownerReference.APIVersion && existing.Kind == ownerReference.Kind && existing.Name == ownerReference.Name {
+			continue
+		}
+		if existing.Controller != nil && *existing.Controller {
+			return fmt.Errorf("%s/%s is already controlled by %s/%s", object.GetNamespace(), object.GetName(), existing.APIVersion, existing.Name)
+		}
+		nextOwnerReferences = append(nextOwnerReferences, existing)
+	}
+	object.SetOwnerReferences(append(nextOwnerReferences, ownerReference))
+	return nil
 }
 
 func targetNamespace(installation *opslensv1alpha1.OpsLensInstallation) string {

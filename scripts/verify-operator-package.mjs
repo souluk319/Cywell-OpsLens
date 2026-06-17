@@ -10,6 +10,8 @@ const execFileAsync = promisify(execFile);
 const paths = {
   crd: "deploy/operator/config/crd/opslens.cywell.io_opslensinstallations.yaml",
   sample: "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation.yaml",
+  crcSample:
+    "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation_crc_lightweight.yaml",
   serviceAccount: "deploy/operator/config/rbac/service_account.yaml",
   clusterRole: "deploy/operator/config/rbac/cluster_role.yaml",
   clusterRoleBinding: "deploy/operator/config/rbac/cluster_role_binding.yaml",
@@ -335,6 +337,53 @@ function validateSample(sample) {
   }
 }
 
+function validateCrcSample(sample) {
+  if (sample?.apiVersion === "opslens.cywell.io/v1alpha1" && sample?.kind === "OpsLensInstallation") {
+    pass("CRC sample CR identity", label(sample));
+  } else {
+    fail("CRC sample CR identity", `${sample?.apiVersion ?? "missing"} ${label(sample)}`);
+  }
+
+  if (
+    sample?.metadata?.annotations?.["opslens.cywell.io/profile"] === "crc-lightweight" &&
+    sample?.spec?.components?.vectorStore?.provider === "inmemory" &&
+    sample?.spec?.components?.modelRuntime?.provider === "mock-local" &&
+    sample?.spec?.components?.modelRuntime?.gpu?.enabled === false
+  ) {
+    pass("CRC sample lightweight runtime", "inmemory vector store and mock-local model runtime avoid pgvector/vLLM workloads");
+  } else {
+    fail("CRC sample lightweight runtime", "CRC sample must use inmemory + mock-local with GPU disabled");
+  }
+
+  if (sample?.spec?.lightspeedRegistration?.mode === "ValidateOnly") {
+    pass("CRC sample Lightspeed mode", "ValidateOnly avoids accidental OLSConfig patching during local CRC demo setup");
+  } else {
+    fail("CRC sample Lightspeed mode", "CRC sample must keep lightspeedRegistration.mode=ValidateOnly");
+  }
+
+  if (
+    sample?.spec?.components?.api?.image?.includes("image-registry.openshift-image-registry.svc:5000") &&
+    sample?.spec?.components?.dashboard?.image?.includes("image-registry.openshift-image-registry.svc:5000") &&
+    !sample?.spec?.components?.modelRuntime?.image
+  ) {
+    pass("CRC sample internal images", "API/dashboard point to internal CRC image registry and no vLLM image is required");
+  } else {
+    fail("CRC sample internal images", "CRC sample must use internal API/dashboard images and omit vLLM image");
+  }
+
+  if (
+    sample?.spec?.rag?.documentIntake?.mode === "ValidateOnly" &&
+    sample?.spec?.rag?.documentIntake?.rawDocumentReturnAllowed === false &&
+    sample?.spec?.rag?.approvalQueue?.mode === "DesignOnly" &&
+    sample?.spec?.rag?.approvalQueue?.enqueueAllowed === false &&
+    sample?.spec?.consolePlugin?.enabled === true
+  ) {
+    pass("CRC sample safety policy", "RAG remains validate-only/design-only and ConsolePlugin stays enabled");
+  } else {
+    fail("CRC sample safety policy", "CRC sample must keep RAG non-mutating and ConsolePlugin enabled");
+  }
+}
+
 function validateRbac(clusterRole, csv) {
   const rbacRules = clusterRole?.rules ?? [];
   if (hasRuleFor(rbacRules, "ols.openshift.io", "olsconfigs", ["get", "patch"])) {
@@ -379,10 +428,10 @@ function validateRbac(clusterRole, csv) {
     fail("config RBAC leader election", "leases get/create/update/patch permissions are missing");
   }
 
-  if (hasRuleFor(rbacRules, "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"])) {
-    pass("config RBAC owner finalizers", "operator can set owner references that require finalizer access");
+  if (!hasRuleFor(rbacRules, "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"])) {
+    pass("config RBAC no owner finalizers", "operator avoids blockOwnerDeletion and does not need opslensinstallation finalizer permissions");
   } else {
-    fail("config RBAC owner finalizers", "opslensinstallations/finalizers update/patch permissions are missing");
+    fail("config RBAC no owner finalizers", "opslensinstallations/finalizers permissions must stay out after blockOwnerDeletion was disabled");
   }
 
   const csvRules = (csv?.spec?.install?.spec?.clusterPermissions ?? []).flatMap(
@@ -436,10 +485,10 @@ function validateRbac(clusterRole, csv) {
     fail("CSV RBAC leader election", "leases permissions are missing");
   }
 
-  if (hasRuleFor(csvRules, "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"])) {
-    pass("CSV RBAC owner finalizers", "can set owner references for reconciled child resources");
+  if (!hasRuleFor(csvRules, "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"])) {
+    pass("CSV RBAC no owner finalizers", "bundle avoids finalizer permissions because owner references use blockOwnerDeletion=false");
   } else {
-    fail("CSV RBAC owner finalizers", "opslensinstallations/finalizers permissions are missing");
+    fail("CSV RBAC no owner finalizers", "CSV must not grant opslensinstallations/finalizers after blockOwnerDeletion was disabled");
   }
 }
 
@@ -1092,6 +1141,7 @@ function printSummary() {
 try {
   const crd = await loadSingle(paths.crd);
   const sample = await loadSingle(paths.sample);
+  const crcSample = await loadSingle(paths.crcSample);
   await loadSingle(paths.serviceAccount);
   const clusterRole = await loadSingle(paths.clusterRole);
   await loadSingle(paths.clusterRoleBinding);
@@ -1105,6 +1155,7 @@ try {
   validateCrd(crd, "config");
   validateCrd(bundleCrd, "bundle");
   validateSample(sample);
+  validateCrcSample(crcSample);
   validateCsv(csv);
   validateRbac(clusterRole, csv);
   validateApps(apps);

@@ -364,6 +364,15 @@ try {
     "API deployment uses the managed cywell-opslens-api service account"
   );
 
+  expectCheck(
+    "Go ownerReference avoids blockOwnerDeletion finalizer permission",
+    controller.includes("blockOwnerDeletion := false") &&
+      controller.includes("BlockOwnerDeletion: &blockOwnerDeletion") &&
+      controller.includes("object.SetOwnerReferences") &&
+      !controller.includes("SetControllerReference(installation"),
+    "owned resources keep same-namespace controller references without requiring finalizer/blockOwnerDeletion permission"
+  );
+
   const ragPolicy = findResource(plan, "ConfigMap", "cywell-opslens-rag-policy");
   for (const [key, value] of Object.entries(ragPolicy?.data ?? {})) {
     expectCheck(
@@ -592,9 +601,9 @@ try {
 
   expectCheck(
     "RBAC owner finalizer parity",
-    hasRuleFor(clusterRole?.rules ?? [], "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"]) &&
-      hasRuleFor(csvRules, "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"]),
-    "config RBAC and CSV RBAC cover ownerReferences that need finalizer access"
+    !hasRuleFor(clusterRole?.rules ?? [], "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"]) &&
+      !hasRuleFor(csvRules, "opslens.cywell.io", "opslensinstallations/finalizers", ["update", "patch"]),
+    "config RBAC and CSV RBAC omit finalizer permissions because Go owner references use blockOwnerDeletion=false"
   );
 
   expectCheck(

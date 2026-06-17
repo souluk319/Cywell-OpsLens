@@ -10,6 +10,8 @@ const execFileAsync = promisify(execFile);
 
 const paths = {
   patchInstallation: "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation.yaml",
+  crcLightweightInstallation:
+    "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation_crc_lightweight.yaml",
   validateOnlyInstallation: "deploy/operator/fixtures/opslensinstallation-validateonly.yaml",
   baseOlsConfig: "deploy/operator/fixtures/olsconfig-base.yaml",
   registeredOlsConfig: "deploy/operator/fixtures/olsconfig-registered.yaml"
@@ -48,6 +50,7 @@ const startedAt = new Date().toISOString();
 let evidenceContext = {
   validateOnlyPlan: undefined,
   patchPlan: undefined,
+  crcLightweightPlan: undefined,
   lightweightPlan: undefined,
   readyPlan: undefined,
   missingPlan: undefined
@@ -189,13 +192,15 @@ async function writeEvidence() {
     planSummaries: {
       validateOnly: summarizePlan(evidenceContext.validateOnlyPlan),
       patchOLSConfig: summarizePlan(evidenceContext.patchPlan),
-      crcLightweight: summarizePlan(evidenceContext.lightweightPlan),
+      derivedLightweight: summarizePlan(evidenceContext.lightweightPlan),
+      checkedInCrcLightweight: summarizePlan(evidenceContext.crcLightweightPlan),
       alreadyRegistered: summarizePlan(evidenceContext.readyPlan),
       missingOLSConfig: summarizePlan(evidenceContext.missingPlan)
     },
     evidence: [
       "ValidateOnly reports Lightspeed registration gaps without patching OLSConfig.",
       "PatchOLSConfig preserves existing featureGates and MCP servers while planning the Cywell /mcp registration.",
+      "The checked-in CRC lightweight sample uses inmemory + mock-local + ValidateOnly to avoid pgvector, vLLM, and OLSConfig patch surprises during local demos.",
       "Missing OLSConfig blocks patching instead of inventing or overwriting a cluster resource.",
       "Assistant actions remain plan-only; only explicit Operator install reconciliation can patch OLSConfig."
     ],
@@ -239,6 +244,7 @@ function printSummary() {
 
 try {
   const patchInstallation = await loadSingleYaml(paths.patchInstallation);
+  const crcLightweightInstallation = await loadSingleYaml(paths.crcLightweightInstallation);
   const validateOnlyInstallation = await loadSingleYaml(paths.validateOnlyInstallation);
   const baseOlsConfig = await loadSingleYaml(paths.baseOlsConfig);
   const registeredOlsConfig = await loadSingleYaml(paths.registeredOlsConfig);
@@ -370,6 +376,35 @@ try {
       !lightweightApiEnvNames.has("CYWELL_OPSLENS_MODEL_URL") &&
       lightweightPlan.policy.assistantMutationAllowed === false,
     "API does not reference absent Postgres or vLLM services in the lightweight CRC profile"
+  );
+
+  const crcLightweightPlan = buildOpsLensReconcilePlan(crcLightweightInstallation, baseOlsConfig);
+  evidenceContext.crcLightweightPlan = crcLightweightPlan;
+  const crcLightweightApi = findResource(crcLightweightPlan, "Deployment", "cywell-opslens-api");
+  const crcLightweightApiEnvNames = envNames(crcLightweightApi);
+  expectCheck(
+    "CRC lightweight sample omits external runtime workloads",
+    crcLightweightInstallation.metadata?.annotations?.["opslens.cywell.io/profile"] === "crc-lightweight" &&
+      crcLightweightInstallation.spec.components.vectorStore.provider === "inmemory" &&
+      crcLightweightInstallation.spec.components.modelRuntime.provider === "mock-local" &&
+      crcLightweightInstallation.spec.lightspeedRegistration.mode === "ValidateOnly" &&
+      Boolean(crcLightweightApi) &&
+      Boolean(findResource(crcLightweightPlan, "Deployment", "cywell-opslens-dashboard")) &&
+      Boolean(findResource(crcLightweightPlan, "ConsolePlugin", "cywell-opslens")) &&
+      !findResource(crcLightweightPlan, "Secret", "cywell-opslens-postgres-auth") &&
+      !findResource(crcLightweightPlan, "StatefulSet", "cywell-opslens-vector") &&
+      !findResource(crcLightweightPlan, "Service", "cywell-opslens-vector") &&
+      !findResource(crcLightweightPlan, "Deployment", "cywell-opslens-vllm") &&
+      !findResource(crcLightweightPlan, "Service", "cywell-opslens-vllm"),
+    "checked-in CRC sample installs API, dashboard, ConsolePlugin, and local RAG without pgvector/vLLM workloads"
+  );
+  expectCheck(
+    "CRC lightweight sample avoids dangling runtime env",
+    crcLightweightApiEnvNames.has("CYWELL_OPSLENS_VECTOR_PROVIDER") &&
+      !crcLightweightApiEnvNames.has("CYWELL_OPSLENS_POSTGRES_URL") &&
+      !crcLightweightApiEnvNames.has("CYWELL_OPSLENS_MODEL_URL") &&
+      crcLightweightPlan.policy.assistantMutationAllowed === false,
+    "checked-in CRC sample does not point API at absent Postgres or vLLM services"
   );
 
   const readyPlan = buildOpsLensReconcilePlan(patchInstallation, registeredOlsConfig);

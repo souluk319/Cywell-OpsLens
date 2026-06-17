@@ -172,13 +172,6 @@ spec:
                 - update
                 - patch
             - apiGroups:
-                - opslens.cywell.io
-              resources:
-                - opslensinstallations/finalizers
-              verbs:
-                - update
-                - patch
-            - apiGroups:
                 - coordination.k8s.io
               resources:
                 - leases
