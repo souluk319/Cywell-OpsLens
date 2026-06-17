@@ -227,6 +227,53 @@ function postgresAuthSecret(namespace: string): KubernetesObject {
   };
 }
 
+function cleanupResource(
+  apiVersion: string,
+  kind: string,
+  name: string,
+  namespace: string,
+  component: string
+): KubernetesObject {
+  return {
+    apiVersion,
+    kind,
+    metadata: {
+      name,
+      namespace,
+      labels: labels(component),
+      annotations: {
+        "opslens.cywell.io/cleanup-mode": "owned-stale-runtime-only"
+      }
+    }
+  };
+}
+
+export function buildOpsLensCleanupResources(
+  installation: OpsLensInstallation
+): KubernetesObject[] {
+  const namespace = namespaceFor(installation);
+  const vectorProvider = installation.spec.components.vectorStore.provider ?? "pgvector";
+  const runtimeProvider = installation.spec.components.modelRuntime.provider ?? "vllm";
+  const cleanup: KubernetesObject[] = [];
+
+  if (vectorProvider === "inmemory") {
+    cleanup.push(
+      cleanupResource("apps/v1", "StatefulSet", "cywell-opslens-vector", namespace, "vector-store"),
+      cleanupResource("v1", "Service", "cywell-opslens-vector", namespace, "vector-store"),
+      cleanupResource("v1", "Secret", "cywell-opslens-postgres-auth", namespace, "vector-store")
+    );
+  }
+
+  if (runtimeProvider === "mock-local") {
+    cleanup.push(
+      cleanupResource("apps/v1", "Deployment", "cywell-opslens-vllm", namespace, "model-runtime"),
+      cleanupResource("v1", "Service", "cywell-opslens-vllm", namespace, "model-runtime")
+    );
+  }
+
+  return cleanup;
+}
+
 export function buildOpsLensResources(installation: OpsLensInstallation): KubernetesObject[] {
   const namespace = namespaceFor(installation);
   const api = installation.spec.components.api;
@@ -883,6 +930,7 @@ export function buildOpsLensReconcilePlan(
   return {
     actionMode: "operator-reconcile-plan",
     desiredResources: buildOpsLensResources(installation),
+    cleanupResources: buildOpsLensCleanupResources(installation),
     lightspeedRegistration,
     statusPatch: buildStatus(installation, lightspeedRegistration),
     policy: {

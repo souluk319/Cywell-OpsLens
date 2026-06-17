@@ -176,6 +176,7 @@ export interface OpsLensReconcileStatus {
 export interface OpsLensReconcilePlan {
   actionMode: "operator-reconcile-plan";
   desiredResources: KubernetesObject[];
+  cleanupResources: KubernetesObject[];
   lightspeedRegistration: LightspeedReconcilePlan;
   statusPatch: OpsLensReconcileStatus;
   policy: {

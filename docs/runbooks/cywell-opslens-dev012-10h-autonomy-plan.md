@@ -70,6 +70,7 @@ Work:
 
 - keep API/dashboard readiness separate from optional vector/model runtime readiness
 - keep pgvector/vLLM evidence gaps visible
+- when the CRC lightweight profile is used, keep stale owned pgvector/vLLM cleanup explicit and never include PVC data in automatic cleanup
 - do not hide SCC, external image, or registry problems behind a false Ready status
 
 Validation:

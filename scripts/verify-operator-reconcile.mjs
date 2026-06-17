@@ -107,6 +107,12 @@ function findResource(plan, kind, name) {
   );
 }
 
+function findCleanupResource(plan, kind, name) {
+  return (plan.cleanupResources ?? []).find(
+    (resource) => resource.kind === kind && resource.metadata?.name === name
+  );
+}
+
 function headerTypes(server) {
   return (server?.headers ?? []).map((header) => header.valueFrom?.type);
 }
@@ -153,6 +159,7 @@ function summarizePlan(plan) {
     mutationAllowed: plan?.lightspeedRegistration?.mutationAllowed === true,
     missingEvidence: plan?.lightspeedRegistration?.missingEvidence ?? [],
     desiredResourceCount: plan?.desiredResources?.length ?? 0,
+    cleanupResourceCount: plan?.cleanupResources?.length ?? 0,
     assistantMutationAllowed: plan?.policy?.assistantMutationAllowed === true,
     ragApprovalQueueMutationAllowed:
       plan?.policy?.ragApprovalQueueMutationAllowed === true,
@@ -201,6 +208,7 @@ async function writeEvidence() {
       "ValidateOnly reports Lightspeed registration gaps without patching OLSConfig.",
       "PatchOLSConfig preserves existing featureGates and MCP servers while planning the Cywell /mcp registration.",
       "The checked-in CRC lightweight sample uses inmemory + mock-local + ValidateOnly to avoid pgvector, vLLM, and OLSConfig patch surprises during local demos.",
+      "The lightweight reconcile plan prunes only owned stale pgvector/vLLM runtime resources when a CR is switched back from approved runtime to CRC demo mode.",
       "Missing OLSConfig blocks patching instead of inventing or overwriting a cluster resource.",
       "Assistant actions remain plan-only; only explicit Operator install reconciliation can patch OLSConfig."
     ],
@@ -367,7 +375,8 @@ try {
     Boolean(findResource(patchPlan, "Deployment", "cywell-opslens-api")) &&
       Boolean(findResource(patchPlan, "StatefulSet", "cywell-opslens-vector")) &&
       Boolean(findResource(patchPlan, "Deployment", "cywell-opslens-vllm")) &&
-      Boolean(findResource(patchPlan, "ConsolePlugin", "cywell-opslens")),
+      Boolean(findResource(patchPlan, "ConsolePlugin", "cywell-opslens")) &&
+      (patchPlan.cleanupResources ?? []).length === 0,
     "API, vector store, model runtime, and ConsolePlugin resources are rendered"
   );
 
@@ -390,6 +399,16 @@ try {
       !findResource(lightweightPlan, "Deployment", "cywell-opslens-vllm") &&
       !findResource(lightweightPlan, "Service", "cywell-opslens-vllm"),
     "inmemory + mock-local keeps CRC demo install to API, dashboard, ConsolePlugin, and local RAG"
+  );
+  expectCheck(
+    "CRC lightweight profile prunes stale owned runtime resources",
+    Boolean(findCleanupResource(lightweightPlan, "StatefulSet", "cywell-opslens-vector")) &&
+      Boolean(findCleanupResource(lightweightPlan, "Service", "cywell-opslens-vector")) &&
+      Boolean(findCleanupResource(lightweightPlan, "Secret", "cywell-opslens-postgres-auth")) &&
+      Boolean(findCleanupResource(lightweightPlan, "Deployment", "cywell-opslens-vllm")) &&
+      Boolean(findCleanupResource(lightweightPlan, "Service", "cywell-opslens-vllm")) &&
+      !findCleanupResource(lightweightPlan, "PersistentVolumeClaim", "vector-data-cywell-opslens-vector-0"),
+    "lightweight switch cleanup removes only owned runtime controllers/services/secrets and leaves PVC data outside automatic cleanup"
   );
   expectCheck(
     "CRC lightweight profile avoids dangling runtime env",
@@ -420,6 +439,15 @@ try {
       !findResource(crcLightweightPlan, "Deployment", "cywell-opslens-vllm") &&
       !findResource(crcLightweightPlan, "Service", "cywell-opslens-vllm"),
     "checked-in CRC sample installs API, dashboard, ConsolePlugin, and local RAG without pgvector/vLLM workloads"
+  );
+  expectCheck(
+    "CRC lightweight sample prunes stale owned runtime resources",
+    Boolean(findCleanupResource(crcLightweightPlan, "StatefulSet", "cywell-opslens-vector")) &&
+      Boolean(findCleanupResource(crcLightweightPlan, "Service", "cywell-opslens-vector")) &&
+      Boolean(findCleanupResource(crcLightweightPlan, "Secret", "cywell-opslens-postgres-auth")) &&
+      Boolean(findCleanupResource(crcLightweightPlan, "Deployment", "cywell-opslens-vllm")) &&
+      Boolean(findCleanupResource(crcLightweightPlan, "Service", "cywell-opslens-vllm")),
+    "checked-in CRC sample carries cleanup intent for stale owned pgvector/vLLM resources"
   );
   expectCheck(
     "CRC lightweight sample avoids dangling runtime env",

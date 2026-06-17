@@ -62,6 +62,13 @@ rules:
       - update
       - patch
   - apiGroups:
+      - ""
+    resources:
+      - services
+      - secrets
+    verbs:
+      - delete
+  - apiGroups:
       - apps
     resources:
       - deployments

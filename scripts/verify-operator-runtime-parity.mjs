@@ -10,6 +10,8 @@ const execFileAsync = promisify(execFile);
 
 const paths = {
   installation: "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation.yaml",
+  crcLightweightInstallation:
+    "deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation_crc_lightweight.yaml",
   baseOlsConfig: "deploy/operator/fixtures/olsconfig-base.yaml",
   controller: "deploy/operator/controller-runtime/controllers/opslensinstallation_controller.go",
   clusterRole: "deploy/operator/config/rbac/cluster_role.yaml",
@@ -104,6 +106,12 @@ async function loadSingleYaml(relativePath) {
 
 function findResource(plan, kind, name) {
   return plan.desiredResources.find(
+    (resource) => resource.kind === kind && resource.metadata?.name === name
+  );
+}
+
+function findCleanupResource(plan, kind, name) {
+  return (plan.cleanupResources ?? []).find(
     (resource) => resource.kind === kind && resource.metadata?.name === name
   );
 }
@@ -222,6 +230,7 @@ async function writeEvidence() {
     desiredResources,
     parity: {
       desiredResourceCount: plan?.desiredResources?.length ?? 0,
+      cleanupResourceCount: plan?.cleanupResources?.length ?? 0,
       expectedResourceCount: evidenceContext.expectedResources.length,
       lightspeedMode: plan?.lightspeedRegistration?.mode ?? "missing",
       lightspeedPhase: plan?.lightspeedRegistration?.phase ?? "missing",
@@ -239,6 +248,7 @@ async function writeEvidence() {
     evidence: [
       "TypeScript desired resources and Go/controller-runtime reconcile lanes are checked for parity.",
       "ConsolePlugin backend/proxy, API/dashboard services, NetworkPolicies, vector/model runtime, and OLSConfig patch paths are covered.",
+      "CRC lightweight cleanup parity checks that stale owned pgvector/vLLM resources can be pruned without deleting PVC data.",
       "RBAC rules in config and CSV cover the resources reconciled by the Go controller.",
       "Go Lightspeed registration source is checked so ValidateOnly exits before live reads or patches, and PatchOLSConfig is the only OLSConfig mutation path."
     ],
@@ -281,12 +291,14 @@ function printSummary() {
 
 try {
   const installation = await loadSingleYaml(paths.installation);
+  const crcLightweightInstallation = await loadSingleYaml(paths.crcLightweightInstallation);
   const baseOlsConfig = await loadSingleYaml(paths.baseOlsConfig);
   const clusterRole = await loadSingleYaml(paths.clusterRole);
   const csv = await loadSingleYaml(paths.csv);
   const controller = await readText(paths.controller);
   const acceptance = await readText(paths.acceptance);
   const plan = buildOpsLensReconcilePlan(installation, baseOlsConfig);
+  const crcLightweightPlan = buildOpsLensReconcilePlan(crcLightweightInstallation, baseOlsConfig);
   evidenceContext.plan = plan;
 
   const expectedResources = [
@@ -327,8 +339,11 @@ try {
     "reconcileDashboardNetworkPolicy",
     "reconcileVectorStore",
     "reconcileVectorService",
+    "pruneVectorStore",
     "reconcileModelRuntime",
     "reconcileModelRuntimeService",
+    "pruneModelRuntime",
+    "deleteManagedObject",
     "reconcileConsolePlugin",
     "reconcileLightspeedRegistration"
   ]) {
@@ -338,6 +353,7 @@ try {
   expectCheck(
     "Go owned resource watches",
     controller.includes("Owns(&corev1.ConfigMap{})") &&
+      controller.includes("Owns(&corev1.Secret{})") &&
       controller.includes("Owns(&corev1.ServiceAccount{})") &&
       controller.includes("Owns(&corev1.Service{})") &&
       controller.includes("Owns(&appsv1.Deployment{})") &&
@@ -454,6 +470,23 @@ try {
       controller.includes('vectorProvider == "pgvector"') &&
       controller.includes('modelProvider != "mock-local"'),
     "inmemory vector store and mock-local model runtime avoid dangling Postgres/vLLM workloads and env"
+  );
+
+  expectCheck(
+    "Go CRC lightweight stale runtime cleanup parity",
+    Boolean(findCleanupResource(crcLightweightPlan, "StatefulSet", "cywell-opslens-vector")) &&
+      Boolean(findCleanupResource(crcLightweightPlan, "Service", "cywell-opslens-vector")) &&
+      Boolean(findCleanupResource(crcLightweightPlan, "Secret", "cywell-opslens-postgres-auth")) &&
+      Boolean(findCleanupResource(crcLightweightPlan, "Deployment", "cywell-opslens-vllm")) &&
+      Boolean(findCleanupResource(crcLightweightPlan, "Service", "cywell-opslens-vllm")) &&
+      !findCleanupResource(crcLightweightPlan, "PersistentVolumeClaim", "vector-data-cywell-opslens-vector-0") &&
+      controller.includes("func (r *OpsLensInstallationReconciler) pruneVectorStore") &&
+      controller.includes("func (r *OpsLensInstallationReconciler) pruneModelRuntime") &&
+      controller.includes("func (r *OpsLensInstallationReconciler) deleteManagedObject") &&
+      controller.includes("isOwnedByInstallation") &&
+      controller.includes("client.IgnoreNotFound(r.Delete(ctx, object))") &&
+      !controller.includes("PersistentVolumeClaim{ObjectMeta"),
+    "lightweight mode prunes only owned stale runtime controllers/services/secrets and leaves PVC data outside automatic cleanup"
   );
 
   const consolePlugin = findResource(plan, "ConsolePlugin", "cywell-opslens");
@@ -606,10 +639,21 @@ try {
   expectCheck(
     "RBAC Postgres Secret parity",
     hasRuleFor(clusterRole?.rules ?? [], "", "secrets", ["get", "create", "update", "patch"]) &&
+      hasRuleFor(clusterRole?.rules ?? [], "", "secrets", ["delete"]) &&
       !hasRuleFor(clusterRole?.rules ?? [], "", "secrets", ["list", "watch"]) &&
       hasRuleFor(csvRules, "", "secrets", ["get", "create", "update", "patch"]) &&
+      hasRuleFor(csvRules, "", "secrets", ["delete"]) &&
       !hasRuleFor(csvRules, "", "secrets", ["list", "watch"]),
-    "config RBAC and CSV RBAC allow generated Postgres auth Secret reconciliation without broad Secret list/watch"
+    "config RBAC and CSV RBAC allow generated Postgres auth Secret reconciliation and owned stale cleanup without broad Secret list/watch"
+  );
+
+  expectCheck(
+    "RBAC owned Service cleanup parity",
+    hasRuleFor(clusterRole?.rules ?? [], "", "services", ["get", "create", "patch"]) &&
+      hasRuleFor(clusterRole?.rules ?? [], "", "services", ["delete"]) &&
+      hasRuleFor(csvRules, "", "services", ["get", "create", "patch"]) &&
+      hasRuleFor(csvRules, "", "services", ["delete"]),
+    "config RBAC and CSV RBAC allow Service reconciliation and owned stale runtime cleanup without bundling delete into the broad reconcile rule"
   );
 
   expectCheck(

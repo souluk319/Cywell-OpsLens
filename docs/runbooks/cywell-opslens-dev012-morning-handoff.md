@@ -71,6 +71,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the overnight checkpoint now includes `npm run verify:crc-demo-readiness`, which checks the CRC lightweight OperatorHub path, UI first-choice copy, handoff commands, and arm64 transfer tar as one local evidence packet
 - the overnight checkpoint Markdown/JSON now writes a morning decision, step totals, safe entrypoints, safe next commands, blocked actions, and the MacBook keep-awake rationale so the user can resume without rereading the whole chat
 - `docs/runbooks/cywell-opslens-dev012-10h-autonomy-plan.md` is the human plan artifact for the unattended window; it states what the loop does, what it will not do, and how to resume if the Mac sleeps
+- the Operator now cleans up only owned stale pgvector/vLLM controllers, services, and the generated Postgres secret when the CR switches to the CRC lightweight `inmemory` plus `mock-local` profile; PVC data remains outside automatic cleanup
 - AC-LAB-001 now explicitly treats `npm run verify:crc-demo-readiness` as the CRC demo gate, so the acceptance criteria, package contract, UI signal, and morning handoff all point at the same lightweight install path
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - the Operator status path no longer reports `OpsLensInstallation Ready` before required API/dashboard/vector/model workloads are observed as ready; unready required workloads keep the CR in `Installing`
@@ -186,7 +187,7 @@ Latest non-mutating checks:
 | `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
 | `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |
 | `npm run verify:operator:reconcile` | PASS | 0 fail, 24 checks; dry-run status remains `Installing` until live workload observation |
-| `npm run verify:operator:runtime` | PASS | 0 fail, 78 checks; includes workload readiness/no-false-Ready contract |
+| `npm run verify:operator:runtime` | PASS | 0 fail, 84 checks; includes workload readiness/no-false-Ready and CRC lightweight stale runtime cleanup contracts |
 | `npm run verify:operator` | PASS/WARN | 0 fail, 1 warn; live OLM smoke remains external |
 | `npm run verify:images:build` | PASS/WARN | 0 fail, 3 expected warnings; local build evidence uses `:build-verify` tag isolation |
 | `npm run verify:install-plan` | PASS/WARN | 0 fail, 7 warn; evidence freshness and Lightspeed gap remain |
@@ -299,7 +300,7 @@ That sample intentionally uses:
 | pre-cluster install not green | source evidence stale and live OCP/Lightspeed evidence incomplete | refresh live evidence after reconnect |
 | live handoff not fully current | local artifact is ready but live CRC evidence is intentionally not refreshed without the target session; masthead now shows the return checklist | reconnect Mac CRC and refresh read-only evidence |
 | vLLM not suitable for CRC demo yet | external image/mirror/runtime evidence gap; UI now names the CRC mock-model profile separately | keep CRC lightweight profile, mirror/runtime review later |
-| pgvector restricted SCC issue | default pgvector image wants filesystem permissions restricted SCC blocks; UI now names the in-memory CRC profile separately | keep in-memory profile for demo or design a secure supported Postgres profile |
+| pgvector restricted SCC issue | default pgvector image wants filesystem permissions restricted SCC blocks; UI now names the in-memory CRC profile separately, and the operator can prune stale owned pgvector resources when switching to that profile | keep in-memory profile for demo or design a secure supported Postgres profile |
 | native OpenShift Lightspeed drawer not rebranded | OpenShift-owned console surface; Assistant now visibly separates native drawer ownership from OpsLens MCP/proxy integration | keep OpsLens as route/plugin mod unless a verified console-extension lane is approved |
 | unknown live evidence phrases can still appear raw | common backend/read-only evidence phrase classes now have reviewed KO display replacements; unknown strings remain raw to preserve traceability | extend the phrase dictionary only after seeing repeated live payload classes |
 | final release/certification | external registry/security/certification evidence not complete; UI now visibly marks this as a local demo boundary | do not claim certified readiness until release/security evidence is approved |

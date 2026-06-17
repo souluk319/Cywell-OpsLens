@@ -97,6 +97,8 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		if err := r.reconcileVectorService(ctx, &installation, namespace); err != nil {
 			return ctrl.Result{}, err
 		}
+	} else if err := r.pruneVectorStore(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if installation.Spec.Components.ModelRuntime.Provider != "mock-local" {
@@ -107,6 +109,8 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		if err := r.reconcileModelRuntimeService(ctx, &installation, namespace); err != nil {
 			return ctrl.Result{}, err
 		}
+	} else if err := r.pruneModelRuntime(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	if err := r.reconcileConsolePlugin(ctx, &installation, namespace); err != nil {
@@ -130,12 +134,50 @@ func (r *OpsLensInstallationReconciler) SetupWithManager(mgr ctrl.Manager) error
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&opslensv1alpha1.OpsLensInstallation{}).
 		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.Secret{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.StatefulSet{}).
 		Owns(&networkingv1.NetworkPolicy{}).
 		Complete(r)
+}
+
+func (r *OpsLensInstallationReconciler) pruneVectorStore(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	objects := []client.Object{
+		&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "cywell-opslens-vector", Namespace: namespace}},
+		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "cywell-opslens-vector", Namespace: namespace}},
+		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "cywell-opslens-postgres-auth", Namespace: namespace}},
+	}
+	return r.deleteManagedObjects(ctx, installation, objects...)
+}
+
+func (r *OpsLensInstallationReconciler) pruneModelRuntime(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	objects := []client.Object{
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cywell-opslens-vllm", Namespace: namespace}},
+		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "cywell-opslens-vllm", Namespace: namespace}},
+	}
+	return r.deleteManagedObjects(ctx, installation, objects...)
+}
+
+func (r *OpsLensInstallationReconciler) deleteManagedObjects(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, objects ...client.Object) error {
+	for _, object := range objects {
+		if err := r.deleteManagedObject(ctx, installation, object); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *OpsLensInstallationReconciler) deleteManagedObject(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, object client.Object) error {
+	key := types.NamespacedName{Name: object.GetName(), Namespace: object.GetNamespace()}
+	if err := r.Get(ctx, key, object); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+	if !isOwnedByInstallation(installation, object) {
+		return nil
+	}
+	return client.IgnoreNotFound(r.Delete(ctx, object))
 }
 
 func (r *OpsLensInstallationReconciler) reconcileAPIServiceAccount(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
@@ -1084,6 +1126,18 @@ func (r *OpsLensInstallationReconciler) setControllerReferenceIfSameNamespace(in
 	}
 	object.SetOwnerReferences(append(nextOwnerReferences, ownerReference))
 	return nil
+}
+
+func isOwnedByInstallation(installation *opslensv1alpha1.OpsLensInstallation, object client.Object) bool {
+	for _, owner := range object.GetOwnerReferences() {
+		if owner.APIVersion != opslensv1alpha1.GroupVersion.String() || owner.Kind != "OpsLensInstallation" || owner.Name != installation.Name {
+			continue
+		}
+		if owner.UID == installation.UID || owner.UID == "" || installation.UID == "" {
+			return true
+		}
+	}
+	return false
 }
 
 func targetNamespace(installation *opslensv1alpha1.OpsLensInstallation) string {

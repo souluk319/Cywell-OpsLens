@@ -975,6 +975,24 @@ Checkpoint cadence:
 - also after each successful commit/push
 - stop after the morning handoff or after three consecutive checkpoints with the same hard blocker
 
+### 2026-06-18 - Lane 80
+
+- Hardened the Operator CRC lightweight transition path.
+- When an `OpsLensInstallation` switches to `vectorStore.provider: inmemory`, the TypeScript plan and Go controller now mark stale owned pgvector runtime resources for cleanup:
+  - `StatefulSet/cywell-opslens-vector`
+  - `Service/cywell-opslens-vector`
+  - generated `Secret/cywell-opslens-postgres-auth`
+- When it switches to `modelRuntime.provider: mock-local`, stale owned vLLM runtime resources are similarly cleaned:
+  - `Deployment/cywell-opslens-vllm`
+  - `Service/cywell-opslens-vllm`
+- PVC data is intentionally not part of automatic cleanup.
+- Cleanup is owner-reference gated, so the controller only deletes resources owned by the active `OpsLensInstallation`.
+- RBAC grants only the extra delete verbs needed for owned `services` and generated `secrets`; broad Secret list/watch permissions remain absent.
+- Protected with:
+  - `npm run verify:operator:reconcile`
+  - `npm run verify:operator:runtime`
+  - `npm run verify:operator:package`
+
 ## Current Known State
 
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
@@ -986,7 +1004,7 @@ Checkpoint cadence:
 - latest assistant smoke browser check after Lane 78: PASS, `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, `클러스터 변경: 차단`
 - latest overnight checkpoint after Lane 79: writes morning decision, step totals, safe entrypoints, and blocked actions in both JSON and Markdown
 - 10-hour autonomy plan: `docs/runbooks/cywell-opslens-dev012-10h-autonomy-plan.md`
-- latest operator runtime verifier after Lane 25: PASS, 78 checks
+- latest operator runtime verifier after Lane 80: PASS, 84 checks, including CRC lightweight stale runtime cleanup parity
 - latest local image build gate after Lane 26: PASS, 0 fail, 3 external-runtime/catalog warnings, `:build-verify` tag isolation
 - latest lab image map after Lane 29: PASS, 0 fail, 2 expected external-runtime warnings
 - latest CRC handoff tar: `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`
