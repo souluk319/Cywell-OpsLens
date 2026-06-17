@@ -14,7 +14,7 @@ metadata:
           "apiVersion": "opslens.cywell.io/v1alpha1",
           "kind": "OpsLensInstallation",
           "metadata": {
-            "name": "cywell-opslens-crc-lightweight",
+            "name": "cywell-opslens",
             "namespace": "cywell-opslens",
             "annotations": {
               "opslens.cywell.io/profile": "crc-lightweight",
@@ -84,8 +84,12 @@ metadata:
           "apiVersion": "opslens.cywell.io/v1alpha1",
           "kind": "OpsLensInstallation",
           "metadata": {
-            "name": "cywell-opslens",
-            "namespace": "cywell-opslens"
+            "name": "cywell-opslens-approved-runtime",
+            "namespace": "cywell-opslens",
+            "annotations": {
+              "opslens.cywell.io/profile": "approved-runtime",
+              "opslens.cywell.io/runtime-note": "Approved install path; requires pgvector/vLLM runtime evidence and explicit OLSConfig patch approval."
+            }
           },
           "spec": {
             "version": "0.1.0",

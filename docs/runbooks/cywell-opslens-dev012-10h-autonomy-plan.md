@@ -22,7 +22,7 @@ The overnight loop must keep the product moving toward a credible OpenShift Cons
 | --- | --- | --- | --- |
 | Local shell is coherent | `npm run verify:web-shell` | `test-results/cywell-opslens-web-shell-contract.json` | Keep KO/EN, KOMSCO, install-flow, and post-install smoke copy protected. |
 | ConsolePlugin contract survives | `npm run verify:console-plugin` | console plugin verifier output | Live browser route still needs Mac CRC to stay awake. |
-| Operator package does not drift | `npm run verify:operator:package` | operator package verifier output | Local CRC tags must not drift back to stale `quay.io` examples. |
+| Operator package does not drift | `npm run verify:operator:package` | operator package verifier output | Local CRC tags must not drift back to stale `quay.io` examples, and the first OperatorHub CR example must be the same `metadata.name` as the checked-in lightweight sample. |
 | Operator reconcile behavior is protected | `npm run verify:operator:reconcile` | reconcile verifier output | Live CRC may still require explicit dev overrides for external runtime components. |
 | CRC demo path is still first-class | `npm run verify:crc-demo-readiness` | `test-results/cywell-opslens-crc-demo-readiness.md` | Generated CRC catalog context must publish `cywell-opslens-operator.v0.1.2` with `v0.1.2-dev-crc`; Route-backed entrypoint must stay visible in `oc get opslensinstallation` status and live Route evidence remains separate from local evidence. |
 | Handoff is readable after sleep/commute | `npm run overnight:checkpoint` | `test-results/cywell-opslens-dev012-overnight-checkpoint.md` | If Mac sleeps, reconnect becomes the first morning action. |
@@ -53,6 +53,8 @@ Work:
 
 - keep OperatorHub, `OpsLensInstallation`, and ConsolePlugin clearly separated
 - keep the CRC lightweight example first
+- keep the first OperatorHub CR example named exactly like the checked-in CRC lightweight apply sample, so the UI does not imply that two different OpsLens installations are required
+- keep the approved pgvector/vLLM/PatchOLSConfig example named separately with an explicit approved-runtime profile
 - keep stale catalog/image symptoms explicit, especially the difference between the source `0.1.0` release bundle and the generated CRC `0.1.2` dev catalog
 - keep `Route/cywell-opslens-dashboard` in the install contract so the installed UI has a route-backed entrypoint, not only a remembered port-forward
 - keep `status.dashboardRoute` and the `Route` printer column visible so a Ready CR also tells the operator which installed page to open

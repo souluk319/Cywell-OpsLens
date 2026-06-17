@@ -447,7 +447,7 @@ function readCsvAlmExamples(csv) {
   return [];
 }
 
-function validateCsvAlmExamples(csv) {
+function validateCsvAlmExamples(csv, crcSample) {
   const examples = readCsvAlmExamples(csv);
   const releaseExample = examples.find(
     (example) =>
@@ -472,6 +472,35 @@ function validateCsvAlmExamples(csv) {
     fail(
       "CSV alm-examples default path",
       "crc-lightweight alm-example must be first so OperatorHub users do not default into pgvector/vLLM"
+    );
+  }
+
+  const expectedCrcName = crcSample?.metadata?.name ?? "cywell-opslens";
+  if (firstExample?.metadata?.name === expectedCrcName) {
+    pass(
+      "CSV alm-examples default name",
+      `first OperatorHub CR example reuses the checked-in CRC sample name ${expectedCrcName}`
+    );
+  } else {
+    fail(
+      "CSV alm-examples default name",
+      `first OperatorHub CR example must be named ${expectedCrcName} so OperatorHub and oc apply do not look like separate products`
+    );
+  }
+
+  if (
+    releaseExample?.metadata?.name &&
+    releaseExample.metadata.name !== firstExample?.metadata?.name &&
+    releaseExample?.metadata?.annotations?.["opslens.cywell.io/profile"] === "approved-runtime"
+  ) {
+    pass(
+      "CSV alm-examples approved name",
+      `${releaseExample.metadata.name} is clearly separated from the CRC lightweight default`
+    );
+  } else {
+    fail(
+      "CSV alm-examples approved name",
+      "approved pgvector/vLLM/PatchOLSConfig example must use a separate metadata.name and approved-runtime profile"
     );
   }
 
@@ -641,7 +670,7 @@ function validateRbac(clusterRole, csv) {
   }
 }
 
-function validateCsv(csv) {
+function validateCsv(csv, crcSample) {
   if (csv?.kind === "ClusterServiceVersion") {
     pass("CSV kind", label(csv));
   } else {
@@ -670,7 +699,7 @@ function validateCsv(csv) {
     );
   }
 
-  validateCsvAlmExamples(csv);
+  validateCsvAlmExamples(csv, crcSample);
 
   if (csv?.spec?.install?.strategy === "deployment") {
     pass("CSV install strategy", "deployment");
@@ -1335,7 +1364,7 @@ try {
   validateCrd(bundleCrd, "bundle");
   validateSample(sample);
   validateCrcSample(crcSample);
-  validateCsv(csv);
+  validateCsv(csv, crcSample);
   validateRbac(clusterRole, csv);
   validateApps(apps);
   validateOlsconfigTemplate(olsconfigTemplate);

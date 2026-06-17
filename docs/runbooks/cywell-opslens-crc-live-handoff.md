@@ -117,6 +117,15 @@ This distinction matters:
 | OperatorHub card install | Installs the Cywell OpsLens Operator into OLM. | It does not create the OpsLens API/dashboard by itself. |
 | `OpsLensInstallation` CR | Tells the Operator to create API, dashboard, ConsolePlugin, runtime wiring, and Lightspeed registration behavior. | It should not patch OLSConfig unless the mode explicitly allows it. |
 
+For the CRC demo, the first OperatorHub `OpsLensInstallation` example and the checked-in lightweight `oc apply` sample are intentionally the same product instance:
+
+```text
+metadata.name: cywell-opslens
+profile: crc-lightweight
+```
+
+The approved pgvector/vLLM/PatchOLSConfig example remains available, but it uses a separate `metadata.name` and `approved-runtime` profile so it is not mistaken for a second required install during a CRC walkthrough.
+
 Normal install evidence:
 
 ```bash
@@ -172,6 +181,8 @@ Preferred CRC demo profile:
 ```text
 deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation_crc_lightweight.yaml
 ```
+
+This sample uses the same `metadata.name: cywell-opslens` as the first OperatorHub CR example. If the console-created CR shows a different default name, treat the catalog as stale and refresh the generated CRC catalog before recording the demo.
 
 Why this profile exists:
 

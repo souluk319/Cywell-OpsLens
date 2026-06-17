@@ -219,7 +219,9 @@ function renderMarkdown(evidence) {
     "## Package Signals",
     "",
     `- First OperatorHub CR example: \`${evidence.packageSignals.firstAlmExampleName ?? "missing"}\``,
+    `- Checked-in CRC sample name: \`${evidence.packageSignals.crcSampleName ?? "missing"}\``,
     `- First example profile: \`${evidence.packageSignals.firstAlmExampleProfile ?? "missing"}\``,
+    `- Approved install example name: \`${evidence.packageSignals.approvedInstallExampleName ?? "missing"}\``,
     `- Approved install example retained: \`${String(evidence.packageSignals.releaseExampleRetained)}\``,
     `- First relatedImages: \`${evidence.packageSignals.relatedImagesFirstThree.join(" / ")}\``,
     `- CRC generated CSV: \`${evidence.packageSignals.crcGeneratedCsv ?? "missing"}\``,
@@ -273,10 +275,24 @@ async function main() {
     "CRC lightweight must be first so local demos do not default to pgvector/vLLM"
   );
   expectCheck(
+    "OperatorHub first CR example name",
+    firstExample?.metadata?.name === crcSample?.metadata?.name,
+    `first OperatorHub CR example reuses checked-in sample name ${crcSample?.metadata?.name ?? "missing"}`,
+    "first OperatorHub CR example must use the checked-in sample CR name so OperatorHub and oc apply do not look like separate products"
+  );
+  expectCheck(
     "OperatorHub approved install retained",
     Boolean(releaseExample),
     "approved pgvector/vLLM/PatchOLSConfig example remains available",
     "approved install example is missing"
+  );
+  expectCheck(
+    "OperatorHub approved install separated",
+    Boolean(releaseExample?.metadata?.name) &&
+      releaseExample?.metadata?.name !== firstExample?.metadata?.name &&
+      profile(releaseExample) === "approved-runtime",
+    `${releaseExample?.metadata?.name ?? "missing"} is separated from the CRC lightweight default`,
+    "approved pgvector/vLLM/PatchOLSConfig example must use a separate name and approved-runtime profile"
   );
   expectCheck(
     "OperatorHub lightweight runtime",
@@ -424,7 +440,9 @@ async function main() {
     },
     packageSignals: {
       firstAlmExampleName: firstExample?.metadata?.name ?? null,
+      crcSampleName: crcSample?.metadata?.name ?? null,
       firstAlmExampleProfile: profile(firstExample) || null,
+      approvedInstallExampleName: releaseExample?.metadata?.name ?? null,
       releaseExampleRetained: Boolean(releaseExample),
       relatedImagesFirstThree: relatedImages.slice(0, 3),
       crcGeneratedCsv: crcCatalogCsv?.metadata?.name ?? null,

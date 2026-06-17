@@ -1016,6 +1016,19 @@ Checkpoint cadence:
   - `npm run -w @kugnus/web build`
   - `npx playwright test -g "AC-UI-004"`
 
+### 2026-06-18 - Lane 83
+
+- Removed a CRC install-story ambiguity from the OperatorHub examples.
+- The first `alm-examples` CR now uses the same `metadata.name: cywell-opslens` as `deploy/operator/config/samples/opslens_v1alpha1_opslensinstallation_crc_lightweight.yaml`.
+- The approved pgvector/vLLM/PatchOLSConfig example now uses a separate `cywell-opslens-approved-runtime` name and `approved-runtime` profile.
+- This keeps the OperatorHub example and the `oc apply` sample from looking like two separate OpsLens products that both need installation.
+- Protected with:
+  - `npm run verify:operator:package`
+  - `npm run lab:catalog:crc`
+  - `npm run verify:crc-demo-readiness`
+  - `npm run verify:operator:runtime`
+  - `npm run overnight:checkpoint`
+
 ## Current Known State
 
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
