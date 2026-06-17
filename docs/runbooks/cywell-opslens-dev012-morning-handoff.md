@@ -10,8 +10,11 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 
 - the local web shell has KOMSCO/OpsLens assistant branding and KO/EN contracts protected by a verifier
 - the shell now names standalone preview versus ConsolePlugin route/proxy mode
+- shell action contracts cover the left navigation, masthead utilities, evidence tabs, and Assistant Enter-to-Ask behavior
 - the Operator reconcile path no longer needs finalizer permission for owner references
 - a CRC lightweight `OpsLensInstallation` sample exists so local demos can avoid pgvector/vLLM failure classes
+- CRC catalog/image handoff now uses explicit `v0.1.2-dev-crc` tags instead of ambiguous `:verify`
+- the Mac CRC transfer artifact is pinned to `arm64/linux` and verified before handoff
 - the next-day live reconnect path is documented without secrets or exact private network values
 
 This is not a claim that production install is ready. The pre-cluster gate still blocks install by evidence gaps.
@@ -19,6 +22,14 @@ This is not a claim that production install is ready. The pre-cluster gate still
 ## Commits On This Branch
 
 ```text
+3942a6a Enforce CRC arm64 handoff
+cc8bf3b Ignore Windows desktop metadata
+bab809b Harden CRC dev image handoff
+f5a663f Allow CRC lightweight runtime disable
+3952914 Harden web shell action contracts
+48e2cf6 Clarify CRC lab shell context
+eb7de6e Surface assistant API diagnostics
+7a65f71 Document Dev 0.1.2 morning handoff
 8c04d16 Update CRC live verification handoff
 f7a7078 Harden CRC operator runtime defaults
 e1f2883 Harden ConsolePlugin mode diagnostics
@@ -33,8 +44,11 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 7 checks |
+| `npm run verify:web-shell` | PASS | 0 fail, 9 checks at `3942a6a` |
 | `npm run verify:console-plugin` | PASS | 0 fail, 9 checks |
+| `npm run verify:lab-image-map` | PASS/WARN | 0 fail, 2 expected external-runtime warnings; local images arm64 |
+| `npm run verify:lab-bootstrap` | PASS/WARN | 0 fail, 5 warnings; versioned arm64 tar exists |
+| `npm run verify:lab-handoff` | PASS/WARN | 0 fail, 7 warnings; live evidence still stale |
 | `npm run verify:operator:reconcile` | PASS | 0 fail, 23 checks |
 | `npm run verify:operator:runtime` | PASS | 0 fail, 77 checks |
 | `npm run verify:operator` | PASS/WARN | 0 fail, 1 warn; live OLM smoke remains external |
@@ -57,7 +71,7 @@ https://127.0.0.1:19443
 
 3. OpenShift Console OperatorHub:
 
-Search `cywell`, then confirm the package shows `cywell-opslens-operator.v0.1.1`.
+Search `cywell`, then confirm the package shows `cywell-opslens-operator.v0.1.2`.
 
 ## First Commands Tomorrow
 
@@ -84,6 +98,18 @@ test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar
 
 Do not trust a Mac CRC install package unless `docker image inspect` shows `ARCH=arm64` for the five `v0.1.2-dev-crc` images.
 
+## If The MacBook Is Left In The Office
+
+Leave it powered, awake, and on the same reachable network path. The useful background state is:
+
+- CRC remains `Running`
+- Docker Desktop remains running
+- SSH remains reachable from this Windows workspace
+- any active port-forward terminal is left open unless it is intentionally restarted
+- FortiClient can stay connected if the Lightspeed/company LLM endpoint path needs it, but do not use company OCP as the target
+
+If the Mac sleeps, the work is still recoverable, but the live verification loop becomes a morning reconnect task instead of an overnight loop.
+
 ## Product Boundary To Remember
 
 OperatorHub install is only the Operator install.
@@ -106,6 +132,7 @@ That sample intentionally uses:
 | Gap | Current Cause | Next Best Action |
 | --- | --- | --- |
 | pre-cluster install not green | source evidence stale and live OCP/Lightspeed evidence incomplete | refresh live evidence after reconnect |
+| live handoff not fully current | local artifact is ready but live CRC evidence is intentionally not refreshed without the target session | reconnect Mac CRC and refresh read-only evidence |
 | vLLM not suitable for CRC demo yet | external image/mirror/runtime evidence gap | keep CRC lightweight profile, mirror/runtime review later |
 | pgvector restricted SCC issue | default pgvector image wants filesystem permissions restricted SCC blocks | keep in-memory profile for demo or design a secure supported Postgres profile |
 | native OpenShift Lightspeed drawer not rebranded | OpenShift-owned console surface | keep OpsLens as route/plugin mod unless a verified console-extension lane is approved |

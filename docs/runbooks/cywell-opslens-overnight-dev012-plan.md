@@ -3,6 +3,7 @@
 Generated: 2026-06-17 KST
 Branch: `feat/OpsLens-Dev0.1.2`
 Start head: `cf791e1`
+Latest pushed head: `3942a6a`
 Base ref: `origin/main` at `5ad0b75`
 
 ## Goal
@@ -21,11 +22,11 @@ The work should make OpsLens feel less like a static mock and more like a real O
 
 | ID | Criterion | Pass/Fail Method | Evidence | Current Gap |
 | --- | --- | --- | --- | --- |
-| DEV012-UI-01 | Shell clearly distinguishes standalone dev from ConsolePlugin mode. | `npm run verify:web-shell` passes and browser DOM shows `runtime-surface`. | `test-results/cywell-opslens-web-shell-contract.json` | PASS at `cf791e1`; keep protected. |
-| DEV012-UI-02 | Primary dashboard, evidence, overview, and resource explorer respond to KO/EN toggle. | Build plus browser DOM check or targeted static verifier. | verifier output and browser observation notes in final report | Resource Explorer partially localized; remaining deep admin dashboard text is still mixed. |
-| DEV012-CHAT-01 | Assistant uses KOMSCO AI Assistant branding and OpsLens icon. | `verify:web-shell` checks source contract; browser confirms popover. | `test-results/cywell-opslens-web-shell-contract.json` | PASS at `cf791e1`; keep protected. |
-| DEV012-CONSOLE-01 | ConsolePlugin route contract remains intact. | `npm run verify:console-plugin` and `npm run -w @kugnus/web build`. | console plugin asset evidence | Needs rerun after further changes. |
-| DEV012-OP-01 | Operator install path does not regress on CRC arm64 image/tag/install-mode lessons. | `npm run verify:operator`, `verify:operator:runtime`, and targeted package checks. | test output and changed files | Need code review for v0.1.2 CRC/install hardening candidates. |
+| DEV012-UI-01 | Shell clearly distinguishes standalone dev from ConsolePlugin mode. | `npm run verify:web-shell` passes and browser DOM shows `runtime-surface`. | `test-results/cywell-opslens-web-shell-contract.json` | PASS at `3942a6a`; keep protected. |
+| DEV012-UI-02 | Primary dashboard, evidence, overview, and resource explorer respond to KO/EN toggle. | Build plus browser DOM check or targeted static verifier. | verifier output and browser observation notes in final report | PASS for protected shell contracts; continue visual polish if time remains. |
+| DEV012-CHAT-01 | Assistant uses KOMSCO AI Assistant branding and OpsLens icon. | `verify:web-shell` checks source contract; browser confirms popover. | `test-results/cywell-opslens-web-shell-contract.json` | PASS at `3942a6a`; keep protected. |
+| DEV012-CONSOLE-01 | ConsolePlugin route contract remains intact. | `npm run verify:console-plugin` and `npm run -w @kugnus/web build`. | console plugin asset evidence | PASS at `3942a6a`; rerun after further changes. |
+| DEV012-OP-01 | Operator install path does not regress on CRC arm64 image/tag/install-mode lessons. | `npm run verify:operator`, `verify:operator:runtime`, and targeted package checks. | test output and changed files | PASS for local arm64 handoff; live evidence still requires reconnect. |
 | DEV012-RUNTIME-01 | Known live CRC runtime issues are named, not hidden. | Document status of API/dashboard/vector/vLLM with root cause and code fix candidates. | runbook/evidence update | Live vector needed anyuid workaround; vLLM image unavailable. Code-level remediation still needed. |
 | DEV012-EVIDENCE-01 | Every completed lane leaves a verifier, evidence JSON, or runbook update. | `git status`, `test-results`, and commit log. | commits on `feat/OpsLens-Dev0.1.2` | Keep `desktop.ini` uncommitted. |
 
@@ -48,6 +49,7 @@ Stop and report instead of continuing if the next step requires:
 - destructive cleanup of cluster resources
 - security approval
 - product direction that changes the intended "OpenShift console mod" positioning
+- keeping the Mac awake cannot be confirmed and the next lane depends on live CRC state
 
 If blocked, report:
 
@@ -380,6 +382,20 @@ Every checkpoint:
 - Recreated `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`.
 - Verified the tar contains five `v0.1.2-dev-crc` tags and that local image inspect reports `ARCH=arm64 OS=linux`.
 - Interpretation: version tag alone is not enough; Mac CRC transfer artifacts must also prove architecture.
+- Committed and pushed: `3942a6a Enforce CRC arm64 handoff`.
+
+### 2026-06-17 - Lane 12
+
+- Refreshed the plan and morning handoff after the arm64/tag hardening commits.
+- Current reusable artifact for Mac CRC is:
+  - `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`
+- Latest local non-mutating gates:
+  - `npm run verify:web-shell` - PASS, 0 fail, 9 checks
+  - `npm run verify:console-plugin` - PASS, 0 fail, 9 checks
+  - `npm run verify:lab-image-map` - 0 fail, expected external runtime warnings
+  - `npm run verify:lab-bootstrap` - 0 fail, expected evidence freshness warnings
+  - `npm run verify:lab-handoff` - 0 fail, live evidence freshness warnings remain
+- Overnight execution should now continue with product hardening, not another unversioned install attempt.
 
 Checkpoint cadence:
 
@@ -392,8 +408,10 @@ Checkpoint cadence:
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
 - feature branch pushed: `feat/OpsLens-Dev0.1.2`
 - feature branch head at plan creation: `cf791e1`
+- feature branch latest pushed head: `3942a6a`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
 - latest web shell verifier: PASS, 9 checks
+- latest CRC handoff tar: `test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar`
 
 ## First Command Set
 
