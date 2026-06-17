@@ -10,12 +10,88 @@ import {
   ServerCog
 } from "lucide-react";
 import { fetchOcpConsoleOverview } from "../lib/api";
+import type { UiLanguage } from "../i18n";
+
+interface OcpConsoleOverviewProps {
+  language: UiLanguage;
+}
+
+const overviewCopy = {
+  en: {
+    eyebrow: "Console-like live overview",
+    title: "OpenShift Console Overview",
+    refresh: "Refresh",
+    loading: "loading",
+    liveOcp: "live OCP",
+    unavailable: "unavailable",
+    desired: "desired",
+    channel: "channel",
+    clusterOperators: "Cluster Operators",
+    total: "Total",
+    degraded: "Degraded",
+    nodes: "Nodes",
+    ready: "Ready",
+    notReady: "Not ready",
+    workloads: "Workloads",
+    pods: "Pods",
+    crashLoop: "CrashLoop",
+    deployUnavailable: "Deploy unavailable",
+    networking: "Networking",
+    routes: "Routes",
+    ingresses: "Ingresses",
+    services: "Services",
+    buildsAndImages: "Builds And Images",
+    builds: "Builds",
+    failedBuilds: "Failed builds",
+    imageStreams: "ImageStreams",
+    monitoring: "Monitoring",
+    reachable: "Reachable",
+    firingAlerts: "Firing alerts",
+    critical: "Critical",
+    yes: "yes",
+    no: "no"
+  },
+  ko: {
+    eyebrow: "콘솔형 live overview",
+    title: "OpenShift 콘솔 개요",
+    refresh: "새로고침",
+    loading: "불러오는 중",
+    liveOcp: "live OCP",
+    unavailable: "사용 불가",
+    desired: "목표",
+    channel: "채널",
+    clusterOperators: "클러스터 Operator",
+    total: "전체",
+    degraded: "성능 저하",
+    nodes: "노드",
+    ready: "정상",
+    notReady: "비정상",
+    workloads: "워크로드",
+    pods: "Pod",
+    crashLoop: "CrashLoop",
+    deployUnavailable: "비가용 Deployment",
+    networking: "네트워킹",
+    routes: "Route",
+    ingresses: "Ingress",
+    services: "Service",
+    buildsAndImages: "빌드와 이미지",
+    builds: "Build",
+    failedBuilds: "실패한 Build",
+    imageStreams: "ImageStream",
+    monitoring: "모니터링",
+    reachable: "연결 가능",
+    firingAlerts: "발생 중인 경고",
+    critical: "Critical",
+    yes: "예",
+    no: "아니오"
+  }
+} as const;
 
 function numberText(value: number | undefined) {
   return typeof value === "number" ? value.toLocaleString() : "-";
 }
 
-export function OcpConsoleOverview() {
+export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
   const [overview, setOverview] = useState<OcpConsoleOverviewResponse | null>(
     null
   );
@@ -38,12 +114,14 @@ export function OcpConsoleOverview() {
     void refreshOverview();
   }, []);
 
+  const copy = overviewCopy[language];
+
   return (
     <section className="ocp-console-overview" aria-labelledby="ocp-console-overview-title">
       <div className="section-heading compact">
         <div>
-          <p className="eyebrow">Console-like live overview</p>
-          <h2 id="ocp-console-overview-title">OpenShift Console Overview</h2>
+          <p className="eyebrow">{copy.eyebrow}</p>
+          <h2 id="ocp-console-overview-title">{copy.title}</h2>
         </div>
         <button
           className="text-icon-button"
@@ -51,21 +129,21 @@ export function OcpConsoleOverview() {
           onClick={() => void refreshOverview()}
         >
           <RefreshCw size={16} aria-hidden="true" />
-          Refresh
+          {copy.refresh}
         </button>
       </div>
 
       <div className="overview-status-strip" data-testid="ocp-overview-status">
         <span className={`status-pill ${overview?.status.reachable ? "ready" : "danger"}`}>
           {loading
-            ? "loading"
+            ? copy.loading
             : overview?.status.reachable
-              ? "live OCP"
-              : "unavailable"}
+              ? copy.liveOcp
+              : copy.unavailable}
         </span>
         <span>k8s {overview?.cluster.version ?? "-"}</span>
-        <span>desired {overview?.cluster.desiredVersion ?? "-"}</span>
-        <span>channel {overview?.cluster.channel ?? "-"}</span>
+        <span>{copy.desired} {overview?.cluster.desiredVersion ?? "-"}</span>
+        <span>{copy.channel} {overview?.cluster.channel ?? "-"}</span>
       </div>
 
       {error ? (
@@ -78,20 +156,20 @@ export function OcpConsoleOverview() {
       <div className="overview-grid" data-testid="ocp-console-overview">
         <article className="overview-card">
           <div className="card-title-row">
-            <h3>Cluster Operators</h3>
+            <h3>{copy.clusterOperators}</h3>
             <ServerCog size={18} aria-hidden="true" />
           </div>
           <dl className="metric-list">
             <div>
-              <dt>Total</dt>
+              <dt>{copy.total}</dt>
               <dd>{numberText(overview?.operators.total)}</dd>
             </div>
             <div>
-              <dt>Degraded</dt>
+              <dt>{copy.degraded}</dt>
               <dd>{numberText(overview?.operators.degraded)}</dd>
             </div>
             <div>
-              <dt>Unavailable</dt>
+              <dt>{copy.unavailable}</dt>
               <dd>{numberText(overview?.operators.unavailable)}</dd>
             </div>
           </dl>
@@ -99,20 +177,20 @@ export function OcpConsoleOverview() {
 
         <article className="overview-card">
           <div className="card-title-row">
-            <h3>Nodes</h3>
+            <h3>{copy.nodes}</h3>
             <Boxes size={18} aria-hidden="true" />
           </div>
           <dl className="metric-list">
             <div>
-              <dt>Total</dt>
+              <dt>{copy.total}</dt>
               <dd>{numberText(overview?.nodes.total)}</dd>
             </div>
             <div>
-              <dt>Ready</dt>
+              <dt>{copy.ready}</dt>
               <dd>{numberText(overview?.nodes.ready)}</dd>
             </div>
             <div>
-              <dt>Not ready</dt>
+              <dt>{copy.notReady}</dt>
               <dd>{numberText(overview?.nodes.notReady)}</dd>
             </div>
           </dl>
@@ -120,20 +198,20 @@ export function OcpConsoleOverview() {
 
         <article className="overview-card">
           <div className="card-title-row">
-            <h3>Workloads</h3>
+            <h3>{copy.workloads}</h3>
             <Activity size={18} aria-hidden="true" />
           </div>
           <dl className="metric-list">
             <div>
-              <dt>Pods</dt>
+              <dt>{copy.pods}</dt>
               <dd>{numberText(overview?.workloads.pods.total)}</dd>
             </div>
             <div>
-              <dt>CrashLoop</dt>
+              <dt>{copy.crashLoop}</dt>
               <dd>{numberText(overview?.workloads.pods.crashLooping)}</dd>
             </div>
             <div>
-              <dt>Deploy unavailable</dt>
+              <dt>{copy.deployUnavailable}</dt>
               <dd>{numberText(overview?.workloads.deployments.unavailable)}</dd>
             </div>
           </dl>
@@ -141,20 +219,20 @@ export function OcpConsoleOverview() {
 
         <article className="overview-card">
           <div className="card-title-row">
-            <h3>Networking</h3>
+            <h3>{copy.networking}</h3>
             <Network size={18} aria-hidden="true" />
           </div>
           <dl className="metric-list">
             <div>
-              <dt>Routes</dt>
+              <dt>{copy.routes}</dt>
               <dd>{numberText(overview?.networking.routes)}</dd>
             </div>
             <div>
-              <dt>Ingresses</dt>
+              <dt>{copy.ingresses}</dt>
               <dd>{numberText(overview?.networking.ingresses)}</dd>
             </div>
             <div>
-              <dt>Services</dt>
+              <dt>{copy.services}</dt>
               <dd>{numberText(overview?.networking.services)}</dd>
             </div>
           </dl>
@@ -162,20 +240,20 @@ export function OcpConsoleOverview() {
 
         <article className="overview-card">
           <div className="card-title-row">
-            <h3>Builds And Images</h3>
+            <h3>{copy.buildsAndImages}</h3>
             <GitBranch size={18} aria-hidden="true" />
           </div>
           <dl className="metric-list">
             <div>
-              <dt>Builds</dt>
+              <dt>{copy.builds}</dt>
               <dd>{numberText(overview?.supplyChain.builds)}</dd>
             </div>
             <div>
-              <dt>Failed builds</dt>
+              <dt>{copy.failedBuilds}</dt>
               <dd>{numberText(overview?.supplyChain.failedBuilds)}</dd>
             </div>
             <div>
-              <dt>ImageStreams</dt>
+              <dt>{copy.imageStreams}</dt>
               <dd>{numberText(overview?.supplyChain.imageStreams)}</dd>
             </div>
           </dl>
@@ -183,20 +261,20 @@ export function OcpConsoleOverview() {
 
         <article className="overview-card monitoring-card">
           <div className="card-title-row">
-            <h3>Monitoring</h3>
+            <h3>{copy.monitoring}</h3>
             <AlertTriangle size={18} aria-hidden="true" />
           </div>
           <dl className="metric-list">
             <div>
-              <dt>Reachable</dt>
-              <dd>{overview?.monitoring.reachable ? "yes" : "no"}</dd>
+              <dt>{copy.reachable}</dt>
+              <dd>{overview?.monitoring.reachable ? copy.yes : copy.no}</dd>
             </div>
             <div>
-              <dt>Firing alerts</dt>
+              <dt>{copy.firingAlerts}</dt>
               <dd>{numberText(overview?.monitoring.firingAlerts)}</dd>
             </div>
             <div>
-              <dt>Critical</dt>
+              <dt>{copy.critical}</dt>
               <dd>{numberText(overview?.monitoring.criticalAlerts)}</dd>
             </div>
           </dl>

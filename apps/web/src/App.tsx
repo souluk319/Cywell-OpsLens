@@ -50,6 +50,8 @@ import {
   fetchOpsLensAdminOverview,
   syncConsoleContext
 } from "./lib/api";
+import type { UiLanguage } from "./i18n";
+import opsLensIcon from "./assets/brand/cywell_ops_lens_icon.png";
 
 function statusClass(status: string | undefined) {
   if (status === "ready" || status === "pass" || status === "live-ready") {
@@ -79,8 +81,6 @@ function firstNextCommand(overview: OpsLensAdminOverviewResponse | null) {
 }
 
 type EvidenceView = "alerts" | "logs" | "yaml";
-type UiLanguage = "ko" | "en";
-
 type ConsoleNavId =
   | "overview"
   | "alerting"
@@ -296,6 +296,16 @@ const shellCopy = {
     readiness: "100% Readiness",
     closure: "Closure",
     administratorNavigation: "Administrator navigation",
+    administrator: "Administrator",
+    breadcrumb: "Breadcrumb",
+    language: "Language",
+    loading: "loading",
+    remaining: "remaining",
+    next: "next",
+    command: "cmd",
+    closeAssistant: "Close Cywell OpsLens assistant",
+    openAssistant: "Open Cywell OpsLens assistant",
+    assistantTitle: "Cywell OpsLens assistant",
     opsLensStatus: "Cywell OpsLens status",
     openShiftUtilities: "OpenShift console utilities"
   },
@@ -319,6 +329,16 @@ const shellCopy = {
     readiness: "100% 준비도",
     closure: "완료 조건",
     administratorNavigation: "관리자 탐색",
+    administrator: "관리자",
+    breadcrumb: "이동 경로",
+    language: "언어",
+    loading: "불러오는 중",
+    remaining: "남음",
+    next: "다음",
+    command: "명령",
+    closeAssistant: "Cywell OpsLens assistant 닫기",
+    openAssistant: "Cywell OpsLens assistant 열기",
+    assistantTitle: "Cywell OpsLens assistant",
     opsLensStatus: "Cywell OpsLens 상태",
     openShiftUtilities: "OpenShift 콘솔 유틸리티"
   }
@@ -625,11 +645,11 @@ export default function App() {
             </div>
           </div>
           <div className="cluster-context" data-testid="console-perspective">
-            <strong>Administrator</strong>
+            <strong>{copy.administrator}</strong>
             <span>prod-ocp / openshift-cluster-version</span>
           </div>
         </div>
-        <div className="masthead-actions" aria-label="Console utilities">
+        <div className="masthead-actions" aria-label={copy.openShiftUtilities}>
           <div className="opslens-status-group" aria-label={copy.opsLensStatus}>
             <span
               className={`status-pill ${apiStatus === "ready" ? "ready" : "danger"}`}
@@ -643,7 +663,7 @@ export default function App() {
             </span>
             <div
               className="segmented-control language-toggle"
-              aria-label="Language"
+              aria-label={copy.language}
             >
               <button
                 aria-pressed={language === "ko"}
@@ -732,11 +752,11 @@ export default function App() {
       <div className={`console-frame ${navCollapsed ? "nav-collapsed" : ""}`}>
         <aside
           className="console-nav"
-          aria-label="OpenShift navigation"
+          aria-label={copy.administratorNavigation}
           data-testid="console-nav"
         >
           <div className="nav-perspective">
-            <span>Administrator</span>
+            <span>{copy.administrator}</span>
           </div>
           <nav className="nav-section" aria-label={copy.administratorNavigation}>
             {navigationSections.map((section) => (
@@ -769,7 +789,7 @@ export default function App() {
 
         <main className="workspace" data-testid="workspace">
           <section className="main-stage" data-testid="main-stage">
-            <div className="breadcrumb-row" aria-label="Breadcrumb">
+            <div className="breadcrumb-row" aria-label={copy.breadcrumb}>
               {navBreadcrumb(activeNavigation, language).map((crumb) => (
                 <span key={crumb}>{crumb}</span>
               ))}
@@ -785,7 +805,7 @@ export default function App() {
             <section
               className="readiness-command-strip"
               data-testid="opslens-readiness-command-strip"
-              aria-label="Cywell OpsLens readiness"
+              aria-label={copy.readiness}
             >
               <div className="readiness-command-main">
                 <div>
@@ -795,7 +815,7 @@ export default function App() {
                 <span
                   className={`freshness ${statusClass(completionGate?.status)}`}
                 >
-                  {completionGate?.status ?? "loading"}
+                  {completionGate?.status ?? copy.loading}
                 </span>
               </div>
               <div className="readiness-command-metrics">
@@ -811,11 +831,11 @@ export default function App() {
                     : "--/--"}
                 </span>
                 <span>
-                  remaining=
+                  {copy.remaining}=
                   {completionGate?.remainingRequirements ?? "--"}
                 </span>
-                <span>next={nextGateLabel(adminOverview)}</span>
-                <span>cmd={firstNextCommand(adminOverview)}</span>
+                <span>{copy.next}={nextGateLabel(adminOverview)}</span>
+                <span>{copy.command}={firstNextCommand(adminOverview)}</span>
               </div>
               <a
                 className="text-icon-button readiness-jump"
@@ -826,16 +846,17 @@ export default function App() {
                 {copy.closure}
               </a>
             </section>
-            <OperationsDashboard dashboard={dashboard} />
+            <OperationsDashboard dashboard={dashboard} language={language} />
             <OpsLensAdminDashboard />
             <ConsoleEvidencePane
               contextPayload={contextPayload}
               activeRisks={dashboard.activeRisks}
               evidenceView={evidenceView}
+              language={language}
               onEvidenceViewChange={setEvidenceView}
               onAsk={openAssistantFromEvidence}
             />
-            <OcpConsoleOverview />
+            <OcpConsoleOverview language={language} />
             <OcpCoverageMatrix />
             <OcpResourceExplorer navigationPreset={resourcePreset} />
           </section>
@@ -852,6 +873,7 @@ export default function App() {
           apiStatus={apiStatus}
           busy={assistantBusy}
           model={planResponse?.audit.model ?? "pending"}
+          language={language}
           onDraftChange={setDraft}
           onAsk={() => void askAssistant()}
           onClose={() => setAssistantOpen(false)}
@@ -860,14 +882,14 @@ export default function App() {
       <button
         aria-controls="kugnus-assistant-popover"
         aria-expanded={assistantOpen}
-        aria-label={assistantOpen ? "Close Cywell OpsLens assistant" : "Open Cywell OpsLens assistant"}
+        aria-label={assistantOpen ? copy.closeAssistant : copy.openAssistant}
         className="lightspeed-launcher"
         data-testid="assistant-launcher"
-        title="Cywell OpsLens assistant"
+        title={copy.assistantTitle}
         type="button"
         onClick={() => setAssistantOpen((open) => !open)}
       >
-        <Bot size={22} aria-hidden="true" />
+        <img className="launcher-icon-image" src={opsLensIcon} alt="" />
         <strong>{evidenceCount}</strong>
       </button>
     </div>

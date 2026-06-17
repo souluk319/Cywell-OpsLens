@@ -1,14 +1,57 @@
 import { mockContext } from "@kugnus/contracts";
 import type { RiskItem } from "@kugnus/contracts";
 import { Bot, FileCode2, ListFilter, ScrollText } from "lucide-react";
+import type { UiLanguage } from "../i18n";
 
 interface ConsoleEvidencePaneProps {
   contextPayload: string;
   activeRisks: RiskItem[];
   evidenceView: "alerts" | "logs" | "yaml";
+  language: UiLanguage;
   onEvidenceViewChange: (view: "alerts" | "logs" | "yaml") => void;
   onAsk: () => void;
 }
+
+const evidenceCopy = {
+  en: {
+    eyebrow: "Console evidence",
+    title: "Alerts, Logs, Events, YAML",
+    evidenceView: "Evidence view",
+    alerts: "Alerts",
+    logs: "Logs",
+    yaml: "YAML",
+    firingAlerts: "Firing Alerts",
+    askOpsLens: "Ask OpsLens",
+    alert: "Alert",
+    severity: "Severity",
+    affected: "Affected",
+    count: "Count",
+    status: "Status",
+    duration: "Duration",
+    contextPayload: "Context Publisher Payload",
+    podLogs: "Pod Logs",
+    yamlLabel: "ClusterVersion YAML"
+  },
+  ko: {
+    eyebrow: "콘솔 근거",
+    title: "경고, 로그, 이벤트, YAML",
+    evidenceView: "근거 보기",
+    alerts: "경고",
+    logs: "로그",
+    yaml: "YAML",
+    firingAlerts: "발생 중인 경고",
+    askOpsLens: "OpsLens에 질문",
+    alert: "경고",
+    severity: "심각도",
+    affected: "영향 대상",
+    count: "건수",
+    status: "상태",
+    duration: "지속 시간",
+    contextPayload: "컨텍스트 발행 payload",
+    podLogs: "Pod 로그",
+    yamlLabel: "ClusterVersion YAML"
+  }
+} as const;
 
 const logLines = [
   "2026-06-12T03:11:42Z previous container exited with code 1",
@@ -34,24 +77,27 @@ export function ConsoleEvidencePane({
   contextPayload,
   activeRisks,
   evidenceView,
+  language,
   onEvidenceViewChange,
   onAsk
 }: ConsoleEvidencePaneProps) {
+  const copy = evidenceCopy[language];
+
   return (
     <section className="evidence-section" aria-labelledby="evidence-title">
       <div className="section-heading compact">
         <div>
-          <p className="eyebrow">Console evidence</p>
-          <h2 id="evidence-title">Alerts, Logs, Events, YAML</h2>
+          <p className="eyebrow">{copy.eyebrow}</p>
+          <h2 id="evidence-title">{copy.title}</h2>
         </div>
-        <div className="segmented-control" aria-label="Evidence view">
+        <div className="segmented-control" aria-label={copy.evidenceView}>
           <button
             type="button"
             aria-pressed={evidenceView === "alerts"}
             onClick={() => onEvidenceViewChange("alerts")}
           >
             <ListFilter size={15} aria-hidden="true" />
-            Alerts
+            {copy.alerts}
           </button>
           <button
             type="button"
@@ -59,7 +105,7 @@ export function ConsoleEvidencePane({
             onClick={() => onEvidenceViewChange("logs")}
           >
             <ScrollText size={15} aria-hidden="true" />
-            Logs
+            {copy.logs}
           </button>
           <button
             type="button"
@@ -67,7 +113,7 @@ export function ConsoleEvidencePane({
             onClick={() => onEvidenceViewChange("yaml")}
           >
             <FileCode2 size={15} aria-hidden="true" />
-            YAML
+            {copy.yaml}
           </button>
         </div>
       </div>
@@ -76,10 +122,10 @@ export function ConsoleEvidencePane({
         <div className="evidence-grid">
           <article className="console-panel">
             <div className="panel-title-row">
-              <h3>Firing Alerts</h3>
+              <h3>{copy.firingAlerts}</h3>
               <button className="text-icon-button" type="button" onClick={onAsk}>
                 <Bot size={16} aria-hidden="true" />
-                Ask OpsLens
+                {copy.askOpsLens}
               </button>
             </div>
             <div className="table-wrap" data-testid="alert-table-wrap">
@@ -89,12 +135,12 @@ export function ConsoleEvidencePane({
               >
                 <thead>
                   <tr>
-                    <th>Alert</th>
-                    <th data-testid="severity-header">Severity</th>
-                    <th>Affected</th>
-                    <th data-testid="count-header">Count</th>
-                    <th data-testid="status-header">Status</th>
-                    <th>Duration</th>
+                    <th>{copy.alert}</th>
+                    <th data-testid="severity-header">{copy.severity}</th>
+                    <th>{copy.affected}</th>
+                    <th data-testid="count-header">{copy.count}</th>
+                    <th data-testid="status-header">{copy.status}</th>
+                    <th>{copy.duration}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -120,7 +166,7 @@ export function ConsoleEvidencePane({
           </article>
 
           <article className="console-panel context-panel">
-            <h3>Context Publisher Payload</h3>
+            <h3>{copy.contextPayload}</h3>
             <pre data-testid="context-payload">{contextPayload}</pre>
           </article>
         </div>
@@ -129,10 +175,10 @@ export function ConsoleEvidencePane({
       {evidenceView === "logs" ? (
         <article className="console-panel log-panel">
           <div className="panel-title-row">
-            <h3>Pod Logs</h3>
+            <h3>{copy.podLogs}</h3>
             <button className="text-icon-button" type="button" onClick={onAsk}>
               <Bot size={16} aria-hidden="true" />
-              Ask OpsLens
+              {copy.askOpsLens}
             </button>
           </div>
           <pre className="log-viewport" data-testid="log-viewport">
@@ -147,11 +193,11 @@ export function ConsoleEvidencePane({
             <h3>{mockContext.resource?.kind} YAML</h3>
             <button className="text-icon-button" type="button" onClick={onAsk}>
               <Bot size={16} aria-hidden="true" />
-              Ask OpsLens
+              {copy.askOpsLens}
             </button>
           </div>
           <textarea
-            aria-label="ClusterVersion YAML"
+            aria-label={copy.yamlLabel}
             className="yaml-textarea"
             data-testid="yaml-textarea"
             readOnly
