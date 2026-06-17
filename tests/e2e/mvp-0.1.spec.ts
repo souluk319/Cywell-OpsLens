@@ -326,7 +326,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "확인: oc get opslensinstallation,deploy,pod,svc"
     );
     await expect(page.getByTestId("apply-signal-ready")).toContainText(
-      "Ready = API/대시보드 1/1"
+      "CRC 준비 = API/대시보드 1/1"
     );
     await expect(page.getByTestId("apply-signal-stale")).toContainText(
       "quay.io 구버전 이미지는 stale catalog"
@@ -463,7 +463,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "Check: oc get opslensinstallation,deploy,pod,svc"
     );
     await expect(page.getByTestId("apply-signal-ready")).toContainText(
-      "Ready = API/dashboard 1/1"
+      "CRC ready = API/dashboard 1/1"
     );
     await expect(page.getByTestId("apply-signal-stale")).toContainText(
       "Old quay.io image means stale catalog"

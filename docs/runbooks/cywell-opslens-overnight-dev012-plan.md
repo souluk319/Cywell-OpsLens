@@ -796,7 +796,7 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 ### 2026-06-18 - Lane 53
 
 - Added a visible CRC install signal strip so the first viewport tells the operator what to check after OperatorHub install and `OpsLensInstallation` apply.
-- The KO/EN masthead now keeps the exact read-only check command, the expected `API/dashboard 1/1` signal, and the stale-catalog symptom visible.
+- The KO/EN masthead now keeps the exact read-only check command, the expected CRC `API/dashboard 1/1` signal, and the stale-catalog symptom visible.
 - This directly addresses the repeated install loop where an old `quay.io` operator image or stale CatalogSource looked like waiting, not a wrong package/image path.
 - `npm run verify:web-shell` now includes a `visible CRC install signal` gate, and `AC-UI-004` checks the KO/EN install signal labels in the browser.
 
@@ -875,6 +875,12 @@ It intentionally does not patch OCP, create secrets, push images, or read `.env`
 - `AC-UI-006` switches to KO and clicks overview, alerting, dashboards, metrics, logs, workloads, networking, storage, administration, OpsLens Admin, and OpsBrain.
 - This protects the customer-facing claim that translated navigation is functional, not only translated text.
 - `npm run verify:web-shell`, `npx playwright test -g "AC-UI-006"`, and `npm run overnight:checkpoint` passed.
+
+### 2026-06-18 - Lane 66
+
+- Clarified the CRC install readiness copy in the first viewport.
+- The install signal now says `CRC ready = API/dashboard 1/1` and `CRC 준비 = API/대시보드 1/1`, so the local lightweight demo path is not confused with the approved pgvector/vLLM runtime path.
+- `npm run verify:web-shell`, `npx playwright test -g "AC-UI-004"`, and `npm run -w @kugnus/web build` passed.
 
 Checkpoint cadence:
 

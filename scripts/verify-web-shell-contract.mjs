@@ -190,11 +190,11 @@ expectCheck(
     appSource.includes('data-testid="apply-signal-stale"') &&
     appSource.includes("Use CRC lightweight example first") &&
     appSource.includes("Check: oc get opslensinstallation,deploy,pod,svc") &&
-    appSource.includes("Ready = API/dashboard 1/1") &&
+    appSource.includes("CRC ready = API/dashboard 1/1") &&
     appSource.includes("Old quay.io image means stale catalog") &&
     appSource.includes("CRC lightweight 예제를 먼저 선택") &&
     appSource.includes("확인: oc get opslensinstallation,deploy,pod,svc") &&
-    appSource.includes("Ready = API/대시보드 1/1") &&
+    appSource.includes("CRC 준비 = API/대시보드 1/1") &&
     appSource.includes("quay.io 구버전 이미지는 stale catalog") &&
     stylesSource.includes(".apply-signal-strip") &&
     stylesSource.includes(".apply-signal-strip .status-pill"),
