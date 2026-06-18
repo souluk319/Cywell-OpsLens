@@ -427,6 +427,29 @@ expectCheck(
 );
 
 expectCheck(
+  "assistant movable placement contract",
+  assistantSource.includes('data-testid="assistant-placement-toggle"') &&
+    assistantSource.includes('data-testid="assistant-placement-status"') &&
+    assistantSource.includes('data-testid="assistant-placement-move"') &&
+    assistantSource.includes('data-testid="assistant-drag-handle"') &&
+    assistantSource.includes("setPointerCapture") &&
+    assistantSource.includes("releasePointerCapture") &&
+    assistantSource.includes("clampAssistantPosition") &&
+    assistantSource.includes("nextAssistantPosition") &&
+    assistantSource.includes("placementPinned") &&
+    assistantSource.includes("placementFloating") &&
+    stylesSource.includes(".assistant-popover.floating") &&
+    stylesSource.includes(".assistant-popover.floating .assistant-header") &&
+    stylesSource.includes("cursor: grab") &&
+    stylesSource.includes("resize: both") &&
+    e2eSource.includes("AC-UI-002b lets operators unpin and move the assistant") &&
+    e2eSource.includes('getByTestId("assistant-placement-toggle")') &&
+    e2eSource.includes('getByTestId("assistant-placement-move")') &&
+    e2eSource.includes("toBeGreaterThan"),
+  "assistant can be pinned/unpinned and moved so it does not permanently cover console content"
+);
+
+expectCheck(
   "assistant prompt-aware answer path",
   backendApiSource.includes("function createPromptAwareAssistantAnswer") &&
     backendApiSource.includes("retrieveRunbookCitations(\"cywell-internal\", prompt, 3)") &&

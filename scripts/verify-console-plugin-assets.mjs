@@ -186,7 +186,10 @@ expectCheck(
   "plugin launcher route",
   routeSource.includes("export default function OpsLensRoute") &&
     routeSource.includes("window.location.replace") &&
-    routeSource.includes(dashboardHref) &&
+    routeSource.includes("/api/plugins/cywell-opslens/index.html") &&
+    routeSource.includes("/api/proxy/plugin/cywell-opslens/opslens-api") &&
+    routeSource.includes("encodeURIComponent(apiProxyBase)") &&
+    routeSource.includes("surface=console-plugin") &&
     routeSource.includes("return null") &&
     !routeSource.includes("<iframe") &&
     !routeSource.includes("createElement") &&

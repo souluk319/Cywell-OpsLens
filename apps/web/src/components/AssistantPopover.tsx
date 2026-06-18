@@ -3,10 +3,19 @@ import type {
   AuditEnvelope,
   ContextChip
 } from "@kugnus/contracts";
-import type { KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
+import type {
+  CSSProperties,
+  KeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent
+} from "react";
 import {
   CheckCircle2,
   FileSearch,
+  Move,
+  Pin,
+  PinOff,
   RefreshCw,
   Route,
   ShieldAlert,
@@ -58,6 +67,11 @@ const assistantCopy = {
     mutationBoundaryShort: "cluster changes",
     mutationBoundaryValue: "not executed",
     retry: "Retry API",
+    pin: "Pin assistant",
+    unpin: "Unlock and move assistant",
+    move: "Move assistant",
+    placementPinned: "pinned",
+    placementFloating: "movable",
     integrationTitle: "Integration contract",
     integrationStandalone:
       "CRC validation shell uses the same OpsLens question flow before the console route is attached.",
@@ -118,6 +132,11 @@ const assistantCopy = {
     mutationBoundaryShort: "클러스터 변경",
     mutationBoundaryValue: "실행 안 함",
     retry: "API 재시도",
+    pin: "어시스턴트 고정",
+    unpin: "고정 해제 후 이동",
+    move: "어시스턴트 이동",
+    placementPinned: "고정",
+    placementFloating: "이동 가능",
     integrationTitle: "연동 계약",
     integrationStandalone:
       "CRC 검증 화면도 콘솔 라우트 연결 전 동일한 OpsLens 질문 흐름을 사용",
@@ -444,6 +463,49 @@ function apiErrorInterpretation(language: UiLanguage, error: string | null) {
     : "The raw error is preserved. Check route reachability, API pod status, and proxy configuration in order.";
 }
 
+function clampAssistantPosition(x: number, y: number) {
+  if (typeof window === "undefined") {
+    return { x, y };
+  }
+
+  return {
+    x: Math.min(Math.max(12, x), Math.max(12, window.innerWidth - 500)),
+    y: Math.min(Math.max(12, y), Math.max(12, window.innerHeight - 640))
+  };
+}
+
+function assistantPlacementPresets() {
+  if (typeof window === "undefined") {
+    return [
+      { x: 24, y: 84 },
+      { x: 760, y: 84 },
+      { x: 760, y: 300 },
+      { x: 24, y: 300 }
+    ];
+  }
+
+  return [
+    clampAssistantPosition(24, 84),
+    clampAssistantPosition(window.innerWidth - 504, 84),
+    clampAssistantPosition(window.innerWidth - 504, window.innerHeight - 724),
+    clampAssistantPosition(24, window.innerHeight - 724)
+  ];
+}
+
+function nextAssistantPosition(current: { x: number; y: number }) {
+  const presets = assistantPlacementPresets();
+  const nearestIndex = presets.reduce(
+    (nearest, preset, index) => {
+      const distance =
+        Math.abs(preset.x - current.x) + Math.abs(preset.y - current.y);
+      return distance < nearest.distance ? { index, distance } : nearest;
+    },
+    { index: 0, distance: Number.POSITIVE_INFINITY }
+  ).index;
+
+  return presets[(nearestIndex + 1) % presets.length];
+}
+
 export function AssistantPopover({
   draft,
   contextChips,
@@ -463,6 +525,21 @@ export function AssistantPopover({
   onClose
 }: AssistantPopoverProps) {
   const copy = assistantCopy[language];
+  const [isPinned, setIsPinned] = useState(true);
+  const [floatingPosition, setFloatingPosition] = useState(() =>
+    clampAssistantPosition(
+      typeof window === "undefined" ? 24 : window.innerWidth - 504,
+      typeof window === "undefined" ? 84 : window.innerHeight - 724
+    )
+  );
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
+  const stopDragListenersRef = useRef<(() => void) | null>(null);
   const connection = connectionCopy[language];
   const statusLabel =
     apiStatus === "ready"
@@ -523,19 +600,170 @@ export function AssistantPopover({
     }
   }
 
+  function togglePlacementMode() {
+    if (isPinned) {
+      setFloatingPosition((current) => clampAssistantPosition(current.x, current.y));
+      setIsPinned(false);
+      return;
+    }
+
+    dragRef.current = null;
+    stopDragListenersRef.current?.();
+    stopDragListenersRef.current = null;
+    setIsPinned(true);
+  }
+
+  function moveFloatingAssistant() {
+    setFloatingPosition((current) => nextAssistantPosition(current));
+  }
+
+  function handleDragStart(event: PointerEvent<HTMLDivElement>) {
+    if (isPinned || event.button > 0) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (target.closest("button")) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: floatingPosition.x,
+      originY: floatingPosition.y
+    };
+
+    stopDragListenersRef.current?.();
+    const handleDocumentMove = (moveEvent: globalThis.PointerEvent) => {
+      moveAssistant(moveEvent.pointerId, moveEvent.clientX, moveEvent.clientY);
+    };
+    const handleDocumentEnd = (endEvent: globalThis.PointerEvent) => {
+      endAssistantDrag(endEvent.pointerId);
+    };
+    window.addEventListener("pointermove", handleDocumentMove);
+    window.addEventListener("pointerup", handleDocumentEnd, { once: true });
+    window.addEventListener("pointercancel", handleDocumentEnd, { once: true });
+    stopDragListenersRef.current = () => {
+      window.removeEventListener("pointermove", handleDocumentMove);
+      window.removeEventListener("pointerup", handleDocumentEnd);
+      window.removeEventListener("pointercancel", handleDocumentEnd);
+    };
+  }
+
+  function handleMouseDragStart(event: ReactMouseEvent<HTMLDivElement>) {
+    if (isPinned || event.button > 0) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    if (target.closest("button")) {
+      return;
+    }
+
+    event.preventDefault();
+    dragRef.current = {
+      pointerId: -1,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: floatingPosition.x,
+      originY: floatingPosition.y
+    };
+
+    stopDragListenersRef.current?.();
+    const handleDocumentMove = (moveEvent: globalThis.MouseEvent) => {
+      moveAssistant(-1, moveEvent.clientX, moveEvent.clientY);
+    };
+    const handleDocumentEnd = () => {
+      endAssistantDrag(-1);
+    };
+    window.addEventListener("mousemove", handleDocumentMove);
+    window.addEventListener("mouseup", handleDocumentEnd, { once: true });
+    stopDragListenersRef.current = () => {
+      window.removeEventListener("mousemove", handleDocumentMove);
+      window.removeEventListener("mouseup", handleDocumentEnd);
+    };
+  }
+
+  function moveAssistant(pointerId: number, clientX: number, clientY: number) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== pointerId) {
+      return;
+    }
+
+    setFloatingPosition(
+      clampAssistantPosition(
+        drag.originX + clientX - drag.startX,
+        drag.originY + clientY - drag.startY
+      )
+    );
+  }
+
+  function handleDragMove(event: PointerEvent<HTMLDivElement>) {
+    moveAssistant(event.pointerId, event.clientX, event.clientY);
+  }
+
+  function endAssistantDrag(pointerId: number) {
+    if (dragRef.current?.pointerId === pointerId) {
+      dragRef.current = null;
+      stopDragListenersRef.current?.();
+      stopDragListenersRef.current = null;
+    }
+  }
+
+  function handleDragEnd(event: PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      endAssistantDrag(event.pointerId);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      stopDragListenersRef.current?.();
+    };
+  }, []);
+
+  const popoverStyle = isPinned
+    ? undefined
+    : ({
+        left: floatingPosition.x,
+        top: floatingPosition.y,
+        right: "auto",
+        bottom: "auto"
+      } satisfies CSSProperties);
+
   return (
     <aside
       aria-label={copy.ariaLabel}
-      className="assistant-popover"
+      className={`assistant-popover ${isPinned ? "pinned" : "floating"}`}
       data-testid="assistant-popover"
       id="kugnus-assistant-popover"
       role="dialog"
       aria-modal="false"
+      style={popoverStyle}
     >
-      <div className="assistant-header">
+      <div
+        className="assistant-header"
+        data-testid="assistant-drag-handle"
+        onPointerDown={handleDragStart}
+        onPointerMove={handleDragMove}
+        onPointerUp={handleDragEnd}
+        onPointerCancel={handleDragEnd}
+        onMouseDown={handleMouseDragStart}
+      >
         <div className="assistant-title">
           <span className="assistant-icon">
-            <img className="assistant-app-icon" src={opsLensIcon} alt="" />
+            <img
+              className="assistant-app-icon"
+              src={opsLensIcon}
+              alt=""
+              draggable={false}
+            />
           </span>
           <div>
             <p className="eyebrow">{copy.eyebrow}</p>
@@ -549,6 +777,39 @@ export function AssistantPopover({
           >
             {statusLabel}
           </span>
+          <span
+            className={`status-pill ${isPinned ? "read-only" : "ready"}`}
+            data-testid="assistant-placement-status"
+          >
+            {isPinned ? copy.placementPinned : copy.placementFloating}
+          </span>
+          {!isPinned ? (
+            <button
+              className="icon-button"
+              type="button"
+              data-testid="assistant-placement-move"
+              title={copy.move}
+              aria-label={copy.move}
+              onClick={moveFloatingAssistant}
+            >
+              <Move size={16} aria-hidden="true" />
+            </button>
+          ) : null}
+          <button
+            className="icon-button"
+            type="button"
+            data-testid="assistant-placement-toggle"
+            title={isPinned ? copy.unpin : copy.pin}
+            aria-label={isPinned ? copy.unpin : copy.pin}
+            aria-pressed={!isPinned}
+            onClick={togglePlacementMode}
+          >
+            {isPinned ? (
+              <PinOff size={16} aria-hidden="true" />
+            ) : (
+              <Pin size={16} aria-hidden="true" />
+            )}
+          </button>
           <button
             className="icon-button"
             type="button"

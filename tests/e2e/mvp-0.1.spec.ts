@@ -550,6 +550,41 @@ async function expectConsoleFunctionEffect(
     );
   });
 
+  test("AC-UI-002b lets operators unpin and move the assistant", async ({
+    page
+  }) => {
+    await openAssistant(page);
+    await expect(page.getByTestId("assistant-placement-status")).toContainText(
+      "pinned"
+    );
+
+    await page.getByTestId("assistant-placement-toggle").click();
+    await expect(page.getByTestId("assistant-placement-status")).toContainText(
+      "movable"
+    );
+    await expect(page.getByTestId("assistant-popover")).toHaveClass(/floating/);
+
+    const before = await page.getByTestId("assistant-popover").boundingBox();
+    expect(before).not.toBeNull();
+    await page.getByTestId("assistant-placement-move").click();
+
+    await expect
+      .poll(async () => {
+        const after = await page.getByTestId("assistant-popover").boundingBox();
+        return (
+          Math.abs((after?.x ?? 0) - (before?.x ?? 0)) +
+          Math.abs((after?.y ?? 0) - (before?.y ?? 0))
+        );
+      })
+      .toBeGreaterThan(40);
+
+    await page.getByTestId("assistant-placement-toggle").click();
+    await expect(page.getByTestId("assistant-placement-status")).toContainText(
+      "pinned"
+    );
+    await expect(page.getByTestId("assistant-popover")).toHaveClass(/pinned/);
+  });
+
   test("AC-UI-003 makes every console navigation item actionable", async ({
     page
   }) => {

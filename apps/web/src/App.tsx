@@ -180,6 +180,10 @@ const consoleNavigation: ConsoleNavigationItem[] = ocpConsoleParityItems.map(
 );
 
 const navigationSections = consoleParitySections;
+const defaultActiveNavId: ConsoleNavId = "alerting";
+const defaultExpandedSections: ConsoleParitySection[] = ["Monitoring"];
+const activeNavStorageKey = "cywell-opslens-active-nav-id";
+const expandedSectionsStorageKey = "cywell-opslens-expanded-nav-sections";
 
 const shellCopy = {
   en: {
@@ -301,8 +305,70 @@ interface RuntimeProfile {
 
 function findNavigationItem(id: ConsoleNavId) {
   return (
-    consoleNavigation.find((item) => item.id === id) ?? consoleNavigation[1]
+    consoleNavigation.find((item) => item.id === id) ??
+    consoleNavigation.find((item) => item.id === defaultActiveNavId) ??
+    consoleNavigation[0]
   );
+}
+
+function isKnownNavigationId(id: string | null): id is ConsoleNavId {
+  return Boolean(id && consoleNavigation.some((item) => item.id === id));
+}
+
+function isKnownNavigationSection(
+  section: string
+): section is ConsoleParitySection {
+  return navigationSections.includes(section as ConsoleParitySection);
+}
+
+function readInitialActiveNavId(): ConsoleNavId {
+  if (typeof window === "undefined") {
+    return defaultActiveNavId;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(activeNavStorageKey);
+    if (isKnownNavigationId(stored)) {
+      return stored;
+    }
+  } catch {
+    // Ignore storage failures; the default page still gives a stable route.
+  }
+
+  return defaultActiveNavId;
+}
+
+function readInitialExpandedSections(
+  activeNavId = readInitialActiveNavId()
+): ConsoleParitySection[] {
+  const activeItem = findNavigationItem(activeNavId);
+  const defaultSections = Array.from(
+    new Set([...defaultExpandedSections, activeItem.section])
+  );
+
+  if (typeof window === "undefined") {
+    return defaultSections;
+  }
+
+  try {
+    const stored = window.localStorage.getItem(expandedSectionsStorageKey);
+    if (!stored) {
+      return defaultSections;
+    }
+
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) {
+      return defaultSections;
+    }
+
+    const storedSections = parsed.filter((section): section is ConsoleParitySection =>
+      typeof section === "string" && isKnownNavigationSection(section)
+    );
+
+    return Array.from(new Set([...storedSections, activeItem.section]));
+  } catch {
+    return defaultSections;
+  }
 }
 
 function initialLanguage(): UiLanguage {
@@ -358,19 +424,27 @@ function readRuntimeProfile(): RuntimeProfile {
 }
 
 export default function App() {
-  const [language, setLanguage] = useState<UiLanguage>(initialLanguage);
+  const initialActiveNavId = useMemo(() => readInitialActiveNavId(), []);
+  const initialExpandedSections = useMemo(
+    () => readInitialExpandedSections(initialActiveNavId),
+    [initialActiveNavId]
+  );
+  const initialLanguageValue = useMemo(() => initialLanguage(), []);
+  const [language, setLanguage] = useState<UiLanguage>(initialLanguageValue);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [draft, setDraft] = useState(
     "ClusterNotUpgradeable alert를 근거 중심으로 triage 해줘."
   );
   const [evidenceView, setEvidenceView] = useState<EvidenceView>("alerts");
-  const [activeNavId, setActiveNavId] = useState<ConsoleNavId>("alerting");
+  const [activeNavId, setActiveNavId] = useState<ConsoleNavId>(
+    initialActiveNavId
+  );
   const [expandedSections, setExpandedSections] = useState<
     ConsoleParitySection[]
-  >(["Monitoring"]);
+  >(initialExpandedSections);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [navigationCommand, setNavigationCommand] = useState(
-    navCommand(findNavigationItem("alerting"), initialLanguage())
+    navCommand(findNavigationItem(initialActiveNavId), initialLanguageValue)
   );
   const [resourcePreset, setResourcePreset] =
     useState<OcpResourcePreset | null>(null);
@@ -543,6 +617,25 @@ export default function App() {
   }, [activeNavId, language]);
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem(activeNavStorageKey, activeNavId);
+    } catch {
+      // Ignore storage failures; active route state is still preserved in memory.
+    }
+  }, [activeNavId]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        expandedSectionsStorageKey,
+        JSON.stringify(expandedSections)
+      );
+    } catch {
+      // Ignore storage failures; expanded groups still work for this session.
+    }
+  }, [expandedSections]);
+
+  useEffect(() => {
     setExpandedSections((current) =>
       current.includes(activeNavigation.section)
         ? current
@@ -657,6 +750,9 @@ export default function App() {
   }
 
   function activateNavigation(item: ConsoleNavigationItem) {
+    setExpandedSections((current) =>
+      current.includes(item.section) ? current : [...current, item.section]
+    );
     setActiveNavId(item.id);
     setNavigationCommand(navCommand(item, language));
     applyNavigationSideEffects(item);
@@ -1070,9 +1166,16 @@ export default function App() {
             />
             <div
               className="active-surface"
+              data-active-nav-id={activeNavigation.id}
               data-testid={`active-surface-${activeNavigation.actionSurface}`}
+              key={activeNavigation.id}
             >
-              {renderActiveSurface()}
+              <div
+                className="active-page"
+                data-testid={`active-page-${activeNavigation.id}`}
+              >
+                {renderActiveSurface()}
+              </div>
             </div>
           </section>
         </main>
