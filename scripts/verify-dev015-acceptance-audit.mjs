@@ -6,6 +6,8 @@ import { dirname, resolve } from "node:path";
 const paths = {
   audit:
     "docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.5-acceptance-audit.md",
+  assistantPolish:
+    "docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.5-assistant-polish.md",
   packageJson: "package.json",
   checkpointRunner: "scripts/run-dev012-overnight-checkpoint.mjs",
   app: "apps/web/src/App.tsx",
@@ -100,7 +102,8 @@ const [
   e2e,
   webShellEvidence,
   pagesEvidence,
-  checkpointEvidence
+  checkpointEvidence,
+  assistantPolish
 ] = await Promise.all([
   readText(paths.audit),
   readText(paths.packageJson),
@@ -111,7 +114,8 @@ const [
   readText(paths.e2e),
   readJson(paths.webShellEvidence),
   readJson(paths.pagesEvidence),
-  readJson(paths.checkpointEvidence)
+  readJson(paths.checkpointEvidence),
+  readText(paths.assistantPolish)
 ]);
 
 expectCheck(
@@ -162,6 +166,23 @@ expectCheck(
     "Security and mutation boundary"
   ]),
   "audit covers every Dev 0.1.5 product acceptance area"
+);
+
+expectCheck(
+  "assistant polish doc current",
+  containsAll(assistantPolish, [
+    "Completed Implementation Lane",
+    "Completion Checkpoint 2026-06-18 23:58 KST",
+    "Curated screenshot evidence now exists",
+    "AC-UI-002b",
+    "AC-UI-005",
+    "AC-DASH-001",
+    "Fresh live CRC Dev 0.1.5 upgrade proof"
+  ]) &&
+    !assistantPolish.includes("no curated screenshot artifact yet") &&
+    !assistantPolish.includes("needs a more chat-native presentation"),
+  "assistant polish plan reflects the completed local UI lane and the remaining approval-gated live CRC boundary",
+  "assistant polish plan still contains stale implementation gaps"
 );
 
 expectCheck(

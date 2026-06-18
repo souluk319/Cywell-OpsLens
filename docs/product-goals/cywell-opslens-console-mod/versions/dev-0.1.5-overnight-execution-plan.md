@@ -348,3 +348,33 @@ next:
 - Run the pending verification commands.
 - Commit and push the label correction if verification passes.
 - Restart `npm run overnight:loop` from the committed head.
+
+## Execution Checkpoint 2026-06-18 23:58 KST
+
+time: 2026-06-18 23:58 KST
+
+branch/head: `feat/OpsLens-Dev0.1.5` / `2efb1b6e`
+
+completed:
+
+- Reviewed the active 0.1.5 docs after the loop restarted.
+- Found `dev-0.1.5-assistant-polish.md` still described early implementation gaps even though dashboard, assistant, mobile screenshots, and acceptance verifiers now exist.
+- Updated that document from "first implementation lane" to completed local UI lane.
+- Added a `verify:dev015-acceptance` guard so stale assistant-polish wording cannot return silently.
+
+validation:
+
+- `npm run verify:dev015-acceptance`: pass, `15 checks`, `0 fail`.
+- `npm run verify:dev015-handoff`: pass, `12 checks`, `0 fail`, `0 warn`.
+- `npm run overnight:checkpoint`: pass, `14 steps`, visible label reports `Cywell OpsLens Dev 0.1.5 Overnight Checkpoint`.
+
+blocked:
+
+- No local documentation or verifier blocker.
+- Fresh live CRC Dev 0.1.5 upgrade proof remains approval-gated.
+
+next:
+
+- Run the pending verification commands.
+- Commit and push the stale-doc cleanup if verification passes.
+- Restart `npm run overnight:loop` from the committed head.
