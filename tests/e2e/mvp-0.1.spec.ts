@@ -250,7 +250,7 @@ async function expectActiveConsoleAction(
   test("AC-UI-003 makes every console navigation item actionable", async ({
     page
   }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(90_000);
     const feedback = page.getByTestId("console-navigation-feedback");
 
     await expect(page.getByTestId("console-parity-matrix")).toBeVisible();
@@ -270,6 +270,12 @@ async function expectActiveConsoleAction(
       );
       await expect(page.locator(item.targetSelector)).toBeVisible();
       await expect(page.getByTestId(`console-parity-row-${item.id}`)).toBeVisible();
+      await page.getByTestId("console-active-open-surface").click();
+      await expect(page.getByTestId("console-active-target-status")).toHaveAttribute(
+        "data-target-status",
+        "mounted"
+      );
+      await expect(page.locator(item.targetSelector)).toBeVisible();
 
       if (item.resourcePreset) {
         await expect(page.getByTestId("ocp-resource-search")).toHaveValue(

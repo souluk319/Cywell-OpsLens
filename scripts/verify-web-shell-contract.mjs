@@ -1554,8 +1554,10 @@ expectCheck(
     e2eSource.includes("surfaceLabelsForTest[item.actionSurface]") &&
     e2eSource.includes("item.resourcePreset?.query") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
+    e2eSource.includes('getByTestId("console-active-open-surface").click()') &&
+    e2eSource.includes('data-target-status",') &&
     e2eSource.includes("console-parity-row-${item.id}"),
-  "Playwright clicks every version-pinned console registry item and verifies its mapped surface, preset, and mounted target"
+  "Playwright clicks every version-pinned console registry item, uses the active Open surface action, and verifies its mapped surface, preset, and mounted target"
 );
 
 expectCheck(
