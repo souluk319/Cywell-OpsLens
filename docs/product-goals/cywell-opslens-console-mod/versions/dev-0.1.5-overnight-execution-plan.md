@@ -222,3 +222,32 @@ next:
 - Run the full checkpoint with the new Pages gate included.
 - Commit and push the Pages-verifier update if checkpoint passes.
 - Restart `npm run overnight:loop` from the committed head.
+
+## Execution Checkpoint 2026-06-18 23:20 KST
+
+time: 2026-06-18 23:20 KST
+
+branch/head: `feat/OpsLens-Dev0.1.5` / `8aafe32e` before morning-handoff commit
+
+completed:
+
+- Added a Dev 0.1.5 morning handoff for the 2026-06-19 09:00 KST demo target.
+- The handoff gives the public demo URL, verified branch, safe morning commands, five-minute demo flow, tracked screenshot evidence, and approval-gated actions.
+- Added `npm run verify:dev015-handoff`.
+- Wired `verify:dev015-handoff` into `npm run overnight:checkpoint` so the loop now protects the Dev 0.1.5 handoff in addition to the legacy Dev 0.1.2 freshness gate.
+- Performed a read-only public Pages check: `https://souluk319.github.io/Cywell-OpsLens/` returned HTTP 200 and contained the Dev 0.1.5 dashboard screenshot reference.
+
+validation:
+
+- `npm run verify:dev015-handoff`: pass, `12 checks`, `0 fail`, `0 warn`.
+
+blocked:
+
+- No local handoff blocker remains.
+- Live CRC Dev 0.1.5 upgrade proof remains approval-gated cluster mutation.
+
+next:
+
+- Run the full checkpoint with the Dev 0.1.5 handoff gate included.
+- Commit and push the handoff update if checkpoint passes.
+- Restart `npm run overnight:loop` from the committed head.

@@ -54,6 +54,7 @@ const steps = [
   npmStep("lab-bootstrap", ["verify:lab-bootstrap"]),
   npmStep("crc-demo-readiness", ["verify:crc-demo-readiness"]),
   npmStep("lab-handoff", ["verify:lab-handoff"]),
+  npmStep("dev015-handoff", ["verify:dev015-handoff"]),
   npmStep("dev012-handoff", ["verify:dev012-handoff"])
 ];
 

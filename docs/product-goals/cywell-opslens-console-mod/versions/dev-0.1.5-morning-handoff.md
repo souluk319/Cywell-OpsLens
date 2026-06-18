@@ -1,0 +1,108 @@
+# Cywell OpsLens Dev 0.1.5 Morning Handoff
+
+Generated for the 2026-06-19 09:00 KST demo target.
+
+## Read First
+
+| Item | Current value |
+| --- | --- |
+| Branch | `feat/OpsLens-Dev0.1.5` |
+| Last verified checkpoint head | `8aafe32e` |
+| Public demo brief | https://souluk319.github.io/Cywell-OpsLens/ |
+| Local presentation HTML | `docs/product-goals/cywell-opslens-console-mod/presentation/cywell-opslens-demo-brief-2026-06-18.html` |
+| Primary checkpoint | `npm run overnight:checkpoint` |
+| Pages/demo brief gate | `npm run verify:demo-brief-pages` |
+
+The public demo brief returned HTTP 200 and included the Dev 0.1.5 dashboard screenshot reference during the 2026-06-18 23:15 KST read-only check.
+
+The only expected dirty entry during the loop is the unrelated untracked idea note:
+
+```text
+?? kugnus-idea/Cywell-OpsBrain/Cywell-OpsLens.md
+```
+
+Do not stage that file as part of the Dev 0.1.5 handoff.
+
+## Current Demo Story
+
+Cywell OpsLens is shown as an OpenShift Console extension product, not a replacement shell and not a browser hack.
+
+1. OpenShift stays the trusted entry point.
+2. Software Catalog / OperatorHub shows `Cywell OpsLens`.
+3. OLM installs the Operator through Subscription, InstallPlan, CSV, and CRD resources.
+4. `OpsLensInstallation` applies the API, dashboard, and ConsolePlugin resources.
+5. The OpenShift console gets a `Cywell OpsLens` entry through the supported ConsolePlugin path.
+6. The entry opens the full-page OpsLens dashboard.
+7. OpsLens adds a KOMSCO-branded operations dashboard and KOMSCO AI Assistant while staying read-only / plan-first by default.
+
+## What Is Proven
+
+| Capability | Evidence |
+| --- | --- |
+| Software Catalog presence | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/catalog-cywell-opslens-card.png` |
+| Catalog detail install modal | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/catalog-cywell-opslens-detail.png` |
+| Operator install path | Dev 0.1.1 through Dev 0.1.4 version ledgers under `docs/product-goals/cywell-opslens-console-mod/versions/` |
+| ConsolePlugin route contract | `npm run verify:console-plugin` |
+| OCP 4.21.14 menu/function mapping | `npm run verify:web-shell` |
+| Visual operations dashboard | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-dashboard-desktop.png` |
+| Movable KOMSCO AI Assistant | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-assistant-movable.png` |
+| Mobile presentation surface | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-mobile-nav.png` |
+| Public demo brief delivery | `npm run verify:demo-brief-pages` plus the read-only HTTP 200 check |
+
+## Morning Verification Commands
+
+Run these before the demo if the machine is available:
+
+```bash
+git status --short --branch
+npm run overnight:checkpoint
+npm run verify:demo-brief-pages
+```
+
+Optional read-only CRC checks, only if the Mac CRC session is connected:
+
+```bash
+oc get co console
+oc get console.operator.openshift.io cluster -o jsonpath='{.spec.plugins}{"\n"}'
+oc get opslensinstallation,deploy,pod,svc,route,consoleplugin -n cywell-opslens
+```
+
+These commands are read-only. They do not patch, apply, delete, scale, push, mirror, create secrets, or change OLSConfig.
+
+## 5-Minute Demo Flow
+
+1. Open the public demo brief and start from the official evidence section.
+2. Show that the scope is bounded by Red Hat-supported OpenShift extension points: OperatorHub/OLM/ConsolePlugin/web console customization.
+3. Show the Software Catalog card and detail modal screenshots.
+4. Explain the install chain: CatalogSource -> PackageManifest -> Subscription -> CSV -> `OpsLensInstallation` -> ConsolePlugin.
+5. Show the Dev 0.1.5 visual dashboard screenshot and explain why it is more useful than plain console text during operations.
+6. Show the movable KOMSCO AI Assistant screenshot and explain why it avoids permanently covering console content.
+7. Close with the boundary: read-only / plan-first by default; production mutation and Lightspeed patching require approval.
+
+## Do Not Do Without Fresh Approval
+
+- Do not push CRC registry images.
+- Do not replace CatalogSource or Subscription on a live cluster.
+- Do not patch `OLSConfig`.
+- Do not create secrets, registry credentials, SCC/RBAC workarounds, or service accounts.
+- Do not delete live cluster resources to clean up a stale install.
+- Do not claim production vLLM/pgvector readiness from the CRC lightweight profile.
+
+## Known Gaps
+
+| Gap | Meaning | Next action |
+| --- | --- | --- |
+| Live CRC Dev 0.1.5 upgrade proof | The local package and UI are ready, but applying/upgrading on CRC is a cluster mutation. | Ask for explicit approval before pushing/replacing/installing. |
+| `gh` not on PATH | The local Pages contract passes, and the public URL returned HTTP 200, but GitHub CLI deployment status was not queried. | Use browser/GitHub UI or install/fix `gh` PATH if live workflow state is needed. |
+| Production model runtime | CRC demo uses lightweight `mock-local` runtime. | Keep vLLM/GPU as a separate production runtime lane. |
+| Production vector store | CRC demo avoids pgvector StatefulSet/SCC friction. | Keep pgvector/storage security as a separate approval-backed lane. |
+
+## Final Morning Decision
+
+If `npm run overnight:checkpoint` passes and the public demo brief opens, the safe 0.1.5 demo path is:
+
+```text
+Official evidence -> Catalog screenshots -> Install chain -> ConsolePlugin route story -> 0.1.5 dashboard visuals -> movable KOMSCO AI Assistant -> approval boundaries
+```
+
+If the Mac CRC cluster is unavailable, do not spend the demo trying to repair networking live. Use the public demo brief, tracked screenshots, and local verifier output as the evidence packet.
