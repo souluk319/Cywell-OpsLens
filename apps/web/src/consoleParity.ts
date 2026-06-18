@@ -67,6 +67,12 @@ export interface ConsoleParityFunctionProof {
   proofKo: string;
 }
 
+export interface ConsoleParityFunctionSignal {
+  selector: string;
+  description: string;
+  descriptionKo: string;
+}
+
 export const ocpConsoleBaseline = {
   product: "OpenShift Local / OpenShift Container Platform web console",
   crcVersion: "OpenShift Local 4.21.14",
@@ -714,7 +720,7 @@ export function parityCoverageSummary() {
 export function consoleParityFunctionProof(
   item: ConsoleParityItem
 ): ConsoleParityFunctionProof {
-  if (item.resourcePreset) {
+  if (item.resourcePreset && item.actionSurface === "resource-explorer") {
     return {
       mode: "resource-preset",
       input: `Resource preset: ${item.resourcePreset.query}`,
@@ -794,5 +800,87 @@ export function consoleParityFunctionProof(
       "Dashboard target must mount and keep operations evidence tied to source status instead of fake live success.",
     proofKo:
       "대시보드 대상이 장착되고 운영 근거가 가짜 실시간 성공 대신 출처 상태와 연결되어야 합니다."
+  };
+}
+
+export function consoleParityFunctionSignal(
+  item: ConsoleParityItem
+): ConsoleParityFunctionSignal {
+  if (item.resourcePreset && item.actionSurface === "resource-explorer") {
+    return {
+      selector: "[data-testid='ocp-smoke-function-outcome']",
+      description:
+        "Resource Explorer function outcome must move from preset activation to a concrete read-only list/detail state.",
+      descriptionKo:
+        "리소스 탐색기 기능 결과가 프리셋 활성화에서 실제 읽기 전용 목록/상세 상태로 이동해야 합니다."
+    };
+  }
+
+  if (item.evidenceView) {
+    return {
+      selector: `[data-testid='evidence-view-${item.evidenceView}']`,
+      description:
+        "Evidence pane tab must become the active tab for this console function.",
+      descriptionKo:
+        "근거 패널 탭이 이 콘솔 기능의 활성 탭으로 전환되어야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "assistant") {
+    return {
+      selector: "[data-testid='assistant-popover']",
+      description:
+        "KOMSCO assistant popover must open with the selected console context.",
+      descriptionKo:
+        "KOMSCO 어시스턴트 팝오버가 선택한 콘솔 컨텍스트로 열려야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "overview") {
+    return {
+      selector: "[data-testid='ocp-overview-status']",
+      description:
+        "Overview status strip must show live or explicitly unavailable cluster evidence.",
+      descriptionKo:
+        "개요 상태 바가 실시간 또는 명시적 사용 불가 클러스터 근거를 보여야 합니다."
+    };
+  }
+
+  if (item.id === "favorites") {
+    return {
+      selector: "[data-testid='console-parity-summary']",
+      description:
+        "Parity summary must prove the version-pinned native console inventory is visible.",
+      descriptionKo:
+        "Parity 요약이 버전 고정 원본 콘솔 인벤토리가 보인다는 것을 증명해야 합니다."
+    };
+  }
+
+  if (item.id === "dashboards") {
+    return {
+      selector: "[data-testid='active-risk-list']",
+      description:
+        "Operations dashboard must expose the active incident queue, not only the page title.",
+      descriptionKo:
+        "운영 대시보드는 제목만이 아니라 활성 장애 대기열을 보여야 합니다."
+    };
+  }
+
+  if (item.id === "metrics") {
+    return {
+      selector: "[data-testid='opslens-incident-metrics']",
+      description:
+        "Metrics surface must expose incident metric evidence with source state.",
+      descriptionKo:
+        "메트릭 화면은 출처 상태가 있는 장애 메트릭 근거를 보여야 합니다."
+    };
+  }
+
+  return {
+    selector: item.targetSelector,
+    description:
+      "Mapped OpsLens surface must expose the concrete target section for this console function.",
+    descriptionKo:
+      "매핑된 OpsLens 화면이 이 콘솔 기능의 구체 대상 섹션을 보여야 합니다."
   };
 }

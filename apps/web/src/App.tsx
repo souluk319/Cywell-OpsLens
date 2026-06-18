@@ -20,6 +20,8 @@ import {
   BookOpen,
   Bot,
   Boxes,
+  ChevronDown,
+  ChevronRight,
   CircleHelp,
   CirclePlus,
   Cpu,
@@ -235,46 +237,11 @@ const shellCopy = {
     standaloneContextPrimary: "CRC lab preview",
     standaloneContextSecondary: "local fixture scenario / no company OCP mutation",
     opsLensStatus: "Cywell OpsLens status",
-    statusDetailsTitle: "Operational details",
-    statusDetailsSummary: "Show install and demo details",
     ocpLiveStatus: "OCP live",
     ocpStatusUnknown: "OCP check needed",
     dataSourceLive: "live data",
     dataSourceDemo: "demo data",
-    openShiftUtilities: "OpenShift console utilities",
-    installFlow: "Install flow",
-    installStepOperatorHub: "OperatorHub: operator",
-    installStepCustomResource: "OpsLensInstallation: product",
-    installStepConsolePlugin: "ConsolePlugin: route",
-    modBoundary: "Mod boundary",
-    modAdds: "OpsLens adds route/API/MCP surfaces",
-    modKeeps: "OpenShift keeps native chrome and Lightspeed drawer",
-    runtimeBoundary: "Runtime profile",
-    runtimeCrc: "CRC demo uses in-memory RAG + mock model",
-    runtimeApproved: "Approved install requires pgvector/vLLM evidence",
-    certificationBoundary: "Certification boundary",
-    certificationLocal: "Local demo build",
-    certificationSubmit: "No Partner/OperatorHub submission",
-    certificationEvidence:
-      "Certified readiness needs security/release evidence",
-    accessBoundary: "Access path",
-    accessConsoleRoute: "Installed view uses Console route",
-    accessDashboardHttps: "Port-forward fallback uses HTTPS 19443",
-    accessApiProxy: "Assistant/API follows proxy mode",
-    applySignalBoundary: "CRC install signal",
-    applySignalProfile: "Use CRC lightweight example first",
-    applySignalCommand: "Check: oc get opslensinstallation,deploy,pod,svc,route",
-    applySignalReady: "CRC ready = API/dashboard 1/1",
-    applySignalRoute: "Route = cywell-opslens-dashboard",
-    applySignalStale: "Old quay.io image means stale catalog",
-    smokeBoundary: "Post-install smoke",
-    smokeRoute: "Open ConsolePlugin route",
-    smokeAssistant: "Ask KOMSCO AI Assistant",
-    smokeOls: "OLSConfig stays ValidateOnly",
-    handoffBoundary: "Return checklist",
-    handoffReconnect: "Reconnect Mac CRC",
-    handoffRoute: "Open ConsolePlugin route",
-    handoffSmoke: "Run read-only smoke"
+    openShiftUtilities: "OpenShift console utilities"
   },
   ko: {
     activeSurface: "현재 화면",
@@ -329,45 +296,11 @@ const shellCopy = {
     standaloneContextPrimary: "CRC 실습 환경 미리보기",
     standaloneContextSecondary: "로컬 검증 시나리오 / 회사 OCP 변경 없음",
     opsLensStatus: "Cywell OpsLens 상태",
-    statusDetailsTitle: "운영 상세",
-    statusDetailsSummary: "설치 및 시연 상세 보기",
     ocpLiveStatus: "OCP 실시간 연결",
     ocpStatusUnknown: "OCP 확인 필요",
     dataSourceLive: "실데이터",
     dataSourceDemo: "데모 데이터",
-    openShiftUtilities: "OpenShift 콘솔 유틸리티",
-    installFlow: "설치 흐름",
-    installStepOperatorHub: "OperatorHub: 오퍼레이터",
-    installStepCustomResource: "OpsLensInstallation: 제품 적용",
-    installStepConsolePlugin: "ConsolePlugin: 콘솔 라우트",
-    modBoundary: "적용 범위",
-    modAdds: "OpsLens가 라우트/API/MCP 화면을 추가",
-    modKeeps: "OpenShift 기본 메뉴와 Lightspeed 서랍은 유지",
-    runtimeBoundary: "런타임 프로필",
-    runtimeCrc: "CRC 데모는 인메모리 RAG + 목 모델 사용",
-    runtimeApproved: "승인 설치는 pgvector/vLLM 근거 필요",
-    certificationBoundary: "인증 경계",
-    certificationLocal: "로컬 데모 빌드",
-    certificationSubmit: "Partner/OperatorHub 제출 안 함",
-    certificationEvidence: "인증 준비는 보안/릴리스 근거 필요",
-    accessBoundary: "접근 경로",
-    accessConsoleRoute: "설치 화면은 콘솔 라우트 사용",
-    accessDashboardHttps: "포트포워드 대체 경로는 HTTPS 19443",
-    accessApiProxy: "어시스턴트/API는 프록시 모드 연동",
-    applySignalBoundary: "CRC 설치 신호",
-    applySignalProfile: "CRC lightweight 예제를 먼저 선택",
-    applySignalCommand: "확인: oc get opslensinstallation,deploy,pod,svc,route",
-    applySignalReady: "CRC 준비 = API/대시보드 1/1",
-    applySignalRoute: "Route = cywell-opslens-dashboard",
-    applySignalStale: "quay.io 구버전 이미지는 stale catalog",
-    smokeBoundary: "설치 후 스모크",
-    smokeRoute: "콘솔 플러그인 라우트 열기",
-    smokeAssistant: "KOMSCO AI 어시스턴트 질문",
-    smokeOls: "OLSConfig는 ValidateOnly 유지",
-    handoffBoundary: "복귀 체크",
-    handoffReconnect: "Mac CRC 재연결",
-    handoffRoute: "콘솔 플러그인 라우트 열기",
-    handoffSmoke: "읽기 전용 스모크 실행"
+    openShiftUtilities: "OpenShift 콘솔 유틸리티"
   }
 } as const;
 
@@ -458,6 +391,9 @@ export default function App() {
   );
   const [evidenceView, setEvidenceView] = useState<EvidenceView>("alerts");
   const [activeNavId, setActiveNavId] = useState<ConsoleNavId>("alerting");
+  const [expandedSections, setExpandedSections] = useState<
+    ConsoleParitySection[]
+  >(["Monitoring"]);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [navigationCommand, setNavigationCommand] = useState(
     navCommand(findNavigationItem("alerting"), initialLanguage())
@@ -612,6 +548,14 @@ export default function App() {
   const isConsolePlugin = runtimeProfile.surface === "console-plugin";
   const dashboardUsesDemoData = dashboard.source === "mock-backend";
 
+  function toggleNavigationSection(section: ConsoleParitySection) {
+    setExpandedSections((current) =>
+      current.includes(section)
+        ? current.filter((expanded) => expanded !== section)
+        : [...current, section]
+    );
+  }
+
   useEffect(() => {
     document.documentElement.lang = language;
     try {
@@ -621,6 +565,14 @@ export default function App() {
     }
     setNavigationCommand(navCommand(findNavigationItem(activeNavId), language));
   }, [activeNavId, language]);
+
+  useEffect(() => {
+    setExpandedSections((current) =>
+      current.includes(activeNavigation.section)
+        ? current
+        : [...current, activeNavigation.section]
+    );
+  }, [activeNavigation.section]);
 
   async function askAssistant() {
     const prompt = draft.trim();
@@ -671,9 +623,10 @@ export default function App() {
 
   function scrollToNavigationTarget(
     targetSelector: string,
-    trackActiveTarget = false
+    trackActiveTarget = false,
+    attempt = 0
   ) {
-    if (trackActiveTarget) {
+    if (trackActiveTarget && attempt === 0) {
       setActiveTargetStatus("checking");
     }
     window.requestAnimationFrame(() => {
@@ -683,6 +636,10 @@ export default function App() {
       );
 
       if (!target) {
+        if (attempt < 3) {
+          scrollToNavigationTarget(targetSelector, trackActiveTarget, attempt + 1);
+          return;
+        }
         if (trackActiveTarget) {
           setActiveTargetStatus("missing");
         }
@@ -727,7 +684,6 @@ export default function App() {
     setActiveNavId(item.id);
     setNavigationCommand(navCommand(item, language));
     applyNavigationSideEffects(item);
-    scrollToNavigationTarget(item.targetSelector, true);
   }
 
   function runUtilityAction(
@@ -786,7 +742,125 @@ export default function App() {
 
   useEffect(() => {
     scrollToNavigationTarget(activeNavigation.targetSelector, true);
-  }, []);
+  }, [activeNavId]);
+
+  function renderReadinessSurface() {
+    return (
+      <>
+        <section
+          className="readiness-command-strip"
+          data-testid="opslens-readiness-command-strip"
+          aria-label={copy.readiness}
+        >
+          <div className="readiness-command-main">
+            <div>
+              <p className="eyebrow">Cywell OpsLens</p>
+              <h2>{copy.readiness}</h2>
+            </div>
+            <span
+              className={`freshness ${statusClass(completionGate?.status)}`}
+              data-testid="readiness-status"
+            >
+              {readinessStatusText(
+                completionGate?.status,
+                language,
+                copy.loading
+              )}
+            </span>
+          </div>
+          <div className="readiness-command-metrics">
+            <span data-testid="readiness-percent">
+              <Gauge size={15} aria-hidden="true" />
+              {completionGate ? `${completionGate.percentComplete}%` : "--%"}
+            </span>
+            <span data-testid="readiness-passed">
+              {copy.passedRequirements}:{" "}
+              {completionGate
+                ? `${completionGate.passedRequirements}/${completionGate.totalRequirements}`
+                : "--/--"}
+            </span>
+            <span data-testid="readiness-remaining">
+              {copy.remainingRequirements}:{" "}
+              {completionGate?.remainingRequirements ?? "--"}
+            </span>
+            <span data-testid="readiness-next-gate">
+              {copy.nextGate}: {nextGateLabel(adminOverview, language)}
+            </span>
+            <span data-testid="readiness-next-command">
+              {copy.nextCommand}: {firstNextCommand(adminOverview, language)}
+            </span>
+          </div>
+          <a
+            className="text-icon-button readiness-jump"
+            href="#opslens-admin-title"
+            data-testid="opslens-readiness-jump"
+          >
+            <Waypoints size={15} aria-hidden="true" />
+            {copy.closure}
+          </a>
+        </section>
+        <OpsLensLiveInstallStatus language={language} />
+      </>
+    );
+  }
+
+  function renderActiveSurface() {
+    switch (activeNavigation.actionSurface) {
+      case "overview":
+        return <OcpConsoleOverview language={language} />;
+      case "resource-explorer":
+        return (
+          <OcpResourceExplorer
+            language={language}
+            navigationPreset={resourcePreset}
+            onFunctionOutcomeChange={setResourceFunctionOutcome}
+          />
+        );
+      case "evidence":
+        return (
+          <ConsoleEvidencePane
+            contextPayload={contextPayload}
+            activeRisks={dashboard.activeRisks}
+            evidenceView={evidenceView}
+            language={language}
+            onEvidenceViewChange={setEvidenceView}
+            onAsk={openAssistantFromEvidence}
+          />
+        );
+      case "ops-admin":
+        return (
+          <>
+            {renderReadinessSurface()}
+            <OpsLensAdminDashboard language={language} />
+          </>
+        );
+      case "opsbrain":
+        return <OpsLensAdminDashboard language={language} />;
+      case "assistant":
+        return (
+          <ConsoleEvidencePane
+            contextPayload={contextPayload}
+            activeRisks={dashboard.activeRisks}
+            evidenceView={evidenceView}
+            language={language}
+            onEvidenceViewChange={setEvidenceView}
+            onAsk={openAssistantFromEvidence}
+          />
+        );
+      case "ops-dashboard":
+      default:
+        if (activeNavigation.id === "favorites") {
+          return (
+            <OcpConsoleParityMatrix
+              activeItemId={activeNavId}
+              language={language}
+              onSelectItem={(itemId) => activateNavigation(findNavigationItem(itemId))}
+            />
+          );
+        }
+        return <OperationsDashboard dashboard={dashboard} language={language} />;
+    }
+  }
 
   return (
     <div
@@ -934,197 +1008,6 @@ export default function App() {
         </div>
       </header>
 
-      <details
-        className="opslens-status-details"
-        data-testid="opslens-status-details"
-        aria-label={copy.statusDetailsTitle}
-      >
-        <summary data-testid="opslens-status-details-summary">
-          <span>{copy.statusDetailsSummary}</span>
-          <span
-            className={`status-pill ${ocpStatus?.reachable ? "ready" : "warning"}`}
-            data-testid="ocp-live-status"
-          >
-            {ocpStatus?.reachable ? copy.ocpLiveStatus : copy.ocpStatusUnknown}
-          </span>
-          <span
-            className={`status-pill ${dashboardUsesDemoData ? "warning" : "ready"}`}
-            data-testid="dashboard-data-source"
-          >
-            {dashboardUsesDemoData ? copy.dataSourceDemo : copy.dataSourceLive}
-          </span>
-        </summary>
-        <div className="opslens-status-detail-grid">
-          <div
-            className="runtime-surface-strip"
-            data-testid="runtime-surface-strip"
-            aria-label={copy.opsLensStatus}
-          >
-            <span
-              className={`status-pill ${isConsolePlugin ? "ready" : "warning"}`}
-              data-testid="runtime-surface"
-              title={
-                isConsolePlugin
-                  ? copy.consolePluginModeTitle
-                  : copy.standaloneDevModeTitle
-              }
-            >
-              {isConsolePlugin ? copy.consolePluginMode : copy.standaloneDevMode}
-            </span>
-            <span className="status-pill read-only" data-testid="api-route-mode">
-              {runtimeProfile.apiBaseAttached ? copy.pluginApi : copy.localApi}
-            </span>
-            <span
-              className="status-pill read-only"
-              data-testid="console-plugin-scope"
-              title={
-                isConsolePlugin
-                  ? copy.consolePluginScopeTitle
-                  : copy.standaloneScopeTitle
-              }
-            >
-              {isConsolePlugin ? copy.consolePluginScope : copy.standaloneScope}
-            </span>
-            <span className="status-pill read-only" data-testid="runtime-readonly-boundary">
-              <ShieldCheck size={15} aria-hidden="true" />
-              {copy.readOnly}
-            </span>
-          </div>
-          <div
-            className="install-flow-strip"
-            data-testid="install-flow-strip"
-            aria-label={copy.installFlow}
-          >
-            <span className="status-pill read-only" data-testid="install-flow-operatorhub">
-              {copy.installStepOperatorHub}
-            </span>
-            <span className="status-pill read-only" data-testid="install-flow-cr">
-              {copy.installStepCustomResource}
-            </span>
-            <span className="status-pill read-only" data-testid="install-flow-consoleplugin">
-              {copy.installStepConsolePlugin}
-            </span>
-          </div>
-          <div
-            className="mod-boundary-strip"
-            data-testid="mod-boundary-strip"
-            aria-label={copy.modBoundary}
-          >
-            <span className="status-pill ready" data-testid="mod-boundary-adds">
-              {copy.modAdds}
-            </span>
-            <span className="status-pill warning" data-testid="mod-boundary-keeps">
-              {copy.modKeeps}
-            </span>
-          </div>
-          <div
-            className="runtime-profile-strip"
-            data-testid="runtime-profile-strip"
-            aria-label={copy.runtimeBoundary}
-          >
-            <span className="status-pill ready" data-testid="runtime-profile-crc">
-              {copy.runtimeCrc}
-            </span>
-            <span
-              className="status-pill warning"
-              data-testid="runtime-profile-approved"
-            >
-              {copy.runtimeApproved}
-            </span>
-          </div>
-          <div
-            className="certification-boundary-strip"
-            data-testid="certification-boundary-strip"
-            aria-label={copy.certificationBoundary}
-          >
-            <span
-              className="status-pill warning"
-              data-testid="certification-boundary-local"
-            >
-              {copy.certificationLocal}
-            </span>
-            <span
-              className="status-pill read-only"
-              data-testid="certification-boundary-submit"
-            >
-              {copy.certificationSubmit}
-            </span>
-            <span
-              className="status-pill warning"
-              data-testid="certification-boundary-evidence"
-            >
-              {copy.certificationEvidence}
-            </span>
-          </div>
-          <div
-            className="demo-handoff-strip"
-            data-testid="demo-handoff-strip"
-            aria-label={copy.handoffBoundary}
-          >
-            <span className="status-pill read-only" data-testid="handoff-reconnect">
-              {copy.handoffReconnect}
-            </span>
-            <span className="status-pill ready" data-testid="handoff-route">
-              {copy.handoffRoute}
-            </span>
-            <span className="status-pill warning" data-testid="handoff-smoke">
-              {copy.handoffSmoke}
-            </span>
-          </div>
-          <div
-            className="access-boundary-strip"
-            data-testid="access-boundary-strip"
-            aria-label={copy.accessBoundary}
-          >
-            <span className="status-pill ready" data-testid="access-console-route">
-              {copy.accessConsoleRoute}
-            </span>
-            <span className="status-pill warning" data-testid="access-dashboard-https">
-              {copy.accessDashboardHttps}
-            </span>
-            <span className="status-pill read-only" data-testid="access-api-proxy">
-              {copy.accessApiProxy}
-            </span>
-          </div>
-          <div
-            className="apply-signal-strip"
-            data-testid="apply-signal-strip"
-            aria-label={copy.applySignalBoundary}
-          >
-            <span className="status-pill ready" data-testid="apply-signal-profile">
-              {copy.applySignalProfile}
-            </span>
-            <span className="status-pill read-only" data-testid="apply-signal-command">
-              {copy.applySignalCommand}
-            </span>
-            <span className="status-pill ready" data-testid="apply-signal-ready">
-              {copy.applySignalReady}
-            </span>
-            <span className="status-pill ready" data-testid="apply-signal-route">
-              {copy.applySignalRoute}
-            </span>
-            <span className="status-pill warning" data-testid="apply-signal-stale">
-              {copy.applySignalStale}
-            </span>
-          </div>
-          <div
-            className="post-install-smoke-strip"
-            data-testid="post-install-smoke-strip"
-            aria-label={copy.smokeBoundary}
-          >
-            <span className="status-pill ready" data-testid="smoke-route">
-              {copy.smokeRoute}
-            </span>
-            <span className="status-pill ready" data-testid="smoke-assistant">
-              {copy.smokeAssistant}
-            </span>
-            <span className="status-pill read-only" data-testid="smoke-ols">
-              {copy.smokeOls}
-            </span>
-          </div>
-        </div>
-      </details>
-
       <div className={`console-frame ${navCollapsed ? "nav-collapsed" : ""}`}>
         <aside
           className="console-nav"
@@ -1137,30 +1020,54 @@ export default function App() {
           <nav className="nav-section" aria-label={copy.administratorNavigation}>
             {navigationSections.map((section) => (
               <div className="nav-group" key={section}>
-                <span
+                <button
+                  aria-controls={`console-nav-section-items-${sectionTestId(section)}`}
+                  aria-expanded={expandedSections.includes(section)}
                   className="nav-heading"
                   data-testid={`console-nav-section-${sectionTestId(section)}`}
+                  data-section-expanded={expandedSections.includes(section)}
+                  type="button"
+                  onClick={() => toggleNavigationSection(section)}
                 >
-                  {language === "ko" ? sectionLabelsKo[section] : section}
-                </span>
-                {consoleNavigation
-                  .filter((item) => item.section === section)
-                  .map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        aria-current={activeNavId === item.id ? "page" : undefined}
-                        className={`nav-item ${activeNavId === item.id ? "active" : ""}`}
-                        data-testid={`console-nav-${item.id}`}
-                        key={item.id}
-                        type="button"
-                        onClick={() => activateNavigation(item)}
-                      >
-                        <Icon size={15} aria-hidden="true" />
-                        {navLabel(item, language)}
-                      </button>
-                    );
-                  })}
+                  <span>{language === "ko" ? sectionLabelsKo[section] : section}</span>
+                  {expandedSections.includes(section) ? (
+                    <ChevronDown
+                      className="nav-heading-chevron"
+                      size={15}
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <ChevronRight
+                      className="nav-heading-chevron"
+                      size={15}
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+                <div
+                  className="nav-group-items"
+                  hidden={!expandedSections.includes(section)}
+                  id={`console-nav-section-items-${sectionTestId(section)}`}
+                >
+                  {consoleNavigation
+                    .filter((item) => item.section === section)
+                    .map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          aria-current={activeNavId === item.id ? "page" : undefined}
+                          className={`nav-item ${activeNavId === item.id ? "active" : ""}`}
+                          data-testid={`console-nav-${item.id}`}
+                          key={item.id}
+                          type="button"
+                          onClick={() => activateNavigation(item)}
+                        >
+                          <Icon size={15} aria-hidden="true" />
+                          {navLabel(item, language)}
+                        </button>
+                      );
+                    })}
+                </div>
               </div>
             ))}
           </nav>
@@ -1185,61 +1092,6 @@ export default function App() {
               <strong>{navLabel(activeNavigation, language)}</strong>
               <span>{navigationCommand}</span>
             </div>
-            <section
-              className="readiness-command-strip"
-              data-testid="opslens-readiness-command-strip"
-              aria-label={copy.readiness}
-            >
-              <div className="readiness-command-main">
-                <div>
-                  <p className="eyebrow">Cywell OpsLens</p>
-                  <h2>{copy.readiness}</h2>
-                </div>
-                <span
-                  className={`freshness ${statusClass(completionGate?.status)}`}
-                  data-testid="readiness-status"
-                >
-                  {readinessStatusText(
-                    completionGate?.status,
-                    language,
-                    copy.loading
-                  )}
-                </span>
-              </div>
-              <div className="readiness-command-metrics">
-                <span data-testid="readiness-percent">
-                  <Gauge size={15} aria-hidden="true" />
-                  {completionGate
-                    ? `${completionGate.percentComplete}%`
-                    : "--%"}
-                </span>
-                <span data-testid="readiness-passed">
-                  {copy.passedRequirements}:{" "}
-                  {completionGate
-                    ? `${completionGate.passedRequirements}/${completionGate.totalRequirements}`
-                    : "--/--"}
-                </span>
-                <span data-testid="readiness-remaining">
-                  {copy.remainingRequirements}:{" "}
-                  {completionGate?.remainingRequirements ?? "--"}
-                </span>
-                <span data-testid="readiness-next-gate">
-                  {copy.nextGate}: {nextGateLabel(adminOverview, language)}
-                </span>
-                <span data-testid="readiness-next-command">
-                  {copy.nextCommand}: {firstNextCommand(adminOverview, language)}
-                </span>
-              </div>
-              <a
-                className="text-icon-button readiness-jump"
-                href="#opslens-admin-title"
-                data-testid="opslens-readiness-jump"
-              >
-                <Waypoints size={15} aria-hidden="true" />
-                {copy.closure}
-              </a>
-            </section>
-            <OpsLensLiveInstallStatus language={language} />
             <OcpConsoleActionPanel
               activeItem={activeNavigation}
               language={language}
@@ -1248,28 +1100,12 @@ export default function App() {
               onAskAssistant={askAssistantForActiveNavigation}
               onOpenSurface={openActiveNavigationSurface}
             />
-            <OcpConsoleParityMatrix
-              activeItemId={activeNavId}
-              language={language}
-              onSelectItem={(itemId) => activateNavigation(findNavigationItem(itemId))}
-            />
-            <OperationsDashboard dashboard={dashboard} language={language} />
-            <OpsLensAdminDashboard language={language} />
-            <ConsoleEvidencePane
-              contextPayload={contextPayload}
-              activeRisks={dashboard.activeRisks}
-              evidenceView={evidenceView}
-              language={language}
-              onEvidenceViewChange={setEvidenceView}
-              onAsk={openAssistantFromEvidence}
-            />
-            <OcpConsoleOverview language={language} />
-            <OcpCoverageMatrix language={language} />
-            <OcpResourceExplorer
-              language={language}
-              navigationPreset={resourcePreset}
-              onFunctionOutcomeChange={setResourceFunctionOutcome}
-            />
+            <div
+              className="active-surface"
+              data-testid={`active-surface-${activeNavigation.actionSurface}`}
+            >
+              {renderActiveSurface()}
+            </div>
           </section>
         </main>
       </div>

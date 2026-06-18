@@ -95,11 +95,6 @@ const mastheadSource = sourceSection(
   '<header className="masthead"',
   "</header>"
 );
-const statusDetailsSource = sourceSection(
-  appSource,
-  'data-testid="opslens-status-details"',
-  '<div className={`console-frame'
-);
 const releaseRefreshSource = sourceSection(
   adminSource,
   'data-testid="opslens-release-refresh"',
@@ -145,6 +140,11 @@ const ownedImageProvenanceSource = sourceSection(
   'data-testid="opslens-owned-image-provenance"',
   'data-testid="opslens-release-publish-plan"'
 );
+const ragProductionSource = sourceSection(
+  adminSource,
+  'data-testid="opslens-rag-production-readiness"',
+  'data-testid="opslens-rag-approval-queue-inventory"'
+);
 const releasePublishPlanSource = sourceSection(
   adminSource,
   'data-testid="opslens-release-publish-plan"',
@@ -167,35 +167,36 @@ const externalRuntimePlanSource = sourceSection(
 );
 
 expectCheck(
-  "runtime surface badge",
-  appSource.includes('data-testid="runtime-surface"') &&
-    appSource.includes('data-testid="api-route-mode"') &&
-    appSource.includes('data-testid="console-plugin-scope"') &&
-    appSource.includes('data-testid="runtime-surface-strip"') &&
-    appSource.includes('data-testid="install-flow-strip"') &&
+  "runtime surface context",
+  !appSource.includes('data-testid="runtime-surface"') &&
+    !appSource.includes('data-testid="api-route-mode"') &&
+    !appSource.includes('data-testid="console-plugin-scope"') &&
+    !appSource.includes('data-testid="runtime-surface-strip"') &&
     appSource.includes('data-testid="console-context-primary"') &&
+    appSource.includes('data-testid="console-context-secondary"') &&
+    appSource.includes('data-testid="api-status"') &&
     appSource.includes("CRC lab preview") &&
     appSource.includes("OpenShift ConsolePlugin") &&
     !appSource.includes("<span>prod-ocp / openshift-cluster-version</span>") &&
-    appSource.includes("Standalone dev") &&
-    appSource.includes("Console plugin") &&
-    appSource.includes("Route + proxy mode") &&
-    appSource.includes("Preview shell"),
-  "dashboard shell keeps runtime context available in operational details without cluttering the masthead"
+    appSource.includes("local fixture scenario / no company OCP mutation") &&
+    appSource.includes("UserToken proxy / active console context"),
+  "dashboard shell keeps runtime context compact in the masthead"
 );
 
 expectCheck(
   "customer masthead stays concise",
-  appSource.includes('data-testid="opslens-status-details"') &&
-    appSource.includes('data-testid="opslens-status-details-summary"') &&
-    appSource.includes('data-testid="ocp-live-status"') &&
-    appSource.includes('data-testid="dashboard-data-source"') &&
-    appSource.includes("Show install and demo details") &&
-    appSource.includes("설치 및 시연 상세 보기") &&
-    appSource.includes("OCP live") &&
-    appSource.includes("OCP 실시간 연결") &&
-    appSource.includes("demo data") &&
-    appSource.includes("데모 데이터") &&
+  !appSource.includes('data-testid="opslens-status-details"') &&
+    !appSource.includes('data-testid="opslens-status-details-summary"') &&
+    !appSource.includes("Show install and demo details") &&
+    !appSource.includes("설치 및 시연 상세 보기") &&
+    !appSource.includes('data-testid="ocp-live-status"') &&
+    !appSource.includes('data-testid="dashboard-data-source"') &&
+    appSource.includes('data-testid="api-status"') &&
+    appSource.includes('data-testid="language-ko-toggle"') &&
+    appSource.includes('data-testid="language-en-toggle"') &&
+    appSource.includes("function renderActiveSurface()") &&
+    appSource.includes('data-testid={`active-surface-${activeNavigation.actionSurface}`}') &&
+    appSource.includes('data-testid="opslens-readiness-command-strip"') &&
     !mastheadSource.includes('data-testid="runtime-surface"') &&
     !mastheadSource.includes('data-testid="api-route-mode"') &&
     !mastheadSource.includes('data-testid="console-plugin-scope"') &&
@@ -207,14 +208,11 @@ expectCheck(
     !mastheadSource.includes('data-testid="access-boundary-strip"') &&
     !mastheadSource.includes('data-testid="apply-signal-strip"') &&
     !mastheadSource.includes('data-testid="post-install-smoke-strip"') &&
-    statusDetailsSource.includes('data-testid="runtime-surface-strip"') &&
-    statusDetailsSource.includes('data-testid="runtime-surface"') &&
-    statusDetailsSource.includes('data-testid="install-flow-strip"') &&
-    statusDetailsSource.includes('data-testid="post-install-smoke-strip"') &&
-    stylesSource.includes(".opslens-status-details") &&
-    stylesSource.includes(".opslens-status-detail-grid") &&
+    e2eSource.includes('getByTestId("opslens-status-details")).toHaveCount(0)') &&
+    e2eSource.includes('getByTestId("opslens-readiness-command-strip")).toHaveCount(0)') &&
+    e2eSource.includes('getByTestId("active-surface-ops-admin")') &&
     e2eSource.includes("customer masthead stays compact"),
-  "internal install/demo evidence is available in collapsed details instead of cluttering the OpenShift masthead"
+  "internal install/demo evidence is removed from the default shell and is available only from the OpsLens Admin surface"
 );
 
 expectCheck(
@@ -239,139 +237,21 @@ expectCheck(
 );
 
 expectCheck(
-  "install flow status strip",
-  appSource.includes("OperatorHub: operator") &&
-    appSource.includes("OpsLensInstallation: product") &&
-    appSource.includes("ConsolePlugin: route") &&
-    appSource.includes("OperatorHub: 오퍼레이터") &&
-    appSource.includes("OpsLensInstallation: 제품 적용") &&
-    appSource.includes("ConsolePlugin: 콘솔 라우트") &&
-    appSource.includes('data-testid="install-flow-operatorhub"') &&
-    appSource.includes('data-testid="install-flow-cr"') &&
-    appSource.includes('data-testid="install-flow-consoleplugin"') &&
-    stylesSource.includes(".install-flow-strip") &&
-    stylesSource.includes("flex-wrap: wrap"),
-  "masthead exposes the OperatorHub -> OpsLensInstallation -> ConsolePlugin install/apply distinction"
-);
-
-expectCheck(
-  "visible OpsLens mod boundary",
-  appSource.includes('data-testid="mod-boundary-strip"') &&
-    appSource.includes('data-testid="mod-boundary-adds"') &&
-    appSource.includes('data-testid="mod-boundary-keeps"') &&
-    appSource.includes("OpsLens adds route/API/MCP surfaces") &&
-    appSource.includes("OpenShift keeps native chrome and Lightspeed drawer") &&
-    appSource.includes("OpsLens가 라우트/API/MCP 화면을 추가") &&
-    appSource.includes("OpenShift 기본 메뉴와 Lightspeed 서랍은 유지") &&
-    stylesSource.includes(".mod-boundary-strip") &&
-    stylesSource.includes(".mod-boundary-strip .status-pill"),
-  "masthead visibly explains what the OpsLens mod adds and what native OpenShift/Lightspeed surfaces still own"
-);
-
-expectCheck(
-  "visible runtime profile boundary",
-  appSource.includes('data-testid="runtime-profile-strip"') &&
-    appSource.includes('data-testid="runtime-profile-crc"') &&
-    appSource.includes('data-testid="runtime-profile-approved"') &&
-    appSource.includes("CRC demo uses in-memory RAG + mock model") &&
-    appSource.includes("Approved install requires pgvector/vLLM evidence") &&
-    appSource.includes("CRC 데모는 인메모리 RAG + 목 모델 사용") &&
-    appSource.includes("승인 설치는 pgvector/vLLM 근거 필요") &&
-    stylesSource.includes(".runtime-profile-strip") &&
-    stylesSource.includes(".runtime-profile-strip .status-pill"),
-  "masthead visibly separates CRC lightweight runtime from approved pgvector/vLLM runtime evidence"
-);
-
-expectCheck(
-  "visible certification boundary",
-  appSource.includes('data-testid="certification-boundary-strip"') &&
-    appSource.includes('data-testid="certification-boundary-local"') &&
-    appSource.includes('data-testid="certification-boundary-submit"') &&
-    appSource.includes('data-testid="certification-boundary-evidence"') &&
-    appSource.includes("Local demo build") &&
-    appSource.includes("No Partner/OperatorHub submission") &&
-    appSource.includes(
-      "Certified readiness needs security/release evidence"
-    ) &&
-    appSource.includes("로컬 데모 빌드") &&
-    appSource.includes("Partner/OperatorHub 제출 안 함") &&
-    appSource.includes("인증 준비는 보안/릴리스 근거 필요") &&
-    stylesSource.includes(".certification-boundary-strip") &&
-    stylesSource.includes(".certification-boundary-strip .status-pill"),
-  "masthead visibly blocks local demo builds from being mistaken for certified or submitted OperatorHub readiness"
-);
-
-expectCheck(
-  "visible demo handoff checklist",
-  appSource.includes('data-testid="demo-handoff-strip"') &&
-    appSource.includes('data-testid="handoff-reconnect"') &&
-    appSource.includes('data-testid="handoff-route"') &&
-    appSource.includes('data-testid="handoff-smoke"') &&
-    appSource.includes("Reconnect Mac CRC") &&
-    appSource.includes("Open ConsolePlugin route") &&
-    appSource.includes("Run read-only smoke") &&
-    appSource.includes("Mac CRC 재연결") &&
-    appSource.includes("콘솔 플러그인 라우트 열기") &&
-    appSource.includes("읽기 전용 스모크 실행") &&
-    stylesSource.includes(".demo-handoff-strip") &&
-    stylesSource.includes(".demo-handoff-strip .status-pill"),
-  "masthead gives return-to-demo operators the next three non-mutating steps without opening the runbook"
-);
-
-expectCheck(
-  "visible demo access path",
-  appSource.includes('data-testid="access-boundary-strip"') &&
-    appSource.includes('data-testid="access-console-route"') &&
-    appSource.includes('data-testid="access-dashboard-https"') &&
-    appSource.includes('data-testid="access-api-proxy"') &&
-    appSource.includes("Installed view uses Console route") &&
-    appSource.includes("Port-forward fallback uses HTTPS 19443") &&
-    appSource.includes("Assistant/API follows proxy mode") &&
-    appSource.includes("설치 화면은 콘솔 라우트 사용") &&
-    appSource.includes("포트포워드 대체 경로는 HTTPS 19443") &&
-    appSource.includes("어시스턴트/API는 프록시 모드 연동") &&
-    stylesSource.includes(".access-boundary-strip") &&
-    stylesSource.includes(".access-boundary-strip .status-pill"),
-  "masthead keeps the installed Console route, HTTPS dashboard port-forward, and API proxy paths visible"
-);
-
-expectCheck(
-  "visible CRC install signal",
-  appSource.includes('data-testid="apply-signal-strip"') &&
-    appSource.includes('data-testid="apply-signal-profile"') &&
-    appSource.includes('data-testid="apply-signal-command"') &&
-    appSource.includes('data-testid="apply-signal-ready"') &&
-    appSource.includes('data-testid="apply-signal-route"') &&
-    appSource.includes('data-testid="apply-signal-stale"') &&
-    appSource.includes("Use CRC lightweight example first") &&
-    appSource.includes("Check: oc get opslensinstallation,deploy,pod,svc,route") &&
-    appSource.includes("CRC ready = API/dashboard 1/1") &&
-    appSource.includes("Route = cywell-opslens-dashboard") &&
-    appSource.includes("Old quay.io image means stale catalog") &&
-    appSource.includes("CRC lightweight 예제를 먼저 선택") &&
-    appSource.includes("확인: oc get opslensinstallation,deploy,pod,svc,route") &&
-    appSource.includes("CRC 준비 = API/대시보드 1/1") &&
-    appSource.includes("quay.io 구버전 이미지는 stale catalog") &&
-    stylesSource.includes(".apply-signal-strip") &&
-    stylesSource.includes(".apply-signal-strip .status-pill"),
-  "masthead keeps the next CRC install verification command, ready signal, and stale catalog signal visible"
-);
-
-expectCheck(
-  "visible post-install smoke path",
-  appSource.includes('data-testid="post-install-smoke-strip"') &&
-    appSource.includes('data-testid="smoke-route"') &&
-    appSource.includes('data-testid="smoke-assistant"') &&
-    appSource.includes('data-testid="smoke-ols"') &&
-    appSource.includes("Open ConsolePlugin route") &&
-    appSource.includes("Ask KOMSCO AI Assistant") &&
-    appSource.includes("OLSConfig stays ValidateOnly") &&
-    appSource.includes("콘솔 플러그인 라우트 열기") &&
-    appSource.includes("KOMSCO AI 어시스턴트 질문") &&
-    appSource.includes("OLSConfig는 ValidateOnly 유지") &&
-    stylesSource.includes(".post-install-smoke-strip") &&
-    stylesSource.includes(".post-install-smoke-strip .status-pill"),
-  "masthead keeps the post-install smoke path visible without implying OLSConfig mutation"
+  "install and handoff notes stay out of customer masthead",
+  !appSource.includes('data-testid="install-flow-strip"') &&
+    !appSource.includes('data-testid="mod-boundary-strip"') &&
+    !appSource.includes('data-testid="runtime-profile-strip"') &&
+    !appSource.includes('data-testid="certification-boundary-strip"') &&
+    !appSource.includes('data-testid="demo-handoff-strip"') &&
+    !appSource.includes('data-testid="access-boundary-strip"') &&
+    !appSource.includes('data-testid="apply-signal-strip"') &&
+    !appSource.includes('data-testid="post-install-smoke-strip"') &&
+    appSource.includes('data-testid="opslens-readiness-command-strip"') &&
+    appSource.includes("<OpsLensLiveInstallStatus language={language} />") &&
+    appSource.includes("case \"ops-admin\"") &&
+    stylesSource.includes(".readiness-command-strip") &&
+    stylesSource.includes(".live-install-status"),
+  "install/apply/runbook notes are not rendered as masthead badges; readiness lives in the OpsLens Admin surface"
 );
 
 expectCheck(
@@ -391,11 +271,12 @@ expectCheck(
     e2eSource.includes("/api/proxy/plugin/cywell-opslens/opslens-api/api/actions/plan") &&
     e2eSource.includes("console-plugin-user-token-proxy") &&
     e2eSource.includes("OpenShift UserToken proxy") &&
-    e2eSource.includes("plugin API proxy") &&
-    e2eSource.includes("Route + proxy mode") &&
+    e2eSource.includes("OpenShift ConsolePlugin") &&
+    e2eSource.includes("UserToken proxy") &&
     e2eSource.includes("OpenShift 사용자 토큰 프록시") &&
-    e2eSource.includes("플러그인 API 프록시") &&
-    e2eSource.includes("라우트 + 프록시 모드") &&
+    e2eSource.includes("OpenShift 콘솔 플러그인") &&
+    e2eSource.includes("사용자 토큰 프록시") &&
+    e2eSource.includes('getByTestId("opslens-status-details")).toHaveCount(0)') &&
     e2eSource.includes("읽기 전용/계획 전용"),
   "Playwright proves installed ConsolePlugin mode uses the UserToken proxy path and keeps the assistant read-only/plan-only"
 );
@@ -597,13 +478,13 @@ expectCheck(
   appSource.includes('useState<UiLanguage>') &&
     appSource.includes("<OperationsDashboard dashboard={dashboard} language={language}") &&
     appSource.includes("<OcpConsoleOverview language={language}") &&
-    appSource.includes("<OcpCoverageMatrix language={language}") &&
+    appSource.includes("<OcpConsoleParityMatrix") &&
     appSource.includes("<OcpResourceExplorer") &&
     appSource.includes("<OpsLensAdminDashboard language={language}") &&
+    appSource.includes("<ConsoleEvidencePane") &&
+    appSource.includes("document.documentElement.lang = language") &&
     appSource.includes("language={language}") &&
     appSource.includes("apiStatusLabels") &&
-    appSource.includes("로컬 대체 응답") &&
-    appSource.includes("연결 확인 중") &&
     assistantSource.includes("연결 확인 중") &&
     assistantSource.includes("동작 모드") &&
     assistantSource.includes("contextChipLabels") &&
@@ -939,6 +820,12 @@ expectCheck(
     adminSource.includes("copy.securityReviewTicketsClear") &&
     adminSource.includes('"보안 검토 최종 인계 누락"') &&
     securityScanSource.includes("statusText(language, securityScanPlan.artifactStatus)") &&
+    securityScanSource.includes('data-testid="opslens-security-first-review-actions-table"') &&
+    securityScanSource.includes('data-testid="opslens-security-review-ticket-table"') &&
+    securityScanSource.includes('data-testid="opslens-security-review-final-handoff-table"') &&
+    securityScanSource.includes('data-testid="opslens-security-review-drafts-table"') &&
+    securityScanSource.includes("security-first-review-command-") &&
+    securityScanSource.includes("security-review-promotion-command-") &&
     !securityScanSource.includes("{securityScanPlan.artifactStatus}") &&
     !securityScanSource.includes("{securityScanPlan.actionMode}") &&
     !securityScanSource.includes("registryMutationAttempted=") &&
@@ -972,8 +859,12 @@ expectCheck(
     !securityScanSource.includes(":explicitDecision=") &&
     !securityScanSource.includes(":reviewer=") &&
     !securityScanSource.includes(":ticket=") &&
-    !securityScanSource.includes(":ready="),
-  "Security scan and review rows use bilingual labels instead of raw key/value UI labels"
+    !securityScanSource.includes(":ready=") &&
+    !securityScanSource.includes('.join(" / ")') &&
+    !securityScanSource.includes("`${copy.owner}: ${action.owner}`") &&
+    !securityScanSource.includes("`${copy.owner}: ${ticket.owner}`") &&
+    !securityScanSource.includes("`${copy.status}: ${statusText(language, handoff.status)}`"),
+  "Security scan and review rows use tables and bilingual labels instead of raw key/value UI dumps"
 );
 
 expectCheck(
@@ -1392,20 +1283,25 @@ expectCheck(
 
 expectCheck(
   "localized rag production labels",
-  !adminSource.includes("contractReady={String(ragProductionReadiness.contractReady)}") &&
-    !adminSource.includes("queueLive={String(ragProductionReadiness.productionQueueLive)}") &&
-    !adminSource.includes("workerLive={String(ragProductionReadiness.ingestionWorkerLive)}") &&
-    !adminSource.includes("vectorAudit=") &&
-    !adminSource.includes("rawMarkdown=") &&
-    !adminSource.includes("auditAppendOnly=") &&
-    !adminSource.includes("approvals={ragProductionReadiness.requiredApprovals.join") &&
-    !adminSource.includes("ticket={ragProductionReadiness.ticketPacket.id}") &&
-    !adminSource.includes("first={ragProductionReadiness.ticketPacket.firstReadOnlyAction.id}") &&
+  ragProductionSource.includes('data-testid="opslens-rag-production-first-actions-table"') &&
+    ragProductionSource.includes('data-testid="opslens-rag-production-ticket-table"') &&
+    ragProductionSource.includes("rag-production-command-") &&
+    !ragProductionSource.includes("contractReady={String(ragProductionReadiness.contractReady)}") &&
+    !ragProductionSource.includes("queueLive={String(ragProductionReadiness.productionQueueLive)}") &&
+    !ragProductionSource.includes("workerLive={String(ragProductionReadiness.ingestionWorkerLive)}") &&
+    !ragProductionSource.includes("vectorAudit=") &&
+    !ragProductionSource.includes("rawMarkdown=") &&
+    !ragProductionSource.includes("auditAppendOnly=") &&
+    !ragProductionSource.includes("approvals={ragProductionReadiness.requiredApprovals.join") &&
+    !ragProductionSource.includes("ticket={ragProductionReadiness.ticketPacket.id}") &&
+    !ragProductionSource.includes("first={ragProductionReadiness.ticketPacket.firstReadOnlyAction.id}") &&
     !adminSource.includes("queueMetadataWrite=") &&
     !adminSource.includes("approved={String(queueIngestionPlan.approvedForIngestion)}") &&
+    !ragProductionSource.includes("{action.id} / {action.owner} /") &&
+    !ragProductionSource.includes("{statusText(language, action.status)} / {copy.nextCommand}") &&
     !adminSource.includes(":next={action.nextCommand}:mutation={String(action.mutation)}") &&
     !adminSource.includes("<span>approvals {item.approvals.length}</span>"),
-  "RAG production and approval queue panels use bilingual labels instead of raw key/value UI labels"
+  "RAG production and approval queue panels use tables and bilingual labels instead of raw key/value UI labels"
 );
 
 expectCheck(
@@ -1483,6 +1379,8 @@ expectCheck(
     paritySource.includes("KOMSCO AI Assistant") &&
     paritySource.includes("ConsoleParityFunctionProof") &&
     paritySource.includes("consoleParityFunctionProof") &&
+    paritySource.includes("ConsoleParityFunctionSignal") &&
+    paritySource.includes("consoleParityFunctionSignal") &&
     paritySource.includes("resourcePresetCount") &&
     paritySource.includes("evidenceViewCount") &&
     paritySource.includes("directSurfaceCount") &&
@@ -1552,6 +1450,9 @@ expectCheck(
     actionPanelSource.includes("data-resource-function-outcome=") &&
     actionPanelSource.includes('data-testid="console-active-function-input"') &&
     actionPanelSource.includes('data-testid="console-active-action-proof"') &&
+    actionPanelSource.includes('data-testid="console-active-function-signal"') &&
+    actionPanelSource.includes("data-function-signal-selector={functionSignal.selector}") &&
+    actionPanelSource.includes("consoleParityFunctionSignal(activeItem)") &&
     actionPanelSource.includes('data-testid="console-active-preferred-resources"') &&
     actionPanelSource.includes("resource-operating") &&
     actionPanelSource.includes("resource-empty") &&
@@ -1577,8 +1478,8 @@ expectCheck(
     e2eSource.includes("ocpConsoleParityItems") &&
     e2eSource.includes("consoleParityFunctionProof") &&
     e2eSource.includes("console-parity-function-${item.id}") &&
-    e2eSource.includes("console-parity-open-${item.id}") &&
-    e2eSource.includes('"data-active-parity-item"') &&
+    e2eSource.includes("await openConsoleNavItem(page, item)") &&
+    e2eSource.includes("await openConsoleNavItem(page, \"favorites\")") &&
     e2eSource.includes("expectActiveConsoleAction(") &&
     e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
     e2eSource.includes('data-function-mode"') &&
@@ -1586,10 +1487,12 @@ expectCheck(
     e2eSource.includes('getByTestId("console-active-action-outcome")') &&
     e2eSource.includes('"data-action-outcome"') &&
     e2eSource.includes('"data-resource-function-outcome"') &&
-    e2eSource.includes("resource-${resourceOutcome}") &&
+    e2eSource.includes(".poll(") &&
+    e2eSource.includes("resource-\\1") &&
     e2eSource.includes('getByTestId("console-active-function-input")') &&
-    e2eSource.includes('getByTestId("console-active-action-proof")'),
-  "Playwright iterates over the version-pinned registry and proves every mapped console matrix Open action exposes target, function input, outcome, and action proof"
+    e2eSource.includes('getByTestId("console-active-action-proof")') &&
+    e2eSource.includes('getByTestId("console-active-function-signal")'),
+  "Playwright iterates over the version-pinned registry and proves every mapped console item exposes target, function input, outcome, proof, and signal"
 );
 
 expectCheck(
@@ -1600,10 +1503,12 @@ expectCheck(
     e2eSource.includes("function expectConsoleParityRegistryIntegrity") &&
     e2eSource.includes("duplicate console item id") &&
     e2eSource.includes("missing console parity section") &&
+    e2eSource.includes("empty function signal selector") &&
     e2eSource.includes("item.resourcePreset.preferredResources.length") &&
     e2eSource.includes('item.actionSurface === "assistant"') &&
-    e2eSource.includes("consoleParityFunctionProof(item)"),
-  "Playwright guards the OCP 4.21.14 parity registry against duplicate ids, empty bilingual copy, missing sections, and broken surface/resource/proof contracts"
+    e2eSource.includes("consoleParityFunctionProof(item)") &&
+    e2eSource.includes("consoleParityFunctionSignal(item)"),
+  "Playwright guards the OCP 4.21.14 parity registry against duplicate ids, empty bilingual copy, missing sections, and broken surface/resource/proof/signal contracts"
 );
 
 expectCheck(
@@ -1611,7 +1516,8 @@ expectCheck(
   e2eSource.includes("AC-UI-003 makes every console navigation item actionable") &&
     e2eSource.includes("surfaceLabelsForTest") &&
     e2eSource.includes("for (const item of ocpConsoleParityItems)") &&
-    e2eSource.includes("console-nav-${item.id}") &&
+    e2eSource.includes("await openConsoleNavItem(page, item)") &&
+    e2eSource.includes("async function openConsoleNavItem") &&
     e2eSource.includes("surfaceLabelsForTest[item.actionSurface]") &&
     e2eSource.includes("item.resourcePreset?.query") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
@@ -1621,8 +1527,8 @@ expectCheck(
     e2eSource.includes("closeAssistantIfOpen(page)") &&
     e2eSource.includes('getByTestId("console-active-open-surface").click()') &&
     e2eSource.includes('data-target-status",') &&
-    e2eSource.includes("console-parity-row-${item.id}"),
-  "Playwright clicks every version-pinned console registry item, uses the active Open surface action, and verifies its mapped surface, preset, and mounted target"
+    e2eSource.includes('page.locator("[data-testid^=\'active-surface-\']")'),
+  "Playwright opens every version-pinned console registry item through the collapsible navigation, uses the active Open surface action, and verifies its mapped surface, preset, and mounted target"
 );
 
 expectCheck(
@@ -1666,10 +1572,9 @@ expectCheck(
     paritySource.includes("targetSelector: \"[data-testid='alert-table-wrap']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='log-viewport']\"") &&
     paritySource.includes('targetSelector: "#dashboard-title"') &&
-    e2eSource.includes('getByTestId("opslens-operator-package")') &&
-    e2eSource.includes('getByTestId("opslens-catalog-toolchain")') &&
-    e2eSource.includes('getByTestId("opslens-ocp-connectivity")') &&
-    e2eSource.includes('getByTestId("opslens-install-readiness")'),
+    e2eSource.includes("page.locator(item.targetSelector)") &&
+    e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
+    appSource.includes("case \"ops-admin\""),
   "non-resource console items route to their concrete OpsLens sections instead of a generic admin header"
 );
 
@@ -1740,6 +1645,11 @@ expectCheck(
 expectCheck(
   "localized navigation structure",
   appSource.includes('data-testid={`console-nav-section-${sectionTestId(section)}`}') &&
+    appSource.includes("aria-expanded={expandedSections.includes(section)}") &&
+    appSource.includes("data-section-expanded={expandedSections.includes(section)}") &&
+    appSource.includes('className="nav-group-items"') &&
+    appSource.includes("hidden={!expandedSections.includes(section)}") &&
+    appSource.includes("toggleNavigationSection(section)") &&
     appSource.includes('data-testid="console-breadcrumb"') &&
     appSource.includes("sectionLabelsKo") &&
     appSource.includes("sectionTestId(section)") &&
@@ -1757,8 +1667,10 @@ expectCheck(
   "localized interactive shell e2e",
   e2eSource.includes("AC-UI-004 keeps KO/EN switching consistent and customer masthead stays compact") &&
     e2eSource.includes('getByTestId("language-ko-toggle")') &&
-    e2eSource.includes("[data-testid='masthead'] [data-testid='install-flow-strip']") &&
-    e2eSource.includes('getByTestId("opslens-status-details-summary")') &&
+    e2eSource.includes('getByTestId("opslens-status-details")).toHaveCount(0)') &&
+    e2eSource.includes('getByTestId("opslens-readiness-command-strip")).toHaveCount(0)') &&
+    e2eSource.includes('await openConsoleNavItem(page, "opslens-admin")') &&
+    e2eSource.includes('getByTestId("active-surface-ops-admin")') &&
     e2eSource.includes('const localizedNavigation = [') &&
     e2eSource.includes('const localizedSections = [') &&
     e2eSource.includes('getByTestId(`console-nav-section-${section}`)') &&
@@ -1773,17 +1685,6 @@ expectCheck(
     e2eSource.includes("Administration") &&
     e2eSource.includes("User Management") &&
     e2eSource.includes("Monitoring") &&
-    e2eSource.includes("OperatorHub: 오퍼레이터") &&
-    e2eSource.includes("OpsLensInstallation: 제품 적용") &&
-    e2eSource.includes("ConsolePlugin: 콘솔 라우트") &&
-    e2eSource.includes("OpsLens가 라우트/API/MCP 화면을 추가") &&
-    e2eSource.includes("OpenShift 기본 메뉴와 Lightspeed 서랍은 유지") &&
-    e2eSource.includes("CRC 데모는 인메모리 RAG + 목 모델 사용") &&
-    e2eSource.includes("승인 설치는 pgvector/vLLM 근거 필요") &&
-    e2eSource.includes("OpsLens adds route/API/MCP surfaces") &&
-    e2eSource.includes("OpenShift keeps native chrome and Lightspeed drawer") &&
-    e2eSource.includes("CRC demo uses in-memory RAG + mock model") &&
-    e2eSource.includes("Approved install requires pgvector/vLLM evidence") &&
     e2eSource.includes('getByTestId("readiness-status")') &&
     e2eSource.includes("근거 필요") &&
     e2eSource.includes("남은 항목") &&
@@ -1849,7 +1750,8 @@ expectCheck(
     e2eSource.includes('getByTestId("language-ko-toggle")') &&
     e2eSource.includes("for (const item of ocpConsoleParityItems)") &&
     e2eSource.includes("const proof = consoleParityFunctionProof(item)") &&
-    e2eSource.includes("console-nav-${item.id}") &&
+    e2eSource.includes("await openConsoleNavItem(page, item)") &&
+    e2eSource.includes("await openConsoleNavItem(page, \"favorites\")") &&
     e2eSource.includes("item.labelKo") &&
     e2eSource.includes("item.commandKo") &&
     e2eSource.includes("item.originalPathKo") &&
@@ -1866,6 +1768,7 @@ expectCheck(
     e2eSource.includes("클러스터 변경 명령") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
     e2eSource.includes("item.resourcePreset.query") &&
+    e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
     e2eSource.includes("OCP 4.21.14 콘솔 커버리지") &&
     e2eSource.includes("원본 콘솔 항목"),
   "Playwright clicks every version-pinned console registry item after switching to Korean and verifies localized function proof plus KOMSCO prompt context"

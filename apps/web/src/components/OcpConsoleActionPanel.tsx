@@ -1,5 +1,6 @@
 import { ArrowRight, Bot, FileSearch, ListChecks, ShieldCheck } from "lucide-react";
 import {
+  consoleParityFunctionSignal,
   consoleParityFunctionProof,
   type ConsoleParityItem
 } from "../consoleParity";
@@ -45,6 +46,7 @@ const actionCopy = {
     assistantReady: "assistant context ready",
     functionInput: "Function input",
     actionProof: "Action proof",
+    functionSignal: "Function signal",
     openSurface: "Open surface",
     askAssistant: "Ask KOMSCO",
     readOnly: "read-only/plan-only"
@@ -78,6 +80,7 @@ const actionCopy = {
     assistantReady: "어시스턴트 컨텍스트 준비",
     functionInput: "기능 입력",
     actionProof: "동작 증거",
+    functionSignal: "기능 신호",
     openSurface: "화면 열기",
     askAssistant: "KOMSCO 질문",
     readOnly: "읽기 전용/계획 전용"
@@ -128,10 +131,15 @@ export function OcpConsoleActionPanel({
   const preset = activeItem.resourcePreset;
   const targetStatusLabel = copy[targetStatus];
   const functionProof = consoleParityFunctionProof(activeItem);
+  const functionSignal = consoleParityFunctionSignal(activeItem);
   const functionInput =
     language === "ko" ? functionProof.inputKo : functionProof.input;
   const functionProofText =
     language === "ko" ? functionProof.proofKo : functionProof.proof;
+  const functionSignalDescription =
+    language === "ko"
+      ? functionSignal.descriptionKo
+      : functionSignal.description;
   const actionOutcomeState =
     targetStatus !== "mounted"
       ? targetStatus
@@ -246,6 +254,16 @@ export function OcpConsoleActionPanel({
           <strong data-testid="console-active-action-proof">
             {functionProofText}
           </strong>
+        </article>
+        <article>
+          <span>{copy.functionSignal}</span>
+          <strong
+            data-function-signal-selector={functionSignal.selector}
+            data-testid="console-active-function-signal"
+          >
+            {functionSignalDescription}
+          </strong>
+          <code>{functionSignal.selector}</code>
         </article>
       </div>
 

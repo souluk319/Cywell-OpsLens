@@ -185,6 +185,7 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       submissionDraftOnly: "submission draft only",
       approvalPlanOnly: "approval plan only",
       toolchainPlanOnly: "toolchain plan only",
+      ingestionPlanOnly: "ingestion plan only",
       localEvidenceOnly: "local evidence only"
     },
     ko: {
@@ -203,6 +204,7 @@ function actionModeText(language: UiLanguage, mode: string | undefined) {
       submissionDraftOnly: "제출 초안 전용",
       approvalPlanOnly: "승인 계획 전용",
       toolchainPlanOnly: "도구체인 계획 전용",
+      ingestionPlanOnly: "적재 계획 전용",
       localEvidenceOnly: "로컬 근거 전용"
     }
   };
@@ -296,33 +298,6 @@ function shortTime(value: string) {
   }).format(new Date(value));
 }
 
-function runtimeEvidenceTicketText(
-  action: OpsLensRuntimeLiveHandoffAction,
-  language: UiLanguage,
-  copy: Record<string, string>
-) {
-  const ticket = action.runtimeEvidenceTicketPacket;
-  if (!ticket) return copy.runtimeEvidenceTicketMissing;
-  return [
-    ticket.id,
-    `${copy.owner}: ${ticket.owner}`,
-    `${copy.firstAction}: ${ticket.firstReadOnlyAction.id}`,
-    `${copy.approvalAction}: ${ticket.approvalGatedAction.id}`,
-    `${copy.requiresApproval}: ${booleanText(
-      language,
-      ticket.approvalGatedAction.requiresExplicitApproval
-    )}`,
-    `${copy.mutationAllowed}: ${booleanText(
-      language,
-      ticket.mutationBoundary.mutationAllowedByThisVerifier
-    )}`,
-    `${copy.liveProbe} ${copy.approvalRequired}: ${booleanText(
-      language,
-      ticket.mutationBoundary.liveProbeRequiresExplicitApproval
-    )}`
-  ].join(" / ");
-}
-
 function listOrNone(copy: Record<string, string>, values: string[] | undefined) {
   return values && values.length ? values.join(", ") : copy.none;
 }
@@ -356,6 +331,10 @@ function commandIdsText(
         .map((command) => command.id ?? copy.unknown)
         .join(", ")
     : copy.none;
+}
+
+function securityBooleanClass(value: boolean) {
+  return value ? "fresh" : "stale";
 }
 
 function diagnosticsText(
@@ -429,11 +408,22 @@ const adminCopy = {
     ragDocuments: "RAG Documents",
     readyReplicas: "ready",
     memory: "memory",
+    provider: "provider",
     owner: "owner",
     priority: "priority",
     runtimeOwner: "runtime owner",
     dataOwner: "data/ML owner",
     liveProbe: "live probe",
+    contract: "contract",
+    localSmoke: "local smoke",
+    webhook: "webhook",
+    legacyConfigMap: "legacy ConfigMap",
+    technologyPreview: "Technology Preview",
+    url: "URL",
+    featureGates: "feature gates",
+    userBearer: "user bearer",
+    secretHeader: "secret header",
+    routeRole: "route role",
     pgvector: "pgvector",
     vllm: "vLLM",
     runtimeLiveHandoffClear: "runtime live handoff clear",
@@ -553,8 +543,8 @@ const adminCopy = {
     installExecuted: "install executed",
     installRequiresApproval: "install requires approval",
     ragIngestion: "RAG ingestion",
-    certificationEvidence: "certification evidence",
-    communitySubmission: "community submission",
+    certificationEvidence: "Certification Evidence",
+    communitySubmission: "Community Submission",
     layout: "layout",
     parity: "parity",
     parityEntries: "parity entries",
@@ -568,17 +558,17 @@ const adminCopy = {
     handoff: "handoff",
     cli: "CLI",
     localArtifact: "local artifact",
-    labBootstrap: "lab bootstrap",
-    labHandoff: "lab handoff",
-    dedicatedCrcLabReadiness: "dedicated CRC lab readiness",
+    labBootstrap: "Lab Bootstrap",
+    labHandoff: "Lab Handoff",
+    dedicatedCrcLabReadiness: "Dedicated CRC Lab Readiness",
     labTier: "lab tier",
     cpuRam: "CPU / RAM",
     gpuRuntime: "GPU runtime",
-    recommendedCrc: "recommended CRC",
+    recommendedCrc: "Recommended CRC",
     imageMap: "image map",
     imageBlocking: "blocking",
     externalRuntimeImages: "external runtime",
-    portableTar: "portable tar",
+    portableTar: "Portable Tar",
     missingTags: "missing tags",
     handoffSources: "handoff sources",
     bootstrapWorkstation: "bootstrap workstation",
@@ -749,6 +739,7 @@ const adminCopy = {
     actionQueueFresh: "action queue fresh",
     actionQueueCommands: "action queue commands",
     actionQueueActionGaps: "action queue gaps",
+    releaseQueueDetails: "Release evidence details",
     roadmapExternalState: "roadmap external state",
     roadmapLocalOnly: "roadmap local-only",
     items: "items",
@@ -849,11 +840,22 @@ const adminCopy = {
     ragDocuments: "RAG 문서",
     readyReplicas: "준비 수",
     memory: "메모리",
+    provider: "제공자",
     owner: "소유자",
     priority: "우선순위",
     runtimeOwner: "런타임 소유자",
     dataOwner: "데이터/ML 소유자",
     liveProbe: "실시간 점검",
+    contract: "계약",
+    localSmoke: "로컬 스모크",
+    webhook: "웹훅",
+    legacyConfigMap: "레거시 ConfigMap",
+    technologyPreview: "기술 프리뷰",
+    url: "URL",
+    featureGates: "기능 게이트",
+    userBearer: "사용자 토큰 전달",
+    secretHeader: "Secret 헤더",
+    routeRole: "라우트 역할",
     pgvector: "pgvector",
     vllm: "vLLM",
     runtimeLiveHandoffClear: "런타임 실시간 인계 이상 없음",
@@ -1169,6 +1171,7 @@ const adminCopy = {
     actionQueueFresh: "작업 대기열 최신성",
     actionQueueCommands: "작업 대기열 명령",
     actionQueueActionGaps: "작업 대기열 gap",
+    releaseQueueDetails: "릴리스 근거 상세",
     roadmapExternalState: "로드맵 외부 상태",
     roadmapLocalOnly: "로드맵 로컬 항목",
     items: "항목",
@@ -2204,55 +2207,141 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 </span>
               </div>
               <div
-                className="admin-evidence-line"
+                className="admin-table-wrap"
                 data-testid="opslens-rag-production-first-actions"
               >
                 {ragProductionReadiness.firstProductionActions.length ? (
-                  ragProductionReadiness.firstProductionActions.map((action) => (
-                    <span key={action.id}>
-                      {action.id} / {action.owner} /{" "}
-                      {statusText(language, action.status)} / {copy.nextCommand}:{" "}
-                      {action.nextCommand} / {copy.mutationAllowed}:{" "}
-                      {booleanText(language, action.mutation)} /{" "}
-                      {copy.approvalRequired}:{" "}
-                      {booleanText(language, action.requiresExplicitApproval)}
-                    </span>
-                  ))
+                  <table
+                    className="resource-table compact command-list"
+                    data-testid="opslens-rag-production-first-actions-table"
+                  >
+                    <thead>
+                      <tr>
+                        <th>{copy.firstAction}</th>
+                        <th>{copy.owner}</th>
+                        <th>{copy.status}</th>
+                        <th>{copy.approvalRequired}</th>
+                        <th>{copy.mutationAllowed}</th>
+                        <th>{copy.nextCommand}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ragProductionReadiness.firstProductionActions.map((action) => (
+                        <tr
+                          key={action.id}
+                          data-testid={`rag-production-action-${action.id}`}
+                        >
+                          <td>
+                            <strong>{action.id}</strong>
+                          </td>
+                          <td>{action.owner}</td>
+                          <td>
+                            <span className={`freshness ${statusClass(action.status)}`}>
+                              {statusText(language, action.status)}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`freshness ${securityBooleanClass(
+                                action.requiresExplicitApproval
+                              )}`}
+                            >
+                              {booleanText(language, action.requiresExplicitApproval)}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`freshness ${securityBooleanClass(
+                                !action.mutation
+                              )}`}
+                            >
+                              {booleanText(language, action.mutation)}
+                            </span>
+                          </td>
+                          <td>
+                            <code
+                              data-testid={`rag-production-command-${action.id}`}
+                            >
+                              {action.nextCommand}
+                            </code>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 ) : (
                   <span>RAG production first actions missing</span>
                 )}
               </div>
               <div
-                className="admin-evidence-line"
+                className="admin-table-wrap"
                 data-testid="opslens-rag-production-ticket"
               >
-                <span>
-                  {copy.ticket}: {ragProductionReadiness.ticketPacket.id}
-                </span>
-                <span>
-                  {copy.firstAction}:{" "}
-                  {ragProductionReadiness.ticketPacket.firstReadOnlyAction.id}
-                </span>
-                <span>
-                  {copy.approvalAction}:{" "}
-                  {ragProductionReadiness.ticketPacket.approvalGatedAction.id}
-                </span>
-                <span>
-                  {copy.requiresApproval}:{" "}
-                  {booleanText(
-                    language,
-                    ragProductionReadiness.ticketPacket.approvalGatedAction
-                      .requiresExplicitApproval
-                  )}
-                </span>
-                <span>
-                  {copy.approvalRequired}:{" "}
-                  {booleanText(
-                    language,
-                    ragProductionReadiness.ticketPacket.mutationBoundary
-                      .ingestionRequiresExplicitApproval
-                  )}
-                </span>
+                <table
+                  className="resource-table compact command-list"
+                  data-testid="opslens-rag-production-ticket-table"
+                >
+                  <thead>
+                    <tr>
+                      <th>{copy.ticket}</th>
+                      <th>{copy.firstAction}</th>
+                      <th>{copy.approvalAction}</th>
+                      <th>{copy.requiresApproval}</th>
+                      <th>{copy.approvalRequired}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr data-testid="rag-production-ticket-row">
+                      <td>
+                        <strong>{ragProductionReadiness.ticketPacket.id}</strong>
+                      </td>
+                      <td>
+                        <code>
+                          {
+                            ragProductionReadiness.ticketPacket.firstReadOnlyAction
+                              .id
+                          }
+                        </code>
+                      </td>
+                      <td>
+                        <code>
+                          {
+                            ragProductionReadiness.ticketPacket.approvalGatedAction
+                              .id
+                          }
+                        </code>
+                      </td>
+                      <td>
+                        <span
+                          className={`freshness ${securityBooleanClass(
+                            ragProductionReadiness.ticketPacket.approvalGatedAction
+                              .requiresExplicitApproval
+                          )}`}
+                        >
+                          {booleanText(
+                            language,
+                            ragProductionReadiness.ticketPacket.approvalGatedAction
+                              .requiresExplicitApproval
+                          )}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`freshness ${securityBooleanClass(
+                            ragProductionReadiness.ticketPacket.mutationBoundary
+                              .ingestionRequiresExplicitApproval
+                          )}`}
+                        >
+                          {booleanText(
+                            language,
+                            ragProductionReadiness.ticketPacket.mutationBoundary
+                              .ingestionRequiresExplicitApproval
+                          )}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           ) : null}
@@ -2785,59 +2874,229 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             </span>
           </div>
           <div
-            className="admin-evidence-line"
+            className="admin-table-wrap"
             data-testid="opslens-runtime-live-handoff-actions"
           >
             {runtimeLiveHandoffActions.length > 0 ? (
-              runtimeLiveHandoffActions.map((action) => (
-                <span key={action.id}>
-                  {action.id} / {copy.owner}: {action.owner} /{" "}
-                  {copy.priority}: {action.priority} / {copy.nextCommand}:{" "}
-                  {action.nextCommand} / {copy.readOnlyCommands}:{" "}
-                  {action.readOnlyCommandIds.join(", ") || copy.none}
-                </span>
-              ))
+              <table
+                className="resource-table compact command-list"
+                data-testid="opslens-runtime-live-handoff-actions-table"
+              >
+                <thead>
+                  <tr>
+                    <th>{copy.firstAction}</th>
+                    <th>{copy.owner}</th>
+                    <th>{copy.priority}</th>
+                    <th>{copy.readOnlyCommands}</th>
+                    <th>{copy.nextCommand}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runtimeLiveHandoffActions.map((action) => (
+                    <tr
+                      key={action.id}
+                      data-testid={`runtime-live-action-${action.id}`}
+                    >
+                      <td>
+                        <strong>{action.id}</strong>
+                      </td>
+                      <td>{action.owner}</td>
+                      <td>
+                        <span className={`freshness ${statusClass(action.priority)}`}>
+                          {statusText(language, action.priority)}
+                        </span>
+                      </td>
+                      <td>{action.readOnlyCommandIds.join(", ") || copy.none}</td>
+                      <td>
+                        <code data-testid={`runtime-live-command-${action.id}`}>
+                          {action.nextCommand}
+                        </code>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : (
               <span>{copy.runtimeLiveHandoffClear}</span>
             )}
           </div>
           <div
-            className="admin-evidence-line"
+            className="admin-table-wrap"
             data-testid="opslens-runtime-live-handoff-tickets"
           >
             {runtimeLiveHandoffActions.some(
               (action) => action.runtimeEvidenceTicketPacket
             ) ? (
-              runtimeLiveHandoffActions.map((action) =>
-                action.runtimeEvidenceTicketPacket ? (
-                  <span key={`${action.id}-ticket`}>
-                    {runtimeEvidenceTicketText(action, language, copy)}
-                  </span>
-                ) : null
-              )
+              <table
+                className="resource-table compact command-list"
+                data-testid="opslens-runtime-live-handoff-ticket-table"
+              >
+                <thead>
+                  <tr>
+                    <th>{copy.ticket}</th>
+                    <th>{copy.owner}</th>
+                    <th>{copy.firstAction}</th>
+                    <th>{copy.approvalAction}</th>
+                    <th>{copy.requiresApproval}</th>
+                    <th>{copy.mutationAllowed}</th>
+                    <th>{copy.liveProbe}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runtimeLiveHandoffActions.map((action) =>
+                    action.runtimeEvidenceTicketPacket ? (
+                      <tr
+                        key={`${action.id}-ticket`}
+                        data-testid={`runtime-live-ticket-${action.runtimeEvidenceTicketPacket.id}`}
+                      >
+                        <td>
+                          <strong>{action.runtimeEvidenceTicketPacket.id}</strong>
+                          <small>{action.runtimeEvidenceTicketPacket.title}</small>
+                        </td>
+                        <td>{action.runtimeEvidenceTicketPacket.owner}</td>
+                        <td>
+                          <code>
+                            {
+                              action.runtimeEvidenceTicketPacket.firstReadOnlyAction
+                                .id
+                            }
+                          </code>
+                        </td>
+                        <td>
+                          <code>
+                            {
+                              action.runtimeEvidenceTicketPacket.approvalGatedAction
+                                .id
+                            }
+                          </code>
+                        </td>
+                        <td>
+                          <span
+                            className={`freshness ${securityBooleanClass(
+                              action.runtimeEvidenceTicketPacket.approvalGatedAction
+                                .requiresExplicitApproval
+                            )}`}
+                          >
+                            {booleanText(
+                              language,
+                              action.runtimeEvidenceTicketPacket.approvalGatedAction
+                                .requiresExplicitApproval
+                            )}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`freshness ${securityBooleanClass(
+                              !action.runtimeEvidenceTicketPacket.mutationBoundary
+                                .mutationAllowedByThisVerifier
+                            )}`}
+                          >
+                            {booleanText(
+                              language,
+                              action.runtimeEvidenceTicketPacket.mutationBoundary
+                                .mutationAllowedByThisVerifier
+                            )}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`freshness ${securityBooleanClass(
+                              action.runtimeEvidenceTicketPacket.mutationBoundary
+                                .liveProbeRequiresExplicitApproval
+                            )}`}
+                          >
+                            {booleanText(
+                              language,
+                              action.runtimeEvidenceTicketPacket.mutationBoundary
+                                .liveProbeRequiresExplicitApproval
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    ) : null
+                  )}
+                </tbody>
+              </table>
             ) : (
               <span>{copy.runtimeEvidenceTicketsClear}</span>
             )}
           </div>
           <div
-            className="admin-evidence-line"
+            className="admin-table-wrap"
             data-testid="opslens-runtime-live-evidence-handoff"
           >
             {runtimeLiveEvidenceHandoff.length > 0 ? (
-              runtimeLiveEvidenceHandoff.map((handoff) => (
-                <span key={`${handoff.provider}-${handoff.component}`}>
-                  {handoff.provider} / {handoff.component} /{" "}
-                  {statusText(language, handoff.status)} /{" "}
-                  {statusText(language, handoff.classification)} / {copy.owner}:{" "}
-                  {handoff.owner} / {copy.writesLocalEvidence}:{" "}
-                  {booleanText(language, handoff.writesLocalEvidence)} /{" "}
-                  {copy.requiresApproval}:{" "}
-                  {booleanText(language, handoff.requiresExplicitApproval)} /{" "}
-                  {copy.mutationAllowed}:{" "}
-                  {booleanText(language, handoff.mutationAllowed)} /{" "}
-                  {copy.nextCommand}: {handoff.nextCommand}
-                </span>
-              ))
+              <table
+                className="resource-table compact command-list"
+                data-testid="opslens-runtime-live-evidence-handoff-table"
+              >
+                <thead>
+                  <tr>
+                    <th>{copy.provider}</th>
+                    <th>{copy.status}</th>
+                    <th>{copy.classification}</th>
+                    <th>{copy.owner}</th>
+                    <th>{copy.writesLocalEvidence}</th>
+                    <th>{copy.requiresApproval}</th>
+                    <th>{copy.mutationAllowed}</th>
+                    <th>{copy.nextCommand}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runtimeLiveEvidenceHandoff.map((handoff) => (
+                    <tr
+                      key={`${handoff.provider}-${handoff.component}`}
+                      data-testid={`runtime-live-evidence-${handoff.provider}`}
+                    >
+                      <td>
+                        <strong>{handoff.provider}</strong>
+                        <small>{handoff.component}</small>
+                      </td>
+                      <td>
+                        <span className={`freshness ${statusClass(handoff.status)}`}>
+                          {statusText(language, handoff.status)}
+                        </span>
+                      </td>
+                      <td>{statusText(language, handoff.classification)}</td>
+                      <td>{handoff.owner}</td>
+                      <td>
+                        <span
+                          className={`freshness ${securityBooleanClass(
+                            handoff.writesLocalEvidence
+                          )}`}
+                        >
+                          {booleanText(language, handoff.writesLocalEvidence)}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`freshness ${securityBooleanClass(
+                            handoff.requiresExplicitApproval
+                          )}`}
+                        >
+                          {booleanText(language, handoff.requiresExplicitApproval)}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`freshness ${securityBooleanClass(
+                            !handoff.mutationAllowed
+                          )}`}
+                        >
+                          {booleanText(language, handoff.mutationAllowed)}
+                        </span>
+                      </td>
+                      <td>
+                        <code
+                          data-testid={`runtime-live-evidence-command-${handoff.provider}`}
+                        >
+                          {handoff.nextCommand}
+                        </code>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : (
               <span>{copy.runtimeLiveEvidenceMissing}</span>
             )}
@@ -3136,7 +3395,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             </span>
             {(monitoringProxyHandoff?.readOnlyCommands ?? []).map((command) => (
               <span key={command.id}>
-                {command.id} / {copy.mutationAllowed}:{" "}
+                {command.id} - {copy.mutationAllowed}:{" "}
                 {booleanText(language, command.mutation)}
               </span>
             ))}
@@ -4129,26 +4388,29 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               <div className="card-title-row compact">
                 <div>
                   <h4>Lightspeed Extension Point</h4>
-                  <small>{extensionPoint.actionMode}</small>
+                  <small>{actionModeText(language, extensionPoint.actionMode)}</small>
                 </div>
                 <ListChecks size={18} aria-hidden="true" />
               </div>
               <div className="admin-evidence-line">
-                <span>{extensionPoint.artifactStatus}</span>
-                <span>contract={extensionPoint.productContract}</span>
-                <span>endpoint={extensionPoint.lightspeedFacingEndpoint}</span>
-                <span>smoke={extensionPoint.localSmokeEndpoint}</span>
+                <span>{statusText(language, extensionPoint.artifactStatus)}</span>
+                <span>{copy.contract}: {extensionPoint.productContract}</span>
+                <span>{copy.endpoint}: {extensionPoint.lightspeedFacingEndpoint}</span>
+                <span>{copy.localSmoke}: {extensionPoint.localSmokeEndpoint}</span>
                 <span>
-                  webhook=
-                  {String(extensionPoint.undocumentedWebhookSupported)}
+                  {copy.webhook}:{" "}
+                  {booleanText(language, extensionPoint.undocumentedWebhookSupported)}
                 </span>
                 <span>
-                  legacyConfigMap=
-                  {String(extensionPoint.legacyConfigMapRegistrationSupported)}
+                  {copy.legacyConfigMap}:{" "}
+                  {booleanText(
+                    language,
+                    extensionPoint.legacyConfigMapRegistrationSupported
+                  )}
                 </span>
                 <span>
-                  technologyPreview=
-                  {String(extensionPoint.technologyPreview)}
+                  {copy.technologyPreview}:{" "}
+                  {booleanText(language, extensionPoint.technologyPreview)}
                 </span>
               </div>
               <div
@@ -4157,23 +4419,26 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 <span>{extensionPoint.olsconfig.kind}</span>
                 <span>
-                  server={extensionPoint.olsconfig.server.name}
+                  {copy.server}: {extensionPoint.olsconfig.server.name}
                 </span>
                 <span>
-                  url={extensionPoint.olsconfig.server.url}
+                  {copy.url}: {extensionPoint.olsconfig.server.url}
                 </span>
                 <span>
-                  featureGates=
+                  {copy.featureGates}:{" "}
                   {extensionPoint.olsconfig.featureGates.join(", ") ||
                     "missing"}
                 </span>
                 <span>
-                  userBearer=
-                  {String(extensionPoint.olsconfig.server.userBearerForwarding)}
+                  {copy.userBearer}:{" "}
+                  {booleanText(
+                    language,
+                    extensionPoint.olsconfig.server.userBearerForwarding
+                  )}
                 </span>
                 <span>
-                  secretHeader=
-                  {String(extensionPoint.olsconfig.server.secretHeader)}
+                  {copy.secretHeader}:{" "}
+                  {booleanText(language, extensionPoint.olsconfig.server.secretHeader)}
                 </span>
               </div>
               <div
@@ -4182,7 +4447,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               >
                 {extensionPoint.routes.map((route) => (
                   <span key={`${route.method}-${route.path}`}>
-                    {route.method} {route.path}:{route.role}
+                    {route.method} {route.path} - {copy.routeRole}: {route.role}
                   </span>
                 ))}
               </div>
@@ -4191,24 +4456,30 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 data-testid="opslens-lightspeed-extension-boundary"
               >
                 <span>
-                  clusterMutationAttempted=
-                  {String(
+                  {copy.clusterMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
                     extensionPoint.mutationBoundary.clusterMutationAttempted
                   )}
                 </span>
                 <span>
-                  registryMutationAttempted=
-                  {String(
+                  {copy.registryMutationAttempted}:{" "}
+                  {booleanText(
+                    language,
                     extensionPoint.mutationBoundary.registryMutationAttempted
                   )}
                 </span>
                 <span>
-                  vectorWriteAttempted=
-                  {String(extensionPoint.mutationBoundary.vectorWriteAttempted)}
+                  {copy.vectorWriteAttempted}:{" "}
+                  {booleanText(
+                    language,
+                    extensionPoint.mutationBoundary.vectorWriteAttempted
+                  )}
                 </span>
                 <span>
-                  mutationAllowedByThisVerifier=
-                  {String(
+                  {copy.mutationByVerifier}:{" "}
+                  {booleanText(
+                    language,
                     extensionPoint.mutationBoundary
                       .mutationAllowedByThisVerifier
                   )}
@@ -5660,6 +5931,11 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   </div>
                 ))}
               </div>
+              <details
+                className="admin-drilldown"
+                data-testid="opslens-release-action-queue-drilldown"
+              >
+                <summary>{copy.releaseQueueDetails}</summary>
               <div
                 className="admin-evidence-line"
                 data-testid="opslens-release-action-queue-critical-path"
@@ -6084,6 +6360,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                   <span>{copy.lightspeedMcp}: {copy.none}</span>
                 )}
               </div>
+              </details>
               <div className="remediation-notes">
                 <p>
                   {releaseActionQueue.risk[0] ??
@@ -7984,7 +8261,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                             language,
                             image.reviewExists
                           )}`
-                        ].join(" / "),
+                        ].join("; "),
                       6
                     )}
                   </strong>
@@ -8031,105 +8308,245 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 </div>
               </div>
               <div
-                className="admin-evidence-line"
+                className="admin-table-wrap"
                 data-testid="opslens-security-first-review-actions"
               >
                 {securityScanPlan.firstSecurityReviewActions.length ? (
-                  securityScanPlan.firstSecurityReviewActions.map((action) => (
-                    <span key={action.id}>
-                      {[
-                        action.id,
-                        `${copy.owner}: ${action.owner}`,
-                        `${copy.status}: ${statusText(language, action.status)}`,
-                        `${copy.nextCommand}: ${action.nextCommand}`,
-                        `${copy.mutationAllowed}: ${booleanText(
-                          language,
-                          action.mutation
-                        )}`,
-                        `${copy.approvalRequired}: ${booleanText(
-                          language,
-                          action.requiresExplicitApproval
-                        )}`
-                      ].join(" / ")}
-                    </span>
-                  ))
+                  <table
+                    className="resource-table compact command-list"
+                    data-testid="opslens-security-first-review-actions-table"
+                  >
+                    <thead>
+                      <tr>
+                        <th>{copy.firstAction}</th>
+                        <th>{copy.owner}</th>
+                        <th>{copy.status}</th>
+                        <th>{copy.approvalRequired}</th>
+                        <th>{copy.mutationAllowed}</th>
+                        <th>{copy.nextCommand}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {securityScanPlan.firstSecurityReviewActions.map((action) => (
+                        <tr
+                          key={action.id}
+                          data-testid={`security-first-review-action-${action.id}`}
+                        >
+                          <td>
+                            <strong>{action.id}</strong>
+                            <small>{action.phase}</small>
+                          </td>
+                          <td>{action.owner}</td>
+                          <td>
+                            <span className={`freshness ${statusClass(action.status)}`}>
+                              {statusText(language, action.status)}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`freshness ${securityBooleanClass(
+                                action.requiresExplicitApproval
+                              )}`}
+                            >
+                              {booleanText(language, action.requiresExplicitApproval)}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`freshness ${securityBooleanClass(
+                                !action.mutation
+                              )}`}
+                            >
+                              {booleanText(language, action.mutation)}
+                            </span>
+                          </td>
+                          <td>
+                            <code
+                              data-testid={`security-first-review-command-${action.id}`}
+                            >
+                              {action.nextCommand}
+                            </code>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 ) : (
                   <span>{copy.securityReviewFirstActionsMissing}</span>
                 )}
               </div>
               <div
-                className="admin-evidence-line"
+                className="admin-table-wrap"
                 data-testid="opslens-security-review-tickets"
               >
                 {securityScanPlan.ticketPackets.length ? (
-                  securityScanPlan.ticketPackets.map((ticket) => (
-                    <span key={ticket.id}>
-                      {[
-                        ticket.id,
-                        `${copy.owner}: ${ticket.owner}`,
-                        `${copy.severity}: ${ticket.severity}`,
-                        `${copy.imageBuilds}: ${ticket.imageName}`,
-                        `${copy.classification}: ${ticket.classification}`,
-                        `${copy.firstAction}: ${ticket.firstReadOnlyAction.id}`,
-                        `${copy.approvalAction}: ${ticket.approvalGatedAction.id}`,
-                        `${copy.requiresApproval}: ${booleanText(
-                          language,
-                          ticket.approvalGatedAction.requiresExplicitApproval
-                        )}`,
-                        `${copy.mutationAllowed}: ${booleanText(
-                          language,
-                          ticket.mutationBoundary.mutationAllowedByThisVerifier
-                        )}`
-                      ].join(" / ")}
-                    </span>
-                  ))
+                  <table
+                    className="resource-table compact command-list"
+                    data-testid="opslens-security-review-ticket-table"
+                  >
+                    <thead>
+                      <tr>
+                        <th>{copy.ticket}</th>
+                        <th>{copy.owner}</th>
+                        <th>{copy.severity}</th>
+                        <th>{copy.imageBuilds}</th>
+                        <th>{copy.classification}</th>
+                        <th>{copy.firstAction}</th>
+                        <th>{copy.approvalAction}</th>
+                        <th>{copy.requiresApproval}</th>
+                        <th>{copy.mutationAllowed}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {securityScanPlan.ticketPackets.map((ticket) => (
+                        <tr
+                          key={ticket.id}
+                          data-testid={`security-review-ticket-${ticket.imageName}`}
+                        >
+                          <td>
+                            <strong>{ticket.id}</strong>
+                            <small>{ticket.title}</small>
+                          </td>
+                          <td>{ticket.owner}</td>
+                          <td>
+                            <span className="severity-chip warning">
+                              {ticket.severity}
+                            </span>
+                          </td>
+                          <td>{ticket.imageName}</td>
+                          <td>
+                            <span className={`freshness ${statusClass(ticket.classification)}`}>
+                              {statusText(language, ticket.classification)}
+                            </span>
+                          </td>
+                          <td>
+                            <code>{ticket.firstReadOnlyAction.id}</code>
+                          </td>
+                          <td>
+                            <code>{ticket.approvalGatedAction.id}</code>
+                          </td>
+                          <td>
+                            <span
+                              className={`freshness ${securityBooleanClass(
+                                ticket.approvalGatedAction.requiresExplicitApproval
+                              )}`}
+                            >
+                              {booleanText(
+                                language,
+                                ticket.approvalGatedAction.requiresExplicitApproval
+                              )}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`freshness ${securityBooleanClass(
+                                !ticket.mutationBoundary.mutationAllowedByThisVerifier
+                              )}`}
+                            >
+                              {booleanText(
+                                language,
+                                ticket.mutationBoundary.mutationAllowedByThisVerifier
+                              )}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 ) : (
                   <span>{copy.securityReviewTicketsClear}</span>
                 )}
               </div>
               <div
-                className="admin-evidence-line"
+                className="admin-table-wrap"
                 data-testid="opslens-security-review-final-handoff"
               >
                 {securityScanPlan.securityReviewFinalHandoff.length ? (
-                  securityScanPlan.securityReviewFinalHandoff
-                    .slice(0, 7)
-                    .map((handoff) => (
-                      <span key={`${handoff.imageName}-security-final`}>
-                        {[
-                          handoff.imageName,
-                          `${copy.status}: ${statusText(language, handoff.status)}`,
-                          `${copy.owner}: ${handoff.owner}`,
-                          `${copy.finalEvidence}: ${booleanText(
-                            language,
-                            handoff.finalEvidenceExists
-                          )}`,
-                          `${copy.approved}: ${booleanText(
-                            language,
-                            handoff.reviewApproved
-                          )}`,
-                          `${copy.evidenceGaps}: ${handoff.missingEvidenceCount}`,
-                          `${copy.approvalRequired}: ${booleanText(
-                            language,
-                            handoff.approvalRequired
-                          )}`,
-                          `${copy.requiresApproval}: ${booleanText(
-                            language,
-                            handoff.requiresExplicitApproval
-                          )}`,
-                          `${copy.mutationAllowed}: ${booleanText(
-                            language,
-                            handoff.mutationAllowed
-                          )}`,
-                          `${copy.writesLocalEvidence}: ${booleanText(
-                            language,
-                            handoff.writesLocalEvidence
-                          )}`,
-                          `${copy.nextCommand}: ${handoff.promotionCommand}`,
-                          `${copy.validate}: ${handoff.verificationCommand}`
-                        ].join(" / ")}
-                      </span>
-                    ))
+                  <table
+                    className="resource-table compact command-list"
+                    data-testid="opslens-security-review-final-handoff-table"
+                  >
+                    <thead>
+                      <tr>
+                        <th>{copy.imageBuilds}</th>
+                        <th>{copy.status}</th>
+                        <th>{copy.evidenceGaps}</th>
+                        <th>{copy.finalEvidence}</th>
+                        <th>{copy.approved}</th>
+                        <th>{copy.requiresApproval}</th>
+                        <th>{copy.mutationAllowed}</th>
+                        <th>{copy.validate}</th>
+                        <th>{copy.nextCommand}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {securityScanPlan.securityReviewFinalHandoff
+                        .slice(0, 7)
+                        .map((handoff) => (
+                          <tr
+                            key={`${handoff.imageName}-security-final`}
+                            data-testid={`security-review-final-${handoff.imageName}`}
+                          >
+                            <td>
+                              <strong>{handoff.imageName}</strong>
+                              <small>{handoff.owner}</small>
+                            </td>
+                            <td>
+                              <span className={`freshness ${statusClass(handoff.status)}`}>
+                                {statusText(language, handoff.status)}
+                              </span>
+                            </td>
+                            <td>{handoff.missingEvidenceCount}</td>
+                            <td>
+                              <span
+                                className={`freshness ${securityBooleanClass(
+                                  handoff.finalEvidenceExists
+                                )}`}
+                              >
+                                {booleanText(language, handoff.finalEvidenceExists)}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className={`freshness ${securityBooleanClass(
+                                  handoff.reviewApproved
+                                )}`}
+                              >
+                                {booleanText(language, handoff.reviewApproved)}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className={`freshness ${securityBooleanClass(
+                                  handoff.requiresExplicitApproval
+                                )}`}
+                              >
+                                {booleanText(language, handoff.requiresExplicitApproval)}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className={`freshness ${securityBooleanClass(
+                                  !handoff.mutationAllowed
+                                )}`}
+                              >
+                                {booleanText(language, handoff.mutationAllowed)}
+                              </span>
+                            </td>
+                            <td>
+                              <code>{handoff.verificationCommand}</code>
+                            </td>
+                            <td>
+                              <code
+                                data-testid={`security-review-promotion-command-${handoff.imageName}`}
+                              >
+                                {handoff.promotionCommand}
+                              </code>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
                 ) : (
                   <span>{copy.securityReviewFinalHandoffMissing}</span>
                 )}
@@ -8174,41 +8591,76 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
                 </span>
               </div>
               <div
-                className="admin-evidence-line"
+                className="admin-table-wrap"
                 data-testid="opslens-security-review-drafts"
               >
-                {securityScanPlan.images.slice(0, 7).map((image) => (
-                  <span key={image.name}>
-                    {[
-                      image.name,
-                      `${copy.draft}: ${statusText(
-                        language,
-                        image.reviewDraft.evidenceState
-                      )}`,
-                      `${copy.sameHead}: ${booleanText(
-                        language,
-                        image.reviewDraft.sameHead
-                      )}`,
-                      `${copy.decision}: ${image.reviewDraft.decision}`,
-                      `${copy.explicitDecision}: ${booleanText(
-                        language,
-                        image.reviewDraft.explicitDecisionProvided
-                      )}`,
-                      `${copy.reviewer}: ${booleanText(
-                        language,
-                        image.reviewDraft.reviewerProvided
-                      )}`,
-                      `${copy.ticket}: ${booleanText(
-                        language,
-                        image.reviewDraft.ticketProvided
-                      )}`,
-                      `${copy.readyForFinalReview}: ${booleanText(
-                        language,
-                        image.reviewDraft.readyForFinalReview
-                      )}`
-                    ].join(" / ")}
-                  </span>
-                ))}
+                <table
+                  className="resource-table compact"
+                  data-testid="opslens-security-review-drafts-table"
+                >
+                  <thead>
+                    <tr>
+                      <th>{copy.imageBuilds}</th>
+                      <th>{copy.draft}</th>
+                      <th>{copy.sameHead}</th>
+                      <th>{copy.decision}</th>
+                      <th>{copy.explicitDecision}</th>
+                      <th>{copy.reviewer}</th>
+                      <th>{copy.ticket}</th>
+                      <th>{copy.readyForFinalReview}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {securityScanPlan.images.slice(0, 7).map((image) => (
+                      <tr
+                        key={image.name}
+                        data-testid={`security-review-draft-${image.name}`}
+                      >
+                        <td>
+                          <strong>{image.name}</strong>
+                          <small>{image.source}</small>
+                        </td>
+                        <td>
+                          <span
+                            className={`freshness ${statusClass(
+                              image.reviewDraft.evidenceState
+                            )}`}
+                          >
+                            {statusText(language, image.reviewDraft.evidenceState)}
+                          </span>
+                        </td>
+                        <td>
+                          {booleanText(language, image.reviewDraft.sameHead)}
+                        </td>
+                        <td>{image.reviewDraft.decision}</td>
+                        <td>
+                          {booleanText(
+                            language,
+                            image.reviewDraft.explicitDecisionProvided
+                          )}
+                        </td>
+                        <td>
+                          {booleanText(language, image.reviewDraft.reviewerProvided)}
+                        </td>
+                        <td>
+                          {booleanText(language, image.reviewDraft.ticketProvided)}
+                        </td>
+                        <td>
+                          <span
+                            className={`freshness ${securityBooleanClass(
+                              image.reviewDraft.readyForFinalReview
+                            )}`}
+                          >
+                            {booleanText(
+                              language,
+                              image.reviewDraft.readyForFinalReview
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
               <div className="remediation-notes">
                 <p>

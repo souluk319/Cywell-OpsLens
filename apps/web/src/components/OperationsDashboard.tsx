@@ -154,7 +154,10 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           </div>
         </article>
 
-        <article className="ops-card compact-card">
+        <article
+          className="ops-card compact-card"
+          data-testid="opslens-incident-metrics"
+        >
           <div className="card-title-row">
             <h3>{copy.clusterHealth}</h3>
             <ServerCog size={18} aria-hidden="true" />

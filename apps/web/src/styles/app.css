@@ -392,12 +392,39 @@ button {
 }
 
 .nav-heading {
-  margin-top: 10px;
-  padding: 6px 10px 4px;
-  color: #6a6e73;
-  font-size: 0.72rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
+  margin-top: 4px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #3c3f42;
+  font-size: 0.84rem;
   font-weight: 800;
-  text-transform: uppercase;
+  text-align: left;
+}
+
+.nav-heading:hover,
+.nav-heading:focus-visible {
+  color: #151515;
+  background: #f0f0f0;
+  outline: 0;
+}
+
+.nav-heading-chevron {
+  justify-self: end;
+  color: #4f5255;
+}
+
+.nav-group-items {
+  display: grid;
+  gap: 2px;
+  padding-left: 6px;
 }
 
 .nav-item {
@@ -451,6 +478,19 @@ button {
   height: 100%;
   padding: 16px 24px 96px;
   overflow: auto;
+}
+
+.assistant-popover-open .main-stage {
+  padding-right: min(488px, calc(100vw - 32px));
+}
+
+.assistant-popover-open .alert-table {
+  min-width: 0;
+}
+
+.assistant-popover-open .alert-table th,
+.assistant-popover-open .alert-table td {
+  white-space: normal;
 }
 
 .breadcrumb-row {
@@ -1412,9 +1452,26 @@ button {
   grid-column: span 2;
 }
 
+.readiness-admin-card {
+  max-height: min(760px, calc(100vh - 180px));
+  overflow: auto;
+  align-self: start;
+}
+
+.readiness-admin-card > .card-title-row:first-child {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -14px -14px 10px;
+  padding: 14px;
+  border-bottom: 1px solid #ededed;
+  background: #fff;
+}
+
 .admin-table-wrap {
   max-height: 300px;
   overflow: auto;
+  margin-top: 10px;
   border: 1px solid #ededed;
   border-radius: 6px;
 }
@@ -1428,6 +1485,41 @@ button {
 .admin-table-wrap .resource-table small {
   color: #6a6e73;
   font-size: 0.74rem;
+}
+
+.admin-table-wrap .resource-table code {
+  display: inline-block;
+  max-width: min(520px, 62vw);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.admin-drilldown {
+  margin-top: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.admin-drilldown summary {
+  min-height: 36px;
+  padding: 8px 10px;
+  color: #151515;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.admin-drilldown summary::marker {
+  color: #6a6e73;
+}
+
+.admin-drilldown[open] {
+  padding-bottom: 10px;
+}
+
+.admin-drilldown[open] summary {
+  border-bottom: 1px solid #ededed;
 }
 
 .admin-evidence-line {

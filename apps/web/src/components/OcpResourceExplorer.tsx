@@ -787,7 +787,11 @@ export function OcpResourceExplorer({
   }, [functionOutcomeState, onFunctionOutcomeChange]);
 
   return (
-    <section className="ocp-explorer" aria-labelledby="ocp-explorer-title">
+    <section
+      className="ocp-explorer"
+      data-testid="ocp-resource-explorer"
+      aria-labelledby="ocp-explorer-title"
+    >
       <div className="section-heading compact">
         <div>
           <p className="eyebrow">{copy.eyebrow}</p>
