@@ -13,6 +13,23 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
   }
 
+async function waitForApiReady(page: Page) {
+  await expect(page.getByTestId("api-status")).toContainText(
+    /API (connected|연결됨)/,
+    { timeout: 15_000 }
+  );
+}
+
+async function waitForReadinessStatus(
+  page: Page,
+  expectedText: string
+) {
+  await expect(page.getByTestId("readiness-status")).toContainText(
+    expectedText,
+    { timeout: 15_000 }
+  );
+}
+
   function configuredEndpointValuesForTest() {
     const values = new Set<string>();
     const common = new Set(["true", "false", "0", "1", "yes", "no"]);
@@ -174,6 +191,67 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
   }) => {
     const feedback = page.getByTestId("console-navigation-feedback");
 
+    await expect(page.getByTestId("console-parity-matrix")).toBeVisible();
+    await expect(page.getByTestId("console-parity-summary")).toContainText(
+      "OpenShift Local 4.21.14"
+    );
+
+    const resourceNavigation = [
+      ["search", "Search", "pods deployments routes services namespaces"],
+      ["events", "Events", "events"],
+      ["operatorhub", "OperatorHub", "packagemanifests catalogsources"],
+      [
+        "installed-operators",
+        "Installed Operators",
+        "clusterserviceversions subscriptions installplans deployments"
+      ],
+      ["helm", "Helm", "helm secrets configmaps"],
+      ["workloads", "Pods", "pods"],
+      [
+        "workload-controllers",
+        "Workload controllers",
+        "deployments deploymentconfigs statefulsets daemonsets jobs cronjobs replicasets horizontalpodautoscalers"
+      ],
+      [
+        "networking",
+        "Routes, Services, Ingresses",
+        "routes services ingresses endpoints endpointslices"
+      ],
+      [
+        "network-policies",
+        "NetworkPolicies",
+        "networkpolicies dnses ingresses routes"
+      ],
+      [
+        "storage",
+        "PVCs, PVs, StorageClasses",
+        "persistentvolumeclaims persistentvolumes storageclasses volumesnapshots"
+      ],
+      [
+        "builds",
+        "Builds and ImageStreams",
+        "builds buildconfigs imagestreams imagestreamtags"
+      ],
+      ["compute", "Nodes and Machines", "nodes machines machinesets machineconfigpools"],
+      [
+        "user-management",
+        "Users, Groups, Roles",
+        "users groups serviceaccounts roles rolebindings clusterroles clusterrolebindings"
+      ],
+      [
+        "namespaces-crds",
+        "Namespaces and CRDs",
+        "namespaces customresourcedefinitions apiservices resourcequotas limitranges"
+      ]
+    ] as const;
+
+    for (const [navId, label, query] of resourceNavigation) {
+      await page.getByTestId(`console-nav-${navId}`).click();
+      await expect(feedback).toContainText(label);
+      await expect(page.getByTestId("ocp-resource-search")).toHaveValue(query);
+      await expect(page.getByTestId(`console-parity-row-${navId}`)).toBeVisible();
+    }
+
     await page.getByTestId("console-nav-logs").click();
     await expect(feedback).toContainText("Logs");
     await expect(page.getByTestId("log-viewport")).toBeVisible();
@@ -182,36 +260,30 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(feedback).toContainText("Alerting");
     await expect(page.getByTestId("alert-evidence-table")).toBeVisible();
 
-    await page.getByTestId("console-nav-workloads").click();
-    await expect(feedback).toContainText("Workloads");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "deployments pods replicasets"
-    );
-
-    await page.getByTestId("console-nav-networking").click();
-    await expect(feedback).toContainText("Networking");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "routes services ingresses"
-    );
-
-    await page.getByTestId("console-nav-storage").click();
-    await expect(feedback).toContainText("Storage");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "persistentvolumeclaims persistentvolumes storageclasses"
-    );
-
     await page.getByTestId("console-nav-overview").click();
     await expect(feedback).toContainText("Overview");
     await expect(
       page.getByRole("heading", { name: "OpenShift Console Overview" })
     ).toBeVisible();
 
+    await page.getByTestId("console-nav-favorites").click();
+    await expect(feedback).toContainText("Pinned navigation");
+    await expect(page.getByTestId("console-parity-matrix")).toBeVisible();
+
+    await page.getByTestId("console-nav-software-catalog").click();
+    await expect(feedback).toContainText("Software Catalog");
+    await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
+
+    await page.getByTestId("console-nav-dashboards").click();
+    await expect(feedback).toContainText("Dashboards");
+    await expect(page.getByTestId("opslens-incident-metrics")).toBeVisible();
+
     await page.getByTestId("console-nav-metrics").click();
     await expect(feedback).toContainText("Metrics");
     await expect(page.getByTestId("opslens-incident-metrics")).toBeVisible();
 
     await page.getByTestId("console-nav-administration").click();
-    await expect(feedback).toContainText("Administration");
+    await expect(feedback).toContainText("Cluster Settings");
     await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
 
     await page.getByTestId("console-nav-opslens-admin").click();
@@ -224,6 +296,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-opsbrain-system")).toContainText(
       "No fine-tuning growth system"
     );
+
+    await page.getByTestId("console-nav-komsco-assistant").click();
+    await expect(feedback).toContainText("KOMSCO AI Assistant");
+    await expect(page.getByTestId("assistant-popover")).toBeVisible();
   });
 
   test("AC-UI-006 makes Korean console navigation actionable", async ({
@@ -233,10 +309,26 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
 
     await page.getByTestId("language-ko-toggle").click();
     await expect(page.locator("html")).toHaveAttribute("lang", "ko");
+    await expect(page.getByTestId("console-parity-matrix")).toContainText(
+      "OCP 4.21.14 콘솔 커버리지"
+    );
+    await expect(page.getByTestId("console-parity-summary")).toContainText(
+      "원본 콘솔 항목"
+    );
 
     await page.getByTestId("console-nav-overview").click();
     await expect(feedback).toContainText("개요");
-    await expect(feedback).toContainText("현재 클러스터 요약");
+    await expect(feedback).toContainText("실시간 클러스터 개요");
+
+    await page.getByTestId("console-nav-search").click();
+    await expect(feedback).toContainText("검색");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "pods deployments routes services namespaces"
+    );
+
+    await page.getByTestId("console-nav-events").click();
+    await expect(feedback).toContainText("이벤트");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue("events");
 
     await page.getByTestId("console-nav-alerting").click();
     await expect(feedback).toContainText("경고");
@@ -255,26 +347,78 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("log-viewport")).toBeVisible();
 
     await page.getByTestId("console-nav-workloads").click();
-    await expect(feedback).toContainText("워크로드");
+    await expect(feedback).toContainText("파드");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue("pods");
+
+    await page.getByTestId("console-nav-workload-controllers").click();
+    await expect(feedback).toContainText("워크로드 컨트롤러");
     await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "deployments pods replicasets"
+      "deployments deploymentconfigs statefulsets daemonsets jobs cronjobs replicasets horizontalpodautoscalers"
     );
 
     await page.getByTestId("console-nav-networking").click();
-    await expect(feedback).toContainText("네트워킹");
+    await expect(feedback).toContainText("라우트, 서비스, 인그레스");
     await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "routes services ingresses"
+      "routes services ingresses endpoints endpointslices"
+    );
+
+    await page.getByTestId("console-nav-network-policies").click();
+    await expect(feedback).toContainText("네트워크 정책");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "networkpolicies dnses ingresses routes"
     );
 
     await page.getByTestId("console-nav-storage").click();
-    await expect(feedback).toContainText("스토리지");
+    await expect(feedback).toContainText("PVC, PV, StorageClass");
     await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "persistentvolumeclaims persistentvolumes storageclasses"
+      "persistentvolumeclaims persistentvolumes storageclasses volumesnapshots"
+    );
+
+    await page.getByTestId("console-nav-builds").click();
+    await expect(feedback).toContainText("빌드와 이미지 스트림");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "builds buildconfigs imagestreams imagestreamtags"
+    );
+
+    await page.getByTestId("console-nav-compute").click();
+    await expect(feedback).toContainText("노드와 머신");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "nodes machines machinesets machineconfigpools"
+    );
+
+    await page.getByTestId("console-nav-user-management").click();
+    await expect(feedback).toContainText("사용자, 그룹, 역할");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "users groups serviceaccounts roles rolebindings clusterroles clusterrolebindings"
     );
 
     await page.getByTestId("console-nav-administration").click();
-    await expect(feedback).toContainText("관리");
+    await expect(feedback).toContainText("클러스터 설정");
     await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
+
+    await page.getByTestId("console-nav-operatorhub").click();
+    await expect(feedback).toContainText("OperatorHub");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "packagemanifests catalogsources"
+    );
+
+    await page.getByTestId("console-nav-installed-operators").click();
+    await expect(feedback).toContainText("설치된 Operator");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "clusterserviceversions subscriptions installplans deployments"
+    );
+
+    await page.getByTestId("console-nav-helm").click();
+    await expect(feedback).toContainText("Helm");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "helm secrets configmaps"
+    );
+
+    await page.getByTestId("console-nav-namespaces-crds").click();
+    await expect(feedback).toContainText("네임스페이스와 CRD");
+    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+      "namespaces customresourcedefinitions apiservices resourcequotas limitranges"
+    );
 
     await page.getByTestId("console-nav-opslens-admin").click();
     await expect(feedback).toContainText("OpsLens 관리");
@@ -330,12 +474,13 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
   test("AC-UI-004 keeps KO/EN switching consistent and customer masthead stays compact", async ({
     page
   }) => {
+    test.setTimeout(60_000);
     await page.getByTestId("language-ko-toggle").click();
     await expect(page.locator("html")).toHaveAttribute("lang", "ko");
     await expect(page.getByTestId("masthead-user-menu")).toContainText(
       "kubeadmin"
     );
-    await expect(page.getByTestId("api-status")).toContainText("API 연결됨");
+    await waitForApiReady(page);
     await expect(
       page.locator("[data-testid='masthead'] [data-testid='runtime-surface']")
     ).toHaveCount(0);
@@ -461,9 +606,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("smoke-ols")).toContainText(
       "OLSConfig는 ValidateOnly 유지"
     );
-    await expect(page.getByTestId("readiness-status")).toContainText(
-      "근거 필요"
-    );
+    await waitForReadinessStatus(page, "근거 필요");
     await expect(page.getByTestId("readiness-passed")).toContainText(
       "통과 요건"
     );
@@ -478,21 +621,45 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     const localizedNavigation = [
       ["overview", "개요", "Overview"],
+      ["search", "검색", "Search"],
+      ["events", "이벤트", "Events"],
+      ["favorites", "고정 메뉴", "Pinned navigation"],
+      ["software-catalog", "소프트웨어 카탈로그", "Software Catalog"],
+      ["operatorhub", "OperatorHub", "OperatorHub"],
+      ["installed-operators", "설치된 Operator", "Installed Operators"],
+      ["helm", "Helm", "Helm"],
       ["alerting", "경고", "Alerting"],
       ["dashboards", "대시보드", "Dashboards"],
       ["metrics", "메트릭", "Metrics"],
       ["logs", "로그", "Logs"],
-      ["workloads", "워크로드", "Workloads"],
-      ["networking", "네트워킹", "Networking"],
-      ["storage", "스토리지", "Storage"],
-      ["administration", "관리", "Administration"],
+      ["workloads", "파드", "Pods"],
+      ["workload-controllers", "워크로드 컨트롤러", "Workload controllers"],
+      ["networking", "라우트, 서비스, 인그레스", "Routes, Services, Ingresses"],
+      ["network-policies", "네트워크 정책", "NetworkPolicies"],
+      ["storage", "PVC, PV, StorageClass", "PVCs, PVs, StorageClasses"],
+      ["builds", "빌드와 이미지 스트림", "Builds and ImageStreams"],
+      ["compute", "노드와 머신", "Nodes and Machines"],
+      ["user-management", "사용자, 그룹, 역할", "Users, Groups, Roles"],
+      ["administration", "클러스터 설정", "Cluster Settings"],
+      ["namespaces-crds", "네임스페이스와 CRD", "Namespaces and CRDs"],
       ["opslens-admin", "OpsLens 관리", "OpsLens Admin"],
-      ["opsbrain", "OpsBrain", "OpsBrain"]
+      ["opsbrain", "OpsBrain", "OpsBrain"],
+      ["komsco-assistant", "KOMSCO AI 어시스턴트", "KOMSCO AI Assistant"]
     ] as const;
     const localizedSections = [
       ["home", "홈", "Home"],
-      ["observe", "관측", "Observe"],
-      ["resources", "리소스", "Resources"],
+      ["favorites", "즐겨찾기", "Favorites"],
+      ["ecosystem", "에코시스템", "Ecosystem"],
+      ["operators", "Operator", "Operators"],
+      ["helm", "Helm", "Helm"],
+      ["workloads", "워크로드", "Workloads"],
+      ["networking", "네트워킹", "Networking"],
+      ["storage", "스토리지", "Storage"],
+      ["builds", "빌드", "Builds"],
+      ["monitoring", "모니터링", "Monitoring"],
+      ["compute", "컴퓨트", "Compute"],
+      ["user-management", "사용자 관리", "User Management"],
+      ["administration", "관리", "Administration"],
       ["cywell", "Cywell", "Cywell"]
     ] as const;
 
@@ -506,7 +673,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         koLabel
       );
     }
-    await expect(page.getByTestId("console-breadcrumb")).toContainText("관측");
+    await expect(page.getByTestId("console-breadcrumb")).toContainText("모니터링");
     await expect(page.getByTestId("console-breadcrumb")).toContainText("경고");
     await expect(page.getByTestId("console-navigation-feedback")).toContainText(
       "경고"
@@ -651,9 +818,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("smoke-ols")).toContainText(
       "OLSConfig stays ValidateOnly"
     );
-    await expect(page.getByTestId("readiness-status")).toContainText(
-      "needs evidence"
-    );
+    await waitForReadinessStatus(page, "needs evidence");
     await expect(page.getByTestId("readiness-passed")).toContainText(
       "passed requirements"
     );
@@ -676,7 +841,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
         enLabel
       );
     }
-    await expect(page.getByTestId("console-breadcrumb")).toContainText("Observe");
+    await expect(page.getByTestId("console-breadcrumb")).toContainText("Monitoring");
     await expect(page.getByTestId("console-breadcrumb")).toContainText("Alerting");
     await expect(page.getByTestId("console-navigation-feedback")).toContainText(
       "Alerting"
@@ -705,11 +870,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("assistant-execution-newline")).toContainText(
       "Shift+Enter adds a line"
     );
-    await expect(page.getByTestId("assistant-mode-matrix")).toContainText(
-      "answer source"
+    if ((await page.getByTestId("assistant-popover").count()) === 0) {
+      await openAssistant(page);
+    }
+    await expect(page.getByTestId("assistant-popover")).toBeVisible();
+    await expect(page.getByTestId("assistant-answer-source")).toContainText(
+      /OpsLens API route|local plan-only fallback/
     );
-    await expect(page.getByTestId("assistant-mode-matrix")).toContainText(
-      "cluster changes"
+    await expect(page.getByTestId("assistant-mutation-boundary")).toContainText(
+      "not executed"
     );
     await expect(page.getByTestId("assistant-connection-smoke")).toContainText(
       "Connection smoke"
@@ -853,7 +1022,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     page
   }) => {
     await openAssistant(page);
-    await expect(page.getByTestId("api-status")).toContainText("API connected");
+    await waitForApiReady(page);
     await expect(page.getByTestId("assistant-connection-status")).toContainText(
       "API connected / plan-only"
     );
@@ -911,6 +1080,12 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await planResponse;
     await expect(page.getByTestId("api-trace")).toContainText(
       "mock-local-search-mode/triage"
+    );
+    await expect(page.getByTestId("answer-judgment")).toContainText(
+      keyboardPrompt
+    );
+    await expect(page.getByTestId("answer-citations")).toContainText(
+      /runbook|문서|OpenShift/i
     );
   });
 

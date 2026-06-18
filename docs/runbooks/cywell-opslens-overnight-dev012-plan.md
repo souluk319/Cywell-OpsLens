@@ -1123,6 +1123,34 @@ Checkpoint cadence:
   - Playwright fails if the launcher regains a decorative circle, visible border, shadow shell, or non-contained icon.
   - Web shell contract fails if the assistant prompt is not KOMSCO-branded or if API diagnostics appear before the prompt.
 
+### 2026-06-18 - Lane 91
+
+- Fixed the assistant answer path after the live UI review showed that the chatbot transport worked but the response still behaved like a canned fixture.
+- `/api/actions/plan` now builds a prompt-aware read-only answer:
+  - preserves the submitted user question in the judgment
+  - includes the current console namespace/route context
+  - retrieves approved local OpsLens RAG citations
+  - keeps missing evidence and mutation boundaries visible
+- Added a contract check and E2E assertion so the assistant cannot silently fall back to the same static ClusterVersion answer for every question.
+
+### 2026-06-18 - Lane 92
+
+- Re-locked the product direction around OpenShift console parity instead of a standalone dashboard.
+- Added a version-pinned `OpenShift Local 4.21.14` / OCP 4.21 console parity registry that drives the left navigation:
+  - Home, Favorites, Ecosystem, Operators, Helm, Workloads, Networking, Storage, Builds, Monitoring, Compute, User Management, Administration
+  - Cywell additions remain separate: OpsLens Admin, OpsBrain, KOMSCO AI Assistant
+- Added a visible console parity matrix that maps every native console path to:
+  - OpsLens screen/action
+  - read-only API/resource preset
+  - OpsLens +@ enhancement
+  - pass/fail acceptance condition
+- The side navigation is now generated from the same registry, preventing a future drift where a menu exists without a documented OpenShift origin and OpsLens behavior.
+- Added an OpsBrain loading/fallback section so the OpsBrain menu still lands on a visible read-only product surface while API evidence is loading.
+- Protected with:
+  - `npm run -w @kugnus/web build`
+  - `npm run verify:web-shell`
+  - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-003|AC-UI-006|AC-UI-004|AC-CTX-001|AC-LIVE-001"`
+
 ## Current Known State
 
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
@@ -1133,6 +1161,8 @@ Checkpoint cadence:
 - latest web shell verifier after Lane 90: PASS, 58 checks, including compact masthead, operational details, live CRC install status, OpsLens icon-only launcher, KOMSCO prompt-first assistant flow, OCP live status, demo data source, and installed ConsolePlugin proxy-mode AC-UI-007 coverage
 - latest masthead review after Lane 89: visible header keeps the API connection signal only; runtime/API-route/scope context is available only inside collapsed operational details
 - latest launcher review after Lane 90: visible launcher has transparent background, no border, no shadow shell, no evidence badge, and a 58px contained OpsLens icon; assistant prompt appears before API diagnostics
+- latest assistant answer review after Lane 91: `/api/actions/plan` reflects the submitted question and local RAG citations while remaining read-only
+- latest console parity review after Lane 92: `OpenShift Local 4.21.14` console inventory drives the OpsLens navigation and visible parity matrix; Playwright clicks the expanded OCP parity menu in KO/EN and verifies the assistant remains prompt-aware
 - latest live CRC install panel observation: install object present, API/dashboard/vector visible, model-runtime blocked by image pull, dashboard Route missing
 - latest assistant smoke browser check after Lane 78: PASS, `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, `클러스터 변경: 차단`
 - latest overnight checkpoint after Lane 86: writes morning decision, step totals, safe entrypoints, blocked actions, CRC demo readiness, and handoff freshness in both JSON and Markdown

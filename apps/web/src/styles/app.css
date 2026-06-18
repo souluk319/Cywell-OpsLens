@@ -582,6 +582,157 @@ button {
   white-space: nowrap;
 }
 
+.console-parity-matrix {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid #b8bbbe;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.console-parity-matrix .section-heading {
+  align-items: flex-start;
+}
+
+.console-parity-matrix .section-heading p:not(.eyebrow) {
+  max-width: 920px;
+  margin: 4px 0 0;
+  color: #4f5255;
+  font-size: 0.85rem;
+}
+
+.parity-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.parity-summary-grid article {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.parity-summary-grid strong,
+.parity-summary-grid span {
+  display: block;
+}
+
+.parity-summary-grid strong {
+  color: #151515;
+  font-size: 1rem;
+}
+
+.parity-summary-grid span {
+  color: #6a6e73;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.parity-source-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.parity-source-row a {
+  color: #0066cc;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.parity-source-row a:hover {
+  text-decoration: underline;
+}
+
+.parity-table-wrap {
+  max-height: 430px;
+  overflow: auto;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+}
+
+.parity-table {
+  width: 100%;
+  min-width: 1050px;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.parity-table th,
+.parity-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #e6e6e6;
+  vertical-align: top;
+}
+
+.parity-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f4f4f4;
+  color: #3c3c3c;
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.parity-table tr.active td {
+  background: #eefafa;
+}
+
+.parity-table td:first-child {
+  width: 210px;
+}
+
+.parity-table td:first-child strong,
+.parity-table td:first-child span {
+  display: block;
+}
+
+.parity-table td:first-child span {
+  margin-top: 3px;
+  color: #6a6e73;
+}
+
+.parity-open-button {
+  min-height: 28px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.status-pill.parity-covered,
+.status-pill.parity-ops-enhanced {
+  border-color: #8bc1c2;
+  background: #e7f7f7;
+  color: #003737;
+}
+
+.status-pill.parity-native-deep-link,
+.status-pill.parity-read-only-plan {
+  border-color: #f0ab00;
+  background: #fff7e0;
+  color: #6a3b00;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .live-install-status {
   margin: 0 0 12px;
   padding: 12px;

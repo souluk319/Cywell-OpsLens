@@ -68,9 +68,14 @@ const overviewSource = await readText("apps/web/src/components/OcpConsoleOvervie
 const dashboardSource = await readText("apps/web/src/components/OperationsDashboard.tsx");
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
+const paritySource = await readText("apps/web/src/consoleParity.ts");
+const parityComponentSource = await readText(
+  "apps/web/src/components/OcpConsoleParityMatrix.tsx"
+);
 const adminSource = await readText("apps/web/src/components/OpsLensAdminDashboard.tsx");
 const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
+const backendApiSource = await readText("apps/api/src/api.ts");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 const e2eSource = await readText("tests/e2e/mvp-0.1.spec.ts");
 const liveInstallSource = await readText(
@@ -523,6 +528,18 @@ expectCheck(
     stylesSource.includes(".assistant-execution-path") &&
     stylesSource.includes(".assistant-execution-path strong"),
   "assistant makes Enter, API route, fallback, and Shift+Enter behavior visible"
+);
+
+expectCheck(
+  "assistant prompt-aware answer path",
+  backendApiSource.includes("function createPromptAwareAssistantAnswer") &&
+    backendApiSource.includes("retrieveRunbookCitations(\"cywell-internal\", prompt, 3)") &&
+    backendApiSource.includes("질문 \"${question}\"") &&
+    backendApiSource.includes("승인된 OpsLens RAG 근거") &&
+    e2eSource.includes("keyboardPrompt") &&
+    e2eSource.includes('getByTestId("answer-judgment")') &&
+    e2eSource.includes('getByTestId("answer-citations")'),
+  "assistant API responses include the submitted question and local RAG citations instead of returning the same canned answer"
 );
 
 expectCheck(
@@ -1423,13 +1440,66 @@ expectCheck(
 );
 
 expectCheck(
+  "version-pinned OCP console parity registry",
+  paritySource.includes("OpenShift Local 4.21.14") &&
+    paritySource.includes("docs.redhat.com/en/documentation/openshift_container_platform/4.21") &&
+    paritySource.includes('"Home"') &&
+    paritySource.includes('"Favorites"') &&
+    paritySource.includes('"Ecosystem"') &&
+    paritySource.includes('"Operators"') &&
+    paritySource.includes('"Helm"') &&
+    paritySource.includes('"Workloads"') &&
+    paritySource.includes('"Networking"') &&
+    paritySource.includes('"Storage"') &&
+    paritySource.includes('"Builds"') &&
+    paritySource.includes('"Monitoring"') &&
+    paritySource.includes('"Compute"') &&
+    paritySource.includes('"User Management"') &&
+    paritySource.includes('"Administration"') &&
+    paritySource.includes('"Cywell"') &&
+    paritySource.includes("Software Catalog") &&
+    paritySource.includes("Installed Operators") &&
+    paritySource.includes("OperatorHub") &&
+    paritySource.includes("Pods") &&
+    paritySource.includes("Routes, Services, Ingresses") &&
+    paritySource.includes("PVCs, PVs, StorageClasses") &&
+    paritySource.includes("Builds and ImageStreams") &&
+    paritySource.includes("Nodes and Machines") &&
+    paritySource.includes("Users, Groups, Roles") &&
+    paritySource.includes("KOMSCO AI Assistant") &&
+    appSource.includes("ocpConsoleParityItems.map") &&
+    appSource.includes("consoleParitySections"),
+  "OCP 4.21.14 console inventory is version-pinned and drives the OpsLens navigation"
+);
+
+expectCheck(
+  "visible OCP console parity matrix",
+  appSource.includes("<OcpConsoleParityMatrix") &&
+    appSource.includes("activeItemId={activeNavId}") &&
+    appSource.includes("onSelectItem={(itemId) => activateNavigation(findNavigationItem(itemId))}") &&
+    parityComponentSource.includes('data-testid="console-parity-matrix"') &&
+    parityComponentSource.includes('data-testid="console-parity-summary"') &&
+    parityComponentSource.includes('data-testid="console-parity-sources"') &&
+    parityComponentSource.includes("console-parity-row-${item.id}") &&
+    parityComponentSource.includes("item.originalPath") &&
+    parityComponentSource.includes("item.opsLensEnhancement") &&
+    parityComponentSource.includes("item.acceptance") &&
+    stylesSource.includes(".console-parity-matrix") &&
+    stylesSource.includes(".parity-table"),
+  "dashboard renders a version-pinned table mapping each native OCP console path to an OpsLens action and acceptance contract"
+);
+
+expectCheck(
   "localized navigation structure",
-  appSource.includes('data-testid={`console-nav-section-${section.toLowerCase()}`}') &&
+  appSource.includes('data-testid={`console-nav-section-${sectionTestId(section)}`}') &&
     appSource.includes('data-testid="console-breadcrumb"') &&
     appSource.includes("sectionLabelsKo") &&
-    appSource.includes('Home: "홈"') &&
-    appSource.includes('Observe: "관측"') &&
-    appSource.includes('Resources: "리소스"') &&
+    appSource.includes("sectionTestId(section)") &&
+    appSource.includes("originalPathKo") &&
+    appSource.includes("originalPath") &&
+    paritySource.includes('Home: "홈"') &&
+    paritySource.includes('Monitoring: "모니터링"') &&
+    paritySource.includes('"User Management": "사용자 관리"') &&
     appSource.includes("navLabel(item, language)") &&
     appSource.includes("navBreadcrumb(activeNavigation, language)"),
   "console navigation sections, items, and breadcrumb have stable localized render points"
@@ -1449,8 +1519,12 @@ expectCheck(
     e2eSource.includes("워크로드") &&
     e2eSource.includes("네트워킹") &&
     e2eSource.includes("스토리지") &&
+    e2eSource.includes("모니터링") &&
+    e2eSource.includes("컴퓨트") &&
+    e2eSource.includes("사용자 관리") &&
     e2eSource.includes("Administration") &&
-    e2eSource.includes("Resources") &&
+    e2eSource.includes("User Management") &&
+    e2eSource.includes("Monitoring") &&
     e2eSource.includes("OperatorHub: 오퍼레이터") &&
     e2eSource.includes("OpsLensInstallation: 제품 적용") &&
     e2eSource.includes("ConsolePlugin: 콘솔 라우트") &&
@@ -1476,11 +1550,13 @@ expectCheck(
     e2eSource.includes("KOMSCO AI 어시스턴트") &&
     e2eSource.includes("KOMSCO AI Assistant") &&
     e2eSource.includes('getByTestId("assistant-mode-matrix")') &&
+    e2eSource.includes('getByTestId("assistant-answer-source")') &&
+    e2eSource.includes('getByTestId("assistant-mutation-boundary")') &&
     e2eSource.includes("답변 출처") &&
     e2eSource.includes("클러스터 변경") &&
     e2eSource.includes("실행 안 함") &&
-    e2eSource.includes("answer source") &&
-    e2eSource.includes("cluster changes") &&
+    e2eSource.includes("OpsLens API route|local plan-only fallback") &&
+    e2eSource.includes("not executed") &&
     e2eSource.includes("Ask KOMSCO AI Assistant") &&
     e2eSource.includes("KOMSCO AI 어시스턴트에 질문"),
   "Playwright covers KO/EN switching across masthead, install flow, navigation, and the KOMSCO assistant"
@@ -1524,20 +1600,42 @@ expectCheck(
   e2eSource.includes("AC-UI-006 makes Korean console navigation actionable") &&
     e2eSource.includes('getByTestId("language-ko-toggle")') &&
     e2eSource.includes('getByTestId("console-nav-overview")') &&
+    e2eSource.includes('getByTestId("console-nav-search")') &&
+    e2eSource.includes('getByTestId("console-nav-events")') &&
+    e2eSource.includes('getByTestId("console-nav-software-catalog")') &&
+    e2eSource.includes('getByTestId("console-nav-operatorhub")') &&
+    e2eSource.includes('getByTestId("console-nav-installed-operators")') &&
+    e2eSource.includes('getByTestId("console-nav-helm")') &&
     e2eSource.includes('getByTestId("console-nav-alerting")') &&
     e2eSource.includes('getByTestId("console-nav-dashboards")') &&
     e2eSource.includes('getByTestId("console-nav-metrics")') &&
     e2eSource.includes('getByTestId("console-nav-logs")') &&
     e2eSource.includes('getByTestId("console-nav-workloads")') &&
+    e2eSource.includes('getByTestId("console-nav-workload-controllers")') &&
     e2eSource.includes('getByTestId("console-nav-networking")') &&
+    e2eSource.includes('getByTestId("console-nav-network-policies")') &&
     e2eSource.includes('getByTestId("console-nav-storage")') &&
+    e2eSource.includes('getByTestId("console-nav-builds")') &&
+    e2eSource.includes('getByTestId("console-nav-compute")') &&
+    e2eSource.includes('getByTestId("console-nav-user-management")') &&
     e2eSource.includes('getByTestId("console-nav-administration")') &&
+    e2eSource.includes('getByTestId("console-nav-namespaces-crds")') &&
     e2eSource.includes('getByTestId("console-nav-opslens-admin")') &&
     e2eSource.includes('getByTestId("console-nav-opsbrain")') &&
-    e2eSource.includes("현재 클러스터 요약") &&
-    e2eSource.includes("워크로드") &&
-    e2eSource.includes("네트워킹") &&
-    e2eSource.includes("스토리지") &&
+    e2eSource.includes('getByTestId("console-nav-komsco-assistant")') &&
+    e2eSource.includes("OCP 4.21.14 콘솔 커버리지") &&
+    e2eSource.includes("실시간 클러스터 개요") &&
+    e2eSource.includes("파드") &&
+    e2eSource.includes("워크로드 컨트롤러") &&
+    e2eSource.includes("라우트, 서비스, 인그레스") &&
+    e2eSource.includes("네트워크 정책") &&
+    e2eSource.includes("PVC, PV, StorageClass") &&
+    e2eSource.includes("빌드와 이미지 스트림") &&
+    e2eSource.includes("노드와 머신") &&
+    e2eSource.includes("사용자, 그룹, 역할") &&
+    e2eSource.includes("클러스터 설정") &&
+    e2eSource.includes("OperatorHub") &&
+    e2eSource.includes("설치된 Operator") &&
     e2eSource.includes("OpsLens 관리"),
   "Playwright proves every console navigation item remains actionable after switching to Korean"
 );
@@ -1558,10 +1656,11 @@ expectCheck(
     appSource.includes("미리보기 화면") &&
     appSource.includes("계획 수립 흐름만 엽니다") &&
     appSource.includes("진행 중인 장애 대기열") &&
-    appSource.includes("분류 대기열") &&
-    appSource.includes("필수 키") &&
+    paritySource.includes("설치 전에 OperatorHub/카탈로그 준비도") &&
+    paritySource.includes("필수 키") &&
     appSource.includes("{copy.api} {apiStatusLabels[language][apiStatus]}") &&
-    appSource.includes("읽기 전용 탐색기를 파드와 배포 중심으로 설정합니다.") &&
+    paritySource.includes("파드 목록, 상태, 이벤트, 로그") &&
+    parityComponentSource.includes("원본 OpenShift 콘솔 기능을 숨기지 않고 유지") &&
     !appSource.includes("{copy.api} {apiStatus}") &&
     !appSource.includes("발생 중인 alert") &&
     !appSource.includes("Assistant가") &&

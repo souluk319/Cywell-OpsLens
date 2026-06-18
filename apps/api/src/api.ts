@@ -19,10 +19,12 @@ import {
 import type {
   ActionPlanRequest,
   ActionPlanResponse,
+  AssistantAnswer,
   ConsoleContextPayload,
   ContextSyncRequest,
   ContextSyncResponse,
   DashboardRisksResponse,
+  EvidenceSource,
   McpJsonRpcRequest,
   McpJsonRpcResponse,
   OpsLensAdminOverviewResponse,
@@ -33,9 +35,9 @@ import type {
   OpsLensCatalogToolchainSummary,
   OpsLensCatalogToolchainTicketPacket,
   OpsLensCertificationReadiness,
+  OpsLensCitation,
   OpsLensCertificationReadinessSummary,
   OpsLensCertificationToolingTicketPacket,
-  OpsLensCitation,
   OpsLensCommunityOperatorSubmissionReadiness,
   OpsLensCommunityOperatorSubmissionSummary,
   OpsLensEnvContractReadiness,
@@ -224,6 +226,109 @@ function uniqueStrings(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
+function uniqueEvidenceSources(values: EvidenceSource[]) {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    if (seen.has(value.id)) {
+      return false;
+    }
+    seen.add(value.id);
+    return true;
+  });
+}
+
+function citationToEvidenceSource(citation: OpsLensCitation): EvidenceSource {
+  return {
+    id: citation.id,
+    label: citation.label,
+    type:
+      citation.sourceType === "customer-runbook"
+        ? "internal-runbook"
+        : citation.sourceType === "cluster-snapshot"
+          ? "cluster"
+          : "official-doc",
+    trustLevel: citation.trustLevel
+  };
+}
+
+function createPromptAwareAssistantAnswer(params: {
+  request: ActionPlanRequest;
+  prompt: string;
+  citations: OpsLensCitation[];
+}): AssistantAnswer {
+  const citationEvidence = params.citations.map(citationToEvidenceSource);
+  const inspectedEvidence = uniqueEvidenceSources([
+    ...assistantAnswer.inspectedEvidence.slice(0, 2),
+    ...citationEvidence,
+    ...assistantAnswer.inspectedEvidence.slice(2)
+  ]);
+  const citations = uniqueEvidenceSources([
+    ...citationEvidence,
+    ...assistantAnswer.citations
+  ]).slice(0, 5);
+  const namespace = params.request.context.namespace;
+  const route = params.request.context.route;
+  const question = params.prompt;
+  const citationLabels =
+    params.citations.length > 0
+      ? params.citations.map((citation) => citation.label).join(", ")
+      : "승인된 로컬 RAG citation 없음";
+
+  return {
+    ...assistantAnswer,
+    scenario: params.request.scenario ?? "OpsLensQuestion",
+    judgment:
+      `질문 "${question}"에 대해 현재 콘솔 컨텍스트(${namespace}, ${route})와 ` +
+      `승인된 OpsLens RAG 근거를 묶어 읽기 전용 답변을 생성했습니다. ` +
+      "이 답변은 클러스터를 변경하지 않으며, 근거가 부족한 부분은 missingEvidence로 남깁니다.",
+    inspectedEvidence,
+    candidates: [
+      {
+        label: "질문과 현재 콘솔 컨텍스트가 우선 분석 대상입니다.",
+        confidence: "medium",
+        reason:
+          `사용자 질문이 "${question}"로 전달되었고 현재 namespace=${namespace}, route=${route} 컨텍스트가 함께 들어왔습니다.`,
+        evidenceIds: inspectedEvidence.slice(0, 3).map((source) => source.id)
+      },
+      {
+        label: "승인된 RAG citation이 답변 근거를 보강합니다.",
+        confidence: params.citations.length > 0 ? "medium" : "low",
+        reason: `검색된 근거: ${citationLabels}`,
+        evidenceIds: citationEvidence.map((source) => source.id)
+      },
+      ...assistantAnswer.candidates.slice(0, 1)
+    ],
+    nextChecks: uniqueStrings([
+      `현재 화면 컨텍스트 확인: namespace=${namespace}, route=${route}`,
+      "OpsLens live install 패널에서 API/dashboard/model-runtime/pod 상태 확인",
+      "필요하면 KOMSCO AI Assistant 질문을 더 구체화해 재실행",
+      ...assistantAnswer.nextChecks.slice(0, 2)
+    ]),
+    plan: [
+      "질문 문장을 먼저 보존하고, 현재 콘솔 컨텍스트와 연결된 evidence만 사용합니다.",
+      "RAG citation id와 trustLevel을 확인한 뒤 원인 후보와 다음 확인 항목을 분리합니다.",
+      "실행 명령은 제안하지 않고 read-only 확인 또는 plan-only 리뷰 단계로 남깁니다."
+    ],
+    risks: uniqueStrings([
+      "현재 로컬 API 응답은 외부 LLM 파인튜닝이 아니라 OpsLens RAG/fixture 기반입니다.",
+      "실제 Lightspeed 네이티브 서랍 응답과 OpsLens route/plugin assistant 응답은 분리되어 검증해야 합니다.",
+      ...assistantAnswer.risks
+    ]),
+    rollbackPath: [
+      "답변이 맞지 않으면 질문/컨텍스트/RAG citation을 분리해 재검증합니다.",
+      "API 프록시가 끊기면 로컬 fallback으로 내려가되, 화면에 fallback 상태를 숨기지 않습니다.",
+      ...assistantAnswer.rollbackPath.slice(0, 1)
+    ],
+    citations,
+    missingEvidence: uniqueStrings([
+      "실제 Lightspeed native chat 응답과의 parity evidence",
+      "현재 질문에 대응하는 live OCP 로그/이벤트/리소스 스냅샷",
+      ...assistantAnswer.missingEvidence
+    ]),
+    actionMode: "readOnly"
+  };
+}
+
 export function getDashboardRisks(): DashboardRisksResponse {
   return {
     ...mockDashboardResponse,
@@ -268,11 +373,13 @@ export function createActionPlan(
   const redactionCount =
     countSensitiveValues(request.context) + countSensitiveValues(request.prompt);
 
-  const answer = {
-    ...assistantAnswer,
-    scenario: request.scenario ?? assistantAnswer.scenario,
-    actionMode: "readOnly" as const
-  };
+  const prompt = redactSensitiveText(request.prompt.trim());
+  const citations = retrieveRunbookCitations("cywell-internal", prompt, 3);
+  const answer = createPromptAwareAssistantAnswer({
+    request,
+    prompt,
+    citations
+  });
 
   return {
     requestId,

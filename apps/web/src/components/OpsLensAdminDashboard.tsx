@@ -1627,7 +1627,36 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
         </div>
       ) : null}
 
-      {opsBrain ? (
+      {!opsBrain ? (
+        <section
+          className="opsbrain-console"
+          data-testid="opslens-opsbrain-system"
+          aria-labelledby="opslens-opsbrain-title"
+        >
+          <div className="opsbrain-headline">
+            <div>
+              <p className="eyebrow">Cywell OpsBrain</p>
+              <h3 id="opslens-opsbrain-title">{copy.opsBrainTitle}</h3>
+              <p>
+                {language === "ko"
+                  ? "OpsBrain 근거 데이터를 불러오는 중입니다. 이 화면은 로딩 중에도 파인튜닝 없는 성장 시스템의 경계와 읽기 전용 정책을 유지합니다."
+                  : "OpsBrain evidence is loading. This surface keeps the no fine-tuning growth system boundary and read-only policy visible while data is fetched."}
+              </p>
+            </div>
+            <div className="opsbrain-badges">
+              <span className="freshness missing">
+                {statusText(language, "needs-evidence")}
+              </span>
+              <span className="status-pill read-only">
+                {copy.fineTuningRequired}: {booleanText(language, false)}
+              </span>
+              <span className="status-pill read-only">
+                {copy.toolMode}: {actionModeText(language, "planOnly")}
+              </span>
+            </div>
+          </div>
+        </section>
+      ) : (
         <section
           className="opsbrain-console"
           data-testid="opslens-opsbrain-system"
@@ -1989,7 +2018,7 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
             </div>
           </div>
         </section>
-      ) : null}
+      )}
 
       <div className="admin-grid">
         <article className="ops-card rag-admin-card" data-testid="opslens-rag-health">

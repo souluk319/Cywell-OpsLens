@@ -17,27 +17,35 @@ import {
   Activity,
   AlertTriangle,
   Bell,
+  BookOpen,
   Bot,
   Boxes,
   CircleHelp,
   CirclePlus,
+  Cpu,
   DatabaseZap,
+  FileSearch,
   Gauge,
+  GitBranch,
   Grid3X3,
   HardDrive,
+  Heart,
   Network,
+  PackageSearch,
   PanelLeftClose,
   PanelLeftOpen,
   ScrollText,
   ServerCog,
   ShieldCheck,
   TableProperties,
+  Users,
   Waypoints
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AssistantPopover } from "./components/AssistantPopover";
 import { ConsoleEvidencePane } from "./components/ConsoleEvidencePane";
 import { OcpConsoleOverview } from "./components/OcpConsoleOverview";
+import { OcpConsoleParityMatrix } from "./components/OcpConsoleParityMatrix";
 import { OcpCoverageMatrix } from "./components/OcpCoverageMatrix";
 import {
   OcpResourceExplorer,
@@ -56,6 +64,13 @@ import {
 } from "./lib/api";
 import type { UiLanguage } from "./i18n";
 import opsLensIcon from "./assets/brand/cywell_ops_lens_icon.png";
+import {
+  consoleParitySections,
+  ocpConsoleParityItems,
+  sectionLabelsKo,
+  type ConsoleParityItem,
+  type ConsoleParitySection
+} from "./consoleParity";
 
 function statusClass(status: string | undefined) {
   if (status === "ready" || status === "pass" || status === "live-ready") {
@@ -123,199 +138,45 @@ function firstNextCommand(
 }
 
 type EvidenceView = "alerts" | "logs" | "yaml";
-type ConsoleNavId =
-  | "overview"
-  | "alerting"
-  | "dashboards"
-  | "metrics"
-  | "logs"
-  | "workloads"
-  | "networking"
-  | "storage"
-  | "administration"
-  | "opsbrain"
-  | "opslens-admin";
+type ConsoleNavId = string;
+type ConsoleNavigationItem = ConsoleParityItem & { icon: LucideIcon };
 
-interface ConsoleNavigationItem {
-  id: ConsoleNavId;
-  section: "Home" | "Observe" | "Resources" | "Cywell";
-  label: string;
-  labelKo: string;
-  icon: LucideIcon;
-  targetSelector: string;
-  breadcrumb: string[];
-  breadcrumbKo: string[];
-  command: string;
-  commandKo: string;
-  evidenceView?: EvidenceView;
-  resourcePreset?: Omit<OcpResourcePreset, "activationId">;
-}
-
-const consoleNavigation: ConsoleNavigationItem[] = [
-  {
-    id: "overview",
-    section: "Home",
-    label: "Overview",
-    labelKo: "개요",
-    icon: ServerCog,
-    targetSelector: "#ocp-console-overview-title",
-    breadcrumb: ["Home", "Overview"],
-    breadcrumbKo: ["홈", "개요"],
-    command: "Open live cluster summary with evidence-backed availability signals.",
-    commandKo: "근거 기반 가용성 신호로 현재 클러스터 요약을 엽니다."
-  },
-  {
-    id: "alerting",
-    section: "Observe",
-    label: "Alerting",
-    labelKo: "경고",
-    icon: AlertTriangle,
-    targetSelector: "#evidence-title",
-    breadcrumb: ["Observe", "Alerting"],
-    breadcrumbKo: ["관측", "경고"],
-    command: "Inspect firing alerts and keep the assistant off the evidence table.",
-    commandKo: "발생 중인 경고를 확인하고 어시스턴트가 근거 표를 가리지 않게 합니다.",
-    evidenceView: "alerts"
-  },
-  {
-    id: "dashboards",
-    section: "Observe",
-    label: "Dashboards",
-    labelKo: "대시보드",
-    icon: TableProperties,
-    targetSelector: "#dashboard-title",
-    breadcrumb: ["Observe", "Dashboards"],
-    breadcrumbKo: ["관측", "대시보드"],
-    command: "Return to the OpsLens operations dashboard and triage queue.",
-    commandKo: "OpsLens 운영 대시보드와 분류 대기열로 이동합니다."
-  },
-  {
-    id: "metrics",
-    section: "Observe",
-    label: "Metrics",
-    labelKo: "메트릭",
-    icon: Activity,
-    targetSelector: "[data-testid='opslens-incident-metrics']",
-    breadcrumb: ["Observe", "Metrics"],
-    breadcrumbKo: ["관측", "메트릭"],
-    command: "Jump to metric queries, incident scoring, and read-only pipeline evidence.",
-    commandKo: "메트릭 질의, 장애 점수, 읽기 전용 처리 근거로 이동합니다."
-  },
-  {
-    id: "logs",
-    section: "Observe",
-    label: "Logs",
-    labelKo: "로그",
-    icon: ScrollText,
-    targetSelector: "#evidence-title",
-    breadcrumb: ["Observe", "Logs"],
-    breadcrumbKo: ["관측", "로그"],
-    command: "Switch the evidence pane to pod logs before asking for a plan.",
-    commandKo: "계획 요청 전에 근거 패널을 Pod 로그로 전환합니다.",
-    evidenceView: "logs"
-  },
-  {
-    id: "workloads",
-    section: "Resources",
-    label: "Workloads",
-    labelKo: "워크로드",
-    icon: Boxes,
-    targetSelector: "#ocp-explorer-title",
-    breadcrumb: ["Resources", "Workloads"],
-    breadcrumbKo: ["리소스", "워크로드"],
-    command: "Preset the read-only explorer to pods and deployments.",
-    commandKo: "읽기 전용 탐색기를 파드와 배포 중심으로 설정합니다.",
-    resourcePreset: {
-      query: "deployments pods replicasets",
-      preferredResources: ["apps/v1/deployments", "v1/pods", "apps/v1/replicasets"]
-    }
-  },
-  {
-    id: "networking",
-    section: "Resources",
-    label: "Networking",
-    labelKo: "네트워킹",
-    icon: Network,
-    targetSelector: "#ocp-explorer-title",
-    breadcrumb: ["Resources", "Networking"],
-    breadcrumbKo: ["리소스", "네트워킹"],
-    command: "Preset the read-only explorer to routes, services, and ingresses.",
-    commandKo: "읽기 전용 탐색기를 라우트, 서비스, 인그레스 중심으로 설정합니다.",
-    resourcePreset: {
-      query: "routes services ingresses",
-      preferredResources: [
-        "route.openshift.io/v1/routes",
-        "v1/services",
-        "networking.k8s.io/v1/ingresses"
-      ]
-    }
-  },
-  {
-    id: "storage",
-    section: "Resources",
-    label: "Storage",
-    labelKo: "스토리지",
-    icon: HardDrive,
-    targetSelector: "#ocp-explorer-title",
-    breadcrumb: ["Resources", "Storage"],
-    breadcrumbKo: ["리소스", "스토리지"],
-    command: "Preset the read-only explorer to PVC, PV, and StorageClass resources.",
-    commandKo: "읽기 전용 탐색기를 PVC, PV, 스토리지 클래스 중심으로 설정합니다.",
-    resourcePreset: {
-      query: "persistentvolumeclaims persistentvolumes storageclasses",
-      preferredResources: [
-        "v1/persistentvolumeclaims",
-        "v1/persistentvolumes",
-        "storage.k8s.io/v1/storageclasses"
-      ]
-    }
-  },
-  {
-    id: "administration",
-    section: "Resources",
-    label: "Administration",
-    labelKo: "관리",
-    icon: ShieldCheck,
-    targetSelector: "#opslens-admin-title",
-    breadcrumb: ["Resources", "Administration"],
-    breadcrumbKo: ["리소스", "관리"],
-    command: "Review RBAC, install readiness, release evidence, and approval gates.",
-    commandKo: "RBAC, 설치 준비도, 배포 근거, 승인 게이트를 검토합니다."
-  },
-  {
-    id: "opslens-admin",
-    section: "Cywell",
-    label: "OpsLens Admin",
-    labelKo: "OpsLens 관리",
-    icon: DatabaseZap,
-    targetSelector: "#opslens-admin-title",
-    breadcrumb: ["Cywell", "OpsLens Admin"],
-    breadcrumbKo: ["Cywell", "OpsLens 관리"],
-    command: "Operate the OpsLens RAG, evaluation, runtime, and 100% closure dashboard.",
-    commandKo: "OpsLens RAG, 평가, 실행 환경, 100% 완료 대시보드를 운영합니다."
-  },
-  {
-    id: "opsbrain",
-    section: "Cywell",
-    label: "OpsBrain",
-    labelKo: "OpsBrain",
-    icon: Bot,
-    targetSelector: "[data-testid='opslens-opsbrain-system']",
-    breadcrumb: ["Cywell", "OpsBrain"],
-    breadcrumbKo: ["Cywell", "OpsBrain"],
-    command: "Open the no-fine-tuning growth loop: memory, evaluator, risk gate, and required keys.",
-    commandKo: "파인튜닝 없는 성장 루프, 메모리, 평가기, 위험 게이트, 필수 키를 엽니다."
-  }
-];
-
-const navigationSections = ["Home", "Observe", "Resources", "Cywell"] as const;
-
-const sectionLabelsKo: Record<(typeof navigationSections)[number], string> = {
-  Home: "홈",
-  Observe: "관측",
-  Resources: "리소스",
-  Cywell: "Cywell"
+const sectionIcons: Record<ConsoleParitySection, LucideIcon> = {
+  Home: ServerCog,
+  Favorites: Heart,
+  Ecosystem: PackageSearch,
+  Operators: DatabaseZap,
+  Helm: BookOpen,
+  Workloads: Boxes,
+  Networking: Network,
+  Storage: HardDrive,
+  Builds: GitBranch,
+  Monitoring: Activity,
+  Compute: Cpu,
+  "User Management": Users,
+  Administration: ShieldCheck,
+  Cywell: Bot
 };
+
+const itemIcons: Record<string, LucideIcon> = {
+  search: FileSearch,
+  alerting: AlertTriangle,
+  logs: ScrollText,
+  dashboards: TableProperties,
+  metrics: Activity,
+  "opslens-admin": DatabaseZap,
+  opsbrain: Bot,
+  "komsco-assistant": Bot
+};
+
+const consoleNavigation: ConsoleNavigationItem[] = ocpConsoleParityItems.map(
+  (item) => ({
+    ...item,
+    icon: itemIcons[item.id] ?? sectionIcons[item.section]
+  })
+);
+
+const navigationSections = consoleParitySections;
 
 const shellCopy = {
   en: {
@@ -551,11 +412,18 @@ function navLabel(item: ConsoleNavigationItem, language: UiLanguage) {
 }
 
 function navBreadcrumb(item: ConsoleNavigationItem, language: UiLanguage) {
-  return language === "ko" ? item.breadcrumbKo : item.breadcrumb;
+  return (language === "ko" ? item.originalPathKo : item.originalPath)
+    .split("/")
+    .map((crumb) => crumb.trim())
+    .filter(Boolean);
 }
 
 function navCommand(item: ConsoleNavigationItem, language: UiLanguage) {
   return language === "ko" ? item.commandKo : item.command;
+}
+
+function sectionTestId(section: ConsoleParitySection) {
+  return section.toLowerCase().replace(/\s+/g, "-");
 }
 
 function readRuntimeProfile(): RuntimeProfile {
@@ -821,6 +689,9 @@ export default function App() {
     setNavigationCommand(navCommand(item, language));
     if (item.evidenceView) {
       setEvidenceView(item.evidenceView);
+    }
+    if (item.actionSurface === "assistant") {
+      setAssistantOpen(true);
     }
     if (item.resourcePreset) {
       setResourcePreset({
@@ -1199,7 +1070,7 @@ export default function App() {
               <div className="nav-group" key={section}>
                 <span
                   className="nav-heading"
-                  data-testid={`console-nav-section-${section.toLowerCase()}`}
+                  data-testid={`console-nav-section-${sectionTestId(section)}`}
                 >
                   {language === "ko" ? sectionLabelsKo[section] : section}
                 </span>
@@ -1300,6 +1171,11 @@ export default function App() {
               </a>
             </section>
             <OpsLensLiveInstallStatus language={language} />
+            <OcpConsoleParityMatrix
+              activeItemId={activeNavId}
+              language={language}
+              onSelectItem={(itemId) => activateNavigation(findNavigationItem(itemId))}
+            />
             <OperationsDashboard dashboard={dashboard} language={language} />
             <OpsLensAdminDashboard language={language} />
             <ConsoleEvidencePane

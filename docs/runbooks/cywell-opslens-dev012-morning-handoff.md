@@ -344,6 +344,8 @@ That sample intentionally uses:
 | unknown live evidence phrases can still appear raw | common backend/read-only evidence phrase classes now have reviewed KO display replacements; unknown strings remain raw to preserve traceability | extend the phrase dictionary only after seeing repeated live payload classes |
 | final release/certification | external registry/security/certification evidence not complete; UI now visibly marks this as a local demo boundary | do not claim certified readiness until release/security evidence is approved |
 | launcher/chatbot first impression | morning review found the launcher looked like a decorative round badge and the assistant opened with diagnostics before chat | render the OpsLens icon silhouette directly and put the KOMSCO AI question composer before route diagnostics |
+| chatbot answer quality | resolved in Lane 91: `/api/actions/plan` now includes the submitted prompt, current console context, approved local RAG citations, and read-only boundaries | keep E2E/contract guardrails and move next chatbot work to real Lightspeed/OpsLens MCP routing quality |
+| OCP console parity | resolved in Lane 92 baseline: `OpenShift Local 4.21.14` console inventory now drives the OpsLens navigation and visible parity matrix | keep expanding behavior depth per mapped item, but do not add free-floating dashboard-only menus |
 
 ## Do Not Do
 
