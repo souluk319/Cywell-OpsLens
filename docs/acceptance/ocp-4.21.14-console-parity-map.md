@@ -19,7 +19,7 @@ It must not claim to replace the native OpenShift masthead, native Lightspeed dr
 | Registry integrity | Version-pinned items have unique ids, every OCP/Cywell section is represented, EN/KO copy is non-empty, and surface/resource/proof contracts are internally valid. | `AC-UI-010`, `verify:web-shell` |
 | Menu mapping | Every registry item renders in the left navigation and parity matrix. | `AC-UI-003`, `AC-UI-006` |
 | Screen mapping | Every item has a target selector; sidebar navigation, parity-matrix `Open`, and `Open surface` all mount that target, with `Open surface` replaying resource/evidence/assistant side effects after drift. | `AC-UI-003`, `AC-UI-008` |
-| Function proof | Every item has function mode, function input, action outcome, and action proof in EN/KO. | `AC-UI-003`, `AC-UI-006`, `AC-UI-008` |
+| Function proof | Every item has function mode, function input, action outcome, and action proof in EN/KO; resource item outcomes mirror the live Resource Explorer function outcome instead of a static active badge. | `AC-UI-003`, `AC-UI-006`, `AC-UI-008` |
 | Function state effect | Evidence items switch the active evidence tab and assistant items open the KOMSCO popover. | `AC-UI-003`, `AC-UI-006` |
 | Resource smoke state | Resource preset items expose function outcome, preferred API match, selected API, list, detail, events, logs, related, and mutation-guard states as structured UI evidence. | `AC-UI-003` |
 | Assistant action | Every item opens KOMSCO assistant in EN/KO with native OCP path, function mode/input/proof, item action, and no-mutation read-only boundary. | `AC-UI-006`, `AC-UI-009` |

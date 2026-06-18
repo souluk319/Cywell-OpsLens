@@ -50,6 +50,7 @@ import { OcpConsoleParityMatrix } from "./components/OcpConsoleParityMatrix";
 import { OcpCoverageMatrix } from "./components/OcpCoverageMatrix";
 import {
   OcpResourceExplorer,
+  type OcpResourceFunctionOutcome,
   type OcpResourcePreset
 } from "./components/OcpResourceExplorer";
 import { OpsLensLiveInstallStatus } from "./components/OpsLensLiveInstallStatus";
@@ -463,6 +464,8 @@ export default function App() {
   );
   const [resourcePreset, setResourcePreset] =
     useState<OcpResourcePreset | null>(null);
+  const [resourceFunctionOutcome, setResourceFunctionOutcome] =
+    useState<OcpResourceFunctionOutcome>("not-active");
   const [activeTargetStatus, setActiveTargetStatus] = useState<
     "checking" | "mounted" | "missing"
   >("checking");
@@ -710,10 +713,13 @@ export default function App() {
       setAssistantOpen(true);
     }
     if (item.resourcePreset) {
+      setResourceFunctionOutcome("waiting");
       setResourcePreset({
         ...item.resourcePreset,
         activationId: `${item.id}-${Date.now()}`
       });
+    } else {
+      setResourceFunctionOutcome("not-active");
     }
   }
 
@@ -1237,6 +1243,7 @@ export default function App() {
             <OcpConsoleActionPanel
               activeItem={activeNavigation}
               language={language}
+              resourceFunctionOutcome={resourceFunctionOutcome}
               targetStatus={activeTargetStatus}
               onAskAssistant={askAssistantForActiveNavigation}
               onOpenSurface={openActiveNavigationSurface}
@@ -1261,6 +1268,7 @@ export default function App() {
             <OcpResourceExplorer
               language={language}
               navigationPreset={resourcePreset}
+              onFunctionOutcomeChange={setResourceFunctionOutcome}
             />
           </section>
         </main>

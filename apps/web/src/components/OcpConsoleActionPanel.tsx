@@ -4,10 +4,12 @@ import {
   type ConsoleParityItem
 } from "../consoleParity";
 import type { UiLanguage } from "../i18n";
+import type { OcpResourceFunctionOutcome } from "./OcpResourceExplorer";
 
 interface OcpConsoleActionPanelProps {
   activeItem: ConsoleParityItem;
   language: UiLanguage;
+  resourceFunctionOutcome: OcpResourceFunctionOutcome;
   targetStatus: "checking" | "mounted" | "missing";
   onOpenSurface: () => void;
   onAskAssistant: () => void;
@@ -34,7 +36,11 @@ const actionCopy = {
     targetMounted: "target mounted",
     targetChecking: "target checking",
     targetMissing: "target missing",
-    resourceSmokeActive: "resource smoke active",
+    resourceOperating: "resource operating",
+    resourceEmpty: "resource empty",
+    resourceLoading: "resource loading",
+    resourceMissing: "resource missing",
+    resourceWaiting: "resource waiting",
     evidenceViewActive: "evidence view active",
     assistantReady: "assistant context ready",
     functionInput: "Function input",
@@ -63,7 +69,11 @@ const actionCopy = {
     targetMounted: "대상 장착됨",
     targetChecking: "대상 확인 중",
     targetMissing: "대상 누락",
-    resourceSmokeActive: "리소스 스모크 활성",
+    resourceOperating: "리소스 작동 중",
+    resourceEmpty: "리소스 비어 있음",
+    resourceLoading: "리소스 확인 중",
+    resourceMissing: "리소스 누락",
+    resourceWaiting: "리소스 대기 중",
     evidenceViewActive: "근거 보기 활성",
     assistantReady: "어시스턴트 컨텍스트 준비",
     functionInput: "기능 입력",
@@ -98,6 +108,7 @@ const surfaceLabels = {
 export function OcpConsoleActionPanel({
   activeItem,
   language,
+  resourceFunctionOutcome,
   targetStatus,
   onOpenSurface,
   onAskAssistant
@@ -125,24 +136,37 @@ export function OcpConsoleActionPanel({
     targetStatus !== "mounted"
       ? targetStatus
       : activeItem.resourcePreset
-        ? "resource-smoke-active"
+        ? `resource-${resourceFunctionOutcome}`
         : activeItem.evidenceView
           ? "evidence-view-active"
           : activeItem.actionSurface === "assistant"
             ? "assistant-ready"
             : "target-mounted";
-  const actionOutcomeLabel =
-    actionOutcomeState === "resource-smoke-active"
-      ? copy.resourceSmokeActive
-      : actionOutcomeState === "evidence-view-active"
-        ? copy.evidenceViewActive
-        : actionOutcomeState === "assistant-ready"
-          ? copy.assistantReady
-          : actionOutcomeState === "target-mounted"
-            ? copy.targetMounted
-            : actionOutcomeState === "checking"
-              ? copy.targetChecking
-              : copy.targetMissing;
+  const actionOutcomeLabel = (() => {
+    switch (actionOutcomeState) {
+      case "resource-operating":
+        return copy.resourceOperating;
+      case "resource-empty":
+        return copy.resourceEmpty;
+      case "resource-loading":
+        return copy.resourceLoading;
+      case "resource-missing":
+        return copy.resourceMissing;
+      case "resource-waiting":
+      case "resource-not-active":
+        return copy.resourceWaiting;
+      case "evidence-view-active":
+        return copy.evidenceViewActive;
+      case "assistant-ready":
+        return copy.assistantReady;
+      case "target-mounted":
+        return copy.targetMounted;
+      case "checking":
+        return copy.targetChecking;
+      default:
+        return copy.targetMissing;
+    }
+  })();
 
   return (
     <section
@@ -203,6 +227,9 @@ export function OcpConsoleActionPanel({
           <span>{copy.actionOutcome}</span>
           <strong
             data-action-outcome={actionOutcomeState}
+            data-resource-function-outcome={
+              activeItem.resourcePreset ? resourceFunctionOutcome : "not-active"
+            }
             data-testid="console-active-action-outcome"
           >
             {actionOutcomeLabel}

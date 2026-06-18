@@ -1549,10 +1549,15 @@ expectCheck(
     actionPanelSource.includes("data-function-mode={functionProof.mode}") &&
     actionPanelSource.includes('data-testid="console-active-action-outcome"') &&
     actionPanelSource.includes("data-action-outcome={actionOutcomeState}") &&
+    actionPanelSource.includes("data-resource-function-outcome=") &&
     actionPanelSource.includes('data-testid="console-active-function-input"') &&
     actionPanelSource.includes('data-testid="console-active-action-proof"') &&
     actionPanelSource.includes('data-testid="console-active-preferred-resources"') &&
-    actionPanelSource.includes("resource-smoke-active") &&
+    actionPanelSource.includes("resource-operating") &&
+    actionPanelSource.includes("resource-empty") &&
+    actionPanelSource.includes("resource-loading") &&
+    actionPanelSource.includes("resource-missing") &&
+    actionPanelSource.includes("resource-waiting") &&
     actionPanelSource.includes("evidence-view-active") &&
     actionPanelSource.includes("assistant-ready") &&
     actionPanelSource.includes("target-mounted") &&
@@ -1580,6 +1585,8 @@ expectCheck(
     e2eSource.includes('getByTestId("console-active-function-mode")') &&
     e2eSource.includes('getByTestId("console-active-action-outcome")') &&
     e2eSource.includes('"data-action-outcome"') &&
+    e2eSource.includes('"data-resource-function-outcome"') &&
+    e2eSource.includes("resource-${resourceOutcome}") &&
     e2eSource.includes('getByTestId("console-active-function-input")') &&
     e2eSource.includes('getByTestId("console-active-action-proof")'),
   "Playwright iterates over the version-pinned registry and proves every mapped console matrix Open action exposes target, function input, outcome, and action proof"
@@ -1693,6 +1700,10 @@ expectCheck(
 expectCheck(
   "resource function smoke contract",
     resourceExplorerSource.includes('data-testid="ocp-function-smoke"') &&
+    resourceExplorerSource.includes("export type OcpResourceFunctionOutcome") &&
+    resourceExplorerSource.includes("onFunctionOutcomeChange?.(functionOutcomeState)") &&
+    appSource.includes("resourceFunctionOutcome") &&
+    appSource.includes("onFunctionOutcomeChange={setResourceFunctionOutcome}") &&
     resourceExplorerSource.includes('data-testid="ocp-smoke-function-outcome"') &&
     resourceExplorerSource.includes("data-function-outcome={functionOutcomeState}") &&
     resourceExplorerSource.includes('data-testid="ocp-smoke-selected-api"') &&

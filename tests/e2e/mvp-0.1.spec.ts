@@ -192,7 +192,7 @@ async function expectActiveConsoleAction(
   }
   const proof = consoleParityFunctionProof(item);
   const expectedOutcome = item.resourcePreset
-    ? "resource-smoke-active"
+    ? /^resource-(operating|empty|waiting|loading|missing|not-active)$/
     : item.evidenceView
       ? "evidence-view-active"
       : item.actionSurface === "assistant"
@@ -241,6 +241,20 @@ async function expectActiveConsoleAction(
     await expect(page.getByTestId("ocp-smoke-function-outcome")).toHaveAttribute(
       "data-function-outcome",
       /^(operating|empty|waiting|loading)$/,
+      { timeout: 15_000 }
+    );
+    const resourceOutcome = await page
+      .getByTestId("ocp-smoke-function-outcome")
+      .getAttribute("data-function-outcome");
+    expect(resourceOutcome).not.toBeNull();
+    await expect(page.getByTestId("console-active-action-outcome")).toHaveAttribute(
+      "data-resource-function-outcome",
+      resourceOutcome ?? "",
+      { timeout: 15_000 }
+    );
+    await expect(page.getByTestId("console-active-action-outcome")).toHaveAttribute(
+      "data-action-outcome",
+      `resource-${resourceOutcome}`,
       { timeout: 15_000 }
     );
     await expect(page.getByTestId("ocp-smoke-preset-match")).toHaveAttribute(

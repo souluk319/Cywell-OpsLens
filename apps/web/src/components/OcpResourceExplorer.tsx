@@ -76,9 +76,18 @@ export interface OcpResourcePreset {
   detailView?: "json" | "yaml";
 }
 
+export type OcpResourceFunctionOutcome =
+  | "not-active"
+  | "operating"
+  | "empty"
+  | "loading"
+  | "missing"
+  | "waiting";
+
 interface OcpResourceExplorerProps {
   navigationPreset?: OcpResourcePreset | null;
   language: UiLanguage;
+  onFunctionOutcomeChange?: (outcome: OcpResourceFunctionOutcome) => void;
 }
 
 const explorerCopy = {
@@ -348,7 +357,8 @@ function countLogLines(logs: OcpPodLogsResponse | null) {
 
 export function OcpResourceExplorer({
   navigationPreset = null,
-  language
+  language,
+  onFunctionOutcomeChange
 }: OcpResourceExplorerProps) {
   const copy = explorerCopy[language];
   const [discovery, setDiscovery] = useState<OcpApiResourcesResponse | null>(
@@ -746,7 +756,7 @@ export function OcpResourceExplorer({
     : related
       ? `${related.owners.length} ${copy.owners} / ${related.children.length} ${copy.children}`
       : copy.pending;
-  const functionOutcomeState = !navigationPreset
+  const functionOutcomeState: OcpResourceFunctionOutcome = !navigationPreset
     ? "not-active"
     : presetMatchState === "missing"
       ? "missing"
@@ -771,6 +781,10 @@ export function OcpResourceExplorer({
             : functionOutcomeState === "waiting"
               ? copy.waiting
               : copy.notApplicable;
+
+  useEffect(() => {
+    onFunctionOutcomeChange?.(functionOutcomeState);
+  }, [functionOutcomeState, onFunctionOutcomeChange]);
 
   return (
     <section className="ocp-explorer" aria-labelledby="ocp-explorer-title">
