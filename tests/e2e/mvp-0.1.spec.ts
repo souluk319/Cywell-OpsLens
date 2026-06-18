@@ -2,6 +2,10 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { mockContext } from "@kugnus/contracts";
+import {
+  consoleParityFunctionProof,
+  ocpConsoleParityItems
+} from "../../apps/web/src/consoleParity";
 
 test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
   test.beforeEach(async ({ page }) => {
@@ -53,7 +57,7 @@ async function expectActiveConsoleAction(
     /\S/
   );
   await expect(page.getByTestId("console-active-action-proof")).toContainText(
-    "mutation commands"
+    /\S/
   );
 
   if (query) {
@@ -439,6 +443,32 @@ async function expectActiveConsoleAction(
       "KOMSCO assistant"
     );
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
+  });
+
+  test("AC-UI-008 renders function proof for every version-pinned console item", async ({
+    page
+  }) => {
+    await expect(page.getByTestId("console-parity-summary")).toContainText(
+      `${ocpConsoleParityItems.length}`
+    );
+
+    for (const item of ocpConsoleParityItems) {
+      const proof = consoleParityFunctionProof(item);
+      const row = page.getByTestId(`console-parity-row-${item.id}`);
+      const proofCell = page.getByTestId(`console-parity-function-${item.id}`);
+
+      await expect(row).toHaveCount(1);
+      await expect(proofCell).toHaveAttribute("data-function-mode", proof.mode);
+      await expect(proofCell).toContainText(proof.input);
+      await expect(proofCell).toContainText(proof.proof);
+      await row.getByRole("button", { name: "Open" }).click();
+      await expect(page.getByTestId("console-active-function-input")).toContainText(
+        proof.input
+      );
+      await expect(page.getByTestId("console-active-action-proof")).toContainText(
+        proof.proof
+      );
+    }
   });
 
   test("AC-UI-006 makes Korean console navigation actionable", async ({

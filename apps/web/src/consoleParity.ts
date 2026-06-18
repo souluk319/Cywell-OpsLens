@@ -50,6 +50,23 @@ export interface ConsoleParityItem {
   evidenceView?: "alerts" | "logs" | "yaml";
 }
 
+export type ConsoleParityFunctionMode =
+  | "resource-preset"
+  | "evidence-view"
+  | "overview"
+  | "ops-dashboard"
+  | "ops-admin"
+  | "opsbrain"
+  | "assistant";
+
+export interface ConsoleParityFunctionProof {
+  mode: ConsoleParityFunctionMode;
+  input: string;
+  inputKo: string;
+  proof: string;
+  proofKo: string;
+}
+
 export const ocpConsoleBaseline = {
   product: "OpenShift Local / OpenShift Container Platform web console",
   crcVersion: "OpenShift Local 4.21.14",
@@ -673,12 +690,109 @@ export function parityCoverageSummary() {
   const coveredCount = ocpConsoleParityItems.filter(
     (item) => item.status !== "native-deep-link"
   ).length;
+  const resourcePresetCount = ocpConsoleParityItems.filter(
+    (item) => item.resourcePreset
+  ).length;
+  const evidenceViewCount = ocpConsoleParityItems.filter(
+    (item) => item.evidenceView
+  ).length;
+  const directSurfaceCount =
+    ocpConsoleParityItems.length - resourcePresetCount - evidenceViewCount;
 
   return {
     nativeCount,
     cywellCount,
     totalCount: ocpConsoleParityItems.length,
     coveredCount,
+    resourcePresetCount,
+    evidenceViewCount,
+    directSurfaceCount,
     sourceVersion: ocpConsoleBaseline.crcVersion
+  };
+}
+
+export function consoleParityFunctionProof(
+  item: ConsoleParityItem
+): ConsoleParityFunctionProof {
+  if (item.resourcePreset) {
+    return {
+      mode: "resource-preset",
+      input: `Resource preset: ${item.resourcePreset.query}`,
+      inputKo: `리소스 프리셋: ${item.resourcePreset.query}`,
+      proof:
+        "Target selector must mount, Resource Explorer must auto-load the preset, and list/detail/events/logs/related smoke must stay read-only.",
+      proofKo:
+        "대상 selector가 장착되고, 리소스 탐색기가 프리셋을 자동 조회하며, 목록/상세/이벤트/로그/관련 스모크가 읽기 전용으로 유지되어야 합니다."
+    };
+  }
+
+  if (item.evidenceView) {
+    return {
+      mode: "evidence-view",
+      input: `Evidence view: ${item.evidenceView}`,
+      inputKo: `근거 보기: ${item.evidenceView}`,
+      proof:
+        "Target selector must mount, the evidence tab must switch to the requested view, and assistant actions must remain plan-only.",
+      proofKo:
+        "대상 selector가 장착되고, 근거 탭이 요청된 보기로 전환되며, 어시스턴트 동작은 계획 전용으로 유지되어야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "assistant") {
+    return {
+      mode: "assistant",
+      input: "KOMSCO prompt context",
+      inputKo: "KOMSCO 질문 컨텍스트",
+      proof:
+        "The assistant launcher must open with the selected console context and no cluster mutation command.",
+      proofKo:
+        "어시스턴트 런처가 선택한 콘솔 컨텍스트로 열리고 클러스터 변경 명령을 포함하지 않아야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "overview") {
+    return {
+      mode: "overview",
+      input: "Live cluster overview",
+      inputKo: "실시간 클러스터 개요",
+      proof:
+        "Overview target must mount and surface live or explicitly unavailable cluster evidence.",
+      proofKo:
+        "개요 대상이 장착되고 실시간 또는 명시적 사용 불가 클러스터 근거를 보여야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "ops-admin") {
+    return {
+      mode: "ops-admin",
+      input: "OpsLens admin evidence",
+      inputKo: "OpsLens 관리 근거",
+      proof:
+        "Admin target must mount and expose approval-gated install, catalog, runtime, or connectivity evidence.",
+      proofKo:
+        "관리 대상이 장착되고 승인 게이트가 있는 설치, 카탈로그, 런타임, 연결 근거를 보여야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "opsbrain") {
+    return {
+      mode: "opsbrain",
+      input: "OpsBrain governance state",
+      inputKo: "OpsBrain 거버넌스 상태",
+      proof:
+        "OpsBrain target must mount and keep memory, evaluation, and self-improvement behind non-mutating gates.",
+      proofKo:
+        "OpsBrain 대상이 장착되고 메모리, 평가, 자기개선이 비변경 게이트 뒤에 유지되어야 합니다."
+    };
+  }
+
+  return {
+    mode: "ops-dashboard",
+    input: "OpsLens dashboard signals",
+    inputKo: "OpsLens 대시보드 신호",
+    proof:
+      "Dashboard target must mount and keep operations evidence tied to source status instead of fake live success.",
+    proofKo:
+      "대시보드 대상이 장착되고 운영 근거가 가짜 실시간 성공 대신 출처 상태와 연결되어야 합니다."
   };
 }

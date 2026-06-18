@@ -1478,6 +1478,11 @@ expectCheck(
     paritySource.includes("Nodes and Machines") &&
     paritySource.includes("Users, Groups, Roles") &&
     paritySource.includes("KOMSCO AI Assistant") &&
+    paritySource.includes("ConsoleParityFunctionProof") &&
+    paritySource.includes("consoleParityFunctionProof") &&
+    paritySource.includes("resourcePresetCount") &&
+    paritySource.includes("evidenceViewCount") &&
+    paritySource.includes("directSurfaceCount") &&
     appSource.includes("ocpConsoleParityItems.map") &&
     appSource.includes("consoleParitySections"),
   "OCP 4.21.14 console inventory is version-pinned and drives the OpsLens navigation"
@@ -1492,11 +1497,18 @@ expectCheck(
     parityComponentSource.includes('data-testid="console-parity-summary"') &&
     parityComponentSource.includes('data-testid="console-parity-sources"') &&
     parityComponentSource.includes("console-parity-row-${item.id}") &&
+    parityComponentSource.includes("console-parity-function-${item.id}") &&
+    parityComponentSource.includes("data-function-mode={functionProof.mode}") &&
+    parityComponentSource.includes("summary.resourcePresetCount") &&
+    parityComponentSource.includes("summary.evidenceViewCount") &&
+    parityComponentSource.includes("summary.directSurfaceCount") &&
     parityComponentSource.includes("item.originalPath") &&
     parityComponentSource.includes("item.opsLensEnhancement") &&
     parityComponentSource.includes("item.acceptance") &&
+    parityComponentSource.includes("consoleParityFunctionProof(item)") &&
     stylesSource.includes(".console-parity-matrix") &&
-    stylesSource.includes(".parity-table"),
+    stylesSource.includes(".parity-table") &&
+    stylesSource.includes(".parity-function-proof"),
   "dashboard renders a version-pinned table mapping each native OCP console path to an OpsLens action and acceptance contract"
 );
 
@@ -1514,10 +1526,23 @@ expectCheck(
     actionPanelSource.includes('data-testid="console-active-function-input"') &&
     actionPanelSource.includes('data-testid="console-active-action-proof"') &&
     actionPanelSource.includes('data-testid="console-active-preferred-resources"') &&
+    actionPanelSource.includes("consoleParityFunctionProof(activeItem)") &&
     appSource.includes("setActiveTargetStatus(\"mounted\")") &&
     appSource.includes("setActiveTargetStatus(\"missing\")") &&
     stylesSource.includes(".console-action-panel"),
   "each selected OCP console item renders its active surface, action, acceptance, and preferred API contract"
+);
+
+expectCheck(
+  "registry-driven console function proof e2e",
+  e2eSource.includes("AC-UI-008 renders function proof for every version-pinned console item") &&
+    e2eSource.includes("ocpConsoleParityItems") &&
+    e2eSource.includes("consoleParityFunctionProof") &&
+    e2eSource.includes("console-parity-function-${item.id}") &&
+    e2eSource.includes('data-function-mode"') &&
+    e2eSource.includes('getByTestId("console-active-function-input")') &&
+    e2eSource.includes('getByTestId("console-active-action-proof")'),
+  "Playwright iterates over the version-pinned registry and proves every mapped console item exposes function input and action proof"
 );
 
 expectCheck(

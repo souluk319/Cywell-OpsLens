@@ -1,5 +1,8 @@
 import { ArrowRight, Bot, FileSearch, ListChecks, ShieldCheck } from "lucide-react";
-import type { ConsoleParityItem } from "../consoleParity";
+import {
+  consoleParityFunctionProof,
+  type ConsoleParityItem
+} from "../consoleParity";
 import type { UiLanguage } from "../i18n";
 
 interface OcpConsoleActionPanelProps {
@@ -27,14 +30,7 @@ const actionCopy = {
     checking: "checking",
     missing: "missing",
     functionInput: "Function input",
-    evidenceInput: "Evidence view",
-    assistantInput: "KOMSCO prompt context",
-    overviewInput: "Live cluster overview",
-    dashboardInput: "OpsLens dashboard signals",
-    adminInput: "OpsLens admin evidence",
-    opsbrainInput: "OpsBrain governance state",
     actionProof: "Action proof",
-    actionProofText: "Clicking this item selects the mapped surface, updates context, and keeps mutation commands out of the flow.",
     openSurface: "Open surface",
     askAssistant: "Ask KOMSCO",
     readOnly: "read-only/plan-only"
@@ -55,14 +51,7 @@ const actionCopy = {
     checking: "확인 중",
     missing: "누락",
     functionInput: "기능 입력",
-    evidenceInput: "근거 보기",
-    assistantInput: "KOMSCO 질문 컨텍스트",
-    overviewInput: "실시간 클러스터 개요",
-    dashboardInput: "OpsLens 대시보드 신호",
-    adminInput: "OpsLens 관리 근거",
-    opsbrainInput: "OpsBrain 거버넌스 상태",
     actionProof: "동작 증거",
-    actionProofText: "이 항목을 누르면 매핑된 화면을 선택하고 컨텍스트를 갱신하며 변경 명령은 흐름에서 제외합니다.",
     openSurface: "화면 열기",
     askAssistant: "KOMSCO 질문",
     readOnly: "읽기 전용/계획 전용"
@@ -111,21 +100,11 @@ export function OcpConsoleActionPanel({
     language === "ko" ? activeItem.acceptanceKo : activeItem.acceptance;
   const preset = activeItem.resourcePreset;
   const targetStatusLabel = copy[targetStatus];
-  const functionInput = preset
-    ? `${copy.resourcePreset}: ${preset.query}`
-    : activeItem.evidenceView
-      ? `${copy.evidenceInput}: ${activeItem.evidenceView}`
-      : activeItem.actionSurface === "assistant"
-        ? copy.assistantInput
-        : activeItem.actionSurface === "overview"
-          ? copy.overviewInput
-          : activeItem.actionSurface === "ops-dashboard"
-            ? copy.dashboardInput
-            : activeItem.actionSurface === "ops-admin"
-              ? copy.adminInput
-              : activeItem.actionSurface === "opsbrain"
-                ? copy.opsbrainInput
-                : copy.noResourcePreset;
+  const functionProof = consoleParityFunctionProof(activeItem);
+  const functionInput =
+    language === "ko" ? functionProof.inputKo : functionProof.input;
+  const functionProofText =
+    language === "ko" ? functionProof.proofKo : functionProof.proof;
 
   return (
     <section
@@ -182,7 +161,7 @@ export function OcpConsoleActionPanel({
         <article>
           <span>{copy.actionProof}</span>
           <strong data-testid="console-active-action-proof">
-            {copy.actionProofText}
+            {functionProofText}
           </strong>
         </article>
       </div>

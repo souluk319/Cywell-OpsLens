@@ -1,4 +1,5 @@
 import {
+  consoleParityFunctionProof,
   ocpConsoleBaseline,
   ocpConsoleParityItems,
   parityCoverageSummary
@@ -21,9 +22,13 @@ const parityCopy = {
     nativeItems: "native console items",
     cywellAdditions: "Cywell additions",
     totalMapped: "mapped actions",
+    resourcePreset: "resource presets",
+    evidenceViews: "evidence views",
+    directSurfaces: "direct surfaces",
     original: "Original console path",
     opsLens: "OpsLens action",
     enhancement: "OpsLens +@",
+    functionProof: "Function proof",
     acceptance: "Acceptance",
     status: "Status",
     covered: "covered",
@@ -41,9 +46,13 @@ const parityCopy = {
     nativeItems: "원본 콘솔 항목",
     cywellAdditions: "Cywell 추가 항목",
     totalMapped: "매핑된 행동",
+    resourcePreset: "리소스 프리셋",
+    evidenceViews: "근거 보기",
+    directSurfaces: "직접 화면",
     original: "원본 콘솔 경로",
     opsLens: "OpsLens 행동",
     enhancement: "OpsLens +@",
+    functionProof: "기능 증거",
     acceptance: "완료 조건",
     status: "상태",
     covered: "대응됨",
@@ -108,6 +117,18 @@ export function OcpConsoleParityMatrix({
           <strong>{summary.coveredCount}/{summary.totalCount}</strong>
           <span>{copy.totalMapped}</span>
         </article>
+        <article>
+          <strong>{summary.resourcePresetCount}</strong>
+          <span>{copy.resourcePreset}</span>
+        </article>
+        <article>
+          <strong>{summary.evidenceViewCount}</strong>
+          <span>{copy.evidenceViews}</span>
+        </article>
+        <article>
+          <strong>{summary.directSurfaceCount}</strong>
+          <span>{copy.directSurfaces}</span>
+        </article>
       </div>
 
       <div className="parity-source-row" data-testid="console-parity-sources">
@@ -125,51 +146,73 @@ export function OcpConsoleParityMatrix({
               <th>{copy.original}</th>
               <th>{copy.opsLens}</th>
               <th>{copy.enhancement}</th>
+              <th>{copy.functionProof}</th>
               <th>{copy.acceptance}</th>
               <th>{copy.status}</th>
               <th><span className="sr-only">{copy.select}</span></th>
             </tr>
           </thead>
           <tbody>
-            {ocpConsoleParityItems.map((item) => (
-              <tr
-                className={activeItemId === item.id ? "active" : ""}
-                data-testid={`console-parity-row-${item.id}`}
-                key={item.id}
-              >
-                <td>
-                  <strong>
-                    {language === "ko" ? item.labelKo : item.label}
-                  </strong>
-                  <span>
-                    {language === "ko" ? item.originalPathKo : item.originalPath}
-                  </span>
-                </td>
-                <td>{language === "ko" ? item.commandKo : item.command}</td>
-                <td>
-                  {language === "ko"
-                    ? item.opsLensEnhancementKo
-                    : item.opsLensEnhancement}
-                </td>
-                <td>
-                  {language === "ko" ? item.acceptanceKo : item.acceptance}
-                </td>
-                <td>
-                  <span className={`status-pill parity-${item.status}`}>
-                    {statusLabels[language][item.status]}
-                  </span>
-                </td>
-                <td>
-                  <button
-                    className="text-icon-button parity-open-button"
-                    type="button"
-                    onClick={() => onSelectItem(item.id)}
+            {ocpConsoleParityItems.map((item) => {
+              const functionProof = consoleParityFunctionProof(item);
+              return (
+                <tr
+                  className={activeItemId === item.id ? "active" : ""}
+                  data-testid={`console-parity-row-${item.id}`}
+                  key={item.id}
+                >
+                  <td>
+                    <strong>
+                      {language === "ko" ? item.labelKo : item.label}
+                    </strong>
+                    <span>
+                      {language === "ko"
+                        ? item.originalPathKo
+                        : item.originalPath}
+                    </span>
+                  </td>
+                  <td>{language === "ko" ? item.commandKo : item.command}</td>
+                  <td>
+                    {language === "ko"
+                      ? item.opsLensEnhancementKo
+                      : item.opsLensEnhancement}
+                  </td>
+                  <td
+                    className="parity-function-proof"
+                    data-function-mode={functionProof.mode}
+                    data-testid={`console-parity-function-${item.id}`}
                   >
-                    {copy.select}
-                  </button>
-                </td>
-              </tr>
-            ))}
+                    <strong>
+                      {language === "ko"
+                        ? functionProof.inputKo
+                        : functionProof.input}
+                    </strong>
+                    <span>
+                      {language === "ko"
+                        ? functionProof.proofKo
+                        : functionProof.proof}
+                    </span>
+                  </td>
+                  <td>
+                    {language === "ko" ? item.acceptanceKo : item.acceptance}
+                  </td>
+                  <td>
+                    <span className={`status-pill parity-${item.status}`}>
+                      {statusLabels[language][item.status]}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      className="text-icon-button parity-open-button"
+                      type="button"
+                      onClick={() => onSelectItem(item.id)}
+                    >
+                      {copy.select}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

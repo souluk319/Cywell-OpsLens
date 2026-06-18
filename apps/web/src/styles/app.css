@@ -704,7 +704,7 @@ button {
 
 .parity-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  grid-template-columns: repeat(7, minmax(110px, 1fr));
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -797,6 +797,20 @@ button {
 }
 
 .parity-table td:first-child span {
+  margin-top: 3px;
+  color: #6a6e73;
+}
+
+.parity-function-proof {
+  width: 230px;
+}
+
+.parity-function-proof strong,
+.parity-function-proof span {
+  display: block;
+}
+
+.parity-function-proof span {
   margin-top: 3px;
   color: #6a6e73;
 }
@@ -3060,6 +3074,10 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .parity-summary-grid {
+    grid-template-columns: repeat(4, minmax(110px, 1fr));
+  }
+
 }
 
 @media (max-width: 900px) {
@@ -3085,6 +3103,10 @@ button {
 
   .console-frame {
     grid-template-columns: 1fr;
+  }
+
+  .parity-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .console-nav {
