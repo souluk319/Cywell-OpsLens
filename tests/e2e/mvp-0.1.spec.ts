@@ -347,7 +347,7 @@ async function expectConsoleFunctionEffect(
   test("AC-UI-003 makes every console navigation item actionable", async ({
     page
   }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(240_000);
     const feedback = page.getByTestId("console-navigation-feedback");
 
     await expect(page.getByTestId("console-parity-matrix")).toBeVisible();
@@ -368,13 +368,29 @@ async function expectConsoleFunctionEffect(
       await expect(page.locator(item.targetSelector)).toBeVisible();
       await expectConsoleFunctionEffect(page, item);
       await expect(page.getByTestId(`console-parity-row-${item.id}`)).toBeVisible();
+      if (item.evidenceView) {
+        const alternateView = item.evidenceView === "alerts" ? "logs" : "alerts";
+        await page.getByTestId(`evidence-view-${alternateView}`).click();
+        await expect(
+          page.getByTestId(`evidence-view-${alternateView}`)
+        ).toHaveAttribute("aria-pressed", "true");
+      }
+      if (item.actionSurface === "assistant") {
+        await closeAssistantIfOpen(page);
+      }
+      if (item.resourcePreset) {
+        await page.getByTestId("ocp-resource-search").fill("manual-drift");
+        await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+          "manual-drift"
+        );
+      }
       await page.getByTestId("console-active-open-surface").click();
       await expect(page.getByTestId("console-active-target-status")).toHaveAttribute(
         "data-target-status",
         "mounted"
       );
       await expect(page.locator(item.targetSelector)).toBeVisible();
-      await expectConsoleFunctionEffect(page, item, false);
+      await expectConsoleFunctionEffect(page, item);
 
       if (item.resourcePreset) {
         await expect(page.getByTestId("ocp-resource-search")).toHaveValue(

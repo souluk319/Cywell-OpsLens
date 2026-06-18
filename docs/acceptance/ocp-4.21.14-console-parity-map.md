@@ -17,7 +17,7 @@ It must not claim to replace the native OpenShift masthead, native Lightspeed dr
 | --- | --- | --- |
 | Version pin | The visible parity matrix states `OpenShift Local 4.21.14` and OCP docs `4.21`. | `console-parity-summary`, `ocpConsoleBaseline` |
 | Menu mapping | Every registry item renders in the left navigation and parity matrix. | `AC-UI-003`, `AC-UI-006` |
-| Screen mapping | Every item has a target selector; sidebar navigation, parity-matrix `Open`, and `Open surface` all mount that target. | `AC-UI-003`, `AC-UI-008` |
+| Screen mapping | Every item has a target selector; sidebar navigation, parity-matrix `Open`, and `Open surface` all mount that target, with `Open surface` replaying resource/evidence/assistant side effects after drift. | `AC-UI-003`, `AC-UI-008` |
 | Function proof | Every item has function mode, function input, action outcome, and action proof in EN/KO. | `AC-UI-003`, `AC-UI-006`, `AC-UI-008` |
 | Function state effect | Evidence items switch the active evidence tab and assistant items open the KOMSCO popover. | `AC-UI-003`, `AC-UI-006` |
 | Resource smoke state | Resource preset items expose function outcome, preferred API match, selected API, list, detail, events, logs, related, and mutation-guard states as structured UI evidence. | `AC-UI-003` |

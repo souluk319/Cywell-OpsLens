@@ -702,9 +702,7 @@ export default function App() {
     });
   }
 
-  function activateNavigation(item: ConsoleNavigationItem) {
-    setActiveNavId(item.id);
-    setNavigationCommand(navCommand(item, language));
+  function applyNavigationSideEffects(item: ConsoleNavigationItem) {
     if (item.evidenceView) {
       setEvidenceView(item.evidenceView);
     }
@@ -717,6 +715,12 @@ export default function App() {
         activationId: `${item.id}-${Date.now()}`
       });
     }
+  }
+
+  function activateNavigation(item: ConsoleNavigationItem) {
+    setActiveNavId(item.id);
+    setNavigationCommand(navCommand(item, language));
+    applyNavigationSideEffects(item);
     scrollToNavigationTarget(item.targetSelector, true);
   }
 
@@ -733,6 +737,7 @@ export default function App() {
   }
 
   function openActiveNavigationSurface() {
+    applyNavigationSideEffects(activeNavigation);
     scrollToNavigationTarget(activeNavigation.targetSelector, true);
   }
 

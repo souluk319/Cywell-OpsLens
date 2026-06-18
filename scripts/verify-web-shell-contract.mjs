@@ -1557,6 +1557,9 @@ expectCheck(
     actionPanelSource.includes("assistant-ready") &&
     actionPanelSource.includes("target-mounted") &&
     actionPanelSource.includes("consoleParityFunctionProof(activeItem)") &&
+    appSource.includes("function applyNavigationSideEffects") &&
+    appSource.includes("applyNavigationSideEffects(item)") &&
+    appSource.includes("applyNavigationSideEffects(activeNavigation)") &&
     appSource.includes("setActiveTargetStatus(\"mounted\")") &&
     appSource.includes("setActiveTargetStatus(\"missing\")") &&
     stylesSource.includes(".console-action-panel"),
@@ -1592,6 +1595,9 @@ expectCheck(
     e2eSource.includes("item.resourcePreset?.query") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
     e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
+    e2eSource.includes("manual-drift") &&
+    e2eSource.includes("alternateView") &&
+    e2eSource.includes("closeAssistantIfOpen(page)") &&
     e2eSource.includes('getByTestId("console-active-open-surface").click()') &&
     e2eSource.includes('data-target-status",') &&
     e2eSource.includes("console-parity-row-${item.id}"),
