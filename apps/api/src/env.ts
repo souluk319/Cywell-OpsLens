@@ -60,6 +60,7 @@ export interface OcpConfig {
   baseUrlCandidates: string[];
   token?: string;
   tokenCandidates: string[];
+  caCert?: string;
   tlsVerify: boolean;
   allowSecretFetch: boolean;
   enableMonitoringProxy: boolean;
@@ -120,9 +121,10 @@ export function getOcpConfig(): OcpConfig {
     process.env.OCP_API_BASE_URL ??
     process.env.OPENSHIFT_API_BASE_URL ??
     process.env.KUBE_API_BASE_URL;
+  const inClusterBaseUrl = readInClusterBaseUrl();
   const baseUrlCandidates = Array.from(
     new Set(
-      [explicitBaseUrl, ...readKubeconfigServers()].filter(
+      [explicitBaseUrl, inClusterBaseUrl, ...readKubeconfigServers()].filter(
         (value): value is string => Boolean(value)
       )
     )
@@ -131,9 +133,10 @@ export function getOcpConfig(): OcpConfig {
     process.env.OCP_API_TOKEN ??
     process.env.OPENSHIFT_API_TOKEN ??
     process.env.KUBE_API_TOKEN;
+  const inClusterToken = readInClusterServiceAccountToken();
   const tokenCandidates = Array.from(
     new Set(
-      [explicitToken, ...readKubeconfigTokens()].filter(
+      [explicitToken, inClusterToken, ...readKubeconfigTokens()].filter(
         (value): value is string => Boolean(value)
       )
     )
@@ -144,6 +147,7 @@ export function getOcpConfig(): OcpConfig {
     baseUrlCandidates,
     token: explicitToken ?? tokenCandidates[0],
     tokenCandidates,
+    caCert: readInClusterServiceAccountCa(),
     tlsVerify: ocpTlsVerifyFromEnv(),
     allowSecretFetch: boolFromEnv(process.env.OCP_ALLOW_SECRET_FETCH, false),
     enableMonitoringProxy: boolFromEnv(
@@ -160,6 +164,37 @@ export function getOcpConfig(): OcpConfig {
         8
       ) * 1000
   };
+}
+
+function readInClusterBaseUrl() {
+  const host = process.env.KUBERNETES_SERVICE_HOST;
+  const port = process.env.KUBERNETES_SERVICE_PORT ?? "443";
+  if (!host) {
+    return undefined;
+  }
+  return `https://${host}:${port}`;
+}
+
+function readInClusterServiceAccountToken() {
+  const tokenPath =
+    process.env.KUBERNETES_SERVICEACCOUNT_TOKEN_PATH ??
+    "/var/run/secrets/kubernetes.io/serviceaccount/token";
+  if (!existsSync(tokenPath)) {
+    return undefined;
+  }
+  const token = readFileSync(tokenPath, "utf8").trim();
+  return token || undefined;
+}
+
+function readInClusterServiceAccountCa() {
+  const caPath =
+    process.env.KUBERNETES_SERVICEACCOUNT_CA_PATH ??
+    "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt";
+  if (!existsSync(caPath)) {
+    return undefined;
+  }
+  const ca = readFileSync(caPath, "utf8");
+  return ca.trim() ? ca : undefined;
 }
 
 function readKubeconfigServers() {

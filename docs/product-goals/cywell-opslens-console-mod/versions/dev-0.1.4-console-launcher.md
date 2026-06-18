@@ -83,11 +83,21 @@ Software Catalog / OperatorHub
 - `consoles.operator.openshift.io/cluster.spec.plugins` contains `cywell-opslens` while preserving `networking-console-plugin`, `lightspeed-console-plugin`, and `monitoring-plugin`.
 - `ConsolePlugin/cywell-opslens` backend points to `Service/cywell-opslens-dashboard` on port `443` and its UserToken proxy points to `Service/cywell-opslens-api` on port `443`.
 - The dashboard service returns both `plugin-manifest.json` and `index.html` through the in-cluster API server service proxy.
+- Browser-visible OpenShift Console left navigation shows `Cywell OpsLens`.
+- Opening `Cywell OpsLens` loads the OpsLens dashboard app through the OpenShift Console plugin asset path.
+- The app shows `KOMSCO`, `Cywell OpsLens`, and `KOMSCO AI Assistant` without a React error.
+- The API pod now discovers the in-cluster Kubernetes API through service account token and CA.
+- Browser-visible masthead status now shows `API 연결됨`; the previous `API 로컬 대체 응답` fallback badge is gone.
+- Browser console error/warn logs were empty after the final reload.
 
-## Remaining Live UI Evidence
+## Completion Evidence
 
-- Browser-visible OpenShift Console left navigation must show `Cywell OpsLens`.
-- Clicking `Cywell OpsLens` must open `/opslens` and redirect/load the OpsLens dashboard app without the prior React error.
+- `npm run -w @kugnus/api build`: PASS.
+- `npm run -w @kugnus/web build`: PASS.
+- `npm run verify:console-plugin`: PASS.
+- CRC API image patch: `cywell-opslens-api:v0.1.4-crc-d150f9fa-incluster`.
+- CRC dashboard image patch: `cywell-opslens-dashboard:v0.1.4-crc-d150f9fa-csrf`.
+- Live UI evidence: `API 연결됨`, no `API 로컬 대체 응답`, no React error.
 
 ## Explicit Non-Goals
 
@@ -97,11 +107,8 @@ Software Catalog / OperatorHub
 - Do not use the debug port-forward URL as the product entry.
 - Do not mutate company OCP.
 
-## Next Work
+## Carry Forward To 0.1.5
 
-1. Restore a clean `/opslens` ConsolePlugin route.
-2. Implement `OpsLensRoute` as a tiny redirect-only launcher.
-3. Update verifiers so this exact contract fails fast if broken.
-4. Build and verify locally.
-5. Commit and push `feat/OpsLens-Dev0.1.4`.
-6. Only after approval, load/push the 0.1.4 CRC images and validate from the OpenShift Console UI.
+- Polish the bottom-right `KOMSCO AI Assistant` launcher and chat window so it reads as a real chatbot, not a static evidence panel.
+- Add an unlock/move mode for the chat window so users can drag it away when it covers console content.
+- Keep the assistant read-only/plan-only and route-backed through the ConsolePlugin API proxy.

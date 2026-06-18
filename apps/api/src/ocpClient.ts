@@ -274,6 +274,9 @@ async function requestJsonFromBase<T>(
 
   if (url.protocol === "https:") {
     requestOptions.rejectUnauthorized = config.tlsVerify;
+    if (config.caCert) {
+      requestOptions.ca = config.caCert;
+    }
   }
 
   return await new Promise((resolve, reject) => {
@@ -341,6 +344,9 @@ async function requestTextFromBase(
 
   if (url.protocol === "https:") {
     requestOptions.rejectUnauthorized = config.tlsVerify;
+    if (config.caCert) {
+      requestOptions.ca = config.caCert;
+    }
   }
 
   return await new Promise((resolve, reject) => {

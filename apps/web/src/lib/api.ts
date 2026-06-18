@@ -39,6 +39,18 @@ function getApiBase() {
   return apiBase.replace(/\/+$/, "");
 }
 
+function getConsoleCsrfToken() {
+  if (typeof document === "undefined") {
+    return undefined;
+  }
+
+  return document.cookie
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .find((cookie) => cookie.startsWith("csrf-token="))
+    ?.slice("csrf-token=".length);
+}
+
 export function resolveApiPath(path: string) {
   const apiBase = getApiBase();
   if (!apiBase) {
@@ -78,9 +90,12 @@ export function getApiRouteDiagnostics() {
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const requestPath = resolveApiPath(path);
+  const csrfToken = getConsoleCsrfToken();
   const response = await fetch(requestPath, {
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
+      ...(csrfToken ? { "X-CSRFToken": csrfToken } : {}),
       ...(init?.headers ?? {})
     },
     ...init
