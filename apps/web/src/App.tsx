@@ -3,6 +3,7 @@ import type {
   ActionPlanResponse,
   ContextSyncResponse,
   DashboardRisksResponse,
+  OcpConnectionStatus,
   OpsLensAdminOverviewResponse
 } from "@kugnus/contracts";
 import {
@@ -47,6 +48,7 @@ import { OperationsDashboard } from "./components/OperationsDashboard";
 import {
   createActionPlan,
   fetchDashboardRisks,
+  fetchOcpStatus,
   fetchOpsLensAdminOverview,
   getApiRouteDiagnostics,
   syncConsoleContext
@@ -368,6 +370,12 @@ const shellCopy = {
     standaloneContextPrimary: "CRC lab preview",
     standaloneContextSecondary: "local fixture scenario / no company OCP mutation",
     opsLensStatus: "Cywell OpsLens status",
+    statusDetailsTitle: "Operational details",
+    statusDetailsSummary: "Show install and demo details",
+    ocpLiveStatus: "OCP live",
+    ocpStatusUnknown: "OCP check needed",
+    dataSourceLive: "live data",
+    dataSourceDemo: "demo data",
     openShiftUtilities: "OpenShift console utilities",
     installFlow: "Install flow",
     installStepOperatorHub: "OperatorHub: operator",
@@ -456,6 +464,12 @@ const shellCopy = {
     standaloneContextPrimary: "CRC 실습 환경 미리보기",
     standaloneContextSecondary: "로컬 검증 시나리오 / 회사 OCP 변경 없음",
     opsLensStatus: "Cywell OpsLens 상태",
+    statusDetailsTitle: "운영 상세",
+    statusDetailsSummary: "설치 및 시연 상세 보기",
+    ocpLiveStatus: "OCP 실시간 연결",
+    ocpStatusUnknown: "OCP 확인 필요",
+    dataSourceLive: "실데이터",
+    dataSourceDemo: "데모 데이터",
     openShiftUtilities: "OpenShift 콘솔 유틸리티",
     installFlow: "설치 흐름",
     installStepOperatorHub: "OperatorHub: 오퍼레이터",
@@ -588,6 +602,7 @@ export default function App() {
   );
   const [adminOverview, setAdminOverview] =
     useState<OpsLensAdminOverviewResponse | null>(null);
+  const [ocpStatus, setOcpStatus] = useState<OcpConnectionStatus | null>(null);
   const [assistantBusy, setAssistantBusy] = useState(false);
   const [apiStatus, setApiStatus] = useState<"loading" | "ready" | "fallback">(
     "loading"
@@ -636,6 +651,18 @@ export default function App() {
         .catch(() => {
           if (isActive()) {
             setAdminOverview(null);
+          }
+        });
+
+      fetchOcpStatus()
+        .then((statusResponse) => {
+          if (isActive()) {
+            setOcpStatus(statusResponse);
+          }
+        })
+        .catch(() => {
+          if (isActive()) {
+            setOcpStatus(null);
           }
         });
     } catch (error) {
@@ -707,6 +734,7 @@ export default function App() {
   const runtimeProfile = useMemo(() => readRuntimeProfile(), []);
   const apiRoute = useMemo(() => getApiRouteDiagnostics(), []);
   const isConsolePlugin = runtimeProfile.surface === "console-plugin";
+  const dashboardUsesDemoData = dashboard.source === "mock-backend";
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -900,138 +928,6 @@ export default function App() {
               {copy.readOnly}
             </span>
             <div
-              className="install-flow-strip"
-              data-testid="install-flow-strip"
-              aria-label={copy.installFlow}
-            >
-              <span className="status-pill read-only" data-testid="install-flow-operatorhub">
-                {copy.installStepOperatorHub}
-              </span>
-              <span className="status-pill read-only" data-testid="install-flow-cr">
-                {copy.installStepCustomResource}
-              </span>
-              <span className="status-pill read-only" data-testid="install-flow-consoleplugin">
-                {copy.installStepConsolePlugin}
-              </span>
-            </div>
-            <div
-              className="mod-boundary-strip"
-              data-testid="mod-boundary-strip"
-              aria-label={copy.modBoundary}
-            >
-              <span className="status-pill ready" data-testid="mod-boundary-adds">
-                {copy.modAdds}
-              </span>
-              <span className="status-pill warning" data-testid="mod-boundary-keeps">
-                {copy.modKeeps}
-              </span>
-            </div>
-            <div
-              className="runtime-profile-strip"
-              data-testid="runtime-profile-strip"
-              aria-label={copy.runtimeBoundary}
-            >
-              <span className="status-pill ready" data-testid="runtime-profile-crc">
-                {copy.runtimeCrc}
-              </span>
-              <span
-                className="status-pill warning"
-                data-testid="runtime-profile-approved"
-              >
-                {copy.runtimeApproved}
-              </span>
-            </div>
-            <div
-              className="certification-boundary-strip"
-              data-testid="certification-boundary-strip"
-              aria-label={copy.certificationBoundary}
-            >
-              <span
-                className="status-pill warning"
-                data-testid="certification-boundary-local"
-              >
-                {copy.certificationLocal}
-              </span>
-              <span
-                className="status-pill read-only"
-                data-testid="certification-boundary-submit"
-              >
-                {copy.certificationSubmit}
-              </span>
-              <span
-                className="status-pill warning"
-                data-testid="certification-boundary-evidence"
-              >
-                {copy.certificationEvidence}
-              </span>
-            </div>
-            <div
-              className="demo-handoff-strip"
-              data-testid="demo-handoff-strip"
-              aria-label={copy.handoffBoundary}
-            >
-              <span className="status-pill read-only" data-testid="handoff-reconnect">
-                {copy.handoffReconnect}
-              </span>
-              <span className="status-pill ready" data-testid="handoff-route">
-                {copy.handoffRoute}
-              </span>
-              <span className="status-pill warning" data-testid="handoff-smoke">
-                {copy.handoffSmoke}
-              </span>
-            </div>
-            <div
-              className="access-boundary-strip"
-              data-testid="access-boundary-strip"
-              aria-label={copy.accessBoundary}
-            >
-              <span className="status-pill ready" data-testid="access-console-route">
-                {copy.accessConsoleRoute}
-              </span>
-              <span className="status-pill warning" data-testid="access-dashboard-https">
-                {copy.accessDashboardHttps}
-              </span>
-              <span className="status-pill read-only" data-testid="access-api-proxy">
-                {copy.accessApiProxy}
-              </span>
-            </div>
-            <div
-              className="apply-signal-strip"
-              data-testid="apply-signal-strip"
-              aria-label={copy.applySignalBoundary}
-            >
-              <span className="status-pill ready" data-testid="apply-signal-profile">
-                {copy.applySignalProfile}
-              </span>
-              <span className="status-pill read-only" data-testid="apply-signal-command">
-                {copy.applySignalCommand}
-              </span>
-              <span className="status-pill ready" data-testid="apply-signal-ready">
-                {copy.applySignalReady}
-              </span>
-              <span className="status-pill ready" data-testid="apply-signal-route">
-                {copy.applySignalRoute}
-              </span>
-              <span className="status-pill warning" data-testid="apply-signal-stale">
-                {copy.applySignalStale}
-              </span>
-            </div>
-            <div
-              className="post-install-smoke-strip"
-              data-testid="post-install-smoke-strip"
-              aria-label={copy.smokeBoundary}
-            >
-              <span className="status-pill ready" data-testid="smoke-route">
-                {copy.smokeRoute}
-              </span>
-              <span className="status-pill ready" data-testid="smoke-assistant">
-                {copy.smokeAssistant}
-              </span>
-              <span className="status-pill read-only" data-testid="smoke-ols">
-                {copy.smokeOls}
-              </span>
-            </div>
-            <div
               className="segmented-control language-toggle"
               aria-label={copy.language}
             >
@@ -1126,6 +1022,162 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      <details
+        className="opslens-status-details"
+        data-testid="opslens-status-details"
+        aria-label={copy.statusDetailsTitle}
+      >
+        <summary data-testid="opslens-status-details-summary">
+          <span>{copy.statusDetailsSummary}</span>
+          <span
+            className={`status-pill ${ocpStatus?.reachable ? "ready" : "warning"}`}
+            data-testid="ocp-live-status"
+          >
+            {ocpStatus?.reachable ? copy.ocpLiveStatus : copy.ocpStatusUnknown}
+          </span>
+          <span
+            className={`status-pill ${dashboardUsesDemoData ? "warning" : "ready"}`}
+            data-testid="dashboard-data-source"
+          >
+            {dashboardUsesDemoData ? copy.dataSourceDemo : copy.dataSourceLive}
+          </span>
+        </summary>
+        <div className="opslens-status-detail-grid">
+          <div
+            className="install-flow-strip"
+            data-testid="install-flow-strip"
+            aria-label={copy.installFlow}
+          >
+            <span className="status-pill read-only" data-testid="install-flow-operatorhub">
+              {copy.installStepOperatorHub}
+            </span>
+            <span className="status-pill read-only" data-testid="install-flow-cr">
+              {copy.installStepCustomResource}
+            </span>
+            <span className="status-pill read-only" data-testid="install-flow-consoleplugin">
+              {copy.installStepConsolePlugin}
+            </span>
+          </div>
+          <div
+            className="mod-boundary-strip"
+            data-testid="mod-boundary-strip"
+            aria-label={copy.modBoundary}
+          >
+            <span className="status-pill ready" data-testid="mod-boundary-adds">
+              {copy.modAdds}
+            </span>
+            <span className="status-pill warning" data-testid="mod-boundary-keeps">
+              {copy.modKeeps}
+            </span>
+          </div>
+          <div
+            className="runtime-profile-strip"
+            data-testid="runtime-profile-strip"
+            aria-label={copy.runtimeBoundary}
+          >
+            <span className="status-pill ready" data-testid="runtime-profile-crc">
+              {copy.runtimeCrc}
+            </span>
+            <span
+              className="status-pill warning"
+              data-testid="runtime-profile-approved"
+            >
+              {copy.runtimeApproved}
+            </span>
+          </div>
+          <div
+            className="certification-boundary-strip"
+            data-testid="certification-boundary-strip"
+            aria-label={copy.certificationBoundary}
+          >
+            <span
+              className="status-pill warning"
+              data-testid="certification-boundary-local"
+            >
+              {copy.certificationLocal}
+            </span>
+            <span
+              className="status-pill read-only"
+              data-testid="certification-boundary-submit"
+            >
+              {copy.certificationSubmit}
+            </span>
+            <span
+              className="status-pill warning"
+              data-testid="certification-boundary-evidence"
+            >
+              {copy.certificationEvidence}
+            </span>
+          </div>
+          <div
+            className="demo-handoff-strip"
+            data-testid="demo-handoff-strip"
+            aria-label={copy.handoffBoundary}
+          >
+            <span className="status-pill read-only" data-testid="handoff-reconnect">
+              {copy.handoffReconnect}
+            </span>
+            <span className="status-pill ready" data-testid="handoff-route">
+              {copy.handoffRoute}
+            </span>
+            <span className="status-pill warning" data-testid="handoff-smoke">
+              {copy.handoffSmoke}
+            </span>
+          </div>
+          <div
+            className="access-boundary-strip"
+            data-testid="access-boundary-strip"
+            aria-label={copy.accessBoundary}
+          >
+            <span className="status-pill ready" data-testid="access-console-route">
+              {copy.accessConsoleRoute}
+            </span>
+            <span className="status-pill warning" data-testid="access-dashboard-https">
+              {copy.accessDashboardHttps}
+            </span>
+            <span className="status-pill read-only" data-testid="access-api-proxy">
+              {copy.accessApiProxy}
+            </span>
+          </div>
+          <div
+            className="apply-signal-strip"
+            data-testid="apply-signal-strip"
+            aria-label={copy.applySignalBoundary}
+          >
+            <span className="status-pill ready" data-testid="apply-signal-profile">
+              {copy.applySignalProfile}
+            </span>
+            <span className="status-pill read-only" data-testid="apply-signal-command">
+              {copy.applySignalCommand}
+            </span>
+            <span className="status-pill ready" data-testid="apply-signal-ready">
+              {copy.applySignalReady}
+            </span>
+            <span className="status-pill ready" data-testid="apply-signal-route">
+              {copy.applySignalRoute}
+            </span>
+            <span className="status-pill warning" data-testid="apply-signal-stale">
+              {copy.applySignalStale}
+            </span>
+          </div>
+          <div
+            className="post-install-smoke-strip"
+            data-testid="post-install-smoke-strip"
+            aria-label={copy.smokeBoundary}
+          >
+            <span className="status-pill ready" data-testid="smoke-route">
+              {copy.smokeRoute}
+            </span>
+            <span className="status-pill ready" data-testid="smoke-assistant">
+              {copy.smokeAssistant}
+            </span>
+            <span className="status-pill read-only" data-testid="smoke-ols">
+              {copy.smokeOls}
+            </span>
+          </div>
+        </div>
+      </details>
 
       <div className={`console-frame ${navCollapsed ? "nav-collapsed" : ""}`}>
         <aside

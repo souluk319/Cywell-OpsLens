@@ -257,7 +257,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-opsbrain-system")).toBeVisible();
   });
 
-  test("AC-UI-004 keeps KO/EN switching consistent across shell and assistant", async ({
+  test("AC-UI-004 keeps KO/EN switching consistent and customer masthead stays compact", async ({
     page
   }) => {
     await page.getByTestId("language-ko-toggle").click();
@@ -270,6 +270,41 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("api-route-mode")).toContainText(
       "로컬 API 경로"
+    );
+    await expect(
+      page.locator("[data-testid='masthead'] [data-testid='install-flow-strip']")
+    ).toHaveCount(0);
+    await expect(
+      page.locator("[data-testid='masthead'] [data-testid='mod-boundary-strip']")
+    ).toHaveCount(0);
+    await expect(
+      page.locator("[data-testid='masthead'] [data-testid='apply-signal-strip']")
+    ).toHaveCount(0);
+    await expect(page.getByTestId("opslens-status-details-summary")).toContainText(
+      "설치 및 시연 상세 보기"
+    );
+    await expect(page.getByTestId("ocp-live-status")).toContainText(
+      /OCP (실시간 연결|확인 필요)/
+    );
+    await expect(page.getByTestId("dashboard-data-source")).toContainText(
+      /데모 데이터|실데이터/
+    );
+    await page.getByTestId("opslens-status-details-summary").click();
+    await expect(page.getByTestId("opslens-status-details")).toHaveAttribute(
+      "open",
+      ""
+    );
+    await expect(page.getByTestId("opslens-status-details")).toContainText(
+      "OperatorHub: 오퍼레이터"
+    );
+    await expect(page.getByTestId("opslens-status-details")).toContainText(
+      "콘솔 플러그인 라우트 열기"
+    );
+    await expect(page.getByTestId("opslens-status-details")).toContainText(
+      "KOMSCO AI 어시스턴트 질문"
+    );
+    await expect(page.getByTestId("opslens-status-details")).toContainText(
+      "OLSConfig는 ValidateOnly 유지"
     );
     await expect(page.getByTestId("install-flow-operatorhub")).toContainText(
       "OperatorHub: 오퍼레이터"
@@ -457,6 +492,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByTestId("runtime-surface")).toContainText(
       "Standalone dev"
+    );
+    await expect(page.getByTestId("opslens-status-details-summary")).toContainText(
+      "Show install and demo details"
+    );
+    await expect(page.getByTestId("ocp-live-status")).toContainText(
+      /OCP (live|check needed)/
+    );
+    await expect(page.getByTestId("dashboard-data-source")).toContainText(
+      /(demo|live) data/
     );
     await expect(page.getByTestId("install-flow-cr")).toContainText(
       "OpsLensInstallation: product"

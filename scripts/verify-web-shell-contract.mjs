@@ -73,6 +73,16 @@ const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 const e2eSource = await readText("tests/e2e/mvp-0.1.spec.ts");
+const mastheadSource = sourceSection(
+  appSource,
+  '<header className="masthead"',
+  "</header>"
+);
+const statusDetailsSource = sourceSection(
+  appSource,
+  'data-testid="opslens-status-details"',
+  '<div className={`console-frame'
+);
 const releaseRefreshSource = sourceSection(
   adminSource,
   'data-testid="opslens-release-refresh"',
@@ -154,6 +164,34 @@ expectCheck(
     appSource.includes("Route + proxy mode") &&
     appSource.includes("Preview shell"),
   "dashboard shell distinguishes standalone dev, ConsolePlugin mode, install scope, and non-company-OCP local context"
+);
+
+expectCheck(
+  "customer masthead stays concise",
+  appSource.includes('data-testid="opslens-status-details"') &&
+    appSource.includes('data-testid="opslens-status-details-summary"') &&
+    appSource.includes('data-testid="ocp-live-status"') &&
+    appSource.includes('data-testid="dashboard-data-source"') &&
+    appSource.includes("Show install and demo details") &&
+    appSource.includes("설치 및 시연 상세 보기") &&
+    appSource.includes("OCP live") &&
+    appSource.includes("OCP 실시간 연결") &&
+    appSource.includes("demo data") &&
+    appSource.includes("데모 데이터") &&
+    !mastheadSource.includes('data-testid="install-flow-strip"') &&
+    !mastheadSource.includes('data-testid="mod-boundary-strip"') &&
+    !mastheadSource.includes('data-testid="runtime-profile-strip"') &&
+    !mastheadSource.includes('data-testid="certification-boundary-strip"') &&
+    !mastheadSource.includes('data-testid="demo-handoff-strip"') &&
+    !mastheadSource.includes('data-testid="access-boundary-strip"') &&
+    !mastheadSource.includes('data-testid="apply-signal-strip"') &&
+    !mastheadSource.includes('data-testid="post-install-smoke-strip"') &&
+    statusDetailsSource.includes('data-testid="install-flow-strip"') &&
+    statusDetailsSource.includes('data-testid="post-install-smoke-strip"') &&
+    stylesSource.includes(".opslens-status-details") &&
+    stylesSource.includes(".opslens-status-detail-grid") &&
+    e2eSource.includes("customer masthead stays compact"),
+  "internal install/demo evidence is available in collapsed details instead of cluttering the OpenShift masthead"
 );
 
 expectCheck(
@@ -1343,8 +1381,10 @@ expectCheck(
 
 expectCheck(
   "localized interactive shell e2e",
-  e2eSource.includes("AC-UI-004 keeps KO/EN switching consistent across shell and assistant") &&
+  e2eSource.includes("AC-UI-004 keeps KO/EN switching consistent and customer masthead stays compact") &&
     e2eSource.includes('getByTestId("language-ko-toggle")') &&
+    e2eSource.includes("[data-testid='masthead'] [data-testid='install-flow-strip']") &&
+    e2eSource.includes('getByTestId("opslens-status-details-summary")') &&
     e2eSource.includes('const localizedNavigation = [') &&
     e2eSource.includes('const localizedSections = [') &&
     e2eSource.includes('getByTestId(`console-nav-section-${section}`)') &&

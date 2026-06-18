@@ -9,10 +9,12 @@ Base ref: `origin/main`
 Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 
 - the local web shell has KOMSCO/OpsLens assistant branding and KO/EN contracts protected by a verifier
+- the customer masthead no longer renders the long internal install/demo/runbook chip stack; those details now live in a collapsed operational details row
+- the operational details summary now separates the live OCP API signal from the dashboard data source, so the UI can honestly show `OCP 실시간 연결` while still labeling mock dashboard content as `데모 데이터`
 - Korean assistant surfaces now use `KOMSCO AI 어시스턴트` instead of mixed English branding, and the masthead user menu matches the OpenShift demo identity `kubeadmin`
 - the Korean shell status copy has been polished so customer-facing CRC/preview surfaces avoid developer-only wording
 - the shell now names standalone preview versus ConsolePlugin route/proxy mode
-- the masthead now shows the install/apply flow: OperatorHub installs the Operator, OpsLensInstallation applies the product, ConsolePlugin provides the route
+- the operational details row now shows the install/apply flow: OperatorHub installs the Operator, OpsLensInstallation applies the product, ConsolePlugin provides the route
 - the OCP Coverage Matrix now follows the same KO/EN toggle as the rest of the shell
 - the OCP Coverage Matrix now localizes scope/status/gap chips instead of showing raw enum text like `policy-blocked`, `not-probed`, or `all-namespaces` in KO mode
 - the OCP Coverage Diagnostic status chips now localize `ok/warning/critical/missing/skipped/error` without rewriting raw evidence

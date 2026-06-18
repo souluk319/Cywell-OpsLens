@@ -162,6 +162,41 @@ button {
   color: #003737;
 }
 
+.opslens-status-details {
+  border-top: 1px solid #2b2d2f;
+  border-bottom: 1px solid #d2d2d2;
+  background: #f5f5f5;
+}
+
+.opslens-status-details summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 24px;
+  color: #4d5258;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+
+.opslens-status-details summary::marker {
+  color: #6a6e73;
+}
+
+.opslens-status-details[open] summary {
+  border-bottom: 1px solid #d2d2d2;
+  background: #fff;
+}
+
+.opslens-status-detail-grid {
+  display: grid;
+  gap: 8px;
+  padding: 12px 24px 14px;
+}
+
 .install-flow-strip,
 .mod-boundary-strip,
 .runtime-profile-strip,
@@ -193,10 +228,16 @@ button {
 }
 
 .cluster-context {
-  display: grid;
-  gap: 2px;
-  padding-left: 14px;
-  border-left: 1px solid #4f5255;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
   color: #f0f0f0;
 }
 
@@ -2582,15 +2623,6 @@ button {
 
   .brand-block {
     min-width: 0;
-  }
-
-  .cluster-context {
-    min-width: 0;
-    padding-left: 10px;
-  }
-
-  .cluster-context span {
-    overflow-wrap: anywhere;
   }
 
   .masthead-actions {
