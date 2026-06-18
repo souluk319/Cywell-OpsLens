@@ -158,6 +158,9 @@ export function OcpConsoleParityMatrix({
               return (
                 <tr
                   className={activeItemId === item.id ? "active" : ""}
+                  data-active-parity-item={
+                    activeItemId === item.id ? "true" : "false"
+                  }
                   data-testid={`console-parity-row-${item.id}`}
                   key={item.id}
                 >
@@ -204,6 +207,7 @@ export function OcpConsoleParityMatrix({
                   <td>
                     <button
                       className="text-icon-button parity-open-button"
+                      data-testid={`console-parity-open-${item.id}`}
                       type="button"
                       onClick={() => onSelectItem(item.id)}
                     >

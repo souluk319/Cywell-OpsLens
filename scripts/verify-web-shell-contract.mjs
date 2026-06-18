@@ -1517,6 +1517,8 @@ expectCheck(
     parityComponentSource.includes('data-testid="console-parity-summary"') &&
     parityComponentSource.includes('data-testid="console-parity-sources"') &&
     parityComponentSource.includes("console-parity-row-${item.id}") &&
+    parityComponentSource.includes("data-active-parity-item=") &&
+    parityComponentSource.includes("console-parity-open-${item.id}") &&
     parityComponentSource.includes("console-parity-function-${item.id}") &&
     parityComponentSource.includes("data-function-mode={functionProof.mode}") &&
     parityComponentSource.includes("summary.resourcePresetCount") &&
@@ -1567,13 +1569,17 @@ expectCheck(
     e2eSource.includes("ocpConsoleParityItems") &&
     e2eSource.includes("consoleParityFunctionProof") &&
     e2eSource.includes("console-parity-function-${item.id}") &&
+    e2eSource.includes("console-parity-open-${item.id}") &&
+    e2eSource.includes('"data-active-parity-item"') &&
+    e2eSource.includes("expectActiveConsoleAction(") &&
+    e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
     e2eSource.includes('data-function-mode"') &&
     e2eSource.includes('getByTestId("console-active-function-mode")') &&
     e2eSource.includes('getByTestId("console-active-action-outcome")') &&
     e2eSource.includes('"data-action-outcome"') &&
     e2eSource.includes('getByTestId("console-active-function-input")') &&
     e2eSource.includes('getByTestId("console-active-action-proof")'),
-  "Playwright iterates over the version-pinned registry and proves every mapped console item exposes function input and action proof"
+  "Playwright iterates over the version-pinned registry and proves every mapped console matrix Open action exposes target, function input, outcome, and action proof"
 );
 
 expectCheck(

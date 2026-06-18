@@ -445,7 +445,7 @@ async function expectConsoleFunctionEffect(
   test("AC-UI-008 renders function proof for every version-pinned console item", async ({
     page
   }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(180_000);
     await expect(page.getByTestId("console-parity-summary")).toContainText(
       `${ocpConsoleParityItems.length}`
     );
@@ -459,13 +459,23 @@ async function expectConsoleFunctionEffect(
       await expect(proofCell).toHaveAttribute("data-function-mode", proof.mode);
       await expect(proofCell).toContainText(proof.input);
       await expect(proofCell).toContainText(proof.proof);
-      await row.getByRole("button", { name: "Open" }).click();
+      await page.getByTestId(`console-parity-open-${item.id}`).click();
+      await expect(row).toHaveAttribute("data-active-parity-item", "true");
+      await expectActiveConsoleAction(
+        page,
+        item.id,
+        item.label,
+        surfaceLabelsForTest[item.actionSurface],
+        item.resourcePreset?.query
+      );
       await expect(page.getByTestId("console-active-function-input")).toContainText(
         proof.input
       );
       await expect(page.getByTestId("console-active-action-proof")).toContainText(
         proof.proof
       );
+      await expectConsoleFunctionEffect(page, item);
+      await closeAssistantIfOpen(page);
     }
   });
 
