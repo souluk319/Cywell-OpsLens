@@ -177,9 +177,9 @@ expectCheck(
   "morning handoff freshness",
   containsAll(morningHandoff, [
     "verify:dev012-handoff",
-    "0 fail, 54 checks",
+    "0 fail, 56 checks",
     "AC-UI-007",
-    "after Lane 86",
+    "live CRC install status lane",
     "oc get opslensinstallation,deploy,pod,svc,route -n cywell-opslens",
     "oc get route cywell-opslens-dashboard -n cywell-opslens"
   ]),

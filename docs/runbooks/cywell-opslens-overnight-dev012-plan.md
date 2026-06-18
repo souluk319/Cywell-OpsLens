@@ -1079,6 +1079,26 @@ Checkpoint cadence:
   - `npm run verify:web-shell`
   - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-004|AC-UI-007"`
 
+### 2026-06-18 - Lane 88
+
+- Added a dedicated live CRC install status panel below the readiness command strip.
+- The panel reads the current `cywell-opslens` namespace through the read-only OCP resource API:
+  - `OpsLensInstallation`
+  - Deployments
+  - Pods
+  - Routes
+- This keeps the product view honest: dashboard cards can still be marked as demo data, while the install panel shows live cluster facts such as workload readiness, blocked pods, and missing Route state.
+- Latest live CRC observation through the local API proxy:
+  - `OpsLensInstallation`: 1 object
+  - Deployments: 3 objects, API and dashboard ready, model-runtime not ready
+  - Pods: 4 objects, API/dashboard/vector ready, model-runtime blocked by image pull
+  - Routes: 0 objects
+- Protected with:
+  - `npm run -w @kugnus/web build`
+  - `npm run verify:web-shell`
+  - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-LIVE-001"`
+  - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-004|AC-UI-007"`
+
 ## Current Known State
 
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
@@ -1086,7 +1106,8 @@ Checkpoint cadence:
 - feature branch head at plan creation: `cf791e1`
 - feature branch latest pushed head before Lane 77: `6834383`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 87: PASS, 55 checks, including compact masthead, operational details, OCP live status, demo data source, and installed ConsolePlugin proxy-mode AC-UI-007 coverage
+- latest web shell verifier after Lane 88: PASS, 56 checks, including compact masthead, operational details, live CRC install status, OCP live status, demo data source, and installed ConsolePlugin proxy-mode AC-UI-007 coverage
+- latest live CRC install panel observation: install object present, API/dashboard/vector visible, model-runtime blocked by image pull, dashboard Route missing
 - latest assistant smoke browser check after Lane 78: PASS, `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, `클러스터 변경: 차단`
 - latest overnight checkpoint after Lane 86: writes morning decision, step totals, safe entrypoints, blocked actions, CRC demo readiness, and handoff freshness in both JSON and Markdown
 - 10-hour autonomy plan: `docs/runbooks/cywell-opslens-dev012-10h-autonomy-plan.md`

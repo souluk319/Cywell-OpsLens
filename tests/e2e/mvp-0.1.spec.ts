@@ -257,6 +257,48 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("opslens-opsbrain-system")).toBeVisible();
   });
 
+  test("AC-LIVE-001 shows live OpsLens install state separately from demo data", async ({
+    page
+  }) => {
+    await page.getByTestId("language-ko-toggle").click();
+    await expect(page.getByTestId("opslens-live-install-status")).toBeVisible();
+    await expect(page.getByTestId("opslens-live-install-status")).toContainText(
+      "CRC 실시간 설치 신호"
+    );
+    await expect(page.getByTestId("opslens-live-install-ocp")).toContainText(
+      /OCP (API 실시간|확인 필요)/
+    );
+    await expect(page.getByTestId("opslens-live-install-boundary")).toContainText(
+      "읽기 전용"
+    );
+    await expect(page.getByTestId("opslens-live-install-cr")).toContainText(
+      "설치 객체"
+    );
+    await expect(page.getByTestId("opslens-live-install-workloads")).toContainText(
+      "워크로드"
+    );
+    await expect(page.getByTestId("opslens-live-install-pods")).toContainText(
+      "파드"
+    );
+    await expect(page.getByTestId("opslens-live-install-route")).toContainText(
+      /Route (없음|있음)|확인 중/
+    );
+    await expect(page.getByTestId("opslens-live-install-source")).toContainText(
+      "출처: 실시간 OCP 리소스 API"
+    );
+    await expect(page.getByTestId("dashboard-data-source")).toContainText(
+      /데모 데이터|실데이터/
+    );
+
+    await page.getByTestId("language-en-toggle").click();
+    await expect(page.getByTestId("opslens-live-install-status")).toContainText(
+      "Live CRC install signal"
+    );
+    await expect(page.getByTestId("opslens-live-install-source")).toContainText(
+      "source: live OCP resource API"
+    );
+  });
+
   test("AC-UI-004 keeps KO/EN switching consistent and customer masthead stays compact", async ({
     page
   }) => {

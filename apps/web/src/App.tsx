@@ -43,6 +43,7 @@ import {
   OcpResourceExplorer,
   type OcpResourcePreset
 } from "./components/OcpResourceExplorer";
+import { OpsLensLiveInstallStatus } from "./components/OpsLensLiveInstallStatus";
 import { OpsLensAdminDashboard } from "./components/OpsLensAdminDashboard";
 import { OperationsDashboard } from "./components/OperationsDashboard";
 import {
@@ -1293,6 +1294,7 @@ export default function App() {
                 {copy.closure}
               </a>
             </section>
+            <OpsLensLiveInstallStatus language={language} />
             <OperationsDashboard dashboard={dashboard} language={language} />
             <OpsLensAdminDashboard language={language} />
             <ConsoleEvidencePane

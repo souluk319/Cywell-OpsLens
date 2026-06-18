@@ -11,6 +11,8 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the local web shell has KOMSCO/OpsLens assistant branding and KO/EN contracts protected by a verifier
 - the customer masthead no longer renders the long internal install/demo/runbook chip stack; those details now live in a collapsed operational details row
 - the operational details summary now separates the live OCP API signal from the dashboard data source, so the UI can honestly show `OCP 실시간 연결` while still labeling mock dashboard content as `데모 데이터`
+- the dashboard now includes a dedicated live CRC install status panel that reads `OpsLensInstallation`, Deployment, Pod, and Route state through the read-only OCP resource API instead of treating the static dashboard cards as live cluster truth
+- the latest live CRC read shows the install object plus API/dashboard/vector workloads visible, `model-runtime` blocked by image pull, and no dashboard Route object yet; that gap is now visible in the product shell instead of being hidden in chat history
 - Korean assistant surfaces now use `KOMSCO AI 어시스턴트` instead of mixed English branding, and the masthead user menu matches the OpenShift demo identity `kubeadmin`
 - the Korean shell status copy has been polished so customer-facing CRC/preview surfaces avoid developer-only wording
 - the shell now names standalone preview versus ConsolePlugin route/proxy mode
@@ -181,8 +183,9 @@ Latest non-mutating checks:
 
 | Command | Result | Note |
 | --- | --- | --- |
-| `npm run verify:web-shell` | PASS | 0 fail, 54 checks after the installed ConsolePlugin proxy-mode lane; includes AC-UI-007 coverage for `surface=console-plugin`, UserToken proxy routing, and read-only/plan-only Assistant copy |
-| `npm run -w @kugnus/web build` | PASS | TypeScript, Vite, and ConsolePlugin bundle completed after the Assistant smoke lane |
+| `npm run verify:web-shell` | PASS | 0 fail, 56 checks after the live CRC install status lane; includes the compact masthead, operational details row, live install panel, and installed ConsolePlugin proxy-mode AC-UI-007 coverage |
+| `npm run -w @kugnus/web build` | PASS | TypeScript, Vite, and ConsolePlugin bundle completed after the live CRC install status lane |
+| `npx playwright test -g "AC-LIVE-001"` | PASS | Live install panel renders separately from demo dashboard data and keeps the OCP resource API read-only boundary visible |
 | `npx playwright test -g "AC-UI-004\\|AC-CTX-001"` | PASS | KO/EN shell and Assistant smoke card render; context sync/action plan API are ready and cluster mutation is blocked |
 | `npx playwright test -g "AC-UI-004"` | PASS | KO/EN shell now shows the route-backed CRC install signal and 19443 as port-forward fallback |
 | in-app browser smoke | PASS | Assistant popover showed `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, and `클러스터 변경: 차단` |

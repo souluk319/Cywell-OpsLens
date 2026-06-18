@@ -580,6 +580,100 @@ button {
   white-space: nowrap;
 }
 
+.live-install-status {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid #b8bbbe;
+  border-left: 4px solid #009596;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.live-install-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.live-install-heading h2 {
+  margin: 0;
+  color: #151515;
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.live-install-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.live-install-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.live-install-metric {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.live-install-metric span,
+.live-install-source span {
+  display: block;
+  color: #6a6e73;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.live-install-metric strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  margin-top: 4px;
+  color: #151515;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.live-install-workloads,
+.live-install-blockers,
+.live-install-source {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.live-install-source {
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.live-install-error {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 7px 9px;
+  border: 1px solid #f4c145;
+  border-radius: 6px;
+  background: #fff4cc;
+  color: #3c3c3c;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(320px, 1.25fr) repeat(2, minmax(190px, 0.75fr));
@@ -2604,6 +2698,19 @@ button {
 
   .readiness-jump {
     justify-self: start;
+  }
+
+  .live-install-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .live-install-actions {
+    justify-content: flex-start;
+  }
+
+  .live-install-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
 }

@@ -73,6 +73,9 @@ const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 const e2eSource = await readText("tests/e2e/mvp-0.1.spec.ts");
+const liveInstallSource = await readText(
+  "apps/web/src/components/OpsLensLiveInstallStatus.tsx"
+);
 const mastheadSource = sourceSection(
   appSource,
   '<header className="masthead"',
@@ -192,6 +195,27 @@ expectCheck(
     stylesSource.includes(".opslens-status-detail-grid") &&
     e2eSource.includes("customer masthead stays compact"),
   "internal install/demo evidence is available in collapsed details instead of cluttering the OpenShift masthead"
+);
+
+expectCheck(
+  "live CRC install status panel",
+  appSource.includes("<OpsLensLiveInstallStatus language={language} />") &&
+    liveInstallSource.includes('data-testid="opslens-live-install-status"') &&
+    liveInstallSource.includes('data-testid="opslens-live-install-ocp"') &&
+    liveInstallSource.includes('data-testid="opslens-live-install-workloads"') &&
+    liveInstallSource.includes('data-testid="opslens-live-install-pods"') &&
+    liveInstallSource.includes('data-testid="opslens-live-install-route"') &&
+    liveInstallSource.includes('data-testid="opslens-live-install-blockers"') &&
+    liveInstallSource.includes("opslensinstallations") &&
+    liveInstallSource.includes("deployments") &&
+    liveInstallSource.includes("pods") &&
+    liveInstallSource.includes("routes") &&
+    liveInstallSource.includes("source: live OCP resource API") &&
+    liveInstallSource.includes("출처: 실시간 OCP 리소스 API") &&
+    stylesSource.includes(".live-install-status") &&
+    stylesSource.includes(".live-install-grid") &&
+    e2eSource.includes("AC-LIVE-001 shows live OpsLens install state"),
+  "dashboard reads the live CRC OpsLensInstallation, workload, pod, and route state instead of relying only on command text"
 );
 
 expectCheck(
