@@ -1,0 +1,49 @@
+name: Deploy Cywell OpsLens Demo Brief
+
+on:
+  push:
+    branches:
+      - main
+      - feat/OpsLens-Dev0.1.5
+    paths:
+      - docs/product-goals/cywell-opslens-console-mod/presentation/**
+      - .github/workflows/deploy-demo-brief.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build static demo brief site
+        run: |
+          mkdir -p public
+          cp -R docs/product-goals/cywell-opslens-console-mod/presentation/* public/
+          cp docs/product-goals/cywell-opslens-console-mod/presentation/cywell-opslens-demo-brief-2026-06-18.html public/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

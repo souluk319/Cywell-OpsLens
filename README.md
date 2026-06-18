@@ -1,3 +1,5 @@
+> Demo brief: [Cywell OpsLens KOMSCO Edition](https://souluk319.github.io/Cywell-OpsLens/)
+
 # Cywell OpsLens
 
 MVP 0.1 starts as a console-shaped, read-only prototype for an OpenShift operations AI product. It keeps the dashboard primary, keeps the assistant out of the evidence area, includes a live OpenShift API lane for local CRC/OCP validation, and now exposes the first Cywell OpsLens Lightspeed MCP integration contract.
