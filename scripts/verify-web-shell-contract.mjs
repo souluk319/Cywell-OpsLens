@@ -72,6 +72,12 @@ const paritySource = await readText("apps/web/src/consoleParity.ts");
 const parityComponentSource = await readText(
   "apps/web/src/components/OcpConsoleParityMatrix.tsx"
 );
+const actionPanelSource = await readText(
+  "apps/web/src/components/OcpConsoleActionPanel.tsx"
+);
+const resourceExplorerSource = await readText(
+  "apps/web/src/components/OcpResourceExplorer.tsx"
+);
 const adminSource = await readText("apps/web/src/components/OpsLensAdminDashboard.tsx");
 const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
@@ -556,9 +562,14 @@ expectCheck(
     appSource.includes("setEvidenceView(item.evidenceView)") &&
     appSource.includes("setResourcePreset({") &&
     appSource.includes("function runUtilityAction") &&
+    appSource.includes("function openActiveNavigationSurface") &&
+    appSource.includes("function askAssistantForActiveNavigation") &&
     appSource.includes("setNavigationCommand(label)") &&
     appSource.includes("setAssistantOpen(true)") &&
     appSource.includes("scrollToNavigationTarget(targetSelector)") &&
+    actionPanelSource.includes('data-testid="console-active-action"') &&
+    actionPanelSource.includes('data-testid="console-active-open-surface"') &&
+    actionPanelSource.includes('data-testid="console-active-ask-assistant"') &&
     evidenceSource.includes('data-testid="evidence-view-alerts"') &&
     evidenceSource.includes('data-testid="evidence-view-logs"') &&
     evidenceSource.includes('data-testid="evidence-view-yaml"') &&
@@ -1487,6 +1498,32 @@ expectCheck(
     stylesSource.includes(".console-parity-matrix") &&
     stylesSource.includes(".parity-table"),
   "dashboard renders a version-pinned table mapping each native OCP console path to an OpsLens action and acceptance contract"
+);
+
+expectCheck(
+  "active OCP console action panel",
+  appSource.includes("<OcpConsoleActionPanel") &&
+    appSource.includes("activeItem={activeNavigation}") &&
+    appSource.includes("onAskAssistant={askAssistantForActiveNavigation}") &&
+    actionPanelSource.includes('data-testid="console-active-action"') &&
+    actionPanelSource.includes('data-active-console-item={activeItem.id}') &&
+    actionPanelSource.includes('data-testid="console-active-surface"') &&
+    actionPanelSource.includes('data-testid="console-active-command"') &&
+    actionPanelSource.includes('data-testid="console-active-acceptance"') &&
+    actionPanelSource.includes('data-testid="console-active-preferred-resources"') &&
+    stylesSource.includes(".console-action-panel"),
+  "each selected OCP console item renders its active surface, action, acceptance, and preferred API contract"
+);
+
+expectCheck(
+  "resource preset auto-load contract",
+  resourceExplorerSource.includes('data-testid="ocp-active-preset"') &&
+    resourceExplorerSource.includes('data-testid="ocp-active-preset-query"') &&
+    resourceExplorerSource.includes('data-testid="ocp-active-preset-resources"') &&
+    resourceExplorerSource.includes("namespaceOverride") &&
+    resourceExplorerSource.includes("void loadSelectedResource(preferredResource") &&
+    stylesSource.includes(".ocp-active-preset"),
+  "Resource Explorer auto-loads the active navigation preset and exposes preferred API targets"
 );
 
 expectCheck(

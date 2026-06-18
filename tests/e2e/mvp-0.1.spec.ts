@@ -30,6 +30,36 @@ async function waitForReadinessStatus(
   );
 }
 
+async function expectActiveConsoleAction(
+  page: Page,
+  itemId: string,
+  label: string,
+  surface: string,
+  query?: string
+) {
+  await expect(page.getByTestId("console-active-action")).toHaveAttribute(
+    "data-active-console-item",
+    itemId
+  );
+  await expect(page.getByTestId("console-active-action")).toContainText(label);
+  await expect(page.getByTestId("console-active-surface")).toContainText(surface);
+  await expect(page.getByTestId("console-active-command")).toContainText(/\S/);
+  await expect(page.getByTestId("console-active-acceptance")).toContainText(/\S/);
+
+  if (query) {
+    await expect(page.getByTestId("console-active-preset-query")).toContainText(
+      query
+    );
+    await expect(page.getByTestId("console-active-preferred-resources")).toBeVisible();
+    await expect(page.getByTestId("ocp-active-preset-query")).toContainText(
+      query
+    );
+    await expect(page.getByTestId("ocp-active-preset-resources")).toContainText(
+      /\S/
+    );
+  }
+}
+
   function configuredEndpointValuesForTest() {
     const values = new Set<string>();
     const common = new Set(["true", "false", "0", "1", "yes", "no"]);
@@ -197,101 +227,181 @@ async function waitForReadinessStatus(
     );
 
     const resourceNavigation = [
-      ["search", "Search", "pods deployments routes services namespaces"],
-      ["events", "Events", "events"],
-      ["operatorhub", "OperatorHub", "packagemanifests catalogsources"],
+      [
+        "search",
+        "Search",
+        "Resource explorer",
+        "pods deployments routes services namespaces"
+      ],
+      ["events", "Events", "Resource explorer", "events"],
+      [
+        "operatorhub",
+        "OperatorHub",
+        "OpsLens admin",
+        "packagemanifests catalogsources"
+      ],
       [
         "installed-operators",
         "Installed Operators",
+        "Resource explorer",
         "clusterserviceversions subscriptions installplans deployments"
       ],
-      ["helm", "Helm", "helm secrets configmaps"],
-      ["workloads", "Pods", "pods"],
+      ["helm", "Helm", "Resource explorer", "helm secrets configmaps"],
+      ["workloads", "Pods", "Resource explorer", "pods"],
       [
         "workload-controllers",
         "Workload controllers",
+        "Resource explorer",
         "deployments deploymentconfigs statefulsets daemonsets jobs cronjobs replicasets horizontalpodautoscalers"
       ],
       [
         "networking",
         "Routes, Services, Ingresses",
+        "Resource explorer",
         "routes services ingresses endpoints endpointslices"
       ],
       [
         "network-policies",
         "NetworkPolicies",
+        "Resource explorer",
         "networkpolicies dnses ingresses routes"
       ],
       [
         "storage",
         "PVCs, PVs, StorageClasses",
+        "Resource explorer",
         "persistentvolumeclaims persistentvolumes storageclasses volumesnapshots"
       ],
       [
         "builds",
         "Builds and ImageStreams",
+        "Resource explorer",
         "builds buildconfigs imagestreams imagestreamtags"
       ],
-      ["compute", "Nodes and Machines", "nodes machines machinesets machineconfigpools"],
+      [
+        "compute",
+        "Nodes and Machines",
+        "Resource explorer",
+        "nodes machines machinesets machineconfigpools"
+      ],
       [
         "user-management",
         "Users, Groups, Roles",
+        "Resource explorer",
         "users groups serviceaccounts roles rolebindings clusterroles clusterrolebindings"
       ],
       [
         "namespaces-crds",
         "Namespaces and CRDs",
+        "Resource explorer",
         "namespaces customresourcedefinitions apiservices resourcequotas limitranges"
       ]
     ] as const;
 
-    for (const [navId, label, query] of resourceNavigation) {
+    for (const [navId, label, surface, query] of resourceNavigation) {
       await page.getByTestId(`console-nav-${navId}`).click();
       await expect(feedback).toContainText(label);
+      await expectActiveConsoleAction(page, navId, label, surface, query);
       await expect(page.getByTestId("ocp-resource-search")).toHaveValue(query);
       await expect(page.getByTestId(`console-parity-row-${navId}`)).toBeVisible();
     }
 
+    await page.getByTestId("console-nav-workloads").click();
+    await page.getByTestId("console-active-open-surface").click();
+    await expect(page.getByTestId("ocp-active-preset-query")).toContainText(
+      "pods"
+    );
+    await page.getByTestId("console-active-ask-assistant").click();
+    await expect(page.getByTestId("assistant-popover")).toBeVisible();
+    await expect(page.getByTestId("assistant-draft")).toHaveValue(/Pods/);
+    await page.getByTestId("assistant-close").click();
+
     await page.getByTestId("console-nav-logs").click();
     await expect(feedback).toContainText("Logs");
+    await expectActiveConsoleAction(page, "logs", "Logs", "Evidence pane");
     await expect(page.getByTestId("log-viewport")).toBeVisible();
 
     await page.getByTestId("console-nav-alerting").click();
     await expect(feedback).toContainText("Alerting");
+    await expectActiveConsoleAction(page, "alerting", "Alerting", "Evidence pane");
     await expect(page.getByTestId("alert-evidence-table")).toBeVisible();
 
     await page.getByTestId("console-nav-overview").click();
     await expect(feedback).toContainText("Overview");
+    await expectActiveConsoleAction(
+      page,
+      "overview",
+      "Overview",
+      "Cluster overview"
+    );
     await expect(
       page.getByRole("heading", { name: "OpenShift Console Overview" })
     ).toBeVisible();
 
     await page.getByTestId("console-nav-favorites").click();
     await expect(feedback).toContainText("Pinned navigation");
+    await expectActiveConsoleAction(
+      page,
+      "favorites",
+      "Pinned navigation",
+      "OpsLens dashboard"
+    );
     await expect(page.getByTestId("console-parity-matrix")).toBeVisible();
 
     await page.getByTestId("console-nav-software-catalog").click();
     await expect(feedback).toContainText("Software Catalog");
+    await expectActiveConsoleAction(
+      page,
+      "software-catalog",
+      "Software Catalog",
+      "OpsLens admin"
+    );
     await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
 
     await page.getByTestId("console-nav-dashboards").click();
     await expect(feedback).toContainText("Dashboards");
+    await expectActiveConsoleAction(
+      page,
+      "dashboards",
+      "Dashboards",
+      "OpsLens dashboard"
+    );
     await expect(page.getByTestId("opslens-incident-metrics")).toBeVisible();
 
     await page.getByTestId("console-nav-metrics").click();
     await expect(feedback).toContainText("Metrics");
+    await expectActiveConsoleAction(
+      page,
+      "metrics",
+      "Metrics",
+      "OpsLens dashboard"
+    );
     await expect(page.getByTestId("opslens-incident-metrics")).toBeVisible();
 
     await page.getByTestId("console-nav-administration").click();
     await expect(feedback).toContainText("Cluster Settings");
+    await expectActiveConsoleAction(
+      page,
+      "administration",
+      "Cluster Settings",
+      "OpsLens admin",
+      "clusterversions clusteroperators consoles consoleplugins"
+    );
     await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
 
     await page.getByTestId("console-nav-opslens-admin").click();
     await expect(feedback).toContainText("OpsLens Admin");
+    await expectActiveConsoleAction(
+      page,
+      "opslens-admin",
+      "OpsLens Admin",
+      "OpsLens admin"
+    );
     await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
 
     await page.getByTestId("console-nav-opsbrain").click();
     await expect(feedback).toContainText("OpsBrain");
+    await expectActiveConsoleAction(page, "opsbrain", "OpsBrain", "OpsBrain");
     await expect(page.getByTestId("opslens-opsbrain-system")).toBeVisible();
     await expect(page.getByTestId("opslens-opsbrain-system")).toContainText(
       "No fine-tuning growth system"
@@ -299,6 +409,12 @@ async function waitForReadinessStatus(
 
     await page.getByTestId("console-nav-komsco-assistant").click();
     await expect(feedback).toContainText("KOMSCO AI Assistant");
+    await expectActiveConsoleAction(
+      page,
+      "komsco-assistant",
+      "KOMSCO AI Assistant",
+      "KOMSCO assistant"
+    );
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
   });
 

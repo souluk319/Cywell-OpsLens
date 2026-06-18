@@ -582,6 +582,107 @@ button {
   white-space: nowrap;
 }
 
+.console-action-panel {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid #8bc1c7;
+  border-radius: 6px;
+  background: #f5fbfb;
+}
+
+.console-action-heading,
+.console-action-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.console-action-heading h2 {
+  margin: 2px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.console-action-grid,
+.console-action-detail-grid {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.console-action-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.console-action-detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.console-action-grid article,
+.console-action-detail-grid > div {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.console-action-grid span,
+.console-action-resources span {
+  display: block;
+  color: #6a6e73;
+  font-size: 0.72rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.console-action-grid strong {
+  display: block;
+  margin-top: 3px;
+  color: #151515;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.console-action-detail-grid h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 5px;
+  color: #151515;
+  font-size: 0.8rem;
+}
+
+.console-action-detail-grid p {
+  margin: 0;
+  color: #3c3c3c;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.console-action-resources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.console-action-resources code {
+  padding: 4px 6px;
+  border: 1px solid #bee1e6;
+  border-radius: 5px;
+  background: #fff;
+  color: #004b5c;
+  font-size: 0.74rem;
+}
+
+.console-action-controls {
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+
 .console-parity-matrix {
   margin: 0 0 12px;
   padding: 12px;
@@ -1865,6 +1966,34 @@ button {
   color: #4f5255;
   font-size: 0.82rem;
   font-weight: 750;
+}
+
+.ocp-active-preset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin: -4px 0 12px;
+  padding: 8px 10px;
+  border: 1px solid #bee1e6;
+  border-radius: 6px;
+  background: #f5fbfb;
+  color: #3c3c3c;
+  font-size: 0.78rem;
+}
+
+.ocp-active-preset strong {
+  color: #151515;
+}
+
+.ocp-active-preset code {
+  max-width: 100%;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: #fff;
+  color: #004b5c;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .overview-grid {

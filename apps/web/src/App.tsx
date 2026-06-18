@@ -44,6 +44,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { AssistantPopover } from "./components/AssistantPopover";
 import { ConsoleEvidencePane } from "./components/ConsoleEvidencePane";
+import { OcpConsoleActionPanel } from "./components/OcpConsoleActionPanel";
 import { OcpConsoleOverview } from "./components/OcpConsoleOverview";
 import { OcpConsoleParityMatrix } from "./components/OcpConsoleParityMatrix";
 import { OcpCoverageMatrix } from "./components/OcpCoverageMatrix";
@@ -714,6 +715,19 @@ export default function App() {
     scrollToNavigationTarget(targetSelector);
   }
 
+  function openActiveNavigationSurface() {
+    scrollToNavigationTarget(activeNavigation.targetSelector);
+  }
+
+  function askAssistantForActiveNavigation() {
+    const prompt =
+      language === "ko"
+        ? `${navLabel(activeNavigation, language)} 기능을 현재 OpenShift 컨텍스트에서 읽기 전용으로 점검해줘. ${navCommand(activeNavigation, language)}`
+        : `Review the ${navLabel(activeNavigation, language)} function against the current OpenShift context in read-only mode. ${navCommand(activeNavigation, language)}`;
+    setDraft(prompt);
+    setAssistantOpen(true);
+  }
+
   function openAssistantFromEvidence() {
     setAssistantOpen(true);
     void askAssistant();
@@ -1171,6 +1185,12 @@ export default function App() {
               </a>
             </section>
             <OpsLensLiveInstallStatus language={language} />
+            <OcpConsoleActionPanel
+              activeItem={activeNavigation}
+              language={language}
+              onAskAssistant={askAssistantForActiveNavigation}
+              onOpenSurface={openActiveNavigationSurface}
+            />
             <OcpConsoleParityMatrix
               activeItemId={activeNavId}
               language={language}

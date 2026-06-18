@@ -141,7 +141,10 @@ const explorerCopy = {
     rbacUnknown: "unknown",
     rbacDenied: "denied",
     unsupported: "unsupported",
-    pending: "pending"
+    pending: "pending",
+    activePreset: "Active menu preset",
+    preferredApis: "Preferred APIs",
+    autoLoaded: "auto-loaded"
   },
   ko: {
     eyebrow: "실시간 OpenShift API",
@@ -224,7 +227,10 @@ const explorerCopy = {
     rbacUnknown: "확인 불가",
     rbacDenied: "거부",
     unsupported: "미지원",
-    pending: "대기 중"
+    pending: "대기 중",
+    activePreset: "활성 메뉴 프리셋",
+    preferredApis: "우선 API",
+    autoLoaded: "자동 조회"
   }
 } as const;
 
@@ -390,6 +396,8 @@ export function OcpResourceExplorer({
 
     setQuery(navigationPreset.query);
     setNamespace(navigationPreset.namespace ?? "");
+    setLabelSelector("");
+    setFieldSelector("");
     if (navigationPreset.detailView) {
       setDetailView(navigationPreset.detailView);
     }
@@ -414,6 +422,10 @@ export function OcpResourceExplorer({
 
     if (preferredResource) {
       setSelectedKey(resourceKey(preferredResource));
+      void loadSelectedResource(preferredResource, {
+        namespaceOverride: navigationPreset.namespace ?? "",
+        resetPage: true
+      });
     }
   }, [navigationPreset?.activationId, discovery]);
 
@@ -421,6 +433,7 @@ export function OcpResourceExplorer({
     resource = selectedResource,
     options: {
       continueToken?: string;
+      namespaceOverride?: string;
       pageIndex?: number;
       resetPage?: boolean;
     } = {}
@@ -433,7 +446,7 @@ export function OcpResourceExplorer({
     setError(null);
     try {
       const scopedNamespace = resource.namespaced
-        ? namespace.trim() || undefined
+        ? (options.namespaceOverride ?? namespace).trim() || undefined
         : undefined;
       const scopedLabelSelector = labelSelector.trim() || undefined;
       const scopedFieldSelector = fieldSelector.trim() || undefined;
@@ -622,6 +635,20 @@ export function OcpResourceExplorer({
         <span>{status?.discoveredResourceCount ?? 0} {copy.resources}</span>
         <span>{copy.tlsVerify} {status?.tlsVerify === false ? "off" : "on"}</span>
       </div>
+
+      {navigationPreset ? (
+        <div className="ocp-active-preset" data-testid="ocp-active-preset">
+          <span className="status-pill ready">{copy.autoLoaded}</span>
+          <strong>{copy.activePreset}</strong>
+          <span data-testid="ocp-active-preset-query">
+            {navigationPreset.query}
+          </span>
+          <span>{copy.preferredApis}</span>
+          <code data-testid="ocp-active-preset-resources">
+            {navigationPreset.preferredResources.join(" ")}
+          </code>
+        </div>
+      ) : null}
 
       {error || status?.error ? (
         <div className="ocp-error" data-testid="ocp-error">
