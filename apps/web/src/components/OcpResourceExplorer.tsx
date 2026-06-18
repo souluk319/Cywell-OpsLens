@@ -46,6 +46,28 @@ function resourceKey(resource: OcpApiResource) {
   return `${resource.apiVersion}/${resource.name}`;
 }
 
+function resourcePresetCandidates(resource: OcpApiResource) {
+  return [
+    resourceKey(resource),
+    resource.name,
+    resource.kind,
+    ...resource.shortNames,
+    ...resource.categories
+  ].map((candidate) => candidate.toLowerCase());
+}
+
+function resourceMatchesPreferredPreset(
+  resource: OcpApiResource,
+  preferredResources: string[]
+) {
+  const preferred = new Set(
+    preferredResources.map((resourceName) => resourceName.toLowerCase())
+  );
+  return resourcePresetCandidates(resource).some((candidate) =>
+    preferred.has(candidate)
+  );
+}
+
 export interface OcpResourcePreset {
   activationId: string;
   query: string;
@@ -153,6 +175,9 @@ const explorerCopy = {
     logsStatus: "Logs",
     relatedStatus: "Related",
     mutationGuard: "Mutation guard",
+    presetMatch: "Preset match",
+    matched: "matched",
+    missing: "missing",
     itemsReturned: "items",
     notApplicable: "not applicable",
     logLines: "log lines",
@@ -251,6 +276,9 @@ const explorerCopy = {
     logsStatus: "로그",
     relatedStatus: "관련",
     mutationGuard: "변경 차단",
+    presetMatch: "프리셋 매칭",
+    matched: "매칭됨",
+    missing: "누락",
     itemsReturned: "개 항목",
     notApplicable: "해당 없음",
     logLines: "개 로그 라인",
@@ -437,16 +465,11 @@ export function OcpResourceExplorer({
     );
     const preferredResource = discovery?.resources
       .filter((resource) => resource.safeToList)
-      .find((resource) => {
-        const candidates = [
-          resourceKey(resource),
-          resource.name,
-          resource.kind,
-          ...resource.shortNames,
-          ...resource.categories
-        ].map((candidate) => candidate.toLowerCase());
-        return candidates.some((candidate) => preferred.has(candidate));
-      });
+      .find((resource) =>
+        resourcePresetCandidates(resource).some((candidate) =>
+          preferred.has(candidate)
+        )
+      );
 
     if (preferredResource) {
       setSelectedKey(resourceKey(preferredResource));
@@ -636,6 +659,21 @@ export function OcpResourceExplorer({
   const selectedApiStatus = selectedResource
     ? `${selectedResource.kind} ${selectedResource.apiVersion}/${selectedResource.name}`
     : copy.noListableResource;
+  const presetMatchState = !navigationPreset
+    ? "not-active"
+    : selectedResource &&
+        resourceMatchesPreferredPreset(
+          selectedResource,
+          navigationPreset.preferredResources
+        )
+      ? "matched"
+      : "missing";
+  const presetMatchStatus =
+    presetMatchState === "matched" && selectedResource
+      ? `${copy.matched}: ${resourceKey(selectedResource)}`
+      : presetMatchState === "missing"
+        ? copy.missing
+        : copy.notApplicable;
   const listSmokeState = listLoading ? "loading" : list ? "ready" : "pending";
   const listSmokeStatus = listLoading
     ? copy.loadingItems
@@ -751,6 +789,15 @@ export function OcpResourceExplorer({
       >
         <strong>{copy.functionSmoke}</strong>
         <dl>
+          <div>
+            <dt>{copy.presetMatch}</dt>
+            <dd
+              data-preset-match={presetMatchState}
+              data-testid="ocp-smoke-preset-match"
+            >
+              {presetMatchStatus}
+            </dd>
+          </div>
           <div>
             <dt>{copy.selectedApi}</dt>
             <dd data-testid="ocp-smoke-selected-api">{selectedApiStatus}</dd>

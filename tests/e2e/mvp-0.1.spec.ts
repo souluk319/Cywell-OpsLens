@@ -95,6 +95,14 @@ async function expectActiveConsoleAction(
       /\S/
     );
     await expect(page.getByTestId("ocp-function-smoke")).toBeVisible();
+    await expect(page.getByTestId("ocp-smoke-preset-match")).toHaveAttribute(
+      "data-preset-match",
+      "matched",
+      { timeout: 15_000 }
+    );
+    await expect(page.getByTestId("ocp-smoke-preset-match")).toContainText(
+      /\S+\/\S+/
+    );
     await expect(page.getByTestId("ocp-smoke-selected-api")).toContainText(
       /.+\s+[^/\s]+\/\S+/,
       { timeout: 15_000 }

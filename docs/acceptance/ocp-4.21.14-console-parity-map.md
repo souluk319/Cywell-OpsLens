@@ -20,7 +20,7 @@ It must not claim to replace the native OpenShift masthead, native Lightspeed dr
 | Screen mapping | Every item has a target selector and `Open surface` mounts that target. | `AC-UI-003` |
 | Function proof | Every item has function input and action proof in EN/KO. | `AC-UI-006`, `AC-UI-008` |
 | Function state effect | Evidence items switch the active evidence tab and assistant items open the KOMSCO popover. | `AC-UI-003`, `AC-UI-006` |
-| Resource smoke state | Resource preset items expose selected API, list, detail, events, logs, related, and mutation-guard states as structured UI evidence. | `AC-UI-003` |
+| Resource smoke state | Resource preset items expose preferred API match, selected API, list, detail, events, logs, related, and mutation-guard states as structured UI evidence. | `AC-UI-003` |
 | Assistant action | Every item opens KOMSCO assistant with that item context and read-only boundary. | `AC-UI-009` |
 | Read-only boundary | Resource views, evidence views, assistant drafts, and install surfaces remain read-only/plan-only unless explicitly approval-gated. | `verify:web-shell`, E2E tests |
 

@@ -1501,6 +1501,7 @@ expectCheck(
     parityMapDocSource.includes("AC-UI-009") &&
     parityMapDocSource.includes("Function state effect") &&
     parityMapDocSource.includes("Resource smoke state") &&
+    parityMapDocSource.includes("preferred API match") &&
     parityMapDocSource.includes("Every item opens KOMSCO assistant") &&
     parityMapDocSource.includes("| 25 | KOMSCO AI Assistant |") &&
     parityMapDocSource.includes("Full native OpenShift console replacement is intentionally out of scope"),
@@ -1650,6 +1651,9 @@ expectCheck(
   "resource function smoke contract",
   resourceExplorerSource.includes('data-testid="ocp-function-smoke"') &&
     resourceExplorerSource.includes('data-testid="ocp-smoke-selected-api"') &&
+    resourceExplorerSource.includes('data-testid="ocp-smoke-preset-match"') &&
+    resourceExplorerSource.includes("data-preset-match={presetMatchState}") &&
+    resourceExplorerSource.includes("resourceMatchesPreferredPreset") &&
     resourceExplorerSource.includes('data-testid="ocp-smoke-list-status"') &&
     resourceExplorerSource.includes('data-testid="ocp-smoke-detail-status"') &&
     resourceExplorerSource.includes('data-testid="ocp-smoke-events-status"') &&
@@ -1665,6 +1669,8 @@ expectCheck(
     resourceExplorerSource.includes("readOnlyGuard") &&
     stylesSource.includes(".ocp-function-smoke") &&
     e2eSource.includes('getByTestId("ocp-function-smoke")') &&
+    e2eSource.includes('getByTestId("ocp-smoke-preset-match")') &&
+    e2eSource.includes('"data-preset-match"') &&
     e2eSource.includes('data-smoke-state",') &&
     e2eSource.includes("/.+\\s+[^/\\s]+\\/\\S+/") &&
     e2eSource.includes('"ready",') &&
