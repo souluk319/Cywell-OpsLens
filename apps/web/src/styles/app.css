@@ -1996,6 +1996,52 @@ button {
   overflow-wrap: anywhere;
 }
 
+.ocp-function-smoke {
+  display: grid;
+  gap: 8px;
+  margin: -2px 0 12px;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ocp-function-smoke > strong {
+  color: #151515;
+  font-size: 0.86rem;
+}
+
+.ocp-function-smoke dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.ocp-function-smoke dl > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.ocp-function-smoke dt {
+  margin-bottom: 3px;
+  color: #6a6e73;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ocp-function-smoke dd {
+  margin: 0;
+  color: #151515;
+  font-size: 0.79rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 .admin-target-fallback-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

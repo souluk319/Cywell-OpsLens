@@ -1556,6 +1556,24 @@ expectCheck(
 );
 
 expectCheck(
+  "resource function smoke contract",
+  resourceExplorerSource.includes('data-testid="ocp-function-smoke"') &&
+    resourceExplorerSource.includes('data-testid="ocp-smoke-selected-api"') &&
+    resourceExplorerSource.includes('data-testid="ocp-smoke-list-status"') &&
+    resourceExplorerSource.includes('data-testid="ocp-smoke-detail-status"') &&
+    resourceExplorerSource.includes('data-testid="ocp-smoke-events-status"') &&
+    resourceExplorerSource.includes('data-testid="ocp-smoke-logs-status"') &&
+    resourceExplorerSource.includes('data-testid="ocp-smoke-related-status"') &&
+    resourceExplorerSource.includes('data-testid="ocp-smoke-mutation-guard"') &&
+    resourceExplorerSource.includes('selectedResource?.kind !== "Pod"') &&
+    resourceExplorerSource.includes("readOnlyGuard") &&
+    stylesSource.includes(".ocp-function-smoke") &&
+    e2eSource.includes('getByTestId("ocp-function-smoke")') &&
+    e2eSource.includes('getByTestId("ocp-smoke-mutation-guard")'),
+  "Resource Explorer exposes list/detail/events/logs/related/read-only status for every active console menu preset"
+);
+
+expectCheck(
   "localized navigation structure",
   appSource.includes('data-testid={`console-nav-section-${sectionTestId(section)}`}') &&
     appSource.includes('data-testid="console-breadcrumb"') &&

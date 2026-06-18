@@ -57,6 +57,12 @@ async function expectActiveConsoleAction(
     await expect(page.getByTestId("ocp-active-preset-resources")).toContainText(
       /\S/
     );
+    await expect(page.getByTestId("ocp-function-smoke")).toBeVisible();
+    await expect(page.getByTestId("ocp-smoke-selected-api")).toContainText(/\S/);
+    await expect(page.getByTestId("ocp-smoke-list-status")).toContainText(/\S/);
+    await expect(page.getByTestId("ocp-smoke-mutation-guard")).toContainText(
+      "read-only"
+    );
   }
 }
 
@@ -472,6 +478,10 @@ async function expectActiveConsoleAction(
     await page.getByTestId("console-nav-workloads").click();
     await expect(feedback).toContainText("파드");
     await expect(page.getByTestId("ocp-resource-search")).toHaveValue("pods");
+    await expect(page.getByTestId("ocp-function-smoke")).toBeVisible();
+    await expect(page.getByTestId("ocp-smoke-mutation-guard")).toContainText(
+      "읽기 전용"
+    );
 
     await page.getByTestId("console-nav-workload-controllers").click();
     await expect(feedback).toContainText("워크로드 컨트롤러");
@@ -13932,6 +13942,28 @@ async function expectActiveConsoleAction(
     );
     await expect(page.getByTestId("ocp-resource-access")).toContainText(
       "RBAC list allowed"
+    );
+    await expect(page.getByTestId("ocp-function-smoke")).toBeVisible();
+    await expect(page.getByTestId("ocp-smoke-selected-api")).toContainText(
+      "Pod v1/pods"
+    );
+    await expect(page.getByTestId("ocp-smoke-list-status")).toContainText(
+      "items"
+    );
+    await expect(page.getByTestId("ocp-smoke-detail-status")).toContainText(
+      firstPod?.metadata.name ?? ""
+    );
+    await expect(page.getByTestId("ocp-smoke-events-status")).toContainText(
+      /events|RBAC/
+    );
+    await expect(page.getByTestId("ocp-smoke-logs-status")).toContainText(
+      /log lines|RBAC|pending/
+    );
+    await expect(page.getByTestId("ocp-smoke-related-status")).toContainText(
+      /owners|children/
+    );
+    await expect(page.getByTestId("ocp-smoke-mutation-guard")).toContainText(
+      "no create/update/patch/delete"
     );
     await page.getByTestId("ocp-label-selector").fill(labelSelector);
     await page.getByTestId("ocp-resource-load").click();

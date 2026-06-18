@@ -144,7 +144,19 @@ const explorerCopy = {
     pending: "pending",
     activePreset: "Active menu preset",
     preferredApis: "Preferred APIs",
-    autoLoaded: "auto-loaded"
+    autoLoaded: "auto-loaded",
+    functionSmoke: "Function smoke",
+    selectedApi: "Selected API",
+    listStatus: "List",
+    detailStatus: "Detail",
+    eventsStatus: "Events",
+    logsStatus: "Logs",
+    relatedStatus: "Related",
+    mutationGuard: "Mutation guard",
+    itemsReturned: "items",
+    notApplicable: "not applicable",
+    logLines: "log lines",
+    readOnlyGuard: "read-only only: get/list/watch, no create/update/patch/delete"
   },
   ko: {
     eyebrow: "실시간 OpenShift API",
@@ -230,7 +242,19 @@ const explorerCopy = {
     pending: "대기 중",
     activePreset: "활성 메뉴 프리셋",
     preferredApis: "우선 API",
-    autoLoaded: "자동 조회"
+    autoLoaded: "자동 조회",
+    functionSmoke: "기능 스모크",
+    selectedApi: "선택 API",
+    listStatus: "목록",
+    detailStatus: "상세",
+    eventsStatus: "이벤트",
+    logsStatus: "로그",
+    relatedStatus: "관련",
+    mutationGuard: "변경 차단",
+    itemsReturned: "개 항목",
+    notApplicable: "해당 없음",
+    logLines: "개 로그 라인",
+    readOnlyGuard: "읽기 전용: get/list/watch만 사용, create/update/patch/delete 없음"
   }
 } as const;
 
@@ -278,6 +302,10 @@ function formatMatrixAccess(
     return `${verb} ${copy.rbacUnknown}`;
   }
   return `${verb} ${copy.rbacDenied}`;
+}
+
+function countLogLines(logs: OcpPodLogsResponse | null) {
+  return logs?.logs.split(/\r?\n/).filter((line) => line.trim()).length ?? 0;
 }
 
 export function OcpResourceExplorer({
@@ -605,6 +633,40 @@ export function OcpResourceExplorer({
       : JSON.stringify(detail.raw, null, 2)
     : copy.selectObject;
 
+  const selectedApiStatus = selectedResource
+    ? `${selectedResource.kind} ${selectedResource.apiVersion}/${selectedResource.name}`
+    : copy.noListableResource;
+  const listSmokeStatus = listLoading
+    ? copy.loadingItems
+    : list
+      ? `${list.items.length} ${copy.itemsReturned} (${formatAccess(list.access.list, copy)})`
+      : copy.pending;
+  const detailSmokeStatus = detailLoading
+    ? copy.loadingObject
+    : detail
+      ? `${detail.item.kind}/${detail.item.metadata.name} (${formatAccess(detail.access.get, copy)})`
+      : list?.items.length
+        ? copy.pending
+        : copy.noItems;
+  const eventsSmokeStatus = detailLoading
+    ? copy.loadingEvents
+    : events
+      ? `${events.items.length} ${copy.events} (${formatAccess(events.access, copy)})`
+      : copy.pending;
+  const logsSmokeStatus =
+    selectedResource?.kind !== "Pod"
+      ? copy.notApplicable
+      : detailLoading
+        ? copy.loadingPodLogs
+        : logs
+          ? `${countLogLines(logs)} ${copy.logLines} (${formatAccess(logs.access, copy)})`
+          : copy.pending;
+  const relatedSmokeStatus = detailLoading
+    ? copy.loadingRelated
+    : related
+      ? `${related.owners.length} ${copy.owners} / ${related.children.length} ${copy.children}`
+      : copy.pending;
+
   return (
     <section className="ocp-explorer" aria-labelledby="ocp-explorer-title">
       <div className="section-heading compact">
@@ -649,6 +711,46 @@ export function OcpResourceExplorer({
           </code>
         </div>
       ) : null}
+
+      <div
+        className="ocp-function-smoke"
+        data-testid="ocp-function-smoke"
+        aria-label={copy.functionSmoke}
+      >
+        <strong>{copy.functionSmoke}</strong>
+        <dl>
+          <div>
+            <dt>{copy.selectedApi}</dt>
+            <dd data-testid="ocp-smoke-selected-api">{selectedApiStatus}</dd>
+          </div>
+          <div>
+            <dt>{copy.listStatus}</dt>
+            <dd data-testid="ocp-smoke-list-status">{listSmokeStatus}</dd>
+          </div>
+          <div>
+            <dt>{copy.detailStatus}</dt>
+            <dd data-testid="ocp-smoke-detail-status">{detailSmokeStatus}</dd>
+          </div>
+          <div>
+            <dt>{copy.eventsStatus}</dt>
+            <dd data-testid="ocp-smoke-events-status">{eventsSmokeStatus}</dd>
+          </div>
+          <div>
+            <dt>{copy.logsStatus}</dt>
+            <dd data-testid="ocp-smoke-logs-status">{logsSmokeStatus}</dd>
+          </div>
+          <div>
+            <dt>{copy.relatedStatus}</dt>
+            <dd data-testid="ocp-smoke-related-status">{relatedSmokeStatus}</dd>
+          </div>
+          <div>
+            <dt>{copy.mutationGuard}</dt>
+            <dd data-testid="ocp-smoke-mutation-guard">
+              {copy.readOnlyGuard}
+            </dd>
+          </div>
+        </dl>
+      </div>
 
       {error || status?.error ? (
         <div className="ocp-error" data-testid="ocp-error">
