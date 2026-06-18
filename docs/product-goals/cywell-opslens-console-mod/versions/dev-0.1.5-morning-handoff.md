@@ -7,13 +7,13 @@ Generated for the 2026-06-19 09:00 KST demo target.
 | Item | Current value |
 | --- | --- |
 | Branch | `feat/OpsLens-Dev0.1.5` |
-| Last verified checkpoint head | `8aafe32e` |
+| Last verified checkpoint evidence | `test-results/cywell-opslens-dev012-overnight-checkpoint.json` |
 | Public demo brief | https://souluk319.github.io/Cywell-OpsLens/ |
 | Local presentation HTML | `docs/product-goals/cywell-opslens-console-mod/presentation/cywell-opslens-demo-brief-2026-06-18.html` |
 | Primary checkpoint | `npm run overnight:checkpoint` |
 | Pages/demo brief gate | `npm run verify:demo-brief-pages` |
 
-The public demo brief returned HTTP 200 and included the Dev 0.1.5 dashboard screenshot reference during the 2026-06-18 23:15 KST read-only check.
+The Pages/demo brief gate now performs a read-only public URL smoke check. A reachable public page must include the current Dev 0.1.5 dashboard and KOMSCO AI Assistant evidence; transient external/network failures remain warnings so the local artifact contract stays the authoritative gate.
 
 The only expected dirty entry during the loop is the unrelated untracked idea note:
 
@@ -47,7 +47,7 @@ Cywell OpsLens is shown as an OpenShift Console extension product, not a replace
 | Visual operations dashboard | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-dashboard-desktop.png` |
 | Movable KOMSCO AI Assistant | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-assistant-movable.png` |
 | Mobile presentation surface | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-mobile-nav.png` |
-| Public demo brief delivery | `npm run verify:demo-brief-pages` plus the read-only HTTP 200 check |
+| Public demo brief delivery | `npm run verify:demo-brief-pages` checks the local artifact contract and performs a read-only public URL smoke check |
 
 ## Morning Verification Commands
 
@@ -93,7 +93,7 @@ These commands are read-only. They do not patch, apply, delete, scale, push, mir
 | Gap | Meaning | Next action |
 | --- | --- | --- |
 | Live CRC Dev 0.1.5 upgrade proof | The local package and UI are ready, but applying/upgrading on CRC is a cluster mutation. | Ask for explicit approval before pushing/replacing/installing. |
-| `gh` not on PATH | The local Pages contract passes, and the public URL returned HTTP 200, but GitHub CLI deployment status was not queried. | Use browser/GitHub UI or install/fix `gh` PATH if live workflow state is needed. |
+| `gh` not on PATH | The local Pages contract passes and the verifier performs a public URL smoke check, but GitHub CLI deployment status may still be unavailable. | Use browser/GitHub UI or install/fix `gh` PATH if live workflow state is needed. |
 | Production model runtime | CRC demo uses lightweight `mock-local` runtime. | Keep vLLM/GPU as a separate production runtime lane. |
 | Production vector store | CRC demo avoids pgvector StatefulSet/SCC friction. | Keep pgvector/storage security as a separate approval-backed lane. |
 

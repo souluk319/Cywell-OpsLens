@@ -578,6 +578,28 @@ async function expectConsoleFunctionEffect(
       })
       .toBeGreaterThan(40);
 
+    const dragBefore = await page.getByTestId("assistant-popover").boundingBox();
+    const handle = await page.getByTestId("assistant-drag-handle").boundingBox();
+    expect(dragBefore).not.toBeNull();
+    expect(handle).not.toBeNull();
+
+    await page.mouse.move((handle?.x ?? 0) + 80, (handle?.y ?? 0) + 24);
+    await page.mouse.down();
+    await page.mouse.move((handle?.x ?? 0) + 170, (handle?.y ?? 0) + 84, {
+      steps: 6
+    });
+    await page.mouse.up();
+
+    await expect
+      .poll(async () => {
+        const dragAfter = await page.getByTestId("assistant-popover").boundingBox();
+        return (
+          Math.abs((dragAfter?.x ?? 0) - (dragBefore?.x ?? 0)) +
+          Math.abs((dragAfter?.y ?? 0) - (dragBefore?.y ?? 0))
+        );
+      })
+      .toBeGreaterThan(40);
+
     await page.getByTestId("assistant-placement-toggle").click();
     await expect(page.getByTestId("assistant-placement-status")).toContainText(
       "pinned"
@@ -1128,10 +1150,22 @@ async function expectConsoleFunctionEffect(
     const feedback = page.getByTestId("console-navigation-feedback");
     const frame = page.locator(".console-frame");
 
+    await openConsoleNavItem(page, "workloads");
+    await expect(page.getByTestId("console-nav-workloads")).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+    await expect(page.getByTestId("active-page-workloads")).toBeVisible();
+
     await page.getByTestId("nav-collapse-toggle").click();
     await expect(frame).toHaveClass(/nav-collapsed/);
     await page.getByTestId("nav-collapse-toggle").click();
     await expect(frame).not.toHaveClass(/nav-collapsed/);
+    await expect(page.getByTestId("console-nav-workloads")).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
+    await expect(page.getByTestId("active-page-workloads")).toBeVisible();
 
     await page.getByTestId("masthead-app-launcher").click();
     await expect(feedback).toContainText("Application launcher focused");
@@ -1150,6 +1184,8 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
     await page.getByTestId("assistant-close").click();
 
+    await openConsoleNavItem(page, "alerting");
+    await expect(page.getByTestId("alert-table-wrap")).toBeVisible();
     await page.getByTestId("evidence-view-logs").click();
     await expect(page.getByTestId("log-viewport")).toBeVisible();
     await page.getByTestId("evidence-ask-logs").click();
@@ -2297,6 +2333,15 @@ async function expectConsoleFunctionEffect(
     request
   }) => {
     test.slow();
+
+    await openConsoleNavItem(page, "dashboards");
+    await expect(page.getByTestId("active-surface-ops-dashboard")).toBeVisible();
+    await expect(page.getByTestId("opslens-incident-metrics")).toBeVisible();
+    await expect(page.getByTestId("opslens-severity-distribution")).toContainText(
+      /critical|warning|info|success/
+    );
+    await expect(page.getByTestId("opslens-exposure-trend")).toBeVisible();
+    await expect(page.getByTestId("active-risk-list")).toBeVisible();
 
     await openConsoleNavItem(page, "opslens-admin");
     await expect(page.getByTestId("active-surface-ops-admin")).toBeVisible();

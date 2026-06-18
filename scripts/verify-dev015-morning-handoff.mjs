@@ -177,9 +177,9 @@ expectCheck(
   containsAll(plan, [
     "Pages-verifier",
     "verify:demo-brief-pages",
-    "Live GitHub Pages deployment status query requires"
+    "read-only public URL smoke gate"
   ]),
-  "0.1.5 execution plan records the Pages delivery gate"
+  "0.1.5 execution plan records the Pages delivery and live-smoke gate"
 );
 
 expectCheck(

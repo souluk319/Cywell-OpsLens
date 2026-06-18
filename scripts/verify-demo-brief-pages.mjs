@@ -10,6 +10,8 @@ const paths = {
   workflow: ".github/workflows/deploy-demo-brief.yml",
   html:
     "docs/product-goals/cywell-opslens-console-mod/presentation/cywell-opslens-demo-brief-2026-06-18.html",
+  markdown:
+    "docs/product-goals/cywell-opslens-console-mod/presentation/cywell-opslens-demo-brief-2026-06-18.md",
   presentationDir:
     "docs/product-goals/cywell-opslens-console-mod/presentation",
   evidenceOut: "test-results/cywell-opslens-demo-brief-pages.json",
@@ -118,11 +120,48 @@ function validateAssetLinks(html) {
   }
 }
 
+async function checkLivePagesUrl(url) {
+  const result = {
+    checked: true,
+    url,
+    status: null,
+    bytes: 0,
+    containsDashboardEvidence: false,
+    containsAssistantEvidence: false,
+    error: null
+  };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      signal: controller.signal
+    });
+    const text = await response.text();
+    result.status = response.status;
+    result.bytes = text.length;
+    result.containsDashboardEvidence = text.includes(
+      "dev015-opslens-dashboard-desktop.png"
+    );
+    result.containsAssistantEvidence =
+      text.includes("KOMSCO AI Assistant") ||
+      text.includes("KOMSCO AI 어시스턴트");
+  } catch (error) {
+    result.error = error instanceof Error ? error.message : String(error);
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  return result;
+}
+
 async function main() {
-  const [readme, workflowText, html] = await Promise.all([
+  const [readme, workflowText, html, markdown] = await Promise.all([
     readText(paths.readme),
     readText(paths.workflow),
-    readText(paths.html)
+    readText(paths.html),
+    readText(paths.markdown)
   ]);
 
   const firstLine = readme.split(/\r?\n/)[0] ?? "";
@@ -192,7 +231,38 @@ async function main() {
     "route/DNS troubleshooting screenshot is not included in presentation"
   );
 
+  expectCheck(
+    "presentation markdown current 0.1.5 scope",
+    markdown.includes("Dev 0.1.5 UI/package/demo evidence") &&
+      markdown.includes("Dev 0.1.5 Demo Improvements") &&
+      !markdown.includes("The 0.1.5 assistant polish is not finished yet") &&
+      !markdown.includes("558b877f Finish OpsLens 0.1.4 console API"),
+    "presentation Markdown reflects the current 0.1.5 evidence scope",
+    "presentation Markdown still contains stale 0.1.4/unfinished 0.1.5 wording"
+  );
+
   validateAssetLinks(html);
+
+  const livePages = await checkLivePagesUrl(expectedUrl);
+  if (
+    livePages.status === 200 &&
+    livePages.containsDashboardEvidence &&
+    livePages.containsAssistantEvidence
+  ) {
+    pass(
+      "public Pages URL smoke",
+      `HTTP 200 and current Dev 0.1.5 dashboard/assistant evidence are present`,
+      { livePages }
+    );
+  } else {
+    warn(
+      "public Pages URL smoke",
+      livePages.error
+        ? `live Pages smoke skipped/failed externally: ${livePages.error}`
+        : `HTTP=${livePages.status}, dashboardEvidence=${livePages.containsDashboardEvidence}, assistantEvidence=${livePages.containsAssistantEvidence}`,
+      { livePages }
+    );
+  }
 
   if (commandExists("gh")) {
     pass("GitHub CLI availability", "gh is available on PATH for optional live Pages status checks");
@@ -211,6 +281,7 @@ async function main() {
     branch: gitValue(["rev-parse", "--abbrev-ref", "HEAD"], "unknown"),
     head: gitValue(["rev-parse", "--short", "HEAD"], "unknown"),
     expectedUrl,
+    livePages,
     totals: {
       pass: checks.filter((check) => check.status === "PASS").length,
       warn: warned.length,

@@ -358,7 +358,11 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
             <h3>{copy.severityDistribution}</h3>
             <Gauge size={18} aria-hidden="true" />
           </div>
-          <div className="radar-bars" aria-label={copy.severityDistributionLabel}>
+          <div
+            className="radar-bars"
+            aria-label={copy.severityDistributionLabel}
+            data-testid="opslens-severity-distribution"
+          >
             {severityDistribution.map(({ severity, count, percentage }) => (
               <span key={severity} style={barStyle(percentage)}>
                 {severity}: {count} / {totalRisks} {copy.riskCount}
@@ -372,7 +376,11 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
             <h3>{copy.exposureTrend}</h3>
             <TrendingUp size={18} aria-hidden="true" />
           </div>
-          <div className="radar-bars" aria-label={copy.exposureTrendLabel}>
+          <div
+            className="radar-bars"
+            aria-label={copy.exposureTrendLabel}
+            data-testid="opslens-exposure-trend"
+          >
             {exposureBuckets.map(({ label, count }) => (
               <span
                 key={label}

@@ -4,10 +4,10 @@
 | --- | --- |
 | Purpose | 2026-06-19 demo/presentation preparation |
 | Product lane | OpenShift Console mod delivered through OperatorHub/Software Catalog |
-| Current version proof | Dev 0.1.4 live CRC proof, Dev 0.1.5 polish target |
+| Current version proof | Dev 0.1.4 live CRC launch proof plus Dev 0.1.5 UI/package/demo evidence |
 | Reference cluster | CRC OpenShift 4.21.14 on MacBook |
 | Current branch | `feat/OpsLens-Dev0.1.5` |
-| Current head when written | `558b877f Finish OpsLens 0.1.4 console API` |
+| Current proof source | `npm run overnight:checkpoint` and `test-results/cywell-opslens-dev012-overnight-checkpoint.json` |
 
 ## One Sentence
 
@@ -247,13 +247,14 @@ CRC demo is intentionally lightweight:
 - Vector store is in-memory for demo.
 - No production secret or company OCP mutation.
 
-### Slide 8. Next 0.1.5
+### Slide 8. Dev 0.1.5 Demo Improvements
 
 - Left nav collapse/reopen.
 - One selected page at a time.
+- Visual operations dashboard instead of plain text dumps.
 - More chatbot-like KOMSCO AI Assistant.
 - Movable assistant panel.
-- Keep official ConsolePlugin path.
+- Official ConsolePlugin path remains the product route.
 
 ### Slide 9. Demo Script
 
@@ -295,8 +296,8 @@ Avoid this wording:
 - The demo environment is CRC, not a production cluster.
 - The company OCP cluster has not been mutated.
 - Production-grade model runtime and vector storage are not part of the lightweight CRC demo.
-- Some OpenShift console feature parity is still a mapping and UI implementation task, not fully complete.
-- The 0.1.5 assistant polish is not finished yet.
+- Full OpenShift console feature parity is still a product mapping and hardening task, not a claim of complete native-console replacement.
+- Live CRC upgrade/application of Dev 0.1.5 remains approval-gated; local package, UI, presentation, and verifier evidence are ready.
 
 ## Decision Locked For Tomorrow
 

@@ -223,6 +223,43 @@ next:
 - Commit and push the Pages-verifier update if checkpoint passes.
 - Restart `npm run overnight:loop` from the committed head.
 
+## Execution Checkpoint 2026-06-18 23:55 KST
+
+time: 2026-06-18 23:55 KST
+
+branch/head: `feat/OpsLens-Dev0.1.5` / `1fe8b223` before Pages-smoke commit
+
+completed:
+
+- Upgraded the Pages/demo brief verifier from a local artifact-only gate to a local artifact plus read-only public URL smoke gate.
+- The public URL smoke checks for HTTP 200 plus the current Dev 0.1.5 dashboard and KOMSCO AI Assistant evidence.
+- External Pages/network failures remain warnings rather than hard failures, so the local presentation contract stays the authoritative overnight gate.
+- Updated the 0.1.5 morning handoff to point at checkpoint evidence instead of a stale hand-entered head SHA.
+- Closed review gaps found in the UI/evidence audit:
+  - active navigation now has an e2e assertion that it survives collapse and reopen,
+  - dashboard visualization has direct e2e assertions for severity distribution, exposure trend, and active risk list,
+  - assistant movement has a direct drag assertion in addition to the preset move button,
+  - presentation Markdown no longer carries stale 0.1.4 head or unfinished 0.1.5 wording.
+
+validation:
+
+- `npm run -w @kugnus/web build`: pass.
+- `npm run verify:demo-brief-pages`: pass, `18 checks`, `0 fail`, `1 warn` for optional `gh` availability.
+- `npm run verify:dev015-handoff`: pass, `12 checks`, `0 fail`, `0 warn`.
+- `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-002b|AC-UI-005|AC-DASH-001"`: pass, `3 passed`.
+- `npm run overnight:checkpoint`: pass, `13/13` steps.
+
+blocked:
+
+- No local implementation blocker.
+- Live CRC cluster upgrade remains approval-gated.
+
+next:
+
+- Run the pending verification commands.
+- Commit and push the Pages-smoke verifier if verification passes.
+- Restart `npm run overnight:loop` from the committed head.
+
 ## Execution Checkpoint 2026-06-18 23:20 KST
 
 time: 2026-06-18 23:20 KST
