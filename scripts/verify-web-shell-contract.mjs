@@ -1510,7 +1510,12 @@ expectCheck(
     actionPanelSource.includes('data-testid="console-active-surface"') &&
     actionPanelSource.includes('data-testid="console-active-command"') &&
     actionPanelSource.includes('data-testid="console-active-acceptance"') &&
+    actionPanelSource.includes('data-testid="console-active-target-status"') &&
+    actionPanelSource.includes('data-testid="console-active-function-input"') &&
+    actionPanelSource.includes('data-testid="console-active-action-proof"') &&
     actionPanelSource.includes('data-testid="console-active-preferred-resources"') &&
+    appSource.includes("setActiveTargetStatus(\"mounted\")") &&
+    appSource.includes("setActiveTargetStatus(\"missing\")") &&
     stylesSource.includes(".console-action-panel"),
   "each selected OCP console item renders its active surface, action, acceptance, and preferred API contract"
 );

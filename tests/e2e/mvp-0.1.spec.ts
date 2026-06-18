@@ -45,6 +45,16 @@ async function expectActiveConsoleAction(
   await expect(page.getByTestId("console-active-surface")).toContainText(surface);
   await expect(page.getByTestId("console-active-command")).toContainText(/\S/);
   await expect(page.getByTestId("console-active-acceptance")).toContainText(/\S/);
+  await expect(page.getByTestId("console-active-target-status")).toHaveAttribute(
+    "data-target-status",
+    "mounted"
+  );
+  await expect(page.getByTestId("console-active-function-input")).toContainText(
+    /\S/
+  );
+  await expect(page.getByTestId("console-active-action-proof")).toContainText(
+    "mutation commands"
+  );
 
   if (query) {
     await expect(page.getByTestId("console-active-preset-query")).toContainText(

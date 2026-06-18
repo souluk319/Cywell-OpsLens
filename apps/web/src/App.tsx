@@ -462,6 +462,9 @@ export default function App() {
   );
   const [resourcePreset, setResourcePreset] =
     useState<OcpResourcePreset | null>(null);
+  const [activeTargetStatus, setActiveTargetStatus] = useState<
+    "checking" | "mounted" | "missing"
+  >("checking");
   const [dashboard, setDashboard] =
     useState<DashboardRisksResponse>(mockDashboardResponse);
   const [contextSync, setContextSync] = useState<ContextSyncResponse | null>(
@@ -662,7 +665,13 @@ export default function App() {
     }
   }
 
-  function scrollToNavigationTarget(targetSelector: string) {
+  function scrollToNavigationTarget(
+    targetSelector: string,
+    trackActiveTarget = false
+  ) {
+    if (trackActiveTarget) {
+      setActiveTargetStatus("checking");
+    }
     window.requestAnimationFrame(() => {
       const target = document.querySelector<HTMLElement>(targetSelector);
       const stage = document.querySelector<HTMLElement>(
@@ -670,7 +679,14 @@ export default function App() {
       );
 
       if (!target) {
+        if (trackActiveTarget) {
+          setActiveTargetStatus("missing");
+        }
         return;
+      }
+
+      if (trackActiveTarget) {
+        setActiveTargetStatus("mounted");
       }
 
       if (stage?.contains(target)) {
@@ -700,7 +716,7 @@ export default function App() {
         activationId: `${item.id}-${Date.now()}`
       });
     }
-    scrollToNavigationTarget(item.targetSelector);
+    scrollToNavigationTarget(item.targetSelector, true);
   }
 
   function runUtilityAction(
@@ -716,7 +732,7 @@ export default function App() {
   }
 
   function openActiveNavigationSurface() {
-    scrollToNavigationTarget(activeNavigation.targetSelector);
+    scrollToNavigationTarget(activeNavigation.targetSelector, true);
   }
 
   function askAssistantForActiveNavigation() {
@@ -732,6 +748,10 @@ export default function App() {
     setAssistantOpen(true);
     void askAssistant();
   }
+
+  useEffect(() => {
+    scrollToNavigationTarget(activeNavigation.targetSelector, true);
+  }, []);
 
   return (
     <div
@@ -1188,6 +1208,7 @@ export default function App() {
             <OcpConsoleActionPanel
               activeItem={activeNavigation}
               language={language}
+              targetStatus={activeTargetStatus}
               onAskAssistant={askAssistantForActiveNavigation}
               onOpenSurface={openActiveNavigationSurface}
             />
