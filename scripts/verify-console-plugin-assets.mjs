@@ -111,6 +111,7 @@ const pluginServiceName = "cywell-opslens-console-plugin";
 const manifest = await readJson("apps/web/dist/plugin-manifest.json");
 const packageJson = await readJson("apps/web/package.json");
 const extensions = await readJson("apps/web/console-extensions.json");
+const indexHtml = await readText("apps/web/dist/index.html");
 const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
 const serveSource = await readText("apps/web/scripts/serve.mjs");
@@ -191,6 +192,16 @@ expectCheck(
     !routeSource.includes("createElement") &&
     !routeSource.includes("%plugin__"),
   "OpsLensRoute redirects to the OpsLens app asset, passes the UserToken proxy base, and renders no embedded UI"
+);
+
+expectCheck(
+  "dashboard asset relative paths",
+  indexHtml.includes('src="./assets/') &&
+    indexHtml.includes('href="./assets/') &&
+    !indexHtml.includes('src="/assets/') &&
+    !indexHtml.includes('href="/assets/'),
+  "dashboard index uses relative asset URLs so /api/plugins/cywell-opslens/index.html can load its JavaScript and CSS",
+  "dashboard index must not use absolute /assets URLs when served from the ConsolePlugin asset path"
 );
 
 expectCheck(
