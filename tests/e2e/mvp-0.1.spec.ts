@@ -114,6 +114,34 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "aria-expanded",
       "false"
     );
+    const launcherStyle = await page
+      .getByTestId("assistant-launcher")
+      .evaluate((node) => {
+        const style = window.getComputedStyle(node);
+        return {
+          backgroundColor: style.backgroundColor,
+          borderTopWidth: style.borderTopWidth,
+          boxShadow: style.boxShadow
+        };
+      });
+    const launcherIconStyle = await page
+      .getByTestId("assistant-launcher-icon")
+      .evaluate((node) => {
+        const style = window.getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return {
+          objectFit: style.objectFit,
+          width: rect.width,
+          height: rect.height
+        };
+      });
+
+    expect(launcherStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(launcherStyle.borderTopWidth).toBe("0px");
+    expect(launcherStyle.boxShadow).toBe("none");
+    expect(launcherIconStyle.objectFit).toBe("contain");
+    expect(launcherIconStyle.width).toBeGreaterThan(48);
+    expect(launcherIconStyle.height).toBeGreaterThan(48);
 
     await openAssistant(page);
     await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
@@ -307,12 +335,16 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("masthead-user-menu")).toContainText(
       "kubeadmin"
     );
-    await expect(page.getByTestId("runtime-surface")).toContainText(
-      "독립 미리보기"
-    );
-    await expect(page.getByTestId("api-route-mode")).toContainText(
-      "로컬 API 경로"
-    );
+    await expect(page.getByTestId("api-status")).toContainText("API 연결됨");
+    await expect(
+      page.locator("[data-testid='masthead'] [data-testid='runtime-surface']")
+    ).toHaveCount(0);
+    await expect(
+      page.locator("[data-testid='masthead'] [data-testid='api-route-mode']")
+    ).toHaveCount(0);
+    await expect(
+      page.locator("[data-testid='masthead'] [data-testid='console-plugin-scope']")
+    ).toHaveCount(0);
     await expect(
       page.locator("[data-testid='masthead'] [data-testid='install-flow-strip']")
     ).toHaveCount(0);
@@ -347,6 +379,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     );
     await expect(page.getByTestId("opslens-status-details")).toContainText(
       "OLSConfig는 ValidateOnly 유지"
+    );
+    await expect(page.getByTestId("runtime-surface")).toContainText(
+      "독립 미리보기"
+    );
+    await expect(page.getByTestId("api-route-mode")).toContainText(
+      "로컬 API 경로"
+    );
+    await expect(page.getByTestId("console-plugin-scope")).toContainText(
+      "미리보기 화면"
     );
     await expect(page.getByTestId("install-flow-operatorhub")).toContainText(
       "OperatorHub: 오퍼레이터"
@@ -523,7 +564,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("assistant-smoke-mutation-boundary")
     ).toContainText("클러스터 변경");
-    await expect(page.getByLabel("현재 컨텍스트로 질문")).toBeVisible();
+    await expect(page.getByLabel("KOMSCO AI 어시스턴트에 질문")).toBeVisible();
     await expect(page.getByTestId("assistant-ask-button")).toContainText("질문");
     await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
       "title",
@@ -682,7 +723,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(
       page.getByTestId("assistant-smoke-mutation-boundary")
     ).toContainText("cluster mutation");
-    await expect(page.getByLabel("Ask from current context")).toBeVisible();
+    await expect(page.getByLabel("Ask KOMSCO AI Assistant")).toBeVisible();
     await expect(page.getByTestId("assistant-ask-button")).toContainText("Ask");
     await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
       "title",
@@ -750,6 +791,10 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("console-context-secondary")).toContainText(
       "UserToken proxy"
     );
+    await expect(
+      page.locator("[data-testid='masthead'] [data-testid='runtime-surface']")
+    ).toHaveCount(0);
+    await page.getByTestId("opslens-status-details-summary").click();
     await expect(page.getByTestId("runtime-surface")).toContainText(
       "Console plugin"
     );

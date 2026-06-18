@@ -157,6 +157,7 @@ expectCheck(
   appSource.includes('data-testid="runtime-surface"') &&
     appSource.includes('data-testid="api-route-mode"') &&
     appSource.includes('data-testid="console-plugin-scope"') &&
+    appSource.includes('data-testid="runtime-surface-strip"') &&
     appSource.includes('data-testid="install-flow-strip"') &&
     appSource.includes('data-testid="console-context-primary"') &&
     appSource.includes("CRC lab preview") &&
@@ -166,7 +167,7 @@ expectCheck(
     appSource.includes("Console plugin") &&
     appSource.includes("Route + proxy mode") &&
     appSource.includes("Preview shell"),
-  "dashboard shell distinguishes standalone dev, ConsolePlugin mode, install scope, and non-company-OCP local context"
+  "dashboard shell keeps runtime context available in operational details without cluttering the masthead"
 );
 
 expectCheck(
@@ -181,6 +182,9 @@ expectCheck(
     appSource.includes("OCP 실시간 연결") &&
     appSource.includes("demo data") &&
     appSource.includes("데모 데이터") &&
+    !mastheadSource.includes('data-testid="runtime-surface"') &&
+    !mastheadSource.includes('data-testid="api-route-mode"') &&
+    !mastheadSource.includes('data-testid="console-plugin-scope"') &&
     !mastheadSource.includes('data-testid="install-flow-strip"') &&
     !mastheadSource.includes('data-testid="mod-boundary-strip"') &&
     !mastheadSource.includes('data-testid="runtime-profile-strip"') &&
@@ -189,6 +193,8 @@ expectCheck(
     !mastheadSource.includes('data-testid="access-boundary-strip"') &&
     !mastheadSource.includes('data-testid="apply-signal-strip"') &&
     !mastheadSource.includes('data-testid="post-install-smoke-strip"') &&
+    statusDetailsSource.includes('data-testid="runtime-surface-strip"') &&
+    statusDetailsSource.includes('data-testid="runtime-surface"') &&
     statusDetailsSource.includes('data-testid="install-flow-strip"') &&
     statusDetailsSource.includes('data-testid="post-install-smoke-strip"') &&
     stylesSource.includes(".opslens-status-details") &&
@@ -409,9 +415,26 @@ expectCheck(
   assistantSource.includes("cywell_ops_lens_icon.png") &&
     assistantSource.includes("assistant-app-icon") &&
     appSource.includes("launcher-icon-image") &&
+    appSource.includes('data-testid="assistant-launcher-icon"') &&
     stylesSource.includes(".assistant-app-icon") &&
-    stylesSource.includes(".launcher-icon-image"),
-  "assistant header and floating launcher use the OpsLens icon asset"
+    stylesSource.includes(".launcher-icon-image") &&
+    stylesSource.includes(".lightspeed-launcher") &&
+    stylesSource.includes("background: transparent") &&
+    stylesSource.includes("box-shadow: none") &&
+    stylesSource.includes("border: 0") &&
+    stylesSource.includes("object-fit: contain") &&
+    !appSource.includes("<strong>{evidenceCount}</strong>"),
+  "assistant header and floating launcher use the OpsLens icon asset without wrapping it in a decorative circle or evidence badge"
+);
+
+expectCheck(
+  "assistant launcher silhouette e2e",
+  e2eSource.includes('getByTestId("assistant-launcher-icon")') &&
+    e2eSource.includes('backgroundColor).toBe("rgba(0, 0, 0, 0)")') &&
+    e2eSource.includes('borderTopWidth).toBe("0px")') &&
+    e2eSource.includes('boxShadow).toBe("none")') &&
+    e2eSource.includes('objectFit).toBe("contain")'),
+  "Playwright fails if the lower-right OpsLens launcher is wrapped back into a decorative circle"
 );
 
 expectCheck(
@@ -453,6 +476,15 @@ expectCheck(
     apiSource.includes("console-plugin-user-token-proxy") &&
     apiSource.includes("local-vite-proxy"),
   "assistant surfaces local/proxy API route, last API error, and retry control instead of hiding fallback state"
+);
+
+expectCheck(
+  "assistant prompt-first flow",
+  assistantSource.includes('prompt: "Ask KOMSCO AI Assistant"') &&
+    assistantSource.includes('prompt: "KOMSCO AI 어시스턴트에 질문"') &&
+    assistantSource.indexOf('className="prompt-box"') <
+      assistantSource.indexOf('className="api-trace"'),
+  "assistant opens as a KOMSCO question surface first, with route diagnostics below the prompt"
 );
 
 expectCheck(
@@ -1449,8 +1481,8 @@ expectCheck(
     e2eSource.includes("실행 안 함") &&
     e2eSource.includes("answer source") &&
     e2eSource.includes("cluster changes") &&
-    e2eSource.includes("Ask from current context") &&
-    e2eSource.includes("현재 컨텍스트로 질문"),
+    e2eSource.includes("Ask KOMSCO AI Assistant") &&
+    e2eSource.includes("KOMSCO AI 어시스턴트에 질문"),
   "Playwright covers KO/EN switching across masthead, install flow, navigation, and the KOMSCO assistant"
 );
 

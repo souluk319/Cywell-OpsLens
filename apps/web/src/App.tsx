@@ -728,7 +728,6 @@ export default function App() {
     () => JSON.stringify(contextSync?.context ?? mockContext, null, 2),
     [contextSync]
   );
-  const evidenceCount = (contextSync?.context ?? mockContext).attachedEvidence.length;
   const completionGate = adminOverview?.installReadiness.completionGate;
   const activeNavigation = findNavigationItem(activeNavId);
   const copy = shellCopy[language];
@@ -899,35 +898,6 @@ export default function App() {
             >
               {copy.api} {apiStatusLabels[language][apiStatus]}
             </span>
-            <span
-              className={`status-pill ${isConsolePlugin ? "ready" : "warning"}`}
-              data-testid="runtime-surface"
-              title={
-                isConsolePlugin
-                  ? copy.consolePluginModeTitle
-                  : copy.standaloneDevModeTitle
-              }
-            >
-              {isConsolePlugin ? copy.consolePluginMode : copy.standaloneDevMode}
-            </span>
-            <span className="status-pill read-only" data-testid="api-route-mode">
-              {runtimeProfile.apiBaseAttached ? copy.pluginApi : copy.localApi}
-            </span>
-            <span
-              className="status-pill read-only"
-              data-testid="console-plugin-scope"
-              title={
-                isConsolePlugin
-                  ? copy.consolePluginScopeTitle
-                  : copy.standaloneScopeTitle
-              }
-            >
-              {isConsolePlugin ? copy.consolePluginScope : copy.standaloneScope}
-            </span>
-            <span className="status-pill read-only">
-              <ShieldCheck size={15} aria-hidden="true" />
-              {copy.readOnly}
-            </span>
             <div
               className="segmented-control language-toggle"
               aria-label={copy.language}
@@ -1045,6 +1015,41 @@ export default function App() {
           </span>
         </summary>
         <div className="opslens-status-detail-grid">
+          <div
+            className="runtime-surface-strip"
+            data-testid="runtime-surface-strip"
+            aria-label={copy.opsLensStatus}
+          >
+            <span
+              className={`status-pill ${isConsolePlugin ? "ready" : "warning"}`}
+              data-testid="runtime-surface"
+              title={
+                isConsolePlugin
+                  ? copy.consolePluginModeTitle
+                  : copy.standaloneDevModeTitle
+              }
+            >
+              {isConsolePlugin ? copy.consolePluginMode : copy.standaloneDevMode}
+            </span>
+            <span className="status-pill read-only" data-testid="api-route-mode">
+              {runtimeProfile.apiBaseAttached ? copy.pluginApi : copy.localApi}
+            </span>
+            <span
+              className="status-pill read-only"
+              data-testid="console-plugin-scope"
+              title={
+                isConsolePlugin
+                  ? copy.consolePluginScopeTitle
+                  : copy.standaloneScopeTitle
+              }
+            >
+              {isConsolePlugin ? copy.consolePluginScope : copy.standaloneScope}
+            </span>
+            <span className="status-pill read-only" data-testid="runtime-readonly-boundary">
+              <ShieldCheck size={15} aria-hidden="true" />
+              {copy.readOnly}
+            </span>
+          </div>
           <div
             className="install-flow-strip"
             data-testid="install-flow-strip"
@@ -1345,8 +1350,14 @@ export default function App() {
         type="button"
         onClick={() => setAssistantOpen((open) => !open)}
       >
-        <img className="launcher-icon-image" src={opsLensIcon} alt="" />
-        <strong>{evidenceCount}</strong>
+        <img
+          className="launcher-icon-image"
+          data-testid="assistant-launcher-icon"
+          src={opsLensIcon}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
       </button>
     </div>
   );

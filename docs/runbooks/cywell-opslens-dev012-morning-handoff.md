@@ -11,6 +11,7 @@ Dev 0.1.2 is now in a safer state for the next CRC demo loop:
 - the local web shell has KOMSCO/OpsLens assistant branding and KO/EN contracts protected by a verifier
 - the customer masthead no longer renders the long internal install/demo/runbook chip stack; those details now live in a collapsed operational details row
 - the operational details summary now separates the live OCP API signal from the dashboard data source, so the UI can honestly show `OCP 실시간 연결` while still labeling mock dashboard content as `데모 데이터`
+- the top masthead now keeps only the API connection signal visible; standalone preview, API route, ConsolePlugin scope, and read-only context moved into the collapsed operational details row so the customer header does not look like an internal status board
 - the dashboard now includes a dedicated live CRC install status panel that reads `OpsLensInstallation`, Deployment, Pod, and Route state through the read-only OCP resource API instead of treating the static dashboard cards as live cluster truth
 - the latest live CRC read shows the install object plus API/dashboard/vector workloads visible, `model-runtime` blocked by image pull, and no dashboard Route object yet; that gap is now visible in the product shell instead of being hidden in chat history
 - Korean assistant surfaces now use `KOMSCO AI 어시스턴트` instead of mixed English branding, and the masthead user menu matches the OpenShift demo identity `kubeadmin`
@@ -342,6 +343,7 @@ That sample intentionally uses:
 | native OpenShift Lightspeed drawer not rebranded | OpenShift-owned console surface; Assistant now visibly separates native drawer ownership from OpsLens MCP/proxy integration | keep OpsLens as route/plugin mod unless a verified console-extension lane is approved |
 | unknown live evidence phrases can still appear raw | common backend/read-only evidence phrase classes now have reviewed KO display replacements; unknown strings remain raw to preserve traceability | extend the phrase dictionary only after seeing repeated live payload classes |
 | final release/certification | external registry/security/certification evidence not complete; UI now visibly marks this as a local demo boundary | do not claim certified readiness until release/security evidence is approved |
+| launcher/chatbot first impression | morning review found the launcher looked like a decorative round badge and the assistant opened with diagnostics before chat | render the OpsLens icon silhouette directly and put the KOMSCO AI question composer before route diagnostics |
 
 ## Do Not Do
 

@@ -1099,6 +1099,30 @@ Checkpoint cadence:
   - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-LIVE-001"`
   - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-004|AC-UI-007"`
 
+### 2026-06-18 - Lane 89
+
+- Simplified the customer masthead after the live UI review.
+- The visible masthead now keeps only the API connection signal, KO/EN toggle, OpenShift utility icons, and the `kubeadmin` user placement.
+- Standalone preview mode, API route mode, ConsolePlugin scope, and read-only boundary remain available in the collapsed operational details row for operators and tests, but no longer read like customer-facing status clutter.
+- Browser observation confirmed:
+  - `runtime-surface` in masthead: 0
+  - `api-route-mode` in masthead: 0
+  - `console-plugin-scope` in masthead: 0
+  - masthead still shows `API 연결됨`
+- Protected with:
+  - `npm run -w @kugnus/web build`
+  - `npm run verify:web-shell`
+  - `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-004|AC-UI-007|AC-LIVE-001"`
+
+### 2026-06-18 - Lane 90
+
+- Corrected the visible assistant launcher and chatbot flow after the morning product review.
+- The lower-right OpsLens launcher now renders the original OpsLens icon silhouette directly, without the extra circular button shell or evidence-count badge.
+- Opening the launcher now puts the KOMSCO AI Assistant question composer before route/API diagnostics, so the first visible interaction is chat, not an internal status table.
+- Guardrails added:
+  - Playwright fails if the launcher regains a decorative circle, visible border, shadow shell, or non-contained icon.
+  - Web shell contract fails if the assistant prompt is not KOMSCO-branded or if API diagnostics appear before the prompt.
+
 ## Current Known State
 
 - `main` pushed: `5ad0b75` (`Polish OpsLens localization`)
@@ -1106,7 +1130,9 @@ Checkpoint cadence:
 - feature branch head at plan creation: `cf791e1`
 - feature branch latest pushed head before Lane 77: `6834383`
 - untracked junk intentionally excluded: `apps/web/src/assets/brand/desktop.ini`
-- latest web shell verifier after Lane 88: PASS, 56 checks, including compact masthead, operational details, live CRC install status, OCP live status, demo data source, and installed ConsolePlugin proxy-mode AC-UI-007 coverage
+- latest web shell verifier after Lane 90: PASS, 58 checks, including compact masthead, operational details, live CRC install status, OpsLens icon-only launcher, KOMSCO prompt-first assistant flow, OCP live status, demo data source, and installed ConsolePlugin proxy-mode AC-UI-007 coverage
+- latest masthead review after Lane 89: visible header keeps the API connection signal only; runtime/API-route/scope context is available only inside collapsed operational details
+- latest launcher review after Lane 90: visible launcher has transparent background, no border, no shadow shell, no evidence badge, and a 58px contained OpsLens icon; assistant prompt appears before API diagnostics
 - latest live CRC install panel observation: install object present, API/dashboard/vector visible, model-runtime blocked by image pull, dashboard Route missing
 - latest assistant smoke browser check after Lane 78: PASS, `연결 스모크`, `컨텍스트 동기화: 준비됨`, `액션 플랜 API: 준비됨`, `클러스터 변경: 차단`
 - latest overnight checkpoint after Lane 86: writes morning decision, step totals, safe entrypoints, blocked actions, CRC demo readiness, and handoff freshness in both JSON and Markdown

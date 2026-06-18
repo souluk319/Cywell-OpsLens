@@ -79,7 +79,7 @@ const assistantCopy = {
     smokeBlocked: "blocked",
     pending: "pending",
     actionMode: "action mode",
-    prompt: "Ask from current context",
+    prompt: "Ask KOMSCO AI Assistant",
     asking: "Asking",
     ask: "Ask",
     currentJudgment: "Current Judgment",
@@ -134,7 +134,7 @@ const assistantCopy = {
     smokeBlocked: "차단",
     pending: "대기 중",
     actionMode: "동작 모드",
-    prompt: "현재 컨텍스트로 질문",
+    prompt: "KOMSCO AI 어시스턴트에 질문",
     asking: "질문 중",
     ask: "질문",
     currentJudgment: "현재 판단",
@@ -572,6 +572,43 @@ export function AssistantPopover({
         ))}
       </div>
 
+      <div className="prompt-box">
+        <label htmlFor="kugnus-draft">{copy.prompt}</label>
+        <div
+          className="assistant-execution-path"
+          data-testid="assistant-execution-path"
+          aria-label={copy.executionTitle}
+        >
+          <strong>{copy.executionTitle}</strong>
+          <span data-testid="assistant-execution-enter">
+            {copy.executionEnter}
+          </span>
+          <span data-testid="assistant-execution-fallback">
+            {copy.executionFallback}
+          </span>
+          <span data-testid="assistant-execution-newline">
+            {copy.executionNewline}
+          </span>
+        </div>
+        <textarea
+          id="kugnus-draft"
+          data-testid="assistant-draft"
+          value={draft}
+          onChange={(event) => onDraftChange(event.target.value)}
+          onKeyDown={handleDraftKeyDown}
+        />
+        <button
+          className="text-icon-button"
+          type="button"
+          data-testid="assistant-ask-button"
+          onClick={onAsk}
+          disabled={busy || draft.trim().length === 0}
+        >
+          <SendHorizontal size={16} aria-hidden="true" />
+          {busy ? copy.asking : copy.ask}
+        </button>
+      </div>
+
       <div className="api-trace" data-testid="api-trace">
         <span>{copy.request}</span>
         <strong data-testid="assistant-request-id">{requestId}</strong>
@@ -655,43 +692,6 @@ export function AssistantPopover({
             ))}
           </div>
         </div>
-      </div>
-
-      <div className="prompt-box">
-        <label htmlFor="kugnus-draft">{copy.prompt}</label>
-        <div
-          className="assistant-execution-path"
-          data-testid="assistant-execution-path"
-          aria-label={copy.executionTitle}
-        >
-          <strong>{copy.executionTitle}</strong>
-          <span data-testid="assistant-execution-enter">
-            {copy.executionEnter}
-          </span>
-          <span data-testid="assistant-execution-fallback">
-            {copy.executionFallback}
-          </span>
-          <span data-testid="assistant-execution-newline">
-            {copy.executionNewline}
-          </span>
-        </div>
-        <textarea
-          id="kugnus-draft"
-          data-testid="assistant-draft"
-          value={draft}
-          onChange={(event) => onDraftChange(event.target.value)}
-          onKeyDown={handleDraftKeyDown}
-        />
-        <button
-          className="text-icon-button"
-          type="button"
-          data-testid="assistant-ask-button"
-          onClick={onAsk}
-          disabled={busy || draft.trim().length === 0}
-        >
-          <SendHorizontal size={16} aria-hidden="true" />
-          {busy ? copy.asking : copy.ask}
-        </button>
       </div>
 
       <div className="answer-stack">
