@@ -109,7 +109,7 @@ flowchart TD
 | Dev 0.1.2 | Recover customer-facing UI | KOMSCO branding, Korean UI direction, assistant naming, catalog icon, and reduced debug wording started. | Internal work queues and diagnostics still leaked into the UI. |
 | Dev 0.1.3 | Lock official ConsolePlugin direction | Fake mode toggle was removed; official left-nav-plus-route direction was documented; verifiers began blocking unsupported UI patterns. | Live CRC install proof and route behavior were not yet clean enough. |
 | Dev 0.1.4 | Make OpenShift Console launch OpsLens | OpenShift left nav showed `Cywell OpsLens`; full-page OpsLens loaded through ConsolePlugin asset path; API showed `API 연결됨`. | Assistant and left navigation polish remained; production model/vector runtime remained outside CRC scope. |
-| Dev 0.1.5 | Make it feel like a usable console mod | Target locked: collapsible nav, one active page, chat-first movable KOMSCO AI Assistant. | Implementation and verification are next. |
+| Dev 0.1.5 | Make it feel like a usable console mod | Collapsible nav, one active page, visual operations dashboard, and chat-first movable KOMSCO AI Assistant were implemented and locally verified. | Live CRC upgrade proof remains approval-gated. |
 
 ## Evidence Map
 
@@ -119,7 +119,7 @@ flowchart TD
 | UI recovery and KOMSCO branding work happened | `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.2-ui-recovery.md` |
 | Official ConsolePlugin product direction was locked | `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.3-console-mod.md` |
 | 0.1.4 live console launch and API connection were proven | `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.4-console-launcher.md` |
-| 0.1.5 assistant/nav polish target is defined | `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.5-assistant-polish.md` |
+| 0.1.5 assistant/nav/dashboard polish is implemented | `apps/web/src/App.tsx`, `apps/web/src/components/AssistantPopover.tsx`, `apps/web/src/components/OperationsDashboard.tsx`, and `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-*.png` |
 
 ## Current Realized Product Scope
 
@@ -133,11 +133,11 @@ Pass means the feature has been implemented and verified at least locally or on 
 | ConsolePlugin enablement | Pass | `cywell-opslens` added to console operator plugins without removing existing plugins. |
 | Left navigation entry in OpenShift Console | Pass | Entry appeared in live console. Current work must preserve this and remove malformed route experiments. |
 | Full-page OpsLens entry from OpenShift Console | Pass for 0.1.4 proof | 0.1.4 loaded the dashboard through plugin asset path. |
-| KOMSCO branding | Pass | Header/app/assistant branding exists; polish continues in 0.1.5. |
+| KOMSCO branding | Pass | Header/app/assistant branding exists and is captured in Dev 0.1.5 evidence. |
 | In-cluster API connection | Pass | API connected state reached via serviceaccount token/CA and console proxy CSRF handling. |
-| Read-only/plan-only posture | Partial | Product docs and UI state emphasize this; must keep assistant from implying cluster mutation. |
+| Read-only/plan-only posture | Pass for demo | Product docs and UI state emphasize this; production mutation workflows remain approval-gated. |
 | OCP feature parity mapping | Partial | Mapping contract exists, but menu-by-menu functional parity must be completed and verified. |
-| KOMSCO AI Assistant chat UX | Partial | Exists, but 0.1.5 will make it more chatbot-like and movable. |
+| KOMSCO AI Assistant chat UX | Pass for demo | Chat-first panel, context chips, answer bubble, Enter/Shift+Enter behavior, connected/fallback state, and movable mode are implemented. |
 | Production model runtime | Not in CRC demo | CRC lightweight mode uses `mock-local`; vLLM/GPU runtime remains future integration. |
 | Production vector store | Not in CRC demo | CRC lightweight mode uses `inmemory`; pgvector production path needs OpenShift-safe security/storage work. |
 
@@ -155,6 +155,23 @@ The demo should show:
 8. Dashboard shows API connected state.
 9. KOMSCO AI Assistant is visible as the guidance layer.
 10. Explain that CRC demo uses lightweight local runtime for safety and repeatability.
+
+## 화면 캡처 증거
+
+| Evidence | File |
+| --- | --- |
+| Software Catalog card | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/catalog-cywell-opslens-card.png` |
+| Software Catalog detail modal | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/catalog-cywell-opslens-detail.png` |
+| Dev 0.1.5 visual operations dashboard | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-dashboard-desktop.png` |
+| Dev 0.1.5 movable KOMSCO AI Assistant | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-assistant-movable.png` |
+| Dev 0.1.5 mobile responsive dashboard | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-mobile-nav.png` |
+
+Regenerate the Dev 0.1.5 UI screenshots with:
+
+```bash
+npm run -w @kugnus/web build
+npm run evidence:dev015:screens
+```
 
 ## Testing Scope For The Next Pass
 

@@ -1042,30 +1042,23 @@ button {
   position: relative;
   min-height: 28px;
   padding: 6px 8px;
-  overflow: hidden;
   border: 1px solid #d2d2d2;
   border-radius: 6px;
-  background: #fff;
+  background:
+    linear-gradient(
+      90deg,
+      #bee1f4 0 var(--bar),
+      #fff var(--bar) 100%
+    );
   color: #1f1f1f;
   font-size: 0.78rem;
   font-weight: 800;
-}
-
-.radar-bars span::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--bar);
-  background: #bee1f4;
-  content: "";
-  z-index: 0;
-}
-
-.radar-bars span {
-  z-index: 1;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .change-row {
-  grid-template-columns: 96px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(74px, 0.55fr) minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -1073,6 +1066,17 @@ button {
   color: #004b95;
   font-size: 0.76rem;
   font-weight: 800;
+}
+
+.change-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.change-row small {
+  grid-column: 2;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .source-row {

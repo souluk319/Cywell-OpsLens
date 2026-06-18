@@ -161,3 +161,36 @@ next:
 - Commit and push the 0.1.5 packaging-readiness fix.
 - Re-run `npm run overnight:checkpoint` from the committed head.
 - Restart `npm run overnight:loop` only if the checkpoint is pass or clearly report the remaining non-local blocker.
+
+## Execution Checkpoint 2026-06-18 23:30 KST
+
+time: 2026-06-18 23:30 KST
+
+branch/head: `feat/OpsLens-Dev0.1.5` / `b081a5b9` before evidence-capture commit
+
+completed:
+
+- Added a reproducible Dev 0.1.5 browser evidence capture command.
+- Captured tracked presentation assets for:
+  - visual operations dashboard,
+  - movable KOMSCO AI Assistant,
+  - mobile responsive OpsLens dashboard.
+- Fixed dashboard visualization CSS so severity bars and action insight text do not overlap in the captured presentation screenshots.
+- Updated the presentation HTML/Markdown to include the Dev 0.1.5 screenshots and mark the assistant UX demo state as verified.
+
+validation:
+
+- `npm run -w @kugnus/web build`: pass.
+- `npm run evidence:dev015:screens`: pass, generated all three screenshot assets above size threshold.
+- Manual screenshot inspection: pass for dashboard text overlap fix and movable assistant evidence.
+
+blocked:
+
+- No local evidence-capture blocker remains.
+- Live CRC upgrade proof remains approval-gated cluster mutation.
+
+next:
+
+- Run focused web shell / console plugin verification.
+- Commit and push the evidence-capture update.
+- Re-run `npm run overnight:checkpoint` from the committed head, then restart `npm run overnight:loop`.
