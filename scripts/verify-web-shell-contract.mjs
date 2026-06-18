@@ -1649,7 +1649,9 @@ expectCheck(
 
 expectCheck(
   "resource function smoke contract",
-  resourceExplorerSource.includes('data-testid="ocp-function-smoke"') &&
+    resourceExplorerSource.includes('data-testid="ocp-function-smoke"') &&
+    resourceExplorerSource.includes('data-testid="ocp-smoke-function-outcome"') &&
+    resourceExplorerSource.includes("data-function-outcome={functionOutcomeState}") &&
     resourceExplorerSource.includes('data-testid="ocp-smoke-selected-api"') &&
     resourceExplorerSource.includes('data-testid="ocp-smoke-preset-match"') &&
     resourceExplorerSource.includes("data-preset-match={presetMatchState}") &&
@@ -1669,6 +1671,8 @@ expectCheck(
     resourceExplorerSource.includes("readOnlyGuard") &&
     stylesSource.includes(".ocp-function-smoke") &&
     e2eSource.includes('getByTestId("ocp-function-smoke")') &&
+    e2eSource.includes('getByTestId("ocp-smoke-function-outcome")') &&
+    e2eSource.includes('"data-function-outcome"') &&
     e2eSource.includes('getByTestId("ocp-smoke-preset-match")') &&
     e2eSource.includes('"data-preset-match"') &&
     e2eSource.includes('data-smoke-state",') &&
@@ -1676,7 +1680,7 @@ expectCheck(
     e2eSource.includes('"ready",') &&
     e2eSource.includes("no create/update/patch/delete") &&
     e2eSource.includes('getByTestId("ocp-smoke-mutation-guard")'),
-  "Resource Explorer exposes structured list/detail/events/logs/related/read-only status for every active console menu preset"
+  "Resource Explorer exposes structured outcome/list/detail/events/logs/related/read-only status for every active console menu preset"
 );
 
 expectCheck(

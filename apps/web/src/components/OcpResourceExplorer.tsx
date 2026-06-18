@@ -175,9 +175,14 @@ const explorerCopy = {
     logsStatus: "Logs",
     relatedStatus: "Related",
     mutationGuard: "Mutation guard",
+    functionOutcome: "Function outcome",
     presetMatch: "Preset match",
     matched: "matched",
     missing: "missing",
+    operating: "operating",
+    waiting: "waiting",
+    loading: "loading",
+    emptyResult: "empty result",
     itemsReturned: "items",
     notApplicable: "not applicable",
     logLines: "log lines",
@@ -276,9 +281,14 @@ const explorerCopy = {
     logsStatus: "로그",
     relatedStatus: "관련",
     mutationGuard: "변경 차단",
+    functionOutcome: "기능 결과",
     presetMatch: "프리셋 매칭",
     matched: "매칭됨",
     missing: "누락",
+    operating: "운영 가능",
+    waiting: "대기 중",
+    loading: "로딩 중",
+    emptyResult: "빈 결과",
     itemsReturned: "개 항목",
     notApplicable: "해당 없음",
     logLines: "개 로그 라인",
@@ -736,6 +746,31 @@ export function OcpResourceExplorer({
     : related
       ? `${related.owners.length} ${copy.owners} / ${related.children.length} ${copy.children}`
       : copy.pending;
+  const functionOutcomeState = !navigationPreset
+    ? "not-active"
+    : presetMatchState === "missing"
+      ? "missing"
+      : listSmokeState === "loading" || detailSmokeState === "loading"
+        ? "loading"
+        : !list
+          ? "waiting"
+          : list.items.length === 0
+            ? "empty"
+            : detailSmokeState === "ready"
+              ? "operating"
+              : "waiting";
+  const functionOutcomeStatus =
+    functionOutcomeState === "operating"
+      ? `${copy.operating}: ${list?.items.length ?? 0} ${copy.itemsReturned}`
+      : functionOutcomeState === "empty"
+        ? `${copy.emptyResult}: ${list?.items.length ?? 0} ${copy.itemsReturned}`
+        : functionOutcomeState === "loading"
+          ? copy.loading
+          : functionOutcomeState === "missing"
+            ? copy.missing
+            : functionOutcomeState === "waiting"
+              ? copy.waiting
+              : copy.notApplicable;
 
   return (
     <section className="ocp-explorer" aria-labelledby="ocp-explorer-title">
@@ -789,6 +824,15 @@ export function OcpResourceExplorer({
       >
         <strong>{copy.functionSmoke}</strong>
         <dl>
+          <div>
+            <dt>{copy.functionOutcome}</dt>
+            <dd
+              data-function-outcome={functionOutcomeState}
+              data-testid="ocp-smoke-function-outcome"
+            >
+              {functionOutcomeStatus}
+            </dd>
+          </div>
           <div>
             <dt>{copy.presetMatch}</dt>
             <dd

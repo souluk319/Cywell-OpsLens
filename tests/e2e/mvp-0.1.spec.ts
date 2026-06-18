@@ -95,6 +95,11 @@ async function expectActiveConsoleAction(
       /\S/
     );
     await expect(page.getByTestId("ocp-function-smoke")).toBeVisible();
+    await expect(page.getByTestId("ocp-smoke-function-outcome")).toHaveAttribute(
+      "data-function-outcome",
+      /^(operating|empty|waiting|loading)$/,
+      { timeout: 15_000 }
+    );
     await expect(page.getByTestId("ocp-smoke-preset-match")).toHaveAttribute(
       "data-preset-match",
       "matched",
