@@ -34,6 +34,7 @@
     "evidence:dev015:screens": "node ./scripts/capture-dev015-demo-evidence.mjs",
     "verify:demo-brief-pages": "node ./scripts/verify-demo-brief-pages.mjs",
     "verify:dev015-handoff": "node ./scripts/verify-dev015-morning-handoff.mjs",
+    "verify:dev015-acceptance": "node ./scripts/verify-dev015-acceptance-audit.mjs",
     "console-plugin:enable-patch": "node ./scripts/print-console-plugin-enable-patch.mjs",
     "verify:web-shell": "node ./scripts/verify-web-shell-contract.mjs",
     "verify:console-assistant-provider": "node ./scripts/trace-console-assistant-provider.mjs",

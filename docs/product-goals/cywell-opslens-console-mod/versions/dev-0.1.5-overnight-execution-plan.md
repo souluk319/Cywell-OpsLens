@@ -260,6 +260,36 @@ next:
 - Commit and push the Pages-smoke verifier if verification passes.
 - Restart `npm run overnight:loop` from the committed head.
 
+## Execution Checkpoint 2026-06-18 23:35 KST
+
+time: 2026-06-18 23:35 KST
+
+branch/head: `feat/OpsLens-Dev0.1.5` / `2497569d` before acceptance-audit commit
+
+completed:
+
+- Added `dev-0.1.5-acceptance-audit.md` as the requirement-by-requirement proof table for the morning demo.
+- Added `npm run verify:dev015-acceptance`.
+- Wired `verify:dev015-acceptance` into `npm run overnight:checkpoint`.
+- Updated the morning handoff to point presenters at the acceptance audit and verification command.
+
+validation:
+
+- `npm run verify:dev015-acceptance`: pass, `13 checks`, `0 fail`.
+- `npm run verify:dev015-handoff`: pass, `12 checks`, `0 fail`, `0 warn`.
+- `npm run overnight:checkpoint`: pass, `14/14` steps including `dev015-acceptance`.
+
+blocked:
+
+- No local audit blocker.
+- Live CRC Dev 0.1.5 upgrade proof remains approval-gated.
+
+next:
+
+- Run the pending verification commands.
+- Commit and push the acceptance-audit gate if verification passes.
+- Restart `npm run overnight:loop` from the committed head.
+
 ## Execution Checkpoint 2026-06-18 23:20 KST
 
 time: 2026-06-18 23:20 KST

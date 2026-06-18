@@ -10,6 +10,7 @@ Generated for the 2026-06-19 09:00 KST demo target.
 | Last verified checkpoint evidence | `test-results/cywell-opslens-dev012-overnight-checkpoint.json` |
 | Public demo brief | https://souluk319.github.io/Cywell-OpsLens/ |
 | Local presentation HTML | `docs/product-goals/cywell-opslens-console-mod/presentation/cywell-opslens-demo-brief-2026-06-18.html` |
+| Acceptance audit | `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.5-acceptance-audit.md` |
 | Primary checkpoint | `npm run overnight:checkpoint` |
 | Pages/demo brief gate | `npm run verify:demo-brief-pages` |
 
@@ -48,6 +49,7 @@ Cywell OpsLens is shown as an OpenShift Console extension product, not a replace
 | Movable KOMSCO AI Assistant | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-assistant-movable.png` |
 | Mobile presentation surface | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-mobile-nav.png` |
 | Public demo brief delivery | `npm run verify:demo-brief-pages` checks the local artifact contract and performs a read-only public URL smoke check |
+| Requirement-by-requirement acceptance | `npm run verify:dev015-acceptance` checks the 0.1.5 audit against source hooks, e2e coverage, and latest evidence |
 
 ## Morning Verification Commands
 
@@ -57,6 +59,7 @@ Run these before the demo if the machine is available:
 git status --short --branch
 npm run overnight:checkpoint
 npm run verify:demo-brief-pages
+npm run verify:dev015-acceptance
 ```
 
 Optional read-only CRC checks, only if the Mac CRC session is connected:
