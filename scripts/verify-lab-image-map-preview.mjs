@@ -12,7 +12,7 @@ const execFileAsync = promisify(execFile);
 const defaults = {
   registry: "<crc-registry>",
   namespace: "cywell-opslens",
-  labImageTag: "v0.1.2-dev-crc",
+  labImageTag: "v0.1.5-dev-crc",
   targetArchitecture: "arm64",
   evidenceOut: "test-results/cywell-opslens-lab-image-map-preview.json",
   markdownOut: "test-results/cywell-opslens-lab-image-map-preview.md",

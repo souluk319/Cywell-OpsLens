@@ -24,8 +24,8 @@ const defaults = {
   lightspeedReadinessEvidence: "test-results/cywell-opslens-lightspeed-readiness.json",
   lightspeedPatchPreviewEvidence: "test-results/cywell-opslens-lightspeed-patch-preview.json",
   installPlanEvidence: "test-results/cywell-opslens-install-approval-plan.json",
-  imageTar: "test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar",
-  crcImageTag: "v0.1.2-dev-crc",
+  imageTar: "test-results/cywell-opslens-crc-v0.1.5-dev-crc-arm64.tar",
+  crcImageTag: "v0.1.5-dev-crc",
   targetArchitecture: "arm64",
   timeoutMs: 10000
 };

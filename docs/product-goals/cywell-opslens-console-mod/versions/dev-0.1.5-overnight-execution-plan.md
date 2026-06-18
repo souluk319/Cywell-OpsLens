@@ -126,3 +126,38 @@ next:
 - Capture browser evidence for navigation, dashboard visuals, and movable assistant.
 - Continue responsive polish if screenshots show layout issues.
 - Commit and push only intended 0.1.5 files.
+
+## Execution Checkpoint 2026-06-18 22:55 KST
+
+time: 2026-06-18 22:55 KST
+
+branch/head: `feat/OpsLens-Dev0.1.5` / `210ba09d` before packaging-fix commit
+
+completed:
+
+- Replaced the stale fixed `v0.1.2-dev-crc` CRC readiness contract with a generated-catalog-driven contract.
+- Fixed the CRC catalog context generator so `alm-examples` API/dashboard images are rewritten with the current CRC dev image tag, not only the CSV version.
+- Updated the CRC lightweight sample and OperatorHub first example payload to `0.1.5-dev` / `v0.1.5-dev-crc`.
+- Built a fresh `linux/arm64` dashboard image from the current 0.1.5 UI, rebuilt bundle/catalog images from the generated 0.1.5 catalog context, and saved `test-results/cywell-opslens-crc-v0.1.5-dev-crc-arm64.tar`.
+- Moved lab image-map/bootstrap/handoff defaults to `v0.1.5-dev-crc` so the no-argument local automation path no longer falls back to the old 0.1.2 demo tag.
+
+validation:
+
+- `npm run lab:catalog:crc`: pass, generated `cywell-opslens-operator.v0.1.5` and `v0.1.5-dev-crc` catalog context.
+- `npm run verify:crc-demo-readiness`: pass, `25 checks`, `0 fail`, `0 warn`.
+- `npm run verify:operator:package`: pass, `153 checks`, `0 fail`, `1 warn`.
+- `npm run verify:operator:runtime`: pass, `91 checks`, `0 fail`.
+- `npm run verify:lab-image-map`: pass, `0 fail`, warnings only for dirty worktree/external runtime review boundaries.
+- `npm run verify:lab-bootstrap`: pass, confirms `test-results/cywell-opslens-crc-v0.1.5-dev-crc-arm64.tar` contains all five required tags.
+- `npm run verify:lab-handoff`: pass, confirms the 0.1.5 transfer tar and local image tags are present.
+
+blocked:
+
+- No local packaging blocker remains.
+- Live CRC registry push, CatalogSource replacement, Subscription upgrade, and ConsolePlugin enablement remain approval-gated cluster mutations.
+
+next:
+
+- Commit and push the 0.1.5 packaging-readiness fix.
+- Re-run `npm run overnight:checkpoint` from the committed head.
+- Restart `npm run overnight:loop` only if the checkpoint is pass or clearly report the remaining non-local blocker.

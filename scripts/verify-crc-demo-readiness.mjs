@@ -23,13 +23,8 @@ const paths = {
   webVerifier: "scripts/verify-web-shell-contract.mjs",
   e2e: "tests/e2e/mvp-0.1.spec.ts",
   liveHandoff: "docs/runbooks/cywell-opslens-crc-live-handoff.md",
-  morningHandoff: "docs/runbooks/cywell-opslens-dev012-morning-handoff.md",
-  tar: "test-results/cywell-opslens-crc-v0.1.2-dev-crc-arm64.tar"
+  morningHandoff: "docs/runbooks/cywell-opslens-dev012-morning-handoff.md"
 };
-
-const crcDevVersion = "0.1.2";
-const crcDevCsv = `cywell-opslens-operator.v${crcDevVersion}`;
-const crcDevImageTag = "v0.1.2-dev-crc";
 
 const checks = [];
 
@@ -51,7 +46,8 @@ function parseArgs(argv) {
   }
   return {
     evidenceOut: values.get("evidence-out") ?? defaults.evidenceOut,
-    markdownOut: values.get("markdown-out") ?? defaults.markdownOut
+    markdownOut: values.get("markdown-out") ?? defaults.markdownOut,
+    imageTar: values.get("image-tar") ?? undefined
   };
 }
 
@@ -174,14 +170,25 @@ function isCrcLightweight(spec) {
   );
 }
 
-function usesCrcOwnedImages(spec) {
+function imageTag(image) {
+  const text = String(image ?? "");
+  const marker = text.lastIndexOf(":");
+  return marker >= 0 ? text.slice(marker + 1) : "";
+}
+
+function csvVersionFromName(name) {
+  const match = String(name ?? "").match(/\.v(.+)$/u);
+  return match?.[1] ?? "";
+}
+
+function usesCrcOwnedImages(spec, expectedTag) {
   const apiImage = String(spec?.components?.api?.image ?? "");
   const dashboardImage = String(spec?.components?.dashboard?.image ?? "");
   return (
     apiImage.includes("image-registry.openshift-image-registry.svc:5000") &&
     dashboardImage.includes("image-registry.openshift-image-registry.svc:5000") &&
-    apiImage.endsWith(":v0.1.2-dev-crc") &&
-    dashboardImage.endsWith(":v0.1.2-dev-crc") &&
+    apiImage.endsWith(`:${expectedTag}`) &&
+    dashboardImage.endsWith(`:${expectedTag}`) &&
     !spec?.components?.vectorStore?.image &&
     !spec?.components?.modelRuntime?.image
   );
@@ -189,6 +196,10 @@ function usesCrcOwnedImages(spec) {
 
 function containsAll(text, values) {
   return values.every((value) => text.includes(value));
+}
+
+function containsAny(text, values) {
+  return values.some((value) => text.includes(value));
 }
 
 function tarSummary(path) {
@@ -258,8 +269,25 @@ async function main() {
   const e2e = await readText(paths.e2e);
   const liveHandoff = await readText(paths.liveHandoff);
   const morningHandoff = await readText(paths.morningHandoff);
+  const crcChannel = crcCatalogFbcDocs.find((doc) => doc?.schema === "olm.channel");
+  const crcBundle = crcCatalogFbcDocs.find((doc) => doc?.schema === "olm.bundle");
+  const crcGeneratedImages = [
+    ...(crcCatalogCsv?.spec?.relatedImages ?? []).map((image) => String(image.image ?? "")),
+    String(crcBundle?.image ?? ""),
+    String(crcCatalogSource?.spec?.image ?? "")
+  ].filter(Boolean);
+  const crcDevCsv = crcSubscription?.spec?.startingCSV ?? crcCatalogCsv?.metadata?.name ?? "";
+  const crcDevVersion =
+    String(crcCatalogCsv?.spec?.version ?? "") || csvVersionFromName(crcDevCsv);
+  const crcDevImageTag =
+    imageTag(crcCatalogSource?.spec?.image) ||
+    imageTag(crcGeneratedImages.find((image) => image.includes("cywell-opslens-operator:"))) ||
+    "missing";
+  const crcTransferTar =
+    options.imageTar ?? `test-results/cywell-opslens-crc-${crcDevImageTag}-arm64.tar`;
+  const packageCsv = crcCatalogCsv ?? csv;
 
-  const examples = parseAlmExamples(csv);
+  const examples = parseAlmExamples(packageCsv);
   const firstExample = examples[0];
   const releaseExample = examples.find(
     (example) =>
@@ -302,9 +330,9 @@ async function main() {
   );
   expectCheck(
     "OperatorHub lightweight images",
-    usesCrcOwnedImages(firstExample?.spec),
+    usesCrcOwnedImages(firstExample?.spec, crcDevImageTag),
     "first example uses internal CRC API/dashboard images and no external runtime images",
-    "first example must use internal API/dashboard v0.1.2-dev-crc images and omit pgvector/vLLM images"
+    `first example must use internal API/dashboard ${crcDevImageTag} images and omit pgvector/vLLM images`
   );
   expectCheck(
     "sample lightweight runtime",
@@ -314,12 +342,12 @@ async function main() {
   );
   expectCheck(
     "sample lightweight images",
-    usesCrcOwnedImages(crcSample?.spec),
-    "checked-in CRC sample uses internal v0.1.2-dev-crc API/dashboard images",
-    "checked-in CRC sample must use internal v0.1.2-dev-crc images"
+    usesCrcOwnedImages(crcSample?.spec, crcDevImageTag),
+    `checked-in CRC sample uses internal ${crcDevImageTag} API/dashboard images`,
+    `checked-in CRC sample must use internal ${crcDevImageTag} images`
   );
 
-  const platformLabels = csv?.metadata?.labels ?? {};
+  const platformLabels = packageCsv?.metadata?.labels ?? {};
   expectCheck(
     "OperatorHub platform filter",
     platformLabels["operatorframework.io/arch.arm64"] === "supported" &&
@@ -329,21 +357,13 @@ async function main() {
     "CSV must keep linux amd64/arm64 support labels for CRC and workstation demos"
   );
 
-  const relatedImages = (csv?.spec?.relatedImages ?? []).map((image) => image.name);
+  const relatedImages = (packageCsv?.spec?.relatedImages ?? []).map((image) => image.name);
   expectCheck(
     "relatedImages owned first",
     JSON.stringify(relatedImages.slice(0, 3)) === JSON.stringify(["operator", "api", "dashboard"]),
     "owned operator/api/dashboard images are listed before external runtime images",
     `first relatedImages are ${relatedImages.slice(0, 3).join("/") || "missing"}`
   );
-
-  const crcChannel = crcCatalogFbcDocs.find((doc) => doc?.schema === "olm.channel");
-  const crcBundle = crcCatalogFbcDocs.find((doc) => doc?.schema === "olm.bundle");
-  const crcGeneratedImages = [
-    ...(crcCatalogCsv?.spec?.relatedImages ?? []).map((image) => String(image.image ?? "")),
-    String(crcBundle?.image ?? ""),
-    String(crcCatalogSource?.spec?.image ?? "")
-  ].filter(Boolean);
 
   expectCheck(
     "CRC generated CSV version",
@@ -379,18 +399,13 @@ async function main() {
     "generated CRC catalog must not leave the operator install payload on quay.io/cywell/opslens-operator:0.1.0"
   );
 
-  const uiInstallProfileCopy = [
-    "Use CRC lightweight example first",
-    "CRC lightweight 예제를 먼저 선택",
-    'data-testid="apply-signal-profile"'
-  ];
   expectCheck(
-    "web shell install profile signal",
-    containsAll(app, uiInstallProfileCopy) &&
-      containsAll(webVerifier, uiInstallProfileCopy) &&
-      containsAll(e2e, ["Use CRC lightweight example first", "CRC lightweight 예제를 먼저 선택"]),
-    "UI, verifier, and e2e expose the CRC lightweight first-choice signal",
-    "web shell must show and test the CRC lightweight first-choice signal"
+    "customer shell hides CRC install internals",
+    !containsAny(app, ["Use CRC lightweight example first", "CRC lightweight 예제를 먼저 선택"]) &&
+      !containsAny(webVerifier, ["Use CRC lightweight example first", "CRC lightweight 예제를 먼저 선택"]) &&
+      !containsAny(e2e, ["Use CRC lightweight example first", "CRC lightweight 예제를 먼저 선택"]),
+    "CRC first-choice proof stays in OperatorHub package/runbooks instead of the customer shell",
+    "customer shell must not expose internal CRC lightweight install wording"
   );
 
   expectCheck(
@@ -413,13 +428,13 @@ async function main() {
     "handoff docs must keep lightweight apply, status.dashboardRoute, and read-only smoke commands visible"
   );
 
-  const tar = tarSummary(paths.tar);
+  const tar = tarSummary(crcTransferTar);
   if (tar.exists && tar.bytes > 100 * 1024 * 1024) {
-    pass("CRC arm64 transfer tar", `${paths.tar} exists (${Math.round(tar.bytes / 1024 / 1024)} MiB)`, tar);
+    pass("CRC arm64 transfer tar", `${crcTransferTar} exists (${Math.round(tar.bytes / 1024 / 1024)} MiB)`, tar);
   } else if (tar.exists) {
-    warn("CRC arm64 transfer tar", `${paths.tar} exists but is unexpectedly small`, tar);
+    warn("CRC arm64 transfer tar", `${crcTransferTar} exists but is unexpectedly small`, tar);
   } else {
-    fail("CRC arm64 transfer tar", `${paths.tar} is missing`, tar);
+    fail("CRC arm64 transfer tar", `${crcTransferTar} is missing`, tar);
   }
 
   const failCount = checks.filter((check) => check.status === "FAIL").length;

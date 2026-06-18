@@ -23,8 +23,8 @@ const defaults = {
   sourceBundleAnnotations: "deploy/operator/bundle/metadata/annotations.yaml",
   opmImage: "quay.io/operator-framework/opm:v1.47.0",
   sourceVersion: "0.1.0",
-  devVersion: "0.1.2",
-  devImageTag: "v0.1.2-dev-crc",
+  devVersion: "0.1.5",
+  devImageTag: "v0.1.5-dev-crc",
   targetPlatform: "linux/arm64",
   targetArchitecture: "arm64",
   timeoutMs: 10000
@@ -234,7 +234,18 @@ function applyDevBundleCsvVersion(doc) {
           ...example,
           spec: {
             ...(example.spec ?? {}),
-            version: options.devVersion
+            version: options.devVersion,
+            components: {
+              ...(example.spec?.components ?? {}),
+              api: {
+                ...(example.spec?.components?.api ?? {}),
+                image: targetImage("api")
+              },
+              dashboard: {
+                ...(example.spec?.components?.dashboard ?? {}),
+                image: targetImage("dashboard")
+              }
+            }
           }
         })),
         null,
