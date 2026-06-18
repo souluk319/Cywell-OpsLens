@@ -45,6 +45,7 @@ const steps = [
     id: "web-shell",
     ...npmStep("web-shell", ["verify:web-shell"])
   },
+  npmStep("demo-brief-pages", ["verify:demo-brief-pages"]),
   npmStep("console-plugin", ["verify:console-plugin"]),
   npmStep("operator-package", ["verify:operator:package"]),
   npmStep("operator-reconcile", ["verify:operator:reconcile"]),

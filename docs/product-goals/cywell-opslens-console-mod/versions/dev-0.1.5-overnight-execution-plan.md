@@ -194,3 +194,31 @@ next:
 - Run focused web shell / console plugin verification.
 - Commit and push the evidence-capture update.
 - Re-run `npm run overnight:checkpoint` from the committed head, then restart `npm run overnight:loop`.
+
+## Execution Checkpoint 2026-06-18 23:45 KST
+
+time: 2026-06-18 23:45 KST
+
+branch/head: `feat/OpsLens-Dev0.1.5` / `a94a0c2b` before Pages-verifier commit
+
+completed:
+
+- Added a local GitHub Pages/demo brief verifier for the presentation delivery path.
+- Wired the verifier into `npm run overnight:checkpoint` so the overnight loop watches the README link, Pages workflow, presentation HTML, mobile viewport, and screenshot asset references.
+- Kept live GitHub Pages status as an explicit optional check because `gh` is not currently on PATH in this PowerShell session.
+
+validation:
+
+- `npm run verify:demo-brief-pages`: pass, `0 fail`, `1 warn`.
+- Warning is limited to optional GitHub CLI availability; the local Pages artifact contract passed.
+
+blocked:
+
+- No local Pages artifact blocker remains.
+- Live GitHub Pages deployment status query requires `gh` on PATH or browser/GitHub UI confirmation.
+
+next:
+
+- Run the full checkpoint with the new Pages gate included.
+- Commit and push the Pages-verifier update if checkpoint passes.
+- Restart `npm run overnight:loop` from the committed head.
