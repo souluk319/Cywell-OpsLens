@@ -128,6 +128,15 @@ expectCheck(
 );
 
 expectCheck(
+  "overnight checkpoint visible label",
+  runner.includes("Cywell OpsLens Dev 0.1.5 Overnight Checkpoint") &&
+    !runner.includes("Cywell OpsLens Dev 0.1.2 Overnight Checkpoint") &&
+    !runner.includes("Cywell OpsLens Dev 0.1.2 overnight checkpoint:"),
+  "overnight checkpoint prints Dev 0.1.5 in human-facing output",
+  "overnight checkpoint still exposes a stale Dev 0.1.2 human-facing label"
+);
+
+expectCheck(
   "audit headline and target",
   containsAll(audit, [
     "Cywell OpsLens Dev 0.1.5 Acceptance Audit",

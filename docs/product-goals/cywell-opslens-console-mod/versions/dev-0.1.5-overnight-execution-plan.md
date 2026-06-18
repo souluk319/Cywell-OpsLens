@@ -318,3 +318,33 @@ next:
 - Run the full checkpoint with the Dev 0.1.5 handoff gate included.
 - Commit and push the handoff update if checkpoint passes.
 - Restart `npm run overnight:loop` from the committed head.
+
+## Execution Checkpoint 2026-06-18 23:45 KST
+
+time: 2026-06-18 23:45 KST
+
+branch/head: `feat/OpsLens-Dev0.1.5` / `4b241333`
+
+completed:
+
+- Audited the subagent usage from the prior Dev 0.1.5 hardening pass.
+- Closed the completed reviewer agents after their findings were integrated.
+- Corrected the overnight checkpoint's human-facing label from Dev 0.1.2 to Dev 0.1.5 while keeping the legacy file name for compatibility.
+- Added an acceptance-audit guard so the stale Dev 0.1.2 visible label cannot return silently.
+
+validation:
+
+- `npm run verify:dev015-acceptance`: pass, `14 checks`, `0 fail`.
+- `npm run verify:dev015-handoff`: pass, `12 checks`, `0 fail`, `0 warn`.
+- `npm run overnight:checkpoint`: pass, `14 steps`, visible label reports `Cywell OpsLens Dev 0.1.5 Overnight Checkpoint`.
+
+blocked:
+
+- No local implementation blocker.
+- Live CRC mutation and registry work remain approval-gated.
+
+next:
+
+- Run the pending verification commands.
+- Commit and push the label correction if verification passes.
+- Restart `npm run overnight:loop` from the committed head.

@@ -15,6 +15,8 @@ const defaults = {
   commandTimeoutMs: 10 * 60 * 1000
 };
 
+const checkpointDisplayName = "Cywell OpsLens Dev 0.1.5 Overnight Checkpoint";
+
 const npm = "npm";
 const git = process.platform === "win32" ? "git.exe" : "git";
 
@@ -318,7 +320,7 @@ function renderMarkdown(report) {
   const totals = stepTotals(report);
   const morning = report.morningHandoff ?? morningHandoff(report);
   const lines = [
-    "# Cywell OpsLens Dev 0.1.2 Overnight Checkpoint",
+    `# ${checkpointDisplayName}`,
     "",
     `Generated: ${report.finishedAt}`,
     `Branch: \`${report.git.branch}\``,
@@ -472,7 +474,7 @@ await writeFile(resolve(options.evidenceOut), `${JSON.stringify(report, null, 2)
 await writeFile(resolve(options.markdownOut), renderMarkdown(report), "utf8");
 
 console.log(
-  `\nCywell OpsLens Dev 0.1.2 overnight checkpoint: status=${report.status}, iterations=${report.iterations.length}`
+  `\n${checkpointDisplayName}: status=${report.status}, iterations=${report.iterations.length}`
 );
 console.log(
   `Git finish: branch=${report.gitFinish.branch} head=${report.gitFinish.head} dirty=${String(report.gitFinish.worktreeDirty)} entries=${report.gitFinish.dirtyEntryCount}`
