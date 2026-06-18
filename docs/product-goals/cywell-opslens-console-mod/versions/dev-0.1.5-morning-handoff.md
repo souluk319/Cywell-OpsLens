@@ -48,7 +48,7 @@ Cywell OpsLens is shown as an OpenShift Console extension product, not a replace
 | Visual operations dashboard | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-dashboard-desktop.png` |
 | Movable KOMSCO AI Assistant | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-assistant-movable.png` |
 | Mobile presentation surface | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-mobile-nav.png` |
-| Public demo brief delivery | `npm run verify:demo-brief-pages` checks the local artifact contract and performs a read-only public URL smoke check |
+| Public demo brief delivery | `npm run verify:demo-brief-pages` checks the local artifact contract, performs a read-only public URL smoke check, and uses the public GitHub API as the live workflow-status fallback when `gh` is unavailable |
 | Requirement-by-requirement acceptance | `npm run verify:dev015-acceptance` checks the 0.1.5 audit against source hooks, e2e coverage, and latest evidence |
 
 ## Morning Verification Commands
@@ -107,7 +107,7 @@ These commands are read-only. They do not patch, apply, delete, scale, push, mir
 | Gap | Meaning | Next action |
 | --- | --- | --- |
 | Live CRC Dev 0.1.5 upgrade proof | The local package and UI are ready, but applying/upgrading on CRC is a cluster mutation. | Ask for explicit approval before pushing/replacing/installing. |
-| `gh` not on PATH | The local Pages contract passes and the verifier performs a public URL smoke check, but GitHub CLI deployment status may still be unavailable. | Use browser/GitHub UI or install/fix `gh` PATH if live workflow state is needed. |
+| GitHub workflow status fallback | `gh` is optional. The Pages verifier uses the public GitHub API when `gh` is unavailable; if that API is temporarily unavailable, the public URL smoke remains the rendered evidence. | Use browser/GitHub UI only if an operator wants to inspect the workflow run interactively. |
 | Production model runtime | CRC demo uses lightweight `mock-local` runtime. | Keep vLLM/GPU as a separate production runtime lane. |
 | Production vector store | CRC demo avoids pgvector StatefulSet/SCC friction. | Keep pgvector/storage security as a separate approval-backed lane. |
 

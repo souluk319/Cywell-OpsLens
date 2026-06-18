@@ -143,7 +143,9 @@ expectCheck(
     "catalog-cywell-opslens-detail.png",
     "dev015-opslens-dashboard-desktop.png",
     "dev015-opslens-assistant-movable.png",
-    "dev015-opslens-mobile-nav.png"
+    "dev015-opslens-mobile-nav.png",
+    "public GitHub API",
+    "live workflow-status fallback"
   ]),
   "handoff references all required presentation screenshots"
 );
@@ -213,9 +215,22 @@ expectCheck(
   "Pages evidence passed",
   pagesEvidence?.status === "PASS" &&
     pagesEvidence?.expectedUrl === "https://souluk319.github.io/Cywell-OpsLens/" &&
-    pagesEvidence?.totals?.fail === 0,
+    pagesEvidence?.totals?.fail === 0 &&
+    pagesEvidence?.workflowStatus?.checked === true,
   "latest Pages evidence passed with zero failures",
   `Pages evidence status is ${pagesEvidence?.status ?? "missing"}`
+);
+
+expectCheck(
+  "handoff workflow status fallback",
+  containsAll(handoff, [
+    "GitHub workflow status fallback",
+    "`gh` is optional",
+    "public GitHub API",
+    "public URL smoke remains the rendered evidence"
+  ]),
+  "handoff explains the GitHub workflow-status fallback without requiring GitHub CLI installation",
+  "handoff still treats missing gh as an unresolved demo blocker"
 );
 
 expectCheck(

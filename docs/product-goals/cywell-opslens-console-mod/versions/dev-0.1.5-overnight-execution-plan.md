@@ -407,3 +407,35 @@ next:
 - Run the pending verification commands.
 - Commit and push the final-report coverage update if verification passes.
 - Restart `npm run overnight:loop` from the committed head.
+
+## Execution Checkpoint 2026-06-19 00:25 KST
+
+time: 2026-06-19 00:25 KST
+
+branch/head: `feat/OpsLens-Dev0.1.5` / `08bd743c`
+
+completed:
+
+- Confirmed `gh` is not on PATH.
+- Avoided software installation because the 0.1.5 automation lane should stay local, non-mutating, and approval-light unless installation is explicitly requested for this exact turn.
+- Added a public GitHub API fallback to `verify:demo-brief-pages` so live Pages workflow status can be queried without GitHub CLI.
+- Updated the morning handoff to treat `gh` as optional and explain the fallback.
+- Added a handoff verifier guard for the workflow-status fallback.
+
+validation:
+
+- `npm run verify:demo-brief-pages`: pass, `19 checks`, `0 fail`, `0 warn`; public URL smoke and GitHub workflow-status API fallback both passed.
+- `npm run verify:dev015-handoff`: pass, `14 checks`, `0 fail`, `0 warn`.
+- `npm run verify:dev015-acceptance`: pass, `15 checks`, `0 fail`.
+- `npm run overnight:checkpoint`: pass, `14 steps`, visible label reports `Cywell OpsLens Dev 0.1.5 Overnight Checkpoint`.
+
+blocked:
+
+- No local Pages verification blocker.
+- Fresh live CRC Dev 0.1.5 upgrade proof remains approval-gated.
+
+next:
+
+- Run the pending verification commands.
+- Commit and push the Pages workflow-status fallback if verification passes.
+- Restart `npm run overnight:loop` from the committed head.

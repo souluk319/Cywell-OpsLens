@@ -19,6 +19,8 @@ const paths = {
 };
 
 const expectedUrl = "https://souluk319.github.io/Cywell-OpsLens/";
+const expectedWorkflowApi =
+  "https://api.github.com/repos/souluk319/Cywell-OpsLens/actions/workflows/deploy-demo-brief.yml/runs?branch=feat%2FOpsLens-Dev0.1.5&per_page=1";
 const checks = [];
 
 function record(status, name, detail, extra = {}) {
@@ -156,6 +158,52 @@ async function checkLivePagesUrl(url) {
   return result;
 }
 
+async function checkGitHubWorkflowStatus(url) {
+  const result = {
+    checked: true,
+    url,
+    status: null,
+    runStatus: null,
+    conclusion: null,
+    htmlUrl: null,
+    updatedAt: null,
+    error: null
+  };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "cywell-opslens-dev015-verifier"
+      },
+      signal: controller.signal
+    });
+    result.status = response.status;
+    const payload = await response.json();
+    const latest = Array.isArray(payload.workflow_runs)
+      ? payload.workflow_runs[0]
+      : undefined;
+    result.runStatus = latest?.status ?? null;
+    result.conclusion = latest?.conclusion ?? null;
+    result.htmlUrl = latest?.html_url ?? null;
+    result.updatedAt = latest?.updated_at ?? null;
+    if (!response.ok) {
+      result.error = payload?.message ?? `HTTP ${response.status}`;
+    } else if (!latest) {
+      result.error = "no workflow run found for feat/OpsLens-Dev0.1.5";
+    }
+  } catch (error) {
+    result.error = error instanceof Error ? error.message : String(error);
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  return result;
+}
+
 async function main() {
   const [readme, workflowText, html, markdown] = await Promise.all([
     readText(paths.readme),
@@ -267,9 +315,41 @@ async function main() {
   if (commandExists("gh")) {
     pass("GitHub CLI availability", "gh is available on PATH for optional live Pages status checks");
   } else {
+    pass(
+      "GitHub CLI optional",
+      "gh is not on PATH; verifier will use the public GitHub API fallback for live workflow status"
+    );
+  }
+
+  const workflowStatus = await checkGitHubWorkflowStatus(expectedWorkflowApi);
+  if (
+    workflowStatus.status === 200 &&
+    workflowStatus.runStatus === "completed" &&
+    workflowStatus.conclusion === "success"
+  ) {
+    pass(
+      "GitHub Pages workflow status",
+      "latest feat/OpsLens-Dev0.1.5 Pages workflow run completed successfully",
+      { workflowStatus }
+    );
+  } else if (
+    workflowStatus.status === 200 &&
+    ["queued", "in_progress", "waiting", "requested"].includes(
+      workflowStatus.runStatus ?? ""
+    )
+  ) {
     warn(
-      "GitHub CLI availability",
-      "gh is not on PATH; local Pages contract is verified, but live deployment status was not queried"
+      "GitHub Pages workflow status",
+      `workflow is ${workflowStatus.runStatus}; public Pages URL smoke remains the current rendered evidence`,
+      { workflowStatus }
+    );
+  } else {
+    warn(
+      "GitHub Pages workflow status",
+      workflowStatus.error
+        ? `workflow API check unavailable: ${workflowStatus.error}`
+        : `workflow status=${workflowStatus.runStatus}, conclusion=${workflowStatus.conclusion}`,
+      { workflowStatus }
     );
   }
 
@@ -282,6 +362,7 @@ async function main() {
     head: gitValue(["rev-parse", "--short", "HEAD"], "unknown"),
     expectedUrl,
     livePages,
+    workflowStatus,
     totals: {
       pass: checks.filter((check) => check.status === "PASS").length,
       warn: warned.length,
