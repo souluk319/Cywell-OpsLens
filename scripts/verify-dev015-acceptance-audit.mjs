@@ -169,6 +169,18 @@ expectCheck(
 );
 
 expectCheck(
+  "audit Pages workflow fallback",
+  containsAll(audit, [
+    "GitHub workflow-status fallback",
+    "public GitHub API",
+    "None for local demo evidence"
+  ]) &&
+    !audit.includes("`gh` CLI workflow status may be unavailable on PATH"),
+  "acceptance audit records the Pages workflow-status fallback and no stale gh gap",
+  "acceptance audit still treats missing gh as a current presentation gap"
+);
+
+expectCheck(
   "assistant polish doc current",
   containsAll(assistantPolish, [
     "Completed Implementation Lane",

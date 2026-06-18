@@ -119,7 +119,8 @@ expectCheck(
   containsAll(handoff, [
     "Cywell OpsLens Dev 0.1.5 Morning Handoff",
     "feat/OpsLens-Dev0.1.5",
-    "https://souluk319.github.io/Cywell-OpsLens/"
+    "https://souluk319.github.io/Cywell-OpsLens/",
+    "dev-0.1.5-final-readiness-audit.md"
   ]),
   "handoff names the 0.1.5 demo branch and public demo URL"
 );
@@ -145,7 +146,9 @@ expectCheck(
     "dev015-opslens-assistant-movable.png",
     "dev015-opslens-mobile-nav.png",
     "public GitHub API",
-    "live workflow-status fallback"
+    "live workflow-status fallback",
+    "verify:dev015-final-readiness",
+    "Dev 0.1.5 Final Readiness Audit"
   ]),
   "handoff references all required presentation screenshots"
 );
@@ -156,6 +159,7 @@ expectCheck(
     "git status --short --branch",
     "npm run overnight:checkpoint",
     "npm run verify:demo-brief-pages",
+    "npm run verify:dev015-final-readiness",
     "oc get co console",
     "oc get opslensinstallation,deploy,pod,svc,route,consoleplugin -n cywell-opslens"
   ]),
@@ -191,6 +195,7 @@ expectCheck(
     "scripts/verify-web-shell-contract.mjs",
     "scripts/verify-demo-brief-pages.mjs",
     "scripts/verify-dev015-acceptance-audit.mjs",
+    "verify:dev015-final-readiness",
     "docs/product-goals/cywell-opslens-console-mod/presentation/",
     "docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.5-*",
     "visual operations dashboard",

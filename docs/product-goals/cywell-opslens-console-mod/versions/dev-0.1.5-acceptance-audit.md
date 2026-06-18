@@ -39,7 +39,7 @@ It must not be presented as an iframe, DOM injection, fake console skin, or unsu
 | Visual operations dashboard | Pass | `AC-DASH-001`, `opslens-severity-distribution`, `opslens-exposure-trend`, `active-risk-list`, and dashboard screenshot | Live Prometheus-backed production metrics remain future hardening |
 | KOMSCO AI Assistant chat UX | Pass | `AC-UI-002b`, assistant chat turns, prompt field, Enter/Shift+Enter e2e, KOMSCO launcher/icon evidence | Native Lightspeed drawer replacement is not claimed |
 | Assistant movable placement | Pass | `AC-UI-002b` now checks both preset move and direct drag movement | None for local UI |
-| Public presentation delivery | Pass | `npm run verify:demo-brief-pages` checks README, Pages workflow, assets, viewport, and public URL smoke | `gh` CLI workflow status may be unavailable on PATH |
+| Public presentation delivery | Pass | `npm run verify:demo-brief-pages` checks README, Pages workflow, assets, viewport, public URL smoke, and GitHub workflow-status fallback through the public GitHub API | None for local demo evidence |
 | Mobile presentation/preview evidence | Pass | `dev015-opslens-mobile-nav.png` and Pages verifier asset checks | Live mobile browser demo optional |
 | No internal task-list noise in customer UI | Pass | `verify:web-shell`, `AC-UI-004`, and UI recovery contract | OpsLens Admin intentionally keeps operational evidence |
 | Truthful fallback/live state | Pass for demo | `verify:web-shell`, API route diagnostics, live/fallback badges | Production runtime claims remain out of scope |
@@ -81,4 +81,3 @@ The CRC lightweight runtime proves production vLLM/pgvector readiness.
 - Patch OpenShift Console `spec.plugins` only with explicit approval.
 - Patch `OLSConfig` only with explicit approval.
 - Create or change secrets, SCC, RBAC, or service accounts only with explicit approval.
-

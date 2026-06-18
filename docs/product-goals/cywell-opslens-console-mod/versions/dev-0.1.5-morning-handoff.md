@@ -11,6 +11,7 @@ Generated for the 2026-06-19 09:00 KST demo target.
 | Public demo brief | https://souluk319.github.io/Cywell-OpsLens/ |
 | Local presentation HTML | `docs/product-goals/cywell-opslens-console-mod/presentation/cywell-opslens-demo-brief-2026-06-18.html` |
 | Acceptance audit | `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.5-acceptance-audit.md` |
+| Final readiness audit | `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.5-final-readiness-audit.md` |
 | Primary checkpoint | `npm run overnight:checkpoint` |
 | Pages/demo brief gate | `npm run verify:demo-brief-pages` |
 
@@ -50,6 +51,7 @@ Cywell OpsLens is shown as an OpenShift Console extension product, not a replace
 | Mobile presentation surface | `docs/product-goals/cywell-opslens-console-mod/presentation/assets/dev015-opslens-mobile-nav.png` |
 | Public demo brief delivery | `npm run verify:demo-brief-pages` checks the local artifact contract, performs a read-only public URL smoke check, and uses the public GitHub API as the live workflow-status fallback when `gh` is unavailable |
 | Requirement-by-requirement acceptance | `npm run verify:dev015-acceptance` checks the 0.1.5 audit against source hooks, e2e coverage, and latest evidence |
+| Dev 0.1.5 final readiness | `npm run verify:dev015-final-readiness` checks the Dev 0.1.5 Final Readiness Audit, schedule coverage, demo evidence, and approval boundaries |
 
 ## Morning Verification Commands
 
@@ -60,6 +62,7 @@ git status --short --branch
 npm run overnight:checkpoint
 npm run verify:demo-brief-pages
 npm run verify:dev015-acceptance
+npm run verify:dev015-final-readiness
 ```
 
 Optional read-only CRC checks, only if the Mac CRC session is connected:
@@ -88,7 +91,7 @@ These commands are read-only. They do not patch, apply, delete, scale, push, mir
 | --- | --- |
 | Branch and head SHA | Branch is `feat/OpsLens-Dev0.1.5`; current head is proven by `npm run overnight:checkpoint` evidence. |
 | Files changed | Main 0.1.5 artifacts are `apps/web/src/App.tsx`, `apps/web/src/components/OperationsDashboard.tsx`, `apps/web/src/components/AssistantPopover.tsx`, `tests/e2e/mvp-0.1.spec.ts`, `scripts/verify-web-shell-contract.mjs`, `scripts/verify-demo-brief-pages.mjs`, `scripts/verify-dev015-acceptance-audit.mjs`, `docs/product-goals/cywell-opslens-console-mod/presentation/`, and `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.5-*`. |
-| Verification commands and results | `npm run overnight:checkpoint`, `npm run verify:demo-brief-pages`, `npm run verify:dev015-acceptance`, `npm run verify:dev015-handoff`, `npm run verify:web-shell`, and `npm run verify:console-plugin` are the demo gates. |
+| Verification commands and results | `npm run overnight:checkpoint`, `npm run verify:demo-brief-pages`, `npm run verify:dev015-acceptance`, `npm run verify:dev015-final-readiness`, `npm run verify:dev015-handoff`, `npm run verify:web-shell`, and `npm run verify:console-plugin` are the demo gates. |
 | GitHub Pages URL | https://souluk319.github.io/Cywell-OpsLens/ |
 | Demonstrable immediately | Official extension evidence, Software Catalog screenshots, install-chain explanation, ConsolePlugin route contract, visual operations dashboard, movable KOMSCO AI Assistant, and mobile-ready presentation surface. |
 | Still approval-gated | Live CRC registry/catalog/subscription upgrade, `ConsolePlugin` enablement on a live cluster, `OLSConfig` patching, secrets/RBAC/SCC changes, production vLLM runtime, and production pgvector/storage hardening. |

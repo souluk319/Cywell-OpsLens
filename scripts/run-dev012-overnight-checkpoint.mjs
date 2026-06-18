@@ -58,6 +58,7 @@ const steps = [
   npmStep("lab-handoff", ["verify:lab-handoff"]),
   npmStep("dev015-handoff", ["verify:dev015-handoff"]),
   npmStep("dev015-acceptance", ["verify:dev015-acceptance"]),
+  npmStep("dev015-final-readiness", ["verify:dev015-final-readiness"]),
   npmStep("dev012-handoff", ["verify:dev012-handoff"])
 ];
 
