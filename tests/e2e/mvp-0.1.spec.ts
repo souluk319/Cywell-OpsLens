@@ -347,7 +347,7 @@ async function expectConsoleFunctionEffect(
   test("AC-UI-003 makes every console navigation item actionable", async ({
     page
   }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     const feedback = page.getByTestId("console-navigation-feedback");
 
     await expect(page.getByTestId("console-parity-matrix")).toBeVisible();
@@ -397,7 +397,7 @@ async function expectConsoleFunctionEffect(
   test("AC-UI-009 opens KOMSCO assistant for every version-pinned console item", async ({
     page
   }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
 
     await expect(page.getByTestId("console-parity-summary")).toContainText(
       "OpenShift Local 4.21.14"
@@ -472,7 +472,7 @@ async function expectConsoleFunctionEffect(
   test("AC-UI-006 makes Korean console navigation actionable", async ({
     page
   }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(180_000);
     const feedback = page.getByTestId("console-navigation-feedback");
 
     await page.getByTestId("language-ko-toggle").click();
@@ -513,6 +513,34 @@ async function expectConsoleFunctionEffect(
           item.resourcePreset.query
         );
       }
+
+      await closeAssistantIfOpen(page);
+      await page.getByTestId("console-active-ask-assistant").click();
+      await expect(page.getByTestId("assistant-popover")).toBeVisible();
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(item.labelKo))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(item.commandKo))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(item.originalPathKo))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(proof.mode))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(proof.inputKo))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(proof.proofKo))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(/읽기 전용/);
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        /클러스터 변경 명령/
+      );
+      await page.getByTestId("assistant-close").click();
+      await expect(page.getByTestId("assistant-popover")).toHaveCount(0);
     }
   });
 

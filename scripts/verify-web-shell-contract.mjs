@@ -1814,13 +1814,24 @@ expectCheck(
     e2eSource.includes("const proof = consoleParityFunctionProof(item)") &&
     e2eSource.includes("console-nav-${item.id}") &&
     e2eSource.includes("item.labelKo") &&
+    e2eSource.includes("item.commandKo") &&
+    e2eSource.includes("item.originalPathKo") &&
     e2eSource.includes("proof.inputKo") &&
     e2eSource.includes("proof.proofKo") &&
+    e2eSource.includes('getByTestId("console-active-ask-assistant").click()') &&
+    e2eSource.includes('getByTestId("assistant-draft")') &&
+    e2eSource.includes("escapeForRegExp(item.labelKo)") &&
+    e2eSource.includes("escapeForRegExp(item.commandKo)") &&
+    e2eSource.includes("escapeForRegExp(item.originalPathKo)") &&
+    e2eSource.includes("escapeForRegExp(proof.inputKo)") &&
+    e2eSource.includes("escapeForRegExp(proof.proofKo)") &&
+    e2eSource.includes("읽기 전용") &&
+    e2eSource.includes("클러스터 변경 명령") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
     e2eSource.includes("item.resourcePreset.query") &&
     e2eSource.includes("OCP 4.21.14 콘솔 커버리지") &&
     e2eSource.includes("원본 콘솔 항목"),
-  "Playwright clicks every version-pinned console registry item after switching to Korean and verifies localized function proof"
+  "Playwright clicks every version-pinned console registry item after switching to Korean and verifies localized function proof plus KOMSCO prompt context"
 );
 
 expectCheck(
