@@ -1586,6 +1586,20 @@ expectCheck(
 );
 
 expectCheck(
+  "version-pinned console registry integrity e2e",
+  e2eSource.includes(
+    "AC-UI-010 keeps the version-pinned console registry internally valid"
+  ) &&
+    e2eSource.includes("function expectConsoleParityRegistryIntegrity") &&
+    e2eSource.includes("duplicate console item id") &&
+    e2eSource.includes("missing console parity section") &&
+    e2eSource.includes("item.resourcePreset.preferredResources.length") &&
+    e2eSource.includes('item.actionSurface === "assistant"') &&
+    e2eSource.includes("consoleParityFunctionProof(item)"),
+  "Playwright guards the OCP 4.21.14 parity registry against duplicate ids, empty bilingual copy, missing sections, and broken surface/resource/proof contracts"
+);
+
+expectCheck(
   "registry-driven console navigation e2e",
   e2eSource.includes("AC-UI-003 makes every console navigation item actionable") &&
     e2eSource.includes("surfaceLabelsForTest") &&

@@ -3,7 +3,7 @@
 Status: active acceptance contract for Cywell OpsLens Dev 0.1.2
 Target: CRC OpenShift / OpenShift Local `4.21.14`, OCP web console docs `4.21`
 Truth source: `apps/web/src/consoleParity.ts`
-Verification: `AC-UI-003`, `AC-UI-006`, `AC-UI-008`, `AC-UI-009`, `npm run verify:web-shell`
+Verification: `AC-UI-003`, `AC-UI-006`, `AC-UI-008`, `AC-UI-009`, `AC-UI-010`, `npm run verify:web-shell`
 
 ## Product Rule
 
@@ -16,6 +16,7 @@ It must not claim to replace the native OpenShift masthead, native Lightspeed dr
 | Check | Pass condition | Evidence |
 | --- | --- | --- |
 | Version pin | The visible parity matrix states `OpenShift Local 4.21.14` and OCP docs `4.21`. | `console-parity-summary`, `ocpConsoleBaseline` |
+| Registry integrity | Version-pinned items have unique ids, every OCP/Cywell section is represented, EN/KO copy is non-empty, and surface/resource/proof contracts are internally valid. | `AC-UI-010`, `verify:web-shell` |
 | Menu mapping | Every registry item renders in the left navigation and parity matrix. | `AC-UI-003`, `AC-UI-006` |
 | Screen mapping | Every item has a target selector; sidebar navigation, parity-matrix `Open`, and `Open surface` all mount that target, with `Open surface` replaying resource/evidence/assistant side effects after drift. | `AC-UI-003`, `AC-UI-008` |
 | Function proof | Every item has function mode, function input, action outcome, and action proof in EN/KO. | `AC-UI-003`, `AC-UI-006`, `AC-UI-008` |

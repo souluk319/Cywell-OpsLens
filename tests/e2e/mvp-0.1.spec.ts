@@ -5,6 +5,7 @@ import { mockContext } from "@kugnus/contracts";
 import {
   type ConsoleParityActionSurface,
   type ConsoleParityItem,
+  consoleParitySections,
   consoleParityFunctionProof,
   ocpConsoleParityItems
 } from "../../apps/web/src/consoleParity";
@@ -38,6 +39,127 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
 
   function escapeForRegExp(value: string) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function expectConsoleParityRegistryIntegrity() {
+    const validSurfaces: ConsoleParityActionSurface[] = [
+      "overview",
+      "evidence",
+      "resource-explorer",
+      "ops-dashboard",
+      "ops-admin",
+      "opsbrain",
+      "assistant"
+    ];
+    const validStatuses = [
+      "covered",
+      "native-deep-link",
+      "ops-enhanced",
+      "read-only-plan"
+    ];
+    const ids = new Set<string>();
+    const sectionsWithItems = new Set<string>();
+
+    expect(ocpConsoleParityItems.length).toBeGreaterThanOrEqual(25);
+
+    for (const item of ocpConsoleParityItems) {
+      expect(ids.has(item.id), `duplicate console item id: ${item.id}`).toBe(
+        false
+      );
+      ids.add(item.id);
+      sectionsWithItems.add(item.section);
+
+      expect(item.label.trim(), `empty EN label: ${item.id}`).not.toBe("");
+      expect(item.labelKo.trim(), `empty KO label: ${item.id}`).not.toBe("");
+      expect(item.originalPath.trim(), `empty native path: ${item.id}`).not.toBe(
+        ""
+      );
+      expect(
+        item.originalPathKo.trim(),
+        `empty KO native path: ${item.id}`
+      ).not.toBe("");
+      expect(
+        item.targetSelector.trim(),
+        `empty target selector: ${item.id}`
+      ).not.toBe("");
+      expect(item.command.trim(), `empty EN command: ${item.id}`).not.toBe("");
+      expect(item.commandKo.trim(), `empty KO command: ${item.id}`).not.toBe("");
+      expect(
+        item.opsLensEnhancement.trim(),
+        `empty EN enhancement: ${item.id}`
+      ).not.toBe("");
+      expect(
+        item.opsLensEnhancementKo.trim(),
+        `empty KO enhancement: ${item.id}`
+      ).not.toBe("");
+      expect(
+        item.acceptance.trim(),
+        `empty EN acceptance: ${item.id}`
+      ).not.toBe("");
+      expect(
+        item.acceptanceKo.trim(),
+        `empty KO acceptance: ${item.id}`
+      ).not.toBe("");
+      expect(validSurfaces).toContain(item.actionSurface);
+      expect(validStatuses).toContain(item.status);
+
+      const proof = consoleParityFunctionProof(item);
+      expect(proof.mode.trim(), `empty proof mode: ${item.id}`).not.toBe("");
+      expect(proof.input.trim(), `empty proof input: ${item.id}`).not.toBe("");
+      expect(proof.inputKo.trim(), `empty KO proof input: ${item.id}`).not.toBe(
+        ""
+      );
+      expect(proof.proof.trim(), `empty proof text: ${item.id}`).not.toBe("");
+      expect(proof.proofKo.trim(), `empty KO proof text: ${item.id}`).not.toBe(
+        ""
+      );
+
+      if (item.resourcePreset) {
+        expect(item.evidenceView, `${item.id} cannot mix resource and evidence`).toBe(
+          undefined
+        );
+        expect(
+          ["resource-explorer", "ops-admin"],
+          `${item.id} resource preset must be explorer-backed or admin evidence-backed`
+        ).toContain(item.actionSurface);
+        expect(
+          item.resourcePreset.query.trim(),
+          `empty resource query: ${item.id}`
+        ).not.toBe("");
+        expect(
+          item.resourcePreset.preferredResources.length,
+          `empty preferred resource list: ${item.id}`
+        ).toBeGreaterThan(0);
+        for (const resource of item.resourcePreset.preferredResources) {
+          expect(resource, `malformed preferred resource: ${item.id}`).toMatch(
+            /\S+\/\S+/
+          );
+        }
+      }
+
+      if (item.evidenceView) {
+        expect(item.actionSurface, `${item.id} evidence view must use evidence surface`).toBe(
+          "evidence"
+        );
+      }
+
+      if (item.actionSurface === "assistant") {
+        expect(item.targetSelector).toContain("assistant-launcher");
+      }
+    }
+
+    expect(ids.size).toBe(ocpConsoleParityItems.length);
+    for (const section of consoleParitySections) {
+      expect(
+        sectionsWithItems.has(section),
+        `missing console parity section: ${section}`
+      ).toBe(true);
+    }
+    expect(ocpConsoleParityItems.some((item) => item.resourcePreset)).toBe(true);
+    expect(ocpConsoleParityItems.some((item) => item.evidenceView)).toBe(true);
+    expect(
+      ocpConsoleParityItems.some((item) => item.actionSurface === "assistant")
+    ).toBe(true);
   }
 
 async function waitForApiReady(page: Page) {
@@ -493,6 +615,10 @@ async function expectConsoleFunctionEffect(
       await expectConsoleFunctionEffect(page, item);
       await closeAssistantIfOpen(page);
     }
+  });
+
+  test("AC-UI-010 keeps the version-pinned console registry internally valid", async () => {
+    expectConsoleParityRegistryIntegrity();
   });
 
   test("AC-UI-006 makes Korean console navigation actionable", async ({
