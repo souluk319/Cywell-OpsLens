@@ -71,6 +71,24 @@ Software Catalog / OperatorHub
 - Saved CRC transfer tar: `test-results/cywell-opslens-crc-v0.1.4-crc-d150f9fa-arm64.tar`.
 - Confirmed the dashboard image contains `./assets/...` paths in `apps/web/dist/index.html`.
 
+## 2026-06-18 Mac CRC Apply Evidence
+
+- Loaded and pushed five `linux/arm64` images tagged `v0.1.4-crc-d150f9fa` into the CRC internal registry.
+- `CatalogSource/cywell-opslens-catalog` now publishes `cywell-opslens-operator.v0.1.4`.
+- `ClusterServiceVersion/cywell-opslens-operator.v0.1.4` reached `Succeeded`.
+- `Deployment/cywell-opslens-operator` reached `1/1`.
+- `OpsLensInstallation/cywell-opslens` reports version `0.1.4` and phase `Ready`.
+- `Deployment/cywell-opslens-api` and `Deployment/cywell-opslens-dashboard` both rolled to `v0.1.4-crc-d150f9fa`.
+- API and dashboard pods are both `1/1 Running`.
+- `consoles.operator.openshift.io/cluster.spec.plugins` contains `cywell-opslens` while preserving `networking-console-plugin`, `lightspeed-console-plugin`, and `monitoring-plugin`.
+- `ConsolePlugin/cywell-opslens` backend points to `Service/cywell-opslens-dashboard` on port `443` and its UserToken proxy points to `Service/cywell-opslens-api` on port `443`.
+- The dashboard service returns both `plugin-manifest.json` and `index.html` through the in-cluster API server service proxy.
+
+## Remaining Live UI Evidence
+
+- Browser-visible OpenShift Console left navigation must show `Cywell OpsLens`.
+- Clicking `Cywell OpsLens` must open `/opslens` and redirect/load the OpsLens dashboard app without the prior React error.
+
 ## Explicit Non-Goals
 
 - Do not iframe the dashboard inside the OpenShift Console page.
