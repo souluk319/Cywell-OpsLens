@@ -155,10 +155,10 @@ expectCheck(
         extension.type === "console.page/route/standalone" &&
         extension.properties?.path === "/opslens" &&
         extension.properties?.perspective === undefined &&
-        extension.properties?.component?.$codeRef === "OpsLensRoute.default"
+        extension.properties?.component?.$codeRef === "OpsLensRoute"
     ) &&
     !manifestExtensions.some((extension) => extension.type === "console.page/route"),
-  "bottom-positioned Cywell OpsLens launcher href and standalone /opslens app route are emitted in the manifest"
+  "bottom-positioned Cywell OpsLens launcher href and standalone /opslens app route use the documented default-export codeRef"
 );
 
 expectCheck(

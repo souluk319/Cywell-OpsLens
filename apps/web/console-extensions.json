@@ -30,7 +30,7 @@
     "properties": {
       "path": "/opslens",
       "exact": true,
-      "component": { "$codeRef": "OpsLensRoute.default" }
+      "component": { "$codeRef": "OpsLensRoute" }
     }
   }
 ]
