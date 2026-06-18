@@ -82,6 +82,17 @@ These commands are read-only. They do not patch, apply, delete, scale, push, mir
 6. Show the movable KOMSCO AI Assistant screenshot and explain why it avoids permanently covering console content.
 7. Close with the boundary: read-only / plan-first by default; production mutation and Lightspeed patching require approval.
 
+## Final Report Coverage
+
+| Required item | Morning answer |
+| --- | --- |
+| Branch and head SHA | Branch is `feat/OpsLens-Dev0.1.5`; current head is proven by `npm run overnight:checkpoint` evidence. |
+| Files changed | Main 0.1.5 artifacts are `apps/web/src/App.tsx`, `apps/web/src/components/OperationsDashboard.tsx`, `apps/web/src/components/AssistantPopover.tsx`, `tests/e2e/mvp-0.1.spec.ts`, `scripts/verify-web-shell-contract.mjs`, `scripts/verify-demo-brief-pages.mjs`, `scripts/verify-dev015-acceptance-audit.mjs`, `docs/product-goals/cywell-opslens-console-mod/presentation/`, and `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.5-*`. |
+| Verification commands and results | `npm run overnight:checkpoint`, `npm run verify:demo-brief-pages`, `npm run verify:dev015-acceptance`, `npm run verify:dev015-handoff`, `npm run verify:web-shell`, and `npm run verify:console-plugin` are the demo gates. |
+| GitHub Pages URL | https://souluk319.github.io/Cywell-OpsLens/ |
+| Demonstrable immediately | Official extension evidence, Software Catalog screenshots, install-chain explanation, ConsolePlugin route contract, visual operations dashboard, movable KOMSCO AI Assistant, and mobile-ready presentation surface. |
+| Still approval-gated | Live CRC registry/catalog/subscription upgrade, `ConsolePlugin` enablement on a live cluster, `OLSConfig` patching, secrets/RBAC/SCC changes, production vLLM runtime, and production pgvector/storage hardening. |
+
 ## Do Not Do Without Fresh Approval
 
 - Do not push CRC registry images.

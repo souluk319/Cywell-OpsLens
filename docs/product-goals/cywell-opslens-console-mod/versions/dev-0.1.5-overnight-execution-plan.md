@@ -378,3 +378,32 @@ next:
 - Run the pending verification commands.
 - Commit and push the stale-doc cleanup if verification passes.
 - Restart `npm run overnight:loop` from the committed head.
+
+## Execution Checkpoint 2026-06-19 00:10 KST
+
+time: 2026-06-19 00:10 KST
+
+branch/head: `feat/OpsLens-Dev0.1.5` / `1c8cf2ed`
+
+completed:
+
+- Compared the execution plan's final report requirements against the morning handoff.
+- Added a `Final Report Coverage` section to the morning handoff so branch/head, changed files, verification commands, Pages URL, immediate demo scope, and approval-gated items are visible in one table.
+- Added a `verify:dev015-handoff` guard so those final report fields cannot disappear silently.
+
+validation:
+
+- `npm run verify:dev015-handoff`: pass, `13 checks`, `0 fail`, `0 warn`.
+- `npm run verify:dev015-acceptance`: pass, `15 checks`, `0 fail`.
+- `npm run overnight:checkpoint`: pass, `14 steps`, visible label reports `Cywell OpsLens Dev 0.1.5 Overnight Checkpoint`.
+
+blocked:
+
+- No local reporting blocker.
+- Fresh live CRC Dev 0.1.5 upgrade proof remains approval-gated.
+
+next:
+
+- Run the pending verification commands.
+- Commit and push the final-report coverage update if verification passes.
+- Restart `npm run overnight:loop` from the committed head.

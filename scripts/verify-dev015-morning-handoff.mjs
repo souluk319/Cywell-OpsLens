@@ -173,6 +173,33 @@ expectCheck(
 );
 
 expectCheck(
+  "handoff final report coverage",
+  containsAll(handoff, [
+    "## Final Report Coverage",
+    "Branch and head SHA",
+    "Files changed",
+    "Verification commands and results",
+    "GitHub Pages URL",
+    "Demonstrable immediately",
+    "Still approval-gated",
+    "apps/web/src/App.tsx",
+    "apps/web/src/components/OperationsDashboard.tsx",
+    "apps/web/src/components/AssistantPopover.tsx",
+    "tests/e2e/mvp-0.1.spec.ts",
+    "scripts/verify-web-shell-contract.mjs",
+    "scripts/verify-demo-brief-pages.mjs",
+    "scripts/verify-dev015-acceptance-audit.mjs",
+    "docs/product-goals/cywell-opslens-console-mod/presentation/",
+    "docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.5-*",
+    "visual operations dashboard",
+    "movable KOMSCO AI Assistant",
+    "Live CRC registry/catalog/subscription upgrade"
+  ]),
+  "handoff covers every final report requirement from the 0.1.5 execution plan",
+  "handoff is missing one or more final report requirement fields"
+);
+
+expectCheck(
   "execution plan records Pages verifier",
   containsAll(plan, [
     "Pages-verifier",
