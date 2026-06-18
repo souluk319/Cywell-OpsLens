@@ -28,6 +28,17 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
   }
 
+  async function closeAssistantIfOpen(page: Page) {
+    if ((await page.getByTestId("assistant-popover").count()) > 0) {
+      await page.getByTestId("assistant-close").click();
+      await expect(page.getByTestId("assistant-popover")).toHaveCount(0);
+    }
+  }
+
+  function escapeForRegExp(value: string) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
 async function waitForApiReady(page: Page) {
   await expect(page.getByTestId("api-status")).toContainText(
     /API (connected|연결됨)/,
@@ -293,6 +304,38 @@ async function expectActiveConsoleAction(
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
     await expect(page.getByTestId("assistant-draft")).toHaveValue(/Pods/);
     await page.getByTestId("assistant-close").click();
+  });
+
+  test("AC-UI-009 opens KOMSCO assistant for every version-pinned console item", async ({
+    page
+  }) => {
+    test.setTimeout(90_000);
+
+    await expect(page.getByTestId("console-parity-summary")).toContainText(
+      "OpenShift Local 4.21.14"
+    );
+
+    for (const item of ocpConsoleParityItems) {
+      await page.getByTestId(`console-nav-${item.id}`).click();
+      await closeAssistantIfOpen(page);
+      await expect(page.getByTestId("console-active-action")).toHaveAttribute(
+        "data-active-console-item",
+        item.id
+      );
+      await page.getByTestId("console-active-ask-assistant").click();
+      await expect(page.getByTestId("assistant-popover")).toBeVisible();
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(item.label))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(item.command))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        /read-only mode/
+      );
+      await page.getByTestId("assistant-close").click();
+      await expect(page.getByTestId("assistant-popover")).toHaveCount(0);
+    }
   });
 
   test("AC-UI-008 renders function proof for every version-pinned console item", async ({

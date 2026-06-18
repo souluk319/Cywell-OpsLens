@@ -69,6 +69,9 @@ const dashboardSource = await readText("apps/web/src/components/OperationsDashbo
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const paritySource = await readText("apps/web/src/consoleParity.ts");
+const parityMapDocSource = await readText(
+  "docs/acceptance/ocp-4.21.14-console-parity-map.md"
+);
 const parityComponentSource = await readText(
   "apps/web/src/components/OcpConsoleParityMatrix.tsx"
 );
@@ -1489,6 +1492,20 @@ expectCheck(
 );
 
 expectCheck(
+  "human-readable OCP 4.21.14 console parity map",
+  parityMapDocSource.includes("# CRC OpenShift 4.21.14 Console Parity Map") &&
+    parityMapDocSource.includes("Truth source: `apps/web/src/consoleParity.ts`") &&
+    parityMapDocSource.includes("AC-UI-003") &&
+    parityMapDocSource.includes("AC-UI-006") &&
+    parityMapDocSource.includes("AC-UI-008") &&
+    parityMapDocSource.includes("AC-UI-009") &&
+    parityMapDocSource.includes("Every item opens KOMSCO assistant") &&
+    parityMapDocSource.includes("| 25 | KOMSCO AI Assistant |") &&
+    parityMapDocSource.includes("Full native OpenShift console replacement is intentionally out of scope"),
+  "Acceptance docs pin the CRC 4.21.14 console list, the 1:1 OpsLens mapping, and the assistant/action verification boundary"
+);
+
+expectCheck(
   "visible OCP console parity matrix",
   appSource.includes("<OcpConsoleParityMatrix") &&
     appSource.includes("activeItemId={activeNavId}") &&
@@ -1558,6 +1575,19 @@ expectCheck(
     e2eSource.includes('data-target-status",') &&
     e2eSource.includes("console-parity-row-${item.id}"),
   "Playwright clicks every version-pinned console registry item, uses the active Open surface action, and verifies its mapped surface, preset, and mounted target"
+);
+
+expectCheck(
+  "registry-driven assistant action e2e",
+  e2eSource.includes("AC-UI-009 opens KOMSCO assistant for every version-pinned console item") &&
+    e2eSource.includes("for (const item of ocpConsoleParityItems)") &&
+    e2eSource.includes("closeAssistantIfOpen(page)") &&
+    e2eSource.includes('getByTestId("console-active-ask-assistant").click()') &&
+    e2eSource.includes('getByTestId("assistant-draft")') &&
+    e2eSource.includes("escapeForRegExp(item.label)") &&
+    e2eSource.includes("escapeForRegExp(item.command)") &&
+    e2eSource.includes("read-only mode"),
+  "Playwright opens the KOMSCO assistant from every mapped console item and verifies the drafted prompt keeps item context plus the read-only boundary"
 );
 
 expectCheck(
