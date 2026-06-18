@@ -636,11 +636,19 @@ export function OcpResourceExplorer({
   const selectedApiStatus = selectedResource
     ? `${selectedResource.kind} ${selectedResource.apiVersion}/${selectedResource.name}`
     : copy.noListableResource;
+  const listSmokeState = listLoading ? "loading" : list ? "ready" : "pending";
   const listSmokeStatus = listLoading
     ? copy.loadingItems
     : list
       ? `${list.items.length} ${copy.itemsReturned} (${formatAccess(list.access.list, copy)})`
       : copy.pending;
+  const detailSmokeState = detailLoading
+    ? "loading"
+    : detail
+      ? "ready"
+      : list?.items.length
+        ? "pending"
+        : "empty";
   const detailSmokeStatus = detailLoading
     ? copy.loadingObject
     : detail
@@ -648,11 +656,28 @@ export function OcpResourceExplorer({
       : list?.items.length
         ? copy.pending
         : copy.noItems;
+  const eventsSmokeState = detailLoading
+    ? "loading"
+    : events
+      ? "ready"
+      : list?.items.length
+        ? "pending"
+        : "empty";
   const eventsSmokeStatus = detailLoading
     ? copy.loadingEvents
     : events
       ? `${events.items.length} ${copy.events} (${formatAccess(events.access, copy)})`
       : copy.pending;
+  const logsSmokeState =
+    selectedResource?.kind !== "Pod"
+      ? "not-applicable"
+      : detailLoading
+        ? "loading"
+        : logs
+          ? "ready"
+          : list?.items.length
+            ? "pending"
+            : "empty";
   const logsSmokeStatus =
     selectedResource?.kind !== "Pod"
       ? copy.notApplicable
@@ -661,6 +686,13 @@ export function OcpResourceExplorer({
         : logs
           ? `${countLogLines(logs)} ${copy.logLines} (${formatAccess(logs.access, copy)})`
           : copy.pending;
+  const relatedSmokeState = detailLoading
+    ? "loading"
+    : related
+      ? "ready"
+      : list?.items.length
+        ? "pending"
+        : "empty";
   const relatedSmokeStatus = detailLoading
     ? copy.loadingRelated
     : related
@@ -725,23 +757,48 @@ export function OcpResourceExplorer({
           </div>
           <div>
             <dt>{copy.listStatus}</dt>
-            <dd data-testid="ocp-smoke-list-status">{listSmokeStatus}</dd>
+            <dd
+              data-smoke-state={listSmokeState}
+              data-testid="ocp-smoke-list-status"
+            >
+              {listSmokeStatus}
+            </dd>
           </div>
           <div>
             <dt>{copy.detailStatus}</dt>
-            <dd data-testid="ocp-smoke-detail-status">{detailSmokeStatus}</dd>
+            <dd
+              data-smoke-state={detailSmokeState}
+              data-testid="ocp-smoke-detail-status"
+            >
+              {detailSmokeStatus}
+            </dd>
           </div>
           <div>
             <dt>{copy.eventsStatus}</dt>
-            <dd data-testid="ocp-smoke-events-status">{eventsSmokeStatus}</dd>
+            <dd
+              data-smoke-state={eventsSmokeState}
+              data-testid="ocp-smoke-events-status"
+            >
+              {eventsSmokeStatus}
+            </dd>
           </div>
           <div>
             <dt>{copy.logsStatus}</dt>
-            <dd data-testid="ocp-smoke-logs-status">{logsSmokeStatus}</dd>
+            <dd
+              data-smoke-state={logsSmokeState}
+              data-testid="ocp-smoke-logs-status"
+            >
+              {logsSmokeStatus}
+            </dd>
           </div>
           <div>
             <dt>{copy.relatedStatus}</dt>
-            <dd data-testid="ocp-smoke-related-status">{relatedSmokeStatus}</dd>
+            <dd
+              data-smoke-state={relatedSmokeState}
+              data-testid="ocp-smoke-related-status"
+            >
+              {relatedSmokeStatus}
+            </dd>
           </div>
           <div>
             <dt>{copy.mutationGuard}</dt>

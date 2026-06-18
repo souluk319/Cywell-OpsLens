@@ -1500,6 +1500,7 @@ expectCheck(
     parityMapDocSource.includes("AC-UI-008") &&
     parityMapDocSource.includes("AC-UI-009") &&
     parityMapDocSource.includes("Function state effect") &&
+    parityMapDocSource.includes("Resource smoke state") &&
     parityMapDocSource.includes("Every item opens KOMSCO assistant") &&
     parityMapDocSource.includes("| 25 | KOMSCO AI Assistant |") &&
     parityMapDocSource.includes("Full native OpenShift console replacement is intentionally out of scope"),
@@ -1655,12 +1656,21 @@ expectCheck(
     resourceExplorerSource.includes('data-testid="ocp-smoke-logs-status"') &&
     resourceExplorerSource.includes('data-testid="ocp-smoke-related-status"') &&
     resourceExplorerSource.includes('data-testid="ocp-smoke-mutation-guard"') &&
+    resourceExplorerSource.includes("data-smoke-state={listSmokeState}") &&
+    resourceExplorerSource.includes("data-smoke-state={detailSmokeState}") &&
+    resourceExplorerSource.includes("data-smoke-state={eventsSmokeState}") &&
+    resourceExplorerSource.includes("data-smoke-state={logsSmokeState}") &&
+    resourceExplorerSource.includes("data-smoke-state={relatedSmokeState}") &&
     resourceExplorerSource.includes('selectedResource?.kind !== "Pod"') &&
     resourceExplorerSource.includes("readOnlyGuard") &&
     stylesSource.includes(".ocp-function-smoke") &&
     e2eSource.includes('getByTestId("ocp-function-smoke")') &&
+    e2eSource.includes('data-smoke-state",') &&
+    e2eSource.includes("/.+\\s+[^/\\s]+\\/\\S+/") &&
+    e2eSource.includes('"ready",') &&
+    e2eSource.includes("no create/update/patch/delete") &&
     e2eSource.includes('getByTestId("ocp-smoke-mutation-guard")'),
-  "Resource Explorer exposes list/detail/events/logs/related/read-only status for every active console menu preset"
+  "Resource Explorer exposes structured list/detail/events/logs/related/read-only status for every active console menu preset"
 );
 
 expectCheck(

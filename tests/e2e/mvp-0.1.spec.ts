@@ -95,10 +95,39 @@ async function expectActiveConsoleAction(
       /\S/
     );
     await expect(page.getByTestId("ocp-function-smoke")).toBeVisible();
-    await expect(page.getByTestId("ocp-smoke-selected-api")).toContainText(/\S/);
-    await expect(page.getByTestId("ocp-smoke-list-status")).toContainText(/\S/);
+    await expect(page.getByTestId("ocp-smoke-selected-api")).toContainText(
+      /.+\s+[^/\s]+\/\S+/,
+      { timeout: 15_000 }
+    );
+    await expect(page.getByTestId("ocp-smoke-list-status")).toHaveAttribute(
+      "data-smoke-state",
+      "ready",
+      { timeout: 15_000 }
+    );
+    await expect(page.getByTestId("ocp-smoke-list-status")).toContainText(
+      /items/
+    );
+    await expect(page.getByTestId("ocp-smoke-detail-status")).toHaveAttribute(
+      "data-smoke-state",
+      /^(ready|empty|pending)$/
+    );
+    await expect(page.getByTestId("ocp-smoke-events-status")).toHaveAttribute(
+      "data-smoke-state",
+      /^(ready|empty|pending)$/
+    );
+    await expect(page.getByTestId("ocp-smoke-logs-status")).toHaveAttribute(
+      "data-smoke-state",
+      /^(ready|empty|pending|not-applicable)$/
+    );
+    await expect(page.getByTestId("ocp-smoke-related-status")).toHaveAttribute(
+      "data-smoke-state",
+      /^(ready|empty|pending)$/
+    );
     await expect(page.getByTestId("ocp-smoke-mutation-guard")).toContainText(
       "read-only"
+    );
+    await expect(page.getByTestId("ocp-smoke-mutation-guard")).toContainText(
+      "no create/update/patch/delete"
     );
   }
 }
