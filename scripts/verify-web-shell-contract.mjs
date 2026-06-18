@@ -1499,6 +1499,7 @@ expectCheck(
     parityMapDocSource.includes("AC-UI-006") &&
     parityMapDocSource.includes("AC-UI-008") &&
     parityMapDocSource.includes("AC-UI-009") &&
+    parityMapDocSource.includes("Function state effect") &&
     parityMapDocSource.includes("Every item opens KOMSCO assistant") &&
     parityMapDocSource.includes("| 25 | KOMSCO AI Assistant |") &&
     parityMapDocSource.includes("Full native OpenShift console replacement is intentionally out of scope"),
@@ -1571,10 +1572,24 @@ expectCheck(
     e2eSource.includes("surfaceLabelsForTest[item.actionSurface]") &&
     e2eSource.includes("item.resourcePreset?.query") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
+    e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
     e2eSource.includes('getByTestId("console-active-open-surface").click()') &&
     e2eSource.includes('data-target-status",') &&
     e2eSource.includes("console-parity-row-${item.id}"),
   "Playwright clicks every version-pinned console registry item, uses the active Open surface action, and verifies its mapped surface, preset, and mounted target"
+);
+
+expectCheck(
+  "registry-driven console state effect e2e",
+  e2eSource.includes("async function expectConsoleFunctionEffect") &&
+    e2eSource.includes("item.evidenceView") &&
+    e2eSource.includes("evidence-view-${item.evidenceView}") &&
+    e2eSource.includes('"aria-pressed",') &&
+    e2eSource.includes('item.actionSurface === "assistant"') &&
+    e2eSource.includes('getByTestId("assistant-launcher")') &&
+    e2eSource.includes('getByTestId("assistant-popover")') &&
+    e2eSource.includes("closeAssistantIfOpen(page)"),
+  "Playwright proves evidence-view navigation changes active tabs and assistant navigation opens the KOMSCO popover, not only static copy"
 );
 
 expectCheck(

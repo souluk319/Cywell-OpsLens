@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { mockContext } from "@kugnus/contracts";
 import {
   type ConsoleParityActionSurface,
+  type ConsoleParityItem,
   consoleParityFunctionProof,
   ocpConsoleParityItems
 } from "../../apps/web/src/consoleParity";
@@ -99,6 +100,28 @@ async function expectActiveConsoleAction(
     await expect(page.getByTestId("ocp-smoke-mutation-guard")).toContainText(
       "read-only"
     );
+  }
+}
+
+async function expectConsoleFunctionEffect(
+  page: Page,
+  item: ConsoleParityItem,
+  expectAssistantOpen = true
+) {
+  if (item.evidenceView) {
+    await expect(
+      page.getByTestId(`evidence-view-${item.evidenceView}`)
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(item.targetSelector)).toBeVisible();
+  }
+
+  if (item.actionSurface === "assistant" && expectAssistantOpen) {
+    await expect(page.getByTestId("assistant-launcher")).toHaveAttribute(
+      "aria-expanded",
+      "true"
+    );
+    await expect(page.getByTestId("assistant-popover")).toBeVisible();
+    await closeAssistantIfOpen(page);
   }
 }
 
@@ -280,6 +303,7 @@ async function expectActiveConsoleAction(
         item.resourcePreset?.query
       );
       await expect(page.locator(item.targetSelector)).toBeVisible();
+      await expectConsoleFunctionEffect(page, item);
       await expect(page.getByTestId(`console-parity-row-${item.id}`)).toBeVisible();
       await page.getByTestId("console-active-open-surface").click();
       await expect(page.getByTestId("console-active-target-status")).toHaveAttribute(
@@ -287,6 +311,7 @@ async function expectActiveConsoleAction(
         "mounted"
       );
       await expect(page.locator(item.targetSelector)).toBeVisible();
+      await expectConsoleFunctionEffect(page, item, false);
 
       if (item.resourcePreset) {
         await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
@@ -402,6 +427,7 @@ async function expectActiveConsoleAction(
         proof.proofKo
       );
       await expect(page.locator(item.targetSelector)).toBeVisible();
+      await expectConsoleFunctionEffect(page, item);
 
       if (item.resourcePreset) {
         await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
