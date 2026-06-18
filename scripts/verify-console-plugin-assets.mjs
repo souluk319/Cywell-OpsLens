@@ -123,6 +123,19 @@ expectCheck(
 
 const sourceExtensions = Array.isArray(extensions) ? extensions : [];
 const manifestExtensions = Array.isArray(manifest?.extensions) ? manifest.extensions : [];
+const bottomNavInsertAfter = [
+  "administration",
+  "user-management",
+  "compute",
+  "monitoring",
+  "build",
+  "storage",
+  "networking",
+  "workloads",
+  "ecosystem",
+  "favorites",
+  "home"
+];
 expectCheck(
   "plugin extension set",
   sourceExtensions.length === 2 &&
@@ -130,30 +143,37 @@ expectCheck(
       (extension) =>
         extension.type === "console.navigation/href" &&
         extension.properties?.id === pluginName &&
-        extension.properties?.name === "%plugin__cywell-opslens~Cywell OpsLens" &&
+        extension.properties?.name === "Cywell OpsLens 열기" &&
         extension.properties?.href === "/opslens" &&
         extension.properties?.section === undefined &&
+        JSON.stringify(extension.properties?.insertAfter) ===
+          JSON.stringify(bottomNavInsertAfter) &&
         extension.properties?.dataAttributes?.testid === "cywell-opslens-nav"
     ) &&
     manifestExtensions.some(
       (extension) =>
-        extension.type === "console.page/route" &&
+        extension.type === "console.page/route/standalone" &&
         extension.properties?.path === "/opslens" &&
+        extension.properties?.perspective === undefined &&
         extension.properties?.component?.$codeRef === "OpsLensRoute.default"
-    ),
-  "top-level Cywell OpsLens navigation href and /opslens route are emitted in the manifest"
+    ) &&
+    !manifestExtensions.some((extension) => extension.type === "console.page/route"),
+  "bottom-positioned Cywell OpsLens launcher href and standalone /opslens app route are emitted in the manifest"
 );
 
 expectCheck(
-  "plugin route iframe proxy",
+  "plugin standalone launcher proxy",
   routeSource.includes('const pluginName = "cywell-opslens"') &&
     routeSource.includes("/api/plugins/") &&
     routeSource.includes("/index.html?apiBase=") &&
     routeSource.includes("/api/proxy/plugin/") &&
     routeSource.includes("/opslens-api") &&
     routeSource.includes("apiBase=") &&
-    routeSource.includes("opslens-console-plugin-frame"),
-  "route opens the dashboard through the Console plugin asset endpoint and passes the UserToken proxy base"
+    routeSource.includes("window.location.replace(dashboardUrl)") &&
+    routeSource.includes("return null") &&
+    !routeSource.includes("<iframe") &&
+    !routeSource.includes("opslens-console-plugin-frame"),
+  "standalone route launches the independent OpsLens dashboard asset and passes the UserToken proxy base without embedding an iframe"
 );
 
 expectCheck(

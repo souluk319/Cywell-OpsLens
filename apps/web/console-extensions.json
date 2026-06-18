@@ -3,10 +3,22 @@
     "type": "console.navigation/href",
     "properties": {
       "id": "cywell-opslens",
-      "name": "%plugin__cywell-opslens~Cywell OpsLens",
+      "name": "Cywell OpsLens 열기",
       "href": "/opslens",
       "perspective": "admin",
-      "insertAfter": ["home", "favorites"],
+      "insertAfter": [
+        "administration",
+        "user-management",
+        "compute",
+        "monitoring",
+        "build",
+        "storage",
+        "networking",
+        "workloads",
+        "ecosystem",
+        "favorites",
+        "home"
+      ],
       "startsWith": ["/opslens"],
       "dataAttributes": {
         "testid": "cywell-opslens-nav"
@@ -14,11 +26,10 @@
     }
   },
   {
-    "type": "console.page/route",
+    "type": "console.page/route/standalone",
     "properties": {
       "path": "/opslens",
       "exact": true,
-      "perspective": "admin",
       "component": { "$codeRef": "OpsLensRoute.default" }
     }
   }
