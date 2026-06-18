@@ -1996,6 +1996,26 @@ button {
   overflow-wrap: anywhere;
 }
 
+.admin-target-fallback-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.admin-target-fallback {
+  min-height: 132px;
+  border-style: dashed;
+  background: #fbfbfb;
+}
+
+.admin-target-fallback p {
+  margin: 8px 0 0;
+  color: #4f5255;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(210px, 1fr));

@@ -115,11 +115,11 @@ const releaseActionQueueSource = sourceSection(
 const installApprovalPlanSource = sourceSection(
   adminSource,
   'data-testid="opslens-install-approval-plan"',
-  'data-testid="opslens-catalog-toolchain"'
+  "{catalogToolchainPlan ? ("
 );
 const catalogToolchainSource = sourceSection(
   adminSource,
-  'data-testid="opslens-catalog-toolchain"',
+  "{catalogToolchainPlan ? (",
   'data-testid="opslens-lab-readiness"'
 );
 const labReadinessSource = sourceSection(
@@ -1513,6 +1513,35 @@ expectCheck(
     actionPanelSource.includes('data-testid="console-active-preferred-resources"') &&
     stylesSource.includes(".console-action-panel"),
   "each selected OCP console item renders its active surface, action, acceptance, and preferred API contract"
+);
+
+expectCheck(
+  "targeted console section routing",
+  paritySource.includes("targetSelector: \"[data-testid='opslens-catalog-toolchain']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='opslens-operator-package']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='opslens-ocp-connectivity']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='opslens-install-readiness']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='alert-table-wrap']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='log-viewport']\"") &&
+    paritySource.includes('targetSelector: "#dashboard-title"') &&
+    e2eSource.includes('getByTestId("opslens-operator-package")') &&
+    e2eSource.includes('getByTestId("opslens-catalog-toolchain")') &&
+    e2eSource.includes('getByTestId("opslens-ocp-connectivity")') &&
+    e2eSource.includes('getByTestId("opslens-install-readiness")'),
+  "non-resource console items route to their concrete OpsLens sections instead of a generic admin header"
+);
+
+expectCheck(
+  "admin target fallback anchors",
+  adminSource.includes('data-testid="opslens-admin-target-fallbacks"') &&
+    adminSource.includes('data-testid="opslens-catalog-toolchain"') &&
+    adminSource.includes('data-testid="opslens-operator-package"') &&
+    adminSource.includes('data-testid="opslens-ocp-connectivity"') &&
+    adminSource.includes("Catalog toolchain evidence is loading") &&
+    adminSource.includes("Operator package evidence is loading") &&
+    adminSource.includes("OCP connectivity evidence is loading") &&
+    stylesSource.includes(".admin-target-fallback-grid"),
+  "admin menu targets remain present while live evidence is loading or unavailable"
 );
 
 expectCheck(

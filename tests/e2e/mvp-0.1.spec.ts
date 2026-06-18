@@ -219,6 +219,7 @@ async function expectActiveConsoleAction(
   test("AC-UI-003 makes every console navigation item actionable", async ({
     page
   }) => {
+    test.setTimeout(60_000);
     const feedback = page.getByTestId("console-navigation-feedback");
 
     await expect(page.getByTestId("console-parity-matrix")).toBeVisible();
@@ -306,6 +307,9 @@ async function expectActiveConsoleAction(
       await expect(page.getByTestId(`console-parity-row-${navId}`)).toBeVisible();
     }
 
+    await page.getByTestId("console-nav-operatorhub").click();
+    await expect(page.getByTestId("opslens-operator-package")).toBeVisible();
+
     await page.getByTestId("console-nav-workloads").click();
     await page.getByTestId("console-active-open-surface").click();
     await expect(page.getByTestId("ocp-active-preset-query")).toContainText(
@@ -356,6 +360,7 @@ async function expectActiveConsoleAction(
       "Software Catalog",
       "OpsLens admin"
     );
+    await expect(page.getByTestId("opslens-catalog-toolchain")).toBeVisible();
     await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
 
     await page.getByTestId("console-nav-dashboards").click();
@@ -387,6 +392,7 @@ async function expectActiveConsoleAction(
       "OpsLens admin",
       "clusterversions clusteroperators consoles consoleplugins"
     );
+    await expect(page.getByTestId("opslens-ocp-connectivity")).toBeVisible();
     await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
 
     await page.getByTestId("console-nav-opslens-admin").click();
@@ -397,6 +403,7 @@ async function expectActiveConsoleAction(
       "OpsLens Admin",
       "OpsLens admin"
     );
+    await expect(page.getByTestId("opslens-install-readiness")).toBeVisible();
     await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
 
     await page.getByTestId("console-nav-opsbrain").click();

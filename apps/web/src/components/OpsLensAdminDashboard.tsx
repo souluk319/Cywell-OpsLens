@@ -1627,6 +1627,68 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
         </div>
       ) : null}
 
+      {!catalogToolchainPlan || !operatorPackage || !ocpConnectivity ? (
+        <div
+          className="admin-target-fallback-grid"
+          data-testid="opslens-admin-target-fallbacks"
+        >
+          {!catalogToolchainPlan ? (
+            <article
+              className="ops-card admin-target-fallback"
+              data-testid="opslens-catalog-toolchain"
+            >
+              <div className="card-title-row compact">
+                <h3>{copy.catalogToolchain}</h3>
+                <span className="freshness missing">
+                  {statusText(language, "needs-evidence")}
+                </span>
+              </div>
+              <p>
+                {language === "ko"
+                  ? "카탈로그 도구체인 근거를 불러오는 중입니다. 이 타깃은 Software Catalog 메뉴가 항상 실제 섹션으로 이동하도록 유지됩니다."
+                  : "Catalog toolchain evidence is loading. This target keeps the Software Catalog menu routed to a real section."}
+              </p>
+            </article>
+          ) : null}
+          {!operatorPackage ? (
+            <article
+              className="ops-card admin-target-fallback"
+              data-testid="opslens-operator-package"
+            >
+              <div className="card-title-row compact">
+                <h3>{copy.operatorPackage}</h3>
+                <span className="freshness missing">
+                  {statusText(language, "needs-evidence")}
+                </span>
+              </div>
+              <p>
+                {language === "ko"
+                  ? "Operator package 근거를 불러오는 중입니다. 이 타깃은 OperatorHub 메뉴가 공용 admin 제목이 아니라 패키징 근거로 이동하도록 유지됩니다."
+                  : "Operator package evidence is loading. This target keeps the OperatorHub menu routed to packaging evidence instead of a generic admin header."}
+              </p>
+            </article>
+          ) : null}
+          {!ocpConnectivity ? (
+            <article
+              className="ops-card admin-target-fallback"
+              data-testid="opslens-ocp-connectivity"
+            >
+              <div className="card-title-row compact">
+                <h3>{copy.ocpConnectivity}</h3>
+                <span className="freshness missing">
+                  {statusText(language, "needs-evidence")}
+                </span>
+              </div>
+              <p>
+                {language === "ko"
+                  ? "OCP 연결성 근거를 불러오는 중입니다. 이 타깃은 Cluster Settings 메뉴가 실제 연결성 점검 섹션으로 이동하도록 유지됩니다."
+                  : "OCP connectivity evidence is loading. This target keeps the Cluster Settings menu routed to the connectivity section."}
+              </p>
+            </article>
+          ) : null}
+        </div>
+      ) : null}
+
       {!opsBrain ? (
         <section
           className="opsbrain-console"
