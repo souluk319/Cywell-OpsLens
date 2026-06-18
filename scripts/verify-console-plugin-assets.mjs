@@ -27,6 +27,10 @@ function expectCheck(name, condition, detail, failDetail = detail) {
   }
 }
 
+function consoleApiRangeSupportsOcp421(range) {
+  return typeof range === "string" && range.includes(">=4.16.0") && range.includes("<4.22.0");
+}
+
 async function readText(path) {
   try {
     return await readFile(resolve(path), "utf8");
@@ -105,9 +109,9 @@ expectCheck(
 
 expectCheck(
   "plugin dependency range",
-  manifest?.dependencies?.["@console/pluginAPI"] === ">=4.16.0 <4.20.0" &&
-    packageJson?.consolePlugin?.dependencies?.["@console/pluginAPI"] === ">=4.16.0 <4.20.0",
-  "plugin declares the same Console API compatibility range as the source package metadata"
+  manifest?.dependencies?.["@console/pluginAPI"] === packageJson?.consolePlugin?.dependencies?.["@console/pluginAPI"] &&
+    consoleApiRangeSupportsOcp421(packageJson?.consolePlugin?.dependencies?.["@console/pluginAPI"]),
+  "plugin declares one Console API compatibility range in source and built manifest, including CRC OpenShift 4.21"
 );
 
 expectCheck(
