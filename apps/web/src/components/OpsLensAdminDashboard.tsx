@@ -1666,8 +1666,8 @@ export function OpsLensAdminDashboard({ language }: OpsLensAdminDashboardProps) 
               </div>
               <p>
                 {language === "ko"
-                  ? "Operator package 근거를 불러오는 중입니다. 이 타깃은 OperatorHub 메뉴가 공용 admin 제목이 아니라 패키징 근거로 이동하도록 유지됩니다."
-                  : "Operator package evidence is loading. This target keeps the OperatorHub menu routed to packaging evidence instead of a generic admin header."}
+                  ? "Operator package 근거를 불러오는 중입니다. 이 타깃은 Operator 카탈로그 흐름이 공용 admin 제목이 아니라 패키징 근거로 이동하도록 유지됩니다."
+                  : "Operator package evidence is loading. This target keeps the Operator catalog flow routed to packaging evidence instead of a generic admin header."}
               </p>
             </article>
           ) : null}

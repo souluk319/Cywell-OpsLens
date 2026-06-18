@@ -1,15 +1,15 @@
 # CRC OpenShift 4.21.14 Console Parity Map
 
-Status: active acceptance contract for Cywell OpsLens Dev 0.1.2
+Status: active acceptance contract for Cywell OpsLens Dev 0.1.3
 Target: CRC OpenShift / OpenShift Local `4.21.14`, OCP web console docs `4.21`
 Truth source: `apps/web/src/consoleParity.ts`
 Verification: `AC-UI-003`, `AC-UI-006`, `AC-UI-008`, `AC-UI-009`, `AC-UI-010`, `npm run verify:web-shell`
 
 ## Product Rule
 
-Cywell OpsLens is an OpenShift console mod-style experience. It must keep native OpenShift console functions discoverable, then add better evidence, safer read-only workflows, KOMSCO assistant context, and OpsBrain/OpsLens operational surfaces on top.
+Cywell OpsLens is an OpenShift console mod-style experience. After installation, users should feel that the original OpenShift console has transformed into Cywell OpsLens while the native console functions remain present and recognizable.
 
-It must not claim to replace the native OpenShift masthead, native Lightspeed drawer, or mutation paths unless a separate ConsolePlugin/OpenShift extension contract proves that behavior.
+The implementation must stay inside supported OpenShift customization paths: ConsolePlugin dynamic plugin extensions, ConsoleLink entry points, Console customization, and approval-gated Lightspeed MCP registration. It must not rely on unsupported DOM injection or direct console image replacement.
 
 ## Completion Criteria
 
@@ -33,10 +33,10 @@ It must not claim to replace the native OpenShift masthead, native Lightspeed dr
 | 2 | Search | Home / Search | Home / Search | Search listable resources and inspect sanitized JSON/YAML, events, logs, owners, and children. | Resource Explorer preset for pods, deployments, routes, services, namespaces |
 | 3 | Events | Home / Events | Home / Events | Inspect core Events and keep involved-object context. | Resource Explorer preset for events |
 | 4 | Pinned navigation | Favorites / Pinned navigation | Favorites / Pinned navigation | Show covered, pinned, native-owned, and enhanced console functions. | Parity matrix |
-| 5 | Software Catalog | Ecosystem / Software Catalog | Ecosystem / Software Catalog | Show OperatorHub/catalog readiness and install evidence. | OpsLens Admin catalog toolchain section |
-| 6 | OperatorHub | Operators / OperatorHub | Operators / OperatorHub | Review package visibility, CSV, install modes, architecture labels, and icon metadata. | OpsLens Admin operator package section |
-| 7 | Installed Operators | Operators / Installed Operators | Operators / Installed Operators | Inspect CSVs, Subscriptions, InstallPlans, and operator Deployments. | Resource Explorer preset for OLM resources |
-| 8 | Helm | Helm | Helm | Inspect Helm-related Secrets and ConfigMaps as redacted read-only release evidence. | Resource Explorer preset for Helm metadata |
+| 5 | Software Catalog | Ecosystem / Software Catalog | Ecosystem / Software Catalog | Show software catalog readiness and install evidence. | OpsLens Admin catalog toolchain section |
+| 6 | Operator catalog | Ecosystem / Software Catalog / Operator catalog | Ecosystem / Software Catalog / Operator catalog | Review package visibility, CSV, install modes, architecture labels, and icon metadata. | OpsLens Admin operator package section |
+| 7 | Installed Operators | Ecosystem / Installed Operators | Ecosystem / Installed Operators | Inspect CSVs, Subscriptions, InstallPlans, and operator Deployments. | Resource Explorer preset for OLM resources |
+| 8 | Helm | Ecosystem / Helm | Ecosystem / Helm | Inspect Helm-related Secrets and ConfigMaps as redacted read-only release evidence. | Resource Explorer preset for Helm metadata |
 | 9 | Pods | Workloads / Pods | Workloads / Pods | List pods and inspect status, events, logs, owner refs, and sanitized YAML. | Resource Explorer preset for pods |
 | 10 | Workload controllers | Workloads / Deployments, DeploymentConfigs, StatefulSets, DaemonSets, Jobs, CronJobs, ReplicaSets, HPAs | Workloads / Workload controllers | Preset OpenShift and Kubernetes workload controllers. | Resource Explorer preset for workload APIs |
 | 11 | Routes, Services, Ingresses | Networking / Routes, Services, Ingresses | Networking / Routes, Services, Ingresses | Inspect routes, services, ingresses, endpoints, and endpoint slices. | Resource Explorer preset for network APIs |
@@ -57,4 +57,4 @@ It must not claim to replace the native OpenShift masthead, native Lightspeed dr
 
 ## Current Gaps
 
-The parity contract proves UI routing and read-only assistant context locally. Full native OpenShift console replacement is intentionally out of scope until ConsolePlugin extension points are separately verified. Live CRC state can still report non-ready workloads such as optional vLLM or storage runtime issues; those are installation/runtime readiness gaps, not menu mapping gaps.
+The parity contract proves UI routing and read-only assistant context locally. The product target is an in-console OpsLens mode through supported ConsolePlugin and console customization surfaces, not a separate portal as the primary experience. Live CRC state can still report non-ready workloads such as optional vLLM or storage runtime issues; those are installation/runtime readiness gaps, not menu mapping gaps.

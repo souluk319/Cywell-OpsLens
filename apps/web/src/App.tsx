@@ -17,7 +17,6 @@ import {
   Activity,
   AlertTriangle,
   Bell,
-  BookOpen,
   Bot,
   Boxes,
   ChevronDown,
@@ -29,6 +28,7 @@ import {
   FileSearch,
   Gauge,
   GitBranch,
+  Globe2,
   Grid3X3,
   HardDrive,
   Heart,
@@ -150,8 +150,6 @@ const sectionIcons: Record<ConsoleParitySection, LucideIcon> = {
   Home: ServerCog,
   Favorites: Heart,
   Ecosystem: PackageSearch,
-  Operators: DatabaseZap,
-  Helm: BookOpen,
   Workloads: Boxes,
   Networking: Network,
   Storage: HardDrive,
@@ -207,6 +205,8 @@ const shellCopy = {
     administrator: "Administrator",
     breadcrumb: "Breadcrumb",
     language: "Language",
+    switchLanguageToEnglish: "Switch to English",
+    switchLanguageToKorean: "Switch to Korean",
     loading: "loading",
     remaining: "remaining",
     remainingRequirements: "remaining items",
@@ -218,24 +218,10 @@ const shellCopy = {
     closeAssistant: "Close KOMSCO AI Assistant",
     openAssistant: "Open KOMSCO AI Assistant",
     assistantTitle: "KOMSCO AI Assistant",
-    consolePluginMode: "Console plugin",
-    standaloneDevMode: "Standalone dev",
-    pluginApi: "plugin API proxy",
-    localApi: "local API path",
-    consolePluginModeTitle:
-      "OpenShift Console is hosting OpsLens through the plugin iframe and plugin API proxy.",
-    standaloneDevModeTitle:
-      "Local dev shell; OpenShift console chrome and Lightspeed drawer are not injected here.",
-    consolePluginScope: "Route + proxy mode",
-    standaloneScope: "Preview shell",
-    consolePluginScopeTitle:
-      "Installed ConsolePlugin scope: OpsLens route, launcher entry, UserToken API proxy, and MCP readiness surfaces. Native OpenShift chrome and Lightspeed drawer remain OpenShift-owned.",
-    standaloneScopeTitle:
-      "Standalone preview scope: local shell and local API path. Install as ConsolePlugin to verify in-console routing and proxy behavior.",
     consoleContextPrimary: "OpenShift ConsolePlugin",
     consoleContextSecondary: "UserToken proxy / active console context",
-    standaloneContextPrimary: "CRC lab preview",
-    standaloneContextSecondary: "local fixture scenario / no company OCP mutation",
+    standaloneContextPrimary: "CRC validation shell",
+    standaloneContextSecondary: "console route pending / company OCP untouched",
     opsLensStatus: "Cywell OpsLens status",
     ocpLiveStatus: "OCP live",
     ocpStatusUnknown: "OCP check needed",
@@ -266,6 +252,8 @@ const shellCopy = {
     administrator: "관리자",
     breadcrumb: "이동 경로",
     language: "언어",
+    switchLanguageToEnglish: "영어로 전환",
+    switchLanguageToKorean: "한국어로 전환",
     loading: "불러오는 중",
     remaining: "남음",
     remainingRequirements: "남은 항목",
@@ -277,24 +265,10 @@ const shellCopy = {
     closeAssistant: "KOMSCO AI 어시스턴트 닫기",
     openAssistant: "KOMSCO AI 어시스턴트 열기",
     assistantTitle: "KOMSCO AI 어시스턴트",
-    consolePluginMode: "콘솔 플러그인",
-    standaloneDevMode: "독립 미리보기",
-    pluginApi: "플러그인 API 프록시",
-    localApi: "로컬 API 경로",
-    consolePluginModeTitle:
-      "OpenShift 콘솔이 플러그인 iframe과 플러그인 API 프록시로 OpsLens를 호스팅 중입니다.",
-    standaloneDevModeTitle:
-      "로컬 미리보기 화면입니다. OpenShift 콘솔 상단 메뉴와 Lightspeed 서랍은 이 화면에 주입되지 않습니다.",
-    consolePluginScope: "라우트 + 프록시 모드",
-    standaloneScope: "미리보기 화면",
-    consolePluginScopeTitle:
-      "설치된 콘솔 플러그인 적용 범위: OpsLens 라우트, 런처 항목, 사용자 토큰 API 프록시, MCP 준비도 화면입니다. 기본 OpenShift 상단 메뉴와 Lightspeed 서랍은 OpenShift 소유로 유지됩니다.",
-    standaloneScopeTitle:
-      "독립 미리보기 범위: 로컬 화면과 로컬 API 경로입니다. 콘솔 내부 라우팅과 프록시는 콘솔 플러그인 설치 후 검증합니다.",
     consoleContextPrimary: "OpenShift 콘솔 플러그인",
     consoleContextSecondary: "사용자 토큰 프록시 / 활성 콘솔 컨텍스트",
-    standaloneContextPrimary: "CRC 실습 환경 미리보기",
-    standaloneContextSecondary: "로컬 검증 시나리오 / 회사 OCP 변경 없음",
+    standaloneContextPrimary: "CRC 검증 환경",
+    standaloneContextSecondary: "콘솔 라우트 준비 중 / 회사 OCP 변경 없음",
     opsLensStatus: "Cywell OpsLens 상태",
     ocpLiveStatus: "OCP 실시간 연결",
     ocpStatusUnknown: "OCP 확인 필요",
@@ -543,10 +517,12 @@ export default function App() {
   const completionGate = adminOverview?.installReadiness.completionGate;
   const activeNavigation = findNavigationItem(activeNavId);
   const copy = shellCopy[language];
+  const nextLanguage: UiLanguage = language === "ko" ? "en" : "ko";
+  const languageSwitchLabel =
+    nextLanguage === "ko" ? copy.switchLanguageToKorean : copy.switchLanguageToEnglish;
   const runtimeProfile = useMemo(() => readRuntimeProfile(), []);
   const apiRoute = useMemo(() => getApiRouteDiagnostics(), []);
   const isConsolePlugin = runtimeProfile.surface === "console-plugin";
-  const dashboardUsesDemoData = dashboard.source === "mock-backend";
 
   function toggleNavigationSection(section: ConsoleParitySection) {
     setExpandedSections((current) =>
@@ -912,27 +888,19 @@ export default function App() {
             >
               {copy.api} {apiStatusLabels[language][apiStatus]}
             </span>
-            <div
-              className="segmented-control language-toggle"
-              aria-label={copy.language}
+            <button
+              className="icon-button language-toggle"
+              aria-label={languageSwitchLabel}
+              data-testid={
+                nextLanguage === "ko" ? "language-ko-toggle" : "language-en-toggle"
+              }
+              title={languageSwitchLabel}
+              type="button"
+              onClick={() => setLanguage(nextLanguage)}
             >
-              <button
-                aria-pressed={language === "ko"}
-                data-testid="language-ko-toggle"
-                type="button"
-                onClick={() => setLanguage("ko")}
-              >
-                KO
-              </button>
-              <button
-                aria-pressed={language === "en"}
-                data-testid="language-en-toggle"
-                type="button"
-                onClick={() => setLanguage("en")}
-              >
-                EN
-              </button>
-            </div>
+              <Globe2 size={18} aria-hidden="true" />
+              <span className="sr-only">{copy.language}</span>
+            </button>
           </div>
           <div
             className="console-native-actions"

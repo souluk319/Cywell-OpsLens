@@ -175,10 +175,10 @@ expectCheck(
     appSource.includes('data-testid="console-context-primary"') &&
     appSource.includes('data-testid="console-context-secondary"') &&
     appSource.includes('data-testid="api-status"') &&
-    appSource.includes("CRC lab preview") &&
+    appSource.includes("CRC validation shell") &&
     appSource.includes("OpenShift ConsolePlugin") &&
     !appSource.includes("<span>prod-ocp / openshift-cluster-version</span>") &&
-    appSource.includes("local fixture scenario / no company OCP mutation") &&
+    appSource.includes("console route pending / company OCP untouched") &&
     appSource.includes("UserToken proxy / active console context"),
   "dashboard shell keeps runtime context compact in the masthead"
 );
@@ -192,8 +192,9 @@ expectCheck(
     !appSource.includes('data-testid="ocp-live-status"') &&
     !appSource.includes('data-testid="dashboard-data-source"') &&
     appSource.includes('data-testid="api-status"') &&
-    appSource.includes('data-testid="language-ko-toggle"') &&
-    appSource.includes('data-testid="language-en-toggle"') &&
+    appSource.includes('"language-ko-toggle"') &&
+    appSource.includes('"language-en-toggle"') &&
+    appSource.includes("Globe2") &&
     appSource.includes("function renderActiveSurface()") &&
     appSource.includes('data-testid={`active-surface-${activeNavigation.actionSurface}`}') &&
     appSource.includes('data-testid="opslens-readiness-command-strip"') &&
@@ -301,8 +302,12 @@ expectCheck(
   "OpenShift masthead user parity",
   appSource.includes('data-testid="masthead-user-menu"') &&
     appSource.includes("kubeadmin") &&
+    !appSource.includes('data-testid="console-mode-toggle"') &&
+    !appSource.includes('data-testid="console-mode-native"') &&
+    !appSource.includes('data-testid="console-mode-opslens"') &&
+    !appSource.includes("activateNativeConsoleMode") &&
     !appSource.includes('className="user-menu">admin'),
-  "masthead keeps the OpenShift console user placement and kubeadmin demo identity"
+  "masthead keeps the OpenShift console user placement and kubeadmin demo identity without a fake in-app OpenShift/OpsLens toggle"
 );
 
 expectCheck(
@@ -360,7 +365,8 @@ expectCheck(
     assistantSource.includes("answer source") &&
     assistantSource.includes('readyStatus: "API connected / plan-only"') &&
     assistantSource.includes('readyStatus: "API 연결됨 / 계획 전용"') &&
-    assistantSource.includes("local plan-only fallback") &&
+    assistantSource.includes("plan-only fallback") &&
+    assistantSource.includes("CRC validation tunnel") &&
     assistantSource.includes("OpenShift UserToken proxy") &&
     assistantSource.includes("not executed") &&
     assistantSource.includes("실제 AI 연결처럼 보이게 꾸미지 않고") &&
@@ -388,12 +394,14 @@ expectCheck(
     assistantSource.includes('data-testid="assistant-integration-standalone"') &&
     assistantSource.includes('data-testid="assistant-integration-console"') &&
     assistantSource.includes('data-testid="assistant-integration-lightspeed"') &&
-    assistantSource.includes("Standalone preview uses local API route") &&
+    assistantSource.includes("CRC validation shell uses the same OpsLens question flow") &&
     assistantSource.includes("Installed ConsolePlugin uses the UserToken proxy") &&
     assistantSource.includes("Native Lightspeed drawer is separate") &&
-    assistantSource.includes("독립 미리보기는 로컬 API 경로") &&
+    assistantSource.includes("CRC 검증 화면도 콘솔 라우트 연결 전") &&
     assistantSource.includes("설치된 ConsolePlugin은 사용자 토큰 프록시") &&
     assistantSource.includes("기본 Lightspeed 서랍은 별도") &&
+    !assistantSource.includes("Standalone preview uses local API route") &&
+    !assistantSource.includes("독립 미리보기는 로컬 API 경로") &&
     stylesSource.includes(".assistant-integration-contract") &&
     stylesSource.includes(".assistant-integration-contract span") &&
     stylesSource.includes(".assistant-connection-smoke") &&
@@ -403,20 +411,18 @@ expectCheck(
 
 expectCheck(
   "assistant ask execution path",
-  assistantSource.includes('data-testid="assistant-execution-path"') &&
+    assistantSource.includes('data-testid="assistant-execution-path"') &&
     assistantSource.includes('data-testid="assistant-execution-enter"') &&
     assistantSource.includes('data-testid="assistant-execution-fallback"') &&
     assistantSource.includes('data-testid="assistant-execution-newline"') &&
-    assistantSource.includes("Ask execution path") &&
-    assistantSource.includes("Enter sends to the current OpsLens API route") &&
-    assistantSource.includes("Fallback keeps the local plan-only answer visible") &&
+    assistantSource.includes("Enter asks KOMSCO AI Assistant") &&
+    assistantSource.includes("Fallback remains plan-only when the API is unavailable") &&
     assistantSource.includes("Shift+Enter adds a line") &&
-    assistantSource.includes("질문 실행 경로") &&
-    assistantSource.includes("Enter는 현재 OpsLens API 경로로 전송") &&
-    assistantSource.includes("대체 응답은 로컬 계획 전용으로 유지") &&
+    assistantSource.includes("Enter는 KOMSCO AI 어시스턴트에 질문") &&
+    assistantSource.includes("API가 없을 때만 계획 전용 대체 응답 유지") &&
     assistantSource.includes("Shift+Enter는 줄바꿈") &&
-    stylesSource.includes(".assistant-execution-path") &&
-    stylesSource.includes(".assistant-execution-path strong"),
+    assistantSource.includes("assistant-chat-hints") &&
+    stylesSource.includes(".assistant-chat-hints"),
   "assistant makes Enter, API route, fallback, and Shift+Enter behavior visible"
 );
 
@@ -1356,8 +1362,8 @@ expectCheck(
     paritySource.includes('"Home"') &&
     paritySource.includes('"Favorites"') &&
     paritySource.includes('"Ecosystem"') &&
-    paritySource.includes('"Operators"') &&
-    paritySource.includes('"Helm"') &&
+    !paritySource.includes('| "Operators"') &&
+    !paritySource.includes('| "Helm"') &&
     paritySource.includes('"Workloads"') &&
     paritySource.includes('"Networking"') &&
     paritySource.includes('"Storage"') &&
@@ -1369,7 +1375,7 @@ expectCheck(
     paritySource.includes('"Cywell"') &&
     paritySource.includes("Software Catalog") &&
     paritySource.includes("Installed Operators") &&
-    paritySource.includes("OperatorHub") &&
+    paritySource.includes("Operator catalog") &&
     paritySource.includes("Pods") &&
     paritySource.includes("Routes, Services, Ingresses") &&
     paritySource.includes("PVCs, PVs, StorageClasses") &&
@@ -1402,7 +1408,8 @@ expectCheck(
     parityMapDocSource.includes("preferred API match") &&
     parityMapDocSource.includes("Every item opens KOMSCO assistant") &&
     parityMapDocSource.includes("| 25 | KOMSCO AI Assistant |") &&
-    parityMapDocSource.includes("Full native OpenShift console replacement is intentionally out of scope"),
+    parityMapDocSource.includes("supported OpenShift customization paths") &&
+    parityMapDocSource.includes("in-console OpsLens mode"),
   "Acceptance docs pin the CRC 4.21.14 console list, the 1:1 OpsLens mapping, and the assistant/action verification boundary"
 );
 
@@ -1666,7 +1673,9 @@ expectCheck(
 expectCheck(
   "localized interactive shell e2e",
   e2eSource.includes("AC-UI-004 keeps KO/EN switching consistent and customer masthead stays compact") &&
-    e2eSource.includes('getByTestId("language-ko-toggle")') &&
+    e2eSource.includes('switchLanguage(page, "ko")') &&
+    e2eSource.includes('"language-ko-toggle"') &&
+    e2eSource.includes('"language-en-toggle"') &&
     e2eSource.includes('getByTestId("opslens-status-details")).toHaveCount(0)') &&
     e2eSource.includes('getByTestId("opslens-readiness-command-strip")).toHaveCount(0)') &&
     e2eSource.includes('await openConsoleNavItem(page, "opslens-admin")') &&
@@ -1704,7 +1713,8 @@ expectCheck(
     e2eSource.includes("답변 출처") &&
     e2eSource.includes("클러스터 변경") &&
     e2eSource.includes("실행 안 함") &&
-    e2eSource.includes("OpsLens API route|local plan-only fallback") &&
+    e2eSource.includes("OpsLens API route") &&
+    e2eSource.includes("plan-only fallback") &&
     e2eSource.includes("not executed") &&
     e2eSource.includes("Ask KOMSCO AI Assistant") &&
     e2eSource.includes("KOMSCO AI 어시스턴트에 질문"),
@@ -1747,7 +1757,7 @@ expectCheck(
 expectCheck(
   "localized navigation action e2e",
   e2eSource.includes("AC-UI-006 makes Korean console navigation actionable") &&
-    e2eSource.includes('getByTestId("language-ko-toggle")') &&
+    e2eSource.includes('switchLanguage(page, "ko")') &&
     e2eSource.includes("for (const item of ocpConsoleParityItems)") &&
     e2eSource.includes("const proof = consoleParityFunctionProof(item)") &&
     e2eSource.includes("await openConsoleNavItem(page, item)") &&
@@ -1778,19 +1788,21 @@ expectCheck(
   "localized shell persistence",
   appSource.includes('window.localStorage.setItem("cywell-opslens-language", language)') &&
     appSource.includes("document.documentElement.lang = language") &&
-    appSource.includes("KO") &&
-    appSource.includes("EN"),
-  "language toggle persists the selected language and updates the document language"
+    appSource.includes("switchLanguageToKorean") &&
+    appSource.includes("switchLanguageToEnglish"),
+  "globe language control persists the selected language and updates the document language"
 );
 
 expectCheck(
   "customer-facing Korean shell copy",
-    appSource.includes("CRC 실습 환경 미리보기") &&
-    appSource.includes("로컬 검증 시나리오 / 회사 OCP 변경 없음") &&
-    appSource.includes("미리보기 화면") &&
+    appSource.includes("CRC 검증 환경") &&
+    appSource.includes("콘솔 라우트 준비 중 / 회사 OCP 변경 없음") &&
+    !appSource.includes("미리보기 화면") &&
+    !appSource.includes("독립 미리보기") &&
+    !appSource.includes("로컬 API 경로") &&
     appSource.includes("계획 수립 흐름만 엽니다") &&
     appSource.includes("진행 중인 장애 대기열") &&
-    paritySource.includes("설치 전에 OperatorHub/카탈로그 준비도") &&
+    paritySource.includes("설치 전에 소프트웨어 카탈로그 준비도") &&
     paritySource.includes("필수 키") &&
     appSource.includes("{copy.api} {apiStatusLabels[language][apiStatus]}") &&
     paritySource.includes("파드 목록, 상태, 이벤트, 로그") &&

@@ -38,6 +38,15 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
     }
   }
 
+  async function switchLanguage(page: Page, target: "ko" | "en") {
+    if ((await page.locator("html").getAttribute("lang")) !== target) {
+      await page
+        .getByTestId(target === "ko" ? "language-ko-toggle" : "language-en-toggle")
+        .click();
+    }
+    await expect(page.locator("html")).toHaveAttribute("lang", target);
+  }
+
   function sectionTestIdFor(section: string) {
     return section
       .toLowerCase()
@@ -711,8 +720,7 @@ async function expectConsoleFunctionEffect(
     test.setTimeout(180_000);
     const feedback = page.getByTestId("console-navigation-feedback");
 
-    await page.getByTestId("language-ko-toggle").click();
-    await expect(page.locator("html")).toHaveAttribute("lang", "ko");
+    await switchLanguage(page, "ko");
     await openConsoleNavItem(page, "favorites");
     await expect(page.getByTestId("console-parity-matrix")).toContainText(
       "OCP 4.21.14 콘솔 커버리지"
@@ -786,7 +794,7 @@ async function expectConsoleFunctionEffect(
   test("AC-LIVE-001 shows live OpsLens install state separately from demo data", async ({
     page
   }) => {
-    await page.getByTestId("language-ko-toggle").click();
+    await switchLanguage(page, "ko");
     await expect(page.getByTestId("opslens-live-install-status")).toBeVisible();
     await expect(page.getByTestId("opslens-live-install-status")).toContainText(
       "CRC 실시간 설치 신호"
@@ -816,7 +824,7 @@ async function expectConsoleFunctionEffect(
       /데모 데이터|실데이터/
     );
 
-    await page.getByTestId("language-en-toggle").click();
+    await switchLanguage(page, "en");
     await expect(page.getByTestId("opslens-live-install-status")).toContainText(
       "Live CRC install signal"
     );
@@ -829,11 +837,13 @@ async function expectConsoleFunctionEffect(
     page
   }) => {
     test.setTimeout(60_000);
-    await page.getByTestId("language-ko-toggle").click();
-    await expect(page.locator("html")).toHaveAttribute("lang", "ko");
+    await switchLanguage(page, "ko");
     await expect(page.getByTestId("masthead-user-menu")).toContainText(
       "kubeadmin"
     );
+    await expect(page.getByTestId("console-mode-toggle")).toHaveCount(0);
+    await expect(page.getByTestId("console-mode-native")).toHaveCount(0);
+    await expect(page.getByTestId("console-mode-opslens")).toHaveCount(0);
     await waitForApiReady(page);
     await expect(
       page.locator("[data-testid='masthead'] [data-testid='runtime-surface']")
@@ -877,7 +887,7 @@ async function expectConsoleFunctionEffect(
       ["events", "이벤트", "Events"],
       ["favorites", "고정 메뉴", "Pinned navigation"],
       ["software-catalog", "소프트웨어 카탈로그", "Software Catalog"],
-      ["operatorhub", "OperatorHub", "OperatorHub"],
+      ["operatorhub", "Operator 카탈로그", "Operator catalog"],
       ["installed-operators", "설치된 Operator", "Installed Operators"],
       ["helm", "Helm", "Helm"],
       ["alerting", "경고", "Alerting"],
@@ -902,8 +912,6 @@ async function expectConsoleFunctionEffect(
       ["home", "홈", "Home"],
       ["favorites", "즐겨찾기", "Favorites"],
       ["ecosystem", "에코시스템", "Ecosystem"],
-      ["operators", "Operator", "Operators"],
-      ["helm", "Helm", "Helm"],
       ["workloads", "워크로드", "Workloads"],
       ["networking", "네트워킹", "Networking"],
       ["storage", "스토리지", "Storage"],
@@ -943,7 +951,7 @@ async function expectConsoleFunctionEffect(
       "연동 계약"
     );
     await expect(page.getByTestId("assistant-integration-standalone")).toContainText(
-      "독립 미리보기는 로컬 API 경로"
+      "CRC 검증 화면"
     );
     await expect(page.getByTestId("assistant-integration-console")).toContainText(
       "설치된 ConsolePlugin은 사용자 토큰 프록시"
@@ -951,14 +959,11 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("assistant-integration-lightspeed")).toContainText(
       "기본 Lightspeed 서랍은 별도"
     );
-    await expect(page.getByTestId("assistant-execution-path")).toContainText(
-      "질문 실행 경로"
-    );
     await expect(page.getByTestId("assistant-execution-enter")).toContainText(
-      "Enter는 현재 OpsLens API 경로로 전송"
+      "Enter는 KOMSCO AI 어시스턴트에 질문"
     );
     await expect(page.getByTestId("assistant-execution-fallback")).toContainText(
-      "대체 응답은 로컬 계획 전용으로 유지"
+      "API가 없을 때만 계획 전용 대체 응답 유지"
     );
     await expect(page.getByTestId("assistant-execution-newline")).toContainText(
       "Shift+Enter는 줄바꿈"
@@ -991,8 +996,7 @@ async function expectConsoleFunctionEffect(
       "KOMSCO AI 어시스턴트"
     );
 
-    await page.getByTestId("language-en-toggle").click();
-    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await switchLanguage(page, "en");
     await openConsoleNavItem(page, "opslens-admin");
     await expect(page.getByTestId("active-surface-ops-admin")).toBeVisible();
     await expect(page.getByTestId("opslens-status-details")).toHaveCount(0);
@@ -1036,7 +1040,7 @@ async function expectConsoleFunctionEffect(
       "Integration contract"
     );
     await expect(page.getByTestId("assistant-integration-standalone")).toContainText(
-      "Standalone preview uses local API route"
+      "CRC validation shell"
     );
     await expect(page.getByTestId("assistant-integration-console")).toContainText(
       "Installed ConsolePlugin uses the UserToken proxy"
@@ -1044,14 +1048,11 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("assistant-integration-lightspeed")).toContainText(
       "Native Lightspeed drawer is separate"
     );
-    await expect(page.getByTestId("assistant-execution-path")).toContainText(
-      "Ask execution path"
-    );
     await expect(page.getByTestId("assistant-execution-enter")).toContainText(
-      "Enter sends to the current OpsLens API route"
+      "Enter asks KOMSCO AI Assistant"
     );
     await expect(page.getByTestId("assistant-execution-fallback")).toContainText(
-      "Fallback keeps the local plan-only answer visible"
+      "Fallback remains plan-only when the API is unavailable"
     );
     await expect(page.getByTestId("assistant-execution-newline")).toContainText(
       "Shift+Enter adds a line"
@@ -1061,7 +1062,7 @@ async function expectConsoleFunctionEffect(
     }
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
     await expect(page.getByTestId("assistant-answer-source")).toContainText(
-      /OpsLens API route|local plan-only fallback/
+      /OpsLens API route|plan-only fallback/
     );
     await expect(page.getByTestId("assistant-mutation-boundary")).toContainText(
       "not executed"
@@ -1168,7 +1169,7 @@ async function expectConsoleFunctionEffect(
       "Chat remains read-only/plan-only"
     );
 
-    await page.getByTestId("language-ko-toggle").click();
+    await switchLanguage(page, "ko");
     await expect(page.getByTestId("console-context-primary")).toContainText(
       "OpenShift 콘솔 플러그인"
     );
@@ -1265,6 +1266,8 @@ async function expectConsoleFunctionEffect(
     page
   }) => {
     await openAssistant(page);
+    await expect(page.getByTestId("assistant-chat-turns")).toBeVisible();
+    await page.getByTestId("assistant-answer-details").locator("summary").click();
     const requiredBlocks = [
       "answer-judgment",
       "answer-evidence",

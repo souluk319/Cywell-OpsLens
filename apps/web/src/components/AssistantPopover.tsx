@@ -51,23 +51,23 @@ const assistantCopy = {
     errorInterpretation: "interpretation",
     answerSource: "answer source",
     sourceLive: "OpsLens API route",
-    sourceFallback: "local plan-only fallback",
+    sourceFallback: "plan-only fallback",
     tokenPath: "token path",
     tokenConsole: "OpenShift UserToken proxy",
-    tokenLocal: "local dev proxy or tunnel",
+    tokenLocal: "CRC validation tunnel",
     mutationBoundaryShort: "cluster changes",
     mutationBoundaryValue: "not executed",
     retry: "Retry API",
     integrationTitle: "Integration contract",
     integrationStandalone:
-      "Standalone preview uses local API route or plan-only fallback.",
+      "CRC validation shell uses the same OpsLens question flow before the console route is attached.",
     integrationConsole:
       "Installed ConsolePlugin uses the UserToken proxy for OpsLens API.",
     integrationLightspeed:
       "Native Lightspeed drawer is separate; OpsLens MCP registration is explicit.",
     executionTitle: "Ask execution path",
-    executionEnter: "Enter sends to the current OpsLens API route",
-    executionFallback: "Fallback keeps the local plan-only answer visible",
+    executionEnter: "Enter asks KOMSCO AI Assistant",
+    executionFallback: "Fallback remains plan-only when the API is unavailable",
     executionNewline: "Shift+Enter adds a line",
     smokeTitle: "Connection smoke",
     smokeContextSync: "context sync",
@@ -75,7 +75,7 @@ const assistantCopy = {
     smokeMutationBoundary: "cluster mutation",
     smokeReady: "ready",
     smokeChecking: "checking",
-    smokeFallback: "local fallback",
+    smokeFallback: "plan fallback",
     smokeBlocked: "blocked",
     pending: "pending",
     actionMode: "action mode",
@@ -90,7 +90,12 @@ const assistantCopy = {
     risk: "Risk",
     missingEvidence: "Missing Evidence",
     planAndRollback: "Plan And Rollback Path",
-    citations: "Citations"
+    citations: "Citations",
+    diagnostics: "Connection details",
+    answerDetails: "Evidence and next checks",
+    userBubble: "You",
+    assistantBubble: "KOMSCO",
+    readOnlyHint: "Read-only guidance, no cluster mutation"
   },
   ko: {
     ariaLabel: "KOMSCO AI 어시스턴트",
@@ -106,23 +111,23 @@ const assistantCopy = {
     errorInterpretation: "오류 해석",
     answerSource: "답변 출처",
     sourceLive: "OpsLens API 경로",
-    sourceFallback: "로컬 계획 전용 대체 응답",
+    sourceFallback: "계획 전용 대체 응답",
     tokenPath: "토큰 경로",
     tokenConsole: "OpenShift 사용자 토큰 프록시",
-    tokenLocal: "로컬 개발 프록시 또는 터널",
+    tokenLocal: "CRC 검증 터널",
     mutationBoundaryShort: "클러스터 변경",
     mutationBoundaryValue: "실행 안 함",
     retry: "API 재시도",
     integrationTitle: "연동 계약",
     integrationStandalone:
-      "독립 미리보기는 로컬 API 경로 또는 계획 전용 대체 응답을 사용",
+      "CRC 검증 화면도 콘솔 라우트 연결 전 동일한 OpsLens 질문 흐름을 사용",
     integrationConsole:
       "설치된 ConsolePlugin은 사용자 토큰 프록시로 OpsLens API 사용",
     integrationLightspeed:
       "기본 Lightspeed 서랍은 별도이며 OpsLens MCP 등록은 명시 승인",
     executionTitle: "질문 실행 경로",
-    executionEnter: "Enter는 현재 OpsLens API 경로로 전송",
-    executionFallback: "대체 응답은 로컬 계획 전용으로 유지",
+    executionEnter: "Enter는 KOMSCO AI 어시스턴트에 질문",
+    executionFallback: "API가 없을 때만 계획 전용 대체 응답 유지",
     executionNewline: "Shift+Enter는 줄바꿈",
     smokeTitle: "연결 스모크",
     smokeContextSync: "컨텍스트 동기화",
@@ -130,7 +135,7 @@ const assistantCopy = {
     smokeMutationBoundary: "클러스터 변경",
     smokeReady: "준비됨",
     smokeChecking: "확인 중",
-    smokeFallback: "로컬 대체",
+    smokeFallback: "계획 대체",
     smokeBlocked: "차단",
     pending: "대기 중",
     actionMode: "동작 모드",
@@ -145,7 +150,12 @@ const assistantCopy = {
     risk: "리스크",
     missingEvidence: "부족한 근거",
     planAndRollback: "계획과 롤백 경로",
-    citations: "인용"
+    citations: "인용",
+    diagnostics: "연결 상세",
+    answerDetails: "근거와 다음 확인",
+    userBubble: "질문",
+    assistantBubble: "KOMSCO",
+    readOnlyHint: "읽기 전용 가이드, 클러스터 변경 없음"
   }
 } as const;
 
@@ -575,11 +585,10 @@ export function AssistantPopover({
       <div className="prompt-box">
         <label htmlFor="kugnus-draft">{copy.prompt}</label>
         <div
-          className="assistant-execution-path"
+          className="assistant-chat-hints"
           data-testid="assistant-execution-path"
           aria-label={copy.executionTitle}
         >
-          <strong>{copy.executionTitle}</strong>
           <span data-testid="assistant-execution-enter">
             {copy.executionEnter}
           </span>
@@ -609,92 +618,107 @@ export function AssistantPopover({
         </button>
       </div>
 
-      <div className="api-trace" data-testid="api-trace">
-        <span>{copy.request}</span>
-        <strong data-testid="assistant-request-id">{requestId}</strong>
-        <span>{copy.model}</span>
-        <strong>{model}</strong>
-        <span>{copy.context}</span>
-        <strong>{audit?.contextHash ?? copy.pending}</strong>
-        <span>{copy.route}</span>
-        <strong data-testid="assistant-api-route-mode">{apiRouteMode}</strong>
-        <span>{copy.endpoint}</span>
-        <strong data-testid="assistant-action-plan-path">{actionPlanPath}</strong>
-        {lastApiError ? (
-          <>
-            <span>{copy.error}</span>
-            <strong data-testid="assistant-last-api-error">{lastApiError}</strong>
-            <span>{copy.errorInterpretation}</span>
-            <strong data-testid="assistant-last-api-error-interpretation">
-              {apiErrorInterpretation(language, lastApiError)}
-            </strong>
-          </>
-        ) : null}
-      </div>
+      <details className="assistant-diagnostics" data-testid="assistant-diagnostics">
+        <summary>{copy.diagnostics}</summary>
+        <div className="api-trace" data-testid="api-trace">
+          <span>{copy.request}</span>
+          <strong data-testid="assistant-request-id">{requestId}</strong>
+          <span>{copy.model}</span>
+          <strong>{model}</strong>
+          <span>{copy.context}</span>
+          <strong>{audit?.contextHash ?? copy.pending}</strong>
+          <span>{copy.route}</span>
+          <strong data-testid="assistant-api-route-mode">{apiRouteMode}</strong>
+          <span>{copy.endpoint}</span>
+          <strong data-testid="assistant-action-plan-path">{actionPlanPath}</strong>
+          {lastApiError ? (
+            <>
+              <span>{copy.error}</span>
+              <strong data-testid="assistant-last-api-error">{lastApiError}</strong>
+              <span>{copy.errorInterpretation}</span>
+              <strong data-testid="assistant-last-api-error-interpretation">
+                {apiErrorInterpretation(language, lastApiError)}
+              </strong>
+            </>
+          ) : null}
+        </div>
 
-      <div
-        className={`assistant-connection-summary ${apiStatus}`}
-        data-testid="assistant-connection-summary"
-      >
-        <strong>{connection.title}</strong>
-        <p>{connectionDetail}</p>
-        <ul>
-          {connectionItems.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
         <div
-          className="assistant-integration-contract"
-          data-testid="assistant-integration-contract"
-          aria-label={copy.integrationTitle}
+          className={`assistant-connection-summary ${apiStatus}`}
+          data-testid="assistant-connection-summary"
         >
-          <strong>{copy.integrationTitle}</strong>
-          <span data-testid="assistant-integration-standalone">
-            {copy.integrationStandalone}
-          </span>
-          <span data-testid="assistant-integration-console">
-            {copy.integrationConsole}
-          </span>
-          <span data-testid="assistant-integration-lightspeed">
-            {copy.integrationLightspeed}
-          </span>
-        </div>
-        <dl className="assistant-mode-matrix" data-testid="assistant-mode-matrix">
-          <div>
-            <dt>{copy.answerSource}</dt>
-            <dd data-testid="assistant-answer-source">{answerSource}</dd>
-          </div>
-          <div>
-            <dt>{copy.tokenPath}</dt>
-            <dd data-testid="assistant-token-path">{tokenPath}</dd>
-          </div>
-          <div>
-            <dt>{copy.mutationBoundaryShort}</dt>
-            <dd data-testid="assistant-mutation-boundary">
-              {copy.mutationBoundaryValue}
-            </dd>
-          </div>
-        </dl>
-        <div
-          className="assistant-connection-smoke"
-          data-testid="assistant-connection-smoke"
-          aria-label={copy.smokeTitle}
-        >
-          <strong>{copy.smokeTitle}</strong>
-          <div>
-            {connectionSmoke.map((item) => (
-              <span
-                key={item.id}
-                data-testid={`assistant-smoke-${item.id}`}
-              >
-                {item.label}: <b>{item.value}</b>
-              </span>
+          <strong>{connection.title}</strong>
+          <p>{connectionDetail}</p>
+          <ul>
+            {connectionItems.map((item) => (
+              <li key={item}>{item}</li>
             ))}
+          </ul>
+          <div
+            className="assistant-integration-contract"
+            data-testid="assistant-integration-contract"
+            aria-label={copy.integrationTitle}
+          >
+            <strong>{copy.integrationTitle}</strong>
+            <span data-testid="assistant-integration-standalone">
+              {copy.integrationStandalone}
+            </span>
+            <span data-testid="assistant-integration-console">
+              {copy.integrationConsole}
+            </span>
+            <span data-testid="assistant-integration-lightspeed">
+              {copy.integrationLightspeed}
+            </span>
+          </div>
+          <dl className="assistant-mode-matrix" data-testid="assistant-mode-matrix">
+            <div>
+              <dt>{copy.answerSource}</dt>
+              <dd data-testid="assistant-answer-source">{answerSource}</dd>
+            </div>
+            <div>
+              <dt>{copy.tokenPath}</dt>
+              <dd data-testid="assistant-token-path">{tokenPath}</dd>
+            </div>
+            <div>
+              <dt>{copy.mutationBoundaryShort}</dt>
+              <dd data-testid="assistant-mutation-boundary">
+                {copy.mutationBoundaryValue}
+              </dd>
+            </div>
+          </dl>
+          <div
+            className="assistant-connection-smoke"
+            data-testid="assistant-connection-smoke"
+            aria-label={copy.smokeTitle}
+          >
+            <strong>{copy.smokeTitle}</strong>
+            <div>
+              {connectionSmoke.map((item) => (
+                <span
+                  key={item.id}
+                  data-testid={`assistant-smoke-${item.id}`}
+                >
+                  {item.label}: <b>{item.value}</b>
+                </span>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </details>
 
       <div className="answer-stack">
+        <section className="assistant-chat-turns" data-testid="assistant-chat-turns">
+          <div className="chat-bubble user">
+            <span>{copy.userBubble}</span>
+            <p>{draft}</p>
+          </div>
+          <div className="chat-bubble assistant">
+            <span>{copy.assistantBubble}</span>
+            <p>{localizedText(language, answer.judgment)}</p>
+            <strong>{copy.readOnlyHint}</strong>
+          </div>
+        </section>
+
         <section className="answer-block judgment" data-testid="answer-judgment">
           <div className="answer-heading">
             <CheckCircle2 size={17} aria-hidden="true" />
@@ -706,109 +730,113 @@ export function AssistantPopover({
           </span>
         </section>
 
-        <section className="answer-block" data-testid="answer-evidence">
-          <div className="answer-heading">
-            <FileSearch size={17} aria-hidden="true" />
-            <h3>{copy.inspectedEvidence}</h3>
-          </div>
-          <ul className="evidence-list">
-            {answer.inspectedEvidence.map((source) => (
-              <li key={source.id}>
-                <span>{localizedLabel(evidenceTypeLabels, language, source.type)}</span>
-                <strong>{localizedText(language, source.label)}</strong>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <details className="assistant-answer-details" data-testid="assistant-answer-details">
+          <summary>{copy.answerDetails}</summary>
 
-        <section className="answer-block" data-testid="answer-candidates">
-          <div className="answer-heading">
-            <Route size={17} aria-hidden="true" />
-            <h3>{copy.causeCandidates}</h3>
-          </div>
-          {answer.candidates.map((candidate) => (
-            <div className="candidate-row" key={candidate.label}>
-              <span className={`confidence ${candidate.confidence}`}>
-                {localizedLabel(confidenceLabels, language, candidate.confidence)}
-              </span>
+          <section className="answer-block" data-testid="answer-evidence">
+            <div className="answer-heading">
+              <FileSearch size={17} aria-hidden="true" />
+              <h3>{copy.inspectedEvidence}</h3>
+            </div>
+            <ul className="evidence-list">
+              {answer.inspectedEvidence.map((source) => (
+                <li key={source.id}>
+                  <span>{localizedLabel(evidenceTypeLabels, language, source.type)}</span>
+                  <strong>{localizedText(language, source.label)}</strong>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="answer-block" data-testid="answer-candidates">
+            <div className="answer-heading">
+              <Route size={17} aria-hidden="true" />
+              <h3>{copy.causeCandidates}</h3>
+            </div>
+            {answer.candidates.map((candidate) => (
+              <div className="candidate-row" key={candidate.label}>
+                <span className={`confidence ${candidate.confidence}`}>
+                  {localizedLabel(confidenceLabels, language, candidate.confidence)}
+                </span>
+                <div>
+                  <strong>{localizedText(language, candidate.label)}</strong>
+                  <p>{localizedText(language, candidate.reason)}</p>
+                </div>
+              </div>
+            ))}
+          </section>
+
+          <section className="answer-block" data-testid="answer-next-checks">
+            <div className="answer-heading">
+              <FileSearch size={17} aria-hidden="true" />
+              <h3>{copy.nextChecks}</h3>
+            </div>
+            <ul className="command-list">
+              {answer.nextChecks.map((command) => (
+                <li key={command}>
+                  <code>{command}</code>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className="answer-block" data-testid="answer-risks">
+            <div className="answer-heading">
+              <ShieldAlert size={17} aria-hidden="true" />
+              <h3>{copy.risksAndMissingEvidence}</h3>
+            </div>
+            <div className="two-column-list">
               <div>
-                <strong>{localizedText(language, candidate.label)}</strong>
-                <p>{localizedText(language, candidate.reason)}</p>
+                <h4>{copy.risk}</h4>
+                <ul>
+                  {answer.risks.map((risk) => (
+                    <li key={risk}>{localizedText(language, risk)}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h4>{copy.missingEvidence}</h4>
+                <ul>
+                  {answer.missingEvidence.map((gap) => (
+                    <li key={gap}>{localizedText(language, gap)}</li>
+                  ))}
+                </ul>
               </div>
             </div>
-          ))}
-        </section>
+          </section>
 
-        <section className="answer-block" data-testid="answer-next-checks">
-          <div className="answer-heading">
-            <FileSearch size={17} aria-hidden="true" />
-            <h3>{copy.nextChecks}</h3>
-          </div>
-          <ul className="command-list">
-            {answer.nextChecks.map((command) => (
-              <li key={command}>
-                <code>{command}</code>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="answer-block" data-testid="answer-risks">
-          <div className="answer-heading">
-            <ShieldAlert size={17} aria-hidden="true" />
-            <h3>{copy.risksAndMissingEvidence}</h3>
-          </div>
-          <div className="two-column-list">
-            <div>
-              <h4>{copy.risk}</h4>
-              <ul>
-                {answer.risks.map((risk) => (
-                  <li key={risk}>{localizedText(language, risk)}</li>
-                ))}
-              </ul>
+          <section className="answer-block" data-testid="answer-rollback">
+            <div className="answer-heading">
+              <Undo2 size={17} aria-hidden="true" />
+              <h3>{copy.planAndRollback}</h3>
             </div>
-            <div>
-              <h4>{copy.missingEvidence}</h4>
-              <ul>
-                {answer.missingEvidence.map((gap) => (
-                  <li key={gap}>{localizedText(language, gap)}</li>
-                ))}
-              </ul>
+            <ol className="plan-list">
+              {answer.plan.map((step) => (
+                <li key={step}>{localizedText(language, step)}</li>
+              ))}
+            </ol>
+            <div className="rollback-strip">
+              {answer.rollbackPath.map((step) => (
+                <span key={step}>{localizedText(language, step)}</span>
+              ))}
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="answer-block" data-testid="answer-rollback">
-          <div className="answer-heading">
-            <Undo2 size={17} aria-hidden="true" />
-            <h3>{copy.planAndRollback}</h3>
-          </div>
-          <ol className="plan-list">
-            {answer.plan.map((step) => (
-              <li key={step}>{localizedText(language, step)}</li>
-            ))}
-          </ol>
-          <div className="rollback-strip">
-            {answer.rollbackPath.map((step) => (
-              <span key={step}>{localizedText(language, step)}</span>
-            ))}
-          </div>
-        </section>
-
-        <section className="answer-block" data-testid="answer-citations">
-          <div className="answer-heading">
-            <FileSearch size={17} aria-hidden="true" />
-            <h3>{copy.citations}</h3>
-          </div>
-          <ul className="citation-list">
-            {answer.citations.map((source) => (
-              <li key={source.id}>
-                <strong>{localizedText(language, source.label)}</strong>
-                <span>{localizedLabel(trustLevelLabels, language, source.trustLevel)}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+          <section className="answer-block" data-testid="answer-citations">
+            <div className="answer-heading">
+              <FileSearch size={17} aria-hidden="true" />
+              <h3>{copy.citations}</h3>
+            </div>
+            <ul className="citation-list">
+              {answer.citations.map((source) => (
+                <li key={source.id}>
+                  <strong>{localizedText(language, source.label)}</strong>
+                  <span>{localizedLabel(trustLevelLabels, language, source.trustLevel)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </details>
       </div>
     </aside>
   );

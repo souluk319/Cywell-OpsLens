@@ -144,85 +144,7 @@ button {
 }
 
 .language-toggle {
-  min-height: 30px;
-  border-color: #6a6e73;
-  background: transparent;
-}
-
-.language-toggle button {
-  min-height: 28px;
-  padding: 0 8px;
   color: #d2d2d2;
-  background: transparent;
-  font-size: 0.74rem;
-}
-
-.language-toggle button[aria-pressed="true"] {
-  background: #e4f7f7;
-  color: #003737;
-}
-
-.opslens-status-details {
-  border-top: 1px solid #2b2d2f;
-  border-bottom: 1px solid #d2d2d2;
-  background: #f5f5f5;
-}
-
-.opslens-status-details summary {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-height: 34px;
-  padding: 0 24px;
-  color: #4d5258;
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  user-select: none;
-}
-
-.opslens-status-details summary::marker {
-  color: #6a6e73;
-}
-
-.opslens-status-details[open] summary {
-  border-bottom: 1px solid #d2d2d2;
-  background: #fff;
-}
-
-.opslens-status-detail-grid {
-  display: grid;
-  gap: 8px;
-  padding: 12px 24px 14px;
-}
-
-.runtime-surface-strip,
-.install-flow-strip,
-.mod-boundary-strip,
-.runtime-profile-strip,
-.certification-boundary-strip,
-.demo-handoff-strip,
-.access-boundary-strip,
-.apply-signal-strip,
-.post-install-smoke-strip {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px;
-  max-width: 100%;
-}
-
-.runtime-surface-strip .status-pill,
-.install-flow-strip .status-pill,
-.mod-boundary-strip .status-pill,
-.runtime-profile-strip .status-pill,
-.certification-boundary-strip .status-pill,
-.demo-handoff-strip .status-pill,
-.access-boundary-strip .status-pill,
-.apply-signal-strip .status-pill,
-.post-install-smoke-strip .status-pill {
-  padding-inline: 8px;
 }
 
 .masthead-menu {
@@ -2649,7 +2571,7 @@ button {
   bottom: 84px;
   z-index: 20;
   display: grid;
-  grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   width: min(440px, calc(100vw - 32px));
   height: min(680px, calc(100vh - 156px));
   min-width: 0;
@@ -2737,7 +2659,6 @@ button {
   grid-template-columns: auto minmax(0, 1fr);
   gap: 5px 8px;
   padding: 9px 12px;
-  border-bottom: 1px solid #ededed;
   color: #6a6e73;
   font-size: 0.74rem;
 }
@@ -2754,7 +2675,7 @@ button {
   display: grid;
   gap: 5px;
   padding: 10px 12px;
-  border-bottom: 1px solid #ededed;
+  border-top: 1px solid #ededed;
   background: #f7f7f7;
   color: #3c3c3c;
   font-size: 0.78rem;
@@ -2900,15 +2821,34 @@ button {
   font-weight: 750;
 }
 
-.assistant-execution-path {
+.assistant-diagnostics,
+.assistant-answer-details {
+  border-bottom: 1px solid #ededed;
+  background: #fff;
+}
+
+.assistant-diagnostics summary,
+.assistant-answer-details summary {
+  cursor: pointer;
+  padding: 9px 12px;
+  color: #3c3c3c;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.assistant-diagnostics[open] summary,
+.assistant-answer-details[open] summary {
+  border-bottom: 1px solid #ededed;
+}
+
+.assistant-chat-hints {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 5px;
 }
 
-.assistant-execution-path strong,
-.assistant-execution-path span {
+.assistant-chat-hints span {
   width: max-content;
   max-width: 100%;
   padding: 5px 7px;
@@ -2917,15 +2857,6 @@ button {
   font-weight: 800;
   line-height: 1.2;
   overflow-wrap: anywhere;
-}
-
-.assistant-execution-path strong {
-  border: 1px solid #73c5c5;
-  background: #e4f7f7;
-  color: #003737;
-}
-
-.assistant-execution-path span {
   border: 1px solid #d2d2d2;
   background: #fafafa;
   color: #3c3c3c;
@@ -2946,9 +2877,57 @@ button {
 }
 
 .answer-stack {
+  display: grid;
+  gap: 10px;
   min-height: 0;
   padding: 12px;
   overflow: auto;
+}
+
+.assistant-chat-turns {
+  display: grid;
+  gap: 8px;
+}
+
+.chat-bubble {
+  max-width: 92%;
+  padding: 10px 12px;
+  border: 1px solid #d2d2d2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.chat-bubble span {
+  display: block;
+  margin-bottom: 4px;
+  color: #6a6e73;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.chat-bubble p {
+  margin: 0;
+  color: #151515;
+  line-height: 1.45;
+}
+
+.chat-bubble strong {
+  display: inline-block;
+  margin-top: 8px;
+  color: #3e8635;
+  font-size: 0.75rem;
+}
+
+.chat-bubble.user {
+  justify-self: end;
+  background: #e7f1fa;
+  border-color: #8bc1f7;
+}
+
+.chat-bubble.assistant {
+  justify-self: start;
+  background: #fff;
+  border-color: #73c5c5;
 }
 
 .answer-block {

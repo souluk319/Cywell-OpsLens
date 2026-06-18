@@ -2,8 +2,6 @@ export type ConsoleParitySection =
   | "Home"
   | "Favorites"
   | "Ecosystem"
-  | "Operators"
-  | "Helm"
   | "Workloads"
   | "Networking"
   | "Storage"
@@ -99,8 +97,6 @@ export const consoleParitySections: ConsoleParitySection[] = [
   "Home",
   "Favorites",
   "Ecosystem",
-  "Operators",
-  "Helm",
   "Workloads",
   "Networking",
   "Storage",
@@ -116,8 +112,6 @@ export const sectionLabelsKo: Record<ConsoleParitySection, string> = {
   Home: "홈",
   Favorites: "즐겨찾기",
   Ecosystem: "에코시스템",
-  Operators: "Operator",
-  Helm: "Helm",
   Workloads: "워크로드",
   Networking: "네트워킹",
   Storage: "스토리지",
@@ -221,8 +215,8 @@ export const ocpConsoleParityItems: ConsoleParityItem[] = [
     originalPathKo: "에코시스템 / 소프트웨어 카탈로그",
     targetSelector: "[data-testid='opslens-catalog-toolchain']",
     actionSurface: "ops-admin",
-    command: "Open OperatorHub/catalog readiness and installed catalog evidence before installation.",
-    commandKo: "설치 전에 OperatorHub/카탈로그 준비도와 설치된 카탈로그 근거를 엽니다.",
+    command: "Open software catalog readiness and installed catalog evidence before installation.",
+    commandKo: "설치 전에 소프트웨어 카탈로그 준비도와 설치된 카탈로그 근거를 엽니다.",
     opsLensEnhancement: "Shows CatalogSource, package manifest, image tag, architecture, and stale-catalog evidence.",
     opsLensEnhancementKo: "CatalogSource, 패키지 매니페스트, 이미지 태그, 아키텍처, stale catalog 근거를 보여줍니다.",
     acceptance: "Catalog readiness distinguishes visible package, catalog pod, and install approval state.",
@@ -231,19 +225,19 @@ export const ocpConsoleParityItems: ConsoleParityItem[] = [
   },
   {
     id: "operatorhub",
-    section: "Operators",
-    label: "OperatorHub",
-    labelKo: "OperatorHub",
-    originalPath: "Operators / OperatorHub",
-    originalPathKo: "Operator / OperatorHub",
+    section: "Ecosystem",
+    label: "Operator catalog",
+    labelKo: "Operator 카탈로그",
+    originalPath: "Ecosystem / Software Catalog / Operator catalog",
+    originalPathKo: "에코시스템 / 소프트웨어 카탈로그 / Operator 카탈로그",
     targetSelector: "[data-testid='opslens-operator-package']",
     actionSurface: "ops-admin",
-    command: "Review OperatorHub visibility, current CSV, install modes, architecture labels, and icon metadata.",
-    commandKo: "OperatorHub 표시, current CSV, 설치 모드, 아키텍처 라벨, 아이콘 메타데이터를 검토합니다.",
+    command: "Review Operator catalog visibility, current CSV, install modes, architecture labels, and icon metadata.",
+    commandKo: "Operator 카탈로그 표시, current CSV, 설치 모드, 아키텍처 라벨, 아이콘 메타데이터를 검토합니다.",
     opsLensEnhancement: "Adds the exact failure classes seen in CRC: stale catalog, arch mismatch, installMode, and pull scope.",
     opsLensEnhancementKo: "CRC에서 겪은 stale catalog, 아키텍처 불일치, installMode, pull 권한 문제를 분류합니다.",
-    acceptance: "OperatorHub entry must be mapped to package manifest and catalog pod evidence.",
-    acceptanceKo: "OperatorHub 항목은 패키지 매니페스트와 카탈로그 Pod 근거에 매핑되어야 합니다.",
+    acceptance: "Operator catalog entry must be mapped to package manifest and catalog pod evidence.",
+    acceptanceKo: "Operator 카탈로그 항목은 패키지 매니페스트와 카탈로그 Pod 근거에 매핑되어야 합니다.",
     status: "ops-enhanced",
     resourcePreset: {
       query: "packagemanifests catalogsources",
@@ -255,11 +249,11 @@ export const ocpConsoleParityItems: ConsoleParityItem[] = [
   },
   {
     id: "installed-operators",
-    section: "Operators",
+    section: "Ecosystem",
     label: "Installed Operators",
     labelKo: "설치된 Operator",
-    originalPath: "Operators / Installed Operators",
-    originalPathKo: "Operator / 설치된 Operator",
+    originalPath: "Ecosystem / Installed Operators",
+    originalPathKo: "에코시스템 / 설치된 Operator",
     targetSelector: "#ocp-explorer-title",
     actionSurface: "resource-explorer",
     command: "Inspect CSVs, Subscriptions, InstallPlans, and operator Deployments without mutating them.",
@@ -281,11 +275,11 @@ export const ocpConsoleParityItems: ConsoleParityItem[] = [
   },
   {
     id: "helm",
-    section: "Helm",
+    section: "Ecosystem",
     label: "Helm",
     labelKo: "Helm",
-    originalPath: "Helm",
-    originalPathKo: "Helm",
+    originalPath: "Ecosystem / Helm",
+    originalPathKo: "에코시스템 / Helm",
     targetSelector: "#ocp-explorer-title",
     actionSurface: "resource-explorer",
     command: "Inspect Helm-related Secrets and ConfigMaps as read-only release evidence.",
