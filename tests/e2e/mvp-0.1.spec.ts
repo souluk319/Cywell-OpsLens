@@ -64,6 +64,19 @@ async function expectActiveConsoleAction(
   surface: string,
   query?: string
 ) {
+  const item = ocpConsoleParityItems.find((entry) => entry.id === itemId);
+  if (!item) {
+    throw new Error(`Unknown console parity item: ${itemId}`);
+  }
+  const proof = consoleParityFunctionProof(item);
+  const expectedOutcome = item.resourcePreset
+    ? "resource-smoke-active"
+    : item.evidenceView
+      ? "evidence-view-active"
+      : item.actionSurface === "assistant"
+        ? "assistant-ready"
+        : "target-mounted";
+
   await expect(page.getByTestId("console-active-action")).toHaveAttribute(
     "data-active-console-item",
     itemId
@@ -75,6 +88,14 @@ async function expectActiveConsoleAction(
   await expect(page.getByTestId("console-active-target-status")).toHaveAttribute(
     "data-target-status",
     "mounted"
+  );
+  await expect(page.getByTestId("console-active-function-mode")).toHaveAttribute(
+    "data-function-mode",
+    proof.mode
+  );
+  await expect(page.getByTestId("console-active-action-outcome")).toHaveAttribute(
+    "data-action-outcome",
+    expectedOutcome
   );
   await expect(page.getByTestId("console-active-function-input")).toContainText(
     /\S/

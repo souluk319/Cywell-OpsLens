@@ -29,6 +29,14 @@ const actionCopy = {
     mounted: "mounted",
     checking: "checking",
     missing: "missing",
+    functionMode: "Function mode",
+    actionOutcome: "Action outcome",
+    targetMounted: "target mounted",
+    targetChecking: "target checking",
+    targetMissing: "target missing",
+    resourceSmokeActive: "resource smoke active",
+    evidenceViewActive: "evidence view active",
+    assistantReady: "assistant context ready",
     functionInput: "Function input",
     actionProof: "Action proof",
     openSurface: "Open surface",
@@ -50,6 +58,14 @@ const actionCopy = {
     mounted: "장착됨",
     checking: "확인 중",
     missing: "누락",
+    functionMode: "기능 모드",
+    actionOutcome: "동작 결과",
+    targetMounted: "대상 장착됨",
+    targetChecking: "대상 확인 중",
+    targetMissing: "대상 누락",
+    resourceSmokeActive: "리소스 스모크 활성",
+    evidenceViewActive: "근거 보기 활성",
+    assistantReady: "어시스턴트 컨텍스트 준비",
     functionInput: "기능 입력",
     actionProof: "동작 증거",
     openSurface: "화면 열기",
@@ -105,6 +121,28 @@ export function OcpConsoleActionPanel({
     language === "ko" ? functionProof.inputKo : functionProof.input;
   const functionProofText =
     language === "ko" ? functionProof.proofKo : functionProof.proof;
+  const actionOutcomeState =
+    targetStatus !== "mounted"
+      ? targetStatus
+      : activeItem.resourcePreset
+        ? "resource-smoke-active"
+        : activeItem.evidenceView
+          ? "evidence-view-active"
+          : activeItem.actionSurface === "assistant"
+            ? "assistant-ready"
+            : "target-mounted";
+  const actionOutcomeLabel =
+    actionOutcomeState === "resource-smoke-active"
+      ? copy.resourceSmokeActive
+      : actionOutcomeState === "evidence-view-active"
+        ? copy.evidenceViewActive
+        : actionOutcomeState === "assistant-ready"
+          ? copy.assistantReady
+          : actionOutcomeState === "target-mounted"
+            ? copy.targetMounted
+            : actionOutcomeState === "checking"
+              ? copy.targetChecking
+              : copy.targetMissing;
 
   return (
     <section
@@ -150,6 +188,24 @@ export function OcpConsoleActionPanel({
             data-target-status={targetStatus}
           >
             {targetStatusLabel}
+          </strong>
+        </article>
+        <article>
+          <span>{copy.functionMode}</span>
+          <strong
+            data-function-mode={functionProof.mode}
+            data-testid="console-active-function-mode"
+          >
+            {functionProof.mode}
+          </strong>
+        </article>
+        <article>
+          <span>{copy.actionOutcome}</span>
+          <strong
+            data-action-outcome={actionOutcomeState}
+            data-testid="console-active-action-outcome"
+          >
+            {actionOutcomeLabel}
           </strong>
         </article>
         <article>

@@ -1543,14 +1543,22 @@ expectCheck(
     actionPanelSource.includes('data-testid="console-active-command"') &&
     actionPanelSource.includes('data-testid="console-active-acceptance"') &&
     actionPanelSource.includes('data-testid="console-active-target-status"') &&
+    actionPanelSource.includes('data-testid="console-active-function-mode"') &&
+    actionPanelSource.includes("data-function-mode={functionProof.mode}") &&
+    actionPanelSource.includes('data-testid="console-active-action-outcome"') &&
+    actionPanelSource.includes("data-action-outcome={actionOutcomeState}") &&
     actionPanelSource.includes('data-testid="console-active-function-input"') &&
     actionPanelSource.includes('data-testid="console-active-action-proof"') &&
     actionPanelSource.includes('data-testid="console-active-preferred-resources"') &&
+    actionPanelSource.includes("resource-smoke-active") &&
+    actionPanelSource.includes("evidence-view-active") &&
+    actionPanelSource.includes("assistant-ready") &&
+    actionPanelSource.includes("target-mounted") &&
     actionPanelSource.includes("consoleParityFunctionProof(activeItem)") &&
     appSource.includes("setActiveTargetStatus(\"mounted\")") &&
     appSource.includes("setActiveTargetStatus(\"missing\")") &&
     stylesSource.includes(".console-action-panel"),
-  "each selected OCP console item renders its active surface, action, acceptance, and preferred API contract"
+  "each selected OCP console item renders its active surface, action, function mode, outcome, and preferred API contract"
 );
 
 expectCheck(
@@ -1560,6 +1568,9 @@ expectCheck(
     e2eSource.includes("consoleParityFunctionProof") &&
     e2eSource.includes("console-parity-function-${item.id}") &&
     e2eSource.includes('data-function-mode"') &&
+    e2eSource.includes('getByTestId("console-active-function-mode")') &&
+    e2eSource.includes('getByTestId("console-active-action-outcome")') &&
+    e2eSource.includes('"data-action-outcome"') &&
     e2eSource.includes('getByTestId("console-active-function-input")') &&
     e2eSource.includes('getByTestId("console-active-action-proof")'),
   "Playwright iterates over the version-pinned registry and proves every mapped console item exposes function input and action proof"
