@@ -1609,13 +1609,19 @@ expectCheck(
   "registry-driven assistant action e2e",
   e2eSource.includes("AC-UI-009 opens KOMSCO assistant for every version-pinned console item") &&
     e2eSource.includes("for (const item of ocpConsoleParityItems)") &&
+    e2eSource.includes("const proof = consoleParityFunctionProof(item)") &&
     e2eSource.includes("closeAssistantIfOpen(page)") &&
     e2eSource.includes('getByTestId("console-active-ask-assistant").click()') &&
     e2eSource.includes('getByTestId("assistant-draft")') &&
     e2eSource.includes("escapeForRegExp(item.label)") &&
     e2eSource.includes("escapeForRegExp(item.command)") &&
-    e2eSource.includes("read-only mode"),
-  "Playwright opens the KOMSCO assistant from every mapped console item and verifies the drafted prompt keeps item context plus the read-only boundary"
+    e2eSource.includes("escapeForRegExp(item.originalPath)") &&
+    e2eSource.includes("escapeForRegExp(proof.mode)") &&
+    e2eSource.includes("escapeForRegExp(proof.input)") &&
+    e2eSource.includes("escapeForRegExp(proof.proof)") &&
+    e2eSource.includes("read-only mode") &&
+    e2eSource.includes("do not propose cluster mutation commands"),
+  "Playwright opens the KOMSCO assistant from every mapped console item and verifies the drafted prompt keeps native path, function proof, and read-only boundary"
 );
 
 expectCheck(

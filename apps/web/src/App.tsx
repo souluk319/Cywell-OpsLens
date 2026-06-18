@@ -66,6 +66,7 @@ import {
 import type { UiLanguage } from "./i18n";
 import opsLensIcon from "./assets/brand/cywell_ops_lens_icon.png";
 import {
+  consoleParityFunctionProof,
   consoleParitySections,
   ocpConsoleParityItems,
   sectionLabelsKo,
@@ -736,10 +737,33 @@ export default function App() {
   }
 
   function askAssistantForActiveNavigation() {
+    const proof = consoleParityFunctionProof(activeNavigation);
+    const path =
+      language === "ko"
+        ? activeNavigation.originalPathKo
+        : activeNavigation.originalPath;
+    const proofInput = language === "ko" ? proof.inputKo : proof.input;
+    const proofText = language === "ko" ? proof.proofKo : proof.proof;
     const prompt =
       language === "ko"
-        ? `${navLabel(activeNavigation, language)} 기능을 현재 OpenShift 컨텍스트에서 읽기 전용으로 점검해줘. ${navCommand(activeNavigation, language)}`
-        : `Review the ${navLabel(activeNavigation, language)} function against the current OpenShift context in read-only mode. ${navCommand(activeNavigation, language)}`;
+        ? [
+            `${navLabel(activeNavigation, language)} 기능을 현재 OpenShift 컨텍스트에서 읽기 전용으로 점검해줘.`,
+            `원본 OCP 경로: ${path}`,
+            `기능 모드: ${proof.mode}`,
+            `기능 입력: ${proofInput}`,
+            `동작 증거: ${proofText}`,
+            `동작: ${navCommand(activeNavigation, language)}`,
+            "경계: 읽기 전용/계획 전용으로만 답변하고 클러스터 변경 명령은 제안하지 마."
+          ].join("\n")
+        : [
+            `Review the ${navLabel(activeNavigation, language)} function against the current OpenShift context in read-only mode.`,
+            `Native OCP path: ${path}`,
+            `Function mode: ${proof.mode}`,
+            `Function input: ${proofInput}`,
+            `Action proof: ${proofText}`,
+            `Action: ${navCommand(activeNavigation, language)}`,
+            "Boundary: answer in read-only/plan-only mode and do not propose cluster mutation commands."
+          ].join("\n");
     setDraft(prompt);
     setAssistantOpen(true);
   }

@@ -404,6 +404,7 @@ async function expectConsoleFunctionEffect(
     );
 
     for (const item of ocpConsoleParityItems) {
+      const proof = consoleParityFunctionProof(item);
       await page.getByTestId(`console-nav-${item.id}`).click();
       await closeAssistantIfOpen(page);
       await expect(page.getByTestId("console-active-action")).toHaveAttribute(
@@ -419,7 +420,22 @@ async function expectConsoleFunctionEffect(
         new RegExp(escapeForRegExp(item.command))
       );
       await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(item.originalPath))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(proof.mode))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(proof.input))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        new RegExp(escapeForRegExp(proof.proof))
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
         /read-only mode/
+      );
+      await expect(page.getByTestId("assistant-draft")).toHaveValue(
+        /do not propose cluster mutation commands/
       );
       await page.getByTestId("assistant-close").click();
       await expect(page.getByTestId("assistant-popover")).toHaveCount(0);
