@@ -3,9 +3,20 @@ import type { Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { mockContext } from "@kugnus/contracts";
 import {
+  type ConsoleParityActionSurface,
   consoleParityFunctionProof,
   ocpConsoleParityItems
 } from "../../apps/web/src/consoleParity";
+
+const surfaceLabelsForTest: Record<ConsoleParityActionSurface, string> = {
+  overview: "Cluster overview",
+  evidence: "Evidence pane",
+  "resource-explorer": "Resource explorer",
+  "ops-dashboard": "OpsLens dashboard",
+  "ops-admin": "OpsLens admin",
+  opsbrain: "OpsBrain",
+  assistant: "KOMSCO assistant"
+};
 
 test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
   test.beforeEach(async ({ page }) => {
@@ -247,88 +258,25 @@ async function expectActiveConsoleAction(
       "OpenShift Local 4.21.14"
     );
 
-    const resourceNavigation = [
-      [
-        "search",
-        "Search",
-        "Resource explorer",
-        "pods deployments routes services namespaces"
-      ],
-      ["events", "Events", "Resource explorer", "events"],
-      [
-        "operatorhub",
-        "OperatorHub",
-        "OpsLens admin",
-        "packagemanifests catalogsources"
-      ],
-      [
-        "installed-operators",
-        "Installed Operators",
-        "Resource explorer",
-        "clusterserviceversions subscriptions installplans deployments"
-      ],
-      ["helm", "Helm", "Resource explorer", "helm secrets configmaps"],
-      ["workloads", "Pods", "Resource explorer", "pods"],
-      [
-        "workload-controllers",
-        "Workload controllers",
-        "Resource explorer",
-        "deployments deploymentconfigs statefulsets daemonsets jobs cronjobs replicasets horizontalpodautoscalers"
-      ],
-      [
-        "networking",
-        "Routes, Services, Ingresses",
-        "Resource explorer",
-        "routes services ingresses endpoints endpointslices"
-      ],
-      [
-        "network-policies",
-        "NetworkPolicies",
-        "Resource explorer",
-        "networkpolicies dnses ingresses routes"
-      ],
-      [
-        "storage",
-        "PVCs, PVs, StorageClasses",
-        "Resource explorer",
-        "persistentvolumeclaims persistentvolumes storageclasses volumesnapshots"
-      ],
-      [
-        "builds",
-        "Builds and ImageStreams",
-        "Resource explorer",
-        "builds buildconfigs imagestreams imagestreamtags"
-      ],
-      [
-        "compute",
-        "Nodes and Machines",
-        "Resource explorer",
-        "nodes machines machinesets machineconfigpools"
-      ],
-      [
-        "user-management",
-        "Users, Groups, Roles",
-        "Resource explorer",
-        "users groups serviceaccounts roles rolebindings clusterroles clusterrolebindings"
-      ],
-      [
-        "namespaces-crds",
-        "Namespaces and CRDs",
-        "Resource explorer",
-        "namespaces customresourcedefinitions apiservices resourcequotas limitranges"
-      ]
-    ] as const;
+    for (const item of ocpConsoleParityItems) {
+      await page.getByTestId(`console-nav-${item.id}`).click();
+      await expect(feedback).toContainText(item.label);
+      await expectActiveConsoleAction(
+        page,
+        item.id,
+        item.label,
+        surfaceLabelsForTest[item.actionSurface],
+        item.resourcePreset?.query
+      );
+      await expect(page.locator(item.targetSelector)).toBeVisible();
+      await expect(page.getByTestId(`console-parity-row-${item.id}`)).toBeVisible();
 
-    for (const [navId, label, surface, query] of resourceNavigation) {
-      await page.getByTestId(`console-nav-${navId}`).click();
-      await expect(feedback).toContainText(label);
-      await expectActiveConsoleAction(page, navId, label, surface, query);
-      await expect(page.getByTestId("ocp-resource-search")).toHaveValue(query);
-      await expect(page.getByTestId(`console-parity-row-${navId}`)).toBeVisible();
+      if (item.resourcePreset) {
+        await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+          item.resourcePreset.query
+        );
+      }
     }
-
-    await page.getByTestId("console-nav-operatorhub").click();
-    await expect(page.getByTestId("opslens-operator-package")).toBeVisible();
 
     await page.getByTestId("console-nav-workloads").click();
     await page.getByTestId("console-active-open-surface").click();
@@ -339,115 +287,12 @@ async function expectActiveConsoleAction(
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
     await expect(page.getByTestId("assistant-draft")).toHaveValue(/Pods/);
     await page.getByTestId("assistant-close").click();
-
-    await page.getByTestId("console-nav-logs").click();
-    await expect(feedback).toContainText("Logs");
-    await expectActiveConsoleAction(page, "logs", "Logs", "Evidence pane");
-    await expect(page.getByTestId("log-viewport")).toBeVisible();
-
-    await page.getByTestId("console-nav-alerting").click();
-    await expect(feedback).toContainText("Alerting");
-    await expectActiveConsoleAction(page, "alerting", "Alerting", "Evidence pane");
-    await expect(page.getByTestId("alert-evidence-table")).toBeVisible();
-
-    await page.getByTestId("console-nav-overview").click();
-    await expect(feedback).toContainText("Overview");
-    await expectActiveConsoleAction(
-      page,
-      "overview",
-      "Overview",
-      "Cluster overview"
-    );
-    await expect(
-      page.getByRole("heading", { name: "OpenShift Console Overview" })
-    ).toBeVisible();
-
-    await page.getByTestId("console-nav-favorites").click();
-    await expect(feedback).toContainText("Pinned navigation");
-    await expectActiveConsoleAction(
-      page,
-      "favorites",
-      "Pinned navigation",
-      "OpsLens dashboard"
-    );
-    await expect(page.getByTestId("console-parity-matrix")).toBeVisible();
-
-    await page.getByTestId("console-nav-software-catalog").click();
-    await expect(feedback).toContainText("Software Catalog");
-    await expectActiveConsoleAction(
-      page,
-      "software-catalog",
-      "Software Catalog",
-      "OpsLens admin"
-    );
-    await expect(page.getByTestId("opslens-catalog-toolchain")).toBeVisible();
-    await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
-
-    await page.getByTestId("console-nav-dashboards").click();
-    await expect(feedback).toContainText("Dashboards");
-    await expectActiveConsoleAction(
-      page,
-      "dashboards",
-      "Dashboards",
-      "OpsLens dashboard"
-    );
-    await expect(page.getByTestId("opslens-incident-metrics")).toBeVisible();
-
-    await page.getByTestId("console-nav-metrics").click();
-    await expect(feedback).toContainText("Metrics");
-    await expectActiveConsoleAction(
-      page,
-      "metrics",
-      "Metrics",
-      "OpsLens dashboard"
-    );
-    await expect(page.getByTestId("opslens-incident-metrics")).toBeVisible();
-
-    await page.getByTestId("console-nav-administration").click();
-    await expect(feedback).toContainText("Cluster Settings");
-    await expectActiveConsoleAction(
-      page,
-      "administration",
-      "Cluster Settings",
-      "OpsLens admin",
-      "clusterversions clusteroperators consoles consoleplugins"
-    );
-    await expect(page.getByTestId("opslens-ocp-connectivity")).toBeVisible();
-    await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
-
-    await page.getByTestId("console-nav-opslens-admin").click();
-    await expect(feedback).toContainText("OpsLens Admin");
-    await expectActiveConsoleAction(
-      page,
-      "opslens-admin",
-      "OpsLens Admin",
-      "OpsLens admin"
-    );
-    await expect(page.getByTestId("opslens-install-readiness")).toBeVisible();
-    await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
-
-    await page.getByTestId("console-nav-opsbrain").click();
-    await expect(feedback).toContainText("OpsBrain");
-    await expectActiveConsoleAction(page, "opsbrain", "OpsBrain", "OpsBrain");
-    await expect(page.getByTestId("opslens-opsbrain-system")).toBeVisible();
-    await expect(page.getByTestId("opslens-opsbrain-system")).toContainText(
-      "No fine-tuning growth system"
-    );
-
-    await page.getByTestId("console-nav-komsco-assistant").click();
-    await expect(feedback).toContainText("KOMSCO AI Assistant");
-    await expectActiveConsoleAction(
-      page,
-      "komsco-assistant",
-      "KOMSCO AI Assistant",
-      "KOMSCO assistant"
-    );
-    await expect(page.getByTestId("assistant-popover")).toBeVisible();
   });
 
   test("AC-UI-008 renders function proof for every version-pinned console item", async ({
     page
   }) => {
+    test.setTimeout(60_000);
     await expect(page.getByTestId("console-parity-summary")).toContainText(
       `${ocpConsoleParityItems.length}`
     );
@@ -474,6 +319,7 @@ async function expectActiveConsoleAction(
   test("AC-UI-006 makes Korean console navigation actionable", async ({
     page
   }) => {
+    test.setTimeout(60_000);
     const feedback = page.getByTestId("console-navigation-feedback");
 
     await page.getByTestId("language-ko-toggle").click();
@@ -485,121 +331,35 @@ async function expectActiveConsoleAction(
       "원본 콘솔 항목"
     );
 
-    await page.getByTestId("console-nav-overview").click();
-    await expect(feedback).toContainText("개요");
-    await expect(feedback).toContainText("실시간 클러스터 개요");
+    for (const item of ocpConsoleParityItems) {
+      const proof = consoleParityFunctionProof(item);
+      await page.getByTestId(`console-nav-${item.id}`).click();
+      await expect(feedback).toContainText(item.labelKo);
+      await expect(page.getByTestId("console-active-action")).toHaveAttribute(
+        "data-active-console-item",
+        item.id
+      );
+      await expect(page.getByTestId("console-active-action")).toContainText(
+        item.labelKo
+      );
+      await expect(page.getByTestId("console-active-target-status")).toHaveAttribute(
+        "data-target-status",
+        "mounted"
+      );
+      await expect(page.getByTestId("console-active-function-input")).toContainText(
+        proof.inputKo
+      );
+      await expect(page.getByTestId("console-active-action-proof")).toContainText(
+        proof.proofKo
+      );
+      await expect(page.locator(item.targetSelector)).toBeVisible();
 
-    await page.getByTestId("console-nav-search").click();
-    await expect(feedback).toContainText("검색");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "pods deployments routes services namespaces"
-    );
-
-    await page.getByTestId("console-nav-events").click();
-    await expect(feedback).toContainText("이벤트");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue("events");
-
-    await page.getByTestId("console-nav-alerting").click();
-    await expect(feedback).toContainText("경고");
-    await expect(page.getByTestId("alert-evidence-table")).toBeVisible();
-
-    await page.getByTestId("console-nav-dashboards").click();
-    await expect(feedback).toContainText("대시보드");
-    await expect(page.locator("#dashboard-title")).toBeVisible();
-
-    await page.getByTestId("console-nav-metrics").click();
-    await expect(feedback).toContainText("메트릭");
-    await expect(page.getByTestId("opslens-incident-metrics")).toBeVisible();
-
-    await page.getByTestId("console-nav-logs").click();
-    await expect(feedback).toContainText("로그");
-    await expect(page.getByTestId("log-viewport")).toBeVisible();
-
-    await page.getByTestId("console-nav-workloads").click();
-    await expect(feedback).toContainText("파드");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue("pods");
-    await expect(page.getByTestId("ocp-function-smoke")).toBeVisible();
-    await expect(page.getByTestId("ocp-smoke-mutation-guard")).toContainText(
-      "읽기 전용"
-    );
-
-    await page.getByTestId("console-nav-workload-controllers").click();
-    await expect(feedback).toContainText("워크로드 컨트롤러");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "deployments deploymentconfigs statefulsets daemonsets jobs cronjobs replicasets horizontalpodautoscalers"
-    );
-
-    await page.getByTestId("console-nav-networking").click();
-    await expect(feedback).toContainText("라우트, 서비스, 인그레스");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "routes services ingresses endpoints endpointslices"
-    );
-
-    await page.getByTestId("console-nav-network-policies").click();
-    await expect(feedback).toContainText("네트워크 정책");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "networkpolicies dnses ingresses routes"
-    );
-
-    await page.getByTestId("console-nav-storage").click();
-    await expect(feedback).toContainText("PVC, PV, StorageClass");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "persistentvolumeclaims persistentvolumes storageclasses volumesnapshots"
-    );
-
-    await page.getByTestId("console-nav-builds").click();
-    await expect(feedback).toContainText("빌드와 이미지 스트림");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "builds buildconfigs imagestreams imagestreamtags"
-    );
-
-    await page.getByTestId("console-nav-compute").click();
-    await expect(feedback).toContainText("노드와 머신");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "nodes machines machinesets machineconfigpools"
-    );
-
-    await page.getByTestId("console-nav-user-management").click();
-    await expect(feedback).toContainText("사용자, 그룹, 역할");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "users groups serviceaccounts roles rolebindings clusterroles clusterrolebindings"
-    );
-
-    await page.getByTestId("console-nav-administration").click();
-    await expect(feedback).toContainText("클러스터 설정");
-    await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
-
-    await page.getByTestId("console-nav-operatorhub").click();
-    await expect(feedback).toContainText("OperatorHub");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "packagemanifests catalogsources"
-    );
-
-    await page.getByTestId("console-nav-installed-operators").click();
-    await expect(feedback).toContainText("설치된 Operator");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "clusterserviceversions subscriptions installplans deployments"
-    );
-
-    await page.getByTestId("console-nav-helm").click();
-    await expect(feedback).toContainText("Helm");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "helm secrets configmaps"
-    );
-
-    await page.getByTestId("console-nav-namespaces-crds").click();
-    await expect(feedback).toContainText("네임스페이스와 CRD");
-    await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
-      "namespaces customresourcedefinitions apiservices resourcequotas limitranges"
-    );
-
-    await page.getByTestId("console-nav-opslens-admin").click();
-    await expect(feedback).toContainText("OpsLens 관리");
-    await expect(page.getByTestId("opslens-admin-dashboard")).toBeVisible();
-
-    await page.getByTestId("console-nav-opsbrain").click();
-    await expect(feedback).toContainText("OpsBrain");
-    await expect(page.getByTestId("opslens-opsbrain-system")).toBeVisible();
+      if (item.resourcePreset) {
+        await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+          item.resourcePreset.query
+        );
+      }
+    }
   });
 
   test("AC-LIVE-001 shows live OpsLens install state separately from demo data", async ({

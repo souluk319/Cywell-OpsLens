@@ -1546,6 +1546,19 @@ expectCheck(
 );
 
 expectCheck(
+  "registry-driven console navigation e2e",
+  e2eSource.includes("AC-UI-003 makes every console navigation item actionable") &&
+    e2eSource.includes("surfaceLabelsForTest") &&
+    e2eSource.includes("for (const item of ocpConsoleParityItems)") &&
+    e2eSource.includes("console-nav-${item.id}") &&
+    e2eSource.includes("surfaceLabelsForTest[item.actionSurface]") &&
+    e2eSource.includes("item.resourcePreset?.query") &&
+    e2eSource.includes("page.locator(item.targetSelector)") &&
+    e2eSource.includes("console-parity-row-${item.id}"),
+  "Playwright clicks every version-pinned console registry item and verifies its mapped surface, preset, and mounted target"
+);
+
+expectCheck(
   "targeted console section routing",
   paritySource.includes("targetSelector: \"[data-testid='opslens-catalog-toolchain']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='opslens-operator-package']\"") &&
@@ -1713,45 +1726,17 @@ expectCheck(
   "localized navigation action e2e",
   e2eSource.includes("AC-UI-006 makes Korean console navigation actionable") &&
     e2eSource.includes('getByTestId("language-ko-toggle")') &&
-    e2eSource.includes('getByTestId("console-nav-overview")') &&
-    e2eSource.includes('getByTestId("console-nav-search")') &&
-    e2eSource.includes('getByTestId("console-nav-events")') &&
-    e2eSource.includes('getByTestId("console-nav-software-catalog")') &&
-    e2eSource.includes('getByTestId("console-nav-operatorhub")') &&
-    e2eSource.includes('getByTestId("console-nav-installed-operators")') &&
-    e2eSource.includes('getByTestId("console-nav-helm")') &&
-    e2eSource.includes('getByTestId("console-nav-alerting")') &&
-    e2eSource.includes('getByTestId("console-nav-dashboards")') &&
-    e2eSource.includes('getByTestId("console-nav-metrics")') &&
-    e2eSource.includes('getByTestId("console-nav-logs")') &&
-    e2eSource.includes('getByTestId("console-nav-workloads")') &&
-    e2eSource.includes('getByTestId("console-nav-workload-controllers")') &&
-    e2eSource.includes('getByTestId("console-nav-networking")') &&
-    e2eSource.includes('getByTestId("console-nav-network-policies")') &&
-    e2eSource.includes('getByTestId("console-nav-storage")') &&
-    e2eSource.includes('getByTestId("console-nav-builds")') &&
-    e2eSource.includes('getByTestId("console-nav-compute")') &&
-    e2eSource.includes('getByTestId("console-nav-user-management")') &&
-    e2eSource.includes('getByTestId("console-nav-administration")') &&
-    e2eSource.includes('getByTestId("console-nav-namespaces-crds")') &&
-    e2eSource.includes('getByTestId("console-nav-opslens-admin")') &&
-    e2eSource.includes('getByTestId("console-nav-opsbrain")') &&
-    e2eSource.includes('getByTestId("console-nav-komsco-assistant")') &&
+    e2eSource.includes("for (const item of ocpConsoleParityItems)") &&
+    e2eSource.includes("const proof = consoleParityFunctionProof(item)") &&
+    e2eSource.includes("console-nav-${item.id}") &&
+    e2eSource.includes("item.labelKo") &&
+    e2eSource.includes("proof.inputKo") &&
+    e2eSource.includes("proof.proofKo") &&
+    e2eSource.includes("page.locator(item.targetSelector)") &&
+    e2eSource.includes("item.resourcePreset.query") &&
     e2eSource.includes("OCP 4.21.14 콘솔 커버리지") &&
-    e2eSource.includes("실시간 클러스터 개요") &&
-    e2eSource.includes("파드") &&
-    e2eSource.includes("워크로드 컨트롤러") &&
-    e2eSource.includes("라우트, 서비스, 인그레스") &&
-    e2eSource.includes("네트워크 정책") &&
-    e2eSource.includes("PVC, PV, StorageClass") &&
-    e2eSource.includes("빌드와 이미지 스트림") &&
-    e2eSource.includes("노드와 머신") &&
-    e2eSource.includes("사용자, 그룹, 역할") &&
-    e2eSource.includes("클러스터 설정") &&
-    e2eSource.includes("OperatorHub") &&
-    e2eSource.includes("설치된 Operator") &&
-    e2eSource.includes("OpsLens 관리"),
-  "Playwright proves every console navigation item remains actionable after switching to Korean"
+    e2eSource.includes("원본 콘솔 항목"),
+  "Playwright clicks every version-pinned console registry item after switching to Korean and verifies localized function proof"
 );
 
 expectCheck(
