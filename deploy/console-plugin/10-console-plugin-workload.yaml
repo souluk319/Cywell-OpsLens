@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cywell-opslens-console-plugin
+  namespace: cywell-opslens-system
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: console-plugin
+    app.kubernetes.io/part-of: cywell-opslens
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cywell-opslens
+      app.kubernetes.io/component: console-plugin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cywell-opslens
+        app.kubernetes.io/component: console-plugin
+        app.kubernetes.io/part-of: cywell-opslens
+    spec:
+      containers:
+        - name: console-plugin
+          image: image-registry.openshift-image-registry.svc:5000/cywell-opslens-system/cywell-opslens-console-plugin:v0.1.3-dev-crc
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "9443"
+            - name: CYWELL_OPSLENS_TLS_CERT_FILE
+              value: /var/run/secrets/cywell-opslens/tls/tls.crt
+            - name: CYWELL_OPSLENS_TLS_KEY_FILE
+              value: /var/run/secrets/cywell-opslens/tls/tls.key
+          ports:
+            - name: https
+              containerPort: 9443
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: https
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: service-serving-cert
+              mountPath: /var/run/secrets/cywell-opslens/tls
+              readOnly: true
+      volumes:
+        - name: service-serving-cert
+          secret:
+            secretName: cywell-opslens-console-plugin-tls
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cywell-opslens-console-plugin
+  namespace: cywell-opslens-system
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: console-plugin
+    app.kubernetes.io/part-of: cywell-opslens
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: cywell-opslens-console-plugin-tls
+spec:
+  selector:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: console-plugin
+  ports:
+    - name: https
+      port: 9443
+      targetPort: https

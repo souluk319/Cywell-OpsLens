@@ -347,6 +347,7 @@ try {
     "pruneModelRuntime",
     "deleteManagedObject",
     "reconcileConsolePlugin",
+    "reconcileConsolePluginEnablement",
     "reconcileLightspeedRegistration"
   ]) {
     expectCheck(`Go reconcile method ${method}`, controller.includes(method), "controller-runtime skeleton includes the reconcile lane");
@@ -528,6 +529,25 @@ try {
       controller.includes('"endpoint"') &&
       controller.includes("installation.Spec.Components.API.ServiceName"),
     "ConsolePlugin exposes the dashboard backend and UserToken API proxy using the live OpenShift schema"
+  );
+
+  expectCheck(
+    "Go ConsolePlugin enablement parity",
+    plan.consolePluginEnablement?.target?.apiVersion === "operator.openshift.io/v1" &&
+      plan.consolePluginEnablement?.target?.kind === "Console" &&
+      plan.consolePluginEnablement?.target?.name === "cluster" &&
+      plan.consolePluginEnablement?.target?.pluginName === "cywell-opslens" &&
+      plan.consolePluginEnablement?.willPatch === true &&
+      plan.consolePluginEnablement?.mergePatch?.spec?.plugins?.includes("cywell-opslens") &&
+      controller.includes("reconcileConsolePluginEnablement") &&
+      controller.includes('consoleOperator.SetAPIVersion("operator.openshift.io/v1")') &&
+      controller.includes('consoleOperator.SetKind("Console")') &&
+      controller.includes('types.NamespacedName{Name: "cluster"}') &&
+      controller.includes('unstructured.NestedStringSlice(consoleOperator.Object, "spec", "plugins")') &&
+      controller.includes("appendUniqueString(plugins, name)") &&
+      controller.includes('unstructured.SetNestedStringSlice(consoleOperator.Object, plugins, "spec", "plugins")') &&
+      controller.includes("client.MergeFrom(original)"),
+    "Operator enables ConsolePlugin by preserving Console cluster spec.plugins and appending cywell-opslens only when missing"
   );
 
   expectCheck(
@@ -721,6 +741,20 @@ try {
       !olsConfigCsvVerbs.includes("create") &&
       !olsConfigCsvVerbs.includes("delete"),
     "config RBAC and CSV RBAC can read/update/patch existing OLSConfig resources but cannot create or delete them"
+  );
+
+  const consoleRoleVerbs = ruleVerbsFor(clusterRole?.rules ?? [], "operator.openshift.io", "consoles");
+  const consoleCsvVerbs = ruleVerbsFor(csvRules, "operator.openshift.io", "consoles");
+  expectCheck(
+    "RBAC Console operator plugin enablement boundary",
+    ["get", "list", "watch", "update", "patch"].every(
+      (verb) => consoleRoleVerbs.includes(verb) && consoleCsvVerbs.includes(verb)
+    ) &&
+      !consoleRoleVerbs.includes("create") &&
+      !consoleRoleVerbs.includes("delete") &&
+      !consoleCsvVerbs.includes("create") &&
+      !consoleCsvVerbs.includes("delete"),
+    "config RBAC and CSV RBAC can read/update/patch consoles.operator.openshift.io/cluster without create/delete"
   );
 
   expectCheck(

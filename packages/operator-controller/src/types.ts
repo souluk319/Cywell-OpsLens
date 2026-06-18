@@ -115,6 +115,18 @@ export interface OLSConfig {
   };
 }
 
+export interface ConsoleOperatorConfig {
+  apiVersion: "operator.openshift.io/v1";
+  kind: "Console";
+  metadata: {
+    name: "cluster";
+  };
+  spec?: {
+    plugins?: string[];
+    [key: string]: unknown;
+  };
+}
+
 export interface LightspeedReconcilePlan {
   mode: LightspeedRegistrationMode;
   phase: "Ready" | "NeedsPatch" | "PatchPlanned" | "MissingOLSConfig" | "Invalid";
@@ -135,6 +147,26 @@ export interface LightspeedReconcilePlan {
   };
   evidence: string[];
   missingEvidence: string[];
+  risk: string[];
+  rollbackPath: string[];
+}
+
+export interface ConsolePluginEnablementPlan {
+  phase: "Ready" | "PatchPlanned";
+  mutationAllowed: true;
+  willPatch: boolean;
+  target: {
+    apiVersion: "operator.openshift.io/v1";
+    kind: "Console";
+    name: "cluster";
+    pluginName: string;
+  };
+  mergePatch?: {
+    spec: {
+      plugins: string[];
+    };
+  };
+  evidence: string[];
   risk: string[];
   rollbackPath: string[];
 }
@@ -178,6 +210,7 @@ export interface OpsLensReconcilePlan {
   desiredResources: KubernetesObject[];
   cleanupResources: KubernetesObject[];
   lightspeedRegistration: LightspeedReconcilePlan;
+  consolePluginEnablement: ConsolePluginEnablementPlan;
   statusPatch: OpsLensReconcileStatus;
   policy: {
     assistantMutationAllowed: false;

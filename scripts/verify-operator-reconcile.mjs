@@ -160,6 +160,12 @@ function summarizePlan(plan) {
     missingEvidence: plan?.lightspeedRegistration?.missingEvidence ?? [],
     desiredResourceCount: plan?.desiredResources?.length ?? 0,
     cleanupResourceCount: plan?.cleanupResources?.length ?? 0,
+    consolePluginEnablement: {
+      phase: plan?.consolePluginEnablement?.phase ?? "missing",
+      willPatch: plan?.consolePluginEnablement?.willPatch === true,
+      pluginName: plan?.consolePluginEnablement?.target?.pluginName ?? "missing",
+      plugins: plan?.consolePluginEnablement?.mergePatch?.spec?.plugins ?? []
+    },
     assistantMutationAllowed: plan?.policy?.assistantMutationAllowed === true,
     ragApprovalQueueMutationAllowed:
       plan?.policy?.ragApprovalQueueMutationAllowed === true,
@@ -381,6 +387,17 @@ try {
     "API, dashboard Route, vector store, model runtime, and ConsolePlugin resources are rendered"
   );
 
+  expectCheck(
+    "ConsolePlugin enablement patch planned",
+    patchPlan.consolePluginEnablement?.target?.apiVersion === "operator.openshift.io/v1" &&
+      patchPlan.consolePluginEnablement?.target?.kind === "Console" &&
+      patchPlan.consolePluginEnablement?.target?.name === "cluster" &&
+      patchPlan.consolePluginEnablement?.target?.pluginName === "cywell-opslens" &&
+      patchPlan.consolePluginEnablement?.willPatch === true &&
+      patchPlan.consolePluginEnablement?.mergePatch?.spec?.plugins?.includes("cywell-opslens"),
+    "Operator install plan appends cywell-opslens to consoles.operator.openshift.io/cluster spec.plugins"
+  );
+
   const lightweightInstallation = deepClone(validateOnlyInstallation);
   lightweightInstallation.spec.components.vectorStore.provider = "inmemory";
   lightweightInstallation.spec.components.modelRuntime.provider = "mock-local";
@@ -436,6 +453,7 @@ try {
       Boolean(findResource(crcLightweightPlan, "Deployment", "cywell-opslens-dashboard")) &&
       Boolean(findResource(crcLightweightPlan, "Route", "cywell-opslens-dashboard")) &&
       Boolean(findResource(crcLightweightPlan, "ConsolePlugin", "cywell-opslens")) &&
+      crcLightweightPlan.consolePluginEnablement?.mergePatch?.spec?.plugins?.includes("cywell-opslens") &&
       !findResource(crcLightweightPlan, "Secret", "cywell-opslens-postgres-auth") &&
       !findResource(crcLightweightPlan, "StatefulSet", "cywell-opslens-vector") &&
       !findResource(crcLightweightPlan, "Service", "cywell-opslens-vector") &&

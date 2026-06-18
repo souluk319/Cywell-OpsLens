@@ -179,6 +179,12 @@ function hasRuleFor(rules, apiGroup, resource, verbs = []) {
   });
 }
 
+function ruleVerbsFor(rules, apiGroup, resource) {
+  return (rules ?? [])
+    .filter((rule) => (rule.apiGroups ?? []).includes(apiGroup) && (rule.resources ?? []).includes(resource))
+    .flatMap((rule) => rule.verbs ?? []);
+}
+
 function findDoc(documents, kind, name) {
   return documents.find(
     (document) => document.kind === kind && document.metadata?.name === name
@@ -564,6 +570,17 @@ function validateRbac(clusterRole, csv) {
     fail("config RBAC ConsolePlugin", "consoleplugins get/create/patch permissions are missing");
   }
 
+  const consoleRoleVerbs = ruleVerbsFor(rbacRules, "operator.openshift.io", "consoles");
+  if (
+    ["get", "list", "watch", "update", "patch"].every((verb) => consoleRoleVerbs.includes(verb)) &&
+    !consoleRoleVerbs.includes("create") &&
+    !consoleRoleVerbs.includes("delete")
+  ) {
+    pass("config RBAC Console operator plugin enablement", "operator can patch consoles.operator.openshift.io/cluster without create/delete");
+  } else {
+    fail("config RBAC Console operator plugin enablement", "consoles get/list/watch/update/patch permissions are required and create/delete must stay absent");
+  }
+
   if (hasRuleFor(rbacRules, "", "serviceaccounts", ["get", "create", "patch"])) {
     pass("config RBAC ServiceAccount", "operator can reconcile the API service account");
   } else {
@@ -625,6 +642,17 @@ function validateRbac(clusterRole, csv) {
     pass("CSV RBAC ConsolePlugin", "can reconcile ConsolePlugin");
   } else {
     fail("CSV RBAC ConsolePlugin", "consoleplugins permissions are missing");
+  }
+
+  const consoleCsvVerbs = ruleVerbsFor(csvRules, "operator.openshift.io", "consoles");
+  if (
+    ["get", "list", "watch", "update", "patch"].every((verb) => consoleCsvVerbs.includes(verb)) &&
+    !consoleCsvVerbs.includes("create") &&
+    !consoleCsvVerbs.includes("delete")
+  ) {
+    pass("CSV RBAC Console operator plugin enablement", "can patch consoles.operator.openshift.io/cluster without create/delete");
+  } else {
+    fail("CSV RBAC Console operator plugin enablement", "consoles permissions are missing or too broad");
   }
 
   if (hasRuleFor(csvRules, "", "serviceaccounts", ["get", "create", "patch"])) {
@@ -1091,8 +1119,12 @@ async function validateBundleDirectory() {
 
 async function validateReconcileCore() {
   const coreText = await readText(paths.reconcileCore);
-  if (coreText?.includes("buildOpsLensReconcilePlan") && coreText.includes("planLightspeedRegistration")) {
-    pass("controller reconcile core", "buildOpsLensReconcilePlan and planLightspeedRegistration are present");
+  if (
+    coreText?.includes("buildOpsLensReconcilePlan") &&
+    coreText.includes("planLightspeedRegistration") &&
+    coreText.includes("planConsolePluginEnablement")
+  ) {
+    pass("controller reconcile core", "buildOpsLensReconcilePlan, planLightspeedRegistration, and planConsolePluginEnablement are present");
   } else {
     fail("controller reconcile core", "reconcile core exports are missing");
   }
@@ -1178,11 +1210,27 @@ async function validateControllerRuntimeSkeleton() {
     controller.includes("RagApprovalQueue") &&
     controller.includes("observeDashboardRoute") &&
     controller.includes("DashboardRouteAvailable") &&
+    controller.includes("reconcileConsolePluginEnablement") &&
     controller.includes("Status().Update")
   ) {
-    pass("Go reconcile skeleton", "controller-runtime reconcile path preserves Lightspeed, Route status, NetworkPolicy, and RAG safety contracts");
+    pass("Go reconcile skeleton", "controller-runtime reconcile path preserves ConsolePlugin enablement, Lightspeed, Route status, NetworkPolicy, and RAG safety contracts");
   } else {
     fail("Go reconcile skeleton", "controller-runtime reconcile skeleton is missing safety-critical contract text");
+  }
+
+  if (
+    controller?.includes('consoleOperator.SetAPIVersion("operator.openshift.io/v1")') &&
+    controller.includes('consoleOperator.SetKind("Console")') &&
+    controller.includes('types.NamespacedName{Name: "cluster"}') &&
+    controller.includes('unstructured.NestedStringSlice(consoleOperator.Object, "spec", "plugins")') &&
+    controller.includes("appendUniqueString(plugins, name)") &&
+    controller.includes('unstructured.SetNestedStringSlice(consoleOperator.Object, plugins, "spec", "plugins")') &&
+    controller.includes("r.Patch(ctx, consoleOperator") &&
+    controller.includes("client.MergeFrom(original)")
+  ) {
+    pass("Go Console operator plugin enablement source", "Catalog install can patch consoles.operator.openshift.io/cluster spec.plugins without replacing existing plugins");
+  } else {
+    fail("Go Console operator plugin enablement source", "controller-runtime must append cywell-opslens to Console cluster spec.plugins without replacing existing plugins");
   }
 
   if (

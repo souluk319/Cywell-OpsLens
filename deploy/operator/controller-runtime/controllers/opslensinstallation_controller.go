@@ -121,6 +121,12 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if consolePluginEnabled(&installation) {
+		if err := r.reconcileConsolePluginEnablement(ctx, &installation); err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
 	if err := r.reconcileLightspeedRegistration(ctx, &installation); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -610,14 +616,11 @@ func (r *OpsLensInstallationReconciler) reconcileModelRuntime(ctx context.Contex
 }
 
 func (r *OpsLensInstallationReconciler) reconcileConsolePlugin(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
-	if installation.Spec.ConsolePlugin != nil && installation.Spec.ConsolePlugin.Enabled != nil && !*installation.Spec.ConsolePlugin.Enabled {
+	if !consolePluginEnabled(installation) {
 		return nil
 	}
 
-	name := "cywell-opslens"
-	if installation.Spec.ConsolePlugin != nil {
-		name = valueOrDefault(installation.Spec.ConsolePlugin.Name, name)
-	}
+	name := consolePluginName(installation)
 	plugin := &unstructured.Unstructured{}
 	plugin.SetAPIVersion("console.openshift.io/v1")
 	plugin.SetKind("ConsolePlugin")
@@ -654,6 +657,35 @@ func (r *OpsLensInstallationReconciler) reconcileConsolePlugin(ctx context.Conte
 		return nil
 	})
 	return err
+}
+
+func (r *OpsLensInstallationReconciler) reconcileConsolePluginEnablement(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation) error {
+	name := consolePluginName(installation)
+	consoleOperator := &unstructured.Unstructured{}
+	consoleOperator.SetAPIVersion("operator.openshift.io/v1")
+	consoleOperator.SetKind("Console")
+	if err := r.Get(ctx, types.NamespacedName{Name: "cluster"}, consoleOperator); err != nil {
+		return fmt.Errorf("read consoles.operator.openshift.io/cluster before ConsolePlugin enablement: %w", err)
+	}
+
+	plugins, found, err := unstructured.NestedStringSlice(consoleOperator.Object, "spec", "plugins")
+	if err != nil {
+		return fmt.Errorf("read Console cluster spec.plugins: %w", err)
+	}
+	if !found {
+		plugins = []string{}
+	}
+
+	plugins, changed := appendUniqueString(plugins, name)
+	if !changed {
+		return nil
+	}
+
+	original := consoleOperator.DeepCopy()
+	if err := unstructured.SetNestedStringSlice(consoleOperator.Object, plugins, "spec", "plugins"); err != nil {
+		return fmt.Errorf("set Console cluster spec.plugins: %w", err)
+	}
+	return r.Patch(ctx, consoleOperator, client.MergeFrom(original))
 }
 
 func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
@@ -1239,6 +1271,20 @@ func isOwnedByInstallation(installation *opslensv1alpha1.OpsLensInstallation, ob
 
 func targetNamespace(installation *opslensv1alpha1.OpsLensInstallation) string {
 	return valueOrDefault(installation.Spec.TargetNamespace, installation.Namespace)
+}
+
+func consolePluginEnabled(installation *opslensv1alpha1.OpsLensInstallation) bool {
+	return installation.Spec.ConsolePlugin == nil ||
+		installation.Spec.ConsolePlugin.Enabled == nil ||
+		*installation.Spec.ConsolePlugin.Enabled
+}
+
+func consolePluginName(installation *opslensv1alpha1.OpsLensInstallation) string {
+	name := "cywell-opslens"
+	if installation.Spec.ConsolePlugin != nil {
+		name = valueOrDefault(installation.Spec.ConsolePlugin.Name, name)
+	}
+	return name
 }
 
 func valueOrDefault(value string, fallback string) string {

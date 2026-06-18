@@ -1,0 +1,28 @@
+apiVersion: console.openshift.io/v1
+kind: ConsolePlugin
+metadata:
+  name: cywell-opslens
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: console-plugin
+    app.kubernetes.io/part-of: cywell-opslens
+spec:
+  displayName: Cywell OpsLens
+  backend:
+    type: Service
+    service:
+      name: cywell-opslens-console-plugin
+      namespace: cywell-opslens-system
+      port: 9443
+      basePath: /
+  i18n:
+    loadType: Preload
+  proxy:
+    - alias: opslens-api
+      authorization: UserToken
+      endpoint:
+        type: Service
+        service:
+          name: cywell-opslens-api
+          namespace: cywell-opslens-system
+          port: 9443

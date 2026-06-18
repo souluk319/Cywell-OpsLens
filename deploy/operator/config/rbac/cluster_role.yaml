@@ -117,6 +117,16 @@ rules:
       - patch
       - delete
   - apiGroups:
+      - operator.openshift.io
+    resources:
+      - consoles
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
       - ols.openshift.io
     resources:
       - olsconfigs

@@ -6,11 +6,11 @@ It exists to stop the project from drifting between three different meanings:
 
 - standalone debug page
 - installed Operator-managed workload
-- official OpenShift ConsolePlugin full-page experience
+- official OpenShift ConsolePlugin navigation entry that opens the OpsLens app asset
 
 ## Locked Product Goal
 
-Cywell OpsLens must be installed through the OpenShift catalog/Operator flow and then used inside the original OpenShift Console through official ConsolePlugin capabilities.
+Cywell OpsLens must be installed through the OpenShift catalog/Operator flow and then opened from the original OpenShift Console through official ConsolePlugin capabilities.
 
 The target user experience is:
 
@@ -19,10 +19,10 @@ Software Catalog / OperatorHub
 -> install Cywell OpsLens Operator
 -> create OpsLensInstallation
 -> Operator creates API, dashboard, route, ConsolePlugin resources
--> ConsolePlugin is enabled
+-> Operator enables ConsolePlugin in consoles.operator.openshift.io/cluster spec.plugins without dropping existing plugins
 -> OpenShift Console refreshes
--> user opens Cywell OpsLens from a console-native navigation or perspective entry
--> /opslens full-page app runs inside the OpenShift Console
+-> user opens Cywell OpsLens from a console-native navigation entry
+-> the entry opens the independent OpsLens dashboard asset through the official ConsolePlugin URL
 ```
 
 The debug dashboard tunnel is only a development access path. It is not the product entry point.
@@ -31,11 +31,11 @@ The debug dashboard tunnel is only a development access path. It is not the prod
 
 | Field | Value |
 | --- | --- |
-| Active branch | `feat/OpsLens-Dev0.1.3` |
-| Stamped head | `61cf02258f49cfeaece1b0fe3c3fa01086dc74bb` |
+| Active branch | `feat/OpsLens-Dev0.1.4` |
+| Stamped head | `6edcf2d5642b68a3e75c33be8b80087d3babc867` |
 | Live reference target | MacBook CRC OpenShift 4.21.14 |
 | Company OCP | Do not mutate |
-| Product entry target | OpenShift Console route/perspective/navigation, not external portal |
+| Product entry target | OpenShift Console left-nav shortcut to the OpsLens dashboard asset, not iframe, not custom DOM injection |
 
 ## Version Ledger
 
@@ -43,7 +43,8 @@ The debug dashboard tunnel is only a development access path. It is not the prod
 | --- | --- | --- | --- |
 | Dev 0.1.1 CRC install | Partial live proof | CRC catalog, package manifest, Operator install, OpsLensInstallation, API/dashboard/vector workloads reached usable states | vLLM external image/runtime remains non-demo; SCC and local secret workaround must become productized |
 | Dev 0.1.2 UI recovery | Partial local proof | KOMSCO branding, Korean shell, assistant naming, catalog icon/install-mode fixes, debug dashboard reachable | UI still carried internal development badges and did not clearly prove console-native product entry |
-| Dev 0.1.3 console mod | Active, local contract pass | Official ConsolePlugin direction locked; fake OpenShift/OpsLens toggle removed; globe language control, compact shell, question-first assistant, and `/opslens` plugin asset contract verified locally | Need approved live CRC console refresh/install validation for the native `/opslens` entry |
+| Dev 0.1.3 console mod | Superseded by Dev 0.1.4 | Official ConsolePlugin direction locked; fake OpenShift/OpsLens toggle removed; globe language control, compact shell, question-first assistant, direct ConsolePlugin asset link, and Operator-driven Console cluster plugin enablement verified locally | Replaced by cleaner `/opslens` launcher route contract |
+| Dev 0.1.4 console launcher | Active | Left navigation success is preserved; target route is simplified to `/opslens` redirect-only launcher; iframe and broken i18n labels are explicitly banned | Implement route, verify locally, then validate in CRC after approval |
 
 ## Acceptance Rules
 
@@ -54,8 +55,8 @@ Pass/fail must be tracked with evidence, not opinion.
 | Installed catalog entry is visible | CRC OperatorHub/Software Catalog shows Cywell OpsLens card with icon | Pass in CRC |
 | Operator installs without stale image refs | Running operator pod uses CRC dev tag/internal registry image, not stale public image | Needs re-check after each bundle refresh |
 | OpsLensInstallation reconciles workloads | `oc get opslensinstallation,deploy,pod,svc,route -n cywell-opslens` shows expected Ready/Running state | Partial; API/dashboard/vector achieved, vLLM remains pending |
-| ConsolePlugin entry exists | OpenShift Console shows Cywell OpsLens through official plugin navigation/perspective/route | Gap |
-| Product opens as full-page console app | User enters OpsLens through console `/opslens`, not only debug tunnel | Gap |
+| ConsolePlugin entry exists | OpenShift Console shows Cywell OpsLens through official plugin navigation after Catalog install | Local contract pass; live CRC evidence pending |
+| Product opens from OpenShift Console | User enters OpsLens through console left-nav `Cywell OpsLens`, not only debug tunnel | Local contract pass; live CRC evidence pending |
 | Original console coverage is mapped | OpenShift 4.21.14 menu/features mapped 1:1 to OpsLens menu/screens/actions | In progress |
 | No development worklist UI leaks | Header/body do not show internal plans, debug chips, task queues, or "standalone preview" marketing | In progress; verifier must enforce |
 | Assistant is question-first | KOMSCO AI Assistant opens as chat/help surface, diagnostics are secondary | In progress |

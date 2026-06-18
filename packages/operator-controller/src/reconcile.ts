@@ -1,4 +1,6 @@
 import type {
+  ConsoleOperatorConfig,
+  ConsolePluginEnablementPlan,
   KubernetesObject,
   LightspeedReconcilePlan,
   OLSConfig,
@@ -46,6 +48,14 @@ function flattenKeys(value: unknown, keys = new Set<string>()) {
 
 function namespaceFor(installation: OpsLensInstallation) {
   return installation.spec.targetNamespace ?? installation.metadata.namespace ?? defaultNamespace;
+}
+
+function consolePluginEnabled(installation: OpsLensInstallation) {
+  return installation.spec.consolePlugin?.enabled !== false;
+}
+
+function consolePluginName(installation: OpsLensInstallation) {
+  return installation.spec.consolePlugin?.name ?? "cywell-opslens";
 }
 
 function labels(component: string) {
@@ -644,12 +654,12 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
         ])
   ];
 
-  if (installation.spec.consolePlugin?.enabled !== false) {
+  if (consolePluginEnabled(installation)) {
     resources.push({
       apiVersion: "console.openshift.io/v1",
       kind: "ConsolePlugin",
       metadata: {
-        name: installation.spec.consolePlugin?.name ?? "cywell-opslens",
+        name: consolePluginName(installation),
         labels: labels("console-plugin")
       },
       spec: {
@@ -682,6 +692,50 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
   }
 
   return resources;
+}
+
+export function planConsolePluginEnablement(
+  installation: OpsLensInstallation,
+  currentConsole?: ConsoleOperatorConfig
+): ConsolePluginEnablementPlan {
+  const pluginName = consolePluginName(installation);
+  const existingPlugins = currentConsole?.spec?.plugins ?? [];
+  const desiredPlugins = unique([...existingPlugins, pluginName]);
+  const willPatch = consolePluginEnabled(installation) && !existingPlugins.includes(pluginName);
+
+  return {
+    phase: willPatch ? "PatchPlanned" : "Ready",
+    mutationAllowed: true,
+    willPatch,
+    target: {
+      apiVersion: "operator.openshift.io/v1",
+      kind: "Console",
+      name: "cluster",
+      pluginName
+    },
+    ...(willPatch
+      ? {
+          mergePatch: {
+            spec: {
+              plugins: desiredPlugins
+            }
+          }
+        }
+      : {}),
+    evidence: [
+      willPatch
+        ? `Console cluster spec.plugins will append ${pluginName} without dropping existing plugins.`
+        : `Console cluster spec.plugins already includes ${pluginName} or ConsolePlugin is disabled.`
+    ],
+    risk: [
+      "Console plugin enablement reloads the OpenShift Console and requires cluster-admin-scoped operator RBAC.",
+      "The operator must preserve any existing spec.plugins entries."
+    ],
+    rollbackPath: [
+      `Remove only ${pluginName} from consoles.operator.openshift.io/cluster spec.plugins if rollback is approved.`,
+      `Delete ConsolePlugin/${pluginName} only after the console no longer loads the plugin.`
+    ]
+  };
 }
 
 export function desiredMcpServer(installation: OpsLensInstallation): OlsMcpServer {
@@ -956,15 +1010,18 @@ function buildStatus(
 
 export function buildOpsLensReconcilePlan(
   installation: OpsLensInstallation,
-  currentOlsConfig?: OLSConfig
+  currentOlsConfig?: OLSConfig,
+  currentConsole?: ConsoleOperatorConfig
 ): OpsLensReconcilePlan {
   const lightspeedRegistration = planLightspeedRegistration(installation, currentOlsConfig);
+  const consolePluginEnablement = planConsolePluginEnablement(installation, currentConsole);
 
   return {
     actionMode: "operator-reconcile-plan",
     desiredResources: buildOpsLensResources(installation),
     cleanupResources: buildOpsLensCleanupResources(installation),
     lightspeedRegistration,
+    consolePluginEnablement,
     statusPatch: buildStatus(installation, lightspeedRegistration),
     policy: {
       assistantMutationAllowed: false,

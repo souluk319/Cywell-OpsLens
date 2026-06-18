@@ -31,6 +31,7 @@
     "verify:operator:reconcile": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-operator-reconcile.mjs",
     "verify:operator:runtime": "npm run -w @kugnus/operator-controller build && node ./scripts/verify-operator-runtime-parity.mjs",
     "verify:console-plugin": "node ./scripts/verify-console-plugin-assets.mjs",
+    "console-plugin:enable-patch": "node ./scripts/print-console-plugin-enable-patch.mjs",
     "verify:web-shell": "node ./scripts/verify-web-shell-contract.mjs",
     "verify:console-assistant-provider": "node ./scripts/trace-console-assistant-provider.mjs",
     "verify:certification": "node ./scripts/verify-certification-readiness.mjs",
