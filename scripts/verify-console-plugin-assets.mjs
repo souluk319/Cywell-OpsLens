@@ -125,13 +125,15 @@ const sourceExtensions = Array.isArray(extensions) ? extensions : [];
 const manifestExtensions = Array.isArray(manifest?.extensions) ? manifest.extensions : [];
 expectCheck(
   "plugin extension set",
-  sourceExtensions.length === 3 &&
-    manifestExtensions.some((extension) => extension.type === "console.navigation/section") &&
+  sourceExtensions.length === 2 &&
     manifestExtensions.some(
       (extension) =>
         extension.type === "console.navigation/href" &&
+        extension.properties?.id === pluginName &&
+        extension.properties?.name === "%plugin__cywell-opslens~Cywell OpsLens" &&
         extension.properties?.href === "/opslens" &&
-        extension.properties?.section === pluginName
+        extension.properties?.section === undefined &&
+        extension.properties?.dataAttributes?.testid === "cywell-opslens-nav"
     ) &&
     manifestExtensions.some(
       (extension) =>
@@ -139,7 +141,7 @@ expectCheck(
         extension.properties?.path === "/opslens" &&
         extension.properties?.component?.$codeRef === "OpsLensRoute.default"
     ),
-  "navigation section, navigation href, and /opslens route are emitted in the manifest"
+  "top-level Cywell OpsLens navigation href and /opslens route are emitted in the manifest"
 );
 
 expectCheck(
