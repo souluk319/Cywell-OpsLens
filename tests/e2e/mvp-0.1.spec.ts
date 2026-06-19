@@ -746,6 +746,15 @@ async function expectConsoleFunctionEffect(
     await page.getByPlaceholder("Search by name...").fill("test");
     await expect(page.getByTestId("ocp-builds-filter-count")).toContainText("Showing:");
 
+    await openConsoleNavItem(page, "software-catalog");
+    await page.getByTestId("console-active-open-surface").click();
+    await expect(page.getByTestId("ocp-ecosystem-native-toolbar")).toBeVisible();
+    await page.getByPlaceholder("Filter by keyword...").fill("ops");
+    await expect(page.getByPlaceholder("Filter by keyword...")).toHaveValue("ops");
+    await expect(page.getByLabel("Filter by type")).toBeVisible();
+    await expect(page.getByLabel("Filter by catalog")).toBeVisible();
+    await expect(page.getByTestId("ocp-ecosystem-filter-count")).toContainText("Showing:");
+
     await openConsoleNavItem(page, "routes");
     await page.getByTestId("console-active-open-surface").click();
     await expect(page.getByTestId("ocp-networking-native-toolbar")).toBeVisible();

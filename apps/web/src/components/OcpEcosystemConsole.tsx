@@ -2,14 +2,18 @@ import type { OcpResourceListResponse, OcpResourceSummary } from "@kugnus/contra
 import {
   Boxes,
   ExternalLink,
+  ListFilter,
   PackageSearch,
+  PlusCircle,
   RefreshCw,
+  Search,
   ScrollText,
   ShieldCheck
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { nativeConsoleHref } from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
@@ -50,6 +54,15 @@ const ecosystemCopy = {
     source: "Source",
     package: "Package",
     catalog: "Catalog",
+    allNamespaces: "All namespaces",
+    searchByKeyword: "Filter by keyword...",
+    filterByKind: "Filter by type",
+    allKinds: "All types",
+    filterByCatalog: "Filter by catalog",
+    allCatalogs: "All catalogs",
+    install: "Install",
+    create: "Create",
+    showing: "Showing",
     channel: "Channel",
     currentCsv: "Current CSV",
     provider: "Provider",
@@ -83,6 +96,15 @@ const ecosystemCopy = {
     source: "소스",
     package: "패키지",
     catalog: "카탈로그",
+    allNamespaces: "모든 네임스페이스",
+    searchByKeyword: "키워드로 필터...",
+    filterByKind: "유형 필터",
+    allKinds: "모든 유형",
+    filterByCatalog: "카탈로그 필터",
+    allCatalogs: "모든 카탈로그",
+    install: "설치",
+    create: "생성",
+    showing: "표시",
     channel: "채널",
     currentCsv: "현재 CSV",
     provider: "공급자",
@@ -147,6 +169,16 @@ function ageText(value: string | undefined) {
   return `${Math.floor(hours / 24)}d`;
 }
 
+function itemKey(item: OcpResourceSummary) {
+  return `${item.kind}/${item.metadata.namespace ?? "cluster"}/${item.metadata.name}`;
+}
+
+function uniqueSorted(values: Array<string | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
 function packageProvider(item: OcpResourceSummary) {
   const status = asRecord(item.status);
   const provider = asRecord(status.provider);
@@ -164,6 +196,11 @@ function packageCurrentCsv(item: OcpResourceSummary) {
   const defaultChannel = packageChannel(item);
   const selected = channels.find((channel) => channel.name === defaultChannel) ?? channels[0];
   return stringField(selected, "currentCSV") ?? "-";
+}
+
+function packageCatalog(item: OcpResourceSummary) {
+  const status = asRecord(item.status);
+  return stringField(status, "catalogSourceDisplayName") ?? stringField(status, "catalogSource") ?? item.metadata.name;
 }
 
 function csvPhase(item: OcpResourceSummary) {
@@ -194,6 +231,26 @@ function helmRevision(item: OcpResourceSummary) {
 
 function mergeItems(...responses: Array<OcpResourceListResponse | undefined>) {
   return responses.flatMap((response) => response?.items ?? []);
+}
+
+function ecosystemSearchTerms(item: OcpResourceSummary) {
+  return [
+    item.kind,
+    item.metadata.name,
+    item.metadata.namespace,
+    packageCatalog(item),
+    packageProvider(item),
+    packageChannel(item),
+    packageCurrentCsv(item),
+    csvPhase(item),
+    subscriptionChannel(item),
+    installPlanApproval(item),
+    helmChart(item),
+    helmRevision(item)
+  ]
+    .filter((term): term is string => Boolean(term))
+    .join(" ")
+    .toLowerCase();
 }
 
 function resourceForEcosystemItem(item: OcpResourceSummary) {
@@ -232,6 +289,10 @@ export function OcpEcosystemConsole({ language, view }: OcpEcosystemConsoleProps
   const [state, setState] = useState<ResourceState>({});
   const [loading, setLoading] = useState(true);
   const [selectedName, setSelectedName] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [namespaceFilter, setNamespaceFilter] = useState("all");
+  const [kindFilter, setKindFilter] = useState("all");
+  const [catalogFilter, setCatalogFilter] = useState("all");
 
   async function load() {
     setLoading(true);
@@ -330,17 +391,54 @@ export function OcpEcosystemConsole({ language, view }: OcpEcosystemConsoleProps
     return mergeItems(state.helmSecrets, state.helmConfigMaps);
   }, [state, view]);
 
+  const namespaceOptions = useMemo(
+    () => uniqueSorted(tableItems.map((item) => item.metadata.namespace)),
+    [tableItems]
+  );
+  const kindOptions = useMemo(() => uniqueSorted(tableItems.map((item) => item.kind)), [tableItems]);
+  const catalogOptions = useMemo(
+    () => uniqueSorted(tableItems.map((item) => (item.kind === "PackageManifest" || item.kind === "CatalogSource" ? packageCatalog(item) : undefined))),
+    [tableItems]
+  );
+  const filteredItems = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return tableItems.filter((item) => {
+      if (namespaceFilter !== "all" && item.metadata.namespace && item.metadata.namespace !== namespaceFilter) return false;
+      if (kindFilter !== "all" && item.kind !== kindFilter) return false;
+      if (
+        catalogFilter !== "all" &&
+        (item.kind === "PackageManifest" || item.kind === "CatalogSource") &&
+        packageCatalog(item) !== catalogFilter
+      ) {
+        return false;
+      }
+      if (!query) return true;
+      return ecosystemSearchTerms(item).includes(query);
+    });
+  }, [catalogFilter, kindFilter, namespaceFilter, search, tableItems]);
+
   const selectedItem =
-    tableItems.find((item) => `${item.kind}/${item.metadata.namespace ?? "cluster"}/${item.metadata.name}` === selectedName) ??
-    tableItems[0];
+    filteredItems.find((item) => itemKey(item) === selectedName) ??
+    filteredItems[0];
 
   useEffect(() => {
-    if (!selectedItem) return;
-    const key = `${selectedItem.kind}/${selectedItem.metadata.namespace ?? "cluster"}/${selectedItem.metadata.name}`;
-    setSelectedName((current) => current || key);
-  }, [selectedItem]);
+    if (!selectedItem) {
+      setSelectedName("");
+      return;
+    }
+    const keys = new Set(filteredItems.map(itemKey));
+    const key = itemKey(selectedItem);
+    setSelectedName((current) => (current && keys.has(current) ? current : key));
+  }, [filteredItems, selectedItem]);
 
-  const drilldownItems = tableItems;
+  const drilldownItems = filteredItems;
+  const actionHref = nativeConsoleHref(
+    view === "installed-operators"
+      ? `/operators/ns/${encodeURIComponent(namespaceFilter !== "all" ? namespaceFilter : "default")}`
+      : view === "helm"
+        ? `/helm-releases/ns/${encodeURIComponent(namespaceFilter !== "all" ? namespaceFilter : "default")}`
+        : `/catalog/ns/${encodeURIComponent(namespaceFilter !== "all" ? namespaceFilter : "default")}?catalogType=operator${search.trim() ? `&keyword=${encodeURIComponent(search.trim())}` : ""}`
+  );
 
   return (
     <section
@@ -384,6 +482,54 @@ export function OcpEcosystemConsole({ language, view }: OcpEcosystemConsoleProps
         </span>
       </div>
 
+      <div className="native-console-toolbar ecosystem-filter-toolbar" data-testid="ocp-ecosystem-native-toolbar">
+        <label className="resource-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            placeholder={copy.searchByKeyword}
+            aria-label={copy.searchByKeyword}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          <span>{copy.namespace}</span>
+          <select value={namespaceFilter} aria-label={copy.namespace} onChange={(event) => setNamespaceFilter(event.currentTarget.value)}>
+            <option value="all">{copy.allNamespaces}</option>
+            {namespaceOptions.map((namespace) => (
+              <option key={namespace} value={namespace}>{namespace}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.filterByKind}</span>
+          <select value={kindFilter} aria-label={copy.filterByKind} onChange={(event) => setKindFilter(event.currentTarget.value)}>
+            <option value="all">{copy.allKinds}</option>
+            {kindOptions.map((kind) => (
+              <option key={kind} value={kind}>{kind}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.filterByCatalog}</span>
+          <select value={catalogFilter} aria-label={copy.filterByCatalog} onChange={(event) => setCatalogFilter(event.currentTarget.value)}>
+            <option value="all">{copy.allCatalogs}</option>
+            {catalogOptions.map((catalog) => (
+              <option key={catalog} value={catalog}>{catalog}</option>
+            ))}
+          </select>
+        </label>
+        <a className="text-icon-button native-open-link" href={actionHref} target="_blank" rel="noreferrer">
+          <PlusCircle size={16} aria-hidden="true" />
+          {view === "installed-operators" || view === "helm" ? copy.create : copy.install}
+        </a>
+        <span className="native-toolbar-count" data-testid="ocp-ecosystem-filter-count">
+          <ListFilter size={15} aria-hidden="true" />
+          {copy.showing}: {filteredItems.length}/{tableItems.length}
+        </span>
+      </div>
+
       {[state.catalogSources, state.packageManifests, state.csvs, state.subscriptions, state.installPlans, state.helmSecrets, state.helmConfigMaps]
         .map(failureText)
         .filter(Boolean)
@@ -407,8 +553,8 @@ export function OcpEcosystemConsole({ language, view }: OcpEcosystemConsoleProps
             </tr>
           </thead>
           <tbody>
-            {tableItems.map((item) => {
-              const key = `${item.kind}/${item.metadata.namespace ?? "cluster"}/${item.metadata.name}`;
+            {filteredItems.map((item) => {
+              const key = itemKey(item);
               const isPackage = item.kind === "PackageManifest";
               const isCsv = item.kind === "ClusterServiceVersion";
               const isSubscription = item.kind === "Subscription";
@@ -460,7 +606,7 @@ export function OcpEcosystemConsole({ language, view }: OcpEcosystemConsoleProps
             })}
           </tbody>
         </table>
-        {tableItems.length === 0 ? (
+        {filteredItems.length === 0 ? (
           <p className="empty-state">
             {view === "installed-operators"
               ? copy.noInstalled
@@ -475,11 +621,7 @@ export function OcpEcosystemConsole({ language, view }: OcpEcosystemConsoleProps
         <a
           className="native-object-action"
           href={
-            view === "installed-operators"
-              ? "/k8s/ns/default/operators.coreos.com~v1alpha1~ClusterServiceVersion"
-              : view === "helm"
-                ? "/helm-releases/ns/default"
-                : "/catalog/ns/default?catalogType=operator"
+            actionHref
           }
           target="_blank"
           rel="noreferrer"

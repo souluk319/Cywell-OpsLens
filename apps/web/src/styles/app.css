@@ -6079,6 +6079,20 @@ button {
   background: #fff;
 }
 
+.ecosystem-filter-toolbar {
+  grid-template-columns:
+    minmax(230px, 1.1fr)
+    minmax(160px, 0.7fr)
+    minmax(150px, 0.65fr)
+    minmax(170px, 0.75fr)
+    auto
+    auto;
+}
+
+.ecosystem-filter-toolbar .native-toolbar-count {
+  justify-self: end;
+}
+
 .native-console-summary {
   display: flex;
   flex-wrap: wrap;

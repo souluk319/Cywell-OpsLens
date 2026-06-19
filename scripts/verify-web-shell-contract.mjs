@@ -2425,10 +2425,18 @@ expectCheck(
     ecosystemSource.includes("owner=helm") &&
     ecosystemSource.includes('data-testid={`ocp-ecosystem-${view}`}') &&
     ecosystemSource.includes('data-testid="ocp-ecosystem-summary"') &&
+    ecosystemSource.includes('data-testid="ocp-ecosystem-native-toolbar"') &&
+    ecosystemSource.includes('data-testid="ocp-ecosystem-filter-count"') &&
     ecosystemSource.includes('data-testid="ocp-ecosystem-native-handoff"') &&
+    ecosystemSource.includes("nativeConsoleHref") &&
+    ecosystemSource.includes("setSearch") &&
+    ecosystemSource.includes("setNamespaceFilter") &&
+    ecosystemSource.includes("setKindFilter") &&
+    ecosystemSource.includes("setCatalogFilter") &&
     ecosystemSource.includes("OcpNativeObjectDrilldown") &&
+    stylesSource.includes(".ecosystem-filter-toolbar") &&
     e2eSource.includes('"ecosystem-console": "Ecosystem console"'),
-  "Ecosystem menu items must render native Software Catalog, Operator catalog, Installed Operators, and Helm-style read-only evidence instead of routing to OpsLens Admin or only the generic explorer"
+  "Ecosystem menu items must render native Software Catalog, Operator catalog, Installed Operators, and Helm-style search/filter/install handoff evidence instead of routing to OpsLens Admin or only the generic explorer"
 );
 
 expectCheck(
