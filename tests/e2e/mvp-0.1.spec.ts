@@ -15,6 +15,7 @@ const surfaceLabelsForTest: Record<ConsoleParityActionSurface, string> = {
   overview: "Cluster overview",
   evidence: "Evidence pane",
   "resource-explorer": "Resource explorer",
+  "topology-graph": "Topology graph",
   "ops-dashboard": "OpsLens dashboard",
   "ops-admin": "OpsLens admin",
   opsbrain: "OpsBrain",
@@ -82,6 +83,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "overview",
       "evidence",
       "resource-explorer",
+      "topology-graph",
       "ops-dashboard",
       "ops-admin",
       "opsbrain",
@@ -302,7 +304,7 @@ async function expectActiveConsoleAction(
     await expect(page.getByTestId("ocp-function-smoke")).toBeVisible();
     await expect(page.getByTestId("ocp-smoke-function-outcome")).toHaveAttribute(
       "data-function-outcome",
-      /^(operating|empty|waiting|loading)$/,
+      /^(operating|empty|waiting|loading|missing)$/,
       { timeout: 15_000 }
     );
     await expect
@@ -321,7 +323,26 @@ async function expectActiveConsoleAction(
         },
         { timeout: 15_000 }
       )
-      .toMatch(/^(operating|empty|waiting|loading)\|\1\|resource-\1$/);
+      .toMatch(/^(operating|empty|waiting|loading|missing)\|\1\|resource-\1$/);
+
+    const smokeOutcome = await page
+      .getByTestId("ocp-smoke-function-outcome")
+      .getAttribute("data-function-outcome");
+    if (smokeOutcome === "missing") {
+      await expect(page.getByTestId("ocp-smoke-preset-match")).toHaveAttribute(
+        "data-preset-match",
+        "missing",
+        { timeout: 15_000 }
+      );
+      await expect(page.getByTestId("ocp-smoke-mutation-guard")).toContainText(
+        "read-only"
+      );
+      await expect(page.getByTestId("ocp-smoke-mutation-guard")).toContainText(
+        "no create/update/patch/delete"
+      );
+      return;
+    }
+
     await expect(page.getByTestId("ocp-smoke-preset-match")).toHaveAttribute(
       "data-preset-match",
       "matched",
@@ -674,6 +695,21 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("ocp-active-preset-query")).toContainText(
       "pods"
     );
+    await expect(page.getByTestId("ocp-workload-native-actions")).toBeVisible();
+    await expect(page.getByTestId("ocp-workload-native-object-link")).toBeVisible();
+    await expect(page.getByTestId("ocp-workload-yaml-action")).toBeVisible();
+    await expect(page.getByTestId("ocp-workload-events-action")).toBeVisible();
+    await expect(page.getByTestId("ocp-workload-logs-action")).toBeVisible();
+    await expect(page.getByTestId("ocp-workload-related-action")).toBeVisible();
+    await page.getByTestId("ocp-workload-yaml-action").click();
+    await expect(page.getByTestId("ocp-detail-yaml-tab")).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await page.getByTestId("ocp-workload-events-action").click();
+    await expect(page.getByTestId("ocp-resource-events")).toBeVisible();
+    await page.getByTestId("ocp-workload-related-action").click();
+    await expect(page.getByTestId("ocp-related-resources")).toBeVisible();
     await page.getByTestId("console-active-ask-assistant").click();
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
     await expect(page.getByTestId("assistant-draft")).toHaveValue(/Pods/);

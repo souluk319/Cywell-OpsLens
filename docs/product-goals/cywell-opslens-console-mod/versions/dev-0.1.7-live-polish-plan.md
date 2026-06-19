@@ -7,6 +7,9 @@ Reference target: CRC OpenShift / OpenShift Local `4.21.14`
 Minimum supported target: OpenShift Container Platform `4.20`
 Forward UX target: OpenShift Container Platform `4.21+`
 Primary contract: `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.6-ocp-console-study.md`
+Deployment boundary: Dev `0.1.7` is local implementation and verification only.
+No image build/tag/push, catalog replacement, Operator rollout, tar handoff, or
+Windows CRC deployment is part of this version.
 
 ## Product Goal
 
@@ -113,6 +116,7 @@ Sources:
 - Do not mutate cluster resources unless RBAC, allowlist, human approval, and audit contract are present.
 - Do not use unsupported console DOM injection.
 - Do not deploy a new image until the local test page proves the behavior.
+- Do not deploy, tag, push, roll out, or hand off a new image as part of Dev `0.1.7`; deployment is a later lane.
 - Do not market OLM v1 Software Catalog support on OCP `4.20`; provide Operator/Catalog analysis instead.
 
 ## Acceptance Criteria
@@ -149,7 +153,7 @@ visible.
 | Menu support classification | Every native console menu item now carries a visible support class. | `coverageClass` maps items to `Live View`, `Native Deep Link`, `Plan-only`, or `Gap`; the parity matrix and active action panel render the class. |
 | Workloads resource lens | Workload resource presets now show an OpsLens-owned status lens above the raw resource table. | Pods, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB expose health distribution, selected object signal, owner/child relation, and next-check chips in `ocp-workload-lens`. |
 | Workloads action mapping | Workload resource presets now show how each native console behavior is handled before the user reaches the raw table. | `ocp-workload-action-map` renders `Live View`, `Native Deep Link`, `Plan-only Assistant`, and `Explicit Gap` cards. Read/list/detail/events/logs/related resources are OpsLens live views, while create/edit/delete stays in native OpenShift or approval-gated flow. |
-| Workloads native action rail | Selected workload objects now expose an operator-facing bridge between OpsLens evidence and the original console. | `ocp-workload-native-actions` provides OpenShift object deep link, YAML view, events, logs where applicable, and related-resource jump controls. Mutation remains native deep link or approval-gated; OpsLens keeps read-only evidence in place. |
+| Workloads native action rail | Selected workload objects now expose an operator-facing bridge between OpsLens evidence and the original console. | `ocp-workload-native-actions` provides OpenShift object deep link, YAML view, events, logs where applicable, and related-resource jump controls. Playwright now opens the Workloads mapped surface, verifies the rail, and exercises YAML, event, and related-resource controls. Mutation remains native deep link or approval-gated; OpsLens keeps read-only evidence in place. |
 | Dashboard source labels | Dashboard now separates OpsLens risk data source, native console API source, Prometheus source, and per-panel source labels. | `opslens-dashboard-source-label`, `opslens-console-source-label`, and panel-level source labels expose live/fixture/unavailable state instead of leaving risk/inventory cards ambiguous. |
 | Dashboard native console match map | Dashboard now mirrors the native OpenShift dashboard panels before adding OpsLens analysis. | `opslens-native-dashboard-map` maps native Details, Status, Utilization, Activity, and Inventory into compact signal panels with source labels and status meters, so the UI proves original-console parity before claiming plus-alpha value. |
 | Dashboard decision flow | Dashboard now visualizes the product value above native parity by turning console signals into OpsLens correlation, operator decision, and assistant handoff. | Browser check rendered `opslens-dashboard-decision-flow` with `4` steps, `data-source=live`, live console signal count, risk signal count, top decision, and suggested assistant question. |
@@ -195,7 +199,7 @@ into another premature image push.
 | --- | --- | --- | --- |
 | OCP `4.20`/`4.21` compatibility criteria table | PASS | The Compatibility Strategy and Work Order sections define OCP `4.20` as the minimum runtime, OCP `4.21+` as the forward UX target, and preserve the no-`4.21`-only baseline rule. `npm run verify:ocp:420-compatibility` checks the registry against the `4.20` API allowlist. | Windows CRC `4.20` runtime proof is still a deployment gate, not a local implementation claim. |
 | Native console menu classification | PASS | `apps/web/src/consoleParity.ts` classifies every version-pinned console item as `Live View`, `Native Deep Link`, `Plan-only`, or `Gap`; the parity matrix and action panel render those classes. | Classification does not mean every native screen is fully reimplemented. |
-| Workloads first implementation | PASS for first slice | Workload presets expose `ocp-workload-lens`, `ocp-workload-action-map`, and `ocp-workload-native-actions` for Pods, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB. | Create/edit/delete remain native or approval-gated; deeper per-kind editors are later work. |
+| Workloads first implementation | PASS for first slice | Workload presets expose `ocp-workload-lens`, `ocp-workload-action-map`, and `ocp-workload-native-actions` for Pods, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB. The e2e suite now verifies the native object rail and YAML/events/related-resource controls after opening the mapped Workloads surface. | Create/edit/delete remain native or approval-gated; deeper per-kind editors are later work. |
 | Real Topology graph | PASS | `GET /api/ocp/topology` builds graph nodes and edges from live/read-only resource relationships; `OcpTopologyGraph` renders SVG nodes, edges, error evidence, and namespace/filter controls. | Graph quality can still be improved beyond the first usable layout. |
 | Core Resource API generic `400` removal | PASS | Resource list/detail paths return data, empty state, or named failure envelopes such as unsupported resource, upstream read failure, RBAC denial, or redaction block; customer-facing UI no longer relies on unexplained visible `400`. | Actual API server/RBAC failures may still occur, but must surface as named diagnostics. |
 | Dashboard live/source labels | PASS | Dashboard panels label OpsLens risk, native console overview, Prometheus utilization, live/fixture/unavailable state, and native-to-OpsLens analysis trace. | More advanced drill-down visualizations are a next product lane. |

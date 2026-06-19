@@ -1974,6 +1974,14 @@ expectCheck(
     e2eSource.includes("alternateView") &&
     e2eSource.includes("closeAssistantIfOpen(page)") &&
     e2eSource.includes('getByTestId("console-active-open-surface").click()') &&
+    e2eSource.includes('getByTestId("ocp-workload-native-actions")') &&
+    e2eSource.includes('getByTestId("ocp-workload-native-object-link")') &&
+    e2eSource.includes('getByTestId("ocp-workload-yaml-action")') &&
+    e2eSource.includes('getByTestId("ocp-workload-events-action")') &&
+    e2eSource.includes('getByTestId("ocp-workload-logs-action")') &&
+    e2eSource.includes('getByTestId("ocp-workload-related-action")') &&
+    e2eSource.includes('getByTestId("ocp-detail-yaml-tab")') &&
+    e2eSource.includes('getByTestId("ocp-related-resources")') &&
     e2eSource.includes('data-target-status",') &&
     e2eSource.includes('page.locator("[data-testid^=\'active-surface-\']")'),
   "Playwright opens every version-pinned console registry item through the collapsible navigation, uses the active Open surface action, and verifies its mapped surface, preset, and mounted target"
@@ -2080,8 +2088,10 @@ expectCheck(
     e2eSource.includes('getByTestId("ocp-function-smoke")') &&
     e2eSource.includes('getByTestId("ocp-smoke-function-outcome")') &&
     e2eSource.includes('"data-function-outcome"') &&
+    e2eSource.includes("operating|empty|waiting|loading|missing") &&
     e2eSource.includes('getByTestId("ocp-smoke-preset-match")') &&
     e2eSource.includes('"data-preset-match"') &&
+    e2eSource.includes('"data-preset-match",\n        "missing"') &&
     e2eSource.includes('data-smoke-state",') &&
     e2eSource.includes("/.+\\s+[^/\\s]+\\/\\S+/") &&
     e2eSource.includes('"ready",') &&
