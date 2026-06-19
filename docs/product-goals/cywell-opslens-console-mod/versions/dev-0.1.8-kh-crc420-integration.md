@@ -1,6 +1,6 @@
 # Dev 0.1.8 KH CRC 4.20 Integration Gate
 
-Status: KH 0.1.8 deployed; browser session verification pending
+Status: KH 0.1.8 deployed and verifier-proven; browser session verification pending
 Branch: `feat/OpsLens-Dev0.1.8`
 Base commit: `21a5825c`
 Reference target: KH Windows CRC / OpenShift Local `4.20.x`
@@ -43,7 +43,7 @@ and no manual password prompts are acceptable in the normal path.
 | AC-018-006 | ConsolePlugin capability and `cywell-opslens` enablement are reported separately so we do not confuse "cluster connected" with "OpsLens deployed." | Same verifier artifact |
 | AC-018-007 | SSH access to KH works in non-interactive mode with `BatchMode=yes`; no password is required for normal automation. | `ssh -o BatchMode=yes Kugnus-Home "oc version --client"` |
 | AC-018-008 | KH deployment automation refuses to run if it would need a typed password, sudo prompt, missing kubeconfig, missing Docker/Podman context, or missing registry login. | Deployment preflight output |
-| AC-018-009 | The generated image tag, bundle CSV, CatalogSource image, Subscription `currentCSV`, deployment image tags, and `OpsLensInstallation.status.version` agree on the same 0.1.8 build. | Deployment verifier artifact |
+| AC-018-009 | The generated image tag, bundle CSV, CatalogSource image, Subscription `currentCSV`, deployment image tags, `OpsLensInstallation.spec.version`, and CR status component images agree on the same 0.1.8 build. | `npm run verify:kh:crc420-deployment` |
 | AC-018-010 | OpenShift Console has `cywell-opslens` enabled and the user-facing launch path opens without first-load 404. | ConsolePlugin verifier plus browser check |
 | AC-018-011 | OpsLens API can reach the KH OpenShift API and, when Lightspeed is installed, reports Lightspeed status separately from base OpsLens health. | Runtime verifier artifact |
 
@@ -123,12 +123,26 @@ ConsolePlugin: cywell-opslens created and enabled in console.operator cluster
 Console route: /opslens returns HTTP 200
 ```
 
-The current verifier result is:
+The current connection verifier result is:
 
 ```text
 npm run verify:kh:crc420-connection
 finalStatus=PASS_WITH_WARNINGS
 ```
+
+The current deployment verifier result is:
+
+```text
+npm run verify:kh:crc420-deployment
+finalStatus=PASS_WITH_WARNINGS
+```
+
+It proves the no-prompt KH SSH path, OCP `4.20.5`, CatalogSource,
+PackageManifest, Subscription, InstallPlan, CSV, operator/API/dashboard image
+tags, OpsLensInstallation version and status component images, dashboard Route
+HTTP 200, ConsolePlugin enablement, console `/opslens` HTTP 200, UserToken proxy
+auth boundary, API-to-Kubernetes reachability, and Lightspeed app-server
+availability.
 
 Warnings are intentional and currently accepted for KH:
 
