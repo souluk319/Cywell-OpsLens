@@ -78,6 +78,33 @@ The desired user experience is:
 | Audit | Every proposed and executed action must have request id, user, namespace, resource, action, approval, and verification result |
 | Live reflection | Resource views poll or watch read-only OpenShift state and never label fixture data as live |
 
+### CRC Lightspeed Connectivity Evidence
+
+Dev 0.1.6 confirmed two different paths:
+
+| Path | Result | Evidence |
+| --- | --- | --- |
+| Local Vite preview -> local API -> port-forwarded Lightspeed | Connected | `audit.model=openshift-lightspeed/v1/streaming_query:ask` |
+| Deployed dashboard service -> deployed API service -> in-cluster Lightspeed service | Connected after CRC network policy allow | `audit.model=openshift-lightspeed/v1/streaming_query:ask` |
+
+The deployed path initially failed because the `openshift-lightspeed` namespace NetworkPolicy selected the Lightspeed application server and allowed ingress from OpenShift Console, monitoring, and ingress namespaces only. The Cywell OpsLens API pod timed out when calling `lightspeed-app-server.openshift-lightspeed.svc.cluster.local:8443`.
+
+For CRC demo environments, apply:
+
+```text
+deploy/lightspeed/networkpolicy-allow-cywell-opslens-api-crc.yaml
+```
+
+This policy is intentionally narrow:
+
+- Source namespace: `cywell-opslens`
+- Source pod labels: `app.kubernetes.io/name=cywell-opslens`, `app.kubernetes.io/component=api`
+- Destination namespace: `openshift-lightspeed`
+- Destination pod: Lightspeed application server
+- Port: `8443/TCP`
+
+It is marked `crc-dev-only` because production policy should be reviewed with the customer cluster's network and security owners.
+
 ## Original Console Parity And Visualization Scope
 
 Dev 0.1.6 treats each OpenShift Console navigation entry as a product surface, not a text-only placeholder.

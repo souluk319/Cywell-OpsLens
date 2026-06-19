@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-cywell-opslens-api-to-lightspeed
+  namespace: openshift-lightspeed
+  labels:
+    cywell.io/lab-scope: crc-dev-only
+    app.kubernetes.io/name: cywell-opslens
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: application-server
+      app.kubernetes.io/managed-by: lightspeed-operator
+      app.kubernetes.io/name: lightspeed-service-api
+      app.kubernetes.io/part-of: openshift-lightspeed
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: cywell-opslens
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: api
+              app.kubernetes.io/name: cywell-opslens
+      ports:
+        - protocol: TCP
+          port: 8443
