@@ -2192,6 +2192,9 @@ expectCheck(
     nativeObjectDrilldownSource.includes("nativeObjectPath(resource, selected)") &&
     nativeObjectDrilldownSource.includes("nativeResourceCreatePath(resource, selected.metadata.namespace)") &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-drilldown`}') &&
+    nativeObjectDrilldownSource.includes("filteredItems") &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-object-search`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-object-count`}') &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-action-rail`}') &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-native-object-action`}') &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-native-create-link`}') &&
@@ -2221,6 +2224,8 @@ expectCheck(
     userManagementSource.includes("OcpNativeObjectDrilldown") &&
     userManagementSource.includes('testId="ocp-user-object"') &&
     stylesSource.includes(".native-drilldown-panel") &&
+    stylesSource.includes(".native-drilldown-search") &&
+    stylesSource.includes(".native-drilldown-count") &&
     stylesSource.includes(".native-action-rail") &&
     stylesSource.includes(".native-action-button") &&
     stylesSource.includes(".native-drilldown-layout") &&

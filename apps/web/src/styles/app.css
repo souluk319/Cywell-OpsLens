@@ -6213,6 +6213,41 @@ button {
   padding-right: 4px;
 }
 
+.native-drilldown-search {
+  display: flex;
+  min-width: 0;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid #8a8d90;
+  border-radius: 4px;
+  background: #fff;
+  color: #4f5255;
+}
+
+.native-drilldown-search:focus-within {
+  border-color: #0066cc;
+  box-shadow: inset 0 0 0 1px #0066cc;
+}
+
+.native-drilldown-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #151515;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.native-drilldown-count {
+  color: #6a6e73;
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
 .native-drilldown-list button {
   display: grid;
   gap: 3px;

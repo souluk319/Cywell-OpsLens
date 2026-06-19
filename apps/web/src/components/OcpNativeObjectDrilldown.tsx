@@ -11,6 +11,7 @@ import {
   GitBranch,
   ListTree,
   PlusCircle,
+  Search,
   ScrollText,
   TerminalSquare
 } from "lucide-react";
@@ -74,6 +75,9 @@ const copy = {
     relatedChildren: "Owned resources",
     rawRedacted: "Sensitive fields remain redacted by the OpsLens API.",
     readOnly: "Read-only parity",
+    searchObjects: "Find by name...",
+    showingObjects: "Showing objects",
+    noFilteredObjects: "No objects match the filter.",
     createNewResource: "Create new in OpenShift",
     mutationBoundary: "Create, edit, delete, scale, rollout, and other mutations stay in the native OpenShift console or an approval-gated OpsLens workflow.",
     podLogsOnly: "Logs are enabled for Pod objects.",
@@ -113,6 +117,9 @@ const copy = {
     relatedChildren: "소유 리소스",
     rawRedacted: "민감 필드는 OpsLens API에서 계속 마스킹합니다.",
     readOnly: "읽기 전용 매칭",
+    searchObjects: "이름으로 검색...",
+    showingObjects: "표시 객체",
+    noFilteredObjects: "필터와 일치하는 객체가 없습니다.",
     createNewResource: "OpenShift에서 새로 만들기",
     mutationBoundary: "생성, 수정, 삭제, 스케일, 롤아웃 같은 변경 작업은 원본 OpenShift 콘솔 또는 승인 기반 OpsLens 워크플로에서 수행합니다.",
     podLogsOnly: "로그는 Pod 객체에서 활성화됩니다.",
@@ -190,6 +197,7 @@ export function OcpNativeObjectDrilldown({
   const text = copy[language];
   const [selectedKey, setSelectedKey] = useState("");
   const [activeTab, setActiveTab] = useState<NativeDetailTab>("details");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [detail, setDetail] = useState<OcpResourceDetailResponse | null>(null);
@@ -201,6 +209,23 @@ export function OcpNativeObjectDrilldown({
     if (!items.length) return undefined;
     return items.find((item) => itemKey(item) === selectedKey) ?? items[0];
   }, [items, selectedKey]);
+  const filteredItems = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return items;
+    return items.filter((item) => {
+      const haystack = [
+        item.metadata.name,
+        item.metadata.namespace,
+        item.kind,
+        statusText(item),
+        ownerText(item)
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalized);
+    });
+  }, [items, query]);
 
   useEffect(() => {
     if (!selected) {
@@ -321,7 +346,20 @@ export function OcpNativeObjectDrilldown({
 
       <div className="native-drilldown-layout">
         <aside className="native-drilldown-list" aria-label={`${title} object list`}>
-          {items.slice(0, 30).map((item) => (
+          <label className="native-drilldown-search">
+            <Search size={15} aria-hidden="true" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={text.searchObjects}
+              aria-label={text.searchObjects}
+              data-testid={`${testId}-object-search`}
+            />
+          </label>
+          <span className="native-drilldown-count" data-testid={`${testId}-object-count`}>
+            {text.showingObjects}: {filteredItems.length}/{items.length}
+          </span>
+          {filteredItems.slice(0, 30).map((item) => (
             <button
               key={itemKey(item)}
               type="button"
@@ -332,6 +370,7 @@ export function OcpNativeObjectDrilldown({
               <span>{item.metadata.namespace ?? text.cluster} / {statusText(item)}</span>
             </button>
           ))}
+          {!filteredItems.length ? <p className="empty-state">{text.noFilteredObjects}</p> : null}
         </aside>
 
         <section className="native-drilldown-detail">
