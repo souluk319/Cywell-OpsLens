@@ -2190,7 +2190,16 @@ expectCheck(
     nativeObjectDrilldownSource.includes("fetchOcpPodLogs") &&
     nativeObjectDrilldownSource.includes("fetchOcpRelatedResources") &&
     nativeObjectDrilldownSource.includes("nativeObjectPath(resource, selected)") &&
+    nativeObjectDrilldownSource.includes("nativeResourceCreatePath(resource, selected.metadata.namespace)") &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-drilldown`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-action-rail`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-native-object-action`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-native-create-link`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-yaml-action`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-events-action`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-logs-action`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-related-action`}') &&
+    nativeObjectDrilldownSource.includes("mutationBoundary") &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-detail-tabs`}') &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-details`}') &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-events`}') &&
@@ -2212,10 +2221,12 @@ expectCheck(
     userManagementSource.includes("OcpNativeObjectDrilldown") &&
     userManagementSource.includes('testId="ocp-user-object"') &&
     stylesSource.includes(".native-drilldown-panel") &&
+    stylesSource.includes(".native-action-rail") &&
+    stylesSource.includes(".native-action-button") &&
     stylesSource.includes(".native-drilldown-layout") &&
     stylesSource.includes(".native-drilldown-list") &&
     stylesSource.includes(".native-drilldown-detail"),
-  "Dedicated Workloads, Networking, Storage, Builds, Compute, User Management, and Administration surfaces expose OpenShift-style object Details, Events, Logs, Related, and YAML drilldowns"
+  "Dedicated Workloads, Networking, Storage, Builds, Compute, User Management, and Administration surfaces expose OpenShift-style object Details, Events, Logs, Related, YAML, native object, and native create handoff actions"
 );
 
 expectCheck(

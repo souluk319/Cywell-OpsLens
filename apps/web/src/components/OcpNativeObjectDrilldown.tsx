@@ -5,7 +5,15 @@ import type {
   OcpResourceDetailResponse,
   OcpResourceSummary
 } from "@kugnus/contracts";
-import { ExternalLink, FileCode2, GitBranch, ListTree, ScrollText, TerminalSquare } from "lucide-react";
+import {
+  ExternalLink,
+  FileCode2,
+  GitBranch,
+  ListTree,
+  PlusCircle,
+  ScrollText,
+  TerminalSquare
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { stringify as stringifyYaml } from "yaml";
 import type { UiLanguage } from "../i18n";
@@ -18,6 +26,7 @@ import {
 import {
   nativeConsoleHref,
   nativeObjectPath,
+  nativeResourceCreatePath,
   type NativeConsoleResourceRef
 } from "../lib/nativeConsole";
 
@@ -41,6 +50,7 @@ const copy = {
     logs: "Logs",
     related: "Related",
     raw: "Raw",
+    nativeActions: "Native console actions",
     kind: "Kind",
     namespace: "Namespace",
     cluster: "Cluster",
@@ -64,6 +74,10 @@ const copy = {
     relatedChildren: "Owned resources",
     rawRedacted: "Sensitive fields remain redacted by the OpsLens API.",
     readOnly: "Read-only parity",
+    createNewResource: "Create new in OpenShift",
+    mutationBoundary: "Create, edit, delete, scale, rollout, and other mutations stay in the native OpenShift console or an approval-gated OpsLens workflow.",
+    podLogsOnly: "Logs are enabled for Pod objects.",
+    nativeInspection: "Inspection stays in OpsLens; mutation handoff stays native.",
     error: "Detail read failed"
   },
   ko: {
@@ -75,6 +89,7 @@ const copy = {
     logs: "로그",
     related: "관련 리소스",
     raw: "원본",
+    nativeActions: "원본 콘솔 작업",
     kind: "Kind",
     namespace: "네임스페이스",
     cluster: "클러스터",
@@ -98,6 +113,10 @@ const copy = {
     relatedChildren: "소유 리소스",
     rawRedacted: "민감 필드는 OpsLens API에서 계속 마스킹합니다.",
     readOnly: "읽기 전용 매칭",
+    createNewResource: "OpenShift에서 새로 만들기",
+    mutationBoundary: "생성, 수정, 삭제, 스케일, 롤아웃 같은 변경 작업은 원본 OpenShift 콘솔 또는 승인 기반 OpsLens 워크플로에서 수행합니다.",
+    podLogsOnly: "로그는 Pod 객체에서 활성화됩니다.",
+    nativeInspection: "조회는 OpsLens에서 유지하고, 변경 작업은 원본 콘솔로 위임합니다.",
     error: "상세 조회 실패"
   }
 } as const;
@@ -282,6 +301,9 @@ export function OcpNativeObjectDrilldown({
 
   const selectedDetailItem = detail?.item ?? selected;
   const nativeHref = nativeConsoleHref(nativeObjectPath(resource, selected));
+  const nativeCreateHref = selected.metadata.namespace
+    ? nativeConsoleHref(nativeResourceCreatePath(resource, selected.metadata.namespace))
+    : "";
   const conditions = conditionRows(selectedDetailItem);
 
   return (
@@ -313,6 +335,76 @@ export function OcpNativeObjectDrilldown({
         </aside>
 
         <section className="native-drilldown-detail">
+          <div className="native-action-rail" data-testid={`${testId}-action-rail`}>
+            <div>
+              <strong>{text.nativeActions}</strong>
+              <span>{text.nativeInspection}</span>
+            </div>
+            <div className="native-action-rail-buttons">
+              <a
+                className="native-action-button primary"
+                href={nativeHref}
+                target="_blank"
+                rel="noreferrer"
+                data-testid={`${testId}-native-object-action`}
+              >
+                <ExternalLink size={15} aria-hidden="true" />
+                {text.openNative}
+              </a>
+              {nativeCreateHref ? (
+                <a
+                  className="native-action-button"
+                  href={nativeCreateHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  data-testid={`${testId}-native-create-link`}
+                >
+                  <PlusCircle size={15} aria-hidden="true" />
+                  {text.createNewResource}
+                </a>
+              ) : null}
+              <button
+                className="native-action-button"
+                type="button"
+                onClick={() => setActiveTab("raw")}
+                data-testid={`${testId}-yaml-action`}
+              >
+                <FileCode2 size={15} aria-hidden="true" />
+                {text.raw}
+              </button>
+              <button
+                className="native-action-button"
+                type="button"
+                onClick={() => setActiveTab("events")}
+                data-testid={`${testId}-events-action`}
+              >
+                <ScrollText size={15} aria-hidden="true" />
+                {text.events}
+              </button>
+              <button
+                className="native-action-button"
+                type="button"
+                disabled={selected.kind !== "Pod"}
+                title={selected.kind !== "Pod" ? text.podLogsOnly : undefined}
+                onClick={() => setActiveTab("logs")}
+                data-testid={`${testId}-logs-action`}
+              >
+                <TerminalSquare size={15} aria-hidden="true" />
+                {text.logs}
+              </button>
+              <button
+                className="native-action-button"
+                type="button"
+                onClick={() => setActiveTab("related")}
+                data-testid={`${testId}-related-action`}
+              >
+                <GitBranch size={15} aria-hidden="true" />
+                {text.related}
+              </button>
+            </div>
+            <p>{text.mutationBoundary}</p>
+          </div>
+
           <div className="native-detail-tabs" data-testid={`${testId}-detail-tabs`}>
             {(["details", "events", "logs", "related", "raw"] as const).map((tab) => {
               const icons = {

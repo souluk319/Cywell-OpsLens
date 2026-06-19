@@ -48,3 +48,18 @@ export function nativeResourceListPath(
   const apiPath = nativeConsoleApiPath(resource);
   return `/k8s/ns/${encodeURIComponent(namespace)}/${apiPath}`;
 }
+
+export function nativeClusterResourceListPath(resource: NativeConsoleResourceRef) {
+  const apiPath = nativeConsoleApiPath(resource);
+  return `/k8s/cluster/${apiPath}`;
+}
+
+export function nativeResourceCreatePath(
+  resource: NativeConsoleResourceRef,
+  namespace?: string
+) {
+  const listPath = namespace
+    ? nativeResourceListPath(resource, namespace)
+    : nativeClusterResourceListPath(resource);
+  return `${listPath}/~new`;
+}
