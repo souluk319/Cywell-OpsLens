@@ -90,6 +90,7 @@ const explorerSource = await readText("apps/web/src/components/OcpResourceExplor
 const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.tsx");
 const monitoringSource = await readText("apps/web/src/components/OcpMonitoringConsole.tsx");
 const buildsSource = await readText("apps/web/src/components/OcpBuildsConsole.tsx");
+const networkingSource = await readText("apps/web/src/components/OcpNetworkingConsole.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const paritySource = await readText("apps/web/src/consoleParity.ts");
 const parityModule = await loadTypescriptModule(paritySource, "console parity");
@@ -2257,6 +2258,40 @@ expectCheck(
     stylesSource.includes(".builds-native-boundary") &&
     e2eSource.includes('"builds-console": "Builds console"'),
   "Builds menu items must render native Builds, BuildConfigs, and ImageStreams surfaces with source/strategy/output/trigger/run-policy evidence instead of routing only to the generic resource explorer"
+);
+
+expectCheck(
+  "official networking console surface contract",
+  paritySource.includes('| "networking-console"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-networking-routes\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-networking-services\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-networking-ingresses\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-networking-network-policies\']"') &&
+    paritySource.includes('mode: "networking-console"') &&
+    appSource.includes("case \"networking-console\"") &&
+    appSource.includes("<OcpNetworkingConsole") &&
+    networkingSource.includes("export type OcpNetworkingView") &&
+    networkingSource.includes('data-testid={viewTestId(view)}') &&
+    networkingSource.includes('data-testid="ocp-networking-toolbar"') &&
+    networkingSource.includes('data-testid="ocp-networking-route-flow"') &&
+    networkingSource.includes('data-testid="ocp-networking-routes-table"') &&
+    networkingSource.includes('data-testid="ocp-networking-services-table"') &&
+    networkingSource.includes('data-testid="ocp-networking-ingresses-table"') &&
+    networkingSource.includes('data-testid="ocp-networking-policies-table"') &&
+    networkingSource.includes('data-testid="ocp-networking-native-handoff"') &&
+    networkingSource.includes("route.openshift.io/v1") &&
+    networkingSource.includes("discovery.k8s.io/v1") &&
+    networkingSource.includes("networking.k8s.io/v1") &&
+    networkingSource.includes("network-route-flow") &&
+    ocpClientSource.includes('kind === "Endpoints"') &&
+    ocpClientSource.includes('kind === "EndpointSlice"') &&
+    stylesSource.includes(".ocp-networking-console") &&
+    stylesSource.includes(".ocp-networking-toolbar") &&
+    stylesSource.includes(".network-route-flow") &&
+    stylesSource.includes(".native-networking-table") &&
+    stylesSource.includes(".networking-native-boundary") &&
+    e2eSource.includes('"networking-console": "Networking console"'),
+  "Networking menu items must render native Routes, Services, Ingresses, and NetworkPolicies surfaces with route/service/endpoint/policy evidence instead of routing only to the generic resource explorer"
 );
 
 expectCheck(

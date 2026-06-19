@@ -1483,6 +1483,17 @@ export function OcpResourceExplorer({
       .slice(0, 200);
   }, [discovery, query]);
 
+  const displayedNamespaces = useMemo(() => {
+    const names = new Set<string>();
+    namespaces.forEach((item) => {
+      if (item.metadata.name) names.add(item.metadata.name);
+    });
+    (list?.items ?? []).forEach((item) => {
+      if (item.metadata.namespace) names.add(item.metadata.namespace);
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [list?.items, namespaces]);
+
   useEffect(() => {
     if (!navigationPreset) {
       return;
@@ -2244,9 +2255,9 @@ export function OcpResourceExplorer({
               onChange={(event) => setNamespace(event.target.value)}
             >
               <option value="">{copy.allNamespaces}</option>
-              {namespaces.map((item) => (
-                <option key={item.metadata.name} value={item.metadata.name}>
-                  {item.metadata.name}
+              {displayedNamespaces.map((item) => (
+                <option key={item} value={item}>
+                  {item}
                 </option>
               ))}
             </select>
@@ -2672,9 +2683,9 @@ export function OcpResourceExplorer({
                 onChange={(event) => setNamespace(event.target.value)}
               >
                 <option value="">{copy.allNamespaces}</option>
-                {namespaces.map((item) => (
-                  <option key={item.metadata.name} value={item.metadata.name}>
-                    {item.metadata.name}
+                {displayedNamespaces.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
                   </option>
                 ))}
               </select>

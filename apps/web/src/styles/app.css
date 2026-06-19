@@ -4668,6 +4668,176 @@ button {
   font-weight: 850;
 }
 
+.ocp-networking-console {
+  display: grid;
+  gap: 12px;
+}
+
+.ocp-networking-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ocp-networking-toolbar > span {
+  color: #4f5255;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.ocp-networking-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid #d2d2d2;
+}
+
+.ocp-networking-tabs a {
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+  color: #4f5255;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.ocp-networking-tabs a[aria-current="page"] {
+  border-color: #d2d2d2;
+  background: #fff;
+  color: #151515;
+}
+
+.networking-native-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) repeat(3, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.networking-native-card,
+.networking-native-panel,
+.networking-native-boundary {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(3, 3, 3, 0.04);
+}
+
+.networking-native-card p,
+.networking-native-boundary p {
+  margin: 8px 0 0;
+  color: #4f5255;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.networking-card-number {
+  display: block;
+  margin-top: 12px;
+  color: #0066cc;
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.network-route-flow {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr) auto minmax(100px, 0.6fr);
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.network-route-flow > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 5px;
+  background: #fbfbfb;
+}
+
+.network-route-flow span {
+  color: #6a6e73;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.network-route-flow strong {
+  overflow: hidden;
+  color: #151515;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-route-flow i {
+  width: 22px;
+  height: 1px;
+  background: #8a8d90;
+}
+
+.network-route-flow i::after {
+  content: "";
+  display: block;
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  margin-left: 15px;
+  border-top: 1px solid #8a8d90;
+  border-right: 1px solid #8a8d90;
+  transform: rotate(45deg);
+}
+
+.native-networking-table-wrap {
+  margin-top: 12px;
+  overflow: auto;
+}
+
+.native-networking-table {
+  width: 100%;
+  min-width: 960px;
+  border-collapse: collapse;
+}
+
+.native-networking-table th,
+.native-networking-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #ededed;
+  color: #151515;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.78rem;
+}
+
+.native-networking-table th {
+  color: #4f5255;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.networking-native-boundary {
+  border-left: 4px solid #0066cc;
+}
+
+.networking-native-boundary strong {
+  color: #151515;
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
 .muted-warning {
   margin: 10px 0 0;
   max-height: 72px;
@@ -6866,6 +7036,26 @@ button {
     transform: rotate(135deg);
   }
 
+  .networking-native-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+
+  .network-route-flow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .network-route-flow i {
+    width: 1px;
+    height: 16px;
+    justify-self: center;
+  }
+
+  .network-route-flow i::after {
+    margin-top: 10px;
+    margin-left: -3px;
+    transform: rotate(135deg);
+  }
+
   .ops-signal-card.flow {
     grid-column: span 2;
   }
@@ -6973,6 +7163,21 @@ button {
   }
 
   .ocp-builds-tabs a {
+    border: 1px solid #d2d2d2;
+    border-radius: 5px;
+  }
+
+  .networking-native-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ocp-networking-toolbar,
+  .ocp-networking-tabs {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ocp-networking-tabs a {
     border: 1px solid #d2d2d2;
     border-radius: 5px;
   }

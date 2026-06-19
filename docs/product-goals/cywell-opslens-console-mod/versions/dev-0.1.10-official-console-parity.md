@@ -74,6 +74,8 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 | Home overview utilization panel | Implemented | Existing utilization sparklines are now positioned as one of the official Home overview panels, sourced from Prometheus when reachable and explicitly marked unavailable when not. |
 | Monitoring native surface | Implemented | `OcpMonitoringConsole` now gives Monitoring / Alerting, Dashboards, Metrics, and Logs their own Observe-style surfaces using `consoleDashboard`, Prometheus query evidence, monitoring alert samples, and event activity instead of routing them to a generic evidence pane. |
 | Builds native surface | Implemented | `OcpBuildsConsole` now gives Builds, BuildConfigs, and ImageStreams their own native-style surfaces with Build input, strategy, output, trigger, run-policy, ImageStream tag, and native handoff evidence instead of routing only to the generic resource explorer. |
+| Networking native surface | Implemented | `OcpNetworkingConsole` now gives Routes, Services, Ingresses, and NetworkPolicies their own native-style surfaces with route host, service selector, endpoint/EndpointSlice, TLS, backend, DNS, and read-only policy evidence instead of routing only to the generic resource explorer. |
+| Endpoint summary preservation | Implemented | `ocpClient` now preserves top-level `Endpoints.subsets` and `EndpointSlice.endpoints` in the resource summary contract so Services can show endpoint evidence. |
 | Internal surface open action | Implemented | `console-active-open-surface` opens the OpsLens internal mapped surface separately from the native OpenShift deep link. |
 | Visible preferred API summary | Implemented | Preferred API resources are visible in the active action panel instead of being hidden inside collapsed details. |
 | Contract checks | Implemented | `verify-web-shell-contract.mjs` fails if the native page summary, Monitoring surface, Builds surface, distribution, preview, or baseline actions disappear. |
@@ -87,7 +89,8 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 | Home overview matches official panel set | E2E and static verifier check Details, Cluster Inventory, Status, Activity, and Utilization panels | `ocp-overview-details-card`, `ocp-overview-inventory-card`, `ocp-overview-status-cards`, `ocp-overview-activity-card`, `ocp-overview-utilization` | Pass: 2026-06-20 local run |
 | Monitoring menus do not collapse into a generic OpsLens page | Static verifier and navigation E2E check each Monitoring menu mounts a native Observe-style target | `ocp-monitoring-alerting`, `ocp-monitoring-dashboards`, `ocp-monitoring-metrics`, `ocp-monitoring-logs` | Pass: 2026-06-20 local run |
 | Builds menus do not collapse into the generic explorer | Static verifier and navigation E2E check Builds, BuildConfigs, and ImageStreams mount a native Builds-style target | `ocp-builds-builds`, `ocp-builds-buildconfigs`, `ocp-builds-imagestreams` | Pass: 2026-06-20 local run |
-| Contract prevents regression | Static verifier checks data-testid and helper function contracts | `npm run verify:web-shell` | Pass: 2026-06-20 local run, 87 checks / 0 fail |
+| Networking menus do not collapse into the generic explorer | Static verifier and navigation E2E check Routes, Services, Ingresses, and NetworkPolicies mount a native Networking-style target | `ocp-networking-routes`, `ocp-networking-services`, `ocp-networking-ingresses`, `ocp-networking-network-policies` | Pass: 2026-06-20 local run |
+| Contract prevents regression | Static verifier checks data-testid and helper function contracts | `npm run verify:web-shell` | Pass: 2026-06-20 local run, 88 checks / 0 fail |
 | Responsive shell does not break | CSS collapses native summary/action grids below 900px | `npm run -w @kugnus/web build` and `git diff --check` | Pass: 2026-06-20 local run |
 | Official docs remain the ceiling source | Product ledger keeps official links and required baseline behavior | this document | Pass for this lane |
 | Every mapped menu remains actionable | E2E clicks every version-pinned navigation item and checks the active surface, function proof, and internal open action | `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-003"` | Pass: 2026-06-20 local run |
@@ -97,9 +100,9 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 The shared native shell and Home overview are not enough by themselves. The next pass must fill each remaining menu with the native console's expected detail:
 
 1. Workloads -> topology, Pods, Deployments, DeploymentConfigs, StatefulSets, Secrets, ConfigMaps, CronJobs, Jobs, DaemonSets, ReplicaSets, ReplicationControllers, HPAs, PDBs.
-2. Networking -> Services, Routes, Ingresses, NetworkPolicies.
-3. Storage -> StorageClasses, PVs, PVCs, CSI/volume attachment surfaces when available.
-4. Administration -> ClusterSettings, Namespaces, Nodes, Operators, CRDs, RBAC, MachineConfigPool, ClusterVersion.
+2. Storage -> StorageClasses, PVs, PVCs, CSI/volume attachment surfaces when available.
+3. Administration -> ClusterSettings, Namespaces, Nodes, Operators, CRDs, RBAC, MachineConfigPool, ClusterVersion.
+4. Networking follow-up -> add native create/edit/delete deep links and selected route/service/policy detail drill-down where the cluster exposes those console routes.
 5. Build follow-up -> add native create/start/cancel/log deep links and selected Build detail drill-down where the cluster exposes those console routes.
 6. Monitoring follow-up -> add deeper drill-down from Alerting/Dashboards/Metrics/Logs into exact native console URLs and selected object details where the cluster exposes the API.
 

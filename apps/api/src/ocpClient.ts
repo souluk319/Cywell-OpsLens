@@ -645,6 +645,14 @@ function summarizeResource(item: Record<string, unknown>): OcpResourceSummary {
     | undefined;
 
   const kind = String(item.kind ?? "");
+  const summarizedSpec =
+    kind === "Secret"
+      ? undefined
+      : kind === "Endpoints"
+        ? { subsets: item.subsets }
+        : kind === "EndpointSlice"
+          ? { endpoints: item.endpoints, ports: item.ports, addressType: item.addressType }
+          : item.spec;
 
   return {
     apiVersion: String(item.apiVersion ?? ""),
@@ -660,7 +668,7 @@ function summarizeResource(item: Record<string, unknown>): OcpResourceSummary {
     },
     type: typeof item.type === "string" ? item.type : undefined,
     status: item.status,
-    spec: kind === "Secret" ? undefined : item.spec,
+    spec: summarizedSpec,
     dataRedacted:
       kind === "Secret" || "data" in item || "stringData" in item
         ? true

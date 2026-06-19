@@ -19,6 +19,7 @@ export type ConsoleParityActionSurface =
   | "topology-graph"
   | "monitoring-console"
   | "builds-console"
+  | "networking-console"
   | "ops-dashboard"
   | "ops-admin"
   | "opsbrain"
@@ -66,6 +67,7 @@ export type ConsoleParityFunctionMode =
   | "topology-graph"
   | "monitoring-console"
   | "builds-console"
+  | "networking-console"
   | "evidence-view"
   | "overview"
   | "ops-dashboard"
@@ -636,14 +638,14 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "라우트",
     originalPath: "Networking / Routes",
     originalPathKo: "네트워킹 / 라우트",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
-    command: "List OpenShift Routes, TLS termination, target Services, and route events.",
-    commandKo: "OpenShift Route, TLS termination, 대상 Service, Route 이벤트를 조회합니다.",
-    opsLensEnhancement: "Adds route-to-service diagnosis and port-forward handoff context.",
-    opsLensEnhancementKo: "Route-Service 진단과 포트포워드 인계 컨텍스트를 추가합니다.",
-    acceptance: "Routes entry must map directly to route.openshift.io/v1 Routes.",
-    acceptanceKo: "라우트 항목은 route.openshift.io/v1 Route에 직접 매핑되어야 합니다.",
+    targetSelector: "[data-testid='ocp-networking-routes']",
+    actionSurface: "networking-console",
+    command: "Show OpenShift Routes with host, TLS termination, target Services, ports, and route-to-endpoint evidence.",
+    commandKo: "OpenShift Route의 host, TLS termination, 대상 Service, port, route-endpoint 근거를 표시합니다.",
+    opsLensEnhancement: "Adds route-to-service-to-endpoint diagnosis and port-forward handoff context.",
+    opsLensEnhancementKo: "Route-Service-Endpoint 진단과 포트포워드 인계 컨텍스트를 추가합니다.",
+    acceptance: "Routes entry must render a native-style Routes screen backed by route.openshift.io/v1 Routes.",
+    acceptanceKo: "라우트 항목은 route.openshift.io/v1 Route 기반의 원본 콘솔형 Routes 화면을 렌더링해야 합니다.",
     status: "covered",
     resourcePreset: {
       query: "routes",
@@ -657,14 +659,14 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "서비스",
     originalPath: "Networking / Services",
     originalPathKo: "네트워킹 / 서비스",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
-    command: "List Services, selectors, ports, Endpoints, and EndpointSlices.",
-    commandKo: "Service, selector, port, Endpoint, EndpointSlice를 조회합니다.",
+    targetSelector: "[data-testid='ocp-networking-services']",
+    actionSurface: "networking-console",
+    command: "Show Services with selector, type, ClusterIP, ports, Endpoints, and EndpointSlices.",
+    commandKo: "Service의 selector, 유형, ClusterIP, port, Endpoint, EndpointSlice를 표시합니다.",
     opsLensEnhancement: "Adds selector mismatch and endpoint readiness diagnosis.",
     opsLensEnhancementKo: "selector 불일치와 endpoint 준비 상태 진단을 추가합니다.",
-    acceptance: "Services entry must map directly to v1 Services and related endpoints.",
-    acceptanceKo: "서비스 항목은 v1 Service와 관련 Endpoint에 직접 매핑되어야 합니다.",
+    acceptance: "Services entry must render a native-style Services screen backed by v1 Services and related endpoints.",
+    acceptanceKo: "서비스 항목은 v1 Service와 관련 Endpoint 기반의 원본 콘솔형 Services 화면을 렌더링해야 합니다.",
     status: "covered",
     resourcePreset: {
       query: "services endpoints endpointslices",
@@ -682,14 +684,14 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "인그레스",
     originalPath: "Networking / Ingresses",
     originalPathKo: "네트워킹 / 인그레스",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
-    command: "List Kubernetes Ingresses, hosts, backends, TLS, and related events.",
-    commandKo: "Kubernetes Ingress, host, backend, TLS, 관련 이벤트를 조회합니다.",
+    targetSelector: "[data-testid='ocp-networking-ingresses']",
+    actionSurface: "networking-console",
+    command: "Show Kubernetes Ingresses with hosts, backends, rules, TLS, and related route/service path.",
+    commandKo: "Kubernetes Ingress의 host, backend, rule, TLS, 관련 route/service 경로를 표시합니다.",
     opsLensEnhancement: "Adds ingress-to-service path diagnosis without changing traffic.",
     opsLensEnhancementKo: "트래픽 변경 없이 Ingress-Service 경로 진단을 추가합니다.",
-    acceptance: "Ingresses entry must map directly to networking.k8s.io/v1 Ingresses.",
-    acceptanceKo: "인그레스 항목은 networking.k8s.io/v1 Ingress에 직접 매핑되어야 합니다.",
+    acceptance: "Ingresses entry must render a native-style Ingresses screen backed by networking.k8s.io/v1 Ingresses.",
+    acceptanceKo: "인그레스 항목은 networking.k8s.io/v1 Ingress 기반의 원본 콘솔형 Ingresses 화면을 렌더링해야 합니다.",
     status: "covered",
     resourcePreset: {
       query: "ingresses",
@@ -703,15 +705,15 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "네트워크 정책",
     originalPath: "Networking / NetworkPolicies",
     originalPathKo: "네트워킹 / 네트워크 정책",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
-    command: "Inspect NetworkPolicies, DNS, and ingress objects for reachability planning.",
-    commandKo: "도달성 계획을 위해 NetworkPolicy, DNS, ingress 객체를 확인합니다.",
+    targetSelector: "[data-testid='ocp-networking-network-policies']",
+    actionSurface: "networking-console",
+    command: "Show NetworkPolicies with selected pods, policy types, ingress rules, egress rules, DNS and route context.",
+    commandKo: "NetworkPolicy의 선택 Pod, 정책 유형, ingress 규칙, egress 규칙, DNS 및 route 컨텍스트를 표시합니다.",
     opsLensEnhancement: "Classifies blocked API, route, and plugin traffic before proposing read-only checks.",
     opsLensEnhancementKo: "읽기 전용 점검을 제안하기 전에 API, route, plugin 트래픽 차단을 분류합니다.",
-    acceptance: "Network policy surface remains plan-only and does not patch policy objects.",
-    acceptanceKo: "네트워크 정책 화면은 계획 전용이며 정책 객체를 패치하지 않아야 합니다.",
-    status: "read-only-plan",
+    acceptance: "Network policy surface must render a native-style read-only NetworkPolicies screen and must not patch policy objects.",
+    acceptanceKo: "네트워크 정책 화면은 원본 콘솔형 읽기 전용 NetworkPolicies 화면을 렌더링하고 정책 객체를 패치하지 않아야 합니다.",
+    status: "covered",
     resourcePreset: {
       query: "networkpolicies dnses ingresses routes",
       preferredResources: [
@@ -1536,6 +1538,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "networking-console") {
+    return {
+      mode: "networking-console",
+      input: `Networking surface: ${item.id}`,
+      inputKo: `네트워킹 화면: ${item.labelKo}`,
+      proof:
+        "Networking target must mount a native Networking-style surface with Route, Service, Endpoint, EndpointSlice, Ingress, NetworkPolicy, DNS, and read-only reachability evidence.",
+      proofKo:
+        "네트워킹 대상은 Route, Service, Endpoint, EndpointSlice, Ingress, NetworkPolicy, DNS, 읽기 전용 도달성 근거를 갖춘 원본 Networking 스타일 화면을 장착해야 합니다."
+    };
+  }
+
   if (item.evidenceView) {
     return {
       mode: "evidence-view",
@@ -1647,6 +1661,16 @@ export function consoleParityFunctionSignal(
         "Builds console surface must expose the selected native Builds, BuildConfigs, or ImageStreams view with live source state.",
       descriptionKo:
         "빌드 콘솔 화면은 선택한 원본 Builds, BuildConfigs, ImageStreams 보기를 실시간 출처 상태와 함께 보여야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "networking-console") {
+    return {
+      selector: item.targetSelector,
+      description:
+        "Networking console surface must expose the selected native Routes, Services, Ingresses, or NetworkPolicies view with live source state.",
+      descriptionKo:
+        "네트워킹 콘솔 화면은 선택한 원본 Routes, Services, Ingresses, NetworkPolicies 보기를 실시간 출처 상태와 함께 보여야 합니다."
     };
   }
 

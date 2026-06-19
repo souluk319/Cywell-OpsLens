@@ -60,6 +60,10 @@ import {
   OcpBuildsConsole,
   type OcpBuildsView
 } from "./components/OcpBuildsConsole";
+import {
+  OcpNetworkingConsole,
+  type OcpNetworkingView
+} from "./components/OcpNetworkingConsole";
 import { OcpTopologyGraph } from "./components/OcpTopologyGraph";
 import {
   OcpResourceExplorer,
@@ -1198,6 +1202,13 @@ export default function App() {
           <OcpBuildsConsole
             language={language}
             view={activeNavigation.id as OcpBuildsView}
+          />
+        );
+      case "networking-console":
+        return (
+          <OcpNetworkingConsole
+            language={language}
+            view={activeNavigation.id as OcpNetworkingView}
           />
         );
       case "evidence":
