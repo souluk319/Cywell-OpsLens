@@ -41,11 +41,11 @@ const dashboardCopy = {
     evidenceRefs: "Evidence refs",
     linkedChanges: "linked changes",
     operators: "Operators",
-    degradedOperators: "2 degraded",
+    degradedOperators: "degraded",
     nodes: "Nodes",
-    readyNodes: "12 ready",
+    readyNodes: "ready",
     workloads: "Workloads",
-    crashloopWorkloads: "4 crashloop",
+    crashloopWorkloads: "CrashLoop",
     severityDistribution: "Severity Distribution",
     severityDistributionLabel: "Active risk severity distribution",
     visualSummary: "Operational Signal Map",
@@ -102,7 +102,23 @@ const dashboardCopy = {
     liveSignals: "live signals",
     riskSignals: "risk signals",
     topDecision: "top decision",
-    suggestedQuestion: "suggested question"
+    suggestedQuestion: "suggested question",
+    nativeSignalBoard: "Native Console Signal Board",
+    nativeSignalBoardSubtitle:
+      "Live OpenShift dashboard signals reshaped for faster operator judgement",
+    nodeReadiness: "Node readiness",
+    operatorAvailability: "Operator availability",
+    workloadReadiness: "Workload readiness",
+    networkExposure: "Network exposure",
+    buildHealth: "Build health",
+    alertPressure: "Alert pressure",
+    degradedUnavailable: "degraded / unavailable",
+    runningPods: "running pods",
+    unavailableDeployments: "unavailable deployments",
+    routesServices: "routes / services",
+    failedBuilds: "failed builds",
+    firingAlerts: "firing alerts",
+    liveBoardSource: "live source"
   },
   ko: {
     breadcrumb: "관리자 / 관측 / Cywell OpsLens",
@@ -122,11 +138,11 @@ const dashboardCopy = {
     evidenceRefs: "근거 참조",
     linkedChanges: "연결된 변경",
     operators: "Operator",
-    degradedOperators: "2개 성능 저하",
+    degradedOperators: "성능 저하",
     nodes: "노드",
-    readyNodes: "12개 정상",
+    readyNodes: "정상",
     workloads: "워크로드",
-    crashloopWorkloads: "4개 CrashLoop",
+    crashloopWorkloads: "CrashLoop",
     severityDistribution: "심각도 분포",
     severityDistributionLabel: "활성 리스크 심각도 분포",
     visualSummary: "운영 신호 맵",
@@ -183,7 +199,23 @@ const dashboardCopy = {
     liveSignals: "실시간 신호",
     riskSignals: "리스크 신호",
     topDecision: "우선 판단",
-    suggestedQuestion: "추천 질문"
+    suggestedQuestion: "추천 질문",
+    nativeSignalBoard: "원본 콘솔 신호판",
+    nativeSignalBoardSubtitle:
+      "OpenShift 대시보드 실시간 신호를 운영 판단에 맞게 재구성",
+    nodeReadiness: "노드 준비도",
+    operatorAvailability: "Operator 가용성",
+    workloadReadiness: "워크로드 준비도",
+    networkExposure: "네트워크 노출",
+    buildHealth: "빌드 상태",
+    alertPressure: "알림 압력",
+    degradedUnavailable: "성능 저하 / 사용 불가",
+    runningPods: "Running Pod",
+    unavailableDeployments: "사용 불가 배포",
+    routesServices: "라우트 / 서비스",
+    failedBuilds: "실패 빌드",
+    firingAlerts: "발생 중 알림",
+    liveBoardSource: "실시간 출처"
   }
 } as const;
 
@@ -286,6 +318,30 @@ function utilizationWidth(value: number | undefined) {
     return "0%";
   }
   return `${clamp(Math.round(Math.log10(Math.max(value, 1)) * 12), 4, 100)}%`;
+}
+
+function ratioPercent(value: number | undefined, total: number | undefined) {
+  if (typeof value !== "number" || typeof total !== "number" || total <= 0) {
+    return 0;
+  }
+  return clamp(Math.round((value / total) * 100), 0, 100);
+}
+
+function inversePercent(value: number | undefined, total: number | undefined) {
+  return 100 - ratioPercent(value, total);
+}
+
+function signalTone(
+  danger: boolean,
+  warning: boolean
+): "ready" | "warning" | "danger" {
+  if (danger) {
+    return "danger";
+  }
+  if (warning) {
+    return "warning";
+  }
+  return "ready";
 }
 
 type UtilizationSeries =
@@ -493,6 +549,87 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
     : language === "ko"
       ? "현재 클러스터 상태를 운영 관점으로 요약해줘"
       : "Summarize the current cluster state from an operator perspective";
+  const operatorTotal = consoleOverview?.operators.total;
+  const operatorDegraded = consoleOverview?.operators.degraded;
+  const operatorHealthy =
+    typeof operatorTotal === "number" && typeof operatorDegraded === "number"
+      ? Math.max(operatorTotal - operatorDegraded, 0)
+      : undefined;
+  const nativeSignalCards = [
+    {
+      id: "nodes",
+      label: copy.nodeReadiness,
+      value: `${numberText(consoleOverview?.nodes.ready)} / ${numberText(consoleOverview?.nodes.total)}`,
+      detail: `${numberText(consoleOverview?.nodes.notReady)} not ready`,
+      percent: ratioPercent(consoleOverview?.nodes.ready, consoleOverview?.nodes.total),
+      tone: signalTone((consoleOverview?.nodes.notReady ?? 0) > 0, false)
+    },
+    {
+      id: "operators",
+      label: copy.operatorAvailability,
+      value: `${numberText(operatorHealthy)} / ${numberText(operatorTotal)}`,
+      detail: `${numberText(consoleOverview?.operators.degraded)} / ${numberText(consoleOverview?.operators.unavailable)} ${copy.degradedUnavailable}`,
+      percent: inversePercent(consoleOverview?.operators.degraded, consoleOverview?.operators.total),
+      tone: signalTone(
+        (consoleOverview?.operators.unavailable ?? 0) > 0,
+        (consoleOverview?.operators.degraded ?? 0) > 0 ||
+          (consoleOverview?.operators.progressing ?? 0) > 0
+      )
+    },
+    {
+      id: "workloads",
+      label: copy.workloadReadiness,
+      value: `${numberText(consoleOverview?.workloads.pods.running)} / ${numberText(consoleOverview?.workloads.pods.total)}`,
+      detail: `${numberText(consoleOverview?.workloads.pods.crashLooping)} ${copy.crashloopWorkloads} · ${numberText(consoleOverview?.workloads.deployments.unavailable)} ${copy.unavailableDeployments}`,
+      percent: ratioPercent(
+        consoleOverview?.workloads.pods.running,
+        consoleOverview?.workloads.pods.total
+      ),
+      tone: signalTone(
+        (consoleOverview?.workloads.pods.failed ?? 0) > 0 ||
+          (consoleOverview?.workloads.pods.crashLooping ?? 0) > 0,
+        (consoleOverview?.workloads.pods.pending ?? 0) > 0 ||
+          (consoleOverview?.workloads.deployments.unavailable ?? 0) > 0
+      )
+    },
+    {
+      id: "network",
+      label: copy.networkExposure,
+      value: `${numberText(consoleOverview?.networking.routes)} / ${numberText(consoleOverview?.networking.services)}`,
+      detail: `${numberText(consoleOverview?.networking.ingresses)} ingress · ${copy.routesServices}`,
+      percent: ratioPercent(
+        consoleOverview?.networking.routes,
+        Math.max(consoleOverview?.networking.services ?? 0, 1)
+      ),
+      tone: "ready" as const
+    },
+    {
+      id: "builds",
+      label: copy.buildHealth,
+      value: `${numberText(consoleOverview?.supplyChain.builds)} builds`,
+      detail: `${numberText(consoleOverview?.supplyChain.failedBuilds)} ${copy.failedBuilds} · ${numberText(consoleOverview?.supplyChain.imageStreams)} ImageStreams`,
+      percent: inversePercent(
+        consoleOverview?.supplyChain.failedBuilds,
+        consoleOverview?.supplyChain.builds
+      ),
+      tone: signalTone((consoleOverview?.supplyChain.failedBuilds ?? 0) > 0, false)
+    },
+    {
+      id: "alerts",
+      label: copy.alertPressure,
+      value: `${numberText(consoleOverview?.monitoring.firingAlerts)} ${copy.firingAlerts}`,
+      detail: `${numberText(consoleOverview?.monitoring.criticalAlerts)} critical · ${numberText(consoleOverview?.monitoring.warningAlerts)} warning`,
+      percent: inversePercent(
+        consoleOverview?.monitoring.criticalAlerts,
+        Math.max(consoleOverview?.monitoring.firingAlerts ?? 0, 1)
+      ),
+      tone: signalTone(
+        (consoleOverview?.monitoring.criticalAlerts ?? 0) > 0,
+        (consoleOverview?.monitoring.warningAlerts ?? 0) > 0 ||
+          (consoleOverview?.monitoring.firingAlerts ?? 0) > 0
+      )
+    }
+  ];
 
   return (
     <section className="dashboard-section" aria-labelledby="dashboard-title">
@@ -553,6 +690,41 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
               )}
             </span>
           ) : null}
+        </div>
+        <div
+          className="native-signal-board"
+          data-testid="opslens-native-signal-board"
+          aria-label={copy.nativeSignalBoard}
+        >
+          <div className="native-signal-board-heading">
+            <div>
+              <h4>{copy.nativeSignalBoard}</h4>
+              <p>{copy.nativeSignalBoardSubtitle}</p>
+            </div>
+            <span data-testid="opslens-native-signal-source-label">
+              {copy.liveBoardSource}: {consoleSourceLabel}
+            </span>
+          </div>
+          <div className="native-signal-grid">
+            {nativeSignalCards.map((card) => (
+              <article
+                className={`native-signal-card ${card.tone}`}
+                data-testid={`opslens-native-signal-card-${card.id}`}
+                key={card.id}
+              >
+                <span className="native-signal-label">{card.label}</span>
+                <strong>{card.value}</strong>
+                <p>{card.detail}</p>
+                <div
+                  className="native-signal-meter"
+                  style={barStyle(card.percent)}
+                  aria-hidden="true"
+                >
+                  <span />
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
         <div className="ops-console-sync-grid">
           <article className="ops-console-sync-facts">
@@ -858,15 +1030,25 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
             </div>
             <div>
               <dt>{copy.operators}</dt>
-              <dd>{copy.degradedOperators}</dd>
+              <dd>
+                {numberText(consoleOverview?.operators.degraded)} {copy.degradedOperators} /{" "}
+                {numberText(consoleOverview?.operators.total)}
+              </dd>
             </div>
             <div>
               <dt>{copy.nodes}</dt>
-              <dd>{copy.readyNodes}</dd>
+              <dd>
+                {numberText(consoleOverview?.nodes.ready)} {copy.readyNodes} /{" "}
+                {numberText(consoleOverview?.nodes.total)}
+              </dd>
             </div>
             <div>
               <dt>{copy.workloads}</dt>
-              <dd>{copy.crashloopWorkloads}</dd>
+              <dd>
+                {numberText(consoleOverview?.workloads.pods.crashLooping)}{" "}
+                {copy.crashloopWorkloads} /{" "}
+                {numberText(consoleOverview?.workloads.pods.total)}
+              </dd>
             </div>
           </dl>
         </article>

@@ -1798,6 +1798,24 @@ expectCheck(
 );
 
 expectCheck(
+  "dashboard native signal board visual contract",
+  dashboardSource.includes('data-testid="opslens-native-signal-board"') &&
+    dashboardSource.includes('data-testid="opslens-native-signal-source-label"') &&
+    dashboardSource.includes('data-testid={`opslens-native-signal-card-${card.id}`}') &&
+    dashboardSource.includes("consoleOverview?.nodes.ready") &&
+    dashboardSource.includes("consoleOverview?.operators.degraded") &&
+    dashboardSource.includes("consoleOverview?.workloads.pods.running") &&
+    dashboardSource.includes("consoleOverview?.networking.routes") &&
+    dashboardSource.includes("consoleOverview?.supplyChain.failedBuilds") &&
+    dashboardSource.includes("consoleOverview?.monitoring.firingAlerts") &&
+    dashboardSource.includes("nativeSignalCards") &&
+    stylesSource.includes(".native-signal-board") &&
+    stylesSource.includes(".native-signal-grid") &&
+    stylesSource.includes(".native-signal-meter"),
+  "Operations dashboard renders a live native-console signal board for nodes, operators, workloads, network, builds, and alerts instead of only static text"
+);
+
+expectCheck(
   "Dev 0.1.7 parallel review lane contract",
   dev017PlanSource.includes("## Parallel Review Setup") &&
     dev017PlanSource.includes("Compatibility reviewer") &&
