@@ -29,6 +29,7 @@ import {
   getOcpConsoleOverview,
   getOcpRelatedResources,
   getOcpResource,
+  getOcpTopology,
   getOcpPodLogs,
   getOcpStatus,
   listOcpEvents,
@@ -89,6 +90,54 @@ function sendNotFound(response: ServerResponse) {
   sendJson(response, 404, {
     error: "route missing"
   });
+}
+
+function classifyRequestError(error: unknown) {
+  const message = error instanceof Error ? error.message : "unknown request error";
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("not discovered") ||
+    normalized.includes("route missing")
+  ) {
+    return {
+      statusCode: 404,
+      code: "resource-not-found",
+      error: message
+    };
+  }
+
+  if (
+    normalized.includes("rbac denied") ||
+    normalized.includes("forbidden") ||
+    normalized.includes("not allowed")
+  ) {
+    return {
+      statusCode: 403,
+      code: "rbac-denied",
+      error: message
+    };
+  }
+
+  if (
+    normalized.includes("ocp api is not reachable") ||
+    normalized.includes("timed out") ||
+    normalized.includes("socket") ||
+    normalized.includes("upstream") ||
+    normalized.includes("fallback")
+  ) {
+    return {
+      statusCode: 502,
+      code: "ocp-upstream-read-failed",
+      error: message
+    };
+  }
+
+  return {
+    statusCode: 400,
+    code: "bad-request",
+    error: message
+  };
 }
 
 const requestHandler = async (request: IncomingMessage, response: ServerResponse) => {
@@ -352,6 +401,18 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
       return;
     }
 
+    if (request.method === "GET" && url.pathname === "/api/ocp/topology") {
+      sendJson(
+        response,
+        200,
+        await getOcpTopology({
+          namespace: url.searchParams.get("namespace") ?? undefined,
+          limit: Number(url.searchParams.get("limit") ?? 200)
+        })
+      );
+      return;
+    }
+
     if (request.method === "GET" && url.pathname === "/api/ocp/resource") {
       const name = url.searchParams.get("name");
       if (!name) {
@@ -440,8 +501,10 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
 
     sendNotFound(response);
   } catch (error) {
-    sendJson(response, 400, {
-      error: error instanceof Error ? error.message : "unknown request error"
+    const classified = classifyRequestError(error);
+    sendJson(response, classified.statusCode, {
+      code: classified.code,
+      error: classified.error
     });
   }
 };

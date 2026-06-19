@@ -52,6 +52,7 @@ import { OcpConsoleActionPanel } from "./components/OcpConsoleActionPanel";
 import { OcpConsoleOverview } from "./components/OcpConsoleOverview";
 import { OcpConsoleParityMatrix } from "./components/OcpConsoleParityMatrix";
 import { OcpCoverageMatrix } from "./components/OcpCoverageMatrix";
+import { OcpTopologyGraph } from "./components/OcpTopologyGraph";
 import {
   OcpResourceExplorer,
   type OcpResourceFunctionOutcome,
@@ -1151,6 +1152,8 @@ export default function App() {
             onFunctionOutcomeChange={setResourceFunctionOutcome}
           />
         );
+      case "topology-graph":
+        return <OcpTopologyGraph language={language} />;
       case "evidence":
         return (
           <ConsoleEvidencePane

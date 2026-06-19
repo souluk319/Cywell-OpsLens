@@ -4613,6 +4613,49 @@ export interface OcpRelatedResourcesResponse {
   }>;
 }
 
+export type OcpTopologyNodeType =
+  | "route"
+  | "service"
+  | "deployment"
+  | "pod"
+  | "job"
+  | "cronjob";
+
+export type OcpTopologyNodeHealth = "ready" | "warning" | "danger" | "unknown";
+
+export interface OcpTopologyNode {
+  id: string;
+  type: OcpTopologyNodeType;
+  label: string;
+  namespace?: string;
+  health: OcpTopologyNodeHealth;
+  resource: OcpApiResource;
+  item: OcpResourceSummary;
+  evidence: string[];
+}
+
+export interface OcpTopologyEdge {
+  id: string;
+  from: string;
+  to: string;
+  type: "routes-to" | "selects" | "owns";
+  label: string;
+  evidence: string[];
+}
+
+export interface OcpTopologyResponse {
+  status: OcpConnectionStatus;
+  namespace?: string;
+  generatedAt: string;
+  nodes: OcpTopologyNode[];
+  edges: OcpTopologyEdge[];
+  evidence: string[];
+  errors: Array<{
+    resource: string;
+    message: string;
+  }>;
+}
+
 export interface OcpResourceVersionFallback {
   requestedApiVersion: string;
   servedApiVersion: string;

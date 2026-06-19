@@ -129,6 +129,31 @@ Sources:
 | AC-017-010 | `npm run verify:web-shell`, API build, web build, and relevant operator verifier pass before any deployment. | Command output |
 | AC-017-011 | Baseline features run on OCP `4.20` or are explicitly marked optional for `4.21+`. | Compatibility matrix and Windows 4.20 test evidence |
 
+## Current 0.1.7 Implementation Evidence
+
+This section records completed implementation evidence for the current 0.1.7
+lane. It is intentionally separate from the target scope so the remaining gap is
+visible.
+
+| Area | Current result | Evidence |
+| --- | --- | --- |
+| Workloads / Topology | Implemented as a real read-only graph surface instead of a generic resource card. | `GET /api/ocp/topology` reads Deployments, Pods, Services, Routes, Jobs, and CronJobs and renders selector, ownerReference, and route target edges. |
+| Topology browser proof | Local test page opens the Workloads / Topology screen and renders live graph nodes and edges. | Browser check on `127.0.0.1:5173` rendered `123` visible graph nodes and `58` visible edges after the graph cap was applied. |
+| Resource API failure handling | Generic visible `400` failures were replaced with named failure categories. | Backend classifies `resource-not-found`, `rbac-denied`, and `ocp-upstream-read-failed`; frontend displays the response reason. |
+| Metadata fallback | List calls can recover from metadata-list failure by retrying JSON list mode before failing. | `listOcpResource` records `JSON list fallback succeeded` when fallback is used. |
+| Preferred API order | Resource presets now honor the requested order instead of whatever discovery returns first. | `findPreferredResourceInOrder` selects BuildConfig/Build/ImageStream-style presets deterministically. |
+| Local verification | Current local build and web-shell contract pass. | `@kugnus/contracts`, `@kugnus/api`, `@kugnus/web` builds passed; `npm run verify:web-shell` passed with `69` checks. |
+
+Remaining before calling 0.1.7 complete:
+
+- Add honest class/status fields directly to every native console menu item.
+- Replace more generic Resource Explorer screens with purpose-built native parity
+  views for Pods, Deployments, CronJobs, Jobs, HPA, and PDB.
+- Upgrade the main dashboard source labels and live visualizations beyond the
+  first topology graph proof.
+- Prove the baseline on the Windows OCP `4.20` CRC test server.
+- Deploy only after the local test page proves the next behavior slice.
+
 ## Work Order
 
 ### 0. OCP 4.20 Compatibility Matrix

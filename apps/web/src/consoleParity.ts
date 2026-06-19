@@ -16,6 +16,7 @@ export type ConsoleParityActionSurface =
   | "overview"
   | "evidence"
   | "resource-explorer"
+  | "topology-graph"
   | "ops-dashboard"
   | "ops-admin"
   | "opsbrain"
@@ -51,6 +52,7 @@ export interface ConsoleParityItem {
 
 export type ConsoleParityFunctionMode =
   | "resource-preset"
+  | "topology-graph"
   | "evidence-view"
   | "overview"
   | "ops-dashboard"
@@ -302,24 +304,15 @@ export const ocpConsoleParityItems: ConsoleParityItem[] = [
     labelKo: "토폴로지",
     originalPath: "Workloads / Topology",
     originalPathKo: "워크로드 / 토폴로지",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "#ocp-topology-title",
+    actionSurface: "topology-graph",
     command: "Open workload topology evidence with pods, deployments, services, and routes.",
     commandKo: "파드, Deployment, 서비스, 라우트 기반 워크로드 토폴로지 근거를 엽니다.",
-    opsLensEnhancement: "Adds owner-chain evidence and assistant-ready topology triage.",
-    opsLensEnhancementKo: "소유 체인 근거와 어시스턴트용 토폴로지 진단을 추가합니다.",
-    acceptance: "Topology entry maps to workload resources and related service/route evidence.",
-    acceptanceKo: "토폴로지 항목은 워크로드 리소스와 관련 서비스/라우트 근거에 매핑되어야 합니다.",
-    status: "ops-enhanced",
-    resourcePreset: {
-      query: "topology pods deployments services routes",
-      preferredResources: [
-        "v1/pods",
-        "apps/v1/deployments",
-        "v1/services",
-        "route.openshift.io/v1/routes"
-      ]
-    }
+    opsLensEnhancement: "Renders a live selector/owner/route graph instead of a flat resource table.",
+    opsLensEnhancementKo: "평면 리소스 표 대신 실시간 selector/owner/route 그래프를 렌더링합니다.",
+    acceptance: "Topology entry renders graph nodes and edges from read-only pods, deployments, services, routes, jobs, and cronjobs.",
+    acceptanceKo: "토폴로지 항목은 읽기 전용 Pod, Deployment, Service, Route, Job, CronJob에서 그래프 노드와 연결을 렌더링해야 합니다.",
+    status: "ops-enhanced"
   },
   {
     id: "workloads",
@@ -979,6 +972,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "topology-graph") {
+    return {
+      mode: "topology-graph",
+      input: "Pods, deployments, services, routes, jobs, and cronjobs",
+      inputKo: "Pod, Deployment, Service, Route, Job, CronJob",
+      proof:
+        "The topology screen must render selector, ownerReference, and route target edges from read-only OpenShift API data.",
+      proofKo:
+        "토폴로지 화면은 읽기 전용 OpenShift API 데이터에서 selector, ownerReference, route target 연결을 렌더링해야 합니다."
+    };
+  }
+
   if (item.evidenceView) {
     return {
       mode: "evidence-view",
@@ -1060,6 +1065,16 @@ export function consoleParityFunctionSignal(
         "Resource Explorer function outcome must move from preset activation to a concrete read-only list/detail state.",
       descriptionKo:
         "리소스 탐색기 기능 결과가 프리셋 활성화에서 실제 읽기 전용 목록/상세 상태로 이동해야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "topology-graph") {
+    return {
+      selector: "#ocp-topology-title",
+      description:
+        "Topology graph must render live resource nodes and evidence-backed edges.",
+      descriptionKo:
+        "토폴로지 그래프는 실시간 리소스 노드와 근거 기반 연결을 렌더링해야 합니다."
     };
   }
 

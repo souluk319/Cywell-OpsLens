@@ -67,6 +67,7 @@ const evidenceSource = await readText("apps/web/src/components/ConsoleEvidencePa
 const overviewSource = await readText("apps/web/src/components/OcpConsoleOverview.tsx");
 const dashboardSource = await readText("apps/web/src/components/OperationsDashboard.tsx");
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
+const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const paritySource = await readText("apps/web/src/consoleParity.ts");
 const parityMapDocSource = await readText(
@@ -85,7 +86,10 @@ const adminSource = await readText("apps/web/src/components/OpsLensAdminDashboar
 const consoleExtensionsSource = await readText("apps/web/console-extensions.json");
 const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
+const contractsSource = await readText("packages/contracts/src/types.ts");
 const backendApiSource = await readText("apps/api/src/api.ts");
+const ocpClientSource = await readText("apps/api/src/ocpClient.ts");
+const backendServerSource = await readText("apps/api/src/server.ts");
 const backendLightspeedSource = await readText("apps/api/src/lightspeedClient.ts");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 const e2eSource = await readText("tests/e2e/mvp-0.1.spec.ts");
@@ -1432,6 +1436,8 @@ expectCheck(
     paritySource.includes("Installed Operators") &&
     paritySource.includes("Operator catalog") &&
     paritySource.includes("Topology") &&
+    paritySource.includes('"topology-graph"') &&
+    paritySource.includes("#ocp-topology-title") &&
     paritySource.includes("Pods") &&
     paritySource.includes("Deployments") &&
     paritySource.includes("Deployment Configs") &&
@@ -1461,9 +1467,41 @@ expectCheck(
     paritySource.includes("evidenceViewCount") &&
     paritySource.includes("directSurfaceCount") &&
     appSource.includes("const consoleNavigation: ConsoleNavigationItem[] = ocpConsoleParityItems") &&
+    appSource.includes("<OcpTopologyGraph") &&
     appSource.includes("const SectionIcon = sectionIcons[section]") &&
     appSource.includes("consoleParitySections"),
   "OCP 4.21.14 console inventory is version-pinned and drives the OpsLens navigation"
+);
+
+expectCheck(
+  "Dev 0.1.7 workload topology graph contract",
+  contractsSource.includes("export interface OcpTopologyResponse") &&
+    contractsSource.includes("OcpTopologyEdge") &&
+    ocpClientSource.includes("export async function getOcpTopology") &&
+    ocpClientSource.includes("Service selector") &&
+    ocpClientSource.includes("OwnerReference") &&
+    backendServerSource.includes('url.pathname === "/api/ocp/topology"') &&
+    apiSource.includes("fetchOcpTopology") &&
+    topologySource.includes('data-testid="ocp-topology-graph"') &&
+    topologySource.includes('data-testid="ocp-topology-canvas"') &&
+    topologySource.includes('data-testid="ocp-topology-evidence"') &&
+    actionPanelSource.includes('"topology-graph": "Topology graph"') &&
+    actionPanelSource.includes('"topology-graph": "토폴로지 그래프"'),
+  "Workloads / Topology is a real read-only graph surface backed by pods, deployments, services, routes, jobs, and cronjobs"
+);
+
+expectCheck(
+  "named OCP resource API failure contract",
+  apiSource.includes("payload.error") &&
+    apiSource.includes("failed with ${response.status}:") &&
+    backendServerSource.includes("resource-not-found") &&
+    backendServerSource.includes("rbac-denied") &&
+    backendServerSource.includes("ocp-upstream-read-failed") &&
+    ocpClientSource.includes("JSON list fallback succeeded") &&
+    explorerSource.includes("findPreferredResourceInOrder") &&
+    explorerSource.includes("fetchOcpAccessMatrix({") &&
+    explorerSource.includes(".catch(() => null)"),
+  "Resource Explorer exposes named failures and uses preferred API order plus metadata-to-JSON read fallback instead of a generic 400"
 );
 
 expectCheck(

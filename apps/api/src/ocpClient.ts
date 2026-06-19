@@ -20,6 +20,8 @@ import type {
   OcpResourceListResponse,
   OcpRelatedResourcesResponse,
   OcpResourceSummary,
+  OcpTopologyNode,
+  OcpTopologyResponse,
   OcpConditionSummary
 } from "@kugnus/contracts";
 import { lookup as dnsLookup } from "node:dns";
@@ -2561,44 +2563,70 @@ export async function listOcpResource(params: {
     }
 
     const originalError = compactError(error);
-    const alternates = alternateListResources(discovery, match);
-
-    for (const alternate of alternates) {
-      const alternateAccess = await reviewResourceAccess(config, alternate, {
-        verb: "list",
-        namespace: alternate.namespaced ? params.namespace : undefined
-      });
-      if (accessDenied(alternateAccess)) {
-        continue;
-      }
-
+    if (!params.full) {
       try {
-        const alternatePath = ocpPathForResource(
-          alternate,
-          alternate.namespaced ? params.namespace : undefined
-        );
         list = await requestJson<{
           metadata?: { continue?: string };
           items?: Array<Record<string, unknown>>;
-        }>(config, alternatePath, {
-          accept,
+        }>(config, path, {
+          accept: "application/json",
           searchParams
         });
-        servedResource = alternate;
-        servedAccess = alternateAccess;
         fallback = {
           requestedApiVersion: match.apiVersion,
-          servedApiVersion: alternate.apiVersion,
+          servedApiVersion: match.apiVersion,
           reason: originalError,
           evidence: [
-            `${match.apiVersion}/${match.name} list failed`,
-            `${alternate.apiVersion}/${alternate.name} alternate version list succeeded`,
-            "fallback used read-only GET list and SelfSubjectAccessReview"
+            `${match.apiVersion}/${match.name} PartialObjectMetadata list failed`,
+            `${match.apiVersion}/${match.name} JSON list fallback succeeded`,
+            "fallback used the same read-only GET list after SelfSubjectAccessReview"
           ]
         };
-        break;
       } catch {
-        // Try the next served API version before surfacing the original failure.
+        // Continue to served API-version alternates before surfacing the original error.
+      }
+    }
+
+    if (!list) {
+      const alternates = alternateListResources(discovery, match);
+
+      for (const alternate of alternates) {
+        const alternateAccess = await reviewResourceAccess(config, alternate, {
+          verb: "list",
+          namespace: alternate.namespaced ? params.namespace : undefined
+        });
+        if (accessDenied(alternateAccess)) {
+          continue;
+        }
+
+        try {
+          const alternatePath = ocpPathForResource(
+            alternate,
+            alternate.namespaced ? params.namespace : undefined
+          );
+          list = await requestJson<{
+            metadata?: { continue?: string };
+            items?: Array<Record<string, unknown>>;
+          }>(config, alternatePath, {
+            accept,
+            searchParams
+          });
+          servedResource = alternate;
+          servedAccess = alternateAccess;
+          fallback = {
+            requestedApiVersion: match.apiVersion,
+            servedApiVersion: alternate.apiVersion,
+            reason: originalError,
+            evidence: [
+              `${match.apiVersion}/${match.name} list failed`,
+              `${alternate.apiVersion}/${alternate.name} alternate version list succeeded`,
+              "fallback used read-only GET list and SelfSubjectAccessReview"
+            ]
+          };
+          break;
+        } catch {
+          // Try the next served API version before surfacing the original failure.
+        }
       }
     }
 
@@ -2850,6 +2878,404 @@ export async function getOcpRelatedResources(params: {
       "child resources filtered by ownerReferences.uid",
       "child scans use PartialObjectMetadataList",
       "child scans are guarded by SelfSubjectAccessReview list checks"
+    ],
+    errors
+  };
+}
+
+function topologyId(type: OcpTopologyNode["type"], item: OcpResourceSummary) {
+  return `${type}:${item.metadata.namespace ?? "_cluster"}:${item.metadata.name}`;
+}
+
+function stringRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+  );
+}
+
+function readRecordPath(value: unknown, path: string[]) {
+  let current = value;
+  for (const key of path) {
+    if (!current || typeof current !== "object") {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
+function labelsMatch(
+  labels: Record<string, string> | undefined,
+  selector: Record<string, string>
+) {
+  const entries = Object.entries(selector);
+  if (entries.length === 0) {
+    return false;
+  }
+  return entries.every(([key, value]) => labels?.[key] === value);
+}
+
+function deploymentSelector(item: OcpResourceSummary) {
+  return stringRecord(readRecordPath(item.spec, ["selector", "matchLabels"]));
+}
+
+function serviceSelector(item: OcpResourceSummary) {
+  return stringRecord(readRecordPath(item.spec, ["selector"]));
+}
+
+function routeTargetService(item: OcpResourceSummary) {
+  const target = readRecordPath(item.spec, ["to"]);
+  if (!target || typeof target !== "object") {
+    return undefined;
+  }
+  const record = target as Record<string, unknown>;
+  const kind = typeof record.kind === "string" ? record.kind : "Service";
+  const name = typeof record.name === "string" ? record.name : undefined;
+  return kind === "Service" ? name : undefined;
+}
+
+function workloadHealth(item: OcpResourceSummary): OcpTopologyNode["health"] {
+  const status = item.status as Record<string, unknown> | undefined;
+  if (!status || typeof status !== "object") {
+    return "unknown";
+  }
+
+  if (item.kind === "Pod") {
+    const phase = String(status.phase ?? "");
+    if (phase === "Running" || phase === "Succeeded") {
+      return "ready";
+    }
+    if (phase === "Pending" || phase === "Unknown") {
+      return "warning";
+    }
+    return "danger";
+  }
+
+  if (item.kind === "Deployment") {
+    const replicas = Number(status.replicas ?? 0);
+    const available = Number(status.availableReplicas ?? 0);
+    const unavailable = Number(status.unavailableReplicas ?? 0);
+    if (replicas === 0) {
+      return "unknown";
+    }
+    if (available >= replicas && unavailable === 0) {
+      return "ready";
+    }
+    return available > 0 ? "warning" : "danger";
+  }
+
+  if (item.kind === "Job") {
+    if (Number(status.succeeded ?? 0) > 0) {
+      return "ready";
+    }
+    if (Number(status.failed ?? 0) > 0) {
+      return "danger";
+    }
+    return "warning";
+  }
+
+  if (item.kind === "CronJob") {
+    return status.lastScheduleTime ? "ready" : "unknown";
+  }
+
+  return "unknown";
+}
+
+function topologyNode(
+  type: OcpTopologyNode["type"],
+  resource: OcpApiResource,
+  item: OcpResourceSummary,
+  evidence: string[]
+): OcpTopologyNode {
+  return {
+    id: topologyId(type, item),
+    type,
+    label: item.metadata.name,
+    namespace: item.metadata.namespace,
+    health: workloadHealth(item),
+    resource,
+    item,
+    evidence
+  };
+}
+
+async function topologyListResource(params: {
+  apiVersion: string;
+  resource: string;
+  namespace?: string;
+  limit: number;
+  errors: OcpTopologyResponse["errors"];
+}) {
+  try {
+    return await listOcpResource({
+      apiVersion: params.apiVersion,
+      resource: params.resource,
+      namespace: params.namespace,
+      limit: params.limit,
+      full: true
+    });
+  } catch (error) {
+    params.errors.push({
+      resource: `${params.apiVersion}/${params.resource}`,
+      message: compactError(error)
+    });
+    return undefined;
+  }
+}
+
+export async function getOcpTopology(params: {
+  namespace?: string;
+  limit?: number;
+} = {}): Promise<OcpTopologyResponse> {
+  const status = await getOcpStatus();
+  if (!status.configured || !status.reachable) {
+    throw new Error(status.error ?? "OCP API is not reachable");
+  }
+
+  const limit = Math.min(Math.max(params.limit ?? 200, 1), 500);
+  const errors: OcpTopologyResponse["errors"] = [];
+  const [
+    deployments,
+    pods,
+    services,
+    routes,
+    jobs,
+    cronjobs
+  ] = await Promise.all([
+    topologyListResource({
+      apiVersion: "apps/v1",
+      resource: "deployments",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "v1",
+      resource: "pods",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "v1",
+      resource: "services",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "route.openshift.io/v1",
+      resource: "routes",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "batch/v1",
+      resource: "jobs",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "batch/v1",
+      resource: "cronjobs",
+      namespace: params.namespace,
+      limit,
+      errors
+    })
+  ]);
+
+  const nodes: OcpTopologyResponse["nodes"] = [];
+  const edges: OcpTopologyResponse["edges"] = [];
+
+  for (const item of routes?.items ?? []) {
+    nodes.push(
+      topologyNode("route", routes!.resource, item, [
+        "route.openshift.io/v1/routes read through the OpenShift API",
+        "route target service is derived from spec.to.name"
+      ])
+    );
+  }
+  for (const item of services?.items ?? []) {
+    nodes.push(
+      topologyNode("service", services!.resource, item, [
+        "v1/services read through the OpenShift API",
+        "service selector is matched against pod labels"
+      ])
+    );
+  }
+  for (const item of deployments?.items ?? []) {
+    nodes.push(
+      topologyNode("deployment", deployments!.resource, item, [
+        "apps/v1/deployments read through the OpenShift API",
+        "deployment selector is matched against pod labels"
+      ])
+    );
+  }
+  for (const item of pods?.items ?? []) {
+    nodes.push(
+      topologyNode("pod", pods!.resource, item, [
+        "v1/pods read through the OpenShift API",
+        "pod phase and labels are used for topology health and edges"
+      ])
+    );
+  }
+  for (const item of cronjobs?.items ?? []) {
+    nodes.push(
+      topologyNode("cronjob", cronjobs!.resource, item, [
+        "batch/v1/cronjobs read through the OpenShift API",
+        "cronjob ownerReferences are matched against jobs"
+      ])
+    );
+  }
+  for (const item of jobs?.items ?? []) {
+    nodes.push(
+      topologyNode("job", jobs!.resource, item, [
+        "batch/v1/jobs read through the OpenShift API",
+        "job ownerReferences are matched against cronjobs and pods"
+      ])
+    );
+  }
+
+  const serviceByName = new Map(
+    (services?.items ?? []).map((item) => [
+      `${item.metadata.namespace ?? ""}/${item.metadata.name}`,
+      item
+    ])
+  );
+
+  for (const route of routes?.items ?? []) {
+    const serviceName = routeTargetService(route);
+    if (!serviceName) {
+      continue;
+    }
+    const service = serviceByName.get(
+      `${route.metadata.namespace ?? ""}/${serviceName}`
+    );
+    if (!service) {
+      continue;
+    }
+    edges.push({
+      id: `route:${topologyId("route", route)}->service:${topologyId("service", service)}`,
+      from: topologyId("route", route),
+      to: topologyId("service", service),
+      type: "routes-to",
+      label: "Route -> Service",
+      evidence: [`${route.metadata.name} spec.to.name=${serviceName}`]
+    });
+  }
+
+  for (const service of services?.items ?? []) {
+    const selector = serviceSelector(service);
+    for (const pod of pods?.items ?? []) {
+      if (service.metadata.namespace !== pod.metadata.namespace) {
+        continue;
+      }
+      if (!labelsMatch(pod.metadata.labels, selector)) {
+        continue;
+      }
+      edges.push({
+        id: `service:${topologyId("service", service)}->pod:${topologyId("pod", pod)}`,
+        from: topologyId("service", service),
+        to: topologyId("pod", pod),
+        type: "selects",
+        label: "Service selector",
+        evidence: [
+          `${service.metadata.name} selector matched pod labels`,
+          Object.entries(selector).map(([key, value]) => `${key}=${value}`).join(", ")
+        ].filter(Boolean)
+      });
+    }
+  }
+
+  for (const deployment of deployments?.items ?? []) {
+    const selector = deploymentSelector(deployment);
+    for (const pod of pods?.items ?? []) {
+      if (deployment.metadata.namespace !== pod.metadata.namespace) {
+        continue;
+      }
+      if (!labelsMatch(pod.metadata.labels, selector)) {
+        continue;
+      }
+      edges.push({
+        id: `deployment:${topologyId("deployment", deployment)}->pod:${topologyId("pod", pod)}`,
+        from: topologyId("deployment", deployment),
+        to: topologyId("pod", pod),
+        type: "selects",
+        label: "Deployment selector",
+        evidence: [
+          `${deployment.metadata.name} selector matched pod labels`,
+          Object.entries(selector).map(([key, value]) => `${key}=${value}`).join(", ")
+        ].filter(Boolean)
+      });
+    }
+  }
+
+  for (const job of jobs?.items ?? []) {
+    for (const owner of job.metadata.ownerReferences ?? []) {
+      if (owner.kind !== "CronJob") {
+        continue;
+      }
+      const cronjob = (cronjobs?.items ?? []).find(
+        (item) =>
+          item.metadata.namespace === job.metadata.namespace &&
+          item.metadata.name === owner.name
+      );
+      if (!cronjob) {
+        continue;
+      }
+      edges.push({
+        id: `cronjob:${topologyId("cronjob", cronjob)}->job:${topologyId("job", job)}`,
+        from: topologyId("cronjob", cronjob),
+        to: topologyId("job", job),
+        type: "owns",
+        label: "OwnerReference",
+        evidence: [`${job.metadata.name} ownerReferences includes CronJob/${owner.name}`]
+      });
+    }
+  }
+
+  for (const pod of pods?.items ?? []) {
+    for (const owner of pod.metadata.ownerReferences ?? []) {
+      if (owner.kind !== "Job") {
+        continue;
+      }
+      const job = (jobs?.items ?? []).find(
+        (item) =>
+          item.metadata.namespace === pod.metadata.namespace &&
+          item.metadata.name === owner.name
+      );
+      if (!job) {
+        continue;
+      }
+      edges.push({
+        id: `job:${topologyId("job", job)}->pod:${topologyId("pod", pod)}`,
+        from: topologyId("job", job),
+        to: topologyId("pod", pod),
+        type: "owns",
+        label: "OwnerReference",
+        evidence: [`${pod.metadata.name} ownerReferences includes Job/${owner.name}`]
+      });
+    }
+  }
+
+  return {
+    status,
+    namespace: params.namespace,
+    generatedAt: new Date().toISOString(),
+    nodes,
+    edges,
+    evidence: [
+      "Topology uses only get/list/read-safe OpenShift API requests",
+      "Service and Deployment edges are selector-derived",
+      "Route and Job edges are target/ownerReference-derived",
+      "No create/update/patch/delete verbs are used"
     ],
     errors
   };

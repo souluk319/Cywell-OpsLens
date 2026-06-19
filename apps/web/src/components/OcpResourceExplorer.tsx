@@ -68,6 +68,25 @@ function resourceMatchesPreferredPreset(
   );
 }
 
+function findPreferredResourceInOrder(
+  resources: OcpApiResource[],
+  preferredResources: string[]
+) {
+  const safeResources = resources.filter((resource) => resource.safeToList);
+
+  for (const preferred of preferredResources) {
+    const normalizedPreferred = preferred.toLowerCase();
+    const match = safeResources.find((resource) =>
+      resourcePresetCandidates(resource).includes(normalizedPreferred)
+    );
+    if (match) {
+      return match;
+    }
+  }
+
+  return undefined;
+}
+
 export interface OcpResourcePreset {
   activationId: string;
   query: string;
@@ -484,18 +503,12 @@ export function OcpResourceExplorer({
       setDetailView(navigationPreset.detailView);
     }
 
-    const preferred = new Set(
-      navigationPreset.preferredResources.map((resource) =>
-        resource.toLowerCase()
-      )
-    );
-    const preferredResource = discovery?.resources
-      .filter((resource) => resource.safeToList)
-      .find((resource) =>
-        resourcePresetCandidates(resource).some((candidate) =>
-          preferred.has(candidate)
+    const preferredResource = discovery
+      ? findPreferredResourceInOrder(
+          discovery.resources,
+          navigationPreset.preferredResources
         )
-      );
+      : undefined;
 
     if (preferredResource) {
       setSelectedKey(resourceKey(preferredResource));
@@ -545,7 +558,7 @@ export function OcpResourceExplorer({
           apiVersion: resource.apiVersion,
           resource: resource.name,
           namespace: scopedNamespace
-        })
+        }).catch(() => null)
       ]);
       if (options.resetPage !== false) {
         setPageTokens([undefined]);

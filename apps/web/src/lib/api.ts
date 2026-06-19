@@ -27,7 +27,8 @@ import type {
   OcpResourceAccessReviewResponse,
   OcpResourceDetailResponse,
   OcpResourceListResponse,
-  OcpRelatedResourcesResponse
+  OcpRelatedResourcesResponse,
+  OcpTopologyResponse
 } from "@kugnus/contracts";
 
 function getApiBase() {
@@ -102,7 +103,23 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`${requestPath} failed with ${response.status}`);
+    let detail = "";
+    try {
+      const payload = (await response.json()) as {
+        error?: string;
+        code?: string;
+        message?: string;
+      };
+      detail = payload.error ?? payload.message ?? payload.code ?? "";
+    } catch {
+      try {
+        detail = await response.text();
+      } catch {
+        detail = "";
+      }
+    }
+    const reason = detail.trim() || response.statusText || "request failed";
+    throw new Error(`${requestPath} failed with ${response.status}: ${reason}`);
   }
 
   return (await response.json()) as T;
@@ -329,6 +346,23 @@ export function fetchOcpResourceList(params: {
 
   return requestJson<OcpResourceListResponse>(
     `/api/ocp/resources?${searchParams.toString()}`
+  );
+}
+
+export function fetchOcpTopology(params: {
+  namespace?: string;
+  limit?: number;
+} = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.namespace) {
+    searchParams.set("namespace", params.namespace);
+  }
+  if (params.limit) {
+    searchParams.set("limit", String(params.limit));
+  }
+  const query = searchParams.toString();
+  return requestJson<OcpTopologyResponse>(
+    `/api/ocp/topology${query ? `?${query}` : ""}`
   );
 }
 

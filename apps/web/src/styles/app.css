@@ -1644,6 +1644,195 @@ button {
   margin-top: 18px;
 }
 
+.ocp-topology {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.topology-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.topology-controls label {
+  display: grid;
+  gap: 5px;
+  color: #4f5255;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.topology-controls input {
+  min-width: 220px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #c7c7c7;
+  border-radius: 5px;
+  background: #fff;
+  color: #151515;
+}
+
+.topology-canvas {
+  min-height: 430px;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(250, 250, 250, 0.9)),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 47px,
+      rgba(210, 210, 210, 0.35) 47px 48px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 47px,
+      rgba(210, 210, 210, 0.35) 47px 48px
+    );
+}
+
+.topology-canvas svg {
+  width: 100%;
+  height: 420px;
+  display: block;
+}
+
+.topology-edge line {
+  marker-end: url("#topology-arrow");
+  stroke: #8a8d90;
+  stroke-width: 0.42;
+  stroke-linecap: round;
+}
+
+.topology-edge.routes-to line {
+  stroke: #0066cc;
+}
+
+.topology-edge.selects line {
+  stroke: #009596;
+}
+
+.topology-edge.owns line {
+  stroke: #703fec;
+  stroke-dasharray: 1.4 1.2;
+}
+
+.topology-edge path {
+  fill: #8a8d90;
+}
+
+.topology-node rect {
+  fill: #fff;
+  stroke: #6a6e73;
+  stroke-width: 0.36;
+  filter: drop-shadow(0 2px 3px rgba(3, 3, 3, 0.18));
+}
+
+.topology-node circle {
+  fill: #8a8d90;
+}
+
+.topology-node.ready rect {
+  stroke: #3e8635;
+}
+
+.topology-node.ready circle {
+  fill: #3e8635;
+}
+
+.topology-node.warning rect {
+  stroke: #f0ab00;
+}
+
+.topology-node.warning circle {
+  fill: #f0ab00;
+}
+
+.topology-node.danger rect {
+  stroke: #c9190b;
+}
+
+.topology-node.danger circle {
+  fill: #c9190b;
+}
+
+.topology-node text {
+  fill: #151515;
+  font-size: 1.7px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.topology-empty {
+  display: grid;
+  min-height: 380px;
+  place-items: center;
+  margin: 0;
+  color: #6a6e73;
+  font-weight: 800;
+}
+
+.topology-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.topology-summary-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #d2d2d2;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.topology-summary-card h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: #3c3f42;
+  font-size: 0.82rem;
+}
+
+.topology-summary-card strong {
+  color: #151515;
+  font-size: 1.2rem;
+}
+
+.topology-summary-card div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.status-pill.unknown {
+  background: #f5f5f5;
+  color: #4f5255;
+}
+
+.topology-evidence {
+  padding: 9px 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.topology-evidence summary {
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.topology-evidence ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
 .ocp-console-overview {
   margin-top: 18px;
 }
