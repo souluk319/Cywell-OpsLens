@@ -1151,6 +1151,120 @@ button {
   font-weight: 750;
 }
 
+.native-dashboard-map {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.native-dashboard-map-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.native-dashboard-map-heading h4 {
+  margin-bottom: 3px;
+}
+
+.native-dashboard-map-heading p {
+  margin: 0;
+}
+
+.native-dashboard-map-heading span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid #73bcf7;
+  border-radius: 999px;
+  background: #f2f9ff;
+  color: #003b66;
+  font-size: 0.72rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.native-dashboard-map-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
+  gap: 9px;
+}
+
+.native-dashboard-panel {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-left: 3px solid #3e8635;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.native-dashboard-panel.warning {
+  border-left-color: #f0ab00;
+}
+
+.native-dashboard-panel.danger {
+  border-left-color: #c9190b;
+}
+
+.native-dashboard-panel span,
+.native-dashboard-panel strong,
+.native-dashboard-panel p {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.native-dashboard-panel span {
+  color: #6a6e73;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.native-dashboard-panel strong {
+  margin-top: 4px;
+  color: #151515;
+  font-size: 0.94rem;
+  font-weight: 900;
+}
+
+.native-dashboard-panel p {
+  margin: 3px 0 8px;
+  color: #4f5255;
+  font-size: 0.72rem;
+}
+
+.native-dashboard-panel-meter {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ededed;
+}
+
+.native-dashboard-panel-meter span {
+  display: block;
+  width: var(--bar);
+  min-width: 3px;
+  height: 100%;
+  border-radius: inherit;
+  background: #3e8635;
+}
+
+.native-dashboard-panel.warning .native-dashboard-panel-meter span {
+  background: #f0ab00;
+}
+
+.native-dashboard-panel.danger .native-dashboard-panel-meter span {
+  background: #c9190b;
+}
+
 .native-signal-board {
   display: grid;
   gap: 10px;
@@ -4929,6 +5043,10 @@ button {
     grid-template-columns: repeat(2, minmax(240px, 1fr));
   }
 
+  .native-dashboard-map-grid {
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
+  }
+
   .native-signal-grid {
     grid-template-columns: repeat(3, minmax(160px, 1fr));
   }
@@ -5021,6 +5139,15 @@ button {
 
   .ops-console-sync-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .native-dashboard-map-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .native-dashboard-map-grid {
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
   }
 
   .native-signal-board-heading {

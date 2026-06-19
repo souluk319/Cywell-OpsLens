@@ -1823,6 +1823,28 @@ expectCheck(
 );
 
 expectCheck(
+  "dashboard native console match map contract",
+  dashboardSource.includes('data-testid="opslens-native-dashboard-map"') &&
+    dashboardSource.includes('data-testid={`opslens-native-dashboard-panel-${panel.id}`}') &&
+    dashboardSource.includes("nativeDashboardPanels") &&
+    dashboardSource.includes("copy.nativeDashboardMap") &&
+    dashboardSource.includes("copy.detailsPanel") &&
+    dashboardSource.includes("copy.statusPanel") &&
+    dashboardSource.includes("copy.utilizationPanel") &&
+    dashboardSource.includes("copy.activityPanel") &&
+    dashboardSource.includes("copy.inventoryPanel") &&
+    dashboardSource.includes("consoleDashboard?.details.openshiftVersion") &&
+    dashboardSource.includes("consoleDashboard?.statusCards.length") &&
+    dashboardSource.includes("consoleDashboard?.utilization.reachable") &&
+    dashboardSource.includes("consoleDashboard?.activity.length") &&
+    dashboardSource.includes("consoleDashboard?.inventory.nodes") &&
+    stylesSource.includes(".native-dashboard-map") &&
+    stylesSource.includes(".native-dashboard-map-grid") &&
+    stylesSource.includes(".native-dashboard-panel-meter"),
+  "Operations dashboard maps the native OpenShift dashboard panels into a compact visual signal map before adding OpsLens analysis"
+);
+
+expectCheck(
   "Dev 0.1.7 parallel review lane contract",
   dev017PlanSource.includes("## Parallel Review Setup") &&
     dev017PlanSource.includes("Compatibility reviewer") &&

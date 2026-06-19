@@ -118,7 +118,17 @@ const dashboardCopy = {
     routesServices: "routes / services",
     failedBuilds: "failed builds",
     firingAlerts: "firing alerts",
-    liveBoardSource: "live source"
+    liveBoardSource: "live source",
+    nativeDashboardMap: "Native Dashboard Match",
+    nativeDashboardMapSubtitle:
+      "Details, status, utilization, activity, and inventory from the OpenShift dashboard, reorganized as operator signals",
+    detailsPanel: "Details",
+    statusPanel: "Status",
+    utilizationPanel: "Utilization",
+    activityPanel: "Activity",
+    inventoryPanel: "Inventory",
+    warnings: "warnings",
+    recentEvents: "recent events"
   },
   ko: {
     breadcrumb: "관리자 / 관측 / Cywell OpsLens",
@@ -215,7 +225,17 @@ const dashboardCopy = {
     routesServices: "라우트 / 서비스",
     failedBuilds: "실패 빌드",
     firingAlerts: "발생 중 알림",
-    liveBoardSource: "실시간 출처"
+    liveBoardSource: "실시간 출처",
+    nativeDashboardMap: "원본 대시보드 매칭",
+    nativeDashboardMapSubtitle:
+      "OpenShift 대시보드의 세부 정보, 상태, 사용량, 활동, 인벤토리를 운영 신호로 재구성",
+    detailsPanel: "세부 정보",
+    statusPanel: "상태",
+    utilizationPanel: "사용량",
+    activityPanel: "활동",
+    inventoryPanel: "인벤토리",
+    warnings: "경고",
+    recentEvents: "최근 이벤트"
   }
 } as const;
 
@@ -549,6 +569,65 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
     : language === "ko"
       ? "현재 클러스터 상태를 운영 관점으로 요약해줘"
       : "Summarize the current cluster state from an operator perspective";
+  const statusWarningCount = (consoleDashboard?.statusCards ?? []).filter(
+    (card) => card.severity !== "info"
+  ).length;
+  const latestActivity = consoleDashboard?.activity[0];
+  const nativeDashboardPanels = [
+    {
+      id: "details",
+      label: copy.detailsPanel,
+      value: consoleDashboard?.details.openshiftVersion ?? "-",
+      detail: `${copy.channel}: ${consoleDashboard?.details.channel ?? "-"}`,
+      percent: consoleOverview?.status.reachable ? 100 : 0,
+      tone: consoleOverview?.status.reachable ? "ready" : "warning",
+      source: consoleSourceLabel
+    },
+    {
+      id: "status",
+      label: copy.statusPanel,
+      value: `${numberText(statusWarningCount)} ${copy.warnings}`,
+      detail: `${numberText(consoleDashboard?.statusCards.length)} ${copy.statusCards}`,
+      percent: inversePercent(statusWarningCount, consoleDashboard?.statusCards.length ?? 0),
+      tone: signalTone(statusWarningCount > 2, statusWarningCount > 0),
+      source: consoleSourceLabel
+    },
+    {
+      id: "utilization",
+      label: copy.utilizationPanel,
+      value: prometheusSourceLabel,
+      detail: `${numberText(consoleDashboard?.utilization.series.length)} ${copy.utilization}`,
+      percent: consoleDashboard?.utilization.reachable ? 100 : 0,
+      tone: consoleDashboard?.utilization.reachable ? "ready" : "warning",
+      source: prometheusSourceLabel
+    },
+    {
+      id: "activity",
+      label: copy.activityPanel,
+      value: `${numberText(consoleDashboard?.activity.length)} ${copy.recentEvents}`,
+      detail: latestActivity?.reason ?? latestActivity?.message ?? "-",
+      percent: ratioPercent(
+        Math.min(consoleDashboard?.activity.length ?? 0, 10),
+        10
+      ),
+      tone: (consoleDashboard?.activity ?? []).some((event) => event.type === "Warning")
+        ? "warning"
+        : "ready",
+      source: consoleSourceLabel
+    },
+    {
+      id: "inventory",
+      label: copy.inventoryPanel,
+      value: `${numberText(consoleDashboard?.inventory.nodes)} / ${numberText(consoleDashboard?.inventory.pods)}`,
+      detail: `${copy.routesAndServices}: ${numberText(consoleDashboard?.inventory.routes)} / ${numberText(consoleDashboard?.inventory.services)}`,
+      percent: ratioPercent(
+        consoleDashboard?.inventory.nodes,
+        Math.max(consoleDashboard?.inventory.nodes ?? 0, 1)
+      ),
+      tone: consoleOverview?.status.reachable ? "ready" : "warning",
+      source: consoleSourceLabel
+    }
+  ];
   const operatorTotal = consoleOverview?.operators.total;
   const operatorDegraded = consoleOverview?.operators.degraded;
   const operatorHealthy =
@@ -691,6 +770,40 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
             </span>
           ) : null}
         </div>
+        <section
+          className="native-dashboard-map"
+          data-testid="opslens-native-dashboard-map"
+          aria-label={copy.nativeDashboardMap}
+        >
+          <div className="native-dashboard-map-heading">
+            <div>
+              <h4>{copy.nativeDashboardMap}</h4>
+              <p>{copy.nativeDashboardMapSubtitle}</p>
+            </div>
+            <span>{copy.liveBoardSource}: {consoleSourceLabel}</span>
+          </div>
+          <div className="native-dashboard-map-grid">
+            {nativeDashboardPanels.map((panel) => (
+              <article
+                className={`native-dashboard-panel ${panel.tone}`}
+                data-source={panel.source}
+                data-testid={`opslens-native-dashboard-panel-${panel.id}`}
+                key={panel.id}
+              >
+                <span>{panel.label}</span>
+                <strong>{panel.value}</strong>
+                <p>{panel.detail}</p>
+                <div
+                  className="native-dashboard-panel-meter"
+                  style={barStyle(panel.percent)}
+                  aria-hidden="true"
+                >
+                  <span />
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
         <div
           className="native-signal-board"
           data-testid="opslens-native-signal-board"
