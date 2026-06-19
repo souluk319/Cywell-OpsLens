@@ -3492,6 +3492,107 @@ button {
   font-weight: 800;
 }
 
+.workload-action-map {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.workload-action-map-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.workload-action-map-heading strong {
+  color: #151515;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.workload-action-map-heading span {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid #d2d2d2;
+  border-radius: 999px;
+  background: #fafafa;
+  color: #4f5255;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.workload-action-map-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.workload-action-card {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-left: 3px solid #73bcf7;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.workload-action-card.native-deep-link {
+  border-left-color: #f0ab00;
+}
+
+.workload-action-card.plan-only {
+  border-left-color: #6a6e73;
+}
+
+.workload-action-card.gap {
+  border-left-color: #c9190b;
+}
+
+.workload-action-card span,
+.workload-action-card strong,
+.workload-action-card p,
+.workload-action-card small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workload-action-card span {
+  color: #0066cc;
+  font-size: 0.7rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.workload-action-card strong {
+  margin-top: 4px;
+  color: #151515;
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.workload-action-card p {
+  margin: 4px 0 6px;
+  color: #4f5255;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.workload-action-card small {
+  color: #6a6e73;
+  font-size: 0.68rem;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
 .admin-target-fallback-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5165,6 +5266,10 @@ button {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
+  .workload-action-map-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+
   .resource-inspector-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -5324,6 +5429,7 @@ button {
   }
 
   .workload-lens-grid,
+  .workload-action-map-grid,
   .workload-health-card dl {
     grid-template-columns: minmax(0, 1fr);
   }

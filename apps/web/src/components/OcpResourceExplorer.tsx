@@ -235,6 +235,16 @@ const explorerCopy = {
     disruptionsAllowed: "allowed disruptions",
     protectedWorkloads: "protected workloads",
     routeNativeCreate: "create/edit/delete stays in the native OpenShift console or approval-gated flow",
+    actionMapping: "Action mapping",
+    liveView: "Live View",
+    nativeDeepLink: "Native Deep Link",
+    planOnlyAssistant: "Plan-only Assistant",
+    explicitGap: "Explicit Gap",
+    liveViewDetail: "list, detail, events, logs, related resources",
+    nativeMutationHandoff: "create, edit, delete stay in the native console",
+    assistantPlanDetail: "KOMSCO assistant can draft checks and approval plans",
+    mutationGapDetail: "OpsLens mutation waits for RBAC, allowlist, approval, and audit",
+    selectedKindLabel: "Selected kind",
     presetMatch: "Preset match",
     matched: "matched",
     missing: "missing",
@@ -368,6 +378,16 @@ const explorerCopy = {
     disruptionsAllowed: "허용 중단",
     protectedWorkloads: "보호 워크로드",
     routeNativeCreate: "생성/수정/삭제는 기본 OpenShift 콘솔 또는 승인 기반 흐름 사용",
+    actionMapping: "행동 매핑",
+    liveView: "Live View",
+    nativeDeepLink: "Native Deep Link",
+    planOnlyAssistant: "Plan-only Assistant",
+    explicitGap: "Explicit Gap",
+    liveViewDetail: "목록, 상세, 이벤트, 로그, 관련 리소스",
+    nativeMutationHandoff: "생성, 수정, 삭제는 기본 콘솔에서 처리",
+    assistantPlanDetail: "KOMSCO 어시스턴트는 확인 순서와 승인 계획을 작성",
+    mutationGapDetail: "OpsLens 변경 작업은 RBAC, 허용목록, 승인, 감사 계약 이후 수행",
+    selectedKindLabel: "선택 종류",
     presetMatch: "프리셋 매칭",
     matched: "매칭됨",
     missing: "누락",
@@ -636,6 +656,43 @@ function workloadNextChecks(
     default:
       return [copy.detailStatus, copy.eventsStatus, copy.relatedStatus];
   }
+}
+
+function workloadActionMapping(
+  kind: string | undefined,
+  copy: (typeof explorerCopy)[UiLanguage]
+) {
+  const selectedKind = kind ?? "-";
+  return [
+    {
+      mode: copy.liveView,
+      className: "live-view",
+      title: copy.liveView,
+      detail: copy.liveViewDetail,
+      evidence: `${copy.selectedKindLabel}: ${selectedKind}`
+    },
+    {
+      mode: copy.nativeDeepLink,
+      className: "native-deep-link",
+      title: copy.nativeDeepLink,
+      detail: copy.nativeMutationHandoff,
+      evidence: copy.routeNativeCreate
+    },
+    {
+      mode: copy.planOnlyAssistant,
+      className: "plan-only",
+      title: copy.planOnlyAssistant,
+      detail: copy.assistantPlanDetail,
+      evidence: copy.readOnlyGuard
+    },
+    {
+      mode: copy.explicitGap,
+      className: "gap",
+      title: copy.explicitGap,
+      detail: copy.mutationGapDetail,
+      evidence: copy.noMutateVerbs
+    }
+  ];
 }
 
 export function OcpResourceExplorer({
@@ -1119,6 +1176,7 @@ export function OcpResourceExplorer({
   const workloadTotal = Math.max(workloadLensItems.length, 1);
   const selectedWorkload = detail?.item ?? workloadLensItems[0];
   const workloadNextCheckItems = workloadNextChecks(selectedResource?.kind, copy);
+  const workloadActionMappingItems = workloadActionMapping(selectedResource?.kind, copy);
 
   useEffect(() => {
     onFunctionOutcomeChange?.(functionOutcomeState);
@@ -1367,6 +1425,30 @@ export function OcpResourceExplorer({
               <strong>{copy.nextChecks}</strong>
               {workloadNextCheckItems.map((check) => (
                 <span key={check}>{check}</span>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className="workload-action-map"
+            data-testid="ocp-workload-action-map"
+          >
+            <div className="workload-action-map-heading">
+              <strong>{copy.actionMapping}</strong>
+              <span>{copy.selectedKindLabel}: {selectedResource?.kind ?? "-"}</span>
+            </div>
+            <div className="workload-action-map-grid">
+              {workloadActionMappingItems.map((item) => (
+                <article
+                  className={`workload-action-card ${item.className}`}
+                  data-testid={`ocp-workload-action-${item.className}`}
+                  key={item.className}
+                >
+                  <span>{item.mode}</span>
+                  <strong>{item.title}</strong>
+                  <p>{item.detail}</p>
+                  <small>{item.evidence}</small>
+                </article>
               ))}
             </div>
           </div>

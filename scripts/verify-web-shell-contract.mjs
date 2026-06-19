@@ -1656,6 +1656,13 @@ expectCheck(
     explorerSource.includes('data-testid="ocp-workload-selected"') &&
     explorerSource.includes('data-testid="ocp-workload-relationship"') &&
     explorerSource.includes('data-testid="ocp-workload-next-checks"') &&
+    explorerSource.includes('data-testid="ocp-workload-action-map"') &&
+    explorerSource.includes('data-testid={`ocp-workload-action-${item.className}`}') &&
+    explorerSource.includes("workloadActionMapping(") &&
+    explorerSource.includes("copy.liveView") &&
+    explorerSource.includes("copy.nativeDeepLink") &&
+    explorerSource.includes("copy.planOnlyAssistant") &&
+    explorerSource.includes("copy.explicitGap") &&
     explorerSource.includes("workloadHealth(") &&
     explorerSource.includes("fallbackKind") &&
     explorerSource.includes("workloadSignal(") &&
@@ -1666,8 +1673,10 @@ expectCheck(
     explorerSource.includes("HorizontalPodAutoscaler") &&
     explorerSource.includes("PodDisruptionBudget") &&
     stylesSource.includes(".workload-lens-panel") &&
-    stylesSource.includes(".workload-health-meter"),
-  "Workload resource presets render a purpose-built visual lens for Pods, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB instead of only a generic table"
+    stylesSource.includes(".workload-health-meter") &&
+    stylesSource.includes(".workload-action-map") &&
+    stylesSource.includes(".workload-action-card.native-deep-link"),
+  "Workload resource presets render a purpose-built visual lens and action mapping for Pods, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB instead of only a generic table"
 );
 
 expectCheck(
