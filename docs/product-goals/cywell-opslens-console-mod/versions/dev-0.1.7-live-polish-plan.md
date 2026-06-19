@@ -139,7 +139,7 @@ visible.
 | --- | --- | --- |
 | Workloads / Topology | Implemented as a real read-only graph surface instead of a generic resource card. | `GET /api/ocp/topology` reads Deployments, Pods, Services, Routes, Jobs, and CronJobs and renders selector, ownerReference, and route target edges. |
 | Topology browser proof | Local test page opens the Workloads / Topology screen and renders live graph nodes and edges. | Browser check on `127.0.0.1:5173` rendered `123` visible graph nodes and `58` visible edges after the graph cap was applied. |
-| Resource API failure handling | Generic visible `400` failures were replaced with named failure categories and normal list response envelopes. | Backend returns empty/named-failure list data for unsupported, RBAC-denied, blocked, or upstream-failed list paths; browser check on Builds showed no visible error and no `failed with 400`. |
+| Resource API failure handling | Generic visible `400` failures were replaced with named failure categories and normal list response envelopes. | Backend returns empty/named-failure list data for unsupported, RBAC-denied, blocked, or upstream-failed list paths; browser check on Builds showed no visible error and no `failed with 400`. Current local API smoke returned HTTP `200` for `v1/pods`, `v1/namespaces`, and `build.openshift.io/v1/buildconfigs`; `buildconfigs` returned an empty list rather than a `400`. |
 | Metadata fallback | List calls can recover from metadata-list failure by retrying JSON list mode before failing. | `listOcpResource` records `JSON list fallback succeeded` when fallback is used. |
 | Preferred API order | Resource presets now honor the requested order instead of whatever discovery returns first. | `findPreferredResourceInOrder` selects BuildConfig/Build/ImageStream-style presets deterministically. |
 | Menu support classification | Every native console menu item now carries a visible support class. | `coverageClass` maps items to `Live View`, `Native Deep Link`, `Plan-only`, or `Gap`; the parity matrix and active action panel render the class. |
@@ -147,7 +147,23 @@ visible.
 | Dashboard source labels | Dashboard now separates OpsLens risk data source, native console API source, and Prometheus source. | `opslens-dashboard-source-label` and `opslens-console-source-label` expose live/fixture/unavailable state. |
 | Dashboard decision flow | Dashboard now visualizes the product value above native parity by turning console signals into OpsLens correlation, operator decision, and assistant handoff. | Browser check rendered `opslens-dashboard-decision-flow` with `4` steps, `data-source=live`, live console signal count, risk signal count, top decision, and suggested assistant question. |
 | Compatibility boundary UI | The parity matrix now shows the OCP `4.20` minimum runtime, the `4.21.14` reference inventory, and pending Windows `4.20` validation. | Browser DOM check showed `console-compatibility-boundary` with minimum/runtime/proof text and `37` visible parity class entries. |
-| Local verification | Current local build and web-shell contract pass. | `@kugnus/web` build passed; latest `npm run verify:web-shell` passed with `73` checks. |
+| Local verification | Current local build and web-shell contract pass. | `@kugnus/web` build passed; latest `npm run verify:web-shell` passed with `74` checks. |
+
+## Parallel Review Setup
+
+The 0.1.7 lane uses three independent review lanes before deployment. These are
+not product UI features; they are engineering review scopes that keep the work
+from drifting back into "menu label exists, therefore complete" thinking.
+
+| Review lane | Scope | Required output |
+| --- | --- | --- |
+| Compatibility reviewer | OCP `4.20`/`4.21` matrix, official-doc boundary, and menu support classification. | PASS/WEAK/MISSING audit with exact file references. |
+| Runtime reviewer | Workloads implementation, topology graph, Resource API named failure behavior, and removal of unexplained `400`. | PASS/WEAK/MISSING audit with exact file references. |
+| Product reviewer | Dashboard source labeling, decision-flow visualization, and whether the proof is customer-facing rather than developer-task noise. | PASS/WEAK/MISSING audit with exact file references. |
+
+Current execution note: three parallel explorer agents were spawned against the
+current `feat/OpsLens-Dev0.1.7` worktree for those review lanes. Their findings
+must be reconciled before 0.1.7 is called complete.
 
 Remaining before calling 0.1.7 complete:
 
@@ -271,12 +287,14 @@ What is already done:
 - Operator package/runtime parity verifiers pass.
 - Official OCP console study and parity audit exists.
 - OCP `4.20` minimum support strategy is now locked for the Windows test server lane.
+- Workloads / Topology now renders a real read-only graph from live API evidence when available.
+- Core resource list failures now return data/empty/named failure envelopes instead of unexplained visible `400`.
+- Dashboard source labels separate OpsLens risk, native console API, and Prometheus availability.
 
 What is not done:
 
 - Native console functionality is not fully matched.
-- Workloads Topology is not yet a real live graph.
-- Many native menu items still use generic Resource Explorer behavior.
+- Many non-Workloads native menu items still use generic Resource Explorer or native deep-link behavior.
 - Some create/edit actions are only planned as native deep links.
 - Assistant answer UX and Lightspeed reliability need hardening.
 - OCP `4.20` compatibility has not yet been proven on the Windows test server.

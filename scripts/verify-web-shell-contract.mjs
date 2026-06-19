@@ -108,6 +108,9 @@ const coverageCounts = Object.fromEntries(
 const parityMapDocSource = await readText(
   "docs/acceptance/ocp-4.21.14-console-parity-map.md"
 );
+const dev017PlanSource = await readText(
+  "docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.7-live-polish-plan.md"
+);
 const parityComponentSource = await readText(
   "apps/web/src/components/OcpConsoleParityMatrix.tsx"
 );
@@ -1719,6 +1722,17 @@ expectCheck(
     stylesSource.includes(".ops-decision-flow-grid") &&
     stylesSource.includes(".ops-flow-step"),
   "Operations dashboard shows how native console signals are transformed into OpsLens correlation, operator decision, and assistant handoff"
+);
+
+expectCheck(
+  "Dev 0.1.7 parallel review lane contract",
+  dev017PlanSource.includes("## Parallel Review Setup") &&
+    dev017PlanSource.includes("Compatibility reviewer") &&
+    dev017PlanSource.includes("Runtime reviewer") &&
+    dev017PlanSource.includes("Product reviewer") &&
+    dev017PlanSource.includes("PASS/WEAK/MISSING audit") &&
+    dev017PlanSource.includes("feat/OpsLens-Dev0.1.7"),
+  "Dev 0.1.7 records separate compatibility, runtime, and product review lanes before deployment"
 );
 
 expectCheck(
