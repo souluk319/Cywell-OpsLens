@@ -166,6 +166,7 @@ const explorerCopy = {
     objectPrefix: "Object",
     fallback: "fallback",
     listFailure: "named failure",
+    detailFailure: "detail failure",
     "resource-not-found": "API not discovered",
     "rbac-denied": "RBAC denied",
     "ocp-upstream-read-failed": "upstream read failed",
@@ -298,6 +299,7 @@ const explorerCopy = {
     objectPrefix: "객체",
     fallback: "대체 응답",
     listFailure: "명명된 실패",
+    detailFailure: "상세 실패",
     "resource-not-found": "API 미발견",
     "rbac-denied": "RBAC 거부",
     "ocp-upstream-read-failed": "상위 API 읽기 실패",
@@ -899,7 +901,7 @@ export function OcpResourceExplorer({
           name: item.metadata.name,
           uid: item.metadata.uid,
           limit: 100
-        }),
+        }).catch(() => null),
         fetchOcpRelatedResources({
           apiVersion: resource.apiVersion,
           resource: resource.name,
@@ -987,6 +989,7 @@ export function OcpResourceExplorer({
         ? copy.missing
         : copy.notApplicable;
   const listFailure = list?.failure;
+  const detailFailure = detail?.failure;
   const listSmokeState = listLoading
     ? "loading"
     : listFailure
@@ -1003,6 +1006,8 @@ export function OcpResourceExplorer({
       : copy.pending;
   const detailSmokeState = detailLoading
     ? "loading"
+    : detailFailure
+      ? "missing"
     : detail
       ? "ready"
       : list?.items.length
@@ -1010,6 +1015,8 @@ export function OcpResourceExplorer({
         : "empty";
   const detailSmokeStatus = detailLoading
     ? copy.loadingObject
+    : detailFailure
+      ? formatListFailure(detailFailure, copy)
     : detail
       ? `${detail.item.kind}/${detail.item.metadata.name} (${formatAccess(detail.access.get, copy)})`
       : list?.items.length
@@ -1632,6 +1639,14 @@ export function OcpResourceExplorer({
             <span className="status-pill read-only">
               {formatAccess(detail?.access.get, copy)}
             </span>
+            {detailFailure ? (
+              <span
+                className="status-pill warning"
+                data-testid="ocp-resource-detail-failure-pill"
+              >
+                {copy.detailFailure}
+              </span>
+            ) : null}
             {detail?.fallback ? (
               <span
                 className="status-pill warning"
@@ -1645,6 +1660,16 @@ export function OcpResourceExplorer({
               {copy.redactedCount} {detail?.redaction.sensitiveFieldRedactionCount ?? 0}
             </span>
           </div>
+          {detailFailure ? (
+            <div
+              className="resource-fallback"
+              data-testid="ocp-resource-detail-failure"
+            >
+              <span className="status-pill warning">{copy.detailFailure}</span>
+              <small>{formatListFailure(detailFailure, copy)}</small>
+              <small>{detailFailure.evidence.join(" | ")}</small>
+            </div>
+          ) : null}
           <pre className="object-json" data-testid="ocp-resource-detail">
             {detailLoading
               ? copy.loadingObject

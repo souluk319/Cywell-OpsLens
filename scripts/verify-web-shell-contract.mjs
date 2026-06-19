@@ -1619,14 +1619,18 @@ expectCheck(
     backendServerSource.includes("rbac-denied") &&
     backendServerSource.includes("ocp-upstream-read-failed") &&
     ocpClientSource.includes("failedListResponse") &&
+    ocpClientSource.includes("failedDetailResponse") &&
     ocpClientSource.includes("resource list returned a named failure instead of an unexplained HTTP 400") &&
+    ocpClientSource.includes("resource detail returned a named failure instead of an unexplained HTTP 400") &&
+    ocpClientSource.includes("pagination failure is returned as named data instead of a visible HTTP 400") &&
     ocpClientSource.includes("JSON list fallback succeeded") &&
     explorerSource.includes("findPreferredResourceInOrder") &&
     explorerSource.includes("formatListFailure") &&
     explorerSource.includes('data-testid="ocp-resource-list-failure"') &&
+    explorerSource.includes('data-testid="ocp-resource-detail-failure"') &&
     explorerSource.includes("fetchOcpAccessMatrix({") &&
     explorerSource.includes(".catch(() => null)"),
-  "Resource Explorer exposes named list failures as data, uses preferred API order, and keeps metadata-to-JSON fallback instead of surfacing unexplained visible 400s"
+  "Resource Explorer exposes named list/detail/page failures as data, uses preferred API order, and keeps metadata-to-JSON fallback instead of surfacing unexplained visible 400s"
 );
 
 expectCheck(

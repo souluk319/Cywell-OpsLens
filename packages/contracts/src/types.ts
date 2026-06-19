@@ -4826,6 +4826,7 @@ export interface OcpResourceDetailResponse {
   namespace?: string;
   name: string;
   fallback?: OcpResourceVersionFallback;
+  failure?: OcpResourceListFailure;
   item: OcpResourceSummary;
   raw: unknown;
   access: OcpResourceReadAccess;

@@ -877,7 +877,7 @@ function requestedResourceStub(params: {
 function classifyListFailure(
   message: string,
   evidence: string[]
-): OcpResourceListResponse["failure"] {
+): NonNullable<OcpResourceListResponse["failure"]> {
   const normalized = message.toLowerCase();
 
   if (
@@ -979,6 +979,62 @@ function failedListResponse(params: {
     redaction: {
       secretDataRedacted: true,
       fullSecretFetchBlocked: true
+    }
+  };
+}
+
+function failedDetailResponse(params: {
+  status: OcpConnectionStatus;
+  requested: {
+    apiVersion?: string;
+    kind?: string;
+    resource?: string;
+    namespace?: string;
+    name: string;
+  };
+  resource?: OcpApiResource;
+  access?: OcpResourceAccessReview;
+  message: string;
+  evidence: string[];
+}): OcpResourceDetailResponse {
+  const resource = params.resource ?? requestedResourceStub(params.requested);
+  const failure = classifyListFailure(params.message, params.evidence);
+  const item: OcpResourceSummary = {
+    apiVersion: resource.apiVersion,
+    kind: resource.kind,
+    metadata: {
+      name: params.requested.name,
+      namespace: resource.namespaced ? params.requested.namespace : undefined
+    },
+    dataRedacted: isSecretResource(resource) || undefined
+  };
+
+  return {
+    status: params.status,
+    resource,
+    namespace: resource.namespaced ? params.requested.namespace : undefined,
+    name: params.requested.name,
+    failure,
+    item,
+    raw: {
+      failure: failure.code,
+      message: failure.message,
+      evidence: failure.evidence,
+      requested: {
+        apiVersion: params.requested.apiVersion,
+        resource: params.requested.resource,
+        kind: params.requested.kind,
+        namespace: params.requested.namespace,
+        name: params.requested.name
+      }
+    },
+    access: {
+      get: params.access
+    },
+    redaction: {
+      secretDataRedacted: true,
+      fullSecretFetchBlocked: true,
+      sensitiveFieldRedactionCount: 0
     }
   };
 }
@@ -2741,7 +2797,20 @@ export async function listOcpResource(params: {
     });
   } catch (error) {
     if (params.continueToken) {
-      throw error;
+      const message = compactError(error);
+      return failedListResponse({
+        status: discovery.status,
+        requested: params,
+        resource: match,
+        access,
+        message,
+        evidence: [
+          `${match.apiVersion}/${match.name} continue-page list failed`,
+          message,
+          "pagination failure is returned as named data instead of a visible HTTP 400",
+          "no cluster mutation was attempted"
+        ]
+      });
     }
 
     const originalError = compactError(error);
@@ -2862,19 +2931,49 @@ export async function getOcpResource(params: {
   const config = getOcpConfig();
   const discovery = await discoverOcpResources();
   if (!discovery.status.configured || !discovery.status.reachable) {
-    throw new Error(discovery.status.error ?? "OCP API is not reachable");
+    const message = discovery.status.error ?? "OCP API is not reachable";
+    return failedDetailResponse({
+      status: discovery.status,
+      requested: params,
+      message,
+      evidence: [
+        message,
+        "resource detail returned a named failure instead of an unexplained HTTP 400",
+        "no cluster mutation was attempted"
+      ]
+    });
   }
 
   const match = findDiscoveredResource(discovery, params, "get");
 
   if (!match) {
-    throw new Error("requested OCP resource was not discovered or is not gettable");
+    const requested = `${params.apiVersion ?? "unknown"}/${params.resource ?? params.kind ?? "unknown"}`;
+    return failedDetailResponse({
+      status: discovery.status,
+      requested: params,
+      message: "requested OCP resource was not discovered or is not gettable",
+      evidence: [
+        `${requested} was not found in the discovered gettable API resources`,
+        "the UI can continue with a named detail-failure state",
+        "no cluster mutation was attempted"
+      ]
+    });
   }
 
   if (isSecretResource(match) && !config.allowSecretFetch) {
-    throw new Error(
-      "Secret raw fetch is blocked. Set OCP_ALLOW_SECRET_FETCH=true only after a security review."
-    );
+    const message =
+      "Secret raw fetch is blocked. Set OCP_ALLOW_SECRET_FETCH=true only after a security review.";
+    return failedDetailResponse({
+      status: discovery.status,
+      requested: params,
+      resource: match,
+      message,
+      evidence: [
+        message,
+        `${match.apiVersion}/${match.name} remains blocked by the read-only secret boundary`,
+        "no cluster mutation was attempted"
+      ]
+    });
   }
 
   const access = await reviewResourceAccess(config, match, {
@@ -2883,9 +2982,19 @@ export async function getOcpResource(params: {
     name: params.name
   });
   if (accessDenied(access)) {
-    throw new Error(
-      `RBAC denied get for ${match.apiVersion}/${match.name}: ${access.reason ?? "not allowed"}`
-    );
+    const message = `RBAC denied get for ${match.apiVersion}/${match.name}: ${access.reason ?? "not allowed"}`;
+    return failedDetailResponse({
+      status: discovery.status,
+      requested: params,
+      resource: match,
+      access,
+      message,
+      evidence: [
+        message,
+        "SelfSubjectAccessReview did not allow this read path",
+        "no cluster mutation was attempted"
+      ]
+    });
   }
 
   const path = ocpPathForResource(
@@ -2949,7 +3058,20 @@ export async function getOcpResource(params: {
     }
 
     if (!item) {
-      throw error;
+      const message = compactError(error);
+      return failedDetailResponse({
+        status: discovery.status,
+        requested: params,
+        resource: match,
+        access,
+        message,
+        evidence: [
+          `${match.apiVersion}/${match.name} get failed`,
+          message,
+          "served-version alternates did not produce a readable object detail",
+          "no cluster mutation was attempted"
+        ]
+      });
     }
   }
   const raw = sanitizeResource(item);
