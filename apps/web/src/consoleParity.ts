@@ -22,6 +22,12 @@ export type ConsoleParityActionSurface =
   | "opsbrain"
   | "assistant";
 
+export type ConsoleParityCoverageClass =
+  | "live-view"
+  | "native-deep-link"
+  | "plan-only"
+  | "gap";
+
 export interface ConsoleParityResourcePreset {
   query: string;
   preferredResources: string[];
@@ -44,11 +50,14 @@ export interface ConsoleParityItem {
   opsLensEnhancementKo: string;
   acceptance: string;
   acceptanceKo: string;
+  coverageClass: ConsoleParityCoverageClass;
   status: "covered" | "native-deep-link" | "ops-enhanced" | "read-only-plan";
   resourcePreset?: ConsoleParityResourcePreset;
   evidenceView?: "alerts" | "logs" | "yaml";
   nativeCreatePath?: string;
 }
+
+type ConsoleParityItemDraft = Omit<ConsoleParityItem, "coverageClass">;
 
 export type ConsoleParityFunctionMode =
   | "resource-preset"
@@ -76,8 +85,11 @@ export interface ConsoleParityFunctionSignal {
 
 export const ocpConsoleBaseline = {
   product: "OpenShift Local / OpenShift Container Platform web console",
+  minimumRuntime: "OpenShift Container Platform 4.20",
+  forwardUxTarget: "OpenShift Container Platform 4.21+",
   crcVersion: "OpenShift Local 4.21.14",
   ocpDocVersion: "4.21",
+  compatibilityProof: "Windows CRC 4.20 validation pending",
   perspectiveModel:
     "OCP 4.21 uses the unified web console model introduced in OCP 4.19; Developer can still be enabled, but the administrator shell must not hide cluster console features.",
   sources: [
@@ -126,7 +138,7 @@ export const sectionLabelsKo: Record<ConsoleParitySection, string> = {
   Cywell: "Cywell"
 };
 
-export const ocpConsoleParityItems: ConsoleParityItem[] = [
+const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
   {
     id: "overview",
     section: "Home",
@@ -928,6 +940,30 @@ export const ocpConsoleParityItems: ConsoleParityItem[] = [
   }
 ];
 
+function inferCoverageClass(
+  item: ConsoleParityItemDraft
+): ConsoleParityCoverageClass {
+  if (item.status === "native-deep-link") {
+    return "native-deep-link";
+  }
+
+  if (item.status === "read-only-plan" || item.actionSurface === "assistant") {
+    return "plan-only";
+  }
+
+  if (item.targetSelector.trim().length === 0) {
+    return "gap";
+  }
+
+  return "live-view";
+}
+
+export const ocpConsoleParityItems: ConsoleParityItem[] =
+  ocpConsoleParityItemDrafts.map((item) => ({
+    ...item,
+    coverageClass: inferCoverageClass(item)
+  }));
+
 export function parityCoverageSummary() {
   const nativeCount = ocpConsoleParityItems.filter(
     (item) => item.section !== "Cywell"
@@ -944,6 +980,18 @@ export function parityCoverageSummary() {
   ).length;
   const directSurfaceCount =
     ocpConsoleParityItems.length - resourcePresetCount - evidenceViewCount;
+  const liveViewCount = ocpConsoleParityItems.filter(
+    (item) => item.coverageClass === "live-view"
+  ).length;
+  const nativeDeepLinkCount = ocpConsoleParityItems.filter(
+    (item) => item.coverageClass === "native-deep-link"
+  ).length;
+  const planOnlyCount = ocpConsoleParityItems.filter(
+    (item) => item.coverageClass === "plan-only"
+  ).length;
+  const gapCount = ocpConsoleParityItems.filter(
+    (item) => item.coverageClass === "gap"
+  ).length;
 
   return {
     nativeCount,
@@ -953,6 +1001,10 @@ export function parityCoverageSummary() {
     resourcePresetCount,
     evidenceViewCount,
     directSurfaceCount,
+    liveViewCount,
+    nativeDeepLinkCount,
+    planOnlyCount,
+    gapCount,
     sourceVersion: ocpConsoleBaseline.crcVersion
   };
 }

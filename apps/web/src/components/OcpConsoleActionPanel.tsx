@@ -29,6 +29,7 @@ const actionCopy = {
     titlePrefix: "OpsLens is operating",
     nativePath: "Native OCP path",
     surface: "Active surface",
+    coverageClass: "Coverage class",
     command: "Action",
     enhancement: "OpsLens +@",
     acceptance: "Pass condition",
@@ -64,6 +65,7 @@ const actionCopy = {
     titlePrefix: "OpsLens 작동 중",
     nativePath: "원본 OCP 경로",
     surface: "활성 화면",
+    coverageClass: "지원 분류",
     command: "동작",
     enhancement: "OpsLens +@",
     acceptance: "통과 조건",
@@ -116,6 +118,21 @@ const surfaceLabels = {
     "ops-admin": "OpsLens 관리",
     opsbrain: "OpsBrain",
     assistant: "KOMSCO 어시스턴트"
+  }
+} as const;
+
+const coverageClassLabels = {
+  en: {
+    "live-view": "Live View",
+    "native-deep-link": "Native Deep Link",
+    "plan-only": "Plan-only",
+    gap: "Gap"
+  },
+  ko: {
+    "live-view": "Live View",
+    "native-deep-link": "Native Deep Link",
+    "plan-only": "Plan-only",
+    gap: "Gap"
   }
 } as const;
 
@@ -226,6 +243,15 @@ export function OcpConsoleActionPanel({
           <span>{copy.surface}</span>
           <strong data-testid="console-active-surface">
             {surfaceLabels[language][activeItem.actionSurface]}
+          </strong>
+        </article>
+        <article>
+          <span>{copy.coverageClass}</span>
+          <strong
+            data-testid="console-active-coverage-class"
+            data-coverage-class={activeItem.coverageClass}
+          >
+            {coverageClassLabels[language][activeItem.coverageClass]}
           </strong>
         </article>
         <article>

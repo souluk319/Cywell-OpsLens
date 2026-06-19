@@ -142,14 +142,16 @@ visible.
 | Resource API failure handling | Generic visible `400` failures were replaced with named failure categories. | Backend classifies `resource-not-found`, `rbac-denied`, and `ocp-upstream-read-failed`; frontend displays the response reason. |
 | Metadata fallback | List calls can recover from metadata-list failure by retrying JSON list mode before failing. | `listOcpResource` records `JSON list fallback succeeded` when fallback is used. |
 | Preferred API order | Resource presets now honor the requested order instead of whatever discovery returns first. | `findPreferredResourceInOrder` selects BuildConfig/Build/ImageStream-style presets deterministically. |
-| Local verification | Current local build and web-shell contract pass. | `@kugnus/contracts`, `@kugnus/api`, `@kugnus/web` builds passed; `npm run verify:web-shell` passed with `69` checks. |
+| Menu support classification | Every native console menu item now carries a visible support class. | `coverageClass` maps items to `Live View`, `Native Deep Link`, `Plan-only`, or `Gap`; the parity matrix and active action panel render the class. |
+| Dashboard source labels | Dashboard now separates OpsLens risk data source, native console API source, and Prometheus source. | `opslens-dashboard-source-label` and `opslens-console-source-label` expose live/fixture/unavailable state. |
+| Compatibility boundary UI | The parity matrix now shows the OCP `4.20` minimum runtime, the `4.21.14` reference inventory, and pending Windows `4.20` validation. | Browser DOM check showed `console-compatibility-boundary` with minimum/runtime/proof text and `37` visible parity class entries. |
+| Local verification | Current local build and web-shell contract pass. | `@kugnus/contracts`, `@kugnus/api`, `@kugnus/web` builds passed; latest `npm run verify:web-shell` passed with `71` checks. |
 
 Remaining before calling 0.1.7 complete:
 
-- Add honest class/status fields directly to every native console menu item.
 - Replace more generic Resource Explorer screens with purpose-built native parity
   views for Pods, Deployments, CronJobs, Jobs, HPA, and PDB.
-- Upgrade the main dashboard source labels and live visualizations beyond the
+- Upgrade the main dashboard live visualizations beyond source labels and the
   first topology graph proof.
 - Prove the baseline on the Windows OCP `4.20` CRC test server.
 - Deploy only after the local test page proves the next behavior slice.

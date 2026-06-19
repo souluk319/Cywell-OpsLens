@@ -75,6 +75,12 @@ const dashboardCopy = {
     liveConsoleSyncSubtitle: "Live signals matched from the native console dashboard",
     liveConnected: "live API",
     liveUnavailable: "API unavailable",
+    opsLensSource: "OpsLens risk source",
+    consoleSource: "Native console source",
+    prometheusSource: "Prometheus source",
+    sourceLiveReadonly: "live read-only API",
+    sourceFixture: "fixture / demo data",
+    sourceUnavailable: "unavailable",
     apiEvidence: "API evidence",
     clusterVersion: "OpenShift version",
     channel: "Channel",
@@ -139,6 +145,12 @@ const dashboardCopy = {
     liveConsoleSyncSubtitle: "원본 콘솔 대시보드에서 대응되는 실시간 신호",
     liveConnected: "실제 API",
     liveUnavailable: "API 사용 불가",
+    opsLensSource: "OpsLens 리스크 출처",
+    consoleSource: "원본 콘솔 출처",
+    prometheusSource: "Prometheus 출처",
+    sourceLiveReadonly: "실시간 읽기 전용 API",
+    sourceFixture: "fixture / 데모 데이터",
+    sourceUnavailable: "사용 불가",
     apiEvidence: "API 근거",
     clusterVersion: "OpenShift 버전",
     channel: "채널",
@@ -394,6 +406,19 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
     totalRisks === 0 ? 100 : Math.round((totalEvidenceRefs / (totalRisks * 2)) * 100);
   const sourceLabel =
     dashboard.source === "cluster-readonly" ? copy.readonlySource : copy.mockSource;
+  const opsLensSourceLabel =
+    dashboard.source === "cluster-readonly"
+      ? copy.sourceLiveReadonly
+      : copy.sourceFixture;
+  const consoleSourceLabel = consoleOverview?.status.reachable
+    ? copy.sourceLiveReadonly
+    : copy.sourceUnavailable;
+  const prometheusSourceLabel =
+    consoleDashboard?.utilization.source === "openshift-monitoring"
+      ? "openshift-monitoring"
+      : consoleDashboard?.utilization.source === "disabled"
+        ? "disabled"
+        : copy.sourceUnavailable;
   const generatedAt = new Date(dashboard.generatedAt);
   const generatedAtLabel = Number.isNaN(generatedAt.getTime())
     ? dashboard.generatedAt
@@ -457,6 +482,9 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
             <ShieldCheck size={15} aria-hidden="true" />
             {copy.snapshot}: {sourceLabel}
           </span>
+          <span data-testid="opslens-dashboard-source-label">
+            {copy.opsLensSource}: {opsLensSourceLabel}
+          </span>
         </div>
       </div>
 
@@ -477,6 +505,18 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           >
             {consoleOverview?.status.reachable ? copy.liveConnected : copy.liveUnavailable}
           </span>
+        </div>
+        <div className="source-badge-row" data-testid="opslens-console-source-label">
+          <span>{copy.consoleSource}: {consoleSourceLabel}</span>
+          <span>{copy.prometheusSource}: {prometheusSourceLabel}</span>
+          {consoleOverview?.generatedAt ? (
+            <span>
+              {copy.snapshot}:{" "}
+              {new Date(consoleOverview.generatedAt).toLocaleTimeString(
+                language === "ko" ? "ko-KR" : "en-US"
+              )}
+            </span>
+          ) : null}
         </div>
         <div className="ops-console-sync-grid">
           <article className="ops-console-sync-facts">

@@ -839,6 +839,26 @@ button {
   text-decoration: underline;
 }
 
+.parity-compatibility-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.parity-compatibility-row span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 5px 9px;
+  border: 1px solid #c7d9eb;
+  border-radius: 999px;
+  background: #f4f9ff;
+  color: #003366;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
 .parity-table-wrap {
   max-height: 430px;
   overflow: auto;
@@ -921,6 +941,30 @@ button {
   border-color: #f0ab00;
   background: #fff7e0;
   color: #6a3b00;
+}
+
+.status-pill.coverage-live-view {
+  border-color: #8bc1c2;
+  background: #e7f7f7;
+  color: #003737;
+}
+
+.status-pill.coverage-native-deep-link {
+  border-color: #73bcf7;
+  background: #e7f1fa;
+  color: #002f5d;
+}
+
+.status-pill.coverage-plan-only {
+  border-color: #f0ab00;
+  background: #fff7e0;
+  color: #6a3b00;
+}
+
+.status-pill.coverage-gap {
+  border-color: #c9190b;
+  background: #faeae8;
+  color: #7d1007;
 }
 
 .sr-only {
@@ -1072,6 +1116,25 @@ button {
   color: #6a6e73;
   font-size: 0.8rem;
   line-height: 1.4;
+}
+
+.source-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.source-badge-row span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid #d2d2d2;
+  border-radius: 999px;
+  background: #fafafa;
+  color: #3c3c3c;
+  font-size: 0.74rem;
+  font-weight: 750;
 }
 
 .ops-console-sync-grid {

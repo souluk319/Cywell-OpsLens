@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { Buffer } from "node:buffer";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import ts from "typescript";
 
 const evidenceOut = "test-results/cywell-opslens-web-shell-contract.json";
 const checks = [];
@@ -61,6 +63,24 @@ function sourceSection(source, startMarker, endMarker) {
   return end < 0 ? source.slice(start) : source.slice(start, end);
 }
 
+async function loadTypescriptModule(source, label) {
+  try {
+    const transpiled = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.ES2022,
+        target: ts.ScriptTarget.ES2022,
+        verbatimModuleSyntax: false
+      }
+    }).outputText;
+    return await import(
+      `data:text/javascript;base64,${Buffer.from(transpiled).toString("base64")}`
+    );
+  } catch (error) {
+    fail(`${label} module load`, `${label} could not be evaluated: ${error.message}`);
+    return {};
+  }
+}
+
 const appSource = await readText("apps/web/src/App.tsx");
 const assistantSource = await readText("apps/web/src/components/AssistantPopover.tsx");
 const evidenceSource = await readText("apps/web/src/components/ConsoleEvidencePane.tsx");
@@ -70,6 +90,21 @@ const explorerSource = await readText("apps/web/src/components/OcpResourceExplor
 const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const paritySource = await readText("apps/web/src/consoleParity.ts");
+const parityModule = await loadTypescriptModule(paritySource, "console parity");
+const parityItems = Array.isArray(parityModule.ocpConsoleParityItems)
+  ? parityModule.ocpConsoleParityItems
+  : [];
+const paritySummary =
+  typeof parityModule.parityCoverageSummary === "function"
+    ? parityModule.parityCoverageSummary()
+    : {};
+const coverageClasses = ["live-view", "native-deep-link", "plan-only", "gap"];
+const coverageCounts = Object.fromEntries(
+  coverageClasses.map((coverageClass) => [
+    coverageClass,
+    parityItems.filter((item) => item.coverageClass === coverageClass).length
+  ])
+);
 const parityMapDocSource = await readText(
   "docs/acceptance/ocp-4.21.14-console-parity-map.md"
 );
@@ -1417,6 +1452,9 @@ expectCheck(
 expectCheck(
   "version-pinned OCP console parity registry",
   paritySource.includes("OpenShift Local 4.21.14") &&
+    paritySource.includes("OpenShift Container Platform 4.20") &&
+    paritySource.includes("OpenShift Container Platform 4.21+") &&
+    paritySource.includes("Windows CRC 4.20 validation pending") &&
     paritySource.includes("docs.redhat.com/en/documentation/openshift_container_platform/4.21") &&
     paritySource.includes('"Home"') &&
     paritySource.includes('"Favorites"') &&
@@ -1463,6 +1501,13 @@ expectCheck(
     paritySource.includes("consoleParityFunctionProof") &&
     paritySource.includes("ConsoleParityFunctionSignal") &&
     paritySource.includes("consoleParityFunctionSignal") &&
+    paritySource.includes("ConsoleParityCoverageClass") &&
+    paritySource.includes("inferCoverageClass") &&
+    paritySource.includes("coverageClass: inferCoverageClass(item)") &&
+    paritySource.includes("liveViewCount") &&
+    paritySource.includes("nativeDeepLinkCount") &&
+    paritySource.includes("planOnlyCount") &&
+    paritySource.includes("gapCount") &&
     paritySource.includes("resourcePresetCount") &&
     paritySource.includes("evidenceViewCount") &&
     paritySource.includes("directSurfaceCount") &&
@@ -1471,6 +1516,27 @@ expectCheck(
     appSource.includes("const SectionIcon = sectionIcons[section]") &&
     appSource.includes("consoleParitySections"),
   "OCP 4.21.14 console inventory is version-pinned and drives the OpsLens navigation"
+);
+
+expectCheck(
+  "data-driven console parity coverage classes",
+  parityItems.length > 0 &&
+    parityItems.every(
+      (item) =>
+        typeof item.id === "string" &&
+        item.id.length > 0 &&
+        coverageClasses.includes(item.coverageClass)
+    ) &&
+    coverageClasses.reduce(
+      (sum, coverageClass) => sum + coverageCounts[coverageClass],
+      0
+    ) === parityItems.length &&
+    paritySummary.liveViewCount === coverageCounts["live-view"] &&
+    paritySummary.nativeDeepLinkCount === coverageCounts["native-deep-link"] &&
+    paritySummary.planOnlyCount === coverageCounts["plan-only"] &&
+    paritySummary.gapCount === coverageCounts.gap,
+  "Every registry item has one allowed coverage class and summary counts match the registry",
+  `coverageClasses=${JSON.stringify(coverageCounts)} items=${parityItems.length}`
 );
 
 expectCheck(
@@ -1530,10 +1596,19 @@ expectCheck(
     parityComponentSource.includes('data-testid="console-parity-matrix"') &&
     parityComponentSource.includes('data-testid="console-parity-summary"') &&
     parityComponentSource.includes('data-testid="console-parity-sources"') &&
+    parityComponentSource.includes('data-testid="console-compatibility-boundary"') &&
+    parityComponentSource.includes("ocpConsoleBaseline.minimumRuntime") &&
+    parityComponentSource.includes("ocpConsoleBaseline.compatibilityProof") &&
     parityComponentSource.includes("console-parity-row-${item.id}") &&
     parityComponentSource.includes("data-active-parity-item=") &&
     parityComponentSource.includes("console-parity-open-${item.id}") &&
     parityComponentSource.includes("console-parity-function-${item.id}") &&
+    parityComponentSource.includes("console-parity-class-${item.id}") &&
+    parityComponentSource.includes("coverageClassLabels") &&
+    parityComponentSource.includes("summary.liveViewCount") &&
+    parityComponentSource.includes("summary.nativeDeepLinkCount") &&
+    parityComponentSource.includes("summary.planOnlyCount") &&
+    parityComponentSource.includes("summary.gapCount") &&
     parityComponentSource.includes("data-function-mode={functionProof.mode}") &&
     parityComponentSource.includes("summary.resourcePresetCount") &&
     parityComponentSource.includes("summary.evidenceViewCount") &&
@@ -1543,6 +1618,7 @@ expectCheck(
     parityComponentSource.includes("item.acceptance") &&
     parityComponentSource.includes("consoleParityFunctionProof(item)") &&
     stylesSource.includes(".console-parity-matrix") &&
+    stylesSource.includes(".parity-compatibility-row") &&
     stylesSource.includes(".parity-table") &&
     stylesSource.includes(".parity-function-proof"),
   "dashboard renders a version-pinned table mapping each native OCP console path to an OpsLens action and acceptance contract"
@@ -1556,6 +1632,8 @@ expectCheck(
     actionPanelSource.includes('data-testid="console-active-action"') &&
     actionPanelSource.includes('data-active-console-item={activeItem.id}') &&
     actionPanelSource.includes('data-testid="console-active-surface"') &&
+    actionPanelSource.includes('data-testid="console-active-coverage-class"') &&
+    actionPanelSource.includes("data-coverage-class={activeItem.coverageClass}") &&
     actionPanelSource.includes('data-testid="console-active-command"') &&
     actionPanelSource.includes('data-testid="console-active-acceptance"') &&
     actionPanelSource.includes('data-testid="console-active-target-status"') &&
@@ -1586,6 +1664,20 @@ expectCheck(
     appSource.includes("setActiveTargetStatus(\"missing\")") &&
     stylesSource.includes(".console-action-panel"),
   "each selected OCP console item renders its active surface, action, function mode, outcome, and preferred API contract"
+);
+
+expectCheck(
+  "dashboard live/source label contract",
+  dashboardSource.includes('data-testid="opslens-dashboard-source-label"') &&
+    dashboardSource.includes('data-testid="opslens-console-source-label"') &&
+    dashboardSource.includes("opsLensSourceLabel") &&
+    dashboardSource.includes("consoleSourceLabel") &&
+    dashboardSource.includes("prometheusSourceLabel") &&
+    dashboardSource.includes("sourceLiveReadonly") &&
+    dashboardSource.includes("sourceFixture") &&
+    dashboardSource.includes("sourceUnavailable") &&
+    stylesSource.includes(".source-badge-row"),
+  "Operations dashboard separates OpsLens risk source, native console source, and Prometheus source instead of hiding fixture/live/unavailable state"
 );
 
 expectCheck(
