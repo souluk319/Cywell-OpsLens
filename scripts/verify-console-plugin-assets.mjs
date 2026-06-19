@@ -174,12 +174,12 @@ expectCheck(
       (extension) =>
         extension.type === "console.page/route" &&
         extension.properties?.path === "/opslens" &&
-        extension.properties?.exact === true &&
+        extension.properties?.exact === false &&
         extension.properties?.component?.$codeRef === "OpsLensRoute"
     ) &&
     !manifestExtensions.some((extension) => extension.type === "console.page/route/standalone") &&
     !manifestExtensions.some((extension) => extension.properties?.path === "/cywell-opslens"),
-  "Administrator navigation opens /opslens, whose route is a launcher to the independent OpsLens dashboard asset"
+  "Administrator navigation opens /opslens and /opslens/*, whose route is a launcher to the independent OpsLens dashboard asset"
 );
 
 expectCheck(
