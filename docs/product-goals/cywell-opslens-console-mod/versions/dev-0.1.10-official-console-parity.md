@@ -33,6 +33,7 @@ OpsLens enhancements such as risk grouping, assistant handoff, evidence summarie
 | Monitoring baseline | Red Hat OpenShift 4.20 Validation and Troubleshooting, dashboards and alerts | Observe/Dashboards and Alerting expose graph-based resource utilization, alert state, source, and drill-down details. OpsLens must match that before claiming better visualization. |
 | Topology baseline | Red Hat web console topology documentation | Topology is a graph/list experience with search, filters, grouping, status, route/source shortcuts, and zoom/fit controls. OpsLens must not reduce this to a plain list. |
 | Build baseline | Red Hat OpenShift 4.20 Builds using BuildConfig | BuildConfigs, Builds, ImageStreams, build inputs, and run history remain native OpenShift objects. OpsLens must preserve list/detail/create handoff before adding build risk or release evidence. |
+| Storage baseline | Red Hat OpenShift 4.20 Storage | PVCs, PVs, StorageClasses, and CSI snapshots are first-class console storage resources. OpsLens must preserve binding, capacity, reclaim, provisioner, and snapshot readiness evidence before adding risk analysis. |
 
 Official links:
 
@@ -41,6 +42,7 @@ Official links:
 - https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/pdf/validation_and_troubleshooting/OpenShift_Container_Platform-4.20-Validation_and_troubleshooting-en-US.pdf
 - https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/pdf/building_applications/OpenShift_Container_Platform-4.20-Building_applications-en-US.pdf
 - https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/builds_using_buildconfig/index
+- https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/storage/index
 - https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/observability/web_console/customizing-web-console
 
 ## Official Console Copy Strategy
@@ -54,6 +56,7 @@ The copied baseline is not a visual skin. It is a behavior contract:
 | Workloads resource pages | Native list, status, namespace scope, object details, YAML/raw, events, logs, related resources, create/edit/delete handoff boundary | Guided diagnosis, safe action planning, approval-gated remediation |
 | Monitoring / Observe | Alerting, dashboards, metric query browser, logs/event stream availability, source status, time range/refresh semantics | Evidence scoring, runbook citations, assisted triage |
 | Builds | BuildConfigs, Builds, ImageStreams, inputs, run state, latest history, source/strategy metadata | Release readiness, failed-build clustering, security/review gates |
+| Storage | PVCs, PVs, StorageClasses, VolumeSnapshots, VolumeSnapshotClasses, binding/capacity/provisioner/reclaim/snapshot readiness | Pending-volume diagnosis, workload impact, restore readiness, expansion/reclaim approval plans |
 | Administration | Cluster settings, namespaces, nodes, operators, CRDs, RBAC, machine config, cluster version/update state | Upgrade blockers, policy impact, human-approved change plans |
 
 ## Completed In This Pass
@@ -75,7 +78,9 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 | Monitoring native surface | Implemented | `OcpMonitoringConsole` now gives Monitoring / Alerting, Dashboards, Metrics, and Logs their own Observe-style surfaces using `consoleDashboard`, Prometheus query evidence, monitoring alert samples, and event activity instead of routing them to a generic evidence pane. |
 | Builds native surface | Implemented | `OcpBuildsConsole` now gives Builds, BuildConfigs, and ImageStreams their own native-style surfaces with Build input, strategy, output, trigger, run-policy, ImageStream tag, and native handoff evidence instead of routing only to the generic resource explorer. |
 | Networking native surface | Implemented | `OcpNetworkingConsole` now gives Routes, Services, Ingresses, and NetworkPolicies their own native-style surfaces with route host, service selector, endpoint/EndpointSlice, TLS, backend, DNS, and read-only policy evidence instead of routing only to the generic resource explorer. |
+| Storage native surface | Implemented | `OcpStorageConsole` now gives PVCs, PVs, StorageClasses, VolumeSnapshots, and VolumeSnapshotClasses their own native-style surfaces with binding, capacity, provisioner, reclaim policy, expansion, snapshot readiness, and native handoff evidence instead of routing only to the generic resource explorer. |
 | Endpoint summary preservation | Implemented | `ocpClient` now preserves top-level `Endpoints.subsets` and `EndpointSlice.endpoints` in the resource summary contract so Services can show endpoint evidence. |
+| Storage top-level summary preservation | Implemented | `ocpClient` now preserves top-level `StorageClass` and `VolumeSnapshotClass` fields in the resource summary contract so provisioning and snapshot-class evidence can render. |
 | Internal surface open action | Implemented | `console-active-open-surface` opens the OpsLens internal mapped surface separately from the native OpenShift deep link. |
 | Visible preferred API summary | Implemented | Preferred API resources are visible in the active action panel instead of being hidden inside collapsed details. |
 | Contract checks | Implemented | `verify-web-shell-contract.mjs` fails if the native page summary, Monitoring surface, Builds surface, distribution, preview, or baseline actions disappear. |
@@ -90,7 +95,8 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 | Monitoring menus do not collapse into a generic OpsLens page | Static verifier and navigation E2E check each Monitoring menu mounts a native Observe-style target | `ocp-monitoring-alerting`, `ocp-monitoring-dashboards`, `ocp-monitoring-metrics`, `ocp-monitoring-logs` | Pass: 2026-06-20 local run |
 | Builds menus do not collapse into the generic explorer | Static verifier and navigation E2E check Builds, BuildConfigs, and ImageStreams mount a native Builds-style target | `ocp-builds-builds`, `ocp-builds-buildconfigs`, `ocp-builds-imagestreams` | Pass: 2026-06-20 local run |
 | Networking menus do not collapse into the generic explorer | Static verifier and navigation E2E check Routes, Services, Ingresses, and NetworkPolicies mount a native Networking-style target | `ocp-networking-routes`, `ocp-networking-services`, `ocp-networking-ingresses`, `ocp-networking-network-policies` | Pass: 2026-06-20 local run |
-| Contract prevents regression | Static verifier checks data-testid and helper function contracts | `npm run verify:web-shell` | Pass: 2026-06-20 local run, 88 checks / 0 fail |
+| Storage menus do not collapse into the generic explorer | Static verifier and navigation E2E check PVCs, PVs, StorageClasses, VolumeSnapshots, and VolumeSnapshotClasses mount a native Storage-style target | `ocp-storage-persistentvolumeclaims`, `ocp-storage-persistentvolumes`, `ocp-storage-storageclasses`, `ocp-storage-volumesnapshots`, `ocp-storage-volumesnapshotclasses` | Pass: 2026-06-20 local run |
+| Contract prevents regression | Static verifier checks data-testid and helper function contracts | `npm run verify:web-shell` | Pass: 2026-06-20 local run, 89 checks / 0 fail |
 | Responsive shell does not break | CSS collapses native summary/action grids below 900px | `npm run -w @kugnus/web build` and `git diff --check` | Pass: 2026-06-20 local run |
 | Official docs remain the ceiling source | Product ledger keeps official links and required baseline behavior | this document | Pass for this lane |
 | Every mapped menu remains actionable | E2E clicks every version-pinned navigation item and checks the active surface, function proof, and internal open action | `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-003"` | Pass: 2026-06-20 local run |
@@ -100,8 +106,8 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 The shared native shell and Home overview are not enough by themselves. The next pass must fill each remaining menu with the native console's expected detail:
 
 1. Workloads -> topology, Pods, Deployments, DeploymentConfigs, StatefulSets, Secrets, ConfigMaps, CronJobs, Jobs, DaemonSets, ReplicaSets, ReplicationControllers, HPAs, PDBs.
-2. Storage -> StorageClasses, PVs, PVCs, CSI/volume attachment surfaces when available.
-3. Administration -> ClusterSettings, Namespaces, Nodes, Operators, CRDs, RBAC, MachineConfigPool, ClusterVersion.
+2. Administration -> ClusterSettings, Namespaces, Nodes, Operators, CRDs, RBAC, MachineConfigPool, ClusterVersion.
+3. Storage follow-up -> add selected PVC/PV/StorageClass/Snapshot detail drill-down and native create/expand/restore deep links where the cluster exposes those console routes.
 4. Networking follow-up -> add native create/edit/delete deep links and selected route/service/policy detail drill-down where the cluster exposes those console routes.
 5. Build follow-up -> add native create/start/cancel/log deep links and selected Build detail drill-down where the cluster exposes those console routes.
 6. Monitoring follow-up -> add deeper drill-down from Alerting/Dashboards/Metrics/Logs into exact native console URLs and selected object details where the cluster exposes the API.

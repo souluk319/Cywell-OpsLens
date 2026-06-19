@@ -64,6 +64,10 @@ import {
   OcpNetworkingConsole,
   type OcpNetworkingView
 } from "./components/OcpNetworkingConsole";
+import {
+  OcpStorageConsole,
+  type OcpStorageView
+} from "./components/OcpStorageConsole";
 import { OcpTopologyGraph } from "./components/OcpTopologyGraph";
 import {
   OcpResourceExplorer,
@@ -1209,6 +1213,13 @@ export default function App() {
           <OcpNetworkingConsole
             language={language}
             view={activeNavigation.id as OcpNetworkingView}
+          />
+        );
+      case "storage-console":
+        return (
+          <OcpStorageConsole
+            language={language}
+            view={activeNavigation.id as OcpStorageView}
           />
         );
       case "evidence":

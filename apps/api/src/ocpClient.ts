@@ -652,6 +652,18 @@ function summarizeResource(item: Record<string, unknown>): OcpResourceSummary {
         ? { subsets: item.subsets }
         : kind === "EndpointSlice"
           ? { endpoints: item.endpoints, ports: item.ports, addressType: item.addressType }
+          : kind === "StorageClass"
+            ? {
+                provisioner: item.provisioner,
+                reclaimPolicy: item.reclaimPolicy,
+                volumeBindingMode: item.volumeBindingMode,
+                allowVolumeExpansion: item.allowVolumeExpansion
+              }
+            : kind === "VolumeSnapshotClass"
+              ? {
+                  driver: item.driver,
+                  deletionPolicy: item.deletionPolicy
+                }
           : item.spec;
 
   return {

@@ -91,6 +91,7 @@ const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.
 const monitoringSource = await readText("apps/web/src/components/OcpMonitoringConsole.tsx");
 const buildsSource = await readText("apps/web/src/components/OcpBuildsConsole.tsx");
 const networkingSource = await readText("apps/web/src/components/OcpNetworkingConsole.tsx");
+const storageSource = await readText("apps/web/src/components/OcpStorageConsole.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const paritySource = await readText("apps/web/src/consoleParity.ts");
 const parityModule = await loadTypescriptModule(paritySource, "console parity");
@@ -2292,6 +2293,41 @@ expectCheck(
     stylesSource.includes(".networking-native-boundary") &&
     e2eSource.includes('"networking-console": "Networking console"'),
   "Networking menu items must render native Routes, Services, Ingresses, and NetworkPolicies surfaces with route/service/endpoint/policy evidence instead of routing only to the generic resource explorer"
+);
+
+expectCheck(
+  "official storage console surface contract",
+  paritySource.includes('| "storage-console"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-storage-persistentvolumeclaims\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-storage-persistentvolumes\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-storage-storageclasses\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-storage-volumesnapshots\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-storage-volumesnapshotclasses\']"') &&
+    paritySource.includes('mode: "storage-console"') &&
+    appSource.includes("case \"storage-console\"") &&
+    appSource.includes("<OcpStorageConsole") &&
+    storageSource.includes("export type OcpStorageView") &&
+    storageSource.includes('data-testid={viewTestId(view)}') &&
+    storageSource.includes('data-testid="ocp-storage-toolbar"') &&
+    storageSource.includes('data-testid="ocp-storage-binding-board"') &&
+    storageSource.includes('data-testid="ocp-storage-pvcs-table"') &&
+    storageSource.includes('data-testid="ocp-storage-pvs-table"') &&
+    storageSource.includes('data-testid="ocp-storage-classes-table"') &&
+    storageSource.includes('data-testid="ocp-storage-snapshots-table"') &&
+    storageSource.includes('data-testid="ocp-storage-snapshotclasses-table"') &&
+    storageSource.includes('data-testid="ocp-storage-native-handoff"') &&
+    storageSource.includes("storage.k8s.io/v1") &&
+    storageSource.includes("snapshot.storage.k8s.io/v1") &&
+    storageSource.includes("fetchOcpResourceList") &&
+    ocpClientSource.includes('kind === "StorageClass"') &&
+    ocpClientSource.includes('kind === "VolumeSnapshotClass"') &&
+    stylesSource.includes(".ocp-storage-console") &&
+    stylesSource.includes(".ocp-storage-toolbar") &&
+    stylesSource.includes(".storage-native-grid") &&
+    stylesSource.includes(".native-storage-table") &&
+    stylesSource.includes(".storage-native-boundary") &&
+    e2eSource.includes('"storage-console": "Storage console"'),
+  "Storage menu items must render native PVC, PV, StorageClass, VolumeSnapshot, and VolumeSnapshotClass surfaces with binding/provisioning/snapshot evidence instead of routing only to the generic resource explorer"
 );
 
 expectCheck(

@@ -20,6 +20,7 @@ export type ConsoleParityActionSurface =
   | "monitoring-console"
   | "builds-console"
   | "networking-console"
+  | "storage-console"
   | "ops-dashboard"
   | "ops-admin"
   | "opsbrain"
@@ -68,6 +69,7 @@ export type ConsoleParityFunctionMode =
   | "monitoring-console"
   | "builds-console"
   | "networking-console"
+  | "storage-console"
   | "evidence-view"
   | "overview"
   | "ops-dashboard"
@@ -732,8 +734,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "PersistentVolumeClaims",
     originalPath: "Storage / PersistentVolumeClaims",
     originalPathKo: "스토리지 / PersistentVolumeClaims",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-storage-persistentvolumeclaims']",
+    actionSurface: "storage-console",
     command: "List PVCs, phase, requested capacity, storage class, bound PV, and events.",
     commandKo: "PVC, 상태, 요청 용량, StorageClass, 바인딩된 PV, 이벤트를 조회합니다.",
     opsLensEnhancement: "Adds pending-bound-volume diagnosis and workload impact evidence.",
@@ -753,8 +755,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "PersistentVolumes",
     originalPath: "Storage / PersistentVolumes",
     originalPathKo: "스토리지 / PersistentVolumes",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-storage-persistentvolumes']",
+    actionSurface: "storage-console",
     command: "List PVs, reclaim policy, capacity, claim refs, and node affinity.",
     commandKo: "PV, 회수 정책, 용량, claimRef, 노드 affinity를 조회합니다.",
     opsLensEnhancement: "Adds orphaned-volume and reclaim-risk context.",
@@ -774,8 +776,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "StorageClasses",
     originalPath: "Storage / StorageClasses",
     originalPathKo: "스토리지 / StorageClasses",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-storage-storageclasses']",
+    actionSurface: "storage-console",
     command: "List StorageClasses, provisioners, reclaim policy, and volume binding mode.",
     commandKo: "StorageClass, provisioner, 회수 정책, volume binding mode를 조회합니다.",
     opsLensEnhancement: "Adds install-fit and dynamic provisioning diagnosis.",
@@ -795,8 +797,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "VolumeSnapshots",
     originalPath: "Storage / VolumeSnapshots",
     originalPathKo: "스토리지 / VolumeSnapshots",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-storage-volumesnapshots']",
+    actionSurface: "storage-console",
     command: "List VolumeSnapshots when the snapshot API is installed.",
     commandKo: "Snapshot API가 설치된 경우 VolumeSnapshot을 조회합니다.",
     opsLensEnhancement: "Adds backup/restore evidence without running storage mutations.",
@@ -816,8 +818,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "VolumeSnapshotClasses",
     originalPath: "Storage / VolumeSnapshotClasses",
     originalPathKo: "스토리지 / VolumeSnapshotClasses",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-storage-volumesnapshotclasses']",
+    actionSurface: "storage-console",
     command: "List VolumeSnapshotClasses when snapshot storage APIs are installed.",
     commandKo: "Snapshot storage API가 설치된 경우 VolumeSnapshotClass를 조회합니다.",
     opsLensEnhancement: "Adds snapshot capability readiness evidence.",
@@ -1550,6 +1552,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "storage-console") {
+    return {
+      mode: "storage-console",
+      input: `Storage surface: ${item.id}`,
+      inputKo: `스토리지 화면: ${item.labelKo}`,
+      proof:
+        "Storage target must mount a native Storage-style surface with PVC, PV, StorageClass, VolumeSnapshot, VolumeSnapshotClass, binding, provisioner, reclaim, and snapshot readiness evidence.",
+      proofKo:
+        "스토리지 대상은 PVC, PV, StorageClass, VolumeSnapshot, VolumeSnapshotClass, 바인딩, provisioner, 회수 정책, 스냅샷 준비도 근거를 갖춘 원본 Storage 스타일 화면을 장착해야 합니다."
+    };
+  }
+
   if (item.evidenceView) {
     return {
       mode: "evidence-view",
@@ -1671,6 +1685,16 @@ export function consoleParityFunctionSignal(
         "Networking console surface must expose the selected native Routes, Services, Ingresses, or NetworkPolicies view with live source state.",
       descriptionKo:
         "네트워킹 콘솔 화면은 선택한 원본 Routes, Services, Ingresses, NetworkPolicies 보기를 실시간 출처 상태와 함께 보여야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "storage-console") {
+    return {
+      selector: item.targetSelector,
+      description:
+        "Storage console surface must expose the selected native PVC, PV, StorageClass, VolumeSnapshot, or VolumeSnapshotClass view with live source state.",
+      descriptionKo:
+        "스토리지 콘솔 화면은 선택한 원본 PVC, PV, StorageClass, VolumeSnapshot, VolumeSnapshotClass 보기를 실시간 출처 상태와 함께 보여야 합니다."
     };
   }
 
