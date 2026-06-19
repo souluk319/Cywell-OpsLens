@@ -19,7 +19,6 @@ interface OcpConsoleActionPanelProps {
   language: UiLanguage;
   resourceFunctionOutcome: OcpResourceFunctionOutcome;
   targetStatus: "checking" | "mounted" | "missing";
-  onOpenSurface: () => void;
   onAskAssistant: () => void;
 }
 
@@ -136,6 +135,62 @@ const coverageClassLabels = {
   }
 } as const;
 
+const nativeListPathByItemId: Record<string, string> = {
+  overview: "/dashboards",
+  search: "/search/ns/default",
+  events: "/events/ns/default",
+  "software-catalog": "/catalog/ns/default",
+  operatorhub: "/catalog/ns/default?catalogType=operator",
+  "installed-operators": "/k8s/ns/default/operators.coreos.com~v1alpha1~ClusterServiceVersion",
+  helm: "/helm-releases/ns/default",
+  topology: "/topology/ns/default",
+  workloads: "/k8s/ns/default/core~v1~Pod",
+  deployments: "/k8s/ns/default/apps~v1~Deployment",
+  "deployment-configs": "/k8s/ns/default/apps.openshift.io~v1~DeploymentConfig",
+  statefulsets: "/k8s/ns/default/apps~v1~StatefulSet",
+  secrets: "/k8s/ns/default/core~v1~Secret",
+  configmaps: "/k8s/ns/default/core~v1~ConfigMap",
+  cronjobs: "/k8s/ns/default/batch~v1~CronJob",
+  jobs: "/k8s/ns/default/batch~v1~Job",
+  daemonsets: "/k8s/ns/default/apps~v1~DaemonSet",
+  replicasets: "/k8s/ns/default/apps~v1~ReplicaSet",
+  replicationcontrollers: "/k8s/ns/default/core~v1~ReplicationController",
+  horizontalpodautoscalers: "/k8s/ns/default/autoscaling~v2~HorizontalPodAutoscaler",
+  poddisruptionbudgets: "/k8s/ns/default/policy~v1~PodDisruptionBudget",
+  routes: "/k8s/ns/default/route.openshift.io~v1~Route",
+  services: "/k8s/ns/default/core~v1~Service",
+  ingresses: "/k8s/ns/default/networking.k8s.io~v1~Ingress",
+  "network-policies": "/k8s/ns/default/networking.k8s.io~v1~NetworkPolicy",
+  persistentvolumeclaims: "/k8s/ns/default/core~v1~PersistentVolumeClaim",
+  persistentvolumes: "/k8s/cluster/core~v1~PersistentVolume",
+  storageclasses: "/k8s/cluster/storage.k8s.io~v1~StorageClass",
+  volumesnapshots: "/k8s/ns/default/snapshot.storage.k8s.io~v1~VolumeSnapshot",
+  volumesnapshotclasses: "/k8s/cluster/snapshot.storage.k8s.io~v1~VolumeSnapshotClass",
+  builds: "/k8s/ns/default/build.openshift.io~v1~Build",
+  buildconfigs: "/k8s/ns/default/build.openshift.io~v1~BuildConfig",
+  imagestreams: "/k8s/ns/default/image.openshift.io~v1~ImageStream",
+  monitoring: "/monitoring/alerts",
+  alerting: "/monitoring/alerts",
+  dashboards: "/monitoring/dashboards",
+  metrics: "/monitoring/metrics",
+  logs: "/observe/logs",
+  nodes: "/k8s/cluster/core~v1~Node",
+  machines: "/k8s/ns/openshift-machine-api/machine.openshift.io~v1beta1~Machine",
+  machinesets: "/k8s/ns/openshift-machine-api/machine.openshift.io~v1beta1~MachineSet",
+  machineconfigpools: "/k8s/cluster/machineconfiguration.openshift.io~v1~MachineConfigPool",
+  namespaces: "/k8s/cluster/core~v1~Namespace",
+  users: "/k8s/cluster/user.openshift.io~v1~User",
+  groups: "/k8s/cluster/user.openshift.io~v1~Group",
+  serviceaccounts: "/k8s/ns/default/core~v1~ServiceAccount",
+  roles: "/k8s/ns/default/rbac.authorization.k8s.io~v1~Role",
+  rolebindings: "/k8s/ns/default/rbac.authorization.k8s.io~v1~RoleBinding",
+  "cluster-settings": "/settings/cluster",
+  clusteroperators: "/settings/cluster/clusteroperators",
+  resourcequotas: "/k8s/ns/default/core~v1~ResourceQuota",
+  limitranges: "/k8s/ns/default/core~v1~LimitRange",
+  "custom-resource-definitions": "/k8s/cluster/apiextensions.k8s.io~v1~CustomResourceDefinition"
+};
+
 function nativeConsoleHref(path: string) {
   if (typeof window !== "undefined") {
     const origin = window.location.origin;
@@ -146,12 +201,15 @@ function nativeConsoleHref(path: string) {
   return `https://console-openshift-console.apps-crc.testing${path}`;
 }
 
+function nativeConsolePath(activeItem: ConsoleParityItem) {
+  return nativeListPathByItemId[activeItem.id] ?? "/dashboards";
+}
+
 export function OcpConsoleActionPanel({
   activeItem,
   language,
   resourceFunctionOutcome,
   targetStatus,
-  onOpenSurface,
   onAskAssistant
 }: OcpConsoleActionPanelProps) {
   const copy = actionCopy[language];
@@ -178,6 +236,7 @@ export function OcpConsoleActionPanel({
     language === "ko"
       ? functionSignal.descriptionKo
       : functionSignal.description;
+  const nativePath = nativeConsolePath(activeItem);
   const actionOutcomeState =
     targetStatus !== "mounted"
       ? targetStatus
@@ -223,21 +282,50 @@ export function OcpConsoleActionPanel({
     >
       <div className="console-action-heading">
         <div>
-          <p className="eyebrow">{copy.eyebrow}</p>
+          <p className="eyebrow">{originalPath}</p>
           <h2 id="console-active-action-title">
-            {copy.titlePrefix}: {label}
+            {label}
           </h2>
         </div>
-        <span className="status-pill read-only" data-testid="console-active-boundary">
-          <ShieldCheck size={14} aria-hidden="true" />
-          {copy.readOnly}
-        </span>
+        <div className="console-action-primary-controls">
+          <a
+            className="text-icon-button"
+            data-testid="console-active-native-open"
+            href={nativeConsoleHref(nativePath)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ExternalLink size={15} aria-hidden="true" />
+            OpenShift
+          </a>
+          {activeItem.nativeCreatePath ? (
+            <a
+              className="text-icon-button"
+              data-testid="console-active-native-create"
+              href={nativeConsoleHref(activeItem.nativeCreatePath)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLink size={15} aria-hidden="true" />
+              {copy.nativeCreate}
+            </a>
+          ) : null}
+          <button
+            className="text-icon-button"
+            data-testid="console-active-ask-assistant"
+            type="button"
+            onClick={onAskAssistant}
+          >
+            <Bot size={15} aria-hidden="true" />
+            {copy.askAssistant}
+          </button>
+        </div>
       </div>
 
-      <div className="console-action-grid">
+      <div className="console-native-summary">
         <article>
           <span>{copy.nativePath}</span>
-          <strong data-testid="console-active-path">{originalPath}</strong>
+          <strong data-testid="console-active-path">{nativePath}</strong>
         </article>
         <article>
           <span>{copy.surface}</span>
@@ -246,36 +334,9 @@ export function OcpConsoleActionPanel({
           </strong>
         </article>
         <article>
-          <span>{copy.coverageClass}</span>
-          <strong
-            data-testid="console-active-coverage-class"
-            data-coverage-class={activeItem.coverageClass}
-          >
-            {coverageClassLabels[language][activeItem.coverageClass]}
-          </strong>
-        </article>
-        <article>
-          <span>{copy.resourcePreset}</span>
-          <strong data-testid="console-active-preset-query">
-            {preset?.query ?? copy.noResourcePreset}
-          </strong>
-        </article>
-        <article>
           <span>{copy.targetCheck}</span>
-          <strong
-            data-testid="console-active-target-status"
-            data-target-status={targetStatus}
-          >
+          <strong data-testid="console-active-target-status">
             {targetStatusLabel}
-          </strong>
-        </article>
-        <article>
-          <span>{copy.functionMode}</span>
-          <strong
-            data-function-mode={functionProof.mode}
-            data-testid="console-active-function-mode"
-          >
-            {functionProof.mode}
           </strong>
         </article>
         <article>
@@ -290,98 +351,90 @@ export function OcpConsoleActionPanel({
             {actionOutcomeLabel}
           </strong>
         </article>
-        <article>
-          <span>{copy.functionInput}</span>
-          <strong data-testid="console-active-function-input">
-            {functionInput}
-          </strong>
-        </article>
-        <article>
-          <span>{copy.actionProof}</span>
-          <strong data-testid="console-active-action-proof">
-            {functionProofText}
-          </strong>
-        </article>
-        <article>
-          <span>{copy.functionSignal}</span>
-          <strong
-            data-function-signal-selector={functionSignal.selector}
-            data-testid="console-active-function-signal"
-          >
-            {functionSignalDescription}
-          </strong>
-          <code>{functionSignal.selector}</code>
-        </article>
+        <span className="status-pill read-only" data-testid="console-active-boundary">
+          <ShieldCheck size={14} aria-hidden="true" />
+          {copy.readOnly}
+        </span>
       </div>
 
-      <div className="console-action-detail-grid">
-        <div>
-          <h3>
-            <FileSearch size={15} aria-hidden="true" />
-            {copy.command}
-          </h3>
-          <p data-testid="console-active-command">{command}</p>
+      <details className="console-action-disclosure" data-testid="console-active-opslens-details">
+        <summary>{copy.enhancement}</summary>
+        <div className="console-action-detail-grid">
+          <div>
+            <h3>
+              <FileSearch size={15} aria-hidden="true" />
+              {copy.command}
+            </h3>
+            <p data-testid="console-active-command">{command}</p>
+          </div>
+          <div>
+            <h3>
+              <ArrowRight size={15} aria-hidden="true" />
+              {copy.coverageClass}
+            </h3>
+            <p
+              data-testid="console-active-coverage-class"
+              data-coverage-class={activeItem.coverageClass}
+            >
+              {coverageClassLabels[language][activeItem.coverageClass]}
+            </p>
+          </div>
+          <div>
+            <h3>
+              <ListChecks size={15} aria-hidden="true" />
+              {copy.acceptance}
+            </h3>
+            <p data-testid="console-active-acceptance">{acceptance}</p>
+          </div>
+          <div>
+            <h3>{copy.functionMode}</h3>
+            <p
+              data-function-mode={functionProof.mode}
+              data-testid="console-active-function-mode"
+            >
+              {functionProof.mode}
+            </p>
+          </div>
+          <div>
+            <h3>{copy.functionInput}</h3>
+            <p data-testid="console-active-function-input">{functionInput}</p>
+          </div>
+          <div>
+            <h3>{copy.actionProof}</h3>
+            <p data-testid="console-active-action-proof">{functionProofText}</p>
+          </div>
+          <div>
+            <h3>{copy.functionSignal}</h3>
+            <p
+              data-function-signal-selector={functionSignal.selector}
+              data-testid="console-active-function-signal"
+            >
+              {functionSignalDescription}
+            </p>
+          </div>
+          <div>
+            <h3>{copy.enhancement}</h3>
+            <p data-testid="console-active-enhancement">{enhancement}</p>
+          </div>
+          <div>
+            <h3>{copy.resourcePreset}</h3>
+            <p data-testid="console-active-preset-query">
+              {preset?.query ?? copy.noResourcePreset}
+            </p>
+          </div>
         </div>
-        <div>
-          <h3>
-            <ArrowRight size={15} aria-hidden="true" />
-            {copy.enhancement}
-          </h3>
-          <p data-testid="console-active-enhancement">{enhancement}</p>
-        </div>
-        <div>
-          <h3>
-            <ListChecks size={15} aria-hidden="true" />
-            {copy.acceptance}
-          </h3>
-          <p data-testid="console-active-acceptance">{acceptance}</p>
-        </div>
-      </div>
-
-      {preset ? (
-        <div
-          className="console-action-resources"
-          data-testid="console-active-preferred-resources"
-        >
-          <span>{copy.preferredResources}</span>
-          {preset.preferredResources.map((resource) => (
-            <code key={resource}>{resource}</code>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="console-action-controls">
-        <button
-          className="text-icon-button"
-          data-testid="console-active-open-surface"
-          type="button"
-          onClick={onOpenSurface}
-        >
-          <ArrowRight size={15} aria-hidden="true" />
-          {copy.openSurface}
-        </button>
-        {activeItem.nativeCreatePath ? (
-          <a
-            className="text-icon-button"
-            data-testid="console-active-native-create"
-            href={nativeConsoleHref(activeItem.nativeCreatePath)}
-            target="_blank"
-            rel="noreferrer"
+        {preset ? (
+          <div
+            className="console-action-resources"
+            data-testid="console-active-preferred-resources"
           >
-            <ExternalLink size={15} aria-hidden="true" />
-            {copy.nativeCreate}
-          </a>
+            <span>{copy.preferredResources}</span>
+            {preset.preferredResources.map((resource) => (
+              <code key={resource}>{resource}</code>
+            ))}
+          </div>
         ) : null}
-        <button
-          className="text-icon-button"
-          data-testid="console-active-ask-assistant"
-          type="button"
-          onClick={onAskAssistant}
-        >
-          <Bot size={15} aria-hidden="true" />
-          {copy.askAssistant}
-        </button>
-      </div>
+      </details>
     </section>
   );
 }

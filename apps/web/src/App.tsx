@@ -575,9 +575,6 @@ export default function App() {
     ConsoleParitySection[]
   >(initialExpandedSections);
   const [navCollapsed, setNavCollapsed] = useState(false);
-  const [navigationCommand, setNavigationCommand] = useState(
-    navCommand(findNavigationItem(initialActiveNavId), initialLanguageValue)
-  );
   const [resourcePreset, setResourcePreset] =
     useState<OcpResourcePreset | null>(null);
   const [resourceFunctionOutcome, setResourceFunctionOutcome] =
@@ -733,8 +730,7 @@ export default function App() {
     } catch {
       // Ignore storage failures; the current session still reflects the selection.
     }
-    setNavigationCommand(navCommand(findNavigationItem(activeNavId), language));
-  }, [activeNavId, language]);
+  }, [language]);
 
   useEffect(() => {
     try {
@@ -1011,8 +1007,9 @@ export default function App() {
       current.includes(item.section) ? current : [...current, item.section]
     );
     setActiveNavId(item.id);
-    setNavigationCommand(navCommand(item, language));
-    applyNavigationSideEffects(item);
+    if (item.id === activeNavId) {
+      applyNavigationSideEffects(item);
+    }
   }
 
   function openNativeOcpConsole() {
@@ -1022,21 +1019,11 @@ export default function App() {
     window.location.assign(target);
   }
 
-  function runUtilityAction(
-    label: string,
-    targetSelector: string,
-    openAssistant = false
-  ) {
-    setNavigationCommand(label);
+  function runUtilityAction(targetSelector: string, openAssistant = false) {
     if (openAssistant) {
       setAssistantOpen(true);
     }
     scrollToNavigationTarget(targetSelector);
-  }
-
-  function openActiveNavigationSurface() {
-    applyNavigationSideEffects(activeNavigation);
-    scrollToNavigationTarget(activeNavigation.targetSelector, true);
   }
 
   function askAssistantForActiveNavigation() {
@@ -1077,6 +1064,7 @@ export default function App() {
   }
 
   useEffect(() => {
+    applyNavigationSideEffects(activeNavigation);
     scrollToNavigationTarget(activeNavigation.targetSelector, true);
   }, [activeNavId]);
 
@@ -1260,7 +1248,6 @@ export default function App() {
               aria-label={copy.appLauncher}
               onClick={() =>
                 runUtilityAction(
-                  copy.appLauncherCommand,
                   "[data-testid='opslens-readiness-command-strip']"
                 )
               }
@@ -1275,7 +1262,6 @@ export default function App() {
               aria-label={copy.notifications}
               onClick={() =>
                 runUtilityAction(
-                  copy.notificationsCommand,
                   "#dashboard-title"
                 )
               }
@@ -1291,7 +1277,6 @@ export default function App() {
               aria-label={copy.create}
               onClick={() =>
                 runUtilityAction(
-                  copy.createCommand,
                   "#opslens-admin-title",
                   true
                 )
@@ -1307,7 +1292,6 @@ export default function App() {
               aria-label={copy.help}
               onClick={() =>
                 runUtilityAction(
-                  copy.helpCommand,
                   "#evidence-title",
                   true
                 )
@@ -1430,21 +1414,12 @@ export default function App() {
                 <span key={crumb}>{crumb}</span>
               ))}
             </div>
-            <div
-              className="navigation-command-bar"
-              data-testid="console-navigation-feedback"
-            >
-              <span>{copy.activeSurface}</span>
-              <strong>{navLabel(activeNavigation, language)}</strong>
-              <span>{navigationCommand}</span>
-            </div>
             <OcpConsoleActionPanel
               activeItem={activeNavigation}
               language={language}
               resourceFunctionOutcome={resourceFunctionOutcome}
               targetStatus={activeTargetStatus}
               onAskAssistant={askAssistantForActiveNavigation}
-              onOpenSurface={openActiveNavigationSurface}
             />
             <div
               className="active-surface"

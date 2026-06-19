@@ -264,7 +264,8 @@ const explorerCopy = {
     itemsReturned: "items",
     notApplicable: "not applicable",
     logLines: "log lines",
-    readOnlyGuard: "read-only only: get/list/watch, no create/update/patch/delete"
+    readOnlyGuard: "read-only only: get/list/watch, no create/update/patch/delete",
+    mappingDetails: "Mapping and verification details"
   },
   ko: {
     eyebrow: "실시간 OpenShift API",
@@ -415,7 +416,8 @@ const explorerCopy = {
     itemsReturned: "개 항목",
     notApplicable: "해당 없음",
     logLines: "개 로그 라인",
-    readOnlyGuard: "읽기 전용: get/list/watch만 사용, create/update/patch/delete 없음"
+    readOnlyGuard: "읽기 전용: get/list/watch만 사용, create/update/patch/delete 없음",
+    mappingDetails: "매핑 및 검증 세부 정보"
   }
 } as const;
 
@@ -1277,102 +1279,104 @@ export function OcpResourceExplorer({
         </span>
       </div>
 
-      {navigationPreset ? (
-        <div className="ocp-active-preset" data-testid="ocp-active-preset">
-          <span className="status-pill ready">{copy.autoLoaded}</span>
-          <strong>{copy.activePreset}</strong>
-          <span data-testid="ocp-active-preset-query">
-            {navigationPreset.query}
-          </span>
-          <span>{copy.preferredApis}</span>
-          <code data-testid="ocp-active-preset-resources">
-            {navigationPreset.preferredResources.join(" ")}
-          </code>
-        </div>
-      ) : null}
-
-      <div
-        className="ocp-function-smoke"
+      <details
+        className="ocp-function-details"
         data-testid="ocp-function-smoke"
         aria-label={copy.functionSmoke}
       >
-        <strong>{copy.functionSmoke}</strong>
-        <dl>
-          <div>
-            <dt>{copy.functionOutcome}</dt>
-            <dd
-              data-function-outcome={functionOutcomeState}
-              data-testid="ocp-smoke-function-outcome"
-            >
-              {functionOutcomeStatus}
-            </dd>
+        <summary>{copy.mappingDetails}</summary>
+        {navigationPreset ? (
+          <div className="ocp-active-preset" data-testid="ocp-active-preset">
+            <span className="status-pill ready">{copy.autoLoaded}</span>
+            <strong>{copy.activePreset}</strong>
+            <span data-testid="ocp-active-preset-query">
+              {navigationPreset.query}
+            </span>
+            <span>{copy.preferredApis}</span>
+            <code data-testid="ocp-active-preset-resources">
+              {navigationPreset.preferredResources.join(" ")}
+            </code>
           </div>
-          <div>
-            <dt>{copy.presetMatch}</dt>
-            <dd
-              data-preset-match={presetMatchState}
-              data-testid="ocp-smoke-preset-match"
-            >
-              {presetMatchStatus}
-            </dd>
-          </div>
-          <div>
-            <dt>{copy.selectedApi}</dt>
-            <dd data-testid="ocp-smoke-selected-api">{selectedApiStatus}</dd>
-          </div>
-          <div>
-            <dt>{copy.listStatus}</dt>
-            <dd
-              data-smoke-state={listSmokeState}
-              data-testid="ocp-smoke-list-status"
-            >
-              {listSmokeStatus}
-            </dd>
-          </div>
-          <div>
-            <dt>{copy.detailStatus}</dt>
-            <dd
-              data-smoke-state={detailSmokeState}
-              data-testid="ocp-smoke-detail-status"
-            >
-              {detailSmokeStatus}
-            </dd>
-          </div>
-          <div>
-            <dt>{copy.eventsStatus}</dt>
-            <dd
-              data-smoke-state={eventsSmokeState}
-              data-testid="ocp-smoke-events-status"
-            >
-              {eventsSmokeStatus}
-            </dd>
-          </div>
-          <div>
-            <dt>{copy.logsStatus}</dt>
-            <dd
-              data-smoke-state={logsSmokeState}
-              data-testid="ocp-smoke-logs-status"
-            >
-              {logsSmokeStatus}
-            </dd>
-          </div>
-          <div>
-            <dt>{copy.relatedStatus}</dt>
-            <dd
-              data-smoke-state={relatedSmokeState}
-              data-testid="ocp-smoke-related-status"
-            >
-              {relatedSmokeStatus}
-            </dd>
-          </div>
-          <div>
-            <dt>{copy.mutationGuard}</dt>
-            <dd data-testid="ocp-smoke-mutation-guard">
-              {copy.readOnlyGuard}
-            </dd>
-          </div>
-        </dl>
-      </div>
+        ) : null}
+        <div className="ocp-function-smoke">
+          <strong>{copy.functionSmoke}</strong>
+          <dl>
+            <div>
+              <dt>{copy.functionOutcome}</dt>
+              <dd
+                data-function-outcome={functionOutcomeState}
+                data-testid="ocp-smoke-function-outcome"
+              >
+                {functionOutcomeStatus}
+              </dd>
+            </div>
+            <div>
+              <dt>{copy.presetMatch}</dt>
+              <dd
+                data-preset-match={presetMatchState}
+                data-testid="ocp-smoke-preset-match"
+              >
+                {presetMatchStatus}
+              </dd>
+            </div>
+            <div>
+              <dt>{copy.selectedApi}</dt>
+              <dd data-testid="ocp-smoke-selected-api">{selectedApiStatus}</dd>
+            </div>
+            <div>
+              <dt>{copy.listStatus}</dt>
+              <dd
+                data-smoke-state={listSmokeState}
+                data-testid="ocp-smoke-list-status"
+              >
+                {listSmokeStatus}
+              </dd>
+            </div>
+            <div>
+              <dt>{copy.detailStatus}</dt>
+              <dd
+                data-smoke-state={detailSmokeState}
+                data-testid="ocp-smoke-detail-status"
+              >
+                {detailSmokeStatus}
+              </dd>
+            </div>
+            <div>
+              <dt>{copy.eventsStatus}</dt>
+              <dd
+                data-smoke-state={eventsSmokeState}
+                data-testid="ocp-smoke-events-status"
+              >
+                {eventsSmokeStatus}
+              </dd>
+            </div>
+            <div>
+              <dt>{copy.logsStatus}</dt>
+              <dd
+                data-smoke-state={logsSmokeState}
+                data-testid="ocp-smoke-logs-status"
+              >
+                {logsSmokeStatus}
+              </dd>
+            </div>
+            <div>
+              <dt>{copy.relatedStatus}</dt>
+              <dd
+                data-smoke-state={relatedSmokeState}
+                data-testid="ocp-smoke-related-status"
+              >
+                {relatedSmokeStatus}
+              </dd>
+            </div>
+            <div>
+              <dt>{copy.mutationGuard}</dt>
+              <dd data-testid="ocp-smoke-mutation-guard">
+                {copy.readOnlyGuard}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </details>
 
       {error || status?.error ? (
         <div className="ocp-error" data-testid="ocp-error">

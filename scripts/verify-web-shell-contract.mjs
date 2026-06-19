@@ -550,17 +550,16 @@ expectCheck(
     appSource.includes('data-testid={`console-nav-${item.id}`}') &&
     appSource.includes("function activateNavigation") &&
     appSource.includes("setActiveNavId(item.id)") &&
-    appSource.includes("setNavigationCommand(navCommand(item, language))") &&
     appSource.includes("setEvidenceView(item.evidenceView)") &&
     appSource.includes("setResourcePreset({") &&
     appSource.includes("function runUtilityAction") &&
-    appSource.includes("function openActiveNavigationSurface") &&
+    appSource.includes("function openNativeOcpConsole") &&
     appSource.includes("function askAssistantForActiveNavigation") &&
-    appSource.includes("setNavigationCommand(label)") &&
     appSource.includes("setAssistantOpen(true)") &&
     appSource.includes("scrollToNavigationTarget(targetSelector)") &&
     actionPanelSource.includes('data-testid="console-active-action"') &&
-    actionPanelSource.includes('data-testid="console-active-open-surface"') &&
+    actionPanelSource.includes('data-testid="console-active-native-open"') &&
+    actionPanelSource.includes('data-testid="console-active-opslens-details"') &&
     actionPanelSource.includes('data-testid="console-active-ask-assistant"') &&
     evidenceSource.includes('data-testid="evidence-view-alerts"') &&
     evidenceSource.includes('data-testid="evidence-view-logs"') &&
@@ -1500,11 +1499,26 @@ expectCheck(
     paritySource.includes("PodDisruptionBudgets") &&
     paritySource.includes("nativeCreatePath") &&
     !paritySource.includes("workload-controllers") &&
-    paritySource.includes("Routes, Services, Ingresses") &&
-    paritySource.includes("PVCs, PVs, StorageClasses") &&
-    paritySource.includes("Builds and ImageStreams") &&
-    paritySource.includes("Nodes and Machines") &&
-    paritySource.includes("Users, Groups, Roles") &&
+    paritySource.includes("Routes") &&
+    paritySource.includes("Services") &&
+    paritySource.includes("Ingresses") &&
+    paritySource.includes("NetworkPolicies") &&
+    paritySource.includes("PersistentVolumeClaims") &&
+    paritySource.includes("PersistentVolumes") &&
+    paritySource.includes("StorageClasses") &&
+    paritySource.includes("VolumeSnapshots") &&
+    paritySource.includes("VolumeSnapshotClasses") &&
+    paritySource.includes("BuildConfigs") &&
+    paritySource.includes("ImageStreams") &&
+    paritySource.includes("Nodes") &&
+    paritySource.includes("Machines") &&
+    paritySource.includes("MachineSets") &&
+    paritySource.includes("MachineConfigPools") &&
+    paritySource.includes("ServiceAccounts") &&
+    paritySource.includes("RoleBindings") &&
+    paritySource.includes("ClusterOperators") &&
+    paritySource.includes("ResourceQuotas") &&
+    paritySource.includes("LimitRanges") &&
     paritySource.includes("KOMSCO AI Assistant") &&
     paritySource.includes("ConsoleParityFunctionProof") &&
     paritySource.includes("consoleParityFunctionProof") &&
@@ -1756,6 +1770,8 @@ expectCheck(
     appSource.includes("onAskAssistant={askAssistantForActiveNavigation}") &&
     actionPanelSource.includes('data-testid="console-active-action"') &&
     actionPanelSource.includes('data-active-console-item={activeItem.id}') &&
+    actionPanelSource.includes('data-testid="console-active-native-open"') &&
+    actionPanelSource.includes('data-testid="console-active-opslens-details"') &&
     actionPanelSource.includes('data-testid="console-active-surface"') &&
     actionPanelSource.includes('data-testid="console-active-coverage-class"') &&
     actionPanelSource.includes("data-coverage-class={activeItem.coverageClass}") &&
