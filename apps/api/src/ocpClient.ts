@@ -880,18 +880,24 @@ function classifyListFailure(
 ): NonNullable<OcpResourceListResponse["failure"]> {
   const normalized = message.toLowerCase();
 
+  const failure = (
+    code: NonNullable<OcpResourceListResponse["failure"]>["code"],
+    statusCode: number,
+    retryable: boolean
+  ): NonNullable<OcpResourceListResponse["failure"]> => ({
+    code,
+    statusCode,
+    message: sanitizeOcpFailureMessage(code, message),
+    retryable,
+    evidence: sanitizeOcpFailureEvidence(evidence)
+  });
+
   if (
     normalized.includes("not discovered") ||
     normalized.includes("not listable") ||
     normalized.includes("not found")
   ) {
-    return {
-      code: "resource-not-found",
-      statusCode: 404,
-      message,
-      retryable: false,
-      evidence
-    };
+    return failure("resource-not-found", 404, false);
   }
 
   if (
@@ -899,51 +905,56 @@ function classifyListFailure(
     normalized.includes("forbidden") ||
     normalized.includes("not allowed")
   ) {
-    return {
-      code: "rbac-denied",
-      statusCode: 403,
-      message,
-      retryable: true,
-      evidence
-    };
+    return failure("rbac-denied", 403, true);
   }
 
   if (
     normalized.includes("secret raw fetch is blocked") ||
     normalized.includes("security review")
   ) {
-    return {
-      code: "resource-read-blocked",
-      statusCode: 403,
-      message,
-      retryable: false,
-      evidence
-    };
+    return failure("resource-read-blocked", 403, false);
   }
 
   if (
     normalized.includes("ocp api is not reachable") ||
+    isOcpUpstreamStatusMessage(message) ||
     normalized.includes("timed out") ||
     normalized.includes("socket") ||
     normalized.includes("upstream") ||
     normalized.includes("fallback")
   ) {
-    return {
-      code: "ocp-upstream-read-failed",
-      statusCode: 502,
-      message,
-      retryable: true,
-      evidence
-    };
+    return failure("ocp-upstream-read-failed", 502, true);
   }
 
-  return {
-    code: "bad-request",
-    statusCode: 400,
-    message,
-    retryable: true,
-    evidence
-  };
+  return failure("bad-request", 400, true);
+}
+
+function isOcpUpstreamStatusMessage(value: string) {
+  const normalized = value.toLowerCase();
+  return normalized.includes("ocp api ") && normalized.includes(" returned ");
+}
+
+function sanitizeOcpFailureMessage(
+  code: NonNullable<OcpResourceListResponse["failure"]>["code"],
+  message: string
+) {
+  if (!isOcpUpstreamStatusMessage(message)) {
+    return message;
+  }
+
+  if (code === "ocp-upstream-read-failed") {
+    return "OCP API read returned a non-success status. The request is captured as a named upstream failure; retry after API discovery, route, or RBAC state is confirmed.";
+  }
+
+  return "OCP API read failed for the requested resource. Raw upstream response details are withheld from the UI.";
+}
+
+function sanitizeOcpFailureEvidence(evidence: string[]) {
+  return evidence.map((entry) =>
+    isOcpUpstreamStatusMessage(entry)
+      ? "OCP API read returned a non-success status; upstream body is withheld from the UI"
+      : entry
+  );
 }
 
 function failedListResponse(params: {

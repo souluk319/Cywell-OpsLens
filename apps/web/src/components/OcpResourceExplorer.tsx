@@ -438,7 +438,19 @@ function formatListFailure(
   }
 
   const retryLabel = failure.retryable ? copy.retryable : copy.notRetryable;
-  return `${copy[failure.code]}: ${failure.message} (${retryLabel})`;
+  return `${copy[failure.code]}: ${sanitizeVisibleOcpFailure(failure.message)} (${retryLabel})`;
+}
+
+function sanitizeVisibleOcpFailure(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized.includes("ocp api ") && normalized.includes(" returned ")) {
+    return "OCP API read returned a non-success status; details are kept in the named failure path.";
+  }
+  return value;
+}
+
+function formatFailureEvidence(evidence: string[]) {
+  return evidence.map(sanitizeVisibleOcpFailure).join(" | ");
 }
 
 function countLogLines(logs: OcpPodLogsResponse | null) {
@@ -1511,7 +1523,7 @@ export function OcpResourceExplorer({
                   >
                     <span className="status-pill warning">{copy.listFailure}</span>
                     <small>{formatListFailure(list.failure, copy)}</small>
-                    <small>{list.failure.evidence.join(" | ")}</small>
+                    <small>{formatFailureEvidence(list.failure.evidence)}</small>
                   </div>
                 ) : null}
                 {list?.fallback ? (
@@ -1667,7 +1679,7 @@ export function OcpResourceExplorer({
             >
               <span className="status-pill warning">{copy.detailFailure}</span>
               <small>{formatListFailure(detailFailure, copy)}</small>
-              <small>{detailFailure.evidence.join(" | ")}</small>
+              <small>{formatFailureEvidence(detailFailure.evidence)}</small>
             </div>
           ) : null}
           <pre className="object-json" data-testid="ocp-resource-detail">

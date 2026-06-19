@@ -29,7 +29,7 @@
     "type": "console.page/route",
     "properties": {
       "path": "/opslens",
-      "exact": true,
+      "exact": false,
       "component": { "$codeRef": "OpsLensRoute" }
     }
   }

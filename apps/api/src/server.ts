@@ -121,6 +121,7 @@ function classifyRequestError(error: unknown) {
 
   if (
     normalized.includes("ocp api is not reachable") ||
+    (normalized.includes("ocp api ") && normalized.includes(" returned ")) ||
     normalized.includes("timed out") ||
     normalized.includes("socket") ||
     normalized.includes("upstream") ||

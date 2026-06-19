@@ -326,11 +326,13 @@ expectCheck(
     routeSource.includes("surface=console-plugin") &&
     routeSource.includes("window.location.replace") &&
     consoleExtensionsSource.includes('"href": "/opslens"') &&
+    consoleExtensionsSource.includes('"startsWith": ["/opslens"]') &&
     consoleExtensionsSource.includes('"type": "console.page/route"') &&
     consoleExtensionsSource.includes('"path": "/opslens"') &&
+    consoleExtensionsSource.includes('"exact": false') &&
     consoleExtensionsSource.includes('"$codeRef": "OpsLensRoute"') &&
     !consoleExtensionsSource.includes('"/api/plugins/cywell-opslens/"'),
-  "console navigation opens /opslens first, then a redirect-only route hard-navigates to the standalone OpsLens asset with the UserToken proxy base"
+  "console navigation opens /opslens and /opslens/* first, then a redirect-only route hard-navigates to the standalone OpsLens asset with the UserToken proxy base"
 );
 
 expectCheck(
@@ -1626,12 +1628,17 @@ expectCheck(
     backendServerSource.includes("ocp-upstream-read-failed") &&
     ocpClientSource.includes("failedListResponse") &&
     ocpClientSource.includes("failedDetailResponse") &&
+    ocpClientSource.includes("sanitizeOcpFailureMessage") &&
+    ocpClientSource.includes("sanitizeOcpFailureEvidence") &&
+    ocpClientSource.includes("OCP API read returned a non-success status; upstream body is withheld from the UI") &&
     ocpClientSource.includes("resource list returned a named failure instead of an unexplained HTTP 400") &&
     ocpClientSource.includes("resource detail returned a named failure instead of an unexplained HTTP 400") &&
     ocpClientSource.includes("pagination failure is returned as named data instead of a visible HTTP 400") &&
     ocpClientSource.includes("JSON list fallback succeeded") &&
     explorerSource.includes("findPreferredResourceInOrder") &&
     explorerSource.includes("formatListFailure") &&
+    explorerSource.includes("sanitizeVisibleOcpFailure") &&
+    explorerSource.includes("formatFailureEvidence") &&
     explorerSource.includes('data-testid="ocp-resource-list-failure"') &&
     explorerSource.includes('data-testid="ocp-resource-detail-failure"') &&
     explorerSource.includes("fetchOcpAccessMatrix({") &&
