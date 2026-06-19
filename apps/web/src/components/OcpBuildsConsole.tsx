@@ -15,9 +15,9 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
-import { nativeConsoleHref, nativeResourceCreatePath } from "../lib/nativeConsole";
+import { nativeConsoleHref, nativeObjectPath, nativeResourceCreatePath, type NativeConsoleResourceRef } from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
-import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
+import { OcpNativeObjectDrilldown, type NativeObjectLifecycleAction } from "./OcpNativeObjectDrilldown";
 
 export type OcpBuildsView = "builds" | "buildconfigs" | "imagestreams";
 
@@ -77,6 +77,21 @@ const buildsCopy = {
       "OpenShift build input order: inline Dockerfile, image content, Git, binary input, input secrets, external artifacts.",
     advancedBody:
       "OpenShift supports resource limits, maximum duration, node assignment, chained builds, pruning, and run policy.",
+    actions: {
+      open: "Open native details",
+      startBuild: "Start build",
+      cancelBuild: "Cancel build",
+      streamLogs: "View build logs",
+      editBuildConfig: "Edit BuildConfig",
+      triggerPolicy: "Review triggers",
+      importTags: "Import tags",
+      tagHistory: "Tag history",
+      native: "Uses the OpenShift console object page.",
+      buildRun: "Native Build/BuildConfig action; OpsLens keeps this approval-gated.",
+      buildLogs: "Open the native build page to inspect logs and events.",
+      buildConfigEdit: "Native BuildConfig edit and trigger policy handoff.",
+      imageStreamTags: "Open native ImageStream tags and import state."
+    },
     apiFailure: "API read failed"
   },
   ko: {
@@ -122,6 +137,21 @@ const buildsCopy = {
       "OpenShift 빌드 입력 우선순위: inline Dockerfile, 이미지 콘텐츠, Git, 바이너리 입력, 입력 Secret, 외부 artifact.",
     advancedBody:
       "OpenShift는 리소스 제한, 최대 수행 시간, 노드 지정, 체인 빌드, 프루닝, 실행 정책을 지원합니다.",
+    actions: {
+      open: "원본 상세 열기",
+      startBuild: "빌드 시작",
+      cancelBuild: "빌드 취소",
+      streamLogs: "빌드 로그 보기",
+      editBuildConfig: "BuildConfig 수정",
+      triggerPolicy: "트리거 검토",
+      importTags: "태그 가져오기",
+      tagHistory: "태그 이력",
+      native: "OpenShift 원본 객체 페이지를 사용합니다.",
+      buildRun: "원본 Build/BuildConfig 작업입니다. OpsLens에서는 승인 기반 실행으로 둡니다.",
+      buildLogs: "원본 빌드 페이지에서 로그와 이벤트를 확인합니다.",
+      buildConfigEdit: "원본 BuildConfig 수정과 트리거 정책으로 연결합니다.",
+      imageStreamTags: "원본 ImageStream 태그와 import 상태로 연결합니다."
+    },
     apiFailure: "API 조회 실패"
   }
 } as const;
@@ -244,6 +274,42 @@ function statusReachable(state: ResourceState) {
 
 function viewTestId(view: OcpBuildsView) {
   return `ocp-builds-${view}`;
+}
+
+function buildLifecycleActions(
+  item: OcpResourceSummary,
+  resource: NativeConsoleResourceRef,
+  language: UiLanguage
+): NativeObjectLifecycleAction[] {
+  const text = buildsCopy[language].actions;
+  const nativeHref = nativeConsoleHref(nativeObjectPath(resource, item));
+  const actions: NativeObjectLifecycleAction[] = [
+    { id: "open", label: text.open, description: text.native, href: nativeHref }
+  ];
+
+  if (item.kind === "Build") {
+    actions.push(
+      { id: "build-logs", label: text.streamLogs, description: text.buildLogs, href: nativeHref },
+      { id: "cancel-build", label: text.cancelBuild, description: text.buildRun, href: nativeHref }
+    );
+  }
+
+  if (item.kind === "BuildConfig") {
+    actions.push(
+      { id: "start-build", label: text.startBuild, description: text.buildRun, href: nativeHref },
+      { id: "edit-buildconfig", label: text.editBuildConfig, description: text.buildConfigEdit, href: nativeHref },
+      { id: "trigger-policy", label: text.triggerPolicy, description: text.buildConfigEdit, href: nativeHref }
+    );
+  }
+
+  if (item.kind === "ImageStream") {
+    actions.push(
+      { id: "import-tags", label: text.importTags, description: text.imageStreamTags, href: nativeHref },
+      { id: "tag-history", label: text.tagHistory, description: text.imageStreamTags, href: nativeHref }
+    );
+  }
+
+  return actions;
 }
 
 const buildResources = [
@@ -704,6 +770,7 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
       <OcpNativeObjectDrilldown
         language={language}
         resource={drilldown.resource}
+        lifecycleActionsForItem={(item, resource) => buildLifecycleActions(item, resource, language)}
         items={drilldown.items}
         title={drilldown.title}
         testId="ocp-builds-object"

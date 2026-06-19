@@ -2535,6 +2535,11 @@ expectCheck(
     buildsSource.includes('data-testid="ocp-buildconfigs-table"') &&
     buildsSource.includes('data-testid="ocp-imagestreams-table"') &&
     buildsSource.includes('data-testid="ocp-builds-native-handoff"') &&
+    buildsSource.includes("buildLifecycleActions") &&
+    buildsSource.includes("lifecycleActionsForItem={(item, resource) => buildLifecycleActions(item, resource, language)}") &&
+    buildsSource.includes('id: "start-build"') &&
+    buildsSource.includes('id: "cancel-build"') &&
+    buildsSource.includes('id: "tag-history"') &&
     buildsSource.includes("fetchOcpResourceList") &&
     buildsSource.includes("build.openshift.io/v1") &&
     buildsSource.includes("image.openshift.io/v1") &&
@@ -2574,6 +2579,11 @@ expectCheck(
     networkingSource.includes('data-testid="ocp-networking-ingresses-table"') &&
     networkingSource.includes('data-testid="ocp-networking-policies-table"') &&
     networkingSource.includes('data-testid="ocp-networking-native-handoff"') &&
+    networkingSource.includes("networkingLifecycleActions") &&
+    networkingSource.includes("lifecycleActionsForItem={(item, resource) => networkingLifecycleActions(item, resource, language)}") &&
+    networkingSource.includes('id: "review-exposure"') &&
+    networkingSource.includes('id: "inspect-endpoints"') &&
+    networkingSource.includes('id: "edit-policy"') &&
     networkingSource.includes("route.openshift.io/v1") &&
     networkingSource.includes("discovery.k8s.io/v1") &&
     networkingSource.includes("networking.k8s.io/v1") &&
@@ -2617,6 +2627,11 @@ expectCheck(
     storageSource.includes('data-testid="ocp-storage-snapshots-table"') &&
     storageSource.includes('data-testid="ocp-storage-snapshotclasses-table"') &&
     storageSource.includes('data-testid="ocp-storage-native-handoff"') &&
+    storageSource.includes("storageLifecycleActions") &&
+    storageSource.includes("lifecycleActionsForItem={(item, resource) => storageLifecycleActions(item, resource, language)}") &&
+    storageSource.includes('id: "expand-pvc"') &&
+    storageSource.includes('id: "reclaim-policy"') &&
+    storageSource.includes('id: "snapshot-restore"') &&
     storageSource.includes("storage.k8s.io/v1") &&
     storageSource.includes("snapshot.storage.k8s.io/v1") &&
     storageSource.includes("fetchOcpResourceList") &&

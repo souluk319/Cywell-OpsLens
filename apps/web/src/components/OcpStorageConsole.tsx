@@ -14,9 +14,9 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
-import { nativeConsoleHref, nativeResourceCreatePath } from "../lib/nativeConsole";
+import { nativeConsoleHref, nativeObjectPath, nativeResourceCreatePath, type NativeConsoleResourceRef } from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
-import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
+import { OcpNativeObjectDrilldown, type NativeObjectLifecycleAction } from "./OcpNativeObjectDrilldown";
 
 export type OcpStorageView =
   | "persistentvolumeclaims"
@@ -93,6 +93,21 @@ const storageCopy = {
     nativeHandoff: "Native handoff",
     createBoundary:
       "Create, edit, expand, delete, and restore remain native OpenShift actions. OpsLens mirrors the console inventory and adds impact/risk evidence.",
+    actions: {
+      open: "Open native details",
+      expandPvc: "Review PVC expansion",
+      inspectWorkloads: "Inspect mounted workloads",
+      reclaimPv: "Review reclaim policy",
+      defaultClass: "Review default class",
+      snapshotRestore: "Review restore",
+      snapshotPolicy: "Review snapshot policy",
+      native: "Uses the OpenShift console object page.",
+      pvcExpansion: "Native PVC expansion handoff; OpsLens keeps mutation approval-gated.",
+      workloadImpact: "Inspect workloads and claims related to this storage object.",
+      pvReclaim: "Native PV reclaim and binding handoff.",
+      classProvisioning: "Native StorageClass provisioner, binding, and default-class handoff.",
+      snapshotRestorePlan: "Native VolumeSnapshot restore readiness handoff."
+    },
     apiFailure: "API read failed"
   },
   ko: {
@@ -149,6 +164,21 @@ const storageCopy = {
     nativeHandoff: "원본 기능 연결",
     createBoundary:
       "생성, 수정, 확장, 삭제, 복구는 OpenShift 원본 기능으로 남깁니다. OpsLens는 콘솔 인벤토리를 복제하고 영향/리스크 근거를 추가합니다.",
+    actions: {
+      open: "원본 상세 열기",
+      expandPvc: "PVC 확장 검토",
+      inspectWorkloads: "마운트 워크로드 확인",
+      reclaimPv: "회수 정책 검토",
+      defaultClass: "기본 클래스 검토",
+      snapshotRestore: "복구 검토",
+      snapshotPolicy: "스냅샷 정책 검토",
+      native: "OpenShift 원본 객체 페이지를 사용합니다.",
+      pvcExpansion: "원본 PVC 확장 기능으로 연결합니다. OpsLens에서는 변경을 승인 기반으로 둡니다.",
+      workloadImpact: "이 스토리지 객체와 연결된 워크로드와 claim을 확인합니다.",
+      pvReclaim: "원본 PV 회수 정책과 바인딩 화면으로 연결합니다.",
+      classProvisioning: "원본 StorageClass provisioner, binding, 기본 클래스 설정으로 연결합니다.",
+      snapshotRestorePlan: "원본 VolumeSnapshot 복구 준비도 화면으로 연결합니다."
+    },
     apiFailure: "API 조회 실패"
   }
 } as const;
@@ -258,6 +288,52 @@ function statusReachable(state: ResourceState) {
 
 function viewTestId(view: OcpStorageView) {
   return `ocp-storage-${view}`;
+}
+
+function storageLifecycleActions(
+  item: OcpResourceSummary,
+  resource: NativeConsoleResourceRef,
+  language: UiLanguage
+): NativeObjectLifecycleAction[] {
+  const text = storageCopy[language].actions;
+  const nativeHref = nativeConsoleHref(nativeObjectPath(resource, item));
+  const actions: NativeObjectLifecycleAction[] = [
+    { id: "open", label: text.open, description: text.native, href: nativeHref }
+  ];
+
+  if (item.kind === "PersistentVolumeClaim") {
+    actions.push(
+      { id: "expand-pvc", label: text.expandPvc, description: text.pvcExpansion, href: nativeHref },
+      { id: "inspect-mounted-workloads", label: text.inspectWorkloads, description: text.workloadImpact, href: nativeHref }
+    );
+  }
+
+  if (item.kind === "PersistentVolume") {
+    actions.push(
+      { id: "reclaim-policy", label: text.reclaimPv, description: text.pvReclaim, href: nativeHref },
+      { id: "inspect-claims", label: text.inspectWorkloads, description: text.workloadImpact, href: nativeHref }
+    );
+  }
+
+  if (item.kind === "StorageClass") {
+    actions.push(
+      { id: "default-class", label: text.defaultClass, description: text.classProvisioning, href: nativeHref }
+    );
+  }
+
+  if (item.kind === "VolumeSnapshot") {
+    actions.push(
+      { id: "snapshot-restore", label: text.snapshotRestore, description: text.snapshotRestorePlan, href: nativeHref }
+    );
+  }
+
+  if (item.kind === "VolumeSnapshotClass") {
+    actions.push(
+      { id: "snapshot-policy", label: text.snapshotPolicy, description: text.snapshotRestorePlan, href: nativeHref }
+    );
+  }
+
+  return actions;
 }
 
 const storageResources = [
@@ -772,6 +848,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
       <OcpNativeObjectDrilldown
         language={language}
         resource={drilldown.resource}
+        lifecycleActionsForItem={(item, resource) => storageLifecycleActions(item, resource, language)}
         items={drilldown.items}
         title={drilldown.title}
         testId="ocp-storage-object"

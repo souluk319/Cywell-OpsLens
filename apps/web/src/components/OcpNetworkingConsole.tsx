@@ -14,9 +14,9 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
-import { nativeConsoleHref, nativeResourceCreatePath } from "../lib/nativeConsole";
+import { nativeConsoleHref, nativeObjectPath, nativeResourceCreatePath, type NativeConsoleResourceRef } from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
-import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
+import { OcpNativeObjectDrilldown, type NativeObjectLifecycleAction } from "./OcpNativeObjectDrilldown";
 
 export type OcpNetworkingView = "routes" | "services" | "ingresses" | "network-policies";
 
@@ -84,6 +84,20 @@ const networkingCopy = {
     nativeHandoff: "Native handoff",
     createBoundary:
       "Create, edit, and delete remain native OpenShift actions. OpsLens keeps the route/service/policy graph read-only and prepares approval-gated change plans.",
+    actions: {
+      open: "Open native details",
+      expose: "Review exposure",
+      editRoute: "Edit Route",
+      editService: "Edit Service",
+      inspectEndpoints: "Inspect endpoints",
+      editIngress: "Edit Ingress",
+      editPolicy: "Edit policy",
+      native: "Uses the OpenShift console object page.",
+      routeExposure: "Native Route action for host, TLS, target service, and path settings.",
+      serviceSelection: "Native Service action for selectors, ports, and endpoint inspection.",
+      ingressRouting: "Native Ingress routing and TLS handoff.",
+      policyBoundary: "Native NetworkPolicy edit; OpsLens keeps mutation approval-gated."
+    },
     apiFailure: "API read failed"
   },
   ko: {
@@ -134,6 +148,20 @@ const networkingCopy = {
     nativeHandoff: "원본 기능 연결",
     createBoundary:
       "생성, 수정, 삭제는 OpenShift 원본 기능으로 남깁니다. OpsLens는 Route/Service/Policy 그래프를 읽기 전용으로 유지하고 승인 기반 변경 계획을 준비합니다.",
+    actions: {
+      open: "원본 상세 열기",
+      expose: "노출 상태 검토",
+      editRoute: "Route 수정",
+      editService: "Service 수정",
+      inspectEndpoints: "Endpoint 확인",
+      editIngress: "Ingress 수정",
+      editPolicy: "정책 수정",
+      native: "OpenShift 원본 객체 페이지를 사용합니다.",
+      routeExposure: "호스트, TLS, 대상 Service, path 설정을 원본 Route 기능으로 연결합니다.",
+      serviceSelection: "selector, port, endpoint 확인을 원본 Service 기능으로 연결합니다.",
+      ingressRouting: "원본 Ingress 라우팅과 TLS 설정으로 연결합니다.",
+      policyBoundary: "원본 NetworkPolicy 수정입니다. OpsLens에서는 변경을 승인 기반으로 둡니다."
+    },
     apiFailure: "API 조회 실패"
   }
 } as const;
@@ -281,6 +309,46 @@ function statusReachable(state: ResourceState) {
 
 function viewTestId(view: OcpNetworkingView) {
   return `ocp-networking-${view}`;
+}
+
+function networkingLifecycleActions(
+  item: OcpResourceSummary,
+  resource: NativeConsoleResourceRef,
+  language: UiLanguage
+): NativeObjectLifecycleAction[] {
+  const text = networkingCopy[language].actions;
+  const nativeHref = nativeConsoleHref(nativeObjectPath(resource, item));
+  const actions: NativeObjectLifecycleAction[] = [
+    { id: "open", label: text.open, description: text.native, href: nativeHref }
+  ];
+
+  if (item.kind === "Route") {
+    actions.push(
+      { id: "review-exposure", label: text.expose, description: text.routeExposure, href: nativeHref },
+      { id: "edit-route", label: text.editRoute, description: text.routeExposure, href: nativeHref }
+    );
+  }
+
+  if (item.kind === "Service") {
+    actions.push(
+      { id: "edit-service", label: text.editService, description: text.serviceSelection, href: nativeHref },
+      { id: "inspect-endpoints", label: text.inspectEndpoints, description: text.serviceSelection, href: nativeHref }
+    );
+  }
+
+  if (item.kind === "Ingress") {
+    actions.push(
+      { id: "edit-ingress", label: text.editIngress, description: text.ingressRouting, href: nativeHref }
+    );
+  }
+
+  if (item.kind === "NetworkPolicy") {
+    actions.push(
+      { id: "edit-policy", label: text.editPolicy, description: text.policyBoundary, href: nativeHref }
+    );
+  }
+
+  return actions;
 }
 
 const networkingResources = [
@@ -753,6 +821,7 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
       <OcpNativeObjectDrilldown
         language={language}
         resource={drilldown.resource}
+        lifecycleActionsForItem={(item, resource) => networkingLifecycleActions(item, resource, language)}
         items={drilldown.items}
         title={drilldown.title}
         testId="ocp-networking-object"
