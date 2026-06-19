@@ -32,13 +32,29 @@ OpsLens enhancements such as risk grouping, assistant handoff, evidence summarie
 | Home overview baseline | Red Hat OpenShift 4.20 Validation and Troubleshooting, reviewing cluster status in web console | Home overview includes cluster status, control plane/operators/storage, CPU/memory/filesystem/network/pod availability, API address, cluster ID, version/update info, and inventory. |
 | Monitoring baseline | Red Hat OpenShift 4.20 Validation and Troubleshooting, dashboards and alerts | Observe/Dashboards and Alerting expose graph-based resource utilization, alert state, source, and drill-down details. OpsLens must match that before claiming better visualization. |
 | Topology baseline | Red Hat web console topology documentation | Topology is a graph/list experience with search, filters, grouping, status, route/source shortcuts, and zoom/fit controls. OpsLens must not reduce this to a plain list. |
+| Build baseline | Red Hat OpenShift 4.20 Builds using BuildConfig | BuildConfigs, Builds, ImageStreams, build inputs, and run history remain native OpenShift objects. OpsLens must preserve list/detail/create handoff before adding build risk or release evidence. |
 
 Official links:
 
 - https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/pdf/web_console/OpenShift_Container_Platform-4.20-Web_console-en-US.pdf
 - https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/web_console/dynamic-plugins
-- https://docs.redhat.com/fr/documentation/openshift_container_platform/4.20/html-single/validation_and_troubleshooting/index
+- https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/pdf/validation_and_troubleshooting/OpenShift_Container_Platform-4.20-Validation_and_troubleshooting-en-US.pdf
+- https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/pdf/building_applications/OpenShift_Container_Platform-4.20-Building_applications-en-US.pdf
+- https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/builds_using_buildconfig/index
 - https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/observability/web_console/customizing-web-console
+
+## Official Console Copy Strategy
+
+The copied baseline is not a visual skin. It is a behavior contract:
+
+| Native console surface | What OpsLens must copy first | What OpsLens can add after parity |
+| --- | --- | --- |
+| Home / Overview | Details, inventory, status, activity, utilization, update/channel information, and explicit unavailable states | Cross-signal incident summary, assistant handoff, evidence freshness |
+| Workloads / Topology | Graph/list toggle, search, resource filters, display options, zoom/fit controls, workload relationships, route/source shortcuts | Risk overlays, owner-chain drift, incident path highlighting |
+| Workloads resource pages | Native list, status, namespace scope, object details, YAML/raw, events, logs, related resources, create/edit/delete handoff boundary | Guided diagnosis, safe action planning, approval-gated remediation |
+| Monitoring / Observe | Alerting, dashboards, metric query browser, logs/event stream availability, source status, time range/refresh semantics | Evidence scoring, runbook citations, assisted triage |
+| Builds | BuildConfigs, Builds, ImageStreams, inputs, run state, latest history, source/strategy metadata | Release readiness, failed-build clustering, security/review gates |
+| Administration | Cluster settings, namespaces, nodes, operators, CRDs, RBAC, machine config, cluster version/update state | Upgrade blockers, policy impact, human-approved change plans |
 
 ## Completed In This Pass
 
@@ -56,6 +72,7 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 | Home overview inventory panel | Implemented | `ocp-overview-inventory-card` exposes nodes, pods, storage classes, PVCs, routes, and services from the live `consoleDashboard.inventory` contract. |
 | Home overview status and activity panels | Implemented | `ocp-overview-status-cards` and `ocp-overview-activity-card` render ClusterVersion/operator/alert/event status cards and recent Event activity instead of only the OpsLens visual cards. |
 | Home overview utilization panel | Implemented | Existing utilization sparklines are now positioned as one of the official Home overview panels, sourced from Prometheus when reachable and explicitly marked unavailable when not. |
+| Monitoring native surface | Implemented | `OcpMonitoringConsole` now gives Monitoring / Alerting, Dashboards, Metrics, and Logs their own Observe-style surfaces using `consoleDashboard`, Prometheus query evidence, monitoring alert samples, and event activity instead of routing them to a generic evidence pane. |
 | Internal surface open action | Implemented | `console-active-open-surface` opens the OpsLens internal mapped surface separately from the native OpenShift deep link. |
 | Visible preferred API summary | Implemented | Preferred API resources are visible in the active action panel instead of being hidden inside collapsed details. |
 | Contract checks | Implemented | `verify-web-shell-contract.mjs` fails if the native page summary, distribution, preview, or baseline actions disappear. |
@@ -66,8 +83,9 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 | Criterion | Pass/fail method | Evidence target | Current gap |
 | --- | --- | --- | --- |
 | Native resource pages render first | E2E checks `ocp-native-page-summary`, table, and object detail before raw API explorer | `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-OCP-001"` | Pass: 2026-06-20 local run |
-| Home overview matches official panel set | E2E and static verifier check Details, Cluster Inventory, Status, Activity, and Utilization panels | `ocp-overview-details-card`, `ocp-overview-inventory-card`, `ocp-overview-status-cards`, `ocp-overview-activity-card`, `ocp-overview-utilization` | Implemented in this pass; verification pending after edit |
-| Contract prevents regression | Static verifier checks data-testid and helper function contracts | `npm run verify:web-shell` | Pass: 2026-06-20 local run, 84 checks / 0 fail |
+| Home overview matches official panel set | E2E and static verifier check Details, Cluster Inventory, Status, Activity, and Utilization panels | `ocp-overview-details-card`, `ocp-overview-inventory-card`, `ocp-overview-status-cards`, `ocp-overview-activity-card`, `ocp-overview-utilization` | Pass: 2026-06-20 local run |
+| Monitoring menus do not collapse into a generic OpsLens page | Static verifier and navigation E2E check each Monitoring menu mounts a native Observe-style target | `ocp-monitoring-alerting`, `ocp-monitoring-dashboards`, `ocp-monitoring-metrics`, `ocp-monitoring-logs` | Pass: 2026-06-20 local run |
+| Contract prevents regression | Static verifier checks data-testid and helper function contracts | `npm run verify:web-shell` | Pass: 2026-06-20 local run, 86 checks / 0 fail |
 | Responsive shell does not break | CSS collapses native summary/action grids below 900px | `npm run -w @kugnus/web build` and `git diff --check` | Pass: 2026-06-20 local run |
 | Official docs remain the ceiling source | Product ledger keeps official links and required baseline behavior | this document | Pass for this lane |
 | Every mapped menu remains actionable | E2E clicks every version-pinned navigation item and checks the active surface, function proof, and internal open action | `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-UI-003"` | Pass: 2026-06-20 local run |
@@ -80,8 +98,8 @@ The shared native shell and Home overview are not enough by themselves. The next
 2. Networking -> Services, Routes, Ingresses, NetworkPolicies.
 3. Storage -> StorageClasses, PVs, PVCs, CSI/volume attachment surfaces when available.
 4. Build -> Builds, BuildConfigs, ImageStreams.
-5. Monitoring/Observe -> alerts, dashboards, metrics, logs, targets where the cluster exposes them.
-6. Administration -> ClusterSettings, Namespaces, Nodes, Operators, CRDs, RBAC, MachineConfigPool, ClusterVersion.
+5. Administration -> ClusterSettings, Namespaces, Nodes, Operators, CRDs, RBAC, MachineConfigPool, ClusterVersion.
+6. Monitoring follow-up -> add deeper drill-down from Alerting/Dashboards/Metrics/Logs into exact native console URLs and selected object details where the cluster exposes the API.
 
 Each item must be one of:
 

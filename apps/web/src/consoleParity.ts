@@ -17,6 +17,7 @@ export type ConsoleParityActionSurface =
   | "evidence"
   | "resource-explorer"
   | "topology-graph"
+  | "monitoring-console"
   | "ops-dashboard"
   | "ops-admin"
   | "opsbrain"
@@ -62,6 +63,7 @@ type ConsoleParityItemDraft = Omit<ConsoleParityItem, "coverageClass">;
 export type ConsoleParityFunctionMode =
   | "resource-preset"
   | "topology-graph"
+  | "monitoring-console"
   | "evidence-view"
   | "overview"
   | "ops-dashboard"
@@ -897,16 +899,15 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "경고",
     originalPath: "Monitoring / Alerting",
     originalPathKo: "모니터링 / 경고",
-    targetSelector: "[data-testid='alert-table-wrap']",
-    actionSurface: "evidence",
-    command: "Inspect firing alerts and keep the assistant grounded in alert, log, event, and YAML evidence.",
-    commandKo: "발생 중인 경고를 보고 어시스턴트 답변을 경고, 로그, 이벤트, YAML 근거에 고정합니다.",
-    opsLensEnhancement: "Adds evidence-scored incident triage and KOMSCO answer citations.",
-    opsLensEnhancementKo: "근거 점수 기반 장애 분석과 KOMSCO 답변 출처를 추가합니다.",
-    acceptance: "Alerting opens the evidence pane and asks only read-only/plan-only questions.",
-    acceptanceKo: "경고 화면은 근거 패널을 열고 읽기 전용/계획 전용 질문만 수행해야 합니다.",
-    status: "ops-enhanced",
-    evidenceView: "alerts"
+    targetSelector: "[data-testid='ocp-monitoring-alerting']",
+    actionSurface: "monitoring-console",
+    command: "Inspect firing alerts in an OpenShift Observe-style alert table with source, severity, namespace, and state.",
+    commandKo: "OpenShift Observe 스타일 경고 표에서 발생 중인 경고의 출처, 심각도, 네임스페이스, 상태를 확인합니다.",
+    opsLensEnhancement: "Adds evidence-scored incident triage and KOMSCO answer citations after the native alert baseline is visible.",
+    opsLensEnhancementKo: "원본 경고 기준 화면을 먼저 보여준 뒤 근거 점수 기반 장애 분석과 KOMSCO 답변 출처를 추가합니다.",
+    acceptance: "Alerting renders a native monitoring alert table from live Prometheus/consoleDashboard evidence or an explicit unavailable state.",
+    acceptanceKo: "경고 화면은 실시간 Prometheus/consoleDashboard 근거 또는 명시적 사용 불가 상태로 원본형 경고 표를 렌더링해야 합니다.",
+    status: "ops-enhanced"
   },
   {
     id: "dashboards",
@@ -915,14 +916,14 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "대시보드",
     originalPath: "Monitoring / Dashboards",
     originalPathKo: "모니터링 / 대시보드",
-    targetSelector: "#dashboard-title",
-    actionSurface: "ops-dashboard",
-    command: "Open incident dashboard panels and evidence-backed operations cards.",
-    commandKo: "장애 대시보드 패널과 근거 기반 운영 카드를 엽니다.",
-    opsLensEnhancement: "Pairs dashboard state with runbook citations and missing-evidence markers.",
-    opsLensEnhancementKo: "대시보드 상태를 런북 출처와 누락 근거 표시와 묶습니다.",
-    acceptance: "Dashboard surfaces render source state and never fake live Prometheus success.",
-    acceptanceKo: "대시보드 화면은 출처 상태를 표시하고 실시간 Prometheus 성공을 위장하지 않아야 합니다.",
+    targetSelector: "[data-testid='ocp-monitoring-dashboards']",
+    actionSurface: "monitoring-console",
+    command: "Open an Observe dashboard-style utilization panel with time range, source status, and metric charts.",
+    commandKo: "시간 범위, 출처 상태, 메트릭 차트가 있는 Observe 대시보드형 사용량 패널을 엽니다.",
+    opsLensEnhancement: "Pairs native dashboard state with runbook citations and missing-evidence markers.",
+    opsLensEnhancementKo: "원본 대시보드 상태를 런북 출처와 누락 근거 표시와 묶습니다.",
+    acceptance: "Dashboard surfaces render live utilization source state and never fake live Prometheus success.",
+    acceptanceKo: "대시보드 화면은 실시간 사용량 출처 상태를 표시하고 Prometheus 성공을 위장하지 않아야 합니다.",
     status: "ops-enhanced"
   },
   {
@@ -932,14 +933,14 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "메트릭",
     originalPath: "Monitoring / Metrics",
     originalPathKo: "모니터링 / 메트릭",
-    targetSelector: "[data-testid='opslens-incident-metrics']",
-    actionSurface: "ops-dashboard",
-    command: "Open metric-query evidence and incident scoring.",
-    commandKo: "메트릭 질의 근거와 장애 점수를 엽니다.",
-    opsLensEnhancement: "Pairs metric state with runbook citations and missing-evidence markers.",
-    opsLensEnhancementKo: "메트릭 상태를 런북 출처와 누락 근거 표시와 묶습니다.",
-    acceptance: "Metric surfaces render query status and never fake live Prometheus success.",
-    acceptanceKo: "메트릭 화면은 질의 상태를 표시하고 실시간 Prometheus 성공을 위장하지 않아야 합니다.",
+    targetSelector: "[data-testid='ocp-monitoring-metrics']",
+    actionSurface: "monitoring-console",
+    command: "Open a Prometheus query-browser-style metric surface with query, sample count, latest value, and error state.",
+    commandKo: "쿼리, 샘플 수, 최신 값, 오류 상태가 있는 Prometheus 쿼리 브라우저형 메트릭 화면을 엽니다.",
+    opsLensEnhancement: "Pairs metric state with runbook citations and missing-evidence markers after the query browser baseline.",
+    opsLensEnhancementKo: "쿼리 브라우저 기준 화면 뒤에 메트릭 상태를 런북 출처와 누락 근거 표시와 묶습니다.",
+    acceptance: "Metrics surface renders query status, selected expression, and result metadata without fake live Prometheus success.",
+    acceptanceKo: "메트릭 화면은 가짜 Prometheus 성공 없이 쿼리 상태, 선택된 표현식, 결과 메타데이터를 렌더링해야 합니다.",
     status: "ops-enhanced"
   },
   {
@@ -949,16 +950,15 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "로그",
     originalPath: "Monitoring / Logs",
     originalPathKo: "모니터링 / 로그",
-    targetSelector: "[data-testid='log-viewport']",
-    actionSurface: "evidence",
-    command: "Switch the evidence pane to pod logs before asking for a plan.",
-    commandKo: "계획 요청 전에 근거 패널을 Pod 로그로 전환합니다.",
-    opsLensEnhancement: "Logs become citeable assistant evidence rather than disposable text.",
-    opsLensEnhancementKo: "로그를 일회성 텍스트가 아니라 어시스턴트가 인용 가능한 근거로 만듭니다.",
-    acceptance: "Log view supports Shift+Enter notes and Enter-to-ask without blocking the workspace.",
-    acceptanceKo: "로그 화면은 작업 영역을 막지 않고 Shift+Enter 메모와 Enter 질문을 지원해야 합니다.",
-    status: "covered",
-    evidenceView: "logs"
+    targetSelector: "[data-testid='ocp-monitoring-logs']",
+    actionSurface: "monitoring-console",
+    command: "Open a log-style Observe surface with explicit logging availability and read-only event stream fallback.",
+    commandKo: "로깅 사용 가능 여부와 읽기 전용 이벤트 스트림 대체 경로를 명시하는 Observe 로그형 화면을 엽니다.",
+    opsLensEnhancement: "Logs and events become citeable assistant evidence rather than disposable text.",
+    opsLensEnhancementKo: "로그와 이벤트를 일회성 텍스트가 아니라 어시스턴트가 인용 가능한 근거로 만듭니다.",
+    acceptance: "Logs surface must show the logging boundary and event-backed activity instead of pretending Loki is installed.",
+    acceptanceKo: "로그 화면은 Loki가 설치된 것처럼 위장하지 않고 로깅 경계와 이벤트 기반 활동을 보여야 합니다.",
+    status: "ops-enhanced"
   },
   {
     id: "nodes",
@@ -1510,6 +1510,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "monitoring-console") {
+    return {
+      mode: "monitoring-console",
+      input: `Monitoring surface: ${item.id}`,
+      inputKo: `모니터링 화면: ${item.labelKo}`,
+      proof:
+        "Monitoring target must mount a native Observe-style surface with alerting, dashboard, metric query, or log/event evidence and explicit unavailable state.",
+      proofKo:
+        "모니터링 대상은 경고, 대시보드, 메트릭 쿼리, 로그/이벤트 근거와 명시적 사용 불가 상태가 있는 원본 Observe 스타일 화면을 장착해야 합니다."
+    };
+  }
+
   if (item.evidenceView) {
     return {
       mode: "evidence-view",
@@ -1601,6 +1613,16 @@ export function consoleParityFunctionSignal(
         "Topology graph must render live resource nodes and evidence-backed edges.",
       descriptionKo:
         "토폴로지 그래프는 실시간 리소스 노드와 근거 기반 연결을 렌더링해야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "monitoring-console") {
+    return {
+      selector: item.targetSelector,
+      description:
+        "Monitoring console surface must expose the selected native Observe view with live source state.",
+      descriptionKo:
+        "모니터링 콘솔 화면은 선택한 원본 Observe 보기를 실시간 출처 상태와 함께 보여야 합니다."
     };
   }
 

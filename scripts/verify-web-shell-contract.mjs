@@ -88,6 +88,7 @@ const overviewSource = await readText("apps/web/src/components/OcpConsoleOvervie
 const dashboardSource = await readText("apps/web/src/components/OperationsDashboard.tsx");
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
 const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.tsx");
+const monitoringSource = await readText("apps/web/src/components/OcpMonitoringConsole.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const paritySource = await readText("apps/web/src/consoleParity.ts");
 const parityModule = await loadTypescriptModule(paritySource, "console parity");
@@ -2050,13 +2051,14 @@ expectCheck(
 
 expectCheck(
   "targeted console section routing",
-  paritySource.includes("targetSelector: \"[data-testid='opslens-catalog-toolchain']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='opslens-catalog-toolchain']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='opslens-operator-package']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='opslens-ocp-connectivity']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='opslens-install-readiness']\"") &&
-    paritySource.includes("targetSelector: \"[data-testid='alert-table-wrap']\"") &&
-    paritySource.includes("targetSelector: \"[data-testid='log-viewport']\"") &&
-    paritySource.includes('targetSelector: "#dashboard-title"') &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-monitoring-alerting']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-monitoring-dashboards']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-monitoring-metrics']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-monitoring-logs']\"") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
     e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
     appSource.includes("case \"ops-admin\""),
@@ -2195,6 +2197,35 @@ expectCheck(
     e2eSource.includes("ocp-overview-status-cards") &&
     e2eSource.includes("ocp-overview-activity-card"),
   "Home Overview must expose official console panels for details, cluster inventory, status cards, activity, and utilization using the live consoleDashboard API contract"
+);
+
+expectCheck(
+  "official monitoring console surface contract",
+  paritySource.includes('| "monitoring-console"') &&
+    paritySource.includes('| "monitoring-console"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-monitoring-alerting\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-monitoring-dashboards\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-monitoring-metrics\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-monitoring-logs\']"') &&
+    appSource.includes("case \"monitoring-console\"") &&
+    appSource.includes("<OcpMonitoringConsole") &&
+    monitoringSource.includes("export type OcpMonitoringView") &&
+    monitoringSource.includes('data-testid={viewTestId(view)}') &&
+    monitoringSource.includes('data-testid="ocp-monitoring-toolbar"') &&
+    monitoringSource.includes('data-testid="ocp-monitoring-alert-table"') &&
+    monitoringSource.includes('data-testid="ocp-monitoring-dashboard-grid"') &&
+    monitoringSource.includes('data-testid="ocp-monitoring-query-browser"') &&
+    monitoringSource.includes('data-testid="ocp-monitoring-log-stream"') &&
+    monitoringSource.includes("fetchOcpConsoleOverview") &&
+    monitoringSource.includes("consoleDashboard.utilization") &&
+    monitoringSource.includes("consoleDashboard.activity") &&
+    monitoringSource.includes("monitoring.sample") &&
+    stylesSource.includes(".ocp-monitoring-console") &&
+    stylesSource.includes(".ocp-monitoring-toolbar") &&
+    stylesSource.includes(".monitoring-dashboard-grid") &&
+    stylesSource.includes(".monitoring-query-layout") &&
+    stylesSource.includes(".monitoring-log-stream"),
+  "Monitoring menu items must render native Observe-style Alerting, Dashboards, Metrics, and Logs surfaces from live consoleDashboard/monitoring evidence instead of routing to generic evidence or OpsLens dashboard panels"
 );
 
 expectCheck(

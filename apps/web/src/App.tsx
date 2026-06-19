@@ -52,6 +52,10 @@ import { OcpConsoleActionPanel } from "./components/OcpConsoleActionPanel";
 import { OcpConsoleOverview } from "./components/OcpConsoleOverview";
 import { OcpConsoleParityMatrix } from "./components/OcpConsoleParityMatrix";
 import { OcpCoverageMatrix } from "./components/OcpCoverageMatrix";
+import {
+  OcpMonitoringConsole,
+  type OcpMonitoringView
+} from "./components/OcpMonitoringConsole";
 import { OcpTopologyGraph } from "./components/OcpTopologyGraph";
 import {
   OcpResourceExplorer,
@@ -1178,6 +1182,13 @@ export default function App() {
         );
       case "topology-graph":
         return <OcpTopologyGraph language={language} />;
+      case "monitoring-console":
+        return (
+          <OcpMonitoringConsole
+            language={language}
+            view={activeNavigation.id as OcpMonitoringView}
+          />
+        );
       case "evidence":
         return (
           <ConsoleEvidencePane

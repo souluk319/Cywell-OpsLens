@@ -4172,6 +4172,300 @@ button {
   font-weight: 750;
 }
 
+.ocp-monitoring-console {
+  display: grid;
+  gap: 12px;
+}
+
+.ocp-monitoring-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ocp-monitoring-toolbar > span {
+  color: #4f5255;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.ocp-monitoring-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1 1 360px;
+  min-width: 220px;
+  padding: 7px 9px;
+  border: 1px solid #d2d2d2;
+  border-radius: 5px;
+  background: #fbfbfb;
+}
+
+.ocp-monitoring-toolbar input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #151515;
+  font: inherit;
+  font-family: "Red Hat Mono", Consolas, monospace;
+  font-size: 0.76rem;
+}
+
+.ocp-monitoring-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid #d2d2d2;
+}
+
+.ocp-monitoring-tabs a {
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+  color: #4f5255;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.ocp-monitoring-tabs a[aria-current="page"] {
+  border-color: #d2d2d2;
+  background: #fff;
+  color: #151515;
+}
+
+.monitoring-native-panel {
+  padding: 14px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(3, 3, 3, 0.04);
+}
+
+.monitoring-native-panel .card-title-row p {
+  margin: 4px 0 0;
+  color: #6a6e73;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.native-monitoring-table-wrap {
+  margin-top: 12px;
+  overflow: auto;
+}
+
+.native-monitoring-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+
+.native-monitoring-table th,
+.native-monitoring-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #ededed;
+  color: #151515;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.78rem;
+}
+
+.native-monitoring-table th {
+  color: #4f5255;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.monitoring-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.monitoring-dashboard-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fbfbfb;
+  color: #151515;
+  text-align: left;
+}
+
+.monitoring-dashboard-card:hover {
+  border-color: #0066cc;
+  background: #fff;
+}
+
+.monitoring-dashboard-card strong {
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
+.monitoring-dashboard-card span {
+  color: #6a6e73;
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.monitoring-mini-chart {
+  display: flex;
+  align-items: end;
+  gap: 2px;
+  min-height: 46px;
+  padding: 6px;
+  border: 1px solid #ededed;
+  border-radius: 4px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.monitoring-mini-chart i {
+  flex: 1 1 4px;
+  min-width: 3px;
+  height: max(3px, var(--bar));
+  border-radius: 999px 999px 0 0;
+  background: #0066cc;
+}
+
+.monitoring-mini-chart em {
+  color: #8f4700;
+  font-size: 0.72rem;
+  font-style: normal;
+  line-height: 1.3;
+}
+
+.monitoring-query-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.42fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.monitoring-query-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.monitoring-query-list button {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 5px;
+  background: #fbfbfb;
+  text-align: left;
+}
+
+.monitoring-query-list button[aria-pressed="true"] {
+  border-color: #0066cc;
+  background: #eef7ff;
+}
+
+.monitoring-query-list strong {
+  color: #151515;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.monitoring-query-list span {
+  color: #4f5255;
+  font-family: "Red Hat Mono", Consolas, monospace;
+  font-size: 0.68rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitoring-query-output {
+  min-height: 260px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #1f1f1f;
+  color: #f5f5f5;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  overflow: auto;
+}
+
+.monitoring-log-stream {
+  display: grid;
+  gap: 7px;
+  max-height: 560px;
+  margin-top: 12px;
+  overflow: auto;
+}
+
+.monitoring-log-line {
+  display: grid;
+  grid-template-columns: auto 148px 72px 180px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #ededed;
+  border-radius: 5px;
+  background: #fbfbfb;
+}
+
+.monitoring-log-line span,
+.monitoring-log-line code,
+.monitoring-log-line p,
+.monitoring-log-line em {
+  min-width: 0;
+  margin: 0;
+  color: #4f5255;
+  font-size: 0.72rem;
+}
+
+.monitoring-log-line strong {
+  padding: 2px 6px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.monitoring-log-line strong.normal {
+  background: #eef7ea;
+  color: #1e4f18;
+}
+
+.monitoring-log-line strong.warning {
+  background: #fff4e5;
+  color: #8f4700;
+}
+
+.monitoring-log-line code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitoring-log-line p {
+  display: -webkit-box;
+  line-height: 1.35;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .muted-warning {
   margin: 10px 0 0;
   max-height: 72px;
@@ -6337,6 +6631,19 @@ button {
     grid-template-columns: repeat(2, minmax(240px, 1fr));
   }
 
+  .monitoring-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+
+  .monitoring-log-line {
+    grid-template-columns: auto 136px 70px minmax(0, 1fr);
+  }
+
+  .monitoring-log-line p,
+  .monitoring-log-line em {
+    grid-column: 2 / -1;
+  }
+
   .ops-signal-card.flow {
     grid-column: span 2;
   }
@@ -6551,6 +6858,22 @@ button {
   .overview-native-dashboard,
   .overview-native-dashboard.lower {
     grid-template-columns: 1fr;
+  }
+
+  .monitoring-dashboard-grid,
+  .monitoring-query-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .monitoring-log-line {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .monitoring-log-line strong,
+  .monitoring-log-line code,
+  .monitoring-log-line p,
+  .monitoring-log-line em {
+    grid-column: 2 / -1;
   }
 
   .utilization-series-grid {

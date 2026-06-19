@@ -16,6 +16,7 @@ const surfaceLabelsForTest: Record<ConsoleParityActionSurface, string> = {
   evidence: "Evidence pane",
   "resource-explorer": "Resource explorer",
   "topology-graph": "Topology graph",
+  "monitoring-console": "Monitoring console",
   "ops-dashboard": "OpsLens dashboard",
   "ops-admin": "OpsLens admin",
   opsbrain: "OpsBrain",
