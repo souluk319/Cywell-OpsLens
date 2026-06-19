@@ -93,6 +93,7 @@ const buildsSource = await readText("apps/web/src/components/OcpBuildsConsole.ts
 const networkingSource = await readText("apps/web/src/components/OcpNetworkingConsole.tsx");
 const storageSource = await readText("apps/web/src/components/OcpStorageConsole.tsx");
 const administrationSource = await readText("apps/web/src/components/OcpAdministrationConsole.tsx");
+const computeSource = await readText("apps/web/src/components/OcpComputeConsole.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const paritySource = await readText("apps/web/src/consoleParity.ts");
 const parityModule = await loadTypescriptModule(paritySource, "console parity");
@@ -2068,6 +2069,10 @@ expectCheck(
     paritySource.includes("targetSelector: \"[data-testid='ocp-admin-custom-resource-definitions']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-admin-resourcequotas']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-admin-limitranges']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-compute-nodes']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-compute-machines']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-compute-machinesets']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-compute-machineconfigpools']\"") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
     e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
     appSource.includes("case \"ops-admin\""),
@@ -2370,6 +2375,38 @@ expectCheck(
     stylesSource.includes(".admin-native-boundary") &&
     e2eSource.includes('"administration-console": "Administration console"'),
   "Administration menu items must render native Cluster Settings, ClusterOperators, Namespaces, CRDs, ResourceQuotas, and LimitRanges surfaces with operator/API/RBAC boundary evidence instead of routing only to the generic resource explorer"
+);
+
+expectCheck(
+  "official compute console surface contract",
+  paritySource.includes('| "compute-console"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-compute-nodes\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-compute-machines\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-compute-machinesets\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-compute-machineconfigpools\']"') &&
+    paritySource.includes('mode: "compute-console"') &&
+    appSource.includes("case \"compute-console\"") &&
+    appSource.includes("<OcpComputeConsole") &&
+    computeSource.includes("export type OcpComputeView") &&
+    computeSource.includes('data-testid={viewTestId(view)}') &&
+    computeSource.includes('data-testid="ocp-compute-toolbar"') &&
+    computeSource.includes('data-testid="ocp-compute-readiness-board"') &&
+    computeSource.includes('data-testid="ocp-compute-nodes-table"') &&
+    computeSource.includes('data-testid="ocp-compute-machines-table"') &&
+    computeSource.includes('data-testid="ocp-compute-machinesets-table"') &&
+    computeSource.includes('data-testid="ocp-compute-machineconfigpools-table"') &&
+    computeSource.includes('data-testid="ocp-compute-native-handoff"') &&
+    computeSource.includes("v1\", resource: \"nodes\"") &&
+    computeSource.includes("machine.openshift.io/v1beta1") &&
+    computeSource.includes("machineconfiguration.openshift.io/v1") &&
+    computeSource.includes("fetchOcpResourceList") &&
+    stylesSource.includes(".ocp-compute-console") &&
+    stylesSource.includes(".ocp-compute-toolbar") &&
+    stylesSource.includes(".compute-native-grid") &&
+    stylesSource.includes(".native-compute-table") &&
+    stylesSource.includes(".compute-native-boundary") &&
+    e2eSource.includes('"compute-console": "Compute console"'),
+  "Compute menu items must render native Nodes, Machines, MachineSets, and MachineConfigPools surfaces with readiness/capacity/Machine API/rollout evidence instead of routing only to the generic resource explorer"
 );
 
 expectCheck(

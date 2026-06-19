@@ -72,6 +72,10 @@ import {
   OcpAdministrationConsole,
   type OcpAdministrationView
 } from "./components/OcpAdministrationConsole";
+import {
+  OcpComputeConsole,
+  type OcpComputeView
+} from "./components/OcpComputeConsole";
 import { OcpTopologyGraph } from "./components/OcpTopologyGraph";
 import {
   OcpResourceExplorer,
@@ -1231,6 +1235,13 @@ export default function App() {
           <OcpAdministrationConsole
             language={language}
             view={activeNavigation.id as OcpAdministrationView}
+          />
+        );
+      case "compute-console":
+        return (
+          <OcpComputeConsole
+            language={language}
+            view={activeNavigation.id as OcpComputeView}
           />
         );
       case "evidence":

@@ -22,6 +22,7 @@ export type ConsoleParityActionSurface =
   | "networking-console"
   | "storage-console"
   | "administration-console"
+  | "compute-console"
   | "ops-dashboard"
   | "ops-admin"
   | "opsbrain"
@@ -72,6 +73,7 @@ export type ConsoleParityFunctionMode =
   | "networking-console"
   | "storage-console"
   | "administration-console"
+  | "compute-console"
   | "evidence-view"
   | "overview"
   | "ops-dashboard"
@@ -975,8 +977,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "노드",
     originalPath: "Compute / Nodes",
     originalPathKo: "컴퓨트 / 노드",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-compute-nodes']",
+    actionSurface: "compute-console",
     command: "List Nodes, readiness, capacity, architecture, taints, and pressure conditions.",
     commandKo: "Node, 준비 상태, 용량, 아키텍처, taint, pressure condition을 조회합니다.",
     opsLensEnhancement: "Adds CRC capacity pressure and install/runtime fit evidence.",
@@ -996,8 +998,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "Machines",
     originalPath: "Compute / Machines",
     originalPathKo: "컴퓨트 / Machines",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-compute-machines']",
+    actionSurface: "compute-console",
     command: "List Machines and provider state when Machine API is installed.",
     commandKo: "Machine API가 설치된 경우 Machine과 provider 상태를 조회합니다.",
     opsLensEnhancement: "Adds machine-to-node diagnosis without changing machine resources.",
@@ -1017,8 +1019,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "MachineSets",
     originalPath: "Compute / MachineSets",
     originalPathKo: "컴퓨트 / MachineSets",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-compute-machinesets']",
+    actionSurface: "compute-console",
     command: "List MachineSets, desired replicas, and owned Machines.",
     commandKo: "MachineSet, desired replica, 소유 Machine을 조회합니다.",
     opsLensEnhancement: "Adds scale-risk context and read-only owner-chain evidence.",
@@ -1038,8 +1040,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "MachineConfigPools",
     originalPath: "Compute / MachineConfigPools",
     originalPathKo: "컴퓨트 / MachineConfigPools",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-compute-machineconfigpools']",
+    actionSurface: "compute-console",
     command: "List MachineConfigPools, updated/degraded state, and paused rollout flags.",
     commandKo: "MachineConfigPool, updated/degraded 상태, paused rollout 플래그를 조회합니다.",
     opsLensEnhancement: "Adds upgrade-block and node rollout diagnosis.",
@@ -1578,6 +1580,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "compute-console") {
+    return {
+      mode: "compute-console",
+      input: `Compute surface: ${item.id}`,
+      inputKo: `컴퓨트 화면: ${item.labelKo}`,
+      proof:
+        "Compute target must mount a native Compute-style surface with Node readiness, capacity, pressure, Machine API, MachineSet, and MachineConfigPool rollout evidence.",
+      proofKo:
+        "컴퓨트 대상은 Node readiness, 용량, pressure, Machine API, MachineSet, MachineConfigPool 롤아웃 근거를 갖춘 원본 Compute 스타일 화면을 장착해야 합니다."
+    };
+  }
+
   if (item.evidenceView) {
     return {
       mode: "evidence-view",
@@ -1719,6 +1733,16 @@ export function consoleParityFunctionSignal(
         "Administration console surface must expose the selected native Cluster Settings, ClusterOperators, Namespaces, CRDs, ResourceQuotas, or LimitRanges view with live source state.",
       descriptionKo:
         "관리 콘솔 화면은 선택한 원본 Cluster Settings, ClusterOperators, Namespaces, CRD, ResourceQuota, LimitRange 보기를 실시간 출처 상태와 함께 보여야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "compute-console") {
+    return {
+      selector: item.targetSelector,
+      description:
+        "Compute console surface must expose the selected native Nodes, Machines, MachineSets, or MachineConfigPools view with live source state.",
+      descriptionKo:
+        "컴퓨트 콘솔 화면은 선택한 원본 Nodes, Machines, MachineSets, MachineConfigPools 보기를 실시간 출처 상태와 함께 보여야 합니다."
     };
   }
 
