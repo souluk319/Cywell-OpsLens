@@ -89,6 +89,7 @@ const dashboardSource = await readText("apps/web/src/components/OperationsDashbo
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
 const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.tsx");
 const ecosystemSource = await readText("apps/web/src/components/OcpEcosystemConsole.tsx");
+const homeSource = await readText("apps/web/src/components/OcpHomeConsole.tsx");
 const workloadsSource = await readText("apps/web/src/components/OcpWorkloadsConsole.tsx");
 const nativeObjectLinkSource = await readText("apps/web/src/components/NativeObjectLink.tsx");
 const nativeObjectDrilldownSource = await readText(
@@ -2398,6 +2399,40 @@ expectCheck(
     stylesSource.includes(".workloads-native-boundary") &&
     e2eSource.includes('"workloads-console": "Workloads console"'),
   "Workloads menu items must render native Pods, workload controllers, Secrets, ConfigMaps, CronJobs, Jobs, HPAs, and PDBs with status/owner/config/redaction evidence instead of routing only to the generic resource explorer"
+);
+
+expectCheck(
+  "official home console surface contract",
+  paritySource.includes('| "home-console"') &&
+    paritySource.includes('actionSurface: "home-console"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-home-search\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-home-projects\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-home-api-explorer\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-home-events\']"') &&
+    paritySource.includes('mode: "home-console"') &&
+    appSource.includes("case \"home-console\"") &&
+    appSource.includes("<OcpHomeConsole") &&
+    homeSource.includes("export type OcpHomeView") &&
+    homeSource.includes('"search"') &&
+    homeSource.includes('"projects"') &&
+    homeSource.includes('"api-explorer"') &&
+    homeSource.includes('"events"') &&
+    homeSource.includes("project.openshift.io/v1") &&
+    homeSource.includes("projects") &&
+    homeSource.includes("namespaces") &&
+    homeSource.includes("customresourcedefinitions") &&
+    homeSource.includes("apiservices") &&
+    homeSource.includes("events.k8s.io/v1") &&
+    homeSource.includes('data-testid={`ocp-home-${view}`}') &&
+    homeSource.includes('data-testid="ocp-home-native-toolbar"') &&
+    homeSource.includes('data-testid="ocp-home-filter-count"') &&
+    homeSource.includes('testId="ocp-home-object-drilldown"') &&
+    homeSource.includes("OcpNativeObjectDrilldown") &&
+    homeSource.includes("NativeObjectLink") &&
+    stylesSource.includes(".home-filter-toolbar") &&
+    stylesSource.includes(".home-console-summary") &&
+    e2eSource.includes('"home-console": "Home console"'),
+  "Home Search, Projects, API Explorer, and Events must render native Home-style resource, filter, and object drilldown surfaces instead of falling back to the generic resource explorer"
 );
 
 expectCheck(

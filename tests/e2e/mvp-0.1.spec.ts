@@ -15,6 +15,7 @@ const surfaceLabelsForTest: Record<ConsoleParityActionSurface, string> = {
   overview: "Cluster overview",
   evidence: "Evidence pane",
   "resource-explorer": "Resource explorer",
+  "home-console": "Home console",
   "topology-graph": "Topology graph",
   "ecosystem-console": "Ecosystem console",
   "workloads-console": "Workloads console",
@@ -92,6 +93,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "overview",
       "evidence",
       "resource-explorer",
+      "home-console",
       "topology-graph",
       "ecosystem-console",
       "workloads-console",
@@ -657,6 +659,19 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("console-parity-summary")).toContainText(
       "OpenShift Local 4.21.14"
     );
+
+    await openConsoleNavItem(page, "projects");
+    await page.getByTestId("console-active-open-surface").click();
+    await expect(page.getByTestId("ocp-home-native-toolbar")).toBeVisible();
+    await page
+      .getByPlaceholder("Filter by name, namespace, kind, or message...")
+      .fill("default");
+    await expect(page.getByTestId("ocp-home-filter-count")).toContainText(
+      "Results:"
+    );
+    await expect(
+      page.getByTestId("ocp-home-object-drilldown-drilldown")
+    ).toBeVisible();
 
     for (const item of ocpConsoleParityItems) {
       await openConsoleNavItem(page, item);
@@ -3044,118 +3059,51 @@ async function expectConsoleFunctionEffect(
     );
     await page.getByTestId("console-nav-search").click();
     await expect(page.getByTestId("active-page-search")).toBeVisible();
-    await expect(page.getByTestId("ocp-status")).toContainText("OCP reachable", {
+    await expect(page.getByTestId("ocp-home-search")).toBeVisible({
       timeout: 15_000
     });
-    await page.getByTestId("ocp-technical-explorer").locator("summary").click();
-    await page.getByLabel("Search API resources").fill("pods");
-    await expect(page.getByTestId("ocp-resource-table")).toContainText("Pod");
+    await expect(page.getByTestId("ocp-home-native-toolbar")).toBeVisible();
+    await page
+      .getByPlaceholder("Filter by name, namespace, kind, or message...")
+      .fill("pod");
+    await expect(page.getByTestId("ocp-home-filter-count")).toContainText(
+      "Results:"
+    );
+    await expect(page.getByTestId("ocp-home-summary")).toContainText("Search:");
     if (firstPod?.metadata.namespace) {
-      await expect(page.getByTestId("ocp-namespace-select")).toContainText(
-        firstPod.metadata.namespace
+      await expect(page.getByLabel("Namespace", { exact: true })).toBeVisible();
+    }
+    await expect(page.getByTestId("ocp-home-object-drilldown-drilldown")).toBeVisible();
+
+    await openConsoleNavItem(page, "workloads");
+    await expect(page.getByTestId("active-page-workloads")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-pods")).toBeVisible({
+      timeout: 15_000
+    });
+    await expect(page.getByTestId("ocp-workloads-native-toolbar")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-filter-count")).toContainText(
+      "Showing:"
+    );
+    await expect(page.getByTestId("ocp-workloads-health-board")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-pods-table")).toBeVisible();
+    if (firstPod?.metadata.namespace) {
+      await page.getByPlaceholder("Search by name...").fill(firstPod.metadata.name);
+      await expect(page.getByPlaceholder("Search by name...")).toHaveValue(
+        firstPod.metadata.name
+      );
+      await expect(page.getByTestId("ocp-workloads-pods-table")).toContainText(
+        firstPod.metadata.name
       );
     }
-    await expect(page.getByTestId("ocp-resource-items")).toContainText(
-      firstPod?.metadata.name ?? ""
-    );
-    await expect(page.getByTestId("ocp-resource-access")).toContainText(
-      "RBAC list allowed"
-    );
-    await expect(page.getByTestId("ocp-function-smoke")).toBeVisible();
-    await expect(page.getByTestId("ocp-smoke-selected-api")).toContainText(
-      "Pod v1/pods"
-    );
-    await expect(page.getByTestId("ocp-smoke-list-status")).toContainText(
-      "items"
-    );
-    await expect(page.getByTestId("ocp-smoke-detail-status")).toContainText(
-      firstPod?.metadata.name ?? ""
-    );
-    await expect(page.getByTestId("ocp-native-page-summary")).toBeVisible();
-    await expect(page.getByTestId("ocp-native-page-stat-grid")).toContainText(
-      /Objects|오브젝트/
-    );
-    await expect(page.getByTestId("ocp-native-status-distribution")).toBeVisible();
-    await expect(page.getByTestId("ocp-native-selected-preview")).toContainText(
-      firstPod?.metadata.name ?? ""
-    );
-    await expect(page.getByTestId("ocp-native-baseline-actions")).toContainText(
-      /List|목록/
-    );
-    await expect(page.getByTestId("ocp-native-object-detail")).toBeVisible();
-    await expect(page.getByTestId("ocp-native-object-detail-title")).toContainText(
-      firstPod?.metadata.name ?? ""
-    );
-    await expect(page.getByTestId("ocp-native-detail-tabs")).toContainText(
+    await expect(page.getByTestId("ocp-workloads-object-drilldown")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-object-detail-tabs")).toContainText(
       "Details"
     );
-    await expect(page.getByTestId("ocp-native-object-details")).toContainText(
-      "Identity"
+    await expect(page.getByTestId("ocp-workloads-object-action-rail")).toContainText(
+      /Native console actions|원본 콘솔 작업/
     );
-    await expect(page.getByTestId("ocp-native-object-details")).toContainText(
-      "Health"
-    );
-    await expect(page.getByTestId("ocp-smoke-events-status")).toContainText(
-      /events|RBAC/
-    );
-    await expect(page.getByTestId("ocp-smoke-logs-status")).toContainText(
-      /log lines|RBAC|pending/
-    );
-    await expect(page.getByTestId("ocp-smoke-related-status")).toContainText(
-      /owners|children/
-    );
-    await expect(page.getByTestId("ocp-smoke-mutation-guard")).toContainText(
-      "no create/update/patch/delete"
-    );
-    await page.getByTestId("ocp-label-selector").fill(labelSelector);
-    await page.getByTestId("ocp-resource-load").click();
-    await expect(page.getByTestId("ocp-resource-access")).toContainText(
-      "RBAC list allowed"
-    );
-    await page.getByTestId("ocp-label-selector").fill("");
-    await page
-      .getByTestId("ocp-field-selector")
-      .fill(`metadata.name=${firstPod?.metadata.name ?? ""}`);
-    await page.getByTestId("ocp-resource-load").click();
-    await expect(page.getByTestId("ocp-resource-items")).toContainText(
-      firstPod?.metadata.name ?? ""
-    );
-    await page.getByTestId("ocp-field-selector").fill("");
-    await page.getByTestId("ocp-resource-load").click();
-    await expect(page.getByTestId("ocp-access-matrix")).toContainText(
-      "get allowed"
-    );
-    await expect(page.getByTestId("ocp-access-matrix")).toContainText(
-      "list allowed"
-    );
-    await expect(page.getByTestId("ocp-access-matrix")).toContainText(
-      "watch allowed"
-    );
-    await expect(page.getByTestId("ocp-page-controls")).toContainText("Page 1");
-    await expect(page.getByTestId("ocp-resource-detail")).toContainText(
-      `"kind": "Pod"`
-    );
-    await expect(page.getByTestId("ocp-related-resources")).toContainText(
-      "Owner References"
-    );
-    await page.getByTestId("ocp-detail-yaml-tab").click();
-    await expect(page.getByTestId("ocp-resource-detail")).toContainText(
-      "kind: Pod"
-    );
-    await expect(page.getByTestId("ocp-resource-detail")).toContainText(
-      "apiVersion: v1"
-    );
-    await expect(page.getByTestId("ocp-resource-detail")).not.toContainText(
-      "ocp_api_token"
-    );
-    await page.getByTestId("ocp-detail-json-tab").click();
-    await expect(page.getByTestId("ocp-resource-events")).toContainText(
-      /events|Event|No events|Started|Pulled|Scheduled/
-    );
-    await expect(page.getByTestId("ocp-pod-logs")).not.toBeEmpty();
-    await expect(page.getByTestId("ocp-next-page")).toBeEnabled();
-    await page.getByTestId("ocp-next-page").click();
-    await expect(page.getByTestId("ocp-page-controls")).toContainText("Page 2");
-    await expect(page.getByTestId("ocp-prev-page")).toBeEnabled();
+    await expect(page.getByTestId("ocp-workloads-object-events-action")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-object-logs-action")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-object-related-action")).toBeVisible();
   });
 });

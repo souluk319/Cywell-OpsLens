@@ -88,6 +88,10 @@ import {
   OcpEcosystemConsole,
   type OcpEcosystemView
 } from "./components/OcpEcosystemConsole";
+import {
+  OcpHomeConsole,
+  type OcpHomeView
+} from "./components/OcpHomeConsole";
 import { OcpTopologyGraph } from "./components/OcpTopologyGraph";
 import {
   OcpResourceExplorer,
@@ -1210,6 +1214,13 @@ export default function App() {
             language={language}
             navigationPreset={resourcePreset}
             onFunctionOutcomeChange={setResourceFunctionOutcome}
+          />
+        );
+      case "home-console":
+        return (
+          <OcpHomeConsole
+            language={language}
+            view={activeNavigation.id as OcpHomeView}
           />
         );
       case "topology-graph":

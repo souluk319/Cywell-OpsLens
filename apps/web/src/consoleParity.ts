@@ -16,6 +16,7 @@ export type ConsoleParityActionSurface =
   | "overview"
   | "evidence"
   | "resource-explorer"
+  | "home-console"
   | "topology-graph"
   | "ecosystem-console"
   | "workloads-console"
@@ -70,6 +71,7 @@ type ConsoleParityItemDraft = Omit<ConsoleParityItem, "coverageClass">;
 
 export type ConsoleParityFunctionMode =
   | "resource-preset"
+  | "home-console"
   | "topology-graph"
   | "ecosystem-console"
   | "workloads-console"
@@ -213,8 +215,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "검색",
     originalPath: "Home / Search",
     originalPathKo: "홈 / 검색",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-home-search']",
+    actionSurface: "home-console",
     command: "Search listable API resources, then inspect sanitized JSON/YAML, events, logs, owners, and children.",
     commandKo: "목록 조회 가능한 API 리소스를 검색하고 마스킹된 JSON/YAML, 이벤트, 로그, 소유자, 하위 리소스를 확인합니다.",
     opsLensEnhancement: "Search results are tied to RBAC, redaction, related resources, and KOMSCO assistant prompts.",
@@ -240,8 +242,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "프로젝트",
     originalPath: "Home / Projects",
     originalPathKo: "홈 / 프로젝트",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-home-projects']",
+    actionSurface: "home-console",
     command: "List Projects and Namespaces, then inspect project details, YAML, workloads, and RoleBindings through native resource links.",
     commandKo: "Project와 Namespace를 조회하고 원본 리소스 링크로 프로젝트 상세, YAML, 워크로드, RoleBinding을 확인합니다.",
     opsLensEnhancement: "Adds tenant ownership, workload count, access boundary, and assistant-ready project context.",
@@ -267,8 +269,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "API 탐색기",
     originalPath: "Home / API Explorer",
     originalPathKo: "홈 / API 탐색기",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-home-api-explorer']",
+    actionSurface: "home-console",
     command: "Inspect API resources, CRDs, APIService availability, and sanitized object YAML without mutating the cluster.",
     commandKo: "API 리소스, CRD, APIService 가용성, 마스킹된 객체 YAML을 클러스터 변경 없이 확인합니다.",
     opsLensEnhancement: "Adds coverage diagnostics, preferred API fallback, conversion webhook error classification, and assistant handoff.",
@@ -291,8 +293,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "이벤트",
     originalPath: "Home / Events",
     originalPathKo: "홈 / 이벤트",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-home-events']",
+    actionSurface: "home-console",
     command: "Open core Events in read-only mode and keep involved object links available.",
     commandKo: "core Events를 읽기 전용으로 열고 관련 객체 연결을 유지합니다.",
     opsLensEnhancement: "Events become assistant evidence, not a separate dead-end page.",
@@ -1593,6 +1595,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "home-console") {
+    return {
+      mode: "home-console",
+      input: `Home surface: ${item.id}`,
+      inputKo: `홈 화면: ${item.labelKo}`,
+      proof:
+        "Home target must mount a native Search, Projects, API Explorer, or Events surface with live OpenShift resource evidence, filters, object drilldown, and native console handoff.",
+      proofKo:
+        "홈 대상은 실시간 OpenShift 리소스 근거, 필터, 객체 드릴다운, 원본 콘솔 연결을 갖춘 원본 Search, Projects, API Explorer, Events 화면을 장착해야 합니다."
+    };
+  }
+
   if (item.actionSurface === "ecosystem-console") {
     return {
       mode: "ecosystem-console",
@@ -1792,6 +1806,16 @@ export function consoleParityFunctionSignal(
         "Topology graph must render live resource nodes and evidence-backed edges.",
       descriptionKo:
         "토폴로지 그래프는 실시간 리소스 노드와 근거 기반 연결을 렌더링해야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "home-console") {
+    return {
+      selector: item.targetSelector,
+      description:
+        "Home console surface must expose the selected native Search, Projects, API Explorer, or Events view with live source state.",
+      descriptionKo:
+        "홈 콘솔 화면은 선택한 원본 Search, Projects, API Explorer, Events 보기를 실시간 출처 상태와 함께 보여야 합니다."
     };
   }
 

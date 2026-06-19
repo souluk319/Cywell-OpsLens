@@ -6112,6 +6112,19 @@ button {
   justify-self: end;
 }
 
+.home-filter-toolbar {
+  grid-template-columns:
+    minmax(250px, 1.2fr)
+    minmax(150px, 0.7fr)
+    minmax(170px, 0.75fr)
+    auto
+    auto;
+}
+
+.home-filter-toolbar .native-toolbar-count {
+  justify-self: end;
+}
+
 .native-console-summary {
   display: flex;
   flex-wrap: wrap;
@@ -6123,6 +6136,26 @@ button {
 }
 
 .native-console-summary > span:not(.status-pill) {
+  padding: 5px 8px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.home-console-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: #4f5255;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.home-console-summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 8px;
   border: 1px solid #ededed;
   border-radius: 6px;
