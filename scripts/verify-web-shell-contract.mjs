@@ -2075,6 +2075,34 @@ expectCheck(
 );
 
 expectCheck(
+  "native console detail surface contract",
+  resourceExplorerSource.includes('data-testid="ocp-native-console-panel"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-console-title"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-console-toolbar"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-console-summary"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-console-table"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-list-link"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-filter"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-load"') &&
+    resourceExplorerSource.includes("nativeConsoleColumns(selectedResource)") &&
+    resourceExplorerSource.includes("nativeColumnValue(column, item, selectedResource, copy)") &&
+    resourceExplorerSource.includes("resourceStatusText(item, copy)") &&
+    resourceExplorerSource.includes("resourceDetailText(item)") &&
+    resourceExplorerSource.includes("resourceTargetText(item)") &&
+    resourceExplorerSource.includes("nativeResourceListPath(selectedResource, namespace)") &&
+    resourceExplorerSource.includes("copy.nativeCreateEditDelete") &&
+    resourceExplorerSource.includes("resourceKey(list.resource) === resourceKey(selectedResource)") &&
+    resourceExplorerSource.includes("const nativeItems = (activeList?.items ?? [])") &&
+    resourceExplorerSource.includes("setList(null)") &&
+    resourceExplorerSource.includes('data-testid="ocp-technical-explorer"') &&
+    stylesSource.includes(".native-console-panel") &&
+    stylesSource.includes(".native-console-toolbar") &&
+    stylesSource.includes(".native-console-table") &&
+    stylesSource.includes(".ocp-technical-explorer"),
+  "Resource Explorer renders a native-console-style detail page before the raw API discovery surface"
+);
+
+expectCheck(
   "resource function smoke contract",
     resourceExplorerSource.includes('data-testid="ocp-function-smoke"') &&
     resourceExplorerSource.includes("export type OcpResourceFunctionOutcome") &&

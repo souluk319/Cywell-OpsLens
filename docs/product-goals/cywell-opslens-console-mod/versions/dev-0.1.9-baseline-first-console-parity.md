@@ -24,6 +24,23 @@ Reference docs:
   https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/web_console/web-console
 - OpenShift Container Platform dynamic plugins
   https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/web_console/index
+- OpenShift Container Platform 4.20 dynamic plugin extensions
+  https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/web_console/dynamic-plugins
+- OpenShift Container Platform 4.20 building applications and Topology view
+  https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/pdf/building_applications/OpenShift_Container_Platform-4.20-Building_applications-en-US.pdf
+- OpenShift Container Platform 4.20 monitoring
+  https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/monitoring/index
+
+## Official Baseline Extraction
+
+The implementation must copy these official console behaviors before adding OpsLens-specific judgment layers:
+
+- Project and cluster resources are browsed as first-class console pages, not as generic debug output.
+- Resource pages need a recognizable list surface: kind title, namespace scope, search/filter controls, object rows, status/detail/age columns, and action entry points.
+- Native create/edit/delete remains the OpenShift console's job until OpsLens has explicit RBAC, approval, audit, and rollback contracts.
+- Developer Topology is a visual resource view, not a text list. Workload and dashboard upgrades must improve visual understanding while keeping native links available.
+- Monitoring is based on metrics, alerts, and dashboard evidence. OpsLens can correlate and summarize, but it must not fake unavailable metrics.
+- Dynamic plugins officially support custom pages, perspectives, navigation items, and resource page tabs/actions. The supported route is ConsolePlugin extension, not unsupported DOM replacement.
 
 ## Product Rule
 

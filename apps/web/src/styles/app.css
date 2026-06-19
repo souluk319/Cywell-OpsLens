@@ -4025,6 +4025,146 @@ button {
   gap: 12px;
 }
 
+.native-console-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.native-console-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.native-console-header h3 {
+  margin: 0;
+  font-size: 1.08rem;
+}
+
+.native-console-header p {
+  max-width: 920px;
+  margin: 5px 0 0;
+  color: #4f5255;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.native-console-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.native-console-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.1fr) repeat(3, minmax(150px, 0.7fr)) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.native-console-toolbar label {
+  display: grid;
+  gap: 5px;
+  color: #4f5255;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.native-console-toolbar .resource-search {
+  display: flex;
+  min-width: 0;
+}
+
+.native-console-toolbar input:not([type="checkbox"]),
+.native-console-toolbar select {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 1px solid #8a8d90;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.native-console-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: #4f5255;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.native-console-summary > span:not(.status-pill) {
+  padding: 5px 8px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.native-console-table-wrap {
+  overflow: auto;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.native-console-table {
+  min-width: 880px;
+}
+
+.native-console-table td {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.native-name-link {
+  max-width: 240px;
+}
+
+.native-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.native-open-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.ocp-technical-explorer {
+  margin-top: 12px;
+}
+
+.ocp-technical-explorer > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+  color: #4f5255;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ocp-technical-explorer[open] > summary {
+  margin-bottom: 10px;
+}
+
 .resource-search {
   display: inline-flex;
   align-items: center;
@@ -5671,6 +5811,22 @@ button {
   .workload-native-action-grid,
   .workload-health-card dl {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .native-console-header {
+    flex-direction: column;
+  }
+
+  .native-console-actions {
+    justify-content: flex-start;
+  }
+
+  .native-console-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .native-console-table {
+    min-width: 720px;
   }
 
   .parity-summary-grid {

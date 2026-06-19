@@ -265,7 +265,28 @@ const explorerCopy = {
     notApplicable: "not applicable",
     logLines: "log lines",
     readOnlyGuard: "read-only only: get/list/watch, no create/update/patch/delete",
-    mappingDetails: "Mapping and verification details"
+    mappingDetails: "Mapping and verification details",
+    nativeConsoleView: "OpenShift console view",
+    nativeConsoleDescription:
+      "Native-style list, filters, status columns, object actions, and read-only evidence for the selected console menu.",
+    nativeConsoleActions: "Console actions",
+    nativeOpenList: "Open native list",
+    nativeCreateEditDelete: "Create/edit/delete in OpenShift",
+    technicalExplorer: "API discovery and raw read contract",
+    tableFilter: "Filter by name, namespace, label, owner, or status",
+    columnName: "Name",
+    columnNamespace: "Namespace",
+    columnStatus: "Status",
+    columnDetails: "Details",
+    columnTarget: "Target",
+    columnAge: "Age",
+    columnActions: "Actions",
+    noNativeItems: "No objects returned for this console view.",
+    openNative: "Open",
+    inspect: "Inspect",
+    conditionAvailable: "Available",
+    conditionProgressing: "Progressing",
+    conditionDegraded: "Degraded"
   },
   ko: {
     eyebrow: "실시간 OpenShift API",
@@ -417,7 +438,28 @@ const explorerCopy = {
     notApplicable: "해당 없음",
     logLines: "개 로그 라인",
     readOnlyGuard: "읽기 전용: get/list/watch만 사용, create/update/patch/delete 없음",
-    mappingDetails: "매핑 및 검증 세부 정보"
+    mappingDetails: "매핑 및 검증 세부 정보",
+    nativeConsoleView: "OpenShift 콘솔 화면",
+    nativeConsoleDescription:
+      "선택한 콘솔 메뉴에 맞춘 원본형 목록, 필터, 상태 컬럼, 객체 동작, 읽기 전용 근거입니다.",
+    nativeConsoleActions: "콘솔 동작",
+    nativeOpenList: "원본 목록 열기",
+    nativeCreateEditDelete: "생성/수정/삭제는 OpenShift에서",
+    technicalExplorer: "API 탐색 및 원시 읽기 계약",
+    tableFilter: "이름, 네임스페이스, 레이블, 소유자, 상태 필터",
+    columnName: "이름",
+    columnNamespace: "네임스페이스",
+    columnStatus: "상태",
+    columnDetails: "세부 정보",
+    columnTarget: "대상",
+    columnAge: "나이",
+    columnActions: "동작",
+    noNativeItems: "이 콘솔 화면에서 반환된 객체가 없습니다.",
+    openNative: "열기",
+    inspect: "검사",
+    conditionAvailable: "Available",
+    conditionProgressing: "Progressing",
+    conditionDegraded: "Degraded"
   }
 } as const;
 
@@ -714,6 +756,378 @@ function workloadActionMapping(
   ];
 }
 
+type NativeColumnId = "name" | "namespace" | "status" | "details" | "target" | "age";
+
+function arrayField(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  return Array.isArray(value) ? value : [];
+}
+
+function recordField(record: Record<string, unknown>, key: string) {
+  return asRecord(record[key]);
+}
+
+function stringArrayField(record: Record<string, unknown>, key: string) {
+  return arrayField(record, key)
+    .filter((value): value is string => typeof value === "string")
+    .join(", ");
+}
+
+function selectorText(value: unknown) {
+  const selector = asRecord(value);
+  const matchLabels = asRecord(selector.matchLabels);
+  const labelPairs = Object.entries(matchLabels).map(
+    ([key, labelValue]) => `${key}=${String(labelValue)}`
+  );
+  return labelPairs.length ? labelPairs.join(", ") : "-";
+}
+
+function labelPreview(item: OcpResourceSummary) {
+  const entries = Object.entries(item.metadata.labels ?? {});
+  if (!entries.length) {
+    return "-";
+  }
+  return entries
+    .slice(0, 3)
+    .map(([key, value]) => `${key}=${value}`)
+    .join(", ");
+}
+
+function conditionText(
+  item: OcpResourceSummary,
+  type: string,
+  fallback = "-"
+) {
+  const conditions = arrayField(asRecord(item.status), "conditions");
+  const condition = conditions
+    .map((value) => asRecord(value))
+    .find((value) => value.type === type);
+  return condition
+    ? `${condition.status ?? "-"}${condition.reason ? ` / ${condition.reason}` : ""}`
+    : fallback;
+}
+
+function compactTimestamp(value: string | undefined) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  const diffMs = Date.now() - date.getTime();
+  const minutes = Math.max(0, Math.floor(diffMs / 60000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+function servicePorts(spec: Record<string, unknown>) {
+  const ports = arrayField(spec, "ports")
+    .map((value) => asRecord(value))
+    .map((port) => {
+      const protocol = port.protocol ? `/${port.protocol}` : "";
+      return `${port.port ?? "-"}${protocol}`;
+    });
+  return ports.length ? ports.join(", ") : "-";
+}
+
+function firstRouteHost(spec: Record<string, unknown>) {
+  return stringField(spec, "host") ?? "-";
+}
+
+function resourceStatusText(
+  item: OcpResourceSummary,
+  copy: (typeof explorerCopy)[UiLanguage]
+) {
+  const spec = asRecord(item.spec);
+  const status = asRecord(item.status);
+
+  switch (item.kind) {
+    case "Pod":
+      return stringField(status, "phase") ?? copy.statusAttached;
+    case "Deployment":
+    case "DeploymentConfig":
+    case "StatefulSet":
+    case "ReplicaSet":
+    case "ReplicationController":
+      return `${numberField(status, "availableReplicas") ?? numberField(status, "readyReplicas") ?? 0}/${
+        numberField(spec, "replicas") ?? numberField(status, "replicas") ?? 0
+      } ${copy.replicas}`;
+    case "DaemonSet":
+      return `${numberField(status, "numberAvailable") ?? 0}/${
+        numberField(status, "desiredNumberScheduled") ?? 0
+      }`;
+    case "Job":
+      return `${numberField(status, "succeeded") ?? 0}/${numberField(spec, "completions") ?? 1}`;
+    case "CronJob":
+      return boolField(spec, "suspend") ? "Suspended" : "Active";
+    case "Route":
+      return recordField(spec, "tls").termination ? "TLS" : "Edge";
+    case "Service":
+      return stringField(spec, "type") ?? "ClusterIP";
+    case "PersistentVolumeClaim":
+    case "PersistentVolume":
+      return stringField(status, "phase") ?? "-";
+    case "StorageClass":
+      return stringField(spec, "reclaimPolicy") ?? "-";
+    case "Build":
+      return stringField(status, "phase") ?? "-";
+    case "BuildConfig":
+      return stringField(asRecord(spec.strategy), "type") ?? "-";
+    case "Node":
+      return conditionText(item, "Ready");
+    case "Machine":
+      return stringField(status, "phase") ?? "-";
+    case "ClusterOperator":
+      return [
+        `${copy.conditionAvailable}: ${conditionText(item, "Available")}`,
+        `${copy.conditionDegraded}: ${conditionText(item, "Degraded")}`
+      ].join(" · ");
+    case "Namespace":
+      return stringField(status, "phase") ?? "-";
+    case "CustomResourceDefinition":
+      return conditionText(item, "Established");
+    case "ResourceQuota":
+      return `${Object.keys(asRecord(status.hard)).length} hard`;
+    case "LimitRange":
+      return `${arrayField(spec, "limits").length} limits`;
+    default:
+      return item.status ? copy.statusAttached : copy.metadata;
+  }
+}
+
+function resourceDetailText(item: OcpResourceSummary) {
+  const spec = asRecord(item.spec);
+  const status = asRecord(item.status);
+
+  switch (item.kind) {
+    case "Pod":
+      return `${stringField(spec, "nodeName") ?? "-"} · ${ownerLabel(item)}`;
+    case "Deployment":
+    case "DeploymentConfig":
+    case "StatefulSet":
+    case "ReplicaSet":
+    case "ReplicationController":
+      return `updated ${numberField(status, "updatedReplicas") ?? "-"} · unavailable ${
+        numberField(status, "unavailableReplicas") ?? 0
+      }`;
+    case "DaemonSet":
+      return `scheduled ${numberField(status, "currentNumberScheduled") ?? 0} · misscheduled ${
+        numberField(status, "numberMisscheduled") ?? 0
+      }`;
+    case "CronJob":
+      return `${stringField(spec, "schedule") ?? "-"} · last ${
+        stringField(status, "lastScheduleTime") ?? "-"
+      }`;
+    case "Job":
+      return `failed ${numberField(status, "failed") ?? 0} · active ${
+        numberField(status, "active") ?? 0
+      }`;
+    case "HorizontalPodAutoscaler":
+      return `${numberField(status, "currentReplicas") ?? 0}/${
+        numberField(status, "desiredReplicas") ?? 0
+      } · max ${numberField(spec, "maxReplicas") ?? "-"}`;
+    case "PodDisruptionBudget":
+      return `allowed ${numberField(status, "disruptionsAllowed") ?? 0} · expected ${
+        numberField(status, "expectedPods") ?? "-"
+      }`;
+    case "Route":
+      return firstRouteHost(spec);
+    case "Service":
+      return `${stringField(spec, "clusterIP") ?? "-"} · ${servicePorts(spec)}`;
+    case "Ingress":
+      return arrayField(spec, "rules")
+        .map((rule) => stringField(asRecord(rule), "host"))
+        .filter(Boolean)
+        .join(", ") || "-";
+    case "NetworkPolicy":
+      return `${arrayField(spec, "policyTypes").join(", ") || "-"} · ${selectorText(spec.podSelector)}`;
+    case "PersistentVolumeClaim":
+      return `${stringField(spec, "storageClassName") ?? "-"} · ${
+        stringField(asRecord(status.capacity), "storage") ??
+        stringField(asRecord(asRecord(spec.resources).requests), "storage") ??
+        "-"
+      }`;
+    case "PersistentVolume":
+      return `${stringField(spec, "storageClassName") ?? "-"} · ${
+        stringField(asRecord(spec.capacity), "storage") ?? "-"
+      }`;
+    case "StorageClass":
+      return `${stringField(spec, "provisioner") ?? "-"} · ${
+        stringField(spec, "volumeBindingMode") ?? "-"
+      }`;
+    case "VolumeSnapshot":
+      return `${stringField(spec, "volumeSnapshotClassName") ?? "-"} · ready ${
+        boolField(status, "readyToUse") ?? "-"
+      }`;
+    case "VolumeSnapshotClass":
+      return `${stringField(spec, "driver") ?? "-"} · ${stringField(spec, "deletionPolicy") ?? "-"}`;
+    case "Build":
+      return `${stringField(status, "startTimestamp") ?? "-"} -> ${
+        stringField(status, "completionTimestamp") ?? "-"
+      }`;
+    case "BuildConfig":
+      return `${stringField(asRecord(asRecord(spec.output).to), "name") ?? "-"} · triggers ${
+        arrayField(spec, "triggers").length
+      }`;
+    case "ImageStream":
+      return `${arrayField(status, "tags").length} tags · ${stringField(spec, "dockerImageRepository") ?? "-"}`;
+    case "Node":
+      return `${stringField(asRecord(status.nodeInfo), "kubeletVersion") ?? "-"} · ${
+        stringField(asRecord(status.nodeInfo), "architecture") ?? "-"
+      }`;
+    case "Machine":
+      return `${stringField(status, "nodeRef") ?? stringField(asRecord(status.nodeRef), "name") ?? "-"} · ${
+        stringField(spec, "providerID") ?? "-"
+      }`;
+    case "MachineSet":
+      return `${numberField(spec, "replicas") ?? 0} desired · ${
+        numberField(status, "readyReplicas") ?? 0
+      } ready`;
+    case "MachineConfigPool":
+      return `${numberField(status, "machineCount") ?? 0} machines · updated ${
+        numberField(status, "updatedMachineCount") ?? 0
+      }`;
+    case "ServiceAccount":
+      return `${labelPreview(item)} · ${ownerLabel(item)}`;
+    case "Role":
+    case "ClusterRole":
+      return `${arrayField(asRecord(item.spec), "rules").length} rules`;
+    case "RoleBinding":
+    case "ClusterRoleBinding":
+      return `${arrayField(asRecord(item.spec), "subjects").length} subjects`;
+    case "ClusterOperator":
+      return `${copySafeVersion(status)} · ${conditionText(item, "Progressing")}`;
+    case "ResourceQuota":
+      return `used ${Object.keys(asRecord(status.used)).length} / hard ${
+        Object.keys(asRecord(status.hard)).length
+      }`;
+    default:
+      return labelPreview(item);
+  }
+}
+
+function copySafeVersion(status: Record<string, unknown>) {
+  const versions = arrayField(status, "versions").map((version) => asRecord(version));
+  const operator = versions.find((version) => version.name === "operator") ?? versions[0];
+  return operator?.version ? `version ${operator.version}` : "version -";
+}
+
+function resourceTargetText(item: OcpResourceSummary) {
+  const spec = asRecord(item.spec);
+
+  switch (item.kind) {
+    case "Route":
+      return stringField(asRecord(spec.to), "name") ?? "-";
+    case "Service":
+    case "NetworkPolicy":
+    case "Deployment":
+    case "DeploymentConfig":
+    case "StatefulSet":
+    case "DaemonSet":
+    case "ReplicaSet":
+    case "ReplicationController":
+      return selectorText(spec.selector ?? spec.podSelector);
+    case "PersistentVolumeClaim":
+      return stringField(spec, "volumeName") ?? "-";
+    case "PersistentVolume":
+      return stringField(asRecord(spec.claimRef), "name") ?? "-";
+    case "Job":
+      return ownerLabel(item);
+    case "CronJob":
+      return stringField(asRecord(spec.jobTemplate), "metadata") ?? ownerLabel(item);
+    case "HorizontalPodAutoscaler":
+      return `${stringField(asRecord(spec.scaleTargetRef), "kind") ?? "-"}/${
+        stringField(asRecord(spec.scaleTargetRef), "name") ?? "-"
+      }`;
+    case "PodDisruptionBudget":
+      return selectorText(spec.selector);
+    case "Machine":
+      return stringField(asRecord(asRecord(item.status).nodeRef), "name") ?? "-";
+    case "MachineSet":
+      return selectorText(recordField(spec, "selector"));
+    case "RoleBinding":
+      return `${stringField(asRecord(spec.roleRef), "kind") ?? "Role"}/${
+        stringField(asRecord(spec.roleRef), "name") ?? "-"
+      }`;
+    default:
+      return ownerLabel(item);
+  }
+}
+
+function nativeConsoleColumns(resource: OcpApiResource | undefined): NativeColumnId[] {
+  if (!resource) {
+    return ["name", "namespace", "status", "details", "age"];
+  }
+
+  switch (resource.kind) {
+    case "Route":
+    case "Service":
+    case "Ingress":
+    case "NetworkPolicy":
+    case "PersistentVolumeClaim":
+    case "PersistentVolume":
+    case "StorageClass":
+    case "Build":
+    case "BuildConfig":
+    case "ImageStream":
+    case "Node":
+    case "Machine":
+    case "MachineSet":
+    case "MachineConfigPool":
+    case "ClusterOperator":
+    case "ResourceQuota":
+    case "LimitRange":
+      return ["name", "namespace", "status", "details", "target", "age"];
+    default:
+      return ["name", "namespace", "status", "details", "age"];
+  }
+}
+
+function nativeColumnLabel(
+  id: NativeColumnId,
+  copy: (typeof explorerCopy)[UiLanguage]
+) {
+  switch (id) {
+    case "name":
+      return copy.columnName;
+    case "namespace":
+      return copy.columnNamespace;
+    case "status":
+      return copy.columnStatus;
+    case "details":
+      return copy.columnDetails;
+    case "target":
+      return copy.columnTarget;
+    case "age":
+      return copy.columnAge;
+  }
+}
+
+function nativeColumnValue(
+  id: NativeColumnId,
+  item: OcpResourceSummary,
+  resource: OcpApiResource | undefined,
+  copy: (typeof explorerCopy)[UiLanguage]
+) {
+  switch (id) {
+    case "name":
+      return item.metadata.name;
+    case "namespace":
+      return resource?.namespaced ? item.metadata.namespace ?? "-" : copy.cluster;
+    case "status":
+      return resourceStatusText(item, copy);
+    case "details":
+      return resourceDetailText(item);
+    case "target":
+      return resourceTargetText(item);
+    case "age":
+      return compactTimestamp(item.metadata.creationTimestamp);
+  }
+}
+
 function consoleApiPath(resource: OcpApiResource) {
   const apiPath =
     resource.apiVersion === "v1"
@@ -744,6 +1158,14 @@ function nativeObjectPath(resource: OcpApiResource, item: OcpResourceSummary) {
   return `/k8s/cluster/${apiPath}/${name}`;
 }
 
+function nativeResourceListPath(resource: OcpApiResource, namespace = "") {
+  const apiPath = consoleApiPath(resource);
+  if (resource.namespaced) {
+    return `/k8s/ns/${encodeURIComponent(namespace || "default")}/${apiPath}`;
+  }
+  return `/k8s/cluster/${apiPath}`;
+}
+
 export function OcpResourceExplorer({
   navigationPreset = null,
   language,
@@ -758,6 +1180,7 @@ export function OcpResourceExplorer({
   const [labelSelector, setLabelSelector] = useState("");
   const [fieldSelector, setFieldSelector] = useState("");
   const [query, setQuery] = useState("");
+  const [nativeFilter, setNativeFilter] = useState("");
   const [full, setFull] = useState(false);
   const [detailView, setDetailView] = useState<"json" | "yaml">("json");
   const [list, setList] = useState<OcpResourceListResponse | null>(null);
@@ -900,6 +1323,12 @@ export function OcpResourceExplorer({
 
     if (!options.silent) {
       setListLoading(true);
+      setList(null);
+      setAccessMatrix(null);
+      setDetail(null);
+      setRelated(null);
+      setEvents(null);
+      setLogs(null);
     }
     setError(null);
     try {
@@ -1232,6 +1661,34 @@ export function OcpResourceExplorer({
       : undefined;
   const workloadLogsAvailable =
     selectedResource?.kind === "Pod" && Boolean(selectedWorkload);
+  const activeList =
+    list && selectedResource && resourceKey(list.resource) === resourceKey(selectedResource)
+      ? list
+      : null;
+  const nativeColumns = nativeConsoleColumns(selectedResource);
+  const normalizedNativeFilter = nativeFilter.trim().toLowerCase();
+  const nativeItems = (activeList?.items ?? []).filter((item) => {
+    if (!normalizedNativeFilter) {
+      return true;
+    }
+    const searchable = [
+      item.metadata.name,
+      item.metadata.namespace,
+      item.kind,
+      resourceStatusText(item, copy),
+      resourceDetailText(item),
+      resourceTargetText(item),
+      labelPreview(item),
+      ownerLabel(item)
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return searchable.includes(normalizedNativeFilter);
+  });
+  const nativeListHref = selectedResource
+    ? nativeConsoleHref(nativeResourceListPath(selectedResource, namespace))
+    : undefined;
 
   useEffect(() => {
     onFunctionOutcomeChange?.(functionOutcomeState);
@@ -1384,6 +1841,183 @@ export function OcpResourceExplorer({
           <span>{error ?? status?.error}</span>
         </div>
       ) : null}
+
+      <article
+        className="console-panel native-console-panel"
+        data-testid="ocp-native-console-panel"
+      >
+        <div className="native-console-header">
+          <div>
+            <p className="eyebrow">{selectedResource?.apiVersion ?? copy.apiResources}</p>
+            <h3 data-testid="ocp-native-console-title">
+              {selectedResource?.kind ?? copy.nativeConsoleView}
+            </h3>
+            <p>{copy.nativeConsoleDescription}</p>
+          </div>
+          <div className="native-console-actions" data-testid="ocp-native-console-actions">
+            {nativeListHref ? (
+              <a
+                className="text-icon-button"
+                data-testid="ocp-native-list-link"
+                href={nativeListHref}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <ExternalLink size={15} aria-hidden="true" />
+                {copy.nativeOpenList}
+              </a>
+            ) : null}
+            <span className="status-pill read-only">
+              {copy.nativeCreateEditDelete}
+            </span>
+          </div>
+        </div>
+
+        <div className="native-console-toolbar" data-testid="ocp-native-console-toolbar">
+          <label className="resource-search native-filter">
+            <Search size={15} aria-hidden="true" />
+            <input
+              aria-label={copy.tableFilter}
+              data-testid="ocp-native-filter"
+              value={nativeFilter}
+              onChange={(event) => setNativeFilter(event.target.value)}
+              placeholder={copy.tableFilter}
+            />
+          </label>
+          <label>
+            {copy.namespace}
+            <select
+              aria-label={copy.namespace}
+              data-testid="ocp-native-namespace-select"
+              disabled={!selectedResource?.namespaced}
+              value={namespace}
+              onChange={(event) => setNamespace(event.target.value)}
+            >
+              <option value="">{copy.allNamespaces}</option>
+              {namespaces.map((item) => (
+                <option key={item.metadata.name} value={item.metadata.name}>
+                  {item.metadata.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {copy.labelSelector}
+            <input
+              aria-label={copy.labelSelector}
+              data-testid="ocp-native-label-selector"
+              value={labelSelector}
+              onChange={(event) => setLabelSelector(event.target.value)}
+              placeholder="app=my-app"
+            />
+          </label>
+          <label>
+            {copy.fieldSelector}
+            <input
+              aria-label={copy.fieldSelector}
+              data-testid="ocp-native-field-selector"
+              value={fieldSelector}
+              onChange={(event) => setFieldSelector(event.target.value)}
+              placeholder="metadata.name=..."
+            />
+          </label>
+          <button
+            className="text-icon-button"
+            data-testid="ocp-native-load"
+            disabled={!selectedResource?.safeToList || listLoading}
+            type="button"
+            onClick={() => void loadSelectedResource()}
+          >
+            <Database size={16} aria-hidden="true" />
+            {copy.load}
+          </button>
+        </div>
+
+        <div className="native-console-summary" data-testid="ocp-native-console-summary">
+          <span className="status-pill ready">
+            {nativeItems.length} {copy.itemsReturned}
+          </span>
+          <span>{selectedApiStatus}</span>
+          <span>{formatAccess(activeList?.access.list, copy)}</span>
+          <span>{copy.readOnlyGuard}</span>
+        </div>
+
+        <div className="native-console-table-wrap">
+          <table className="resource-table native-console-table" data-testid="ocp-native-console-table">
+            <thead>
+              <tr>
+                {nativeColumns.map((column) => (
+                  <th key={column}>{nativeColumnLabel(column, copy)}</th>
+                ))}
+                <th>{copy.columnActions}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {listLoading ? (
+                <tr>
+                  <td colSpan={nativeColumns.length + 1}>{copy.loadingItems}</td>
+                </tr>
+              ) : null}
+              {!listLoading && nativeItems.map((item) => {
+                const href = selectedResource
+                  ? nativeConsoleHref(nativeObjectPath(selectedResource, item))
+                  : undefined;
+                return (
+                  <tr
+                    key={`${item.metadata.namespace ?? "_cluster"}/${item.metadata.name}`}
+                  >
+                    {nativeColumns.map((column) => (
+                      <td key={column}>
+                        {column === "name" ? (
+                          <button
+                            className="link-button native-name-link"
+                            type="button"
+                            onClick={() =>
+                              void loadItemDetails(item, activeList?.resource ?? selectedResource)
+                            }
+                          >
+                            {nativeColumnValue(column, item, selectedResource, copy)}
+                          </button>
+                        ) : (
+                          <span>{nativeColumnValue(column, item, selectedResource, copy)}</span>
+                        )}
+                      </td>
+                    ))}
+                    <td>
+                      <div className="native-row-actions">
+                        <button
+                          className="mini-button"
+                          type="button"
+                          onClick={() =>
+                            void loadItemDetails(item, activeList?.resource ?? selectedResource)
+                          }
+                        >
+                          {copy.inspect}
+                        </button>
+                        {href ? (
+                          <a
+                            className="mini-button native-open-link"
+                            href={href}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {copy.openNative}
+                          </a>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!listLoading && activeList && nativeItems.length === 0 ? (
+                <tr>
+                  <td colSpan={nativeColumns.length + 1}>{copy.noNativeItems}</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </article>
 
       {workloadLensActive ? (
         <article
@@ -1596,7 +2230,9 @@ export function OcpResourceExplorer({
         </article>
       ) : null}
 
-      <div className="ocp-explorer-grid">
+      <details className="ocp-technical-explorer" data-testid="ocp-technical-explorer">
+        <summary>{copy.technicalExplorer}</summary>
+        <div className="ocp-explorer-grid">
         <article className="console-panel resource-catalog-panel">
           <div className="panel-title-row">
             <h3>{copy.apiResources}</h3>
@@ -1842,7 +2478,8 @@ export function OcpResourceExplorer({
             ) : null}
           </div>
         </article>
-      </div>
+        </div>
+      </details>
 
       <div className="resource-inspector-grid">
         <article className="console-panel">
