@@ -868,7 +868,7 @@ button {
 
 .parity-table {
   width: 100%;
-  min-width: 1050px;
+  min-width: 1230px;
   border-collapse: collapse;
   font-size: 0.78rem;
 }
@@ -920,6 +920,20 @@ button {
 
 .parity-function-proof span {
   margin-top: 3px;
+  color: #6a6e73;
+}
+
+.parity-compatibility-cell {
+  width: 230px;
+}
+
+.parity-compatibility-cell strong,
+.parity-compatibility-cell span {
+  display: block;
+}
+
+.parity-compatibility-cell span {
+  margin-top: 4px;
   color: #6a6e73;
 }
 

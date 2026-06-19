@@ -83,6 +83,18 @@ export interface ConsoleParityFunctionSignal {
   descriptionKo: string;
 }
 
+export interface ConsoleParityCompatibilityProfile {
+  minimumRuntime: typeof ocpConsoleBaseline.minimumRuntime;
+  baseline: string;
+  baselineKo: string;
+  apiVersions: string[];
+  nativeCreateApiVersion?: string;
+  forwardEnhancement: string;
+  forwardEnhancementKo: string;
+  proof: string;
+  proofKo: string;
+}
+
 export const ocpConsoleBaseline = {
   product: "OpenShift Local / OpenShift Container Platform web console",
   minimumRuntime: "OpenShift Container Platform 4.20",
@@ -93,6 +105,10 @@ export const ocpConsoleBaseline = {
   perspectiveModel:
     "OCP 4.21 uses the unified web console model introduced in OCP 4.19; Developer can still be enabled, but the administrator shell must not hide cluster console features.",
   sources: [
+    {
+      label: "Red Hat OCP 4.20 Web console overview",
+      url: "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/web_console/index"
+    },
     {
       label: "Red Hat OCP 4.21 Web console overview",
       url: "https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/web_console/index"
@@ -1012,6 +1028,78 @@ export function parityCoverageSummary() {
     planOnlyCount,
     gapCount,
     sourceVersion: ocpConsoleBaseline.crcVersion
+  };
+}
+
+function apiVersionFromPreferredResource(resource: string) {
+  const parts = resource.split("/");
+  if (parts.length < 2) {
+    return "";
+  }
+  return parts.slice(0, -1).join("/");
+}
+
+function nativeCreateApiVersion(path: string | undefined) {
+  if (!path) {
+    return "";
+  }
+  const match = path.match(/\/([^/]+~[^/]+~[^/]+)\/~new$/);
+  if (!match) {
+    return "";
+  }
+
+  const [groupOrVersion, version] = match[1].split("~");
+  return groupOrVersion === "v1" ? "v1" : `${groupOrVersion}/${version}`;
+}
+
+export function consoleParityCompatibilityProfile(
+  item: ConsoleParityItem
+): ConsoleParityCompatibilityProfile {
+  const apiVersions = new Set<string>();
+  for (const resource of item.resourcePreset?.preferredResources ?? []) {
+    const apiVersion = apiVersionFromPreferredResource(resource);
+    if (apiVersion) {
+      apiVersions.add(apiVersion);
+    }
+  }
+
+  const createApiVersion = nativeCreateApiVersion(item.nativeCreatePath);
+  if (createApiVersion) {
+    apiVersions.add(createApiVersion);
+  }
+
+  const apiVersionList = [...apiVersions].sort();
+  const baseline =
+    item.coverageClass === "native-deep-link"
+      ? "OCP 4.20 native console deep link"
+      : item.coverageClass === "plan-only"
+        ? "OCP 4.20 read-only/plan boundary"
+        : apiVersionList.length > 0
+          ? "OCP 4.20 API allowlist"
+          : "OCP 4.20 console plugin surface";
+  const baselineKo =
+    item.coverageClass === "native-deep-link"
+      ? "OCP 4.20 원본 콘솔 딥링크"
+      : item.coverageClass === "plan-only"
+        ? "OCP 4.20 읽기 전용/계획 경계"
+        : apiVersionList.length > 0
+          ? "OCP 4.20 API 허용 목록"
+          : "OCP 4.20 콘솔 플러그인 화면";
+
+  return {
+    minimumRuntime: ocpConsoleBaseline.minimumRuntime,
+    baseline,
+    baselineKo,
+    apiVersions: apiVersionList,
+    nativeCreateApiVersion: createApiVersion || undefined,
+    forwardEnhancement:
+      "4.21+ convenience is treated as UX guidance, not a required API dependency.",
+    forwardEnhancementKo:
+      "4.21+ 편의성은 필수 API 의존성이 아니라 UX 참고 기준으로만 사용합니다.",
+    proof:
+      "verify:ocp:420-compatibility now emits per-item API/runtime evidence; strict Windows CRC 4.20 proof remains pending.",
+    proofKo:
+      "verify:ocp:420-compatibility가 항목별 API/런타임 근거를 남기며, 엄격한 Windows CRC 4.20 증명은 아직 대기 중입니다."
   };
 }
 

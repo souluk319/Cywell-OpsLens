@@ -1461,6 +1461,7 @@ expectCheck(
     paritySource.includes("OpenShift Container Platform 4.20") &&
     paritySource.includes("OpenShift Container Platform 4.21+") &&
     paritySource.includes("Windows CRC 4.20 validation pending") &&
+    paritySource.includes("Red Hat OCP 4.20 Web console overview") &&
     paritySource.includes("docs.redhat.com/en/documentation/openshift_container_platform/4.21") &&
     paritySource.includes('"Home"') &&
     paritySource.includes('"Favorites"') &&
@@ -1507,6 +1508,8 @@ expectCheck(
     paritySource.includes("consoleParityFunctionProof") &&
     paritySource.includes("ConsoleParityFunctionSignal") &&
     paritySource.includes("consoleParityFunctionSignal") &&
+    paritySource.includes("ConsoleParityCompatibilityProfile") &&
+    paritySource.includes("consoleParityCompatibilityProfile") &&
     paritySource.includes("ConsoleParityCoverageClass") &&
     paritySource.includes("inferCoverageClass") &&
     paritySource.includes("coverageClass: inferCoverageClass(item)") &&
@@ -1552,9 +1555,12 @@ expectCheck(
     ocp420CompatibilitySource.includes("OpenShift Container Platform 4.20") &&
     ocp420CompatibilitySource.includes("OpenShift Container Platform 4.21+") &&
     ocp420CompatibilitySource.includes("Windows CRC 4.20") &&
+    ocp420CompatibilitySource.includes("itemCompatibility") &&
+    ocp420CompatibilitySource.includes("consoleParityCompatibilityProfile") &&
+    ocp420CompatibilitySource.includes("baseRef") &&
     ocp420CompatibilitySource.includes("API versions outside OCP 4.20 allowlist") &&
     ocp420CompatibilitySource.includes("test-results/cywell-opslens-ocp420-compatibility.json"),
-  "pre-deployment compatibility gate checks console parity resources against the OCP 4.20 API allowlist"
+  "pre-deployment compatibility gate checks console parity resources against the OCP 4.20 API allowlist and writes per-item runtime/API evidence"
 );
 
 expectCheck(
@@ -1686,10 +1692,12 @@ expectCheck(
     parityComponentSource.includes('data-testid="console-compatibility-boundary"') &&
     parityComponentSource.includes("ocpConsoleBaseline.minimumRuntime") &&
     parityComponentSource.includes("ocpConsoleBaseline.compatibilityProof") &&
+    parityComponentSource.includes("consoleParityCompatibilityProfile(item)") &&
     parityComponentSource.includes("console-parity-row-${item.id}") &&
     parityComponentSource.includes("data-active-parity-item=") &&
     parityComponentSource.includes("console-parity-open-${item.id}") &&
     parityComponentSource.includes("console-parity-function-${item.id}") &&
+    parityComponentSource.includes("console-parity-compatibility-${item.id}") &&
     parityComponentSource.includes("console-parity-class-${item.id}") &&
     parityComponentSource.includes("coverageClassLabels") &&
     parityComponentSource.includes("summary.liveViewCount") &&
@@ -1707,8 +1715,9 @@ expectCheck(
     stylesSource.includes(".console-parity-matrix") &&
     stylesSource.includes(".parity-compatibility-row") &&
     stylesSource.includes(".parity-table") &&
-    stylesSource.includes(".parity-function-proof"),
-  "dashboard renders a version-pinned table mapping each native OCP console path to an OpsLens action and acceptance contract"
+    stylesSource.includes(".parity-function-proof") &&
+    stylesSource.includes(".parity-compatibility-cell"),
+  "dashboard renders a version-pinned table mapping each native OCP console path to an OpsLens action, compatibility boundary, and acceptance contract"
 );
 
 expectCheck(

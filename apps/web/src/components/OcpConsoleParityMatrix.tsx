@@ -1,4 +1,5 @@
 import {
+  consoleParityCompatibilityProfile,
   consoleParityFunctionProof,
   ocpConsoleBaseline,
   ocpConsoleParityItems,
@@ -36,6 +37,9 @@ const parityCopy = {
     opsLens: "OpsLens action",
     enhancement: "OpsLens +@",
     functionProof: "Function proof",
+    compatibility: "4.20 / 4.21 boundary",
+    apiBasis: "API basis",
+    noApiBasis: "No direct API",
     acceptance: "Acceptance",
     coverageClass: "Class",
     status: "Status",
@@ -68,6 +72,9 @@ const parityCopy = {
     opsLens: "OpsLens 행동",
     enhancement: "OpsLens +@",
     functionProof: "기능 증거",
+    compatibility: "4.20 / 4.21 경계",
+    apiBasis: "API 기준",
+    noApiBasis: "직접 API 없음",
     acceptance: "완료 조건",
     coverageClass: "분류",
     status: "상태",
@@ -209,6 +216,7 @@ export function OcpConsoleParityMatrix({
               <th>{copy.opsLens}</th>
               <th>{copy.enhancement}</th>
               <th>{copy.functionProof}</th>
+              <th>{copy.compatibility}</th>
               <th>{copy.acceptance}</th>
               <th>{copy.coverageClass}</th>
               <th>{copy.status}</th>
@@ -218,6 +226,7 @@ export function OcpConsoleParityMatrix({
           <tbody>
             {ocpConsoleParityItems.map((item) => {
               const functionProof = consoleParityFunctionProof(item);
+              const compatibility = consoleParityCompatibilityProfile(item);
               return (
                 <tr
                   className={activeItemId === item.id ? "active" : ""}
@@ -257,6 +266,27 @@ export function OcpConsoleParityMatrix({
                       {language === "ko"
                         ? functionProof.proofKo
                         : functionProof.proof}
+                    </span>
+                  </td>
+                  <td
+                    className="parity-compatibility-cell"
+                    data-testid={`console-parity-compatibility-${item.id}`}
+                  >
+                    <strong>
+                      {language === "ko"
+                        ? compatibility.baselineKo
+                        : compatibility.baseline}
+                    </strong>
+                    <span>
+                      {copy.apiBasis}:{" "}
+                      {compatibility.apiVersions.length > 0
+                        ? compatibility.apiVersions.join(", ")
+                        : copy.noApiBasis}
+                    </span>
+                    <span>
+                      {language === "ko"
+                        ? compatibility.forwardEnhancementKo
+                        : compatibility.forwardEnhancement}
                     </span>
                   </td>
                   <td>
