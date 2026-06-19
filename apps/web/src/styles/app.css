@@ -6744,6 +6744,11 @@ button {
   grid-column: 1 / -1;
 }
 
+.native-object-summary-card.kind-summary {
+  border-left: 3px solid #0066cc;
+  background: linear-gradient(90deg, #f7fbff 0, #fff 42%);
+}
+
 .native-object-summary-card > strong {
   color: #151515;
   font-size: 0.88rem;

@@ -188,6 +188,425 @@ function conditionRows(item?: OcpResourceSummary) {
   });
 }
 
+interface NativeDetailGroup {
+  title: string;
+  rows: Array<{ label: string; value: string }>;
+}
+
+const nativeDetailCopy = {
+  en: {
+    workloadSpec: "Workload spec",
+    workloadStatus: "Workload status",
+    networkSpec: "Network spec",
+    storageSpec: "Storage spec",
+    buildSpec: "Build spec",
+    computeSpec: "Compute spec",
+    rbacSpec: "RBAC spec",
+    operatorSpec: "Operator spec",
+    projectSpec: "Project spec",
+    desired: "Desired",
+    available: "Available",
+    ready: "Ready",
+    updated: "Updated",
+    replicas: "Replicas",
+    selector: "Selector",
+    containers: "Containers",
+    images: "Images",
+    node: "Node",
+    podIp: "Pod IP",
+    qos: "QoS",
+    restartPolicy: "Restart policy",
+    schedule: "Schedule",
+    suspend: "Suspend",
+    lastSchedule: "Last schedule",
+    completions: "Completions",
+    parallelism: "Parallelism",
+    host: "Host",
+    service: "Service",
+    targetPort: "Target port",
+    tls: "TLS",
+    type: "Type",
+    clusterIp: "Cluster IP",
+    ports: "Ports",
+    endpoints: "Endpoints",
+    ingressRules: "Ingress rules",
+    egressRules: "Egress rules",
+    policyTypes: "Policy types",
+    requested: "Requested",
+    capacity: "Capacity",
+    storageClass: "StorageClass",
+    volume: "Volume",
+    accessModes: "Access modes",
+    reclaimPolicy: "Reclaim policy",
+    provisioner: "Provisioner",
+    bindingMode: "Binding mode",
+    expansion: "Expansion",
+    source: "Source",
+    driver: "Driver",
+    deletionPolicy: "Deletion policy",
+    strategy: "Strategy",
+    output: "Output",
+    triggers: "Triggers",
+    runPolicy: "Run policy",
+    tags: "Tags",
+    latest: "Latest",
+    roles: "Roles",
+    subjects: "Subjects",
+    rules: "Rules",
+    groups: "Groups",
+    phase: "Phase",
+    channel: "Channel",
+    installPlan: "InstallPlan",
+    csv: "CSV",
+    version: "Version",
+    provider: "Provider",
+    machine: "Machine",
+    osImage: "OS image",
+    kubelet: "Kubelet",
+    cpu: "CPU",
+    memory: "Memory",
+    owner: "Owner"
+  },
+  ko: {
+    workloadSpec: "워크로드 사양",
+    workloadStatus: "워크로드 상태",
+    networkSpec: "네트워크 사양",
+    storageSpec: "스토리지 사양",
+    buildSpec: "빌드 사양",
+    computeSpec: "컴퓨트 사양",
+    rbacSpec: "RBAC 사양",
+    operatorSpec: "오퍼레이터 사양",
+    projectSpec: "프로젝트 사양",
+    desired: "목표",
+    available: "Available",
+    ready: "Ready",
+    updated: "Updated",
+    replicas: "Replica",
+    selector: "Selector",
+    containers: "컨테이너",
+    images: "이미지",
+    node: "노드",
+    podIp: "Pod IP",
+    qos: "QoS",
+    restartPolicy: "재시작 정책",
+    schedule: "스케줄",
+    suspend: "일시 중지",
+    lastSchedule: "마지막 실행",
+    completions: "완료",
+    parallelism: "병렬",
+    host: "호스트",
+    service: "서비스",
+    targetPort: "대상 포트",
+    tls: "TLS",
+    type: "유형",
+    clusterIp: "Cluster IP",
+    ports: "포트",
+    endpoints: "Endpoint",
+    ingressRules: "Ingress 규칙",
+    egressRules: "Egress 규칙",
+    policyTypes: "정책 유형",
+    requested: "요청",
+    capacity: "용량",
+    storageClass: "StorageClass",
+    volume: "Volume",
+    accessModes: "접근 모드",
+    reclaimPolicy: "회수 정책",
+    provisioner: "Provisioner",
+    bindingMode: "바인딩 모드",
+    expansion: "확장",
+    source: "소스",
+    driver: "Driver",
+    deletionPolicy: "삭제 정책",
+    strategy: "전략",
+    output: "출력",
+    triggers: "트리거",
+    runPolicy: "실행 정책",
+    tags: "태그",
+    latest: "최신",
+    roles: "Role",
+    subjects: "Subject",
+    rules: "Rule",
+    groups: "Group",
+    phase: "상태",
+    channel: "채널",
+    installPlan: "InstallPlan",
+    csv: "CSV",
+    version: "버전",
+    provider: "Provider",
+    machine: "Machine",
+    osImage: "OS 이미지",
+    kubelet: "Kubelet",
+    cpu: "CPU",
+    memory: "메모리",
+    owner: "소유자"
+  }
+} as const;
+
+function arrayField(value: unknown, key: string): unknown[] {
+  const field = asRecord(value)[key];
+  return Array.isArray(field) ? field : [];
+}
+
+function stringField(value: unknown, key: string) {
+  const field = asRecord(value)[key];
+  if (typeof field === "string" && field.trim()) return field;
+  if (typeof field === "number" || typeof field === "boolean") return String(field);
+  return undefined;
+}
+
+function nestedField(value: unknown, path: string[]) {
+  let current: unknown = value;
+  for (const segment of path) {
+    current = asRecord(current)[segment];
+  }
+  if (typeof current === "string" && current.trim()) return current;
+  if (typeof current === "number" || typeof current === "boolean") return String(current);
+  return undefined;
+}
+
+function compactArray(values: unknown[], projector: (value: unknown) => string | undefined) {
+  const projected = values.map(projector).filter((value): value is string => Boolean(value));
+  if (!projected.length) return "-";
+  const sample = projected.slice(0, 4).join(", ");
+  return projected.length > 4 ? `${sample} +${projected.length - 4}` : sample;
+}
+
+function compactMap(value: unknown) {
+  return compactRecord(value);
+}
+
+function quantityMap(value: unknown) {
+  const record = asRecord(value);
+  const entries = Object.entries(record);
+  if (!entries.length) return "-";
+  return entries.map(([key, val]) => `${key}=${String(val)}`).join(", ");
+}
+
+function selectorFromSpec(spec: Record<string, unknown>) {
+  const selector = asRecord(spec.selector);
+  const matchLabels = asRecord(selector.matchLabels);
+  if (Object.keys(matchLabels).length) return compactMap(matchLabels);
+  if (Object.keys(selector).length) return compactMap(selector);
+  return "-";
+}
+
+function ownerKind(item: OcpResourceSummary) {
+  return item.metadata.ownerReferences?.map((owner) => owner.kind).join(", ") || "-";
+}
+
+function addGroup(groups: NativeDetailGroup[], title: string, rows: Array<{ label: string; value: string | undefined }>) {
+  const cleanRows = rows
+    .map((row) => ({ label: row.label, value: row.value && row.value.trim() ? row.value : "-" }))
+    .filter((row) => row.value !== "-");
+  if (cleanRows.length) groups.push({ title, rows: cleanRows });
+}
+
+function nativeDetailGroups(item: OcpResourceSummary, language: UiLanguage): NativeDetailGroup[] {
+  const label = nativeDetailCopy[language];
+  const spec = asRecord(item.spec);
+  const status = asRecord(item.status);
+  const groups: NativeDetailGroup[] = [];
+
+  if (item.kind === "Pod") {
+    const containers = arrayField(spec, "containers");
+    addGroup(groups, label.workloadSpec, [
+      { label: label.node, value: stringField(spec, "nodeName") },
+      { label: label.restartPolicy, value: stringField(spec, "restartPolicy") },
+      { label: label.containers, value: compactArray(containers, (container) => stringField(container, "name")) },
+      { label: label.images, value: compactArray(containers, (container) => stringField(container, "image")) }
+    ]);
+    addGroup(groups, label.workloadStatus, [
+      { label: label.phase, value: stringField(status, "phase") },
+      { label: label.podIp, value: stringField(status, "podIP") },
+      { label: label.qos, value: stringField(status, "qosClass") },
+      { label: label.ready, value: `${arrayField(status, "containerStatuses").filter((container) => asRecord(container).ready === true).length}/${containers.length}` }
+    ]);
+  }
+
+  if (["Deployment", "DeploymentConfig", "StatefulSet", "DaemonSet", "ReplicaSet", "ReplicationController"].includes(item.kind)) {
+    addGroup(groups, label.workloadSpec, [
+      { label: label.replicas, value: stringField(spec, "replicas") },
+      { label: label.selector, value: selectorFromSpec(spec) },
+      { label: label.strategy, value: nestedField(spec, ["strategy", "type"]) }
+    ]);
+    addGroup(groups, label.workloadStatus, [
+      { label: label.desired, value: stringField(status, "replicas") ?? stringField(status, "desiredNumberScheduled") },
+      { label: label.ready, value: stringField(status, "readyReplicas") ?? stringField(status, "numberReady") },
+      { label: label.updated, value: stringField(status, "updatedReplicas") ?? stringField(status, "updatedNumberScheduled") },
+      { label: label.available, value: stringField(status, "availableReplicas") }
+    ]);
+  }
+
+  if (item.kind === "CronJob") {
+    addGroup(groups, label.workloadSpec, [
+      { label: label.schedule, value: stringField(spec, "schedule") },
+      { label: label.suspend, value: stringField(spec, "suspend") },
+      { label: label.lastSchedule, value: stringField(status, "lastScheduleTime") }
+    ]);
+  }
+
+  if (item.kind === "Job") {
+    addGroup(groups, label.workloadSpec, [
+      { label: label.completions, value: stringField(spec, "completions") },
+      { label: label.parallelism, value: stringField(spec, "parallelism") },
+      { label: label.ready, value: stringField(status, "ready") },
+      { label: label.phase, value: stringField(status, "succeeded") ?? stringField(status, "failed") }
+    ]);
+  }
+
+  if (item.kind === "Service") {
+    addGroup(groups, label.networkSpec, [
+      { label: label.type, value: stringField(spec, "type") },
+      { label: label.clusterIp, value: stringField(spec, "clusterIP") },
+      { label: label.selector, value: compactMap(spec.selector) },
+      { label: label.ports, value: compactArray(arrayField(spec, "ports"), (port) => `${stringField(port, "port") ?? "-"}:${stringField(port, "targetPort") ?? "-"}`) }
+    ]);
+  }
+
+  if (item.kind === "Route") {
+    addGroup(groups, label.networkSpec, [
+      { label: label.host, value: stringField(spec, "host") },
+      { label: label.service, value: nestedField(spec, ["to", "name"]) },
+      { label: label.targetPort, value: nestedField(spec, ["port", "targetPort"]) },
+      { label: label.tls, value: nestedField(spec, ["tls", "termination"]) }
+    ]);
+  }
+
+  if (item.kind === "Ingress") {
+    addGroup(groups, label.networkSpec, [
+      { label: label.ingressRules, value: String(arrayField(spec, "rules").length) },
+      { label: label.tls, value: String(arrayField(spec, "tls").length) },
+      { label: label.host, value: compactArray(arrayField(spec, "rules"), (rule) => stringField(rule, "host")) }
+    ]);
+  }
+
+  if (item.kind === "NetworkPolicy") {
+    addGroup(groups, label.networkSpec, [
+      { label: label.policyTypes, value: arrayField(spec, "policyTypes").join(", ") },
+      { label: label.selector, value: compactMap(asRecord(spec.podSelector).matchLabels) },
+      { label: label.ingressRules, value: String(arrayField(spec, "ingress").length) },
+      { label: label.egressRules, value: String(arrayField(spec, "egress").length) }
+    ]);
+  }
+
+  if (item.kind === "PersistentVolumeClaim") {
+    addGroup(groups, label.storageSpec, [
+      { label: label.phase, value: stringField(status, "phase") },
+      { label: label.requested, value: nestedField(spec, ["resources", "requests", "storage"]) },
+      { label: label.storageClass, value: stringField(spec, "storageClassName") },
+      { label: label.volume, value: stringField(spec, "volumeName") },
+      { label: label.accessModes, value: arrayField(spec, "accessModes").join(", ") }
+    ]);
+  }
+
+  if (item.kind === "PersistentVolume") {
+    addGroup(groups, label.storageSpec, [
+      { label: label.phase, value: stringField(status, "phase") },
+      { label: label.capacity, value: nestedField(spec, ["capacity", "storage"]) },
+      { label: label.storageClass, value: stringField(spec, "storageClassName") },
+      { label: label.reclaimPolicy, value: stringField(spec, "persistentVolumeReclaimPolicy") },
+      { label: label.accessModes, value: arrayField(spec, "accessModes").join(", ") }
+    ]);
+  }
+
+  if (item.kind === "StorageClass") {
+    addGroup(groups, label.storageSpec, [
+      { label: label.provisioner, value: stringField(item, "provisioner") ?? stringField(spec, "provisioner") },
+      { label: label.reclaimPolicy, value: stringField(item, "reclaimPolicy") ?? stringField(spec, "reclaimPolicy") },
+      { label: label.bindingMode, value: stringField(item, "volumeBindingMode") ?? stringField(spec, "volumeBindingMode") },
+      { label: label.expansion, value: stringField(item, "allowVolumeExpansion") ?? stringField(spec, "allowVolumeExpansion") }
+    ]);
+  }
+
+  if (item.kind === "VolumeSnapshot") {
+    addGroup(groups, label.storageSpec, [
+      { label: label.ready, value: stringField(status, "readyToUse") },
+      { label: label.source, value: nestedField(spec, ["source", "persistentVolumeClaimName"]) ?? nestedField(spec, ["source", "volumeSnapshotContentName"]) },
+      { label: label.storageClass, value: stringField(spec, "volumeSnapshotClassName") }
+    ]);
+  }
+
+  if (item.kind === "VolumeSnapshotClass") {
+    addGroup(groups, label.storageSpec, [
+      { label: label.driver, value: stringField(spec, "driver") ?? stringField(item, "driver") },
+      { label: label.deletionPolicy, value: stringField(spec, "deletionPolicy") ?? stringField(item, "deletionPolicy") }
+    ]);
+  }
+
+  if (item.kind === "Build" || item.kind === "BuildConfig") {
+    addGroup(groups, label.buildSpec, [
+      { label: label.phase, value: stringField(status, "phase") },
+      { label: label.strategy, value: Object.keys(asRecord(spec.strategy)).join(", ") },
+      { label: label.source, value: Object.keys(asRecord(spec.source)).join(", ") },
+      { label: label.output, value: nestedField(spec, ["output", "to", "name"]) },
+      { label: label.triggers, value: String(arrayField(spec, "triggers").length) },
+      { label: label.runPolicy, value: stringField(spec, "runPolicy") }
+    ]);
+  }
+
+  if (item.kind === "ImageStream") {
+    addGroup(groups, label.buildSpec, [
+      { label: label.tags, value: String(arrayField(spec, "tags").length || arrayField(status, "tags").length) },
+      { label: label.latest, value: compactArray(arrayField(status, "tags"), (tag) => stringField(tag, "tag")) },
+      { label: label.output, value: stringField(spec, "dockerImageRepository") }
+    ]);
+  }
+
+  if (item.kind === "Node") {
+    const capacity = asRecord(status.capacity);
+    addGroup(groups, label.computeSpec, [
+      { label: label.roles, value: compactMap(item.metadata.labels) },
+      { label: label.cpu, value: stringField(capacity, "cpu") },
+      { label: label.memory, value: stringField(capacity, "memory") },
+      { label: label.osImage, value: nestedField(status, ["nodeInfo", "osImage"]) },
+      { label: label.kubelet, value: nestedField(status, ["nodeInfo", "kubeletVersion"]) }
+    ]);
+  }
+
+  if (["Machine", "MachineSet", "MachineConfigPool"].includes(item.kind)) {
+    addGroup(groups, label.computeSpec, [
+      { label: label.phase, value: stringField(status, "phase") },
+      { label: label.provider, value: compactMap(spec.providerSpec) },
+      { label: label.machine, value: stringField(status, "nodeRef") ?? stringField(status, "machineCount") },
+      { label: label.desired, value: stringField(spec, "replicas") },
+      { label: label.ready, value: stringField(status, "readyReplicas") ?? stringField(status, "readyMachineCount") }
+    ]);
+  }
+
+  if (["Role", "ClusterRole"].includes(item.kind)) {
+    addGroup(groups, label.rbacSpec, [
+      { label: label.rules, value: String(arrayField(item, "rules").length || arrayField(spec, "rules").length) }
+    ]);
+  }
+
+  if (["RoleBinding", "ClusterRoleBinding"].includes(item.kind)) {
+    addGroup(groups, label.rbacSpec, [
+      { label: label.subjects, value: compactArray(arrayField(item, "subjects").length ? arrayField(item, "subjects") : arrayField(spec, "subjects"), (subject) => `${stringField(subject, "kind") ?? "-"}:${stringField(subject, "name") ?? "-"}`) },
+      { label: label.roles, value: nestedField(item, ["roleRef", "name"]) ?? nestedField(spec, ["roleRef", "name"]) }
+    ]);
+  }
+
+  if (["ClusterServiceVersion", "Subscription", "InstallPlan", "OperatorGroup", "CatalogSource", "PackageManifest"].includes(item.kind)) {
+    addGroup(groups, label.operatorSpec, [
+      { label: label.phase, value: stringField(status, "phase") ?? stringField(status, "state") },
+      { label: label.channel, value: stringField(spec, "channel") },
+      { label: label.csv, value: stringField(status, "installedCSV") ?? stringField(status, "currentCSV") },
+      { label: label.installPlan, value: nestedField(status, ["installPlanRef", "name"]) },
+      { label: label.version, value: stringField(spec, "version") ?? stringField(status, "version") }
+    ]);
+  }
+
+  if (["Project", "Namespace"].includes(item.kind)) {
+    addGroup(groups, label.projectSpec, [
+      { label: label.phase, value: stringField(status, "phase") },
+      { label: label.selector, value: compactMap(item.metadata.labels) },
+      { label: label.owner, value: ownerKind(item) }
+    ]);
+  }
+
+  return groups;
+}
+
 function rawText(detail: OcpResourceDetailResponse | null, item?: OcpResourceSummary) {
   const raw = detail?.raw ?? detail?.item ?? item ?? {};
   try {
@@ -351,6 +770,7 @@ export function OcpNativeObjectDrilldown({
   );
   const lifecycleActions = lifecycleActionsForItem?.(selected, selectedResource) ?? [];
   const conditions = conditionRows(selectedDetailItem);
+  const kindDetailGroups = nativeDetailGroups(selectedDetailItem, language);
 
   return (
     <article className="native-drilldown-panel" data-testid={`${testId}-drilldown`}>
@@ -539,6 +959,25 @@ export function OcpNativeObjectDrilldown({
                   <div><dt>{text.annotations}</dt><dd>{compactRecord(selectedDetailItem.metadata.annotations)}</dd></div>
                 </dl>
               </section>
+
+              {kindDetailGroups.map((group, index) => (
+                <section
+                  className="native-object-summary-card kind-summary"
+                  data-kind-summary="true"
+                  data-testid={`${testId}-kind-summary-${index}`}
+                  key={`${group.title}-${index}`}
+                >
+                  <strong>{group.title}</strong>
+                  <dl>
+                    {group.rows.map((row) => (
+                      <div key={`${group.title}-${row.label}`}>
+                        <dt>{row.label}</dt>
+                        <dd>{row.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+              ))}
 
               <section className="native-object-summary-card conditions">
                 <strong>{text.conditions}</strong>

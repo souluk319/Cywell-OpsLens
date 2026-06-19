@@ -2267,6 +2267,23 @@ expectCheck(
 );
 
 expectCheck(
+  "dedicated native object kind summary contract",
+  nativeObjectDrilldownSource.includes("interface NativeDetailGroup") &&
+    nativeObjectDrilldownSource.includes("function nativeDetailGroups") &&
+    nativeObjectDrilldownSource.includes('item.kind === "Pod"') &&
+    nativeObjectDrilldownSource.includes('item.kind === "Route"') &&
+    nativeObjectDrilldownSource.includes('item.kind === "PersistentVolumeClaim"') &&
+    nativeObjectDrilldownSource.includes('item.kind === "Build" || item.kind === "BuildConfig"') &&
+    nativeObjectDrilldownSource.includes('item.kind === "Node"') &&
+    nativeObjectDrilldownSource.includes('"RoleBinding", "ClusterRoleBinding"') &&
+    nativeObjectDrilldownSource.includes("const kindDetailGroups = nativeDetailGroups(selectedDetailItem, language)") &&
+    nativeObjectDrilldownSource.includes('data-kind-summary="true"') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-kind-summary-${index}`}') &&
+    stylesSource.includes(".native-object-summary-card.kind-summary"),
+  "Shared native object details render kind-specific spec/status cards for Workloads, Networking, Storage, Builds, Compute, RBAC, Operators, and Projects instead of only generic metadata"
+);
+
+expectCheck(
   "dedicated console native object name link contract",
   nativeObjectLinkSource.includes("nativeObjectPath(resource, item)") &&
     nativeObjectLinkSource.includes('className="native-object-name-link"') &&
