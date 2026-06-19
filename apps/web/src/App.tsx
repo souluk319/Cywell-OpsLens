@@ -68,6 +68,10 @@ import {
   OcpStorageConsole,
   type OcpStorageView
 } from "./components/OcpStorageConsole";
+import {
+  OcpAdministrationConsole,
+  type OcpAdministrationView
+} from "./components/OcpAdministrationConsole";
 import { OcpTopologyGraph } from "./components/OcpTopologyGraph";
 import {
   OcpResourceExplorer,
@@ -1220,6 +1224,13 @@ export default function App() {
           <OcpStorageConsole
             language={language}
             view={activeNavigation.id as OcpStorageView}
+          />
+        );
+      case "administration-console":
+        return (
+          <OcpAdministrationConsole
+            language={language}
+            view={activeNavigation.id as OcpAdministrationView}
           />
         );
       case "evidence":

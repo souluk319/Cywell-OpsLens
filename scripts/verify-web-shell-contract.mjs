@@ -92,6 +92,7 @@ const monitoringSource = await readText("apps/web/src/components/OcpMonitoringCo
 const buildsSource = await readText("apps/web/src/components/OcpBuildsConsole.tsx");
 const networkingSource = await readText("apps/web/src/components/OcpNetworkingConsole.tsx");
 const storageSource = await readText("apps/web/src/components/OcpStorageConsole.tsx");
+const administrationSource = await readText("apps/web/src/components/OcpAdministrationConsole.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const paritySource = await readText("apps/web/src/consoleParity.ts");
 const parityModule = await loadTypescriptModule(paritySource, "console parity");
@@ -2056,12 +2057,17 @@ expectCheck(
   "targeted console section routing",
     paritySource.includes("targetSelector: \"[data-testid='opslens-catalog-toolchain']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='opslens-operator-package']\"") &&
-    paritySource.includes("targetSelector: \"[data-testid='opslens-ocp-connectivity']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='opslens-install-readiness']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-monitoring-alerting']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-monitoring-dashboards']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-monitoring-metrics']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-monitoring-logs']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-admin-cluster-settings']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-admin-clusteroperators']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-admin-namespaces']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-admin-custom-resource-definitions']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-admin-resourcequotas']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-admin-limitranges']\"") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
     e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
     appSource.includes("case \"ops-admin\""),
@@ -2328,6 +2334,42 @@ expectCheck(
     stylesSource.includes(".storage-native-boundary") &&
     e2eSource.includes('"storage-console": "Storage console"'),
   "Storage menu items must render native PVC, PV, StorageClass, VolumeSnapshot, and VolumeSnapshotClass surfaces with binding/provisioning/snapshot evidence instead of routing only to the generic resource explorer"
+);
+
+expectCheck(
+  "official administration console surface contract",
+  paritySource.includes('| "administration-console"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-admin-cluster-settings\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-admin-clusteroperators\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-admin-namespaces\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-admin-custom-resource-definitions\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-admin-resourcequotas\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-admin-limitranges\']"') &&
+    paritySource.includes('mode: "administration-console"') &&
+    appSource.includes("case \"administration-console\"") &&
+    appSource.includes("<OcpAdministrationConsole") &&
+    administrationSource.includes("export type OcpAdministrationView") &&
+    administrationSource.includes('data-testid={viewTestId(view)}') &&
+    administrationSource.includes('data-testid="ocp-admin-toolbar"') &&
+    administrationSource.includes('data-testid="ocp-admin-cluster-settings-board"') &&
+    administrationSource.includes('data-testid="ocp-admin-clusteroperators-table"') &&
+    administrationSource.includes('data-testid="ocp-admin-namespaces-table"') &&
+    administrationSource.includes('data-testid="ocp-admin-crds-table"') &&
+    administrationSource.includes('data-testid="ocp-admin-resourcequotas-table"') &&
+    administrationSource.includes('data-testid="ocp-admin-limitranges-table"') &&
+    administrationSource.includes('data-testid="ocp-admin-native-handoff"') &&
+    administrationSource.includes("config.openshift.io/v1") &&
+    administrationSource.includes("apiextensions.k8s.io/v1") &&
+    administrationSource.includes("apiregistration.k8s.io/v1") &&
+    administrationSource.includes("console.openshift.io/v1") &&
+    administrationSource.includes("fetchOcpResourceList") &&
+    stylesSource.includes(".ocp-admin-console") &&
+    stylesSource.includes(".ocp-admin-toolbar") &&
+    stylesSource.includes(".admin-native-grid") &&
+    stylesSource.includes(".native-admin-table") &&
+    stylesSource.includes(".admin-native-boundary") &&
+    e2eSource.includes('"administration-console": "Administration console"'),
+  "Administration menu items must render native Cluster Settings, ClusterOperators, Namespaces, CRDs, ResourceQuotas, and LimitRanges surfaces with operator/API/RBAC boundary evidence instead of routing only to the generic resource explorer"
 );
 
 expectCheck(

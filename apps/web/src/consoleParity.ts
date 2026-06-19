@@ -21,6 +21,7 @@ export type ConsoleParityActionSurface =
   | "builds-console"
   | "networking-console"
   | "storage-console"
+  | "administration-console"
   | "ops-dashboard"
   | "ops-admin"
   | "opsbrain"
@@ -70,6 +71,7 @@ export type ConsoleParityFunctionMode =
   | "builds-console"
   | "networking-console"
   | "storage-console"
+  | "administration-console"
   | "evidence-view"
   | "overview"
   | "ops-dashboard"
@@ -1168,8 +1170,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "클러스터 설정",
     originalPath: "Administration / Cluster Settings",
     originalPathKo: "관리 / 클러스터 설정",
-    targetSelector: "[data-testid='opslens-ocp-connectivity']",
-    actionSurface: "ops-admin",
+    targetSelector: "[data-testid='ocp-admin-cluster-settings']",
+    actionSurface: "administration-console",
     command: "Review cluster version, console configuration, OperatorHub sources, and approval-gated changes.",
     commandKo: "클러스터 버전, 콘솔 설정, OperatorHub 소스, 승인 필요 변경을 검토합니다.",
     opsLensEnhancement: "Separates read-only diagnostics from mutation plans and labels approval boundaries.",
@@ -1194,8 +1196,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "ClusterOperators",
     originalPath: "Administration / Cluster Settings / ClusterOperators",
     originalPathKo: "관리 / 클러스터 설정 / ClusterOperators",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-admin-clusteroperators']",
+    actionSurface: "administration-console",
     command: "List ClusterOperators, availability, degradation, progressing state, and condition messages.",
     commandKo: "ClusterOperator, Available/Degraded/Progressing 상태와 condition 메시지를 조회합니다.",
     opsLensEnhancement: "Adds upgrade-block and platform health diagnosis.",
@@ -1215,8 +1217,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "네임스페이스",
     originalPath: "Administration / Namespaces",
     originalPathKo: "관리 / 네임스페이스",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-admin-namespaces']",
+    actionSurface: "administration-console",
     command: "List Namespaces, phase, labels, annotations, quotas, and recent events.",
     commandKo: "Namespace, 상태, label, annotation, quota, 최근 이벤트를 조회합니다.",
     opsLensEnhancement: "Adds namespace scope and tenant impact context.",
@@ -1236,8 +1238,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "CustomResourceDefinitions",
     originalPath: "Administration / CustomResourceDefinitions",
     originalPathKo: "관리 / CustomResourceDefinitions",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-admin-custom-resource-definitions']",
+    actionSurface: "administration-console",
     command: "List CRDs, served versions, conversion strategy, and established conditions.",
     commandKo: "CRD, served version, conversion 전략, Established condition을 조회합니다.",
     opsLensEnhancement: "Adds API coverage diagnostics and conversion webhook failure classification.",
@@ -1260,8 +1262,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "ResourceQuotas",
     originalPath: "Administration / ResourceQuotas",
     originalPathKo: "관리 / ResourceQuotas",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-admin-resourcequotas']",
+    actionSurface: "administration-console",
     command: "List ResourceQuotas and hard/used quota pressure.",
     commandKo: "ResourceQuota와 hard/used quota 압박을 조회합니다.",
     opsLensEnhancement: "Adds capacity-risk and tenant-impact diagnosis.",
@@ -1281,8 +1283,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "LimitRanges",
     originalPath: "Administration / LimitRanges",
     originalPathKo: "관리 / LimitRanges",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-admin-limitranges']",
+    actionSurface: "administration-console",
     command: "List LimitRanges and namespace default request/limit policy.",
     commandKo: "LimitRange와 네임스페이스 기본 request/limit 정책을 조회합니다.",
     opsLensEnhancement: "Adds pod admission and capacity planning context.",
@@ -1564,6 +1566,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "administration-console") {
+    return {
+      mode: "administration-console",
+      input: `Administration surface: ${item.id}`,
+      inputKo: `관리 화면: ${item.labelKo}`,
+      proof:
+        "Administration target must mount a native Administration-style surface with ClusterVersion, ClusterOperator, Namespace, CRD, APIService, ResourceQuota, LimitRange, and approval-boundary evidence.",
+      proofKo:
+        "관리 대상은 ClusterVersion, ClusterOperator, Namespace, CRD, APIService, ResourceQuota, LimitRange, 승인 경계 근거를 갖춘 원본 Administration 스타일 화면을 장착해야 합니다."
+    };
+  }
+
   if (item.evidenceView) {
     return {
       mode: "evidence-view",
@@ -1695,6 +1709,16 @@ export function consoleParityFunctionSignal(
         "Storage console surface must expose the selected native PVC, PV, StorageClass, VolumeSnapshot, or VolumeSnapshotClass view with live source state.",
       descriptionKo:
         "스토리지 콘솔 화면은 선택한 원본 PVC, PV, StorageClass, VolumeSnapshot, VolumeSnapshotClass 보기를 실시간 출처 상태와 함께 보여야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "administration-console") {
+    return {
+      selector: item.targetSelector,
+      description:
+        "Administration console surface must expose the selected native Cluster Settings, ClusterOperators, Namespaces, CRDs, ResourceQuotas, or LimitRanges view with live source state.",
+      descriptionKo:
+        "관리 콘솔 화면은 선택한 원본 Cluster Settings, ClusterOperators, Namespaces, CRD, ResourceQuota, LimitRange 보기를 실시간 출처 상태와 함께 보여야 합니다."
     };
   }
 
