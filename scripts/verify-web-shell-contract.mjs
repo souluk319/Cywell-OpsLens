@@ -1593,6 +1593,7 @@ expectCheck(
     ocpClientSource.includes("horizontalpodautoscalers") &&
     ocpClientSource.includes("poddisruptionbudgets") &&
     ocpClientSource.includes("scaleTargetRef") &&
+    ocpClientSource.includes("response.failure") &&
     backendServerSource.includes('url.pathname === "/api/ocp/topology"') &&
     apiSource.includes("fetchOcpTopology") &&
     topologySource.includes("DeploymentConfigs") &&
@@ -1640,11 +1641,13 @@ expectCheck(
     explorerSource.includes("workloadSignal(") &&
     explorerSource.includes("workloadNextChecks(") &&
     explorerSource.includes("full: full || workloadKinds.has(resource.kind)") &&
+    explorerSource.includes('"DeploymentConfig"') &&
+    explorerSource.includes('"ReplicationController"') &&
     explorerSource.includes("HorizontalPodAutoscaler") &&
     explorerSource.includes("PodDisruptionBudget") &&
     stylesSource.includes(".workload-lens-panel") &&
     stylesSource.includes(".workload-health-meter"),
-  "Workload resource presets render a purpose-built visual lens for Pods, Deployments, Jobs, CronJobs, HPA, and PDB instead of only a generic table"
+  "Workload resource presets render a purpose-built visual lens for Pods, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB instead of only a generic table"
 );
 
 expectCheck(
@@ -1750,6 +1753,11 @@ expectCheck(
   "dashboard live/source label contract",
   dashboardSource.includes('data-testid="opslens-dashboard-source-label"') &&
     dashboardSource.includes('data-testid="opslens-console-source-label"') &&
+    dashboardSource.includes('data-testid="opslens-risk-panel-source-label"') &&
+    dashboardSource.includes('data-testid="opslens-inventory-panel-source-label"') &&
+    dashboardSource.includes('data-testid="opslens-knowledge-panel-source-label"') &&
+    dashboardSource.includes('data-testid="opslens-model-panel-source-label"') &&
+    stylesSource.includes(".panel-source-row") &&
     dashboardSource.includes("opsLensSourceLabel") &&
     dashboardSource.includes("consoleSourceLabel") &&
     dashboardSource.includes("prometheusSourceLabel") &&
@@ -1757,7 +1765,7 @@ expectCheck(
     dashboardSource.includes("sourceFixture") &&
     dashboardSource.includes("sourceUnavailable") &&
     stylesSource.includes(".source-badge-row"),
-  "Operations dashboard separates OpsLens risk source, native console source, and Prometheus source instead of hiding fixture/live/unavailable state"
+  "Operations dashboard separates OpsLens risk source, native console source, Prometheus source, and per-panel source labels instead of hiding fixture/live/unavailable state"
 );
 
 expectCheck(

@@ -743,6 +743,10 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           </div>
           <div>
             <h3>{copy.clusterHealth}</h3>
+            <div className="panel-source-row" data-testid="opslens-health-panel-source-label">
+              <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
+              <span>{copy.consoleSource}: {consoleSourceLabel}</span>
+            </div>
             <p>
               {criticalCount} {copy.critical} · {firingCount} {copy.firing} ·{" "}
               {averageBlastRadius} {copy.averageBlastRadius}
@@ -754,6 +758,9 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           <div className="card-title-row">
             <h3>{copy.riskMix}</h3>
             <span>{totalRisks} {copy.riskCount}</span>
+          </div>
+          <div className="panel-source-row" data-testid="opslens-risk-mix-source-label">
+            <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
           </div>
           <div className="severity-stack" aria-label={copy.severityDistributionLabel}>
             {severityDistribution.map(({ severity, percentage }) => (
@@ -776,6 +783,9 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
 
         <article className="ops-signal-card flow">
           <h3>{copy.evidenceFlow}</h3>
+          <div className="panel-source-row" data-testid="opslens-evidence-flow-source-label">
+            <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
+          </div>
           <ol>
             <li>
               <strong>{evidenceCoverageClamped}%</strong>
@@ -798,6 +808,9 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           <div className="card-title-row">
             <h3>{copy.activeIncidentQueue}</h3>
             <span className="status-pill danger">{copy.severitySorted}</span>
+          </div>
+          <div className="panel-source-row" data-testid="opslens-risk-panel-source-label">
+            <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
           </div>
           <div className="risk-list" data-testid="active-risk-list">
             {dashboard.activeRisks.map((risk) => (
@@ -825,6 +838,10 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
               <ServerCog size={14} aria-hidden="true" />
               {healthScore}/100
             </span>
+          </div>
+          <div className="panel-source-row" data-testid="opslens-inventory-panel-source-label">
+            <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
+            <span>{copy.consoleSource}: {consoleSourceLabel}</span>
           </div>
           <dl className="metric-list">
             <div>
@@ -859,6 +876,9 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
             <h3>{copy.severityDistribution}</h3>
             <Gauge size={18} aria-hidden="true" />
           </div>
+          <div className="panel-source-row" data-testid="opslens-severity-panel-source-label">
+            <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
+          </div>
           <div
             className="radar-bars"
             aria-label={copy.severityDistributionLabel}
@@ -876,6 +896,9 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           <div className="card-title-row">
             <h3>{copy.exposureTrend}</h3>
             <TrendingUp size={18} aria-hidden="true" />
+          </div>
+          <div className="panel-source-row" data-testid="opslens-exposure-panel-source-label">
+            <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
           </div>
           <div
             className="radar-bars"
@@ -897,6 +920,10 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           <div className="card-title-row">
             <h3>{copy.actionInsights}</h3>
             <ArrowUpRight size={18} aria-hidden="true" />
+          </div>
+          <div className="panel-source-row" data-testid="opslens-action-panel-source-label">
+            <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
+            <span>{copy.consoleSource}: {consoleSourceLabel}</span>
           </div>
           <div className="change-list">
             <div className="change-row">
@@ -925,6 +952,9 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
             <h3>{copy.recentChanges}</h3>
             <GitBranch size={18} aria-hidden="true" />
           </div>
+          <div className="panel-source-row" data-testid="opslens-change-panel-source-label">
+            <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
+          </div>
           <div className="change-list">
             {dashboard.recentChanges.map((change) => (
               <div className="change-row" key={change.id}>
@@ -942,6 +972,9 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           <div className="card-title-row">
             <h3>{copy.knowledgeHealth}</h3>
             <DatabaseZap size={18} aria-hidden="true" />
+          </div>
+          <div className="panel-source-row" data-testid="opslens-knowledge-panel-source-label">
+            <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
           </div>
           <div className="source-list">
             {dashboard.knowledgeSources.map((source) => (
@@ -962,6 +995,9 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           <div className="card-title-row">
             <h3>{copy.modelHealth}</h3>
             <Activity size={18} aria-hidden="true" />
+          </div>
+          <div className="panel-source-row" data-testid="opslens-model-panel-source-label">
+            <span>{copy.opsLensSource}: {opsLensSourceLabel}</span>
           </div>
           <dl className="metric-list">
             <div>

@@ -447,10 +447,12 @@ type WorkloadHealth = "healthy" | "warning" | "danger";
 
 const workloadKinds = new Set([
   "Pod",
+  "DeploymentConfig",
   "Deployment",
   "StatefulSet",
   "DaemonSet",
   "ReplicaSet",
+  "ReplicationController",
   "Job",
   "CronJob",
   "HorizontalPodAutoscaler",
@@ -499,10 +501,14 @@ function workloadHealth(
       if (phase === "Failed" || phase === "Unknown") return "danger";
       return "warning";
     }
+    case "DeploymentConfig":
     case "Deployment":
-    case "StatefulSet": {
+    case "StatefulSet":
+    case "ReplicaSet":
+    case "ReplicationController": {
       const desired = numberField(spec, "replicas") ?? numberField(status, "replicas") ?? 0;
-      const available = numberField(status, "availableReplicas") ?? 0;
+      const available =
+        numberField(status, "availableReplicas") ?? numberField(status, "readyReplicas") ?? 0;
       const unavailable = numberField(status, "unavailableReplicas") ?? 0;
       if (desired > 0 && available >= desired && unavailable === 0) return "healthy";
       if (unavailable > 0 || available === 0) return "danger";
@@ -556,11 +562,16 @@ function workloadSignal(
   switch (kind) {
     case "Pod":
       return `${stringField(status, "phase") ?? copy.status} · ${ownerLabel(item)}`;
+    case "DeploymentConfig":
     case "Deployment":
     case "StatefulSet":
+    case "ReplicaSet":
+    case "ReplicationController":
       return `${copy.desiredAvailable}: ${
         numberField(spec, "replicas") ?? numberField(status, "replicas") ?? 0
-      } / ${numberField(status, "availableReplicas") ?? 0}`;
+      } / ${
+        numberField(status, "availableReplicas") ?? numberField(status, "readyReplicas") ?? 0
+      }`;
     case "DaemonSet":
       return `${copy.desiredAvailable}: ${
         numberField(status, "desiredNumberScheduled") ?? 0
@@ -593,8 +604,11 @@ function workloadNextChecks(
   switch (kind) {
     case "Pod":
       return [copy.eventsStatus, copy.logsStatus, copy.relatedStatus];
+    case "DeploymentConfig":
     case "Deployment":
     case "StatefulSet":
+    case "ReplicaSet":
+    case "ReplicationController":
     case "DaemonSet":
       return [copy.relatedStatus, copy.eventsStatus, copy.podLogs];
     case "CronJob":

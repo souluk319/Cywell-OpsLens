@@ -3251,13 +3251,20 @@ async function topologyListResource(params: {
   errors: OcpTopologyResponse["errors"];
 }) {
   try {
-    return await listOcpResource({
+    const response = await listOcpResource({
       apiVersion: params.apiVersion,
       resource: params.resource,
       namespace: params.namespace,
       limit: params.limit,
       full: true
     });
+    if (response.failure) {
+      params.errors.push({
+        resource: `${params.apiVersion}/${params.resource}`,
+        message: `${response.failure.code}: ${response.failure.message}`
+      });
+    }
+    return response;
   } catch (error) {
     params.errors.push({
       resource: `${params.apiVersion}/${params.resource}`,
