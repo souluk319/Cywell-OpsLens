@@ -292,6 +292,8 @@ spec:
               resources:
                 - clusterroles
                 - clusterrolebindings
+                - roles
+                - rolebindings
               verbs:
                 - get
                 - list

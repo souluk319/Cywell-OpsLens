@@ -4700,46 +4700,6 @@ export async function queryOcpPrometheus(params: {
 
   const errors: string[] = [];
 
-  for (const routeName of ["thanos-querier", "prometheus-k8s"]) {
-    try {
-      const response = await requestMonitoringRouteJson<{
-        status?: string;
-        warnings?: string[];
-        data?: {
-          resultType?: string;
-          result?: Array<{
-            metric?: Record<string, string>;
-            value?: [number | string, string];
-            values?: Array<[number | string, string]>;
-          }>;
-        };
-      }>(config, routeName, `/api/v1/${kind}`, {
-        searchParams,
-        timeoutMs: params.timeoutMs ?? 2000
-      });
-
-      return {
-        status,
-        enabled: true,
-        reachable: true,
-        query: params.query,
-        range,
-        resultType: response.data?.resultType,
-        results: prometheusSamples(response.data?.result ?? []),
-        warnings: response.warnings ?? [],
-        evidence: [
-          `openshift-monitoring route ${routeName}`,
-          "Prometheus query used route Bearer token authentication",
-          range
-            ? `Prometheus query_range ${range.start}..${range.end} step=${range.stepSeconds}s`
-            : "Prometheus instant query"
-        ]
-      };
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
-    }
-  }
-
   for (const path of prometheusProxyPaths(kind)) {
     try {
       const response = await requestJson<{
@@ -4770,6 +4730,46 @@ export async function queryOcpPrometheus(params: {
         evidence: [
           `openshift-monitoring service proxy ${path}`,
           "Prometheus query used read-only Kubernetes service proxy GET",
+          range
+            ? `Prometheus query_range ${range.start}..${range.end} step=${range.stepSeconds}s`
+            : "Prometheus instant query"
+        ]
+      };
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  for (const routeName of ["thanos-querier", "prometheus-k8s"]) {
+    try {
+      const response = await requestMonitoringRouteJson<{
+        status?: string;
+        warnings?: string[];
+        data?: {
+          resultType?: string;
+          result?: Array<{
+            metric?: Record<string, string>;
+            value?: [number | string, string];
+            values?: Array<[number | string, string]>;
+          }>;
+        };
+      }>(config, routeName, `/api/v1/${kind}`, {
+        searchParams,
+        timeoutMs: params.timeoutMs ?? 2000
+      });
+
+      return {
+        status,
+        enabled: true,
+        reachable: true,
+        query: params.query,
+        range,
+        resultType: response.data?.resultType,
+        results: prometheusSamples(response.data?.result ?? []),
+        warnings: response.warnings ?? [],
+        evidence: [
+          `openshift-monitoring route ${routeName}`,
+          "Prometheus query used route Bearer token authentication",
           range
             ? `Prometheus query_range ${range.start}..${range.end} step=${range.stepSeconds}s`
             : "Prometheus instant query"

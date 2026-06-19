@@ -211,6 +211,17 @@ function runApiPodBuildConfigProbe() {
   return runApiPodNodeProbe(probeCode, 20000);
 }
 
+function runApiPodConsoleOverviewProbe() {
+  const probeCode = [
+    "const https=require('https');",
+    "const req=https.get('https://127.0.0.1:9443/api/ocp/console-overview',{rejectUnauthorized:false,timeout:20000},r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>{try{const j=JSON.parse(b);const u=j.consoleDashboard?.utilization||{};const series=Array.isArray(u.series)?u.series:[];console.log(JSON.stringify({status:r.statusCode,enabled:u.enabled===true,reachable:u.reachable===true,source:u.source||'',error:u.error||'',series:series.map(s=>({id:s.id,samples:Array.isArray(s.samples)?s.samples.length:0,latest:s.latest??null,error:s.error||''}))}));}catch(e){console.log(JSON.stringify({status:r.statusCode,body:b.slice(0,180),parseError:e.message}));process.exit(2);}})});",
+    "req.on('timeout',()=>req.destroy(new Error('timeout')));",
+    "req.on('error',e=>{console.error(e.message);process.exit(1);});"
+  ].join("");
+
+  return runApiPodNodeProbe(probeCode, 30000);
+}
+
 function runApiPodAssistantProbe() {
   const probeCode = [
     "const https=require('https');",
@@ -548,6 +559,37 @@ if (buildConfigProbe.ok) {
   }
 } else {
   fail("runtime:api-buildconfigs", buildConfigProbe.stderr || buildConfigProbe.stdout || "BuildConfig API probe failed");
+}
+
+const consoleOverviewProbe = runApiPodConsoleOverviewProbe();
+if (consoleOverviewProbe.ok) {
+  try {
+    const parsed = JSON.parse(consoleOverviewProbe.stdout);
+    const sampleCount = (parsed.series ?? []).reduce(
+      (sum, series) => sum + Number(series.samples ?? 0),
+      0
+    );
+    if (
+      parsed.status === 200 &&
+      parsed.enabled === true &&
+      parsed.reachable === true &&
+      parsed.source === "openshift-monitoring" &&
+      sampleCount > 0
+    ) {
+      pass("monitoring:utilization-samples", `source=${parsed.source} samples=${sampleCount}`, {
+        series: parsed.series
+      });
+    } else {
+      fail("monitoring:utilization-samples", `unexpected utilization response ${consoleOverviewProbe.stdout}`);
+    }
+  } catch (error) {
+    fail("monitoring:utilization-samples", `could not parse console overview response: ${error.message}`);
+  }
+} else {
+  fail(
+    "monitoring:utilization-samples",
+    consoleOverviewProbe.stderr || consoleOverviewProbe.stdout || "console overview probe failed"
+  );
 }
 
 const assistantProbe = runApiPodAssistantProbe();

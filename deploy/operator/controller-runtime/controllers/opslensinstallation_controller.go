@@ -36,6 +36,7 @@ const (
 	dashboardTLSSecretName       = "cywell-opslens-dashboard-tls"
 	consoleNamespace             = "openshift-console"
 	lightspeedNamespace          = "openshift-lightspeed"
+	monitoringNamespace          = "openshift-monitoring"
 	httpsContainerPort           = int32(9443)
 	httpsServicePort             = int32(443)
 )
@@ -63,6 +64,10 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 	}
 
 	if err := r.reconcileAPILightspeedQueryRBAC(ctx, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileAPIMonitoringQueryRBAC(ctx, namespace); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -262,6 +267,59 @@ func (r *OpsLensInstallationReconciler) reconcileAPILightspeedQueryRBAC(ctx cont
 			APIGroup: rbacv1.GroupName,
 			Kind:     "ClusterRole",
 			Name:     "lightspeed-operator-query-access",
+		}
+		binding.Subjects = []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      apiServiceAccount,
+				Namespace: namespace,
+			},
+		}
+		return nil
+	})
+	return err
+}
+
+func (r *OpsLensInstallationReconciler) reconcileAPIMonitoringQueryRBAC(ctx context.Context, namespace string) error {
+	roleName := fmt.Sprintf("%s-monitoring-read", apiServiceAccount)
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      roleName,
+			Namespace: monitoringNamespace,
+		},
+	}
+
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, role, func() error {
+		role.Labels = labels("api-monitoring-rbac")
+		role.Rules = []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"services/proxy"},
+				Verbs:     []string{"get"},
+			},
+			{
+				APIGroups: []string{"monitoring.coreos.com"},
+				Resources: []string{"prometheuses/api"},
+				Verbs:     []string{"get"},
+			},
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	binding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      roleName,
+			Namespace: monitoringNamespace,
+		},
+	}
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, binding, func() error {
+		binding.Labels = labels("api-monitoring-rbac")
+		binding.RoleRef = rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "Role",
+			Name:     roleName,
 		}
 		binding.Subjects = []rbacv1.Subject{
 			{
@@ -796,6 +854,7 @@ func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Conte
 		corev1.EnvVar{Name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_MODE", Value: settings.ApprovalQueueMode},
 		corev1.EnvVar{Name: "CYWELL_OPSLENS_RAG_APPROVAL_QUEUE_ENQUEUE_ALLOWED", Value: "false"},
 		corev1.EnvVar{Name: "CYWELL_OPSLENS_RAG_REQUIRED_APPROVALS", Value: settings.RequiredApprovals},
+		corev1.EnvVar{Name: "OCP_ENABLE_MONITORING_PROXY", Value: "true"},
 	)
 
 	deployment := &appsv1.Deployment{
@@ -816,7 +875,7 @@ func (r *OpsLensInstallationReconciler) reconcileAPIDeployment(ctx context.Conte
 				Name:            "api",
 				Image:           installation.Spec.Components.API.Image,
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Env: env,
+				Env:             env,
 				Ports: []corev1.ContainerPort{
 					{Name: "https", ContainerPort: httpsContainerPort},
 				},

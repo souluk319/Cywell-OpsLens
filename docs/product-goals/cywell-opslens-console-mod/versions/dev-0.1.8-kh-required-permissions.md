@@ -19,8 +19,8 @@ Current live state after investigation:
 | `deployment/cywell-opslens-operator` | PAUSED, `0/0` | paused because the current operator reconciler removes manual API env patches |
 | `OCP_ENABLE_MONITORING_PROXY=true` on API deployment | PASS after manual patch | API now attempts monitoring queries |
 | `services/proxy` in `openshift-monitoring` | PASS | service proxy access is allowed |
-| `prometheuses/api` in `openshift-monitoring` | FAIL | Prometheus query endpoint still rejects the API service account |
-| `/api/ocp/console-overview` utilization | PARTIAL | `enabled=true`, but `reachable=false` due to Prometheus API RBAC |
+| `prometheuses/api` in `openshift-monitoring` | PASS when checked as subresource | Prometheus API subresource access is allowed |
+| `/api/ocp/console-overview` utilization | PASS after KH patch | `enabled=true`, `reachable=true`, source is `openshift-monitoring`, and metric samples are non-empty |
 
 ## Runtime Identities
 
@@ -195,7 +195,8 @@ oc auth can-i get services/proxy `
   -n openshift-monitoring `
   --as=system:serviceaccount:cywell-opslens:cywell-opslens-api
 
-oc auth can-i get prometheuses/api `
+oc auth can-i get prometheuses.monitoring.coreos.com `
+  --subresource=api `
   -n openshift-monitoring `
   --as=system:serviceaccount:cywell-opslens:cywell-opslens-api
 
@@ -225,15 +226,39 @@ Expected utilization result:
 
 ## Current Gap To Fix Next
 
-1. Replace the incorrect live Role resource:
+The KH live smoke now proves that the required permission and env set is sufficient. The remaining gap is productization: the same state must be produced by the Operator without pausing the Operator or hand-patching the API Deployment.
+
+1. Keep the corrected monitoring Role resource:
    - wrong: `prometheuses/api.monitoring.coreos.com`
    - right: `prometheuses/api` under `apiGroups: ["monitoring.coreos.com"]`
-2. Add `OCP_ENABLE_MONITORING_PROXY=true` to the operator-managed API deployment template.
-3. Add the `openshift-monitoring` Role/RoleBinding to the operator-managed resources.
-4. Restart the operator only after the reconciler no longer removes the monitoring env.
-5. Re-run the preflight commands and capture `utilization.reachable=true`.
+2. Check the permission with OpenShift's subresource syntax:
+   - right: `oc auth can-i get prometheuses.monitoring.coreos.com --subresource=api`
+3. Add `OCP_ENABLE_MONITORING_PROXY=true` to the operator-managed API deployment template.
+4. Add the `openshift-monitoring` Role/RoleBinding to the operator-managed resources.
+5. Prefer the in-cluster Kubernetes service proxy path before monitoring routes in the API client.
+6. Rebuild and deploy the updated Operator/API package before re-enabling the Operator reconciler.
+7. Restart the operator only after the reconciler no longer removes the monitoring env.
+8. Re-run the preflight commands and capture `utilization.reachable=true`.
 
 Completion condition: no claim of live CPU/memory/dashboard graph integration is valid until `utilization.enabled=true`, `utilization.reachable=true`, and at least one metric series has non-empty `samples`.
+
+## Missing Items Closed In This Pass
+
+| Missing Item | Resolution | Proof |
+| --- | --- | --- |
+| Local Go toolchain / `gofmt` | Installed Go with `winget install GoLang.Go` and ran `gofmt` | `go version go1.26.4 windows/amd64`; `gofmt -w deploy/operator/controller-runtime/controllers/opslensinstallation_controller.go` |
+| Go compile check | Ran controller-runtime package tests | `go test ./...` passed in `deploy/operator/controller-runtime` |
+| API TypeScript compile | Rebuilt API after Prometheus path changes | `npm run -w @kugnus/api build` passed |
+| Operator package static verification | Re-ran package verifier after RBAC and env changes | `npm run verify:operator` passed with 0 fail, 161 checks, 1 pre-existing runtime warning |
+| KH live deployment gate | Added monitoring sample proof and re-ran KH deployment verifier | `npm run verify:kh:crc420-deployment` returned `PASS_WITH_WARNINGS`; `monitoring:utilization-samples` passed with source `openshift-monitoring` and 6 samples |
+
+Remaining explicit warning:
+
+```text
+browser:first-load: login-session browser verification is still required.
+```
+
+This warning means the automated verifier did not drive an already-authenticated human browser session through the first click path. It does not block the backend connection proof. The same verifier confirmed `/opslens` HTTP 200, ConsolePlugin `UserToken` proxy contract, dashboard route HTTP 200, Lightspeed readiness, Lightspeed assistant answer path, BuildConfig API path, and live monitoring samples.
 
 ## Lessons Locked From This Failure
 
@@ -290,10 +315,11 @@ Never trust "role created" as proof.
 Always run oc auth can-i for the exact resource/subresource.
 ```
 
-Required proof:
+Required proof uses OpenShift's resource plus subresource syntax:
 
 ```powershell
-oc auth can-i get prometheuses/api `
+oc auth can-i get prometheuses.monitoring.coreos.com `
+  --subresource=api `
   -n openshift-monitoring `
   --as=system:serviceaccount:cywell-opslens:cywell-opslens-api
 ```

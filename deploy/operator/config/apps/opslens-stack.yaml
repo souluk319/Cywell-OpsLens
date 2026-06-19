@@ -39,6 +39,7 @@ rules:
       - resourcequotas
       - serviceaccounts
       - services
+      - services/proxy
     verbs:
       - get
       - list
@@ -176,6 +177,7 @@ rules:
       - monitoring.coreos.com
     resources:
       - podmonitors
+      - prometheuses/api
       - prometheusrules
       - servicemonitors
     verbs: *readOnlyVerbs
@@ -305,6 +307,8 @@ spec:
               value: "false"
             - name: CYWELL_OPSLENS_RAG_REQUIRED_APPROVALS
               value: rag-owner,cluster-sre
+            - name: OCP_ENABLE_MONITORING_PROXY
+              value: "true"
           ports:
             - name: https
               containerPort: 9443
