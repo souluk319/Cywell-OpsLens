@@ -4,6 +4,8 @@ Status: active goal for the next implementation lane
 Branch: `feat/OpsLens-Dev0.1.7`
 Base commit: `b090fa13`
 Reference target: CRC OpenShift / OpenShift Local `4.21.14`
+Minimum supported target: OpenShift Container Platform `4.20`
+Forward UX target: OpenShift Container Platform `4.21+`
 Primary contract: `docs/product-goals/cywell-opslens-console-mod/versions/dev-0.1.6-ocp-console-study.md`
 
 ## Product Goal
@@ -22,6 +24,48 @@ Original OpenShift Console functions remain recognizable
 
 The product story is "OpenShift Console, but upgraded for KOMSCO operations." It
 is not "a separate dashboard with similar menu labels."
+
+## Compatibility Strategy
+
+Customer environments are expected to include OpenShift Container Platform `4.20`,
+so Cywell OpsLens must treat `4.20` as the minimum supported runtime. The Windows
+test server lane will be prepared as the `4.20` compatibility target.
+
+The strategic message is:
+
+```text
+Cywell OpsLens provides a 4.21-grade operations UX on OCP 4.20 through supported
+OpenShift Console dynamic plugin extension points.
+```
+
+This does not mean backporting or modifying Red Hat console internals. It means
+using OCP `4.20`-available ConsolePlugin, console dynamic plugin SDK behavior,
+Kubernetes APIs, and OpenShift APIs to implement OpsLens-owned operational
+features inspired by the `4.21` console direction.
+
+| Compatibility rule | Product decision |
+| --- | --- |
+| Minimum runtime | OCP `4.20` |
+| Development/reference cluster | CRC/OpenShift Local `4.21.14` until Windows `4.20` test server is ready |
+| Forward target | OCP `4.21+` UX direction |
+| API dependency rule | Do not require `4.21`-only APIs for baseline behavior |
+| Feature detection | Detect optional APIs/features and degrade gracefully |
+| Unsupported boundary | No original console DOM injection or console image replacement |
+
+Official `4.21` release-note items that inform the OpsLens direction:
+
+| OCP 4.21 direction | OpsLens 4.20-compatible interpretation |
+| --- | --- |
+| OLM v1 software catalog preview in the web console | Operator Health Lens and Catalog Advisor using OLM Classic/available APIs first |
+| Console impersonation improvements for multiple group memberships | RBAC Lens explaining effective access and denial reasons |
+| Code Editor theme/font customization | YAML Explain Editor with readability, diff preview, risk highlighting, and explain/fix suggestions |
+| ConsoleLink `mailto:` support | Operations contact/report links for mail, Slack, Jira, and ServiceNow-style handoff |
+| Console plugin routing stability improvements | Stable OpsLens deep links that survive direct URL entry and refresh |
+
+Sources:
+
+- OCP 4.20 Web Console documentation: https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/web_console/index
+- OCP 4.21 Release Notes: https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/release_notes/index
 
 ## Locked Scope
 
@@ -54,6 +98,11 @@ is not "a separate dashboard with similar menu labels."
    - If Lightspeed is unavailable, show a precise diagnostic.
    - If Lightspeed is available, final answer ownership is OpenShift Lightspeed with OpsLens-provided context.
 
+6. Keep the baseline OCP 4.20-compatible.
+   - Do not depend on `4.21`-only APIs for required flows.
+   - Where `4.21+` features exist, expose them as optional enhancements.
+   - The Windows `4.20` test server must become the compatibility proof target.
+
 ### Must Not Do
 
 - Do not claim 1:1 parity because a menu item exists.
@@ -62,6 +111,7 @@ is not "a separate dashboard with similar menu labels."
 - Do not mutate cluster resources unless RBAC, allowlist, human approval, and audit contract are present.
 - Do not use unsupported console DOM injection.
 - Do not deploy a new image until the local test page proves the behavior.
+- Do not market OLM v1 Software Catalog support on OCP `4.20`; provide Operator/Catalog analysis instead.
 
 ## Acceptance Criteria
 
@@ -77,8 +127,22 @@ is not "a separate dashboard with similar menu labels."
 | AC-017-008 | KOMSCO AI Assistant prompt includes active native path, OpsLens action, resource context, evidence, and safety boundary. | Assistant browser test |
 | AC-017-009 | Lightspeed path either returns a real answer or precise diagnostic; no fabricated answer. | Assistant API smoke |
 | AC-017-010 | `npm run verify:web-shell`, API build, web build, and relevant operator verifier pass before any deployment. | Command output |
+| AC-017-011 | Baseline features run on OCP `4.20` or are explicitly marked optional for `4.21+`. | Compatibility matrix and Windows 4.20 test evidence |
 
 ## Work Order
+
+### 0. OCP 4.20 Compatibility Matrix
+
+Before deep feature work, create a compatibility matrix that separates baseline
+features from optional `4.21+` convenience features.
+
+| Feature | 4.20 baseline | 4.21+ enhancement |
+| --- | --- | --- |
+| ConsolePlugin entry | Required | Same path, improved routing where available |
+| Operator/Catalog analysis | OLM Classic, Subscription, InstallPlan, CSV, CatalogSource | OLM v1 software catalog preview as optional context |
+| RBAC Lens | SelfSubjectAccessReview / SubjectAccessReview and RBAC resource reads | Multi-group impersonation-inspired troubleshooting UX |
+| YAML Explain Editor | Read/analyze/diff/plan only | Editor preference parity where available |
+| Deep links | OpsLens internal router must survive refresh/direct URL | Align with improved console plugin routing behavior |
 
 ### 1. Parity Registry Audit
 
@@ -151,6 +215,20 @@ Local browser checks must prove:
 - core resource views work without generic 400
 - dashboard graphs are real or explicitly unavailable
 - assistant context changes when menu/resource changes
+- baseline behavior is not tied to OCP `4.21`-only APIs
+
+### 6. 4.20-Inspired Plus Alpha Features
+
+The first OpsLens-owned features that justify the product on an OCP `4.20`
+customer cluster are:
+
+| Feature | Why it matters | Initial boundary |
+| --- | --- | --- |
+| RBAC Lens | Explains why a user can or cannot see/do something. | Read-only access check and explanation first. |
+| Operator Health Lens | Summarizes Subscription, InstallPlan, CSV, and CatalogSource failure points. | Read-only diagnosis first. |
+| YAML Explain Editor | Finds risky manifest fields before apply. | No apply in PoC; explain/fix/diff only. |
+| Troubleshooting Timeline | Connects Deployment, Pod, Service, Route, and Event chronology. | Read-only incident reconstruction. |
+| Stable Deep Link Routing | Makes OpsLens feel like a real console app, not a fragile panel. | Refresh/direct URL/share-link safe routing. |
 
 ## Current Known State From 0.1.6
 
@@ -161,6 +239,7 @@ What is already done:
 - OCP 4.21.14 menu registry exists with 37 mapped items.
 - Operator package/runtime parity verifiers pass.
 - Official OCP console study and parity audit exists.
+- OCP `4.20` minimum support strategy is now locked for the Windows test server lane.
 
 What is not done:
 
@@ -169,6 +248,7 @@ What is not done:
 - Many native menu items still use generic Resource Explorer behavior.
 - Some create/edit actions are only planned as native deep links.
 - Assistant answer UX and Lightspeed reliability need hardening.
+- OCP `4.20` compatibility has not yet been proven on the Windows test server.
 
 ## Definition Of Done
 
@@ -179,3 +259,16 @@ What is not done:
 3. Real live data where available, explicit unavailable state where not.
 4. KOMSCO AI Assistant that reacts to the current page/resource context.
 5. No fake success, no hidden 400, no mock data pretending to be live.
+6. Baseline value works on OCP `4.20`, while `4.21+` conveniences are optional enhancements.
+
+## Report Sentence
+
+Use this positioning when explaining the product strategy:
+
+```text
+설치 대상 고객사의 OpenShift 버전이 4.20일 가능성이 높으므로, Cywell OpsLens는
+OCP 4.20을 최소 지원 버전으로 설계한다. 다만 OCP 4.21에서 강화된 Software
+Catalog, RBAC impersonation, 코드 에디터 개선, 플러그인 라우팅 안정화 방향을
+분석하여, 해당 UX를 OpsLens 자체 기능으로 선제 구현한다. 이를 통해 고객사는
+플랫폼 업그레이드 전에도 4.21 수준의 운영 보조 경험을 일부 활용할 수 있다.
+```
