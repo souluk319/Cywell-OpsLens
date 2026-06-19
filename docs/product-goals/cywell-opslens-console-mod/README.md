@@ -31,8 +31,8 @@ The debug dashboard tunnel is only a development access path. It is not the prod
 
 | Field | Value |
 | --- | --- |
-| Active branch | `feat/OpsLens-Dev0.1.4` |
-| Stamped head | `6edcf2d5642b68a3e75c33be8b80087d3babc867` |
+| Active branch | `feat/OpsLens-Dev0.1.5` |
+| Stamped head | `e622bece` |
 | Live reference target | MacBook CRC OpenShift 4.21.14 |
 | Company OCP | Do not mutate |
 | Product entry target | OpenShift Console left-nav shortcut to the OpsLens dashboard asset, not iframe, not custom DOM injection |
@@ -44,7 +44,9 @@ The debug dashboard tunnel is only a development access path. It is not the prod
 | Dev 0.1.1 CRC install | Partial live proof | CRC catalog, package manifest, Operator install, OpsLensInstallation, API/dashboard/vector workloads reached usable states | vLLM external image/runtime remains non-demo; SCC and local secret workaround must become productized |
 | Dev 0.1.2 UI recovery | Partial local proof | KOMSCO branding, Korean shell, assistant naming, catalog icon/install-mode fixes, debug dashboard reachable | UI still carried internal development badges and did not clearly prove console-native product entry |
 | Dev 0.1.3 console mod | Superseded by Dev 0.1.4 | Official ConsolePlugin direction locked; fake OpenShift/OpsLens toggle removed; globe language control, compact shell, question-first assistant, direct ConsolePlugin asset link, and Operator-driven Console cluster plugin enablement verified locally | Replaced by cleaner `/opslens` launcher route contract |
-| Dev 0.1.4 console launcher | Active | Left navigation success is preserved; target route is simplified to `/opslens` redirect-only launcher; iframe and broken i18n labels are explicitly banned | Implement route, verify locally, then validate in CRC after approval |
+| Dev 0.1.4 console launcher | Completed direction proof | Left navigation success is preserved; target route is simplified to `/opslens` redirect-only launcher; iframe and broken i18n labels are explicitly banned | Superseded by Dev 0.1.5 polish |
+| Dev 0.1.5 assistant polish | Active implementation proof | Collapsible navigation, single active page, visual operations dashboard, movable KOMSCO AI Assistant, Lightspeed-backed chat path, and local verifier coverage | Needs final polish, packaging, and live CRC upgrade only with explicit approval |
+| Dev 0.1.6 agentic operations | Draft target | Locks the next product step: RBAC-aware, human-approved, audited remediation actions instead of guidance-only chat | ActionPlan schema, RBAC preflight, approval gate, executor, verifier, and UI action cards not implemented yet |
 
 ## Acceptance Rules
 

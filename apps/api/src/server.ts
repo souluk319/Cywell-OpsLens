@@ -123,7 +123,7 @@ const requestHandler = async (request: IncomingMessage, response: ServerResponse
       sendJson(
         response,
         200,
-        createActionPlan((await readJson(request)) as never)
+        await createActionPlan((await readJson(request)) as never)
       );
       return;
     }

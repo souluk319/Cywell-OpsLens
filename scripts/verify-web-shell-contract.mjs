@@ -85,6 +85,7 @@ const adminSource = await readText("apps/web/src/components/OpsLensAdminDashboar
 const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
 const backendApiSource = await readText("apps/api/src/api.ts");
+const backendLightspeedSource = await readText("apps/api/src/lightspeedClient.ts");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 const e2eSource = await readText("tests/e2e/mvp-0.1.spec.ts");
 const liveInstallSource = await readText(
@@ -238,6 +239,20 @@ expectCheck(
 );
 
 expectCheck(
+  "live console data refresh contract",
+  overviewSource.includes("window.setInterval") &&
+    overviewSource.includes("fetchOcpConsoleOverview") &&
+    overviewSource.includes("autoRefresh") &&
+    resourceExplorerSource.includes("window.setInterval") &&
+    resourceExplorerSource.includes("fetchOcpResourceList") &&
+    resourceExplorerSource.includes("lastListLoadedAt") &&
+    resourceExplorerSource.includes("silent: true") &&
+    dashboardSource.includes("window.setInterval") &&
+    dashboardSource.includes("fetchOcpConsoleOverview"),
+  "overview, resource explorer, and operations dashboard re-read live OpenShift state instead of showing stale one-shot data"
+);
+
+expectCheck(
   "install and handoff notes stay out of customer masthead",
   !appSource.includes('data-testid="install-flow-strip"') &&
     !appSource.includes('data-testid="mod-boundary-strip"') &&
@@ -342,6 +357,7 @@ expectCheck(
   appSource.includes("getApiRouteDiagnostics") &&
     appSource.includes("lastApiError") &&
     appSource.includes("onRetryConnection") &&
+    appSource.includes("OpenShift Lightspeed /v1/streaming_query") &&
     assistantSource.includes('data-testid="assistant-api-route-mode"') &&
     assistantSource.includes('data-testid="assistant-action-plan-path"') &&
     assistantSource.includes('data-testid="assistant-last-api-error"') &&
@@ -356,27 +372,28 @@ expectCheck(
     assistantSource.includes("연결 스모크") &&
     assistantSource.includes("context sync") &&
     assistantSource.includes("컨텍스트 동기화") &&
-    assistantSource.includes("action plan API") &&
-    assistantSource.includes("액션 플랜 API") &&
+    assistantSource.includes("OpenShift Lightspeed route") &&
+    assistantSource.includes("OpenShift Lightspeed 경로") &&
     assistantSource.includes("연결 판정") &&
     assistantSource.includes("답변 출처") &&
     assistantSource.includes("OpenShift 사용자 토큰 프록시") &&
     assistantSource.includes("실행 안 함") &&
     assistantSource.includes("answer source") &&
-    assistantSource.includes('readyStatus: "API connected / plan-only"') &&
-    assistantSource.includes('readyStatus: "API 연결됨 / 계획 전용"') &&
-    assistantSource.includes("plan-only fallback") &&
-    assistantSource.includes("CRC validation tunnel") &&
+    assistantSource.includes('readyStatus: "OpenShift Lightspeed connected"') &&
+    assistantSource.includes('readyStatus: "OpenShift Lightspeed 연결됨"') &&
+    assistantSource.includes("Lightspeed connection required") &&
+    assistantSource.includes("Lightspeed 연결 필요") &&
+    assistantSource.includes("OpenShift Lightspeed /v1/streaming_query") &&
     assistantSource.includes("OpenShift UserToken proxy") &&
     assistantSource.includes("not executed") &&
-    assistantSource.includes("실제 AI 연결처럼 보이게 꾸미지 않고") &&
+    assistantSource.includes("가짜 AI 답변을 표시하지 않습니다") &&
     assistantSource.includes("오류 해석") &&
-    assistantSource.includes("포트 포워딩/ConsolePlugin 프록시가 끊겼습니다.") &&
+    assistantSource.includes("OpenShift Lightspeed 또는 OpsLens 프록시 경로") &&
     assistantSource.includes("assistant-last-api-error-interpretation") &&
-    assistantSource.includes("Retry API") &&
+    assistantSource.includes("Retry Lightspeed") &&
     apiSource.includes("console-plugin-user-token-proxy") &&
     apiSource.includes("local-vite-proxy"),
-  "assistant surfaces local/proxy API route, last API error, and retry control instead of hiding fallback state"
+  "assistant surfaces Lightspeed route, last error, and retry control instead of hiding fallback state"
 );
 
 expectCheck(
@@ -394,36 +411,34 @@ expectCheck(
     assistantSource.includes('data-testid="assistant-integration-standalone"') &&
     assistantSource.includes('data-testid="assistant-integration-console"') &&
     assistantSource.includes('data-testid="assistant-integration-lightspeed"') &&
-    assistantSource.includes("CRC validation shell uses the same OpsLens question flow") &&
+    assistantSource.includes("Preview uses the same OpsLens question flow") &&
     assistantSource.includes("Installed ConsolePlugin uses the UserToken proxy") &&
-    assistantSource.includes("Native Lightspeed drawer is separate") &&
-    assistantSource.includes("CRC 검증 화면도 콘솔 라우트 연결 전") &&
+    assistantSource.includes("OpsLens Assistant uses OpenShift Lightspeed /v1/streaming_query") &&
+    assistantSource.includes("미리보기 화면도 콘솔 라우트 연결 전") &&
     assistantSource.includes("설치된 ConsolePlugin은 사용자 토큰 프록시") &&
-    assistantSource.includes("기본 Lightspeed 서랍은 별도") &&
+    assistantSource.includes("OpsLens 어시스턴트는 OpenShift Lightspeed /v1/streaming_query") &&
     !assistantSource.includes("Standalone preview uses local API route") &&
     !assistantSource.includes("독립 미리보기는 로컬 API 경로") &&
     stylesSource.includes(".assistant-integration-contract") &&
     stylesSource.includes(".assistant-integration-contract span") &&
     stylesSource.includes(".assistant-connection-smoke") &&
     stylesSource.includes(".assistant-connection-smoke span"),
-  "assistant visibly separates standalone preview, ConsolePlugin proxy integration, and native Lightspeed drawer ownership"
+  "assistant visibly separates preview, ConsolePlugin proxy integration, and Lightspeed-backed answer ownership"
 );
 
 expectCheck(
   "assistant ask execution path",
-    assistantSource.includes('data-testid="assistant-execution-path"') &&
-    assistantSource.includes('data-testid="assistant-execution-enter"') &&
-    assistantSource.includes('data-testid="assistant-execution-fallback"') &&
-    assistantSource.includes('data-testid="assistant-execution-newline"') &&
+    assistantSource.includes('data-testid="assistant-mode-trigger"') &&
+    assistantSource.includes('data-testid="assistant-mode-menu"') &&
+    assistantSource.includes("modeAsk") &&
+    assistantSource.includes("modeTroubleshooting") &&
     assistantSource.includes("Enter asks KOMSCO AI Assistant") &&
-    assistantSource.includes("Fallback remains plan-only when the API is unavailable") &&
     assistantSource.includes("Shift+Enter adds a line") &&
     assistantSource.includes("Enter는 KOMSCO AI 어시스턴트에 질문") &&
-    assistantSource.includes("API가 없을 때만 계획 전용 대체 응답 유지") &&
     assistantSource.includes("Shift+Enter는 줄바꿈") &&
-    assistantSource.includes("assistant-chat-hints") &&
-    stylesSource.includes(".assistant-chat-hints"),
-  "assistant makes Enter, API route, fallback, and Shift+Enter behavior visible"
+    !assistantSource.includes("assistant-chat-hints") &&
+    !stylesSource.includes(".assistant-chat-hints"),
+  "assistant keeps keyboard behavior implemented while exposing the Lightspeed Ask/Troubleshooting selector"
 );
 
 expectCheck(
@@ -435,13 +450,18 @@ expectCheck(
     assistantSource.includes("setPointerCapture") &&
     assistantSource.includes("releasePointerCapture") &&
     assistantSource.includes("clampAssistantPosition") &&
+    assistantSource.includes("clampAssistantSize") &&
     assistantSource.includes("nextAssistantPosition") &&
+    assistantSource.includes("assistantResizeDirections") &&
+    assistantSource.includes('data-testid={`assistant-resize-${direction}`}') &&
     assistantSource.includes("placementPinned") &&
     assistantSource.includes("placementFloating") &&
     stylesSource.includes(".assistant-popover.floating") &&
+    stylesSource.includes(".assistant-resize-handle") &&
+    stylesSource.includes("cursor: ns-resize") &&
+    stylesSource.includes("cursor: ew-resize") &&
     stylesSource.includes(".assistant-popover.floating .assistant-header") &&
     stylesSource.includes("cursor: grab") &&
-    stylesSource.includes("resize: both") &&
     e2eSource.includes("AC-UI-002b lets operators unpin and move the assistant") &&
     e2eSource.includes('getByTestId("assistant-placement-toggle")') &&
     e2eSource.includes('getByTestId("assistant-placement-move")') &&
@@ -451,14 +471,17 @@ expectCheck(
 
 expectCheck(
   "assistant prompt-aware answer path",
-  backendApiSource.includes("function createPromptAwareAssistantAnswer") &&
-    backendApiSource.includes("retrieveRunbookCitations(\"cywell-internal\", prompt, 3)") &&
-    backendApiSource.includes("질문 \"${question}\"") &&
-    backendApiSource.includes("승인된 OpsLens RAG 근거") &&
+  backendApiSource.includes("queryOpenShiftLightspeed") &&
+    backendApiSource.includes("createLightspeedAssistantAnswer") &&
+    backendApiSource.includes("openshift-lightspeed/v1/streaming_query") &&
+    backendApiSource.includes("OpenShiftLightspeedUnavailable") &&
+    backendLightspeedSource.includes("/v1/streaming_query") &&
+    backendLightspeedSource.includes("mode: LightspeedQueryMode") &&
+    backendLightspeedSource.includes("referenced_documents") &&
     e2eSource.includes("keyboardPrompt") &&
     e2eSource.includes('getByTestId("answer-judgment")') &&
     e2eSource.includes('getByTestId("answer-citations")'),
-  "assistant API responses include the submitted question and local RAG citations instead of returning the same canned answer"
+  "assistant API responses are owned by OpenShift Lightspeed /v1/streaming_query and keep unavailable states explicit"
 );
 
 expectCheck(
@@ -1399,7 +1422,22 @@ expectCheck(
     paritySource.includes("Software Catalog") &&
     paritySource.includes("Installed Operators") &&
     paritySource.includes("Operator catalog") &&
+    paritySource.includes("Topology") &&
     paritySource.includes("Pods") &&
+    paritySource.includes("Deployments") &&
+    paritySource.includes("Deployment Configs") &&
+    paritySource.includes("StatefulSets") &&
+    paritySource.includes("Secrets") &&
+    paritySource.includes("ConfigMaps") &&
+    paritySource.includes("CronJobs") &&
+    paritySource.includes("Jobs") &&
+    paritySource.includes("DaemonSets") &&
+    paritySource.includes("ReplicaSets") &&
+    paritySource.includes("ReplicationControllers") &&
+    paritySource.includes("HorizontalPodAutoscalers") &&
+    paritySource.includes("PodDisruptionBudgets") &&
+    paritySource.includes("nativeCreatePath") &&
+    !paritySource.includes("workload-controllers") &&
     paritySource.includes("Routes, Services, Ingresses") &&
     paritySource.includes("PVCs, PVs, StorageClasses") &&
     paritySource.includes("Builds and ImageStreams") &&
@@ -1413,7 +1451,8 @@ expectCheck(
     paritySource.includes("resourcePresetCount") &&
     paritySource.includes("evidenceViewCount") &&
     paritySource.includes("directSurfaceCount") &&
-    appSource.includes("ocpConsoleParityItems.map") &&
+    appSource.includes("const consoleNavigation: ConsoleNavigationItem[] = ocpConsoleParityItems") &&
+    appSource.includes("const SectionIcon = sectionIcons[section]") &&
     appSource.includes("consoleParitySections"),
   "OCP 4.21.14 console inventory is version-pinned and drives the OpsLens navigation"
 );
@@ -1430,7 +1469,7 @@ expectCheck(
     parityMapDocSource.includes("Resource smoke state") &&
     parityMapDocSource.includes("preferred API match") &&
     parityMapDocSource.includes("Every item opens KOMSCO assistant") &&
-    parityMapDocSource.includes("| 25 | KOMSCO AI Assistant |") &&
+    parityMapDocSource.includes("| 37 | KOMSCO AI Assistant |") &&
     parityMapDocSource.includes("supported OpenShift customization paths") &&
     parityMapDocSource.includes("in-console OpsLens mode"),
   "Acceptance docs pin the CRC 4.21.14 console list, the 1:1 OpsLens mapping, and the assistant/action verification boundary"
@@ -1675,10 +1714,12 @@ expectCheck(
 expectCheck(
   "localized navigation structure",
   appSource.includes('data-testid={`console-nav-section-${sectionTestId(section)}`}') &&
-    appSource.includes("aria-expanded={expandedSections.includes(section)}") &&
-    appSource.includes("data-section-expanded={expandedSections.includes(section)}") &&
+    appSource.includes("aria-expanded={expanded}") &&
+    appSource.includes("data-section-expanded={expanded}") &&
+    appSource.includes("nav-section-icon") &&
+    appSource.includes("nav-heading-label") &&
     appSource.includes('className="nav-group-items"') &&
-    appSource.includes("hidden={!expandedSections.includes(section)}") &&
+    appSource.includes("hidden={!expanded}") &&
     appSource.includes("toggleNavigationSection(section)") &&
     appSource.includes('data-testid="console-breadcrumb"') &&
     appSource.includes("sectionLabelsKo") &&
@@ -1689,7 +1730,9 @@ expectCheck(
     paritySource.includes('Monitoring: "모니터링"') &&
     paritySource.includes('"User Management": "사용자 관리"') &&
     appSource.includes("navLabel(item, language)") &&
-    appSource.includes("navBreadcrumb(activeNavigation, language)"),
+    appSource.includes("navBreadcrumb(activeNavigation, language)") &&
+    stylesSource.includes(".console-frame.nav-collapsed .nav-heading-label") &&
+    stylesSource.includes(".console-frame.nav-collapsed .nav-group-items"),
   "console navigation sections, items, and breadcrumb have stable localized render points"
 );
 
@@ -1736,8 +1779,8 @@ expectCheck(
     e2eSource.includes("답변 출처") &&
     e2eSource.includes("클러스터 변경") &&
     e2eSource.includes("실행 안 함") &&
-    e2eSource.includes("OpsLens API route") &&
-    e2eSource.includes("plan-only fallback") &&
+    e2eSource.includes("OpenShift Lightspeed /v1/streaming_query") &&
+    e2eSource.includes("Lightspeed connection required") &&
     e2eSource.includes("not executed") &&
     e2eSource.includes("Ask KOMSCO AI Assistant") &&
     e2eSource.includes("KOMSCO AI 어시스턴트에 질문"),
@@ -1753,8 +1796,8 @@ expectCheck(
     e2eSource.includes('getByTestId("assistant-ask-button")') &&
     e2eSource.includes("줄바꿈 보존 후 Enter 전송.") &&
     e2eSource.includes("/api/actions/plan") &&
-    e2eSource.includes("mock-local-search-mode/triage"),
-  "Playwright proves Shift+Enter keeps a newline and Enter submits the KOMSCO assistant to the active OpsLens API path"
+    e2eSource.includes("openshift-lightspeed"),
+  "Playwright proves Shift+Enter keeps a newline and Enter submits the KOMSCO assistant to the Lightspeed-backed OpsLens API path"
 );
 
 expectCheck(

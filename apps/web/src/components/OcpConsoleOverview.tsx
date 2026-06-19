@@ -21,6 +21,8 @@ const overviewCopy = {
     eyebrow: "Console-like live overview",
     title: "OpenShift Console Overview",
     refresh: "Refresh",
+    autoRefresh: "Auto refresh 10s",
+    lastUpdated: "Updated",
     loading: "loading",
     liveOcp: "live OCP",
     unavailable: "unavailable",
@@ -55,6 +57,8 @@ const overviewCopy = {
     eyebrow: "콘솔형 실시간 개요",
     title: "OpenShift 콘솔 개요",
     refresh: "새로고침",
+    autoRefresh: "10초 자동 갱신",
+    lastUpdated: "갱신",
     loading: "불러오는 중",
     liveOcp: "실제 OCP 연결",
     unavailable: "사용 불가",
@@ -97,21 +101,32 @@ export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastLoadedAt, setLastLoadedAt] = useState<string | null>(null);
 
-  async function refreshOverview() {
-    setLoading(true);
+  async function refreshOverview(options: { silent?: boolean } = {}) {
+    if (!options.silent) {
+      setLoading(true);
+    }
     setError(null);
     try {
       setOverview(await fetchOcpConsoleOverview());
+      setLastLoadedAt(new Date().toISOString());
     } catch (err) {
       setError(err instanceof Error ? err.message : "OCP overview failed");
     } finally {
-      setLoading(false);
+      if (!options.silent) {
+        setLoading(false);
+      }
     }
   }
 
   useEffect(() => {
     void refreshOverview();
+    const refreshId = window.setInterval(() => {
+      void refreshOverview({ silent: true });
+    }, 10000);
+
+    return () => window.clearInterval(refreshId);
   }, []);
 
   const copy = overviewCopy[language];
@@ -144,6 +159,11 @@ export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
         <span>k8s {overview?.cluster.version ?? "-"}</span>
         <span>{copy.desired} {overview?.cluster.desiredVersion ?? "-"}</span>
         <span>{copy.channel} {overview?.cluster.channel ?? "-"}</span>
+        <span>{copy.autoRefresh}</span>
+        <span>
+          {copy.lastUpdated}{" "}
+          {lastLoadedAt ? new Date(lastLoadedAt).toLocaleTimeString() : "-"}
+        </span>
       </div>
 
       {error ? (

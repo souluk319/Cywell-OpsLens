@@ -37,23 +37,35 @@ The implementation must stay inside supported OpenShift customization paths: Con
 | 6 | Operator catalog | Ecosystem / Software Catalog / Operator catalog | Ecosystem / Software Catalog / Operator catalog | Review package visibility, CSV, install modes, architecture labels, and icon metadata. | OpsLens Admin operator package section |
 | 7 | Installed Operators | Ecosystem / Installed Operators | Ecosystem / Installed Operators | Inspect CSVs, Subscriptions, InstallPlans, and operator Deployments. | Resource Explorer preset for OLM resources |
 | 8 | Helm | Ecosystem / Helm | Ecosystem / Helm | Inspect Helm-related Secrets and ConfigMaps as redacted read-only release evidence. | Resource Explorer preset for Helm metadata |
-| 9 | Pods | Workloads / Pods | Workloads / Pods | List pods and inspect status, events, logs, owner refs, and sanitized YAML. | Resource Explorer preset for pods |
-| 10 | Workload controllers | Workloads / Deployments, DeploymentConfigs, StatefulSets, DaemonSets, Jobs, CronJobs, ReplicaSets, HPAs | Workloads / Workload controllers | Preset OpenShift and Kubernetes workload controllers. | Resource Explorer preset for workload APIs |
-| 11 | Routes, Services, Ingresses | Networking / Routes, Services, Ingresses | Networking / Routes, Services, Ingresses | Inspect routes, services, ingresses, endpoints, and endpoint slices. | Resource Explorer preset for network APIs |
-| 12 | NetworkPolicies | Networking / NetworkPolicies | Networking / NetworkPolicies | Inspect policies, DNS, ingress, and route reachability plans. | Resource Explorer preset plus plan-only boundary |
-| 13 | PVCs, PVs, StorageClasses | Storage / PersistentVolumeClaims, PersistentVolumes, StorageClasses | Storage / PVCs, PVs, StorageClasses | Inspect capacity, phase, class, and namespace storage evidence. | Resource Explorer preset for storage APIs |
-| 14 | Builds and ImageStreams | Builds / Builds, BuildConfigs, ImageStreams | Builds / Builds and ImageStreams | Inspect build/image provenance, CRC registry state, and architecture mismatch evidence. | Resource Explorer preset for OpenShift build/image APIs |
-| 15 | Alerting | Monitoring / Alerting | Monitoring / Alerting | Inspect firing alerts and keep assistant grounded in alert/log/event/YAML evidence. | Evidence pane alert view |
-| 16 | Dashboards | Monitoring / Dashboards | Monitoring / Dashboards | Open incident dashboard panels and evidence-backed operations cards. | OpsLens dashboard |
-| 17 | Metrics | Monitoring / Metrics | Monitoring / Metrics | Open metric-query evidence and incident scoring. | OpsLens metric evidence section |
-| 18 | Logs | Monitoring / Logs | Monitoring / Logs | Switch evidence pane to pod logs before plan-only assistant work. | Evidence pane log view |
-| 19 | Nodes and Machines | Compute / Nodes, Machines, MachineSets, MachineConfigPools | Compute / Nodes and Machines | Inspect node architecture, readiness, and capacity without modifying machines. | Resource Explorer preset for compute APIs |
-| 20 | Users, Groups, Roles | User Management / Users, Groups, ServiceAccounts, Roles, RoleBindings | User Management / Users, Groups, Roles | Inspect users, groups, service accounts, roles, cluster roles, and bindings without exposing credentials. | Resource Explorer preset for RBAC APIs |
-| 21 | Cluster Settings | Administration / Cluster Settings | Administration / Cluster Settings | Review cluster version, operators, console customization, and approval-gated changes. | OpsLens Admin OCP connectivity section |
-| 22 | Namespaces and CRDs | Administration / Namespaces, CustomResourceDefinitions, ResourceQuotas, LimitRanges | Administration / Namespaces and CRDs | Inspect namespace, CRD, APIService, quota, and limit health. | Resource Explorer preset for administration APIs |
-| 23 | OpsLens Admin | Cywell / OpsLens Admin | Cywell / OpsLens Admin | Operate install, RAG, evaluation, runtime, release, and completion dashboard. | OpsLens Admin surface |
-| 24 | OpsBrain | Cywell / OpsBrain | Cywell / OpsBrain | Open no-fine-tuning memory, evaluator, risk gate, and growth loop. | OpsBrain governance surface |
-| 25 | KOMSCO AI Assistant | Cywell / Assistant | Cywell / KOMSCO AI Assistant | Open KOMSCO assistant with current console context and read-only action boundary. | Assistant popover with item-aware prompt |
+| 9 | Topology | Workloads / Topology | Workloads / Topology | Inspect workload topology through pods, deployments, services, and routes. | Resource Explorer preset for topology evidence |
+| 10 | Pods | Workloads / Pods | Workloads / Pods | List pods and inspect status, events, logs, owner refs, and sanitized YAML. | Resource Explorer preset for pods |
+| 11 | Deployments | Workloads / Deployments | Workloads / Deployments | Inspect deployments, unavailable replicas, events, owner pods, and sanitized YAML. | Resource Explorer preset for apps/v1 deployments |
+| 12 | Deployment Configs | Workloads / Deployment Configs | Workloads / Deployment Configs | Inspect OpenShift DeploymentConfigs and rollout evidence. | Resource Explorer preset for apps.openshift.io/v1 deploymentconfigs |
+| 13 | StatefulSets | Workloads / StatefulSets | Workloads / StatefulSets | Inspect StatefulSets, pods, volumes, events, and sanitized YAML. | Resource Explorer preset for apps/v1 statefulsets |
+| 14 | Secrets | Workloads / Secrets | Workloads / Secrets | Inspect Secret metadata while keeping data payloads redacted. | Resource Explorer preset for v1 secrets |
+| 15 | ConfigMaps | Workloads / ConfigMaps | Workloads / ConfigMaps | Inspect ConfigMaps and configuration evidence. | Resource Explorer preset for v1 configmaps |
+| 16 | CronJobs | Workloads / CronJobs | Workloads / CronJobs | Inspect schedules, recent Jobs, events, and open the native create flow when creation is required. | Resource Explorer preset plus native create deep link |
+| 17 | Jobs | Workloads / Jobs | Workloads / Jobs | Inspect Jobs, completions, failed pods, and events. | Resource Explorer preset for batch/v1 jobs |
+| 18 | DaemonSets | Workloads / DaemonSets | Workloads / DaemonSets | Inspect DaemonSets, desired/current pods, unavailable pods, and node spread. | Resource Explorer preset for apps/v1 daemonsets |
+| 19 | ReplicaSets | Workloads / ReplicaSets | Workloads / ReplicaSets | Inspect ReplicaSets and owning Deployment/Pod chains. | Resource Explorer preset for apps/v1 replicasets |
+| 20 | ReplicationControllers | Workloads / ReplicationControllers | Workloads / ReplicationControllers | Inspect legacy ReplicationControllers and related Pods. | Resource Explorer preset for v1 replicationcontrollers |
+| 21 | HorizontalPodAutoscalers | Workloads / HorizontalPodAutoscalers | Workloads / HorizontalPodAutoscalers | Inspect HPA targets, current metrics, and scale recommendations. | Resource Explorer preset for autoscaling APIs |
+| 22 | PodDisruptionBudgets | Workloads / PodDisruptionBudgets | Workloads / PodDisruptionBudgets | Inspect PDBs, allowed disruptions, and protected workloads. | Resource Explorer preset for policy/v1 PDBs |
+| 23 | Routes, Services, Ingresses | Networking / Routes, Services, Ingresses | Networking / Routes, Services, Ingresses | Inspect routes, services, ingresses, endpoints, and endpoint slices. | Resource Explorer preset for network APIs |
+| 24 | NetworkPolicies | Networking / NetworkPolicies | Networking / NetworkPolicies | Inspect policies, DNS, ingress, and route reachability plans. | Resource Explorer preset plus plan-only boundary |
+| 25 | PVCs, PVs, StorageClasses | Storage / PersistentVolumeClaims, PersistentVolumes, StorageClasses | Storage / PVCs, PVs, StorageClasses | Inspect capacity, phase, class, and namespace storage evidence. | Resource Explorer preset for storage APIs |
+| 26 | Builds and ImageStreams | Builds / Builds, BuildConfigs, ImageStreams | Builds / Builds and ImageStreams | Inspect build/image provenance, CRC registry state, and architecture mismatch evidence. | Resource Explorer preset for OpenShift build/image APIs |
+| 27 | Alerting | Monitoring / Alerting | Monitoring / Alerting | Inspect firing alerts and keep assistant grounded in alert/log/event/YAML evidence. | Evidence pane alert view |
+| 28 | Dashboards | Monitoring / Dashboards | Monitoring / Dashboards | Open incident dashboard panels and evidence-backed operations cards. | OpsLens dashboard |
+| 29 | Metrics | Monitoring / Metrics | Monitoring / Metrics | Open metric-query evidence and incident scoring. | OpsLens metric evidence section |
+| 30 | Logs | Monitoring / Logs | Monitoring / Logs | Switch evidence pane to pod logs before plan-only assistant work. | Evidence pane log view |
+| 31 | Nodes and Machines | Compute / Nodes, Machines, MachineSets, MachineConfigPools | Compute / Nodes and Machines | Inspect node architecture, readiness, and capacity without modifying machines. | Resource Explorer preset for compute APIs |
+| 32 | Users, Groups, Roles | User Management / Users, Groups, ServiceAccounts, Roles, RoleBindings | User Management / Users, Groups, Roles | Inspect users, groups, service accounts, roles, cluster roles, and bindings without exposing credentials. | Resource Explorer preset for RBAC APIs |
+| 33 | Cluster Settings | Administration / Cluster Settings | Administration / Cluster Settings | Review cluster version, operators, console customization, and approval-gated changes. | OpsLens Admin OCP connectivity section |
+| 34 | Namespaces and CRDs | Administration / Namespaces, CustomResourceDefinitions, ResourceQuotas, LimitRanges | Administration / Namespaces and CRDs | Inspect namespace, CRD, APIService, quota, and limit health. | Resource Explorer preset for administration APIs |
+| 35 | OpsLens Admin | Cywell / OpsLens Admin | Cywell / OpsLens Admin | Operate install, RAG, evaluation, runtime, release, and completion dashboard. | OpsLens Admin surface |
+| 36 | OpsBrain | Cywell / OpsBrain | Cywell / OpsBrain | Open no-fine-tuning memory, evaluator, risk gate, and growth loop. | OpsBrain governance surface |
+| 37 | KOMSCO AI Assistant | Cywell / Assistant | Cywell / KOMSCO AI Assistant | Open KOMSCO assistant with current console context and read-only action boundary. | Assistant popover with item-aware prompt |
 
 ## Current Gaps
 

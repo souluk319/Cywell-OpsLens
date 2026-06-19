@@ -132,6 +132,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  describeLightspeedTarget,
+  queryOpenShiftLightspeed,
+  type LightspeedQueryResponse,
+  type LightspeedReferencedDocument
+} from "./lightspeedClient";
 import { retrieveRuntimeRagCitations } from "./runtimeRag";
 
 const sensitivePattern =
@@ -251,6 +257,170 @@ function citationToEvidenceSource(citation: OpsLensCitation): EvidenceSource {
   };
 }
 
+function lightspeedDocumentToEvidenceSource(
+  document: LightspeedReferencedDocument,
+  index: number
+): EvidenceSource {
+  return {
+    id: `lightspeed-doc-${index + 1}`,
+    label: document.doc_title || document.doc_url || "OpenShift Lightspeed reference",
+    type: "official-doc",
+    trustLevel: "official"
+  };
+}
+
+function createLightspeedAssistantAnswer(params: {
+  request: ActionPlanRequest;
+  prompt: string;
+  lightspeed: LightspeedQueryResponse;
+  contextHash: string;
+}): AssistantAnswer {
+  const lightspeedEvidence = params.lightspeed.referenced_documents.map(
+    lightspeedDocumentToEvidenceSource
+  );
+  const inspectedEvidence = uniqueEvidenceSources([
+    {
+      id: "openshift-lightspeed-v1-query",
+      label: "OpenShift Lightspeed streaming API /v1/streaming_query",
+      type: "official-doc",
+      trustLevel: "official"
+    },
+    {
+      id: `console-context-${params.contextHash}`,
+      label: `OpsLens console context: ${params.request.context.namespace} / ${params.request.context.route}`,
+      type: "cluster",
+      trustLevel: "cluster-snapshot"
+    },
+    ...lightspeedEvidence
+  ]);
+  const citations = uniqueEvidenceSources(lightspeedEvidence);
+
+  return {
+    ...assistantAnswer,
+    scenario: params.request.scenario ?? "OpenShiftLightspeed",
+    judgment: params.lightspeed.response,
+    inspectedEvidence,
+    candidates: [
+      {
+        label: "OpenShift Lightspeed answered the operator question",
+        confidence: "high",
+        reason:
+          "The assistant response came from the supported OpenShift Lightspeed streaming API /v1/streaming_query endpoint.",
+        evidenceIds: ["openshift-lightspeed-v1-query"]
+      },
+      {
+        label: "OpsLens attached current console context",
+        confidence: "medium",
+        reason:
+          `The request included namespace=${params.request.context.namespace}, route=${params.request.context.route}, and scenario=${params.request.scenario ?? "OpenShiftLightspeed"}.`,
+        evidenceIds: [`console-context-${params.contextHash}`]
+      }
+    ],
+    nextChecks: [
+      "Use the referenced OpenShift documentation returned by Lightspeed.",
+      "Check the matching native OpenShift Console page for the resource state.",
+      "Ask a follow-up in Troubleshooting mode if the answer needs incident triage."
+    ],
+    plan: [
+      "Use OpenShift Lightspeed as the primary answer engine.",
+      "Use OpsLens to attach console context, route, namespace, and evidence boundaries.",
+      "Keep execution read-only unless an explicit approved Operator workflow is used."
+    ],
+    risks: [
+      ...(params.lightspeed.truncated
+        ? ["Lightspeed truncated conversation history to fit the context window."]
+        : []),
+      "The assistant does not execute cluster changes from chat."
+    ],
+    rollbackPath: [
+      "If the answer is not relevant, switch mode or attach a more specific console resource context.",
+      "If Lightspeed is unreachable, restore the Lightspeed route/token/port-forward before retrying."
+    ],
+    citations,
+    missingEvidence:
+      citations.length > 0
+        ? []
+        : ["Lightspeed returned no referenced documents for this answer."],
+    actionMode: "readOnly"
+  };
+}
+
+function createLightspeedUnavailableAnswer(params: {
+  request: ActionPlanRequest;
+  prompt: string;
+  contextHash: string;
+  reason: string;
+}): AssistantAnswer {
+  const target = describeLightspeedTarget();
+  return {
+    ...assistantAnswer,
+    scenario: params.request.scenario ?? "OpenShiftLightspeedUnavailable",
+    judgment:
+      "OpenShift Lightspeed is not connected for this request, so OpsLens did not generate an AI answer. Restore the Lightspeed route, bearer token, or tunnel, then retry.",
+    inspectedEvidence: [
+      {
+        id: "openshift-lightspeed-v1-query",
+        label: "OpenShift Lightspeed streaming API /v1/streaming_query",
+        type: "official-doc",
+        trustLevel: "official"
+      },
+      {
+        id: `console-context-${params.contextHash}`,
+        label: `OpsLens console context: ${params.request.context.namespace} / ${params.request.context.route}`,
+        type: "cluster",
+        trustLevel: "cluster-snapshot"
+      }
+    ],
+    candidates: [
+      {
+        label: "Lightspeed connection is unavailable",
+        confidence: "high",
+        reason: params.reason,
+        evidenceIds: ["openshift-lightspeed-v1-query"]
+      },
+      {
+        label: target.configured
+          ? "Lightspeed target is configured but did not answer"
+          : "Lightspeed target is not fully configured",
+        confidence: "high",
+        reason:
+          "OpsLens requires OPENSHIFT_LIGHTSPEED_BASE_URL and a bearer token before it can call the supported REST API.",
+        evidenceIds: ["openshift-lightspeed-v1-query"]
+      }
+    ],
+    nextChecks: [
+      "Confirm OpenShift Lightspeed app server is reachable from the OpsLens API process.",
+      "Confirm the bearer token has the ols-user role.",
+      "Retry after the Lightspeed route or local tunnel is restored."
+    ],
+    plan: [
+      "Do not fabricate a local AI answer.",
+      "Keep the chat state explicit until OpenShift Lightspeed /v1/streaming_query responds.",
+      "Use the native OpenShift Console page for read-only verification while Lightspeed is unavailable."
+    ],
+    risks: [
+      "Presenting a local fixture as AI output would misrepresent the product state.",
+      "A reachable OpsLens API does not prove OpenShift Lightspeed is reachable."
+    ],
+    rollbackPath: [
+      "Disable the OpsLens assistant route or keep it in unavailable state until Lightspeed is restored."
+    ],
+    citations: [
+      {
+        id: "openshift-lightspeed-api-doc",
+        label: "OpenShift Lightspeed streaming API /v1/streaming_query",
+        type: "official-doc",
+        trustLevel: "official"
+      }
+    ],
+    missingEvidence: [
+      "Successful POST /v1/streaming_query response from OpenShift Lightspeed",
+      "Token authorization proof for the configured Lightspeed user"
+    ],
+    actionMode: "readOnly"
+  };
+}
+
 function createPromptAwareAssistantAnswer(params: {
   request: ActionPlanRequest;
   prompt: string;
@@ -358,9 +528,9 @@ export function syncContext(request: ContextSyncRequest): ContextSyncResponse {
   };
 }
 
-export function createActionPlan(
+export async function createActionPlan(
   request: ActionPlanRequest
-): ActionPlanResponse {
+): Promise<ActionPlanResponse> {
   assertContext(request.context);
 
   if (!request.prompt || typeof request.prompt !== "string") {
@@ -374,12 +544,49 @@ export function createActionPlan(
     countSensitiveValues(request.context) + countSensitiveValues(request.prompt);
 
   const prompt = redactSensitiveText(request.prompt.trim());
-  const citations = retrieveRunbookCitations("cywell-internal", prompt, 3);
-  const answer = createPromptAwareAssistantAnswer({
-    request,
-    prompt,
-    citations
-  });
+  const mode = request.mode ?? "troubleshooting";
+  let answer: AssistantAnswer;
+  let model = `openshift-lightspeed/v1/streaming_query:${mode}`;
+  let inputTokens = Math.ceil(stableStringify(request).length / 4);
+  let outputTokens = 0;
+
+  try {
+    const lightspeed = await queryOpenShiftLightspeed({
+      query: prompt,
+      mode,
+      contextAttachment: {
+        source: "cywell-opslens-console-context",
+        namespace: request.context.namespace,
+        route: request.context.route,
+        resource: request.context.resource,
+        rbac: {
+          role: request.context.rbac.role,
+          deniedNamespaces: request.context.rbac.deniedNamespaces
+        },
+        scenario: request.scenario
+      }
+    });
+    answer = createLightspeedAssistantAnswer({
+      request,
+      prompt,
+      lightspeed,
+      contextHash
+    });
+    inputTokens = lightspeed.input_tokens;
+    outputTokens = lightspeed.output_tokens;
+  } catch (error) {
+    answer = createLightspeedUnavailableAnswer({
+      request,
+      prompt,
+      contextHash,
+      reason:
+        error instanceof Error
+          ? error.message
+          : "OpenShift Lightspeed /v1/streaming_query request failed"
+    });
+    model = "openshift-lightspeed/unavailable";
+    outputTokens = Math.ceil(stableStringify(answer).length / 4);
+  }
 
   return {
     requestId,
@@ -392,10 +599,10 @@ export function createActionPlan(
       namespaceScope: request.context.namespace,
       contextHash,
       sources: answer.inspectedEvidence.map((source) => source.id),
-      model: "mock-local-search-mode/triage",
+      model,
       tokenUsage: {
-        input: Math.ceil(stableStringify(request).length / 4),
-        output: Math.ceil(stableStringify(answer).length / 4)
+        input: inputTokens,
+        output: outputTokens
       },
       latencyMs: Math.max(1, Date.now() - startedAt),
       redactionCount,

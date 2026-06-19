@@ -144,6 +144,7 @@ export interface ActionPlanRequest {
   prompt: string;
   context: ConsoleContextPayload;
   scenario?: string;
+  mode?: "ask" | "troubleshooting";
 }
 
 export interface AuditEnvelope {
@@ -4912,6 +4913,51 @@ export interface OcpConsoleOverviewResponse {
       state?: string;
     }>;
     error?: string;
+  };
+  consoleDashboard: {
+    details: {
+      apiUrl?: string;
+      clusterId?: string;
+      infrastructureName?: string;
+      openshiftVersion?: string;
+      channel?: string;
+      highAvailability?: string;
+      lightspeedVersion?: string;
+    };
+    inventory: {
+      nodes: number;
+      pods: number;
+      storageClasses: number;
+      persistentVolumeClaims: number;
+      routes: number;
+      services: number;
+    };
+    statusCards: Array<{
+      id: string;
+      title: string;
+      severity: "info" | "warning" | "critical";
+      message: string;
+      timestamp?: string;
+      source: "clusterversion" | "clusteroperator" | "monitoring" | "event";
+    }>;
+    activity: OcpEventSummary[];
+    utilization: {
+      enabled: boolean;
+      reachable: boolean;
+      source: "openshift-monitoring" | "disabled" | "unavailable";
+      series: Array<{
+        id: "cpu" | "memory" | "filesystem" | "network-in" | "network-out" | "pods";
+        label: string;
+        unit: string;
+        latest?: number;
+        available?: number;
+        samples: OcpPrometheusSample[];
+        query: string;
+        error?: string;
+      }>;
+      evidence: string[];
+      error?: string;
+    };
   };
   evidence: string[];
 }

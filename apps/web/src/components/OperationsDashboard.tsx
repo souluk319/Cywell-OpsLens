@@ -1,5 +1,8 @@
-import type { CSSProperties } from "react";
-import type { DashboardRisksResponse } from "@kugnus/contracts";
+import { useEffect, useState, type CSSProperties } from "react";
+import type {
+  DashboardRisksResponse,
+  OcpConsoleOverviewResponse
+} from "@kugnus/contracts";
 import {
   Activity,
   AlertTriangle,
@@ -12,6 +15,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import type { UiLanguage } from "../i18n";
+import { fetchOcpConsoleOverview } from "../lib/api";
 
 interface OperationsDashboardProps {
   dashboard: DashboardRisksResponse;
@@ -44,6 +48,12 @@ const dashboardCopy = {
     crashloopWorkloads: "4 crashloop",
     severityDistribution: "Severity Distribution",
     severityDistributionLabel: "Active risk severity distribution",
+    visualSummary: "Operational Signal Map",
+    healthRing: "health",
+    riskMix: "risk mix",
+    evidenceFlow: "evidence flow",
+    decisionReady: "decision ready",
+    needsTriage: "needs triage",
     exposureTrend: "Exposure Trend",
     exposureTrendLabel: "Risk exposure derived from alert durations",
     actionInsights: "Action Insights",
@@ -60,7 +70,22 @@ const dashboardCopy = {
     provider: "Provider",
     latency: "Latency",
     fallback: "Fallback",
-    riskCount: "risks"
+    riskCount: "risks",
+    liveConsoleSync: "OpenShift Console Sync",
+    liveConsoleSyncSubtitle: "Live signals matched from the native console dashboard",
+    liveConnected: "live API",
+    liveUnavailable: "API unavailable",
+    apiEvidence: "API evidence",
+    clusterVersion: "OpenShift version",
+    channel: "Channel",
+    highAvailability: "HA mode",
+    inventory: "Inventory",
+    statusCards: "Status cards",
+    activity: "Activity",
+    utilization: "Utilization",
+    notMeasured: "not measured",
+    storage: "Storage",
+    routesAndServices: "Routes / Services"
   },
   ko: {
     breadcrumb: "관리자 / 관측 / Cywell OpsLens",
@@ -87,6 +112,12 @@ const dashboardCopy = {
     crashloopWorkloads: "4개 CrashLoop",
     severityDistribution: "심각도 분포",
     severityDistributionLabel: "활성 리스크 심각도 분포",
+    visualSummary: "운영 신호 맵",
+    healthRing: "상태",
+    riskMix: "리스크 구성",
+    evidenceFlow: "근거 흐름",
+    decisionReady: "판단 가능",
+    needsTriage: "분류 필요",
     exposureTrend: "노출 추세",
     exposureTrendLabel: "알림 지속 시간에서 파생한 리스크 노출",
     actionInsights: "조치 인사이트",
@@ -103,7 +134,22 @@ const dashboardCopy = {
     provider: "제공자",
     latency: "지연 시간",
     fallback: "대체 경로",
-    riskCount: "리스크"
+    riskCount: "리스크",
+    liveConsoleSync: "OpenShift 콘솔 동기화",
+    liveConsoleSyncSubtitle: "원본 콘솔 대시보드에서 대응되는 실시간 신호",
+    liveConnected: "실제 API",
+    liveUnavailable: "API 사용 불가",
+    apiEvidence: "API 근거",
+    clusterVersion: "OpenShift 버전",
+    channel: "채널",
+    highAvailability: "HA 모드",
+    inventory: "인벤토리",
+    statusCards: "상태 카드",
+    activity: "활동",
+    utilization: "사용량",
+    notMeasured: "측정 안 됨",
+    storage: "스토리지",
+    routesAndServices: "라우트 / 서비스"
   }
 } as const;
 
@@ -171,8 +217,92 @@ function parseDurationMinutes(duration: string) {
   return value;
 }
 
+function numberText(value: number | undefined) {
+  return typeof value === "number" ? value.toLocaleString() : "-";
+}
+
+function metricText(value: number | undefined, unit: string) {
+  if (typeof value !== "number") {
+    return "-";
+  }
+  if (unit === "bytes") {
+    if (value > 1024 * 1024 * 1024) {
+      return `${(value / 1024 / 1024 / 1024).toFixed(1)} GiB`;
+    }
+    if (value > 1024 * 1024) {
+      return `${(value / 1024 / 1024).toFixed(1)} MiB`;
+    }
+  }
+  if (unit === "bytes/s") {
+    if (value > 1024 * 1024) {
+      return `${(value / 1024 / 1024).toFixed(1)} MiB/s`;
+    }
+    if (value > 1024) {
+      return `${(value / 1024).toFixed(1)} KiB/s`;
+    }
+  }
+  if (unit === "cores") {
+    return value.toFixed(2);
+  }
+  return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2);
+}
+
+function utilizationWidth(value: number | undefined) {
+  if (typeof value !== "number") {
+    return "0%";
+  }
+  return `${clamp(Math.round(Math.log10(Math.max(value, 1)) * 12), 4, 100)}%`;
+}
+
+function statusSeverityClass(
+  severity: OcpConsoleOverviewResponse["consoleDashboard"]["statusCards"][number]["severity"]
+) {
+  if (severity === "critical") {
+    return "danger";
+  }
+  if (severity === "warning") {
+    return "warning";
+  }
+  return "ready";
+}
+
 export function OperationsDashboard({ dashboard, language }: OperationsDashboardProps) {
   const copy = dashboardCopy[language];
+  const [consoleOverview, setConsoleOverview] =
+    useState<OcpConsoleOverviewResponse | null>(null);
+  const [consoleOverviewError, setConsoleOverviewError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function refreshConsoleOverview() {
+      try {
+        const overview = await fetchOcpConsoleOverview();
+        if (mounted) {
+          setConsoleOverview(overview);
+          setConsoleOverviewError(null);
+        }
+      } catch (error) {
+        if (mounted) {
+          setConsoleOverviewError(
+            error instanceof Error ? error.message : "console overview unavailable"
+          );
+        }
+      }
+    }
+
+    void refreshConsoleOverview();
+    const refreshId = window.setInterval(() => {
+      void refreshConsoleOverview();
+    }, 10000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(refreshId);
+    };
+  }, []);
+
+  const consoleDashboard = consoleOverview?.consoleDashboard;
   const totalRisks = dashboard.activeRisks.length;
   const criticalCount = dashboard.activeRisks.filter(
     (risk) => risk.severity === "critical"
@@ -243,6 +373,8 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
       percentage: totalRisks === 0 ? 0 : Math.round((count / totalRisks) * 100)
     };
   });
+  const healthRingStyle = { "--score": `${healthScore}%` } as CSSProperties;
+  const evidenceCoverageClamped = clamp(evidenceCoverage, 0, 100);
   const exposureBuckets = [
     {
       label: "<30m",
@@ -290,6 +422,177 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
             {copy.snapshot}: {sourceLabel}
           </span>
         </div>
+      </div>
+
+      <div
+        className="ops-console-sync"
+        data-testid="opslens-console-sync"
+        aria-label={copy.liveConsoleSync}
+      >
+        <div className="card-title-row">
+          <div>
+            <h3>{copy.liveConsoleSync}</h3>
+            <p>{copy.liveConsoleSyncSubtitle}</p>
+          </div>
+          <span
+            className={`status-pill ${
+              consoleOverview?.status.reachable ? "ready" : "warning"
+            }`}
+          >
+            {consoleOverview?.status.reachable ? copy.liveConnected : copy.liveUnavailable}
+          </span>
+        </div>
+        <div className="ops-console-sync-grid">
+          <article className="ops-console-sync-facts">
+            <h4>{copy.apiEvidence}</h4>
+            <dl>
+              <div>
+                <dt>{copy.clusterVersion}</dt>
+                <dd>{consoleDashboard?.details.openshiftVersion ?? "-"}</dd>
+              </div>
+              <div>
+                <dt>{copy.channel}</dt>
+                <dd>{consoleDashboard?.details.channel ?? "-"}</dd>
+              </div>
+              <div>
+                <dt>{copy.highAvailability}</dt>
+                <dd>{consoleDashboard?.details.highAvailability ?? "-"}</dd>
+              </div>
+              <div>
+                <dt>{copy.inventory}</dt>
+                <dd>
+                  {numberText(consoleDashboard?.inventory.nodes)} node ·{" "}
+                  {numberText(consoleDashboard?.inventory.pods)} pod
+                </dd>
+              </div>
+              <div>
+                <dt>{copy.storage}</dt>
+                <dd>
+                  {numberText(consoleDashboard?.inventory.storageClasses)} SC ·{" "}
+                  {numberText(consoleDashboard?.inventory.persistentVolumeClaims)} PVC
+                </dd>
+              </div>
+              <div>
+                <dt>{copy.routesAndServices}</dt>
+                <dd>
+                  {numberText(consoleDashboard?.inventory.routes)} /{" "}
+                  {numberText(consoleDashboard?.inventory.services)}
+                </dd>
+              </div>
+            </dl>
+          </article>
+
+          <article className="ops-console-sync-status">
+            <h4>{copy.statusCards}</h4>
+            <div className="console-status-list">
+              {(consoleDashboard?.statusCards ?? []).slice(0, 4).map((card) => (
+                <div className="console-status-card" key={card.id}>
+                  <span className={`status-dot ${statusSeverityClass(card.severity)}`} />
+                  <div>
+                    <strong>{card.title}</strong>
+                    <p>{card.message}</p>
+                  </div>
+                </div>
+              ))}
+              {consoleDashboard?.statusCards.length === 0 ? (
+                <p className="muted-text">{copy.decisionReady}</p>
+              ) : null}
+              {consoleOverviewError ? (
+                <p className="muted-text">{consoleOverviewError}</p>
+              ) : null}
+            </div>
+          </article>
+
+          <article className="ops-console-sync-meters">
+            <h4>{copy.utilization}</h4>
+            {(consoleDashboard?.utilization.series ?? []).slice(0, 5).map((series) => (
+              <div className="mini-series" key={series.id}>
+                <span>{series.label}</span>
+                <strong>{metricText(series.latest, series.unit)}</strong>
+                <i style={{ "--bar": utilizationWidth(series.latest) } as CSSProperties} />
+              </div>
+            ))}
+            {!consoleDashboard?.utilization.reachable ? (
+              <p className="muted-text">
+                {consoleDashboard?.utilization.error ?? copy.notMeasured}
+              </p>
+            ) : null}
+          </article>
+
+          <article className="ops-console-sync-activity">
+            <h4>{copy.activity}</h4>
+            <ol>
+              {(consoleDashboard?.activity ?? []).slice(0, 5).map((event) => (
+                <li key={`${event.namespace ?? "cluster"}-${event.name}`}>
+                  <strong>{event.reason ?? event.type ?? event.name}</strong>
+                  <span>{event.message ?? event.regarding?.name ?? event.name}</span>
+                </li>
+              ))}
+            </ol>
+          </article>
+        </div>
+      </div>
+
+      <div
+        className="ops-visual-summary"
+        data-testid="opslens-visual-summary"
+        aria-label={copy.visualSummary}
+      >
+        <article className="ops-signal-card health">
+          <div className="health-ring" style={healthRingStyle}>
+            <strong>{healthScore}</strong>
+            <span>{copy.healthRing}</span>
+          </div>
+          <div>
+            <h3>{copy.clusterHealth}</h3>
+            <p>
+              {criticalCount} {copy.critical} · {firingCount} {copy.firing} ·{" "}
+              {averageBlastRadius} {copy.averageBlastRadius}
+            </p>
+          </div>
+        </article>
+
+        <article className="ops-signal-card mix">
+          <div className="card-title-row">
+            <h3>{copy.riskMix}</h3>
+            <span>{totalRisks} {copy.riskCount}</span>
+          </div>
+          <div className="severity-stack" aria-label={copy.severityDistributionLabel}>
+            {severityDistribution.map(({ severity, percentage }) => (
+              <span
+                className={`severity-segment ${severity}`}
+                key={severity}
+                style={barStyle(percentage)}
+              />
+            ))}
+          </div>
+          <div className="severity-legend">
+            {severityDistribution.map(({ severity, count }) => (
+              <span key={severity}>
+                <i className={`severity-dot ${severity}`} />
+                {severity}: {count}
+              </span>
+            ))}
+          </div>
+        </article>
+
+        <article className="ops-signal-card flow">
+          <h3>{copy.evidenceFlow}</h3>
+          <ol>
+            <li>
+              <strong>{evidenceCoverageClamped}%</strong>
+              <span>{copy.evidenceCoverage}</span>
+            </li>
+            <li>
+              <strong>{linkedChanges.length}</strong>
+              <span>{copy.linkedChanges}</span>
+            </li>
+            <li>
+              <strong>{topRisk ? copy.needsTriage : copy.decisionReady}</strong>
+              <span>{topRisk?.title ?? copy.allSourcesFresh}</span>
+            </li>
+          </ol>
+        </article>
       </div>
 
       <div className="dashboard-grid">

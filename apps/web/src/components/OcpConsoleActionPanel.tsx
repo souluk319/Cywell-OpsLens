@@ -1,4 +1,11 @@
-import { ArrowRight, Bot, FileSearch, ListChecks, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Bot,
+  ExternalLink,
+  FileSearch,
+  ListChecks,
+  ShieldCheck
+} from "lucide-react";
 import {
   consoleParityFunctionSignal,
   consoleParityFunctionProof,
@@ -49,6 +56,7 @@ const actionCopy = {
     functionSignal: "Function signal",
     openSurface: "Open surface",
     askAssistant: "Ask KOMSCO",
+    nativeCreate: "Open native create",
     readOnly: "read-only/plan-only"
   },
   ko: {
@@ -83,6 +91,7 @@ const actionCopy = {
     functionSignal: "기능 신호",
     openSurface: "화면 열기",
     askAssistant: "KOMSCO 질문",
+    nativeCreate: "원본 생성 열기",
     readOnly: "읽기 전용/계획 전용"
   }
 } as const;
@@ -107,6 +116,16 @@ const surfaceLabels = {
     assistant: "KOMSCO 어시스턴트"
   }
 } as const;
+
+function nativeConsoleHref(path: string) {
+  if (typeof window !== "undefined") {
+    const origin = window.location.origin;
+    if (window.location.hostname.includes("console-openshift-console")) {
+      return `${origin}${path}`;
+    }
+  }
+  return `https://console-openshift-console.apps-crc.testing${path}`;
+}
 
 export function OcpConsoleActionPanel({
   activeItem,
@@ -313,6 +332,18 @@ export function OcpConsoleActionPanel({
           <ArrowRight size={15} aria-hidden="true" />
           {copy.openSurface}
         </button>
+        {activeItem.nativeCreatePath ? (
+          <a
+            className="text-icon-button"
+            data-testid="console-active-native-create"
+            href={nativeConsoleHref(activeItem.nativeCreatePath)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <ExternalLink size={15} aria-hidden="true" />
+            {copy.nativeCreate}
+          </a>
+        ) : null}
         <button
           className="text-icon-button"
           data-testid="console-active-ask-assistant"

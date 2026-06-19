@@ -182,9 +182,13 @@ export function syncConsoleContext(request: ContextSyncRequest) {
   });
 }
 
-export function createActionPlan(request: ActionPlanRequest) {
+export function createActionPlan(
+  request: ActionPlanRequest,
+  init?: Pick<RequestInit, "signal">
+) {
   return requestJson<ActionPlanResponse>("/api/actions/plan", {
     method: "POST",
+    signal: init?.signal,
     body: JSON.stringify(request)
   });
 }

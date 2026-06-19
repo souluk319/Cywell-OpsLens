@@ -2835,6 +2835,239 @@ export async function listOcpEvents(params: {
   };
 }
 
+type ConsoleDashboard = OcpConsoleOverviewResponse["consoleDashboard"];
+type ConsoleDashboardStatusCard = ConsoleDashboard["statusCards"][number];
+type ConsoleDashboardUtilization = ConsoleDashboard["utilization"];
+
+function recordValue(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function eventTimeMs(event: OcpEventSummary) {
+  const raw = event.lastTimestamp ?? event.firstTimestamp;
+  const parsed = raw ? Date.parse(raw) : 0;
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function latestPrometheusValue(sample: OcpPrometheusQueryResponse["results"][number]) {
+  if (sample.values?.length) {
+    const latest = sample.values[sample.values.length - 1];
+    const value = Number(latest[1]);
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (sample.value) {
+    const value = Number(sample.value[1]);
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  return undefined;
+}
+
+function conditionSeverity(
+  condition: OcpConditionSummary
+): ConsoleDashboardStatusCard["severity"] {
+  if (/failing|degraded/i.test(condition.type)) {
+    return "critical";
+  }
+  if (/notupgradeable|progressing|available/i.test(condition.type)) {
+    return "warning";
+  }
+  return "info";
+}
+
+function lightspeedVersionFromCsvs(csvs: Array<Record<string, unknown>>) {
+  const csv = csvs.find((item) => {
+    const metadata = getObjectMetadata(item);
+    return metadata?.name?.toLowerCase().includes("lightspeed");
+  });
+  const metadata = getObjectMetadata(csv ?? {});
+  const spec = recordValue(csv?.spec);
+  const version = stringValue(spec?.version);
+  return version ?? metadata?.name;
+}
+
+function buildConsoleStatusCards(params: {
+  clusterConditions: OcpConditionSummary[];
+  degradedItems: Array<{ name: string; conditions: OcpConditionSummary[] }>;
+  monitoring: OcpConsoleOverviewResponse["monitoring"];
+  recentEvents: OcpEventSummary[];
+}) {
+  const cards: ConsoleDashboardStatusCard[] = [];
+
+  params.clusterConditions
+    .filter((condition) => condition.status === "True")
+    .filter((condition) =>
+      /failing|notupgradeable|progressing|retrievedupdates|available/i.test(
+        condition.type
+      )
+    )
+    .forEach((condition, index) => {
+      cards.push({
+        id: `clusterversion-${condition.type}-${index}`,
+        title: condition.type,
+        severity: conditionSeverity(condition),
+        message:
+          condition.message ??
+          condition.reason ??
+          `${condition.type} is ${condition.status}`,
+        source: "clusterversion"
+      });
+    });
+
+  params.degradedItems.slice(0, 6).forEach((operator, index) => {
+    const degraded = operator.conditions.find(
+      (condition) => condition.type === "Degraded"
+    );
+    cards.push({
+      id: `clusteroperator-${operator.name}-${index}`,
+      title: operator.name || "ClusterOperator",
+      severity: "critical",
+      message:
+        degraded?.message ??
+        degraded?.reason ??
+        "ClusterOperator reports Degraded=True",
+      source: "clusteroperator"
+    });
+  });
+
+  params.monitoring.sample.slice(0, 4).forEach((alert, index) => {
+    cards.push({
+      id: `monitoring-${alert.alertname}-${index}`,
+      title: alert.alertname,
+      severity: alert.severity === "critical" ? "critical" : "warning",
+      message: `${alert.state ?? "alert"}${alert.namespace ? ` / ${alert.namespace}` : ""}`,
+      source: "monitoring"
+    });
+  });
+
+  params.recentEvents
+    .filter((event) => event.type === "Warning")
+    .slice(0, 4)
+    .forEach((event, index) => {
+      cards.push({
+        id: `event-${event.name}-${index}`,
+        title: event.reason ?? event.name,
+        severity: "warning",
+        message: event.message ?? event.regarding?.name ?? "Warning event",
+        timestamp: event.lastTimestamp ?? event.firstTimestamp,
+        source: "event"
+      });
+    });
+
+  return cards.slice(0, 12);
+}
+
+async function getConsoleDashboardUtilization(
+  config: OcpConfig
+): Promise<ConsoleDashboardUtilization> {
+  const end = new Date();
+  const start = new Date(end.getTime() - 60 * 60 * 1000);
+  const metricSpecs: Array<{
+    id: ConsoleDashboardUtilization["series"][number]["id"];
+    label: string;
+    unit: string;
+    query: string;
+  }> = [
+    {
+      id: "cpu",
+      label: "CPU",
+      unit: "cores",
+      query: 'sum(rate(container_cpu_usage_seconds_total{container!="",pod!=""}[5m]))'
+    },
+    {
+      id: "memory",
+      label: "Memory",
+      unit: "bytes",
+      query: 'sum(container_memory_working_set_bytes{container!="",pod!=""})'
+    },
+    {
+      id: "filesystem",
+      label: "File system",
+      unit: "bytes",
+      query:
+        'sum(node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_avail_bytes{mountpoint="/"})'
+    },
+    {
+      id: "network-in",
+      label: "Network in",
+      unit: "bytes/s",
+      query: "sum(rate(container_network_receive_bytes_total[5m]))"
+    },
+    {
+      id: "network-out",
+      label: "Network out",
+      unit: "bytes/s",
+      query: "sum(rate(container_network_transmit_bytes_total[5m]))"
+    },
+    {
+      id: "pods",
+      label: "Pods",
+      unit: "count",
+      query: "count(kube_pod_info)"
+    }
+  ];
+
+  const results = await Promise.all(
+    metricSpecs.map(async (spec) => {
+      const response = await queryOcpPrometheus({
+        query: spec.query,
+        range: {
+          start,
+          end,
+          stepSeconds: 300
+        },
+        timeoutMs: 1200
+      });
+      const firstSample = response.results[0];
+      return {
+        response,
+        series: {
+          id: spec.id,
+          label: spec.label,
+          unit: spec.unit,
+          latest: firstSample ? latestPrometheusValue(firstSample) : undefined,
+          samples: response.results,
+          query: spec.query,
+          error: response.error
+        }
+      };
+    })
+  );
+
+  const enabled = results.some((result) => result.response.enabled);
+  const reachable = results.some((result) => result.response.reachable);
+  const source: ConsoleDashboardUtilization["source"] = reachable
+    ? "openshift-monitoring"
+    : enabled
+      ? "unavailable"
+      : "disabled";
+  const error = results.find((result) => result.response.error)?.response.error;
+
+  return {
+    enabled,
+    reachable,
+    source,
+    series: results.map((result) => result.series),
+    evidence: reachable
+      ? [
+          "openshift-monitoring service proxy query_range",
+          "read-only Prometheus utilization queries"
+        ]
+      : [
+          "openshift-monitoring utilization unavailable",
+          "no synthetic utilization values were generated"
+        ],
+    error
+  };
+}
+
 export async function getOcpConsoleOverview(): Promise<OcpConsoleOverviewResponse> {
   const config = getOcpConfig();
   const status = await getOcpStatus();
@@ -2854,7 +3087,13 @@ export async function getOcpConsoleOverview(): Promise<OcpConsoleOverviewRespons
     services,
     builds,
     imageStreams,
-    monitoring
+    infrastructure,
+    storageClasses,
+    persistentVolumeClaims,
+    events,
+    lightspeedCsvs,
+    monitoring,
+    utilization
   ] = await Promise.all([
     requestJson<Record<string, unknown>>(
       config,
@@ -2870,7 +3109,19 @@ export async function getOcpConsoleOverview(): Promise<OcpConsoleOverviewRespons
     listAllItemsSafe(config, "/api/v1/services"),
     listAllItemsSafe(config, "/apis/build.openshift.io/v1/builds"),
     listAllItemsSafe(config, "/apis/image.openshift.io/v1/imagestreams"),
-    getMonitoringAlerts(config)
+    requestJson<Record<string, unknown>>(
+      config,
+      "/apis/config.openshift.io/v1/infrastructures/cluster"
+    ).catch(() => undefined),
+    listAllItemsSafe(config, "/apis/storage.k8s.io/v1/storageclasses"),
+    listAllItemsSafe(config, "/api/v1/persistentvolumeclaims"),
+    listAllItemsSafe(config, "/api/v1/events"),
+    listAllItemsSafe(
+      config,
+      "/apis/operators.coreos.com/v1alpha1/namespaces/openshift-lightspeed/clusterserviceversions"
+    ),
+    getMonitoringAlerts(config),
+    getConsoleDashboardUtilization(config)
   ]);
 
   const clusterStatus = clusterVersion?.status as
@@ -2955,6 +3206,26 @@ export async function getOcpConsoleOverview(): Promise<OcpConsoleOverviewRespons
       String(statusRecord?.phase ?? "")
     );
   }).length;
+  const clusterConditions = conditionsFrom(clusterStatus?.conditions);
+  const infrastructureStatus = recordValue(infrastructure?.status);
+  const recentEvents = events
+    .map(summarizeEvent)
+    .sort((a, b) => eventTimeMs(b) - eventTimeMs(a))
+    .slice(0, 20);
+  const infrastructureName = stringValue(infrastructureStatus?.infrastructureName);
+  const infrastructureApiUrl = stringValue(infrastructureStatus?.apiServerURL);
+  const clusterId =
+    stringValue(clusterStatus?.clusterID) ??
+    stringValue(
+      (clusterVersion?.spec as Record<string, unknown> | undefined)?.clusterID
+    ) ??
+    infrastructureName;
+  const openshiftVersion = desired?.version ?? status.gitVersion;
+  const channel =
+    typeof (clusterVersion?.spec as { channel?: unknown } | undefined)
+      ?.channel === "string"
+      ? String((clusterVersion?.spec as { channel?: string }).channel)
+      : undefined;
 
   return {
     status,
@@ -2962,12 +3233,8 @@ export async function getOcpConsoleOverview(): Promise<OcpConsoleOverviewRespons
     cluster: {
       version: status.gitVersion,
       desiredVersion: desired?.version,
-      channel:
-        typeof (clusterVersion?.spec as { channel?: unknown } | undefined)
-          ?.channel === "string"
-          ? String((clusterVersion?.spec as { channel?: string }).channel)
-          : undefined,
-      conditions: conditionsFrom(clusterStatus?.conditions)
+      channel,
+      conditions: clusterConditions
     },
     operators: {
       total: operatorItems.length,
@@ -3011,13 +3278,44 @@ export async function getOcpConsoleOverview(): Promise<OcpConsoleOverviewRespons
       imageStreams: imageStreams.length
     },
     monitoring,
+    consoleDashboard: {
+      details: {
+        apiUrl: infrastructureApiUrl ?? status.baseUrl,
+        clusterId,
+        infrastructureName,
+        openshiftVersion,
+        channel,
+        highAvailability: nodeItems.length > 1 ? "multi-node" : "single-node",
+        lightspeedVersion: lightspeedVersionFromCsvs(lightspeedCsvs)
+      },
+      inventory: {
+        nodes: nodeItems.length,
+        pods: podSummaries.length,
+        storageClasses: storageClasses.length,
+        persistentVolumeClaims: persistentVolumeClaims.length,
+        routes: routes.length,
+        services: services.length
+      },
+      statusCards: buildConsoleStatusCards({
+        clusterConditions,
+        degradedItems,
+        monitoring,
+        recentEvents
+      }),
+      activity: recentEvents.slice(0, 12),
+      utilization
+    },
     evidence: [
       "config.openshift.io/v1 ClusterVersion/version",
+      "config.openshift.io/v1 Infrastructure/cluster",
       "config.openshift.io/v1 ClusterOperator list",
       "v1 Node/Namespace/Pod/Service lists",
       "apps/v1 Deployment list",
       "route.openshift.io/v1 Route list",
       "networking.k8s.io/v1 Ingress list",
+      "storage.k8s.io/v1 StorageClass list",
+      "v1 PersistentVolumeClaim list",
+      "v1 Event list",
       "build.openshift.io/v1 Build list",
       "image.openshift.io/v1 ImageStream list",
       "openshift-monitoring service proxy when available"

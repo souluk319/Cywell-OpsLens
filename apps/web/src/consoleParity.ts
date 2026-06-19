@@ -46,6 +46,7 @@ export interface ConsoleParityItem {
   status: "covered" | "native-deep-link" | "ops-enhanced" | "read-only-plan";
   resourcePreset?: ConsoleParityResourcePreset;
   evidenceView?: "alerts" | "logs" | "yaml";
+  nativeCreatePath?: string;
 }
 
 export type ConsoleParityFunctionMode =
@@ -295,6 +296,32 @@ export const ocpConsoleParityItems: ConsoleParityItem[] = [
     }
   },
   {
+    id: "topology",
+    section: "Workloads",
+    label: "Topology",
+    labelKo: "토폴로지",
+    originalPath: "Workloads / Topology",
+    originalPathKo: "워크로드 / 토폴로지",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "Open workload topology evidence with pods, deployments, services, and routes.",
+    commandKo: "파드, Deployment, 서비스, 라우트 기반 워크로드 토폴로지 근거를 엽니다.",
+    opsLensEnhancement: "Adds owner-chain evidence and assistant-ready topology triage.",
+    opsLensEnhancementKo: "소유 체인 근거와 어시스턴트용 토폴로지 진단을 추가합니다.",
+    acceptance: "Topology entry maps to workload resources and related service/route evidence.",
+    acceptanceKo: "토폴로지 항목은 워크로드 리소스와 관련 서비스/라우트 근거에 매핑되어야 합니다.",
+    status: "ops-enhanced",
+    resourcePreset: {
+      query: "topology pods deployments services routes",
+      preferredResources: [
+        "v1/pods",
+        "apps/v1/deployments",
+        "v1/services",
+        "route.openshift.io/v1/routes"
+      ]
+    }
+  },
+  {
     id: "workloads",
     section: "Workloads",
     label: "Pods",
@@ -316,33 +343,259 @@ export const ocpConsoleParityItems: ConsoleParityItem[] = [
     }
   },
   {
-    id: "workload-controllers",
+    id: "deployments",
     section: "Workloads",
-    label: "Workload controllers",
-    labelKo: "워크로드 컨트롤러",
-    originalPath: "Workloads / Deployments, DeploymentConfigs, StatefulSets, DaemonSets, Jobs, CronJobs, ReplicaSets, HPAs",
-    originalPathKo: "워크로드 / Deployment, DeploymentConfig, StatefulSet, DaemonSet, Job, CronJob, ReplicaSet, HPA",
+    label: "Deployments",
+    labelKo: "배포",
+    originalPath: "Workloads / Deployments",
+    originalPathKo: "워크로드 / 배포",
     targetSelector: "#ocp-explorer-title",
     actionSurface: "resource-explorer",
-    command: "Preset deployments, deployment configs, statefulsets, daemonsets, jobs, cronjobs, replicasets, and HPAs.",
-    commandKo: "Deployment, DeploymentConfig, StatefulSet, DaemonSet, Job, CronJob, ReplicaSet, HPA 중심으로 설정합니다.",
-    opsLensEnhancement: "Groups controller health with unavailable replicas, events, and owner chains.",
-    opsLensEnhancementKo: "컨트롤러 상태를 비가용 replica, 이벤트, 소유 체인과 함께 묶습니다.",
-    acceptance: "Controller presets cover OpenShift and Kubernetes workload APIs.",
-    acceptanceKo: "컨트롤러 preset은 OpenShift와 Kubernetes 워크로드 API를 포함해야 합니다.",
+    command: "List Deployments, unavailable replicas, events, owner pods, and sanitized YAML.",
+    commandKo: "Deployment, 비가용 replica, 이벤트, 소유 파드, 마스킹된 YAML을 조회합니다.",
+    opsLensEnhancement: "Adds rollout health and change-correlation context.",
+    opsLensEnhancementKo: "롤아웃 상태와 변경 상관관계 컨텍스트를 추가합니다.",
+    acceptance: "Deployment entry must map directly to apps/v1 Deployments.",
+    acceptanceKo: "배포 항목은 apps/v1 Deployment에 직접 매핑되어야 합니다.",
     status: "covered",
     resourcePreset: {
-      query: "deployments deploymentconfigs statefulsets daemonsets jobs cronjobs replicasets horizontalpodautoscalers",
+      query: "deployments",
+      preferredResources: ["apps/v1/deployments"]
+    }
+  },
+  {
+    id: "deployment-configs",
+    section: "Workloads",
+    label: "Deployment Configs",
+    labelKo: "배포 설정",
+    originalPath: "Workloads / Deployment Configs",
+    originalPathKo: "워크로드 / 배포 설정",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List OpenShift DeploymentConfigs and rollout-related evidence.",
+    commandKo: "OpenShift DeploymentConfig와 롤아웃 관련 근거를 조회합니다.",
+    opsLensEnhancement: "Keeps legacy OpenShift rollout objects visible next to Kubernetes Deployments.",
+    opsLensEnhancementKo: "기존 OpenShift 롤아웃 객체를 Kubernetes Deployment 옆에서 볼 수 있게 유지합니다.",
+    acceptance: "DeploymentConfig entry must map directly to apps.openshift.io/v1.",
+    acceptanceKo: "배포 설정 항목은 apps.openshift.io/v1에 직접 매핑되어야 합니다.",
+    status: "covered",
+    resourcePreset: {
+      query: "deploymentconfigs",
+      preferredResources: ["apps.openshift.io/v1/deploymentconfigs"]
+    }
+  },
+  {
+    id: "statefulsets",
+    section: "Workloads",
+    label: "StatefulSets",
+    labelKo: "상태 저장 세트",
+    originalPath: "Workloads / StatefulSets",
+    originalPathKo: "워크로드 / 상태 저장 세트",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List StatefulSets, pods, volumes, events, and sanitized YAML.",
+    commandKo: "StatefulSet, 파드, 볼륨, 이벤트, 마스킹된 YAML을 조회합니다.",
+    opsLensEnhancement: "Adds storage-aware diagnosis and owner-chain evidence.",
+    opsLensEnhancementKo: "스토리지 인지 진단과 소유 체인 근거를 추가합니다.",
+    acceptance: "StatefulSet entry must map directly to apps/v1 StatefulSets.",
+    acceptanceKo: "상태 저장 세트 항목은 apps/v1 StatefulSet에 직접 매핑되어야 합니다.",
+    status: "covered",
+    resourcePreset: {
+      query: "statefulsets",
+      preferredResources: ["apps/v1/statefulsets"]
+    }
+  },
+  {
+    id: "secrets",
+    section: "Workloads",
+    label: "Secrets",
+    labelKo: "시크릿",
+    originalPath: "Workloads / Secrets",
+    originalPathKo: "워크로드 / 시크릿",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List Secret metadata only and keep data payloads redacted.",
+    commandKo: "Secret 메타데이터만 조회하고 데이터 페이로드는 마스킹합니다.",
+    opsLensEnhancement: "Adds secret-reference diagnosis without exposing values.",
+    opsLensEnhancementKo: "값 노출 없이 Secret 참조 진단을 추가합니다.",
+    acceptance: "Secret entry must not render raw Secret data.",
+    acceptanceKo: "시크릿 항목은 원본 Secret 데이터를 렌더링하지 않아야 합니다.",
+    status: "read-only-plan",
+    resourcePreset: {
+      query: "secrets",
+      preferredResources: ["v1/secrets"]
+    }
+  },
+  {
+    id: "configmaps",
+    section: "Workloads",
+    label: "ConfigMaps",
+    labelKo: "구성 맵",
+    originalPath: "Workloads / ConfigMaps",
+    originalPathKo: "워크로드 / 구성 맵",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List ConfigMaps and inspect sanitized configuration evidence.",
+    commandKo: "ConfigMap을 조회하고 마스킹된 설정 근거를 확인합니다.",
+    opsLensEnhancement: "Connects configuration drift to affected workloads.",
+    opsLensEnhancementKo: "설정 드리프트를 영향받는 워크로드와 연결합니다.",
+    acceptance: "ConfigMap entry must map directly to v1 ConfigMaps.",
+    acceptanceKo: "구성 맵 항목은 v1 ConfigMap에 직접 매핑되어야 합니다.",
+    status: "covered",
+    resourcePreset: {
+      query: "configmaps",
+      preferredResources: ["v1/configmaps"]
+    }
+  },
+  {
+    id: "cronjobs",
+    section: "Workloads",
+    label: "CronJobs",
+    labelKo: "CronJobs",
+    originalPath: "Workloads / CronJobs",
+    originalPathKo: "워크로드 / CronJobs",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List CronJobs, recent Jobs, schedules, events, and open the native create flow when creation is required.",
+    commandKo: "CronJob, 최근 Job, 스케줄, 이벤트를 조회하고 생성이 필요하면 원본 생성 화면으로 이동합니다.",
+    opsLensEnhancement: "Adds schedule risk, failed-run evidence, and approval-aware create handoff.",
+    opsLensEnhancementKo: "스케줄 리스크, 실패 실행 근거, 승인 기반 생성 인계를 추가합니다.",
+    acceptance: "CronJob entry must map to batch/v1 CronJobs and expose a safe native create entry.",
+    acceptanceKo: "CronJob 항목은 batch/v1 CronJob에 매핑되고 안전한 원본 생성 진입을 제공해야 합니다.",
+    status: "native-deep-link",
+    nativeCreatePath: "/k8s/ns/default/batch~v1~CronJob/~new",
+    resourcePreset: {
+      query: "cronjobs jobs schedules",
+      preferredResources: ["batch/v1/cronjobs", "batch/v1/jobs"]
+    }
+  },
+  {
+    id: "jobs",
+    section: "Workloads",
+    label: "Jobs",
+    labelKo: "작업",
+    originalPath: "Workloads / Jobs",
+    originalPathKo: "워크로드 / 작업",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List Jobs, completions, failed pods, and events.",
+    commandKo: "Job, 완료 상태, 실패 파드, 이벤트를 조회합니다.",
+    opsLensEnhancement: "Connects failed Jobs to owner CronJobs and assistant triage.",
+    opsLensEnhancementKo: "실패한 Job을 소유 CronJob과 어시스턴트 진단에 연결합니다.",
+    acceptance: "Job entry must map directly to batch/v1 Jobs.",
+    acceptanceKo: "작업 항목은 batch/v1 Job에 직접 매핑되어야 합니다.",
+    status: "covered",
+    resourcePreset: {
+      query: "jobs",
+      preferredResources: ["batch/v1/jobs"]
+    }
+  },
+  {
+    id: "daemonsets",
+    section: "Workloads",
+    label: "DaemonSets",
+    labelKo: "데몬 세트",
+    originalPath: "Workloads / DaemonSets",
+    originalPathKo: "워크로드 / 데몬 세트",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List DaemonSets, desired/current pods, unavailable pods, and node spread.",
+    commandKo: "DaemonSet, desired/current 파드, 비가용 파드, 노드 배치를 조회합니다.",
+    opsLensEnhancement: "Adds node-scope rollout and evidence correlation.",
+    opsLensEnhancementKo: "노드 범위 롤아웃과 근거 상관관계를 추가합니다.",
+    acceptance: "DaemonSet entry must map directly to apps/v1 DaemonSets.",
+    acceptanceKo: "데몬 세트 항목은 apps/v1 DaemonSet에 직접 매핑되어야 합니다.",
+    status: "covered",
+    resourcePreset: {
+      query: "daemonsets",
+      preferredResources: ["apps/v1/daemonsets"]
+    }
+  },
+  {
+    id: "replicasets",
+    section: "Workloads",
+    label: "ReplicaSets",
+    labelKo: "복제 세트",
+    originalPath: "Workloads / ReplicaSets",
+    originalPathKo: "워크로드 / 복제 세트",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List ReplicaSets and connect them to owning Deployments and Pods.",
+    commandKo: "ReplicaSet을 조회하고 소유 Deployment 및 Pod와 연결합니다.",
+    opsLensEnhancement: "Adds owner-chain collapse so rollout history is easier to inspect.",
+    opsLensEnhancementKo: "롤아웃 이력을 쉽게 보도록 소유 체인 축약을 추가합니다.",
+    acceptance: "ReplicaSet entry must map directly to apps/v1 ReplicaSets.",
+    acceptanceKo: "복제 세트 항목은 apps/v1 ReplicaSet에 직접 매핑되어야 합니다.",
+    status: "covered",
+    resourcePreset: {
+      query: "replicasets",
+      preferredResources: ["apps/v1/replicasets"]
+    }
+  },
+  {
+    id: "replicationcontrollers",
+    section: "Workloads",
+    label: "ReplicationControllers",
+    labelKo: "복제 컨트롤러",
+    originalPath: "Workloads / ReplicationControllers",
+    originalPathKo: "워크로드 / 복제 컨트롤러",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List ReplicationControllers and related Pods for legacy workload support.",
+    commandKo: "기존 워크로드 지원을 위해 ReplicationController와 관련 Pod를 조회합니다.",
+    opsLensEnhancement: "Keeps legacy controller evidence available instead of hiding it behind Pods.",
+    opsLensEnhancementKo: "기존 컨트롤러 근거를 Pod 뒤에 숨기지 않고 유지합니다.",
+    acceptance: "ReplicationController entry must map directly to v1 ReplicationControllers.",
+    acceptanceKo: "복제 컨트롤러 항목은 v1 ReplicationController에 직접 매핑되어야 합니다.",
+    status: "covered",
+    resourcePreset: {
+      query: "replicationcontrollers",
+      preferredResources: ["v1/replicationcontrollers"]
+    }
+  },
+  {
+    id: "horizontalpodautoscalers",
+    section: "Workloads",
+    label: "HorizontalPodAutoscalers",
+    labelKo: "HorizontalPodAutoscalers",
+    originalPath: "Workloads / HorizontalPodAutoscalers",
+    originalPathKo: "워크로드 / HorizontalPodAutoscalers",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List HPAs, current metrics, targets, and scale recommendations.",
+    commandKo: "HPA, 현재 메트릭, 대상, 스케일 권고 근거를 조회합니다.",
+    opsLensEnhancement: "Adds scale diagnosis without applying replica changes.",
+    opsLensEnhancementKo: "replica 변경 없이 스케일 진단을 추가합니다.",
+    acceptance: "HPA entry must map to autoscaling/v2 and fall back to autoscaling/v1.",
+    acceptanceKo: "HPA 항목은 autoscaling/v2에 매핑되고 autoscaling/v1로 대체 가능해야 합니다.",
+    status: "covered",
+    resourcePreset: {
+      query: "horizontalpodautoscalers hpa",
       preferredResources: [
-        "apps/v1/deployments",
-        "apps.openshift.io/v1/deploymentconfigs",
-        "apps/v1/statefulsets",
-        "apps/v1/daemonsets",
-        "batch/v1/jobs",
-        "batch/v1/cronjobs",
-        "apps/v1/replicasets",
-        "autoscaling/v2/horizontalpodautoscalers"
+        "autoscaling/v2/horizontalpodautoscalers",
+        "autoscaling/v1/horizontalpodautoscalers"
       ]
+    }
+  },
+  {
+    id: "poddisruptionbudgets",
+    section: "Workloads",
+    label: "PodDisruptionBudgets",
+    labelKo: "PodDisruptionBudgets",
+    originalPath: "Workloads / PodDisruptionBudgets",
+    originalPathKo: "워크로드 / PodDisruptionBudgets",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List PDBs, allowed disruptions, and protected workloads.",
+    commandKo: "PDB, 허용 중단 수, 보호 대상 워크로드를 조회합니다.",
+    opsLensEnhancement: "Adds availability-risk context for node and rollout operations.",
+    opsLensEnhancementKo: "노드 및 롤아웃 작업에 대한 가용성 리스크 컨텍스트를 추가합니다.",
+    acceptance: "PDB entry must map directly to policy/v1 PodDisruptionBudgets.",
+    acceptanceKo: "PDB 항목은 policy/v1 PodDisruptionBudget에 직접 매핑되어야 합니다.",
+    status: "covered",
+    resourcePreset: {
+      query: "poddisruptionbudgets pdb",
+      preferredResources: ["policy/v1/poddisruptionbudgets"]
     }
   },
   {

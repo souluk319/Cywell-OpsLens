@@ -95,6 +95,8 @@ const explorerCopy = {
     eyebrow: "Live OpenShift API",
     title: "OCP Resource Explorer",
     refresh: "Refresh",
+    autoRefresh: "Auto refresh 10s",
+    lastUpdated: "Updated",
     discovering: "discovering",
     reachable: "OCP reachable",
     unavailable: "OCP unavailable",
@@ -201,6 +203,8 @@ const explorerCopy = {
     eyebrow: "실시간 OpenShift API",
     title: "OCP 리소스 탐색기",
     refresh: "새로고침",
+    autoRefresh: "10초 자동 갱신",
+    lastUpdated: "갱신",
     discovering: "탐색 중",
     reachable: "OCP 연결됨",
     unavailable: "OCP 사용 불가",
@@ -306,6 +310,7 @@ const explorerCopy = {
 } as const;
 
 const readVerbs = ["get", "list", "watch"] as const;
+const liveRefreshIntervalMs = 10000;
 
 function formatAccess(
   access:
@@ -381,6 +386,7 @@ export function OcpResourceExplorer({
   const [events, setEvents] = useState<OcpEventsResponse | null>(null);
   const [logs, setLogs] = useState<OcpPodLogsResponse | null>(null);
   const [namespaces, setNamespaces] = useState<OcpResourceSummary[]>([]);
+  const [lastListLoadedAt, setLastListLoadedAt] = useState<string | null>(null);
   const [pageTokens, setPageTokens] = useState<Array<string | undefined>>([
     undefined
   ]);
@@ -507,13 +513,16 @@ export function OcpResourceExplorer({
       namespaceOverride?: string;
       pageIndex?: number;
       resetPage?: boolean;
+      silent?: boolean;
     } = {}
   ) {
     if (!resource) {
       return;
     }
 
-    setListLoading(true);
+    if (!options.silent) {
+      setListLoading(true);
+    }
     setError(null);
     try {
       const scopedNamespace = resource.namespaced
@@ -546,6 +555,7 @@ export function OcpResourceExplorer({
       }
       setAccessMatrix(matrixResponse);
       setList(response);
+      setLastListLoadedAt(new Date().toISOString());
       setDetail(null);
       setRelated(null);
       setEvents(null);
@@ -562,7 +572,16 @@ export function OcpResourceExplorer({
       setLogs(null);
       setError(err instanceof Error ? err.message : "OCP list failed");
     } finally {
-      setListLoading(false);
+      if (!options.silent) {
+        setListLoading(false);
+      }
+    }
+  }
+
+  async function refreshExplorer() {
+    await Promise.all([refreshDiscovery(), refreshNamespaces()]);
+    if (selectedResource?.safeToList) {
+      await loadSelectedResource(selectedResource, { resetPage: true });
     }
   }
 
@@ -665,6 +684,21 @@ export function OcpResourceExplorer({
       void loadSelectedResource(selectedResource, { resetPage: true });
     }
   }, [selectedKey]);
+
+  useEffect(() => {
+    if (!selectedResource?.safeToList) {
+      return;
+    }
+
+    const refreshId = window.setInterval(() => {
+      void loadSelectedResource(selectedResource, {
+        resetPage: true,
+        silent: true
+      });
+    }, liveRefreshIntervalMs);
+
+    return () => window.clearInterval(refreshId);
+  }, [selectedResource, namespace, labelSelector, fieldSelector, full]);
 
   const status = discovery?.status;
   const detailText = detail
@@ -800,7 +834,7 @@ export function OcpResourceExplorer({
         <button
           className="text-icon-button"
           type="button"
-          onClick={() => void refreshDiscovery()}
+          onClick={() => void refreshExplorer()}
         >
           <RefreshCw size={16} aria-hidden="true" />
           {copy.refresh}
@@ -819,6 +853,13 @@ export function OcpResourceExplorer({
         <span>{status?.userName ?? copy.userUnknown}</span>
         <span>{status?.discoveredResourceCount ?? 0} {copy.resources}</span>
         <span>{copy.tlsVerify} {status?.tlsVerify === false ? "off" : "on"}</span>
+        <span>{copy.autoRefresh}</span>
+        <span>
+          {copy.lastUpdated}{" "}
+          {lastListLoadedAt
+            ? new Date(lastListLoadedAt).toLocaleTimeString()
+            : "-"}
+        </span>
       </div>
 
       {navigationPreset ? (

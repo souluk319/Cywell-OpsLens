@@ -951,8 +951,20 @@ async function expectConsoleFunctionEffect(
       ["dashboards", "대시보드", "Dashboards"],
       ["metrics", "메트릭", "Metrics"],
       ["logs", "로그", "Logs"],
+      ["topology", "토폴로지", "Topology"],
       ["workloads", "파드", "Pods"],
-      ["workload-controllers", "워크로드 컨트롤러", "Workload controllers"],
+      ["deployments", "배포", "Deployments"],
+      ["deployment-configs", "배포 설정", "Deployment Configs"],
+      ["statefulsets", "상태 저장 세트", "StatefulSets"],
+      ["secrets", "시크릿", "Secrets"],
+      ["configmaps", "구성 맵", "ConfigMaps"],
+      ["cronjobs", "CronJobs", "CronJobs"],
+      ["jobs", "작업", "Jobs"],
+      ["daemonsets", "데몬 세트", "DaemonSets"],
+      ["replicasets", "복제 세트", "ReplicaSets"],
+      ["replicationcontrollers", "복제 컨트롤러", "ReplicationControllers"],
+      ["horizontalpodautoscalers", "HorizontalPodAutoscalers", "HorizontalPodAutoscalers"],
+      ["poddisruptionbudgets", "PodDisruptionBudgets", "PodDisruptionBudgets"],
       ["networking", "라우트, 서비스, 인그레스", "Routes, Services, Ingresses"],
       ["network-policies", "네트워크 정책", "NetworkPolicies"],
       ["storage", "PVC, PV, StorageClass", "PVCs, PVs, StorageClasses"],
@@ -1014,13 +1026,13 @@ async function expectConsoleFunctionEffect(
       "설치된 ConsolePlugin은 사용자 토큰 프록시"
     );
     await expect(page.getByTestId("assistant-integration-lightspeed")).toContainText(
-      "기본 Lightspeed 서랍은 별도"
+      "OpenShift Lightspeed /v1/streaming_query"
     );
     await expect(page.getByTestId("assistant-execution-enter")).toContainText(
       "Enter는 KOMSCO AI 어시스턴트에 질문"
     );
     await expect(page.getByTestId("assistant-execution-fallback")).toContainText(
-      "API가 없을 때만 계획 전용 대체 응답 유지"
+      "Lightspeed"
     );
     await expect(page.getByTestId("assistant-execution-newline")).toContainText(
       "Shift+Enter는 줄바꿈"
@@ -1103,13 +1115,13 @@ async function expectConsoleFunctionEffect(
       "Installed ConsolePlugin uses the UserToken proxy"
     );
     await expect(page.getByTestId("assistant-integration-lightspeed")).toContainText(
-      "Native Lightspeed drawer is separate"
+      "OpenShift Lightspeed /v1/streaming_query"
     );
     await expect(page.getByTestId("assistant-execution-enter")).toContainText(
       "Enter asks KOMSCO AI Assistant"
     );
     await expect(page.getByTestId("assistant-execution-fallback")).toContainText(
-      "Fallback remains plan-only when the API is unavailable"
+      "Lightspeed"
     );
     await expect(page.getByTestId("assistant-execution-newline")).toContainText(
       "Shift+Enter adds a line"
@@ -1119,7 +1131,7 @@ async function expectConsoleFunctionEffect(
     }
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
     await expect(page.getByTestId("assistant-answer-source")).toContainText(
-      /OpsLens API route|plan-only fallback/
+      /OpenShift Lightspeed \/v1\/query|Lightspeed connection required|Lightspeed 연결 필요/
     );
     await expect(page.getByTestId("assistant-mutation-boundary")).toContainText(
       "not executed"
@@ -1323,7 +1335,7 @@ async function expectConsoleFunctionEffect(
     await assistantDraft.press("Enter");
     await planResponse;
     await expect(page.getByTestId("api-trace")).toContainText(
-      "mock-local-search-mode/triage"
+      /openshift-lightspeed/
     );
     await expect(page.getByTestId("answer-judgment")).toContainText(
       keyboardPrompt

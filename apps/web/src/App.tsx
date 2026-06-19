@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   ActionPlanResponse,
+  AssistantAnswer,
   ContextSyncResponse,
   DashboardRisksResponse,
   OcpConnectionStatus,
   OpsLensAdminOverviewResponse
 } from "@kugnus/contracts";
 import {
-  assistantAnswer,
   contextChips,
   mockContext,
   mockDashboardResponse
@@ -40,6 +40,8 @@ import {
   ServerCog,
   ShieldCheck,
   TableProperties,
+  Undo2,
+  UserCog,
   Users,
   Waypoints
 } from "lucide-react";
@@ -144,7 +146,7 @@ function firstNextCommand(
 
 type EvidenceView = "alerts" | "logs" | "yaml";
 type ConsoleNavId = string;
-type ConsoleNavigationItem = ConsoleParityItem & { icon: LucideIcon };
+type ConsoleNavigationItem = ConsoleParityItem;
 
 const sectionIcons: Record<ConsoleParitySection, LucideIcon> = {
   Home: ServerCog,
@@ -161,34 +163,18 @@ const sectionIcons: Record<ConsoleParitySection, LucideIcon> = {
   Cywell: Bot
 };
 
-const itemIcons: Record<string, LucideIcon> = {
-  search: FileSearch,
-  alerting: AlertTriangle,
-  logs: ScrollText,
-  dashboards: TableProperties,
-  metrics: Activity,
-  "opslens-admin": DatabaseZap,
-  opsbrain: Bot,
-  "komsco-assistant": Bot
-};
-
-const consoleNavigation: ConsoleNavigationItem[] = ocpConsoleParityItems.map(
-  (item) => ({
-    ...item,
-    icon: itemIcons[item.id] ?? sectionIcons[item.section]
-  })
-);
+const consoleNavigation: ConsoleNavigationItem[] = ocpConsoleParityItems;
 
 const navigationSections = consoleParitySections;
 const defaultActiveNavId: ConsoleNavId = "alerting";
-const defaultExpandedSections: ConsoleParitySection[] = ["Monitoring"];
+const defaultExpandedSections: ConsoleParitySection[] = [];
 const activeNavStorageKey = "cywell-opslens-active-nav-id";
-const expandedSectionsStorageKey = "cywell-opslens-expanded-nav-sections";
+const expandedSectionsStorageKey = "cywell-opslens-expanded-nav-sections-dev015-chat";
 
 const shellCopy = {
   en: {
     activeSurface: "Active surface",
-    api: "API",
+    api: "Assistant",
     appLauncher: "Application launcher",
     appLauncherCommand:
       "Application launcher focused the OpsLens readiness command strip.",
@@ -200,6 +186,8 @@ const shellCopy = {
     notifications: "Notifications",
     notificationsCommand:
       "Notifications focused the active incident queue and firing alerts.",
+    ocpConsoleReturn: "OCP Console",
+    ocpConsoleReturnCommand: "Open native OpenShift Console.",
     openNavigation: "Open navigation",
     collapseNavigation: "Collapse navigation",
     readOnly: "read-only",
@@ -235,7 +223,7 @@ const shellCopy = {
   },
   ko: {
     activeSurface: "현재 화면",
-    api: "API",
+    api: "어시스턴트",
     appLauncher: "애플리케이션 런처",
     appLauncherCommand:
       "애플리케이션 런처가 OpsLens 준비도 명령 영역으로 이동했습니다.",
@@ -247,6 +235,8 @@ const shellCopy = {
     notifications: "알림",
     notificationsCommand:
       "알림이 진행 중인 장애 대기열과 발생 중인 경고 위치로 이동했습니다.",
+    ocpConsoleReturn: "OCP Console",
+    ocpConsoleReturnCommand: "기본 OpenShift Console로 이동합니다.",
     openNavigation: "탐색 열기",
     collapseNavigation: "탐색 접기",
     readOnly: "읽기 전용",
@@ -288,15 +278,156 @@ const apiStatusLabels: Record<
 > = {
   en: {
     loading: "checking",
-    ready: "connected",
-    fallback: "local fallback"
+    ready: "Lightspeed connected",
+    fallback: "Lightspeed required"
   },
   ko: {
     loading: "연결 확인 중",
-    ready: "연결됨",
-    fallback: "로컬 대체 응답"
+    ready: "Lightspeed 연결됨",
+    fallback: "Lightspeed 연결 필요"
   }
 };
+
+type LightspeedAssistantMode = "ask" | "troubleshooting";
+
+type AssistantChatTurn = {
+  id: string;
+  prompt: string;
+  answer: AssistantAnswer;
+  pending?: boolean;
+  streaming?: boolean;
+};
+
+function createPendingAssistantAnswer(language: UiLanguage): AssistantAnswer {
+  const isKo = language === "ko";
+  return {
+    scenario: "OpenShiftLightspeedPending",
+    judgment: isKo
+      ? "OpenShift Lightspeed에 질문을 전달했습니다. 응답을 기다리는 중입니다."
+      : "The question was sent to OpenShift Lightspeed. Waiting for the answer.",
+    inspectedEvidence: [],
+    candidates: [],
+    nextChecks: [],
+    plan: [],
+    risks: [],
+    rollbackPath: [],
+    citations: [],
+    missingEvidence: [],
+    actionMode: "readOnly"
+  };
+}
+
+function assistantStoppedMessage(language: UiLanguage) {
+  return language === "ko"
+    ? "응답 생성을 중지했습니다."
+    : "Answer generation stopped.";
+}
+
+function createLightspeedUnavailablePlan(params: {
+  language: UiLanguage;
+  prompt: string;
+  reason?: string;
+}): ActionPlanResponse {
+  const isKo = params.language === "ko";
+  const answer: AssistantAnswer = {
+    scenario: "OpenShiftLightspeedUnavailable",
+    judgment: isKo
+      ? "OpenShift Lightspeed 연결이 확인되지 않아 AI 답변을 생성하지 않았습니다. Lightspeed 경로와 권한을 복구한 뒤 다시 질문하십시오."
+      : "OpenShift Lightspeed is not connected, so OpsLens did not generate an AI answer. Restore the Lightspeed route and authorization before retrying.",
+    inspectedEvidence: [
+      {
+        id: "openshift-lightspeed-v1-query",
+        label: "OpenShift Lightspeed streaming API /v1/streaming_query",
+        type: "official-doc",
+        trustLevel: "official"
+      },
+      {
+        id: "opslens-console-context",
+        label: "OpsLens active OpenShift Console context",
+        type: "cluster",
+        trustLevel: "cluster-snapshot"
+      }
+    ],
+    candidates: [
+      {
+        label: isKo
+          ? "Lightspeed 연결 또는 권한 확인 필요"
+          : "Lightspeed connection or authorization needs attention",
+        confidence: "high",
+        reason:
+          params.reason ??
+          (isKo
+            ? "OpsLens API가 OpenShift Lightspeed /v1/streaming_query 응답을 받지 못했습니다."
+            : "OpsLens API did not receive a response from OpenShift Lightspeed /v1/streaming_query."),
+        evidenceIds: ["openshift-lightspeed-v1-query"]
+      }
+    ],
+    nextChecks: isKo
+      ? [
+          "OpenShift Lightspeed app server 경로가 OpsLens API에서 도달 가능한지 확인",
+          "현재 사용자 또는 서비스 계정에 ols-user 권한이 있는지 확인",
+          "Ask/Troubleshooting 모드를 선택한 뒤 다시 질문"
+        ]
+      : [
+          "Confirm the OpenShift Lightspeed app server is reachable from the OpsLens API.",
+          "Confirm the current user or service account has the ols-user role.",
+          "Select Ask or Troubleshooting mode and retry."
+        ],
+    plan: isKo
+      ? [
+          "OpenShift Lightspeed 연결 전에는 AI 답변을 보류합니다.",
+          "Lightspeed가 연결되면 동일 질문을 /v1/streaming_query로 다시 보냅니다."
+        ]
+      : [
+          "Hold the AI answer until OpenShift Lightspeed is connected.",
+          "When Lightspeed is restored, resend the same question through /v1/streaming_query."
+        ],
+    risks: isKo
+      ? ["OpsLens API 연결과 Lightspeed AI 연결은 서로 다른 상태입니다."]
+      : ["OpsLens API connectivity and Lightspeed AI connectivity are separate states."],
+    rollbackPath: isKo
+      ? ["Lightspeed 연결 전까지 어시스턴트는 연결 필요 상태로 유지합니다."]
+      : ["Keep the assistant in a connection-required state until Lightspeed is available."],
+    citations: [
+      {
+        id: "openshift-lightspeed-v1-query",
+        label: "OpenShift Lightspeed streaming API /v1/streaming_query",
+        type: "official-doc",
+        trustLevel: "official"
+      }
+    ],
+    missingEvidence: isKo
+      ? ["OpenShift Lightspeed /v1/streaming_query 성공 응답"]
+      : ["Successful OpenShift Lightspeed /v1/streaming_query response"],
+    actionMode: "readOnly"
+  };
+
+  return {
+    requestId: "lightspeed-unavailable",
+    answer,
+    audit: {
+      requestId: "lightspeed-unavailable",
+      user: mockContext.user,
+      groups: [mockContext.rbac.role],
+      clusterId: mockContext.clusterId,
+      namespaceScope: mockContext.namespace,
+      contextHash: "lightspeed-required",
+      sources: answer.inspectedEvidence.map((source) => source.id),
+      model: "openshift-lightspeed/unavailable",
+      tokenUsage: {
+        input: Math.ceil(params.prompt.length / 4),
+        output: 0
+      },
+      latencyMs: 0,
+      redactionCount: 0,
+      actionMode: answer.actionMode
+    }
+  };
+}
+
+function actionPlanUsesLightspeed(plan: ActionPlanResponse) {
+  return plan.audit.model.startsWith("openshift-lightspeed/v1/streaming_query");
+}
 
 interface RuntimeProfile {
   surface: "console-plugin" | "standalone-dev";
@@ -432,9 +563,9 @@ export default function App() {
   const initialLanguageValue = useMemo(() => initialLanguage(), []);
   const [language, setLanguage] = useState<UiLanguage>(initialLanguageValue);
   const [assistantOpen, setAssistantOpen] = useState(false);
-  const [draft, setDraft] = useState(
-    "ClusterNotUpgradeable alert를 근거 중심으로 triage 해줘."
-  );
+  const [assistantMode, setAssistantMode] =
+    useState<LightspeedAssistantMode>("troubleshooting");
+  const [draft, setDraft] = useState("");
   const [evidenceView, setEvidenceView] = useState<EvidenceView>("alerts");
   const [activeNavId, setActiveNavId] = useState<ConsoleNavId>(
     initialActiveNavId
@@ -461,10 +592,13 @@ export default function App() {
   const [planResponse, setPlanResponse] = useState<ActionPlanResponse | null>(
     null
   );
+  const [assistantTurns, setAssistantTurns] = useState<AssistantChatTurn[]>([]);
   const [adminOverview, setAdminOverview] =
     useState<OpsLensAdminOverviewResponse | null>(null);
   const [ocpStatus, setOcpStatus] = useState<OcpConnectionStatus | null>(null);
   const [assistantBusy, setAssistantBusy] = useState(false);
+  const assistantAbortRef = useRef<AbortController | null>(null);
+  const assistantRevealTimerRef = useRef<number | null>(null);
   const [apiStatus, setApiStatus] = useState<"loading" | "ready" | "fallback">(
     "loading"
   );
@@ -478,7 +612,8 @@ export default function App() {
         createActionPlan({
           prompt: draft,
           context: mockContext,
-          scenario: "ClusterNotUpgradeable"
+          scenario: "ClusterNotUpgradeable",
+          mode: assistantMode
         })
       ]);
 
@@ -488,7 +623,7 @@ export default function App() {
 
       setContextSync(contextResponse);
       setPlanResponse(plan);
-      setApiStatus("ready");
+      setApiStatus(actionPlanUsesLightspeed(plan) ? "ready" : "fallback");
       setLastApiError(null);
 
       fetchDashboardRisks()
@@ -545,29 +680,13 @@ export default function App() {
           deniedNamespaces: mockContext.rbac.deniedNamespaces
         }
       });
-      setPlanResponse({
-        requestId: "plan-fallback",
-        answer: assistantAnswer,
-        audit: {
-          requestId: "plan-fallback",
-          user: mockContext.user,
-          groups: [mockContext.rbac.role],
-          clusterId: mockContext.clusterId,
-          namespaceScope: mockContext.namespace,
-          contextHash: "local-fixture",
-          sources: assistantAnswer.inspectedEvidence.map(
-            (source) => source.id
-          ),
-          model: "local-fixture",
-          tokenUsage: {
-            input: 0,
-            output: 0
-          },
-          latencyMs: 0,
-          redactionCount: 0,
-          actionMode: assistantAnswer.actionMode
-        }
-      });
+      setPlanResponse(
+        createLightspeedUnavailablePlan({
+          language,
+          prompt: draft,
+          reason: error instanceof Error ? error.message : undefined
+        })
+      );
       setApiStatus("fallback");
       setLastApiError(
         error instanceof Error ? error.message : "API request failed"
@@ -643,52 +762,190 @@ export default function App() {
     );
   }, [activeNavigation.section]);
 
-  async function askAssistant() {
-    const prompt = draft.trim();
+  function clearAssistantRevealTimer() {
+    if (assistantRevealTimerRef.current !== null) {
+      window.clearTimeout(assistantRevealTimerRef.current);
+      assistantRevealTimerRef.current = null;
+    }
+  }
+
+  function stopAssistant() {
+    assistantAbortRef.current?.abort();
+    assistantAbortRef.current = null;
+    clearAssistantRevealTimer();
+    setAssistantBusy(false);
+    setApiStatus(
+      planResponse && actionPlanUsesLightspeed(planResponse) ? "ready" : "fallback"
+    );
+    setAssistantTurns((current) =>
+      current.map((turn) => {
+        if (!turn.pending && !turn.streaming) {
+          return turn;
+        }
+
+        const visibleText = turn.answer.judgment.trim();
+        const stoppedText = visibleText
+          ? `${visibleText}\n\n${assistantStoppedMessage(language)}`
+          : assistantStoppedMessage(language);
+
+        return {
+          ...turn,
+          pending: false,
+          streaming: false,
+          answer: {
+            ...turn.answer,
+            judgment: stoppedText
+          }
+        };
+      })
+    );
+  }
+
+  async function askAssistant(promptOverride?: string) {
+    const prompt = (promptOverride ?? draft).trim();
     if (!prompt) {
       return;
     }
+    assistantAbortRef.current?.abort();
+    assistantAbortRef.current = null;
+    clearAssistantRevealTimer();
+    const controller = new AbortController();
+    assistantAbortRef.current = controller;
+    const pendingId = `pending-${Date.now()}`;
     setAssistantBusy(true);
-    try {
-      const plan = await createActionPlan({
+    setApiStatus("loading");
+    setLastApiError(null);
+    setDraft("");
+    setAssistantTurns((current) => [
+      ...current,
+      {
+        id: pendingId,
         prompt,
-        context: contextSync?.context ?? mockContext,
-        scenario: "ClusterNotUpgradeable"
-      });
+        answer: createPendingAssistantAnswer(language),
+        pending: true
+      }
+    ]);
+
+    try {
+      const plan = await createActionPlan(
+        {
+          prompt,
+          context: contextSync?.context ?? mockContext,
+          scenario: "ClusterNotUpgradeable",
+          mode: assistantMode
+        },
+        { signal: controller.signal }
+      );
+      if (controller.signal.aborted) {
+        return;
+      }
       setPlanResponse(plan);
-      setApiStatus("ready");
+      const answerText = plan.answer.judgment;
+      setAssistantTurns((current) =>
+        current.map((turn) =>
+          turn.id === pendingId
+            ? {
+                id: plan.requestId,
+                prompt,
+                answer: {
+                  ...plan.answer,
+                  judgment: ""
+                },
+                streaming: true
+              }
+            : turn
+        )
+      );
+      const answerChars = Array.from(answerText);
+      let visibleChars = 0;
+      const revealAnswer = () => {
+        assistantRevealTimerRef.current = null;
+        if (controller.signal.aborted) {
+          return;
+        }
+        visibleChars = Math.min(answerChars.length, visibleChars + 8);
+        const visibleText = answerChars.slice(0, visibleChars).join("");
+        setAssistantTurns((current) =>
+          current.map((turn) =>
+            turn.id === plan.requestId
+              ? {
+                  ...turn,
+                  answer: {
+                    ...plan.answer,
+                    judgment: visibleText
+                  },
+                  streaming: visibleChars < answerChars.length
+                }
+              : turn
+          )
+        );
+        if (visibleChars < answerChars.length) {
+          assistantRevealTimerRef.current = window.setTimeout(revealAnswer, 22);
+        }
+      };
+      assistantRevealTimerRef.current = window.setTimeout(revealAnswer, 40);
+      setApiStatus(actionPlanUsesLightspeed(plan) ? "ready" : "fallback");
       setLastApiError(null);
     } catch (error) {
+      if (controller.signal.aborted) {
+        setAssistantTurns((current) =>
+          current.map((turn) =>
+            turn.id === pendingId
+              ? {
+                  ...turn,
+                  pending: false,
+                  streaming: false,
+                  answer: {
+                    ...turn.answer,
+                    judgment: assistantStoppedMessage(language)
+                  }
+                }
+              : turn
+          )
+        );
+        return;
+      }
       setApiStatus("fallback");
       setLastApiError(
         error instanceof Error
           ? error.message
-          : "Action plan API failed; local fixture answer is shown."
+          : "OpenShift Lightspeed /v1/streaming_query request failed."
       );
-      setPlanResponse({
-        requestId: "plan-fallback",
-        answer: assistantAnswer,
-        audit: {
-          requestId: "plan-fallback",
-          user: mockContext.user,
-          groups: [mockContext.rbac.role],
-          clusterId: mockContext.clusterId,
-          namespaceScope: mockContext.namespace,
-          contextHash: "local-fixture",
-          sources: assistantAnswer.inspectedEvidence.map(
-            (source) => source.id
-          ),
-          model: "local-fixture",
-          tokenUsage: { input: 0, output: 0 },
-          latencyMs: 0,
-          redactionCount: 0,
-          actionMode: assistantAnswer.actionMode
-        }
+      const fallbackPlan = createLightspeedUnavailablePlan({
+        language,
+        prompt,
+        reason:
+          error instanceof Error
+            ? error.message
+            : "OpenShift Lightspeed /v1/streaming_query request failed"
       });
+      setPlanResponse(fallbackPlan);
+      setAssistantTurns((current) =>
+        current.map((turn) =>
+          turn.id === pendingId
+            ? {
+                id: fallbackPlan.requestId,
+                prompt,
+                answer: fallbackPlan.answer
+              }
+            : turn
+        )
+      );
     } finally {
+      if (assistantAbortRef.current === controller) {
+        assistantAbortRef.current = null;
+      }
       setAssistantBusy(false);
     }
   }
+
+  useEffect(() => {
+    return () => {
+      assistantAbortRef.current?.abort();
+      assistantAbortRef.current = null;
+      clearAssistantRevealTimer();
+    };
+  }, []);
 
   function scrollToNavigationTarget(
     targetSelector: string,
@@ -756,6 +1013,13 @@ export default function App() {
     setActiveNavId(item.id);
     setNavigationCommand(navCommand(item, language));
     applyNavigationSideEffects(item);
+  }
+
+  function openNativeOcpConsole() {
+    const target = isConsolePlugin
+      ? "/dashboards"
+      : "https://console-openshift-console.apps-crc.testing/dashboards";
+    window.location.assign(target);
   }
 
   function runUtilityAction(
@@ -935,25 +1199,9 @@ export default function App() {
   }
 
   return (
-    <div
-      className={`app-shell ${assistantOpen ? "assistant-popover-open" : ""}`}
-    >
+    <div className="app-shell">
       <header className="masthead" data-testid="masthead">
         <div className="masthead-left">
-          <button
-            className="icon-button masthead-menu"
-            type="button"
-            data-testid="nav-collapse-toggle"
-            aria-label={navCollapsed ? copy.openNavigation : copy.collapseNavigation}
-            aria-pressed={!navCollapsed}
-            onClick={() => setNavCollapsed((collapsed) => !collapsed)}
-          >
-            {navCollapsed ? (
-              <PanelLeftOpen size={20} aria-hidden="true" />
-            ) : (
-              <PanelLeftClose size={20} aria-hidden="true" />
-            )}
-          </button>
           <div className="brand-block">
             <span className="brand-mark" aria-hidden="true">
               <img src={komscoLogo} alt="" />
@@ -1079,45 +1327,67 @@ export default function App() {
           data-testid="console-nav"
         >
           <div className="nav-perspective">
-            <span>{copy.administrator}</span>
+            <button
+              className="icon-button nav-collapse-control"
+              type="button"
+              data-testid="nav-collapse-toggle"
+              aria-label={navCollapsed ? copy.openNavigation : copy.collapseNavigation}
+              aria-pressed={!navCollapsed}
+              onClick={() => setNavCollapsed((collapsed) => !collapsed)}
+            >
+              {navCollapsed ? (
+                <PanelLeftOpen size={19} aria-hidden="true" />
+              ) : (
+                <PanelLeftClose size={19} aria-hidden="true" />
+              )}
+            </button>
+            <div className="nav-perspective-label">
+              <UserCog size={16} aria-hidden="true" />
+              <span>{copy.administrator}</span>
+            </div>
           </div>
           <nav className="nav-section" aria-label={copy.administratorNavigation}>
-            {navigationSections.map((section) => (
-              <div className="nav-group" key={section}>
-                <button
-                  aria-controls={`console-nav-section-items-${sectionTestId(section)}`}
-                  aria-expanded={expandedSections.includes(section)}
-                  className="nav-heading"
-                  data-testid={`console-nav-section-${sectionTestId(section)}`}
-                  data-section-expanded={expandedSections.includes(section)}
-                  type="button"
-                  onClick={() => toggleNavigationSection(section)}
-                >
-                  <span>{language === "ko" ? sectionLabelsKo[section] : section}</span>
-                  {expandedSections.includes(section) ? (
-                    <ChevronDown
-                      className="nav-heading-chevron"
-                      size={15}
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <ChevronRight
-                      className="nav-heading-chevron"
-                      size={15}
-                      aria-hidden="true"
-                    />
-                  )}
-                </button>
-                <div
-                  className="nav-group-items"
-                  hidden={!expandedSections.includes(section)}
-                  id={`console-nav-section-items-${sectionTestId(section)}`}
-                >
-                  {consoleNavigation
-                    .filter((item) => item.section === section)
-                    .map((item) => {
-                      const Icon = item.icon;
-                      return (
+            {navigationSections.map((section) => {
+              const SectionIcon = sectionIcons[section];
+              const expanded = expandedSections.includes(section);
+              const sectionLabel = language === "ko" ? sectionLabelsKo[section] : section;
+              return (
+                <div className="nav-group" key={section}>
+                  <button
+                    aria-controls={`console-nav-section-items-${sectionTestId(section)}`}
+                    aria-expanded={expanded}
+                    aria-label={navCollapsed ? sectionLabel : undefined}
+                    className="nav-heading"
+                    data-testid={`console-nav-section-${sectionTestId(section)}`}
+                    data-section-expanded={expanded}
+                    title={sectionLabel}
+                    type="button"
+                    onClick={() => toggleNavigationSection(section)}
+                  >
+                    <SectionIcon className="nav-section-icon" size={16} aria-hidden="true" />
+                    <span className="nav-heading-label">{sectionLabel}</span>
+                    {expanded ? (
+                      <ChevronDown
+                        className="nav-heading-chevron"
+                        size={15}
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <ChevronRight
+                        className="nav-heading-chevron"
+                        size={15}
+                        aria-hidden="true"
+                      />
+                    )}
+                  </button>
+                  <div
+                    className="nav-group-items"
+                    hidden={!expanded}
+                    id={`console-nav-section-items-${sectionTestId(section)}`}
+                  >
+                    {consoleNavigation
+                      .filter((item) => item.section === section)
+                      .map((item) => (
                         <button
                           aria-current={activeNavId === item.id ? "page" : undefined}
                           className={`nav-item ${activeNavId === item.id ? "active" : ""}`}
@@ -1126,15 +1396,25 @@ export default function App() {
                           type="button"
                           onClick={() => activateNavigation(item)}
                         >
-                          <Icon size={15} aria-hidden="true" />
                           {navLabel(item, language)}
                         </button>
-                      );
-                    })}
+                      ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </nav>
+          <button
+            className="native-console-return"
+            type="button"
+            data-testid="ocp-console-return"
+            title={copy.ocpConsoleReturnCommand}
+            aria-label={copy.ocpConsoleReturn}
+            onClick={openNativeOcpConsole}
+          >
+            <Undo2 size={16} aria-hidden="true" />
+            <span>{copy.ocpConsoleReturn}</span>
+          </button>
         </aside>
 
         <main className="workspace" data-testid="workspace">
@@ -1184,19 +1464,26 @@ export default function App() {
       {assistantOpen ? (
         <AssistantPopover
           draft={draft}
+          turns={assistantTurns}
           contextChips={contextSync?.contextChips ?? contextChips}
-          answer={planResponse?.answer ?? assistantAnswer}
+          answer={
+            planResponse?.answer ??
+            createLightspeedUnavailablePlan({ language, prompt: draft }).answer
+          }
           requestId={planResponse?.requestId ?? "plan-loading"}
           audit={planResponse?.audit ?? null}
           apiStatus={apiStatus}
           busy={assistantBusy}
           model={planResponse?.audit.model ?? "pending"}
+          mode={assistantMode}
           language={language}
           apiRouteMode={apiRoute.mode}
           actionPlanPath={apiRoute.actionPlanPath}
           lastApiError={lastApiError}
+          onModeChange={setAssistantMode}
           onDraftChange={setDraft}
-          onAsk={() => void askAssistant()}
+          onAsk={(promptOverride) => void askAssistant(promptOverride)}
+          onStop={stopAssistant}
           onRetryConnection={() => void bootstrapApiState()}
           onClose={() => setAssistantOpen(false)}
         />
