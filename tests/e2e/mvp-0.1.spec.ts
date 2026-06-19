@@ -745,6 +745,12 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("ocp-networking-native-toolbar")).toBeVisible();
     await page.getByPlaceholder("Search by name...").fill("test");
     await expect(page.getByTestId("ocp-networking-filter-count")).toContainText("Showing:");
+
+    await openConsoleNavItem(page, "persistentvolumeclaims");
+    await page.getByTestId("console-active-open-surface").click();
+    await expect(page.getByTestId("ocp-storage-native-toolbar")).toBeVisible();
+    await page.getByPlaceholder("Search by name...").fill("test");
+    await expect(page.getByTestId("ocp-storage-filter-count")).toContainText("Showing:");
   });
 
   test("AC-UI-009 opens KOMSCO assistant for every version-pinned console item", async ({

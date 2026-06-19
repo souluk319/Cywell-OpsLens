@@ -5,12 +5,16 @@ import {
   Database,
   HardDrive,
   Layers3,
+  ListFilter,
+  PlusCircle,
   RefreshCw,
+  Search,
   ShieldCheck
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { nativeConsoleHref, nativeResourceCreatePath } from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
@@ -48,6 +52,12 @@ const storageCopy = {
     volumesnapshots: "VolumeSnapshots",
     volumesnapshotclasses: "VolumeSnapshotClasses",
     namespace: "Namespace",
+    allNamespaces: "All namespaces",
+    searchByName: "Search by name...",
+    filterByResource: "Filter by resource",
+    allResources: "All storage resources",
+    create: "Create",
+    showing: "Showing",
     phase: "Phase",
     capacity: "Capacity",
     requested: "Requested",
@@ -98,6 +108,12 @@ const storageCopy = {
     volumesnapshots: "VolumeSnapshots",
     volumesnapshotclasses: "VolumeSnapshotClasses",
     namespace: "네임스페이스",
+    allNamespaces: "모든 네임스페이스",
+    searchByName: "이름으로 검색...",
+    filterByResource: "리소스 필터",
+    allResources: "모든 스토리지 리소스",
+    create: "생성",
+    showing: "표시",
     phase: "상태",
     capacity: "용량",
     requested: "요청 용량",
@@ -244,6 +260,24 @@ function viewTestId(view: OcpStorageView) {
   return `ocp-storage-${view}`;
 }
 
+const storageResources = [
+  { view: "persistentvolumeclaims", apiVersion: "v1", resource: "persistentvolumeclaims", namespaced: true },
+  { view: "persistentvolumes", apiVersion: "v1", resource: "persistentvolumes", namespaced: false },
+  { view: "storageclasses", apiVersion: "storage.k8s.io/v1", resource: "storageclasses", namespaced: false },
+  { view: "volumesnapshots", apiVersion: "snapshot.storage.k8s.io/v1", resource: "volumesnapshots", namespaced: true },
+  { view: "volumesnapshotclasses", apiVersion: "snapshot.storage.k8s.io/v1", resource: "volumesnapshotclasses", namespaced: false }
+] as const;
+
+function resourceConfig(view: OcpStorageView) {
+  return storageResources.find((entry) => entry.view === view) ?? storageResources[0];
+}
+
+function uniqueSorted(values: Array<string | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
 function phaseTone(phase: string) {
   const normalized = phase.toLowerCase();
   if (["bound", "available", "released", "true"].includes(normalized)) return "ready";
@@ -256,6 +290,11 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
   const [state, setState] = useState<ResourceState>({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [namespaceFilter, setNamespaceFilter] = useState("all");
+  const [resourceFilter, setResourceFilter] = useState<OcpStorageView | "all">("all");
+  const activeView = resourceFilter === "all" ? view : resourceFilter;
+  const activeResource = resourceConfig(activeView);
 
   async function refresh(options: { silent?: boolean } = {}) {
     if (!options.silent) setLoading(true);
@@ -299,6 +338,58 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
   const storageClasses = state.storageClasses?.items ?? [];
   const snapshots = state.snapshots?.items ?? [];
   const snapshotClasses = state.snapshotClasses?.items ?? [];
+  const namespaceOptions = useMemo(
+    () => uniqueSorted([...pvcs, ...snapshots].map((item) => item.metadata.namespace)),
+    [pvcs, snapshots]
+  );
+  const filterItems = (items: OcpResourceSummary[]) => {
+    const query = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (namespaceFilter !== "all" && item.metadata.namespace && item.metadata.namespace !== namespaceFilter) return false;
+      if (!query) return true;
+      return [
+        item.kind,
+        item.metadata.name,
+        item.metadata.namespace,
+        pvcPhase(item),
+        pvPhase(item),
+        storageClass(item),
+        boundVolume(item),
+        claimRef(item),
+        classProvisioner(item),
+        snapshotSource(item)
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  };
+  const filteredPvcs = useMemo(() => filterItems(pvcs), [namespaceFilter, pvcs, search]);
+  const filteredPvs = useMemo(() => filterItems(pvs), [namespaceFilter, pvs, search]);
+  const filteredStorageClasses = useMemo(() => filterItems(storageClasses), [namespaceFilter, search, storageClasses]);
+  const filteredSnapshots = useMemo(() => filterItems(snapshots), [namespaceFilter, search, snapshots]);
+  const filteredSnapshotClasses = useMemo(() => filterItems(snapshotClasses), [namespaceFilter, search, snapshotClasses]);
+  const activeItems =
+    activeView === "persistentvolumeclaims"
+      ? filteredPvcs
+      : activeView === "persistentvolumes"
+        ? filteredPvs
+        : activeView === "storageclasses"
+          ? filteredStorageClasses
+          : activeView === "volumesnapshots"
+            ? filteredSnapshots
+            : filteredSnapshotClasses;
+  const activeTotal =
+    activeView === "persistentvolumeclaims"
+      ? pvcs.length
+      : activeView === "persistentvolumes"
+        ? pvs.length
+        : activeView === "storageclasses"
+          ? storageClasses.length
+          : activeView === "volumesnapshots"
+            ? snapshots.length
+            : snapshotClasses.length;
   const failureMessages = [
     failureText(state.pvcs),
     failureText(state.pvs),
@@ -308,35 +399,41 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
     ...errors
   ].filter(Boolean);
   const drilldown =
-    view === "persistentvolumeclaims"
+    activeView === "persistentvolumeclaims"
       ? {
           resource: { apiVersion: "v1", resource: "persistentvolumeclaims" },
-          items: pvcs,
+          items: filteredPvcs,
           title: copy.persistentvolumeclaims
         }
-      : view === "persistentvolumes"
+      : activeView === "persistentvolumes"
         ? {
             resource: { apiVersion: "v1", resource: "persistentvolumes" },
-            items: pvs,
+            items: filteredPvs,
             title: copy.persistentvolumes
           }
-        : view === "storageclasses"
+        : activeView === "storageclasses"
           ? {
               resource: { apiVersion: "storage.k8s.io/v1", resource: "storageclasses" },
-              items: storageClasses,
+              items: filteredStorageClasses,
               title: copy.storageclasses
             }
-          : view === "volumesnapshots"
+          : activeView === "volumesnapshots"
             ? {
                 resource: { apiVersion: "snapshot.storage.k8s.io/v1", resource: "volumesnapshots" },
-                items: snapshots,
+                items: filteredSnapshots,
                 title: copy.volumesnapshots
               }
             : {
                 resource: { apiVersion: "snapshot.storage.k8s.io/v1", resource: "volumesnapshotclasses" },
-                items: snapshotClasses,
+                items: filteredSnapshotClasses,
                 title: copy.volumesnapshotclasses
               };
+  const createHref = nativeConsoleHref(
+    nativeResourceCreatePath(
+      { apiVersion: activeResource.apiVersion, resource: activeResource.resource },
+      activeResource.namespaced ? (namespaceFilter !== "all" ? namespaceFilter : "default") : undefined
+    )
+  );
 
   const pvcPhaseCounts = useMemo(() => {
     return pvcs.reduce<Record<string, number>>((acc, item) => {
@@ -373,6 +470,49 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
         <span>{copy.volumesnapshots}: {snapshots.length}</span>
       </div>
 
+      <div className="native-console-toolbar storage-filter-toolbar" data-testid="ocp-storage-native-toolbar">
+        <label className="resource-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            placeholder={copy.searchByName}
+            aria-label={copy.searchByName}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          <span>{copy.namespace}</span>
+          <select value={namespaceFilter} aria-label={copy.namespace} onChange={(event) => setNamespaceFilter(event.currentTarget.value)}>
+            <option value="all">{copy.allNamespaces}</option>
+            {namespaceOptions.map((namespace) => (
+              <option key={namespace} value={namespace}>{namespace}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.filterByResource}</span>
+          <select
+            value={resourceFilter}
+            aria-label={copy.filterByResource}
+            onChange={(event) => setResourceFilter(event.currentTarget.value as OcpStorageView | "all")}
+          >
+            <option value="all">{copy.allResources}</option>
+            {storageResources.map((entry) => (
+              <option key={entry.view} value={entry.view}>{copy[entry.view]}</option>
+            ))}
+          </select>
+        </label>
+        <a className="text-icon-button native-open-link" href={createHref} target="_blank" rel="noreferrer">
+          <PlusCircle size={16} aria-hidden="true" />
+          {copy.create}
+        </a>
+        <span className="native-toolbar-count" data-testid="ocp-storage-filter-count">
+          <ListFilter size={15} aria-hidden="true" />
+          {copy.showing}: {activeItems.length}/{activeTotal}
+        </span>
+      </div>
+
       {failureMessages.length > 0 ? (
         <div className="ocp-error" data-testid="ocp-storage-api-failure">
           <AlertTriangle size={17} aria-hidden="true" />
@@ -382,7 +522,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
 
       <nav className="ocp-storage-tabs" aria-label={copy.title}>
         {(["persistentvolumeclaims", "persistentvolumes", "storageclasses", "volumesnapshots", "volumesnapshotclasses"] as const).map((tab) => (
-          <a key={tab} href={`#${viewTestId(tab)}`} aria-current={view === tab ? "page" : undefined}>
+          <a key={tab} href={`#${viewTestId(tab)}`} aria-current={activeView === tab ? "page" : undefined}>
             {copy[tab]}
           </a>
         ))}
@@ -434,13 +574,13 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
         </article>
       </div>
 
-      {view === "persistentvolumeclaims" ? (
+      {activeView === "persistentvolumeclaims" ? (
         <article className="storage-native-panel">
           <div className="card-title-row">
             <h3>{copy.persistentvolumeclaims}</h3>
             <Database size={18} aria-hidden="true" />
           </div>
-          {pvcs.length > 0 ? (
+          {filteredPvcs.length > 0 ? (
             <div className="native-storage-table-wrap">
               <table className="native-storage-table" data-testid="ocp-storage-pvcs-table">
                 <thead>
@@ -455,7 +595,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {pvcs.map((item) => {
+                  {filteredPvcs.map((item) => {
                     const phase = pvcPhase(item);
                     return (
                       <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
@@ -478,13 +618,13 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
         </article>
       ) : null}
 
-      {view === "persistentvolumes" ? (
+      {activeView === "persistentvolumes" ? (
         <article className="storage-native-panel">
           <div className="card-title-row">
             <h3>{copy.persistentvolumes}</h3>
             <Layers3 size={18} aria-hidden="true" />
           </div>
-          {pvs.length > 0 ? (
+          {filteredPvs.length > 0 ? (
             <div className="native-storage-table-wrap">
               <table className="native-storage-table" data-testid="ocp-storage-pvs-table">
                 <thead>
@@ -499,7 +639,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {pvs.map((item) => {
+                  {filteredPvs.map((item) => {
                     const phase = pvPhase(item);
                     return (
                       <tr key={item.metadata.name}>
@@ -522,13 +662,13 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
         </article>
       ) : null}
 
-      {view === "storageclasses" ? (
+      {activeView === "storageclasses" ? (
         <article className="storage-native-panel">
           <div className="card-title-row">
             <h3>{copy.storageclasses}</h3>
             <HardDrive size={18} aria-hidden="true" />
           </div>
-          {storageClasses.length > 0 ? (
+          {filteredStorageClasses.length > 0 ? (
             <div className="native-storage-table-wrap">
               <table className="native-storage-table" data-testid="ocp-storage-classes-table">
                 <thead>
@@ -541,7 +681,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {storageClasses.map((item) => (
+                  {filteredStorageClasses.map((item) => (
                     <tr key={item.metadata.name}>
                       <td><NativeObjectLink resource={{ apiVersion: "storage.k8s.io/v1", resource: "storageclasses" }} item={item} testId="ocp-storage-classes-object-link" /></td>
                       <td>{classProvisioner(item)}</td>
@@ -559,13 +699,13 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
         </article>
       ) : null}
 
-      {view === "volumesnapshots" ? (
+      {activeView === "volumesnapshots" ? (
         <article className="storage-native-panel">
           <div className="card-title-row">
             <h3>{copy.volumesnapshots}</h3>
             <Archive size={18} aria-hidden="true" />
           </div>
-          {snapshots.length > 0 ? (
+          {filteredSnapshots.length > 0 ? (
             <div className="native-storage-table-wrap">
               <table className="native-storage-table" data-testid="ocp-storage-snapshots-table">
                 <thead>
@@ -578,7 +718,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {snapshots.map((item) => (
+                  {filteredSnapshots.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "snapshot.storage.k8s.io/v1", resource: "volumesnapshots" }} item={item} testId="ocp-storage-snapshots-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
@@ -596,13 +736,13 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
         </article>
       ) : null}
 
-      {view === "volumesnapshotclasses" ? (
+      {activeView === "volumesnapshotclasses" ? (
         <article className="storage-native-panel">
           <div className="card-title-row">
             <h3>{copy.volumesnapshotclasses}</h3>
             <Archive size={18} aria-hidden="true" />
           </div>
-          {snapshotClasses.length > 0 ? (
+          {filteredSnapshotClasses.length > 0 ? (
             <div className="native-storage-table-wrap">
               <table className="native-storage-table" data-testid="ocp-storage-snapshotclasses-table">
                 <thead>
@@ -613,7 +753,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {snapshotClasses.map((item) => (
+                  {filteredSnapshotClasses.map((item) => (
                     <tr key={item.metadata.name}>
                       <td><NativeObjectLink resource={{ apiVersion: "snapshot.storage.k8s.io/v1", resource: "volumesnapshotclasses" }} item={item} testId="ocp-storage-snapshotclasses-object-link" /></td>
                       <td>{stringField(item.spec, "driver") ?? "-"}</td>

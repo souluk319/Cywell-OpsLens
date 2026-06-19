@@ -2543,6 +2543,12 @@ expectCheck(
     storageSource.includes("export type OcpStorageView") &&
     storageSource.includes('data-testid={viewTestId(view)}') &&
     storageSource.includes('data-testid="ocp-storage-toolbar"') &&
+    storageSource.includes('data-testid="ocp-storage-native-toolbar"') &&
+    storageSource.includes('data-testid="ocp-storage-filter-count"') &&
+    storageSource.includes("setResourceFilter") &&
+    storageSource.includes("setNamespaceFilter") &&
+    storageSource.includes("setSearch") &&
+    storageSource.includes("nativeResourceCreatePath") &&
     storageSource.includes('data-testid="ocp-storage-binding-board"') &&
     storageSource.includes('data-testid="ocp-storage-pvcs-table"') &&
     storageSource.includes('data-testid="ocp-storage-pvs-table"') &&
@@ -2557,6 +2563,7 @@ expectCheck(
     ocpClientSource.includes('kind === "VolumeSnapshotClass"') &&
     stylesSource.includes(".ocp-storage-console") &&
     stylesSource.includes(".ocp-storage-toolbar") &&
+    stylesSource.includes(".storage-filter-toolbar") &&
     stylesSource.includes(".storage-native-grid") &&
     stylesSource.includes(".native-storage-table") &&
     stylesSource.includes(".storage-native-boundary") &&

@@ -5001,6 +5001,17 @@ button {
   color: #151515;
 }
 
+.storage-filter-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.8fr) minmax(190px, 0.9fr) auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.storage-filter-toolbar .native-toolbar-count {
+  justify-self: end;
+}
+
 .storage-native-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(170px, 1fr));
