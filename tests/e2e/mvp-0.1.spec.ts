@@ -16,6 +16,7 @@ const surfaceLabelsForTest: Record<ConsoleParityActionSurface, string> = {
   evidence: "Evidence pane",
   "resource-explorer": "Resource explorer",
   "topology-graph": "Topology graph",
+  "workloads-console": "Workloads console",
   "monitoring-console": "Monitoring console",
   "builds-console": "Builds console",
   "networking-console": "Networking console",
@@ -91,6 +92,7 @@ test.describe("Cywell OpsLens MVP 0.1 acceptance", () => {
       "evidence",
       "resource-explorer",
       "topology-graph",
+      "workloads-console",
       "monitoring-console",
       "builds-console",
       "networking-console",
@@ -719,24 +721,10 @@ async function expectConsoleFunctionEffect(
 
     await openConsoleNavItem(page, "workloads");
     await page.getByTestId("console-active-open-surface").click();
-    await expect(page.getByTestId("ocp-active-preset-query")).toContainText(
-      "pods"
-    );
-    await expect(page.getByTestId("ocp-workload-native-actions")).toBeVisible();
-    await expect(page.getByTestId("ocp-workload-native-object-link")).toBeVisible();
-    await expect(page.getByTestId("ocp-workload-yaml-action")).toBeVisible();
-    await expect(page.getByTestId("ocp-workload-events-action")).toBeVisible();
-    await expect(page.getByTestId("ocp-workload-logs-action")).toBeVisible();
-    await expect(page.getByTestId("ocp-workload-related-action")).toBeVisible();
-    await page.getByTestId("ocp-workload-yaml-action").click();
-    await expect(page.getByTestId("ocp-detail-yaml-tab")).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-    await page.getByTestId("ocp-workload-events-action").click();
-    await expect(page.getByTestId("ocp-resource-events")).toBeVisible();
-    await page.getByTestId("ocp-workload-related-action").click();
-    await expect(page.getByTestId("ocp-related-resources")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-toolbar")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-health-board")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-pods-table")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-native-handoff")).toBeVisible();
     await page.getByTestId("console-active-ask-assistant").click();
     await expect(page.getByTestId("assistant-popover")).toBeVisible();
     await expect(page.getByTestId("assistant-draft")).toHaveValue(/Pods/);

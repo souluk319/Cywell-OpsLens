@@ -61,6 +61,10 @@ import {
   type OcpBuildsView
 } from "./components/OcpBuildsConsole";
 import {
+  OcpWorkloadsConsole,
+  type OcpWorkloadsView
+} from "./components/OcpWorkloadsConsole";
+import {
   OcpNetworkingConsole,
   type OcpNetworkingView
 } from "./components/OcpNetworkingConsole";
@@ -1218,6 +1222,13 @@ export default function App() {
           <OcpBuildsConsole
             language={language}
             view={activeNavigation.id as OcpBuildsView}
+          />
+        );
+      case "workloads-console":
+        return (
+          <OcpWorkloadsConsole
+            language={language}
+            view={activeNavigation.id as OcpWorkloadsView}
           />
         );
       case "networking-console":

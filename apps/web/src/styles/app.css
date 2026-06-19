@@ -5355,6 +5355,124 @@ button {
   font-weight: 850;
 }
 
+.ocp-workloads-console {
+  display: grid;
+  gap: 12px;
+}
+
+.ocp-workloads-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ocp-workloads-toolbar > span {
+  color: #4f5255;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.ocp-workloads-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid #d2d2d2;
+}
+
+.ocp-workloads-tabs a {
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+  color: #4f5255;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.ocp-workloads-tabs a[aria-current="page"] {
+  border-color: #d2d2d2;
+  background: #fff;
+  color: #151515;
+}
+
+.workloads-native-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.workloads-native-card,
+.workloads-native-panel,
+.workloads-native-boundary {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(3, 3, 3, 0.04);
+}
+
+.workloads-native-card p,
+.workloads-native-boundary p {
+  margin: 8px 0 0;
+  color: #4f5255;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.workloads-card-number {
+  display: block;
+  margin-top: 12px;
+  color: #0066cc;
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.native-workloads-table-wrap {
+  margin-top: 12px;
+  overflow: auto;
+}
+
+.native-workloads-table {
+  width: 100%;
+  min-width: 1040px;
+  border-collapse: collapse;
+}
+
+.native-workloads-table th,
+.native-workloads-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #ededed;
+  color: #151515;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.78rem;
+}
+
+.native-workloads-table th {
+  color: #4f5255;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.workloads-native-boundary {
+  border-left: 4px solid #0066cc;
+}
+
+.workloads-native-boundary strong {
+  color: #151515;
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
 .muted-warning {
   margin: 10px 0 0;
   max-height: 72px;
@@ -7557,6 +7675,10 @@ button {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
+  .workloads-native-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+
   .storage-native-grid {
     grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
@@ -7706,6 +7828,21 @@ button {
 
   .networking-native-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workloads-native-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ocp-workloads-toolbar,
+  .ocp-workloads-tabs {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ocp-workloads-tabs a {
+    border: 1px solid #d2d2d2;
+    border-radius: 5px;
   }
 
   .ocp-networking-toolbar,

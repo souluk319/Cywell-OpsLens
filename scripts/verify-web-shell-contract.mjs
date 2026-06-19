@@ -88,6 +88,7 @@ const overviewSource = await readText("apps/web/src/components/OcpConsoleOvervie
 const dashboardSource = await readText("apps/web/src/components/OperationsDashboard.tsx");
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
 const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.tsx");
+const workloadsSource = await readText("apps/web/src/components/OcpWorkloadsConsole.tsx");
 const monitoringSource = await readText("apps/web/src/components/OcpMonitoringConsole.tsx");
 const buildsSource = await readText("apps/web/src/components/OcpBuildsConsole.tsx");
 const networkingSource = await readText("apps/web/src/components/OcpNetworkingConsole.tsx");
@@ -2010,14 +2011,10 @@ expectCheck(
     e2eSource.includes("alternateView") &&
     e2eSource.includes("closeAssistantIfOpen(page)") &&
     e2eSource.includes('getByTestId("console-active-open-surface").click()') &&
-    e2eSource.includes('getByTestId("ocp-workload-native-actions")') &&
-    e2eSource.includes('getByTestId("ocp-workload-native-object-link")') &&
-    e2eSource.includes('getByTestId("ocp-workload-yaml-action")') &&
-    e2eSource.includes('getByTestId("ocp-workload-events-action")') &&
-    e2eSource.includes('getByTestId("ocp-workload-logs-action")') &&
-    e2eSource.includes('getByTestId("ocp-workload-related-action")') &&
-    e2eSource.includes('getByTestId("ocp-detail-yaml-tab")') &&
-    e2eSource.includes('getByTestId("ocp-related-resources")') &&
+    e2eSource.includes('getByTestId("ocp-workloads-toolbar")') &&
+    e2eSource.includes('getByTestId("ocp-workloads-health-board")') &&
+    e2eSource.includes('getByTestId("ocp-workloads-pods-table")') &&
+    e2eSource.includes('getByTestId("ocp-workloads-native-handoff")') &&
     e2eSource.includes('data-target-status",') &&
     e2eSource.includes('page.locator("[data-testid^=\'active-surface-\']")'),
   "Playwright opens every version-pinned console registry item through the collapsible navigation, uses the active Open surface action, and verifies its mapped surface, preset, and mounted target"
@@ -2074,6 +2071,12 @@ expectCheck(
     paritySource.includes("targetSelector: \"[data-testid='ocp-compute-machines']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-compute-machinesets']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-compute-machineconfigpools']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-workloads-pods']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-workloads-deployments']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-workloads-deploymentconfigs']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-workloads-statefulsets']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-workloads-cronjobs']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-workloads-poddisruptionbudgets']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-user-users']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-user-groups']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-user-serviceaccounts']\"") &&
@@ -2217,6 +2220,48 @@ expectCheck(
     e2eSource.includes("ocp-overview-status-cards") &&
     e2eSource.includes("ocp-overview-activity-card"),
   "Home Overview must expose official console panels for details, cluster inventory, status cards, activity, and utilization using the live consoleDashboard API contract"
+);
+
+expectCheck(
+  "official workloads console surface contract",
+  paritySource.includes('| "workloads-console"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-pods\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-deployments\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-deploymentconfigs\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-statefulsets\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-secrets\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-configmaps\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-cronjobs\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-jobs\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-daemonsets\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-replicasets\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-replicationcontrollers\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-horizontalpodautoscalers\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-workloads-poddisruptionbudgets\']"') &&
+    paritySource.includes('mode: "workloads-console"') &&
+    appSource.includes("case \"workloads-console\"") &&
+    appSource.includes("<OcpWorkloadsConsole") &&
+    workloadsSource.includes("export type OcpWorkloadsView") &&
+    workloadsSource.includes('data-testid={activeConfig.testId}') &&
+    workloadsSource.includes('data-testid="ocp-workloads-toolbar"') &&
+    workloadsSource.includes('data-testid="ocp-workloads-health-board"') &&
+    workloadsSource.includes('tableTestId: "ocp-workloads-pods-table"') &&
+    workloadsSource.includes('tableTestId: "ocp-workloads-deployments-table"') &&
+    workloadsSource.includes('tableTestId: "ocp-workloads-cronjobs-table"') &&
+    workloadsSource.includes('tableTestId: "ocp-workloads-horizontalpodautoscalers-table"') &&
+    workloadsSource.includes('tableTestId: "ocp-workloads-poddisruptionbudgets-table"') &&
+    workloadsSource.includes('data-testid="ocp-workloads-native-handoff"') &&
+    workloadsSource.includes("apps.openshift.io/v1") &&
+    workloadsSource.includes("autoscaling/v2") &&
+    workloadsSource.includes("policy/v1") &&
+    workloadsSource.includes("fetchOcpResourceList") &&
+    stylesSource.includes(".ocp-workloads-console") &&
+    stylesSource.includes(".ocp-workloads-toolbar") &&
+    stylesSource.includes(".workloads-native-grid") &&
+    stylesSource.includes(".native-workloads-table") &&
+    stylesSource.includes(".workloads-native-boundary") &&
+    e2eSource.includes('"workloads-console": "Workloads console"'),
+  "Workloads menu items must render native Pods, workload controllers, Secrets, ConfigMaps, CronJobs, Jobs, HPAs, and PDBs with status/owner/config/redaction evidence instead of routing only to the generic resource explorer"
 );
 
 expectCheck(

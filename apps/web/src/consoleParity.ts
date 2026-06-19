@@ -17,6 +17,7 @@ export type ConsoleParityActionSurface =
   | "evidence"
   | "resource-explorer"
   | "topology-graph"
+  | "workloads-console"
   | "monitoring-console"
   | "builds-console"
   | "networking-console"
@@ -69,6 +70,7 @@ type ConsoleParityItemDraft = Omit<ConsoleParityItem, "coverageClass">;
 export type ConsoleParityFunctionMode =
   | "resource-preset"
   | "topology-graph"
+  | "workloads-console"
   | "monitoring-console"
   | "builds-console"
   | "networking-console"
@@ -369,8 +371,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "파드",
     originalPath: "Workloads / Pods",
     originalPathKo: "워크로드 / 파드",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-pods']",
+    actionSurface: "workloads-console",
     command: "List pods, inspect status, events, logs, owner references, and sanitized YAML.",
     commandKo: "파드 목록, 상태, 이벤트, 로그, 소유자 참조, 마스킹된 YAML을 확인합니다.",
     opsLensEnhancement: "Adds evidence-aware triage and KOMSCO assistant questions from the selected pod.",
@@ -390,8 +392,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "배포",
     originalPath: "Workloads / Deployments",
     originalPathKo: "워크로드 / 배포",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-deployments']",
+    actionSurface: "workloads-console",
     command: "List Deployments, unavailable replicas, events, owner pods, and sanitized YAML.",
     commandKo: "Deployment, 비가용 replica, 이벤트, 소유 파드, 마스킹된 YAML을 조회합니다.",
     opsLensEnhancement: "Adds rollout health and change-correlation context.",
@@ -411,8 +413,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "배포 설정",
     originalPath: "Workloads / Deployment Configs",
     originalPathKo: "워크로드 / 배포 설정",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-deploymentconfigs']",
+    actionSurface: "workloads-console",
     command: "List OpenShift DeploymentConfigs and rollout-related evidence.",
     commandKo: "OpenShift DeploymentConfig와 롤아웃 관련 근거를 조회합니다.",
     opsLensEnhancement: "Keeps legacy OpenShift rollout objects visible next to Kubernetes Deployments.",
@@ -432,8 +434,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "상태 저장 세트",
     originalPath: "Workloads / StatefulSets",
     originalPathKo: "워크로드 / 상태 저장 세트",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-statefulsets']",
+    actionSurface: "workloads-console",
     command: "List StatefulSets, pods, volumes, events, and sanitized YAML.",
     commandKo: "StatefulSet, 파드, 볼륨, 이벤트, 마스킹된 YAML을 조회합니다.",
     opsLensEnhancement: "Adds storage-aware diagnosis and owner-chain evidence.",
@@ -453,8 +455,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "시크릿",
     originalPath: "Workloads / Secrets",
     originalPathKo: "워크로드 / 시크릿",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-secrets']",
+    actionSurface: "workloads-console",
     command: "List Secret metadata only and keep data payloads redacted.",
     commandKo: "Secret 메타데이터만 조회하고 데이터 페이로드는 마스킹합니다.",
     opsLensEnhancement: "Adds secret-reference diagnosis without exposing values.",
@@ -474,8 +476,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "구성 맵",
     originalPath: "Workloads / ConfigMaps",
     originalPathKo: "워크로드 / 구성 맵",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-configmaps']",
+    actionSurface: "workloads-console",
     command: "List ConfigMaps and inspect sanitized configuration evidence.",
     commandKo: "ConfigMap을 조회하고 마스킹된 설정 근거를 확인합니다.",
     opsLensEnhancement: "Connects configuration drift to affected workloads.",
@@ -495,8 +497,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "CronJobs",
     originalPath: "Workloads / CronJobs",
     originalPathKo: "워크로드 / CronJobs",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-cronjobs']",
+    actionSurface: "workloads-console",
     command: "List CronJobs, recent Jobs, schedules, events, and open the native create flow when creation is required.",
     commandKo: "CronJob, 최근 Job, 스케줄, 이벤트를 조회하고 생성이 필요하면 원본 생성 화면으로 이동합니다.",
     opsLensEnhancement: "Adds schedule risk, failed-run evidence, and approval-aware create handoff.",
@@ -517,8 +519,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "작업",
     originalPath: "Workloads / Jobs",
     originalPathKo: "워크로드 / 작업",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-jobs']",
+    actionSurface: "workloads-console",
     command: "List Jobs, completions, failed pods, and events.",
     commandKo: "Job, 완료 상태, 실패 파드, 이벤트를 조회합니다.",
     opsLensEnhancement: "Connects failed Jobs to owner CronJobs and assistant triage.",
@@ -538,8 +540,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "데몬 세트",
     originalPath: "Workloads / DaemonSets",
     originalPathKo: "워크로드 / 데몬 세트",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-daemonsets']",
+    actionSurface: "workloads-console",
     command: "List DaemonSets, desired/current pods, unavailable pods, and node spread.",
     commandKo: "DaemonSet, desired/current 파드, 비가용 파드, 노드 배치를 조회합니다.",
     opsLensEnhancement: "Adds node-scope rollout and evidence correlation.",
@@ -559,8 +561,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "복제 세트",
     originalPath: "Workloads / ReplicaSets",
     originalPathKo: "워크로드 / 복제 세트",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-replicasets']",
+    actionSurface: "workloads-console",
     command: "List ReplicaSets and connect them to owning Deployments and Pods.",
     commandKo: "ReplicaSet을 조회하고 소유 Deployment 및 Pod와 연결합니다.",
     opsLensEnhancement: "Adds owner-chain collapse so rollout history is easier to inspect.",
@@ -580,8 +582,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "복제 컨트롤러",
     originalPath: "Workloads / ReplicationControllers",
     originalPathKo: "워크로드 / 복제 컨트롤러",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-replicationcontrollers']",
+    actionSurface: "workloads-console",
     command: "List ReplicationControllers and related Pods for legacy workload support.",
     commandKo: "기존 워크로드 지원을 위해 ReplicationController와 관련 Pod를 조회합니다.",
     opsLensEnhancement: "Keeps legacy controller evidence available instead of hiding it behind Pods.",
@@ -601,8 +603,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "HorizontalPodAutoscalers",
     originalPath: "Workloads / HorizontalPodAutoscalers",
     originalPathKo: "워크로드 / HorizontalPodAutoscalers",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-horizontalpodautoscalers']",
+    actionSurface: "workloads-console",
     command: "List HPAs, current metrics, targets, and scale recommendations.",
     commandKo: "HPA, 현재 메트릭, 대상, 스케일 권고 근거를 조회합니다.",
     opsLensEnhancement: "Adds scale diagnosis without applying replica changes.",
@@ -625,8 +627,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "PodDisruptionBudgets",
     originalPath: "Workloads / PodDisruptionBudgets",
     originalPathKo: "워크로드 / PodDisruptionBudgets",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-workloads-poddisruptionbudgets']",
+    actionSurface: "workloads-console",
     command: "List PDBs, allowed disruptions, and protected workloads.",
     commandKo: "PDB, 허용 중단 수, 보호 대상 워크로드를 조회합니다.",
     opsLensEnhancement: "Adds availability-risk context for node and rollout operations.",
@@ -1522,6 +1524,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "workloads-console") {
+    return {
+      mode: "workloads-console",
+      input: `Workloads surface: ${item.id}`,
+      inputKo: `워크로드 화면: ${item.labelKo}`,
+      proof:
+        "Workloads target must mount a native Workloads-style surface with Pod, controller, config, batch, autoscale, disruption, status, owner, and credential-redaction evidence.",
+      proofKo:
+        "워크로드 대상은 Pod, 컨트롤러, 설정, 배치, 오토스케일, 중단 예산, 상태, 소유자, 자격증명 비노출 근거를 갖춘 원본 Workloads 스타일 화면을 장착해야 합니다."
+    };
+  }
+
   if (item.actionSurface === "monitoring-console") {
     return {
       mode: "monitoring-console",
@@ -1697,6 +1711,16 @@ export function consoleParityFunctionSignal(
         "Topology graph must render live resource nodes and evidence-backed edges.",
       descriptionKo:
         "토폴로지 그래프는 실시간 리소스 노드와 근거 기반 연결을 렌더링해야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "workloads-console") {
+    return {
+      selector: item.targetSelector,
+      description:
+        "Workloads console surface must expose the selected native Pods, controllers, config, batch, autoscale, or disruption-budget view with live source state.",
+      descriptionKo:
+        "워크로드 콘솔 화면은 선택한 원본 Pod, 컨트롤러, 설정, 배치, 오토스케일, 중단 예산 보기를 실시간 출처 상태와 함께 보여야 합니다."
     };
   }
 
