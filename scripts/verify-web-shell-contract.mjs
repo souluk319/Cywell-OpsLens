@@ -1700,6 +1700,22 @@ expectCheck(
 );
 
 expectCheck(
+  "dashboard decision flow visual contract",
+  dashboardSource.includes('data-testid="opslens-dashboard-decision-flow"') &&
+    dashboardSource.includes('data-testid="opslens-dashboard-flow-source"') &&
+    dashboardSource.includes("copy.decisionFlowMap") &&
+    dashboardSource.includes("copy.nativeSignals") &&
+    dashboardSource.includes("copy.opsLensCorrelation") &&
+    dashboardSource.includes("copy.operatorDecision") &&
+    dashboardSource.includes("copy.assistantHandoff") &&
+    dashboardSource.includes("suggestedQuestion") &&
+    stylesSource.includes(".ops-decision-flow") &&
+    stylesSource.includes(".ops-decision-flow-grid") &&
+    stylesSource.includes(".ops-flow-step"),
+  "Operations dashboard shows how native console signals are transformed into OpsLens correlation, operator decision, and assistant handoff"
+);
+
+expectCheck(
   "registry-driven console function proof e2e",
   e2eSource.includes("AC-UI-008 renders function proof for every version-pinned console item") &&
     e2eSource.includes("ocpConsoleParityItems") &&

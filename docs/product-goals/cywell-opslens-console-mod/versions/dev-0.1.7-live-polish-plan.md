@@ -145,8 +145,9 @@ visible.
 | Menu support classification | Every native console menu item now carries a visible support class. | `coverageClass` maps items to `Live View`, `Native Deep Link`, `Plan-only`, or `Gap`; the parity matrix and active action panel render the class. |
 | Workloads resource lens | Workload resource presets now show an OpsLens-owned status lens above the raw resource table. | Pods, Deployments, StatefulSets, DaemonSets, Jobs, CronJobs, HPA, and PDB expose health distribution, selected object signal, owner/child relation, and next-check chips in `ocp-workload-lens`. |
 | Dashboard source labels | Dashboard now separates OpsLens risk data source, native console API source, and Prometheus source. | `opslens-dashboard-source-label` and `opslens-console-source-label` expose live/fixture/unavailable state. |
+| Dashboard decision flow | Dashboard now visualizes the product value above native parity by turning console signals into OpsLens correlation, operator decision, and assistant handoff. | Browser check rendered `opslens-dashboard-decision-flow` with `4` steps, `data-source=live`, live console signal count, risk signal count, top decision, and suggested assistant question. |
 | Compatibility boundary UI | The parity matrix now shows the OCP `4.20` minimum runtime, the `4.21.14` reference inventory, and pending Windows `4.20` validation. | Browser DOM check showed `console-compatibility-boundary` with minimum/runtime/proof text and `37` visible parity class entries. |
-| Local verification | Current local build and web-shell contract pass. | `@kugnus/contracts`, `@kugnus/api`, `@kugnus/web` builds passed; latest `npm run verify:web-shell` passed with `71` checks. |
+| Local verification | Current local build and web-shell contract pass. | `@kugnus/web` build passed; latest `npm run verify:web-shell` passed with `73` checks. |
 
 Remaining before calling 0.1.7 complete:
 
@@ -154,8 +155,8 @@ Remaining before calling 0.1.7 complete:
   views. The first Workloads lens is in place, but create/edit/delete remains
   native deep link or approval-gated and deeper per-kind detail views are still
   required.
-- Upgrade the main dashboard live visualizations beyond source labels and the
-  first topology graph proof.
+- Continue upgrading the main dashboard beyond the first decision-flow panel
+  into richer native-console metric visualization.
 - Prove the baseline on the Windows OCP `4.20` CRC test server.
 - Deploy only after the local test page proves the next behavior slice.
 

@@ -1343,6 +1343,95 @@ button {
   font-weight: 700;
 }
 
+.ops-decision-flow {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(3, 3, 3, 0.04);
+}
+
+.ops-decision-flow h3 {
+  margin: 0;
+  color: #151515;
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.ops-decision-flow p {
+  margin: 4px 0 0;
+  color: #6a6e73;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.ops-decision-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.ops-flow-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 9px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.ops-flow-step svg {
+  grid-row: 1 / span 2;
+  color: #6a6e73;
+}
+
+.ops-flow-step span {
+  min-width: 0;
+  overflow: hidden;
+  color: #6a6e73;
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ops-flow-step strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #151515;
+  font-size: 0.88rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-flow-step p {
+  grid-column: 1 / -1;
+  display: -webkit-box;
+  min-height: 38px;
+  margin: 4px 0 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #4f5255;
+  font-size: 0.78rem;
+}
+
+.ops-flow-step.emphasis {
+  border-color: #73bcf7;
+  background: #f2f9ff;
+}
+
+.ops-flow-step.emphasis svg {
+  color: #0066cc;
+}
+
 .ops-visual-summary {
   display: grid;
   grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.1fr) minmax(280px, 1fr);
@@ -4690,6 +4779,10 @@ button {
     grid-template-columns: repeat(2, minmax(240px, 1fr));
   }
 
+  .ops-decision-flow-grid {
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+  }
+
   .ops-visual-summary {
     grid-template-columns: repeat(2, minmax(240px, 1fr));
   }
@@ -4773,6 +4866,10 @@ button {
   }
 
   .ops-console-sync-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ops-decision-flow-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

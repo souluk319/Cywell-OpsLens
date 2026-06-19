@@ -91,7 +91,18 @@ const dashboardCopy = {
     utilization: "Utilization",
     notMeasured: "not measured",
     storage: "Storage",
-    routesAndServices: "Routes / Services"
+    routesAndServices: "Routes / Services",
+    decisionFlowMap: "OpsLens Decision Flow",
+    decisionFlowSubtitle:
+      "How native console signals become operator-ready guidance",
+    nativeSignals: "Native console signals",
+    opsLensCorrelation: "OpsLens correlation",
+    operatorDecision: "Operator decision",
+    assistantHandoff: "Assistant handoff",
+    liveSignals: "live signals",
+    riskSignals: "risk signals",
+    topDecision: "top decision",
+    suggestedQuestion: "suggested question"
   },
   ko: {
     breadcrumb: "관리자 / 관측 / Cywell OpsLens",
@@ -161,7 +172,18 @@ const dashboardCopy = {
     utilization: "사용량",
     notMeasured: "측정 안 됨",
     storage: "스토리지",
-    routesAndServices: "라우트 / 서비스"
+    routesAndServices: "라우트 / 서비스",
+    decisionFlowMap: "OpsLens 판단 흐름",
+    decisionFlowSubtitle:
+      "원본 콘솔 신호를 운영자가 바로 판단할 수 있는 형태로 재구성",
+    nativeSignals: "원본 콘솔 신호",
+    opsLensCorrelation: "OpsLens 상관 분석",
+    operatorDecision: "운영 판단",
+    assistantHandoff: "AI 질문 연결",
+    liveSignals: "실시간 신호",
+    riskSignals: "리스크 신호",
+    topDecision: "우선 판단",
+    suggestedQuestion: "추천 질문"
   }
 } as const;
 
@@ -457,6 +479,20 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
       ).length
     }
   ];
+  const consoleSignalCount =
+    (consoleDashboard?.statusCards.length ?? 0) +
+    (consoleDashboard?.activity.length ?? 0) +
+    (consoleDashboard?.utilization.reachable
+      ? consoleDashboard.utilization.series.length
+      : 0);
+  const riskSignalCount = totalRisks + linkedChanges.length + totalEvidenceRefs;
+  const suggestedQuestion = topRisk
+    ? language === "ko"
+      ? `${topRisk.title}의 영향 범위와 다음 확인 순서를 정리해줘`
+      : `Summarize the impact and next checks for ${topRisk.title}`
+    : language === "ko"
+      ? "현재 클러스터 상태를 운영 관점으로 요약해줘"
+      : "Summarize the current cluster state from an operator perspective";
 
   return (
     <section className="dashboard-section" aria-labelledby="dashboard-title">
@@ -635,6 +671,65 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
           </article>
         </div>
       </div>
+
+      <section
+        className="ops-decision-flow"
+        data-testid="opslens-dashboard-decision-flow"
+        aria-label={copy.decisionFlowMap}
+      >
+        <div className="card-title-row">
+          <div>
+            <h3>{copy.decisionFlowMap}</h3>
+            <p>{copy.decisionFlowSubtitle}</p>
+          </div>
+          <span
+            className={`status-pill ${
+              consoleOverview?.status.reachable ? "ready" : "warning"
+            }`}
+            data-testid="opslens-dashboard-flow-source"
+            data-source={consoleOverview?.status.reachable ? "live" : "unavailable"}
+          >
+            {consoleOverview?.status.reachable ? copy.liveConnected : copy.liveUnavailable}
+          </span>
+        </div>
+        <div className="ops-decision-flow-grid">
+          <article className="ops-flow-step">
+            <Activity size={18} aria-hidden="true" />
+            <span>{copy.nativeSignals}</span>
+            <strong>
+              {numberText(consoleSignalCount)} {copy.liveSignals}
+            </strong>
+            <p>
+              {numberText(consoleDashboard?.inventory.nodes)} node ·{" "}
+              {numberText(consoleDashboard?.inventory.pods)} pod ·{" "}
+              {prometheusSourceLabel}
+            </p>
+          </article>
+          <article className="ops-flow-step">
+            <GitBranch size={18} aria-hidden="true" />
+            <span>{copy.opsLensCorrelation}</span>
+            <strong>
+              {numberText(riskSignalCount)} {copy.riskSignals}
+            </strong>
+            <p>
+              {totalRisks} {copy.riskCount} · {linkedChanges.length}{" "}
+              {copy.linkedChanges} · {totalEvidenceRefs} {copy.evidenceRefs}
+            </p>
+          </article>
+          <article className="ops-flow-step emphasis">
+            <Gauge size={18} aria-hidden="true" />
+            <span>{copy.operatorDecision}</span>
+            <strong>{topRisk ? copy.needsTriage : copy.decisionReady}</strong>
+            <p>{topRisk?.title ?? copy.allSourcesFresh}</p>
+          </article>
+          <article className="ops-flow-step">
+            <TrendingUp size={18} aria-hidden="true" />
+            <span>{copy.assistantHandoff}</span>
+            <strong>{copy.suggestedQuestion}</strong>
+            <p>{suggestedQuestion}</p>
+          </article>
+        </div>
+      </section>
 
       <div
         className="ops-visual-summary"
