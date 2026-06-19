@@ -126,6 +126,22 @@ export const ocpConsoleBaseline = {
       url: "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html-single/web_console/index"
     },
     {
+      label: "Red Hat OCP 4.20 Dynamic plugins",
+      url: "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/web_console/dynamic-plugins"
+    },
+    {
+      label: "Red Hat OCP 4.20 Web console dashboard",
+      url: "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/web_console/using-dashboard-to-get-cluster-info"
+    },
+    {
+      label: "Red Hat OCP 4.20 Projects",
+      url: "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/building_applications/projects"
+    },
+    {
+      label: "Red Hat OCP 4.20 Deployments",
+      url: "https://docs.redhat.com/en/documentation/openshift_container_platform/4.20/html/building_applications/deployments"
+    },
+    {
       label: "Red Hat OCP 4.21 Web console overview",
       url: "https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/web_console/index"
     },
@@ -212,6 +228,57 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
         "route.openshift.io/v1/routes",
         "v1/services",
         "v1/namespaces"
+      ]
+    }
+  },
+  {
+    id: "projects",
+    section: "Home",
+    label: "Projects",
+    labelKo: "프로젝트",
+    originalPath: "Home / Projects",
+    originalPathKo: "홈 / 프로젝트",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "List Projects and Namespaces, then inspect project details, YAML, workloads, and RoleBindings through native resource links.",
+    commandKo: "Project와 Namespace를 조회하고 원본 리소스 링크로 프로젝트 상세, YAML, 워크로드, RoleBinding을 확인합니다.",
+    opsLensEnhancement: "Adds tenant ownership, workload count, access boundary, and assistant-ready project context.",
+    opsLensEnhancementKo: "테넌트 소유권, 워크로드 수, 접근 경계, 어시스턴트용 프로젝트 컨텍스트를 추가합니다.",
+    acceptance: "Projects entry must expose project.openshift.io/v1 Projects, core Namespaces, workloads, and RoleBindings as read-only evidence.",
+    acceptanceKo: "프로젝트 항목은 project.openshift.io/v1 Project, core Namespace, 워크로드, RoleBinding을 읽기 전용 근거로 노출해야 합니다.",
+    status: "covered",
+    resourcePreset: {
+      query: "projects namespaces workloads rolebindings",
+      preferredResources: [
+        "project.openshift.io/v1/projects",
+        "v1/namespaces",
+        "apps/v1/deployments",
+        "v1/pods",
+        "rbac.authorization.k8s.io/v1/rolebindings"
+      ]
+    }
+  },
+  {
+    id: "api-explorer",
+    section: "Home",
+    label: "API Explorer",
+    labelKo: "API 탐색기",
+    originalPath: "Home / API Explorer",
+    originalPathKo: "홈 / API 탐색기",
+    targetSelector: "#ocp-explorer-title",
+    actionSurface: "resource-explorer",
+    command: "Inspect API resources, CRDs, APIService availability, and sanitized object YAML without mutating the cluster.",
+    commandKo: "API 리소스, CRD, APIService 가용성, 마스킹된 객체 YAML을 클러스터 변경 없이 확인합니다.",
+    opsLensEnhancement: "Adds coverage diagnostics, preferred API fallback, conversion webhook error classification, and assistant handoff.",
+    opsLensEnhancementKo: "커버리지 진단, 선호 API fallback, conversion webhook 오류 분류, 어시스턴트 인계를 추가합니다.",
+    acceptance: "API Explorer entry must surface CRDs, APIServices, and preferred resources with explicit API read failures instead of unexplained 400s.",
+    acceptanceKo: "API 탐색기 항목은 CRD, APIService, 선호 리소스와 API 조회 실패를 설명 가능한 상태로 보여야 합니다.",
+    status: "ops-enhanced",
+    resourcePreset: {
+      query: "apiresources crds apiservices",
+      preferredResources: [
+        "apiextensions.k8s.io/v1/customresourcedefinitions",
+        "apiregistration.k8s.io/v1/apiservices"
       ]
     }
   },

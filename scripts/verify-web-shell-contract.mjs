@@ -1476,6 +1476,10 @@ expectCheck(
     paritySource.includes("OpenShift Container Platform 4.21+") &&
     paritySource.includes("Windows CRC 4.20 validation pending") &&
     paritySource.includes("Red Hat OCP 4.20 Web console overview") &&
+    paritySource.includes("Red Hat OCP 4.20 Dynamic plugins") &&
+    paritySource.includes("Red Hat OCP 4.20 Web console dashboard") &&
+    paritySource.includes("Red Hat OCP 4.20 Projects") &&
+    paritySource.includes("Red Hat OCP 4.20 Deployments") &&
     paritySource.includes("docs.redhat.com/en/documentation/openshift_container_platform/4.21") &&
     paritySource.includes('"Home"') &&
     paritySource.includes('"Favorites"') &&
@@ -1494,6 +1498,12 @@ expectCheck(
     paritySource.includes("Software Catalog") &&
     paritySource.includes("Installed Operators") &&
     paritySource.includes("Operator catalog") &&
+    paritySource.includes("Home / Projects") &&
+    paritySource.includes("project.openshift.io/v1/projects") &&
+    paritySource.includes("rbac.authorization.k8s.io/v1/rolebindings") &&
+    paritySource.includes("Home / API Explorer") &&
+    paritySource.includes("apiextensions.k8s.io/v1/customresourcedefinitions") &&
+    paritySource.includes("apiregistration.k8s.io/v1/apiservices") &&
     paritySource.includes("Topology") &&
     paritySource.includes('"topology-graph"') &&
     paritySource.includes("#ocp-topology-title") &&
