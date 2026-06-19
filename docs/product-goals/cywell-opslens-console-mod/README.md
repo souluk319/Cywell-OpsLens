@@ -31,8 +31,8 @@ The debug dashboard tunnel is only a development access path. It is not the prod
 
 | Field | Value |
 | --- | --- |
-| Active branch | `feat/OpsLens-Dev0.1.5` |
-| Stamped head | `e622bece` |
+| Active branch | `feat/OpsLens-Dev0.1.6` |
+| Stamped head | `0135178d` |
 | Live reference target | MacBook CRC OpenShift 4.21.14 |
 | Company OCP | Do not mutate |
 | Product entry target | OpenShift Console left-nav shortcut to the OpsLens dashboard asset, not iframe, not custom DOM injection |
@@ -47,6 +47,7 @@ The debug dashboard tunnel is only a development access path. It is not the prod
 | Dev 0.1.4 console launcher | Completed direction proof | Left navigation success is preserved; target route is simplified to `/opslens` redirect-only launcher; iframe and broken i18n labels are explicitly banned | Superseded by Dev 0.1.5 polish |
 | Dev 0.1.5 assistant polish | Active implementation proof | Collapsible navigation, single active page, visual operations dashboard, movable KOMSCO AI Assistant, Lightspeed-backed chat path, and local verifier coverage | Needs final polish, packaging, and live CRC upgrade only with explicit approval |
 | Dev 0.1.6 agentic operations | Draft target | Locks the next product step: RBAC-aware, human-approved, audited remediation actions instead of guidance-only chat | ActionPlan schema, RBAC preflight, approval gate, executor, verifier, and UI action cards not implemented yet |
+| Dev 0.1.7 live polish | Planned from deployed CRC screen | ConsolePlugin-served OpsLens opens in OpenShift Console; OCP API connection is visible; dashboard and assistant render | Fix Lightspeed live path, OCP resource `400`, topology graph, monitoring metrics, and mock/live source labeling |
 
 ## Acceptance Rules
 

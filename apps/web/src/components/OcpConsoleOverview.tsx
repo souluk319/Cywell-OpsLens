@@ -1,5 +1,5 @@
 import type { OcpConsoleOverviewResponse } from "@kugnus/contracts";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -50,6 +50,16 @@ const overviewCopy = {
     reachable: "Reachable",
     firingAlerts: "Firing alerts",
     critical: "Critical",
+    liveSnapshot: "Live signal summary",
+    operatorHealth: "Operator health",
+    nodeReadiness: "Node readiness",
+    podPhases: "Pod phases",
+    warningPressure: "Warning pressure",
+    healthy: "healthy",
+    running: "running",
+    pending: "pending",
+    failed: "failed",
+    warning: "warning",
     yes: "yes",
     no: "no"
   },
@@ -86,6 +96,16 @@ const overviewCopy = {
     reachable: "연결 가능",
     firingAlerts: "발생 중인 경고",
     critical: "긴급",
+    liveSnapshot: "실시간 신호 요약",
+    operatorHealth: "Operator 상태",
+    nodeReadiness: "노드 준비도",
+    podPhases: "Pod 단계",
+    warningPressure: "경고 압력",
+    healthy: "정상",
+    running: "실행",
+    pending: "대기",
+    failed: "실패",
+    warning: "경고",
     yes: "예",
     no: "아니오"
   }
@@ -93,6 +113,25 @@ const overviewCopy = {
 
 function numberText(value: number | undefined) {
   return typeof value === "number" ? value.toLocaleString() : "-";
+}
+
+function percent(value: number | undefined, total: number | undefined) {
+  if (!total || typeof value !== "number") {
+    return 0;
+  }
+  return Math.round((value / total) * 100);
+}
+
+function percentLabel(value: number) {
+  return `${Math.max(0, Math.min(100, value))}%`;
+}
+
+function visualStyle(value: number) {
+  return { "--bar": percentLabel(value) } as CSSProperties;
+}
+
+function ringStyle(value: number) {
+  return { "--score": percentLabel(value) } as CSSProperties;
 }
 
 export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
@@ -130,6 +169,33 @@ export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
   }, []);
 
   const copy = overviewCopy[language];
+  const healthyOperators = overview
+    ? Math.max(
+        0,
+        overview.operators.total -
+          overview.operators.degraded -
+          overview.operators.unavailable
+      )
+    : 0;
+  const operatorHealth = percent(healthyOperators, overview?.operators.total);
+  const nodeReadiness = percent(overview?.nodes.ready, overview?.nodes.total);
+  const runningPods = percent(
+    overview?.workloads.pods.running,
+    overview?.workloads.pods.total
+  );
+  const pendingPods = percent(
+    overview?.workloads.pods.pending,
+    overview?.workloads.pods.total
+  );
+  const failedPods = percent(
+    overview?.workloads.pods.failed,
+    overview?.workloads.pods.total
+  );
+  const warningPressure = percent(
+    (overview?.monitoring.warningAlerts ?? 0) +
+      (overview?.monitoring.criticalAlerts ?? 0),
+    Math.max(1, overview?.monitoring.firingAlerts ?? 0)
+  );
 
   return (
     <section className="ocp-console-overview" aria-labelledby="ocp-console-overview-title">
@@ -172,6 +238,81 @@ export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
           <span>{error}</span>
         </div>
       ) : null}
+
+      <div
+        className="overview-visual-grid"
+        data-testid="ocp-overview-visuals"
+        aria-label={copy.liveSnapshot}
+      >
+        <article className="overview-visual-card primary">
+          <div className="overview-ring" style={ringStyle(operatorHealth)}>
+            <strong>{operatorHealth}</strong>
+            <span>{copy.healthy}</span>
+          </div>
+          <div>
+            <h3>{copy.operatorHealth}</h3>
+            <p>
+              {healthyOperators}/{numberText(overview?.operators.total)}{" "}
+              {copy.healthy} · {numberText(overview?.operators.degraded)}{" "}
+              {copy.degraded}
+            </p>
+          </div>
+        </article>
+
+        <article className="overview-visual-card">
+          <div className="visual-title-row">
+            <h3>{copy.nodeReadiness}</h3>
+            <strong>{percentLabel(nodeReadiness)}</strong>
+          </div>
+          <div className="overview-meter">
+            <i style={visualStyle(nodeReadiness)} />
+          </div>
+          <p>
+            {numberText(overview?.nodes.ready)} {copy.ready} /{" "}
+            {numberText(overview?.nodes.total)} {copy.total}
+          </p>
+        </article>
+
+        <article className="overview-visual-card wide">
+          <div className="visual-title-row">
+            <h3>{copy.podPhases}</h3>
+            <strong>{numberText(overview?.workloads.pods.total)}</strong>
+          </div>
+          <div className="pod-phase-stack">
+            <span className="running" style={visualStyle(runningPods)} />
+            <span className="pending" style={visualStyle(pendingPods)} />
+            <span className="failed" style={visualStyle(failedPods)} />
+          </div>
+          <div className="phase-legend">
+            <span>
+              <i className="running" />
+              {copy.running}: {numberText(overview?.workloads.pods.running)}
+            </span>
+            <span>
+              <i className="pending" />
+              {copy.pending}: {numberText(overview?.workloads.pods.pending)}
+            </span>
+            <span>
+              <i className="failed" />
+              {copy.failed}: {numberText(overview?.workloads.pods.failed)}
+            </span>
+          </div>
+        </article>
+
+        <article className="overview-visual-card">
+          <div className="visual-title-row">
+            <h3>{copy.warningPressure}</h3>
+            <strong>{numberText(overview?.monitoring.firingAlerts)}</strong>
+          </div>
+          <div className="overview-meter warning">
+            <i style={visualStyle(warningPressure)} />
+          </div>
+          <p>
+            {numberText(overview?.monitoring.criticalAlerts)} {copy.critical} ·{" "}
+            {numberText(overview?.monitoring.warningAlerts)} {copy.warning}
+          </p>
+        </article>
+      </div>
 
       <div className="overview-grid" data-testid="ocp-console-overview">
         <article className="overview-card">

@@ -587,6 +587,15 @@ function validateRbac(clusterRole, csv) {
     fail("config RBAC ServiceAccount", "serviceaccounts get/create/patch permissions are missing");
   }
 
+  if (
+    hasRuleFor(rbacRules, "rbac.authorization.k8s.io", "clusterroles", ["get", "create", "patch"]) &&
+    hasRuleFor(rbacRules, "rbac.authorization.k8s.io", "clusterrolebindings", ["get", "create", "patch"])
+  ) {
+    pass("config RBAC API read-only binding", "operator can reconcile API read-only ClusterRole and ClusterRoleBinding");
+  } else {
+    fail("config RBAC API read-only binding", "clusterroles/clusterrolebindings get/create/patch permissions are missing");
+  }
+
   if (hasRuleFor(rbacRules, "networking.k8s.io", "networkpolicies", ["get", "create", "patch"])) {
     pass("config RBAC NetworkPolicy", "operator can reconcile ingress NetworkPolicies");
   } else {
@@ -659,6 +668,15 @@ function validateRbac(clusterRole, csv) {
     pass("CSV RBAC ServiceAccount", "can reconcile the API service account");
   } else {
     fail("CSV RBAC ServiceAccount", "serviceaccounts permissions are missing");
+  }
+
+  if (
+    hasRuleFor(csvRules, "rbac.authorization.k8s.io", "clusterroles", ["get", "create", "patch"]) &&
+    hasRuleFor(csvRules, "rbac.authorization.k8s.io", "clusterrolebindings", ["get", "create", "patch"])
+  ) {
+    pass("CSV RBAC API read-only binding", "can reconcile API read-only ClusterRole and ClusterRoleBinding");
+  } else {
+    fail("CSV RBAC API read-only binding", "clusterroles/clusterrolebindings permissions are missing");
   }
 
   if (hasRuleFor(csvRules, "networking.k8s.io", "networkpolicies", ["get", "create", "patch"])) {
@@ -790,6 +808,8 @@ function validateCsv(csv, crcSample) {
 function validateApps(apps) {
   const required = [
     ["ServiceAccount", "cywell-opslens-api"],
+    ["ClusterRole", "cywell-opslens-api-readonly-cywell-opslens"],
+    ["ClusterRoleBinding", "cywell-opslens-api-readonly-cywell-opslens"],
     ["ConfigMap", "cywell-opslens-rag-policy"],
     ["Deployment", "cywell-opslens-api"],
     ["Service", "cywell-opslens-api"],
@@ -814,12 +834,41 @@ function validateApps(apps) {
   }
 
   const api = findDoc(apps, "Deployment", "cywell-opslens-api");
+  const apiReadOnlyRole = findDoc(apps, "ClusterRole", "cywell-opslens-api-readonly-cywell-opslens");
+  const apiReadOnlyBinding = findDoc(apps, "ClusterRoleBinding", "cywell-opslens-api-readonly-cywell-opslens");
   const env = api?.spec?.template?.spec?.containers?.[0]?.env ?? [];
   const actionMode = env.find((entry) => entry.name === "CYWELL_OPSLENS_ACTION_MODE")?.value;
   if (actionMode === "plan-only") {
     pass("API action mode", "plan-only");
   } else {
     fail("API action mode", "CYWELL_OPSLENS_ACTION_MODE=plan-only is missing");
+  }
+
+  if (
+    hasRuleFor(apiReadOnlyRole?.rules ?? [], "", "pods", ["get", "list", "watch"]) &&
+    hasRuleFor(apiReadOnlyRole?.rules ?? [], "apps", "deployments", ["get", "list", "watch"]) &&
+    hasRuleFor(apiReadOnlyRole?.rules ?? [], "batch", "cronjobs", ["get", "list", "watch"]) &&
+    hasRuleFor(apiReadOnlyRole?.rules ?? [], "autoscaling", "horizontalpodautoscalers", ["get", "list", "watch"]) &&
+    hasRuleFor(apiReadOnlyRole?.rules ?? [], "policy", "poddisruptionbudgets", ["get", "list", "watch"]) &&
+    !hasRuleFor(apiReadOnlyRole?.rules ?? [], "", "secrets", ["list", "watch"])
+  ) {
+    pass("API read-only console RBAC", "covers native console resource reads without Secret list/watch");
+  } else {
+    fail("API read-only console RBAC", "API service account must read core console resources and must not list/watch Secrets");
+  }
+
+  if (
+    apiReadOnlyBinding?.roleRef?.name === "cywell-opslens-api-readonly-cywell-opslens" &&
+    (apiReadOnlyBinding?.subjects ?? []).some(
+      (subject) =>
+        subject.kind === "ServiceAccount" &&
+        subject.name === "cywell-opslens-api" &&
+        subject.namespace === "cywell-opslens"
+    )
+  ) {
+    pass("API read-only console RBAC binding", "binds read-only role to cywell-opslens-api");
+  } else {
+    fail("API read-only console RBAC binding", "ClusterRoleBinding must bind the API service account");
   }
 
   const envValue = (name) => env.find((entry) => entry.name === name)?.value;
@@ -1199,6 +1248,9 @@ async function validateControllerRuntimeSkeleton() {
     controller.includes("SetupWithManager") &&
     controller.includes("controllerutil.CreateOrUpdate") &&
     controller.includes("networkingv1.NetworkPolicy") &&
+    controller.includes("rbacv1.ClusterRole") &&
+    controller.includes("reconcileAPIReadOnlyRBAC") &&
+    controller.includes("apiReadOnlyPolicyRules") &&
     controller.includes("openshift-console") &&
     controller.includes("openshift-lightspeed") &&
     controller.includes("kubernetes.io/metadata.name") &&

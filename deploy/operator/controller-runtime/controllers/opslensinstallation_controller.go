@@ -12,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,6 +55,10 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 
 	namespace := targetNamespace(&installation)
 	if err := r.reconcileAPIServiceAccount(ctx, &installation, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	if err := r.reconcileAPIReadOnlyRBAC(ctx, &installation, namespace); err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -201,6 +206,42 @@ func (r *OpsLensInstallationReconciler) reconcileAPIServiceAccount(ctx context.C
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, serviceAccount, func() error {
 		serviceAccount.Labels = labels("api")
 		return r.setControllerReferenceIfSameNamespace(installation, namespace, serviceAccount)
+	})
+	return err
+}
+
+func (r *OpsLensInstallationReconciler) reconcileAPIReadOnlyRBAC(ctx context.Context, installation *opslensv1alpha1.OpsLensInstallation, namespace string) error {
+	roleName := apiReadOnlyRBACName(namespace)
+	role := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{Name: roleName},
+	}
+
+	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, role, func() error {
+		role.Labels = labels("api-readonly-rbac")
+		role.Rules = apiReadOnlyPolicyRules()
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	binding := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: roleName},
+	}
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, binding, func() error {
+		binding.Labels = labels("api-readonly-rbac")
+		binding.RoleRef = rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     roleName,
+		}
+		binding.Subjects = []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      apiServiceAccount,
+				Namespace: namespace,
+			},
+		}
+		return nil
 	})
 	return err
 }
@@ -1298,5 +1339,150 @@ func labels(component string) map[string]string {
 	return map[string]string{
 		"app.kubernetes.io/name":      appName,
 		"app.kubernetes.io/component": component,
+	}
+}
+
+func apiReadOnlyRBACName(namespace string) string {
+	return fmt.Sprintf("%s-api-readonly-%s", appName, namespace)
+}
+
+func apiReadOnlyPolicyRules() []rbacv1.PolicyRule {
+	readOnly := []string{"get", "list", "watch"}
+	return []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{""},
+			Resources: []string{
+				"configmaps",
+				"endpoints",
+				"events",
+				"limitranges",
+				"namespaces",
+				"nodes",
+				"persistentvolumeclaims",
+				"persistentvolumes",
+				"pods",
+				"pods/log",
+				"replicationcontrollers",
+				"resourcequotas",
+				"serviceaccounts",
+				"services",
+			},
+			Verbs: readOnly,
+		},
+		{
+			APIGroups: []string{"events.k8s.io"},
+			Resources: []string{"events"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"apps"},
+			Resources: []string{"daemonsets", "deployments", "replicasets", "statefulsets"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"apps.openshift.io"},
+			Resources: []string{"deploymentconfigs"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"batch"},
+			Resources: []string{"cronjobs", "jobs"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"autoscaling"},
+			Resources: []string{"horizontalpodautoscalers"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"policy"},
+			Resources: []string{"poddisruptionbudgets"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"route.openshift.io"},
+			Resources: []string{"routes"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"networking.k8s.io"},
+			Resources: []string{"ingresses", "networkpolicies"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"discovery.k8s.io"},
+			Resources: []string{"endpointslices"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"storage.k8s.io"},
+			Resources: []string{"storageclasses"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"snapshot.storage.k8s.io"},
+			Resources: []string{"volumesnapshots"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"image.openshift.io"},
+			Resources: []string{"imagestreams", "imagestreamtags"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"build.openshift.io"},
+			Resources: []string{"buildconfigs", "builds"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"operators.coreos.com"},
+			Resources: []string{"catalogsources", "clusterserviceversions", "installplans", "subscriptions"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"packages.operators.coreos.com"},
+			Resources: []string{"packagemanifests"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"console.openshift.io"},
+			Resources: []string{"consoleplugins"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"ols.openshift.io"},
+			Resources: []string{"olsconfigs"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"config.openshift.io"},
+			Resources: []string{"clusteroperators", "clusterversions", "dnses"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"operator.openshift.io"},
+			Resources: []string{"consoles", "dnses"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"apiextensions.k8s.io"},
+			Resources: []string{"customresourcedefinitions"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"apiregistration.k8s.io"},
+			Resources: []string{"apiservices"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"rbac.authorization.k8s.io"},
+			Resources: []string{"clusterrolebindings", "clusterroles", "rolebindings", "roles"},
+			Verbs:     readOnly,
+		},
+		{
+			APIGroups: []string{"monitoring.coreos.com"},
+			Resources: []string{"podmonitors", "prometheusrules", "servicemonitors"},
+			Verbs:     readOnly,
+		},
 	}
 }

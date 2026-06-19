@@ -15,6 +15,9 @@
     "version": "0.1.0",
     "displayName": "Cywell OpsLens",
     "description": "Dashboard-first OpenShift operations lens with read-only evidence, plan-only assistant output, and Cywell private RAG.",
+    "exposedModules": {
+      "OpsLensRoute": "./src/plugin/OpsLensRoute"
+    },
     "dependencies": {
       "@console/pluginAPI": ">=4.16.0 <4.22.0"
     }

@@ -4,7 +4,7 @@
     "properties": {
       "id": "cywell-opslens",
       "name": "Cywell OpsLens",
-      "href": "/api/plugins/cywell-opslens/index.html?apiBase=%2Fapi%2Fproxy%2Fplugin%2Fcywell-opslens%2Fopslens-api&surface=console-plugin",
+      "href": "/opslens",
       "perspective": "admin",
       "insertAfter": [
         "administration",
@@ -19,10 +19,18 @@
         "favorites",
         "home"
       ],
-      "startsWith": ["/api/plugins/cywell-opslens/"],
+      "startsWith": ["/opslens"],
       "dataAttributes": {
         "testid": "cywell-opslens-nav"
       }
+    }
+  },
+  {
+    "type": "console.page/route",
+    "properties": {
+      "path": "/opslens",
+      "exact": true,
+      "component": { "$codeRef": "OpsLensRoute" }
     }
   }
 ]

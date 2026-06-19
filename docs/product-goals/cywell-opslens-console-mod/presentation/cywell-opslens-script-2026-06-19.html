@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cywell OpsLens 발표 대본 - 2026-06-19</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #101418;
+      --muted: #5c6674;
+      --line: #d8dee8;
+      --panel: #ffffff;
+      --soft: #f5f8fb;
+      --brand: #006f8f;
+      --accent: #3659b8;
+      --ok: #137333;
+      --warn: #9a5b00;
+      --shadow: 0 12px 30px rgba(16, 20, 24, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans KR", Arial, sans-serif;
+      color: var(--ink);
+      background: #edf2f7;
+      line-height: 1.68;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 28px 22px;
+      background: #111821;
+      color: #f5f8fb;
+    }
+
+    .brand {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 24px;
+    }
+
+    .brand b { font-size: 18px; }
+    .brand span { color: #b9c4d0; font-size: 13px; }
+
+    nav a {
+      display: block;
+      padding: 9px 10px;
+      border-radius: 7px;
+      color: #e7edf4;
+      font-size: 14px;
+    }
+
+    nav a:hover {
+      background: rgba(255, 255, 255, 0.08);
+      text-decoration: none;
+    }
+
+    main {
+      min-width: 0;
+      padding: 34px;
+    }
+
+    .hero,
+    section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 8px 20px rgba(16, 20, 24, 0.04);
+      overflow: hidden;
+    }
+
+    .hero {
+      padding: 42px;
+      background: linear-gradient(135deg, #ffffff 0%, #f7fbfd 58%, #e9f7fa 100%);
+      box-shadow: var(--shadow);
+    }
+
+    section {
+      margin-top: 24px;
+      padding: 30px;
+    }
+
+    .kicker {
+      display: inline-flex;
+      padding: 5px 10px;
+      margin-bottom: 18px;
+      border-radius: 999px;
+      background: #e7f7fb;
+      color: #00566d;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      max-width: 980px;
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 26px;
+      line-height: 1.24;
+    }
+
+    h3 {
+      margin: 18px 0 8px;
+      font-size: 18px;
+    }
+
+    p { margin: 10px 0; }
+
+    .lead {
+      max-width: 920px;
+      color: #334155;
+      font-size: 20px;
+      margin: 0;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .meta div,
+    .note,
+    .script {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.82);
+    }
+
+    .meta strong {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .meta span {
+      display: block;
+      margin-top: 3px;
+      font-weight: 800;
+    }
+
+    .note {
+      background: #f5f8fb;
+      color: #334155;
+      font-size: 14px;
+      margin-top: 14px;
+    }
+
+    .script {
+      background: #ffffff;
+      font-size: 18px;
+    }
+
+    .script p {
+      margin: 0 0 14px;
+    }
+
+    .time {
+      display: inline-flex;
+      margin-bottom: 12px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: #e9f7ef;
+      color: var(--ok);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #334155;
+      font-size: 13px;
+    }
+
+    .callout {
+      padding: 16px 18px;
+      border-left: 5px solid var(--brand);
+      border-radius: 6px;
+      background: #eef9fc;
+      margin-top: 14px;
+    }
+
+    @media (max-width: 1000px) {
+      .shell { grid-template-columns: 1fr; }
+      aside {
+        position: static;
+        height: auto;
+        padding: 20px;
+      }
+      nav {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      main { padding: 18px; }
+      .meta { grid-template-columns: 1fr; }
+      .hero { padding: 26px; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .shell { display: block; }
+      aside { display: none; }
+      main { padding: 0; }
+      .hero, section {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">
+        <b>Cywell OpsLens</b>
+        <span>2026-06-19 발표 대본</span>
+      </div>
+      <nav>
+        <a href="#summary">요약</a>
+        <a href="#timing">시간 배분</a>
+        <a href="#script">그대로 읽는 대본</a>
+        <a href="#qna">예상 질문 답변</a>
+        <a href="#closing">마무리 한 문장</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="hero" id="summary">
+        <div class="kicker">2026-06-19 발표용</div>
+        <h1>OCP 운영 콘솔 확장 가능성과 Cywell OpsLens 맞춤형 콘솔 모드</h1>
+        <p class="lead">
+          이 문서는 오늘 발표에서 그대로 읽을 수 있도록 작성한 10분 대본입니다.
+          핵심은 구현 과장이 아니라, 공식 근거와 실제 프로젝트 진행 단계로 확인한 활용 범위를 명확히 전달하는 것입니다.
+        </p>
+        <div class="meta">
+          <div><strong>권장 시간</strong><span>10분</span></div>
+          <div><strong>질의응답</strong><span>3-5분</span></div>
+          <div><strong>Branch</strong><span>feat/OpsLens-Dev0.1.6</span></div>
+          <div><strong>Head</strong><span>6180fb90</span></div>
+        </div>
+      </header>
+
+      <section id="timing">
+        <h2>시간 배분</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>구간</th>
+              <th>시간</th>
+              <th>핵심 메시지</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>도입</td><td>1분</td><td>OCP 안에서 운영 콘솔 확장이 어디까지 가능한지 검증한 PoC입니다.</td></tr>
+            <tr><td>구성 방식</td><td>2분</td><td>ConsolePlugin, OperatorHub, OLM, OpsLensInstallation, Lightspeed를 연결합니다.</td></tr>
+            <tr><td>팩트 판정</td><td>2분</td><td>가능한 것과 표현을 조심해야 하는 것을 구분합니다.</td></tr>
+            <tr><td>진행 상태</td><td>2분</td><td>설치형 콘솔 확장, 콘솔 진입, API/Lightspeed 연결, Agentic Operations 단계까지 진행됐습니다.</td></tr>
+            <tr><td>가치와 다음 단계</td><td>2분</td><td>고객사 맞춤 운영 콘솔 모드와 승인형 자동화 방향을 제시합니다.</td></tr>
+            <tr><td>마무리</td><td>1분</td><td>OpenShift와 Lightspeed를 대체하지 않고 공식 경로로 강화하는 제품입니다.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="script">
+        <h2>그대로 읽는 대본</h2>
+        <div class="script">
+          <span class="time">0:00-1:00</span>
+          <p>안녕하세요. 오늘은 OCP 내부에서 운영 콘솔 기능을 어디까지 확장할 수 있는지 확인한 PoC 결과를 공유드리겠습니다.</p>
+          <p>이번 작업의 핵심은 단순히 별도 웹 대시보드를 만든 것이 아닙니다. OpenShift가 공식적으로 제공하는 확장 경로 안에서, 우리가 Cywell OpsLens라는 운영 콘솔 모드를 어디까지 붙일 수 있는지 검증한 것입니다.</p>
+          <p>정확히 말하면 Cywell OpsLens는 OpenShift Console을 대체하는 제품이 아니라, OCP 웹콘솔에 운영 기능이 추가된 맞춤형 콘솔 확장 모드입니다.</p>
+
+          <span class="time">1:00-3:00</span>
+          <p>구성 방식은 이렇게 잡았습니다. 먼저 OpenShift Console은 그대로 유지합니다. 그 위에 Cywell OpsLens 진입점을 추가합니다.</p>
+          <p>설치는 Software Catalog 또는 OperatorHub를 통해 진행합니다. OpenShift에서는 이런 설치형 소프트웨어를 Operator라고 부르는 것이 정확합니다.</p>
+          <p>Operator가 설치되면 OpsLensInstallation이라는 Custom Resource를 기준으로 API, dashboard, ConsolePlugin 리소스를 적용합니다.</p>
+          <p>ConsolePlugin은 OpenShift가 공식 지원하는 콘솔 확장 방식입니다. 이것을 통해 좌측 메뉴에 Cywell OpsLens를 추가하고, 사용자가 클릭하면 OCP 콘솔 안에서 full-page OpsLens 운영 화면으로 진입합니다.</p>
+          <p>즉 iframe으로 억지로 넣거나, DOM을 직접 바꾸거나, OpenShift 콘솔을 갈아끼우는 방식이 아닙니다. 공식 ConsolePlugin, OperatorHub, OLM 흐름을 따르는 구조입니다.</p>
+
+          <span class="time">3:00-5:00</span>
+          <p>이번에 확인한 첫 번째 팩트는, OCP 웹콘솔 기능을 기능 단위로 1:1 매핑한 커스텀 운영 모드 개발이 가능하다는 점입니다.</p>
+          <p>OpenShift Dynamic Plugin은 custom page, navigation item, resource tab, action 같은 확장 지점을 제공합니다. 그래서 기존 OCP 콘솔 기능을 OpsLens 안에서 매핑하고, 그 위에 더 보기 쉬운 운영 화면, 리소스 조회, Assistant, runbook 기반 분석 기능을 붙일 수 있습니다.</p>
+          <p>두 번째는 Operator 활용입니다. OCP 안에서 제공되는 인앱 소프트웨어는 공식적으로 Operator, Software Catalog, OperatorHub 흐름으로 설명하는 것이 맞습니다. Cywell OpsLens 자체도 Operator로 패키징해서 설치형 제품으로 제공할 수 있습니다.</p>
+          <p>세 번째는 Lightspeed 연동입니다. OpenShift Lightspeed를 대체하는 것이 아니라, Lightspeed를 온전히 쓰면서 OpsLens의 고객사 RAG, runbook, 장애 분석 도구를 더하는 구조가 가능합니다.</p>
+
+          <span class="time">5:00-7:00</span>
+          <p>Lightspeed 쪽은 세 가지 경로로 정리했습니다. 첫 번째는 Lightspeed REST API입니다. OpsLens Assistant가 Lightspeed의 공식 OpenShift 답변을 호출하고, 여기에 현재 콘솔 context와 OpsLens RAG 근거를 결합할 수 있습니다.</p>
+          <p>두 번째는 BYO Knowledge입니다. 고객사 Markdown 문서나 runbook을 RAG 지식으로 구성해서 Lightspeed 답변 근거로 사용할 수 있습니다.</p>
+          <p>세 번째는 custom MCP server입니다. OpsLens를 MCP server로 붙이면 Lightspeed가 고객사 운영 도구, 장애 분석, read-only OCP 조회, 승인형 작업 계획을 호출할 수 있습니다.</p>
+          <p>중요한 것은 native Lightspeed drawer를 갈아끼우겠다는 것이 아닙니다. native Lightspeed는 그대로 쓰고, OpsLens를 plus alpha로 붙이는 것이 공식 근거상 안전한 방향입니다.</p>
+
+          <span class="time">7:00-8:30</span>
+          <p>또 하나 중요한 질문은 쓰기 작업이 가능한지입니다. 결론부터 말하면 가능합니다. 다만 챗봇이 직접 클러스터를 마음대로 수정하는 구조는 아닙니다.</p>
+          <p>정확한 구조는 Assistant가 진단을 하고, ActionPlan을 만들고, 각 action에 대해 RBAC preflight를 수행한 뒤, human approval을 받고, 승인된 allowlist action만 OpsLens API나 Operator가 적용하는 방식입니다.</p>
+          <p>Dev 0.1.6에서는 이 방향을 Agentic Operations로 정리했습니다. read-only 기본값은 유지하되, 승인된 안전 작업은 실행, 검증, audit trail까지 남기는 구조로 확장하는 단계입니다.</p>
+
+          <span class="time">8:30-9:30</span>
+          <p>프로젝트 진행 상태도 단계별로 정리했습니다. Dev 0.1.1에서는 CRC OperatorHub 설치 경로를 확인했습니다. Dev 0.1.2에서는 KOMSCO UI와 고객용 화면을 정리했습니다. Dev 0.1.3에서는 공식 ConsolePlugin 방향을 고정했습니다.</p>
+          <p>Dev 0.1.4에서는 OpenShift 콘솔 좌측 메뉴에서 Cywell OpsLens가 실행되고 API 연결됨 상태까지 확인했습니다. Dev 0.1.5에서는 발표 가능한 운영 대시보드와 movable KOMSCO AI Assistant를 만들었습니다.</p>
+          <p>최신 Dev 0.1.6에서는 live console mod, Lightspeed console proxy, CRC Lightspeed network policy 근거를 추가했고, ActionPlan, RBAC, approval, audit 기반 쓰기 작업 방향을 고정했습니다.</p>
+
+          <span class="time">9:30-10:00</span>
+          <p>정리하면, Cywell OpsLens의 가치는 OpenShift를 바꾸는 별도 콘솔을 만드는 것이 아닙니다.</p>
+          <p>OpenShift Console과 Lightspeed를 공식 확장 경로로 그대로 활용하면서, 고객사 고유 운영 지식, RAG, runbook, 운영 대시보드, Assistant, 승인형 자동화까지 결합하는 맞춤형 운영 콘솔 모드를 제공하는 것입니다.</p>
+          <p>오늘 발표의 결론은 구현 완료 선언이 아니라, 공식 근거와 실제 PoC로 제품 방향이 타당하다는 것을 확인했다는 점입니다. 이상입니다.</p>
+        </div>
+      </section>
+
+      <section id="qna">
+        <h2>예상 질문 답변</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>질문</th>
+              <th>답변</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>OpenShift 콘솔을 스킨처럼 갈아끼우는 건가요?</td>
+              <td>아닙니다. 공식 ConsolePlugin으로 메뉴와 full-page 화면을 추가하는 운영 콘솔 확장 모드입니다.</td>
+            </tr>
+            <tr>
+              <td>Operator라는 표현이 맞나요?</td>
+              <td>네. OCP Software Catalog / OperatorHub에서 설치되는 인앱 소프트웨어는 Operator로 표현하는 것이 정확합니다.</td>
+            </tr>
+            <tr>
+              <td>Lightspeed를 대체하나요?</td>
+              <td>아닙니다. native Lightspeed는 유지하고 REST API, BYO Knowledge, MCP로 고객사 지식과 OpsLens 도구를 붙이는 구조입니다.</td>
+            </tr>
+            <tr>
+              <td>쓰기 작업도 가능한가요?</td>
+              <td>가능합니다. 다만 RBAC, human approval, allowlist, rollback, audit를 통과한 승인형 자동화로 설계해야 합니다.</td>
+            </tr>
+            <tr>
+              <td>오늘 production ready인가요?</td>
+              <td>아닙니다. 오늘은 공식 가능 범위와 PoC 진행 상태를 확인한 발표입니다. production runtime, 고객 데이터, OLSConfig patch, 회사 OCP mutation은 별도 승인 단계입니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="closing">
+        <h2>마무리 한 문장</h2>
+        <div class="callout">
+          Cywell OpsLens는 OpenShift와 Lightspeed를 대체하는 것이 아니라,
+          공식 확장 경로 안에서 고객사 고유 운영 지식과 승인형 자동화를 더하는 OCP 맞춤형 운영 콘솔 모드입니다.
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

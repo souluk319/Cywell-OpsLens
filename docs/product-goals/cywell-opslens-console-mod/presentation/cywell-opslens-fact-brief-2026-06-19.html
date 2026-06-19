@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cywell OpsLens Fact Brief - 2026-06-19</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #101418;
+      --muted: #56616f;
+      --line: #d8dee8;
+      --panel: #ffffff;
+      --soft: #f5f8fb;
+      --brand: #006f8f;
+      --brand-dark: #0b4054;
+      --accent: #3659b8;
+      --ok: #137333;
+      --warn: #9a5b00;
+      --bad: #a11f1f;
+      --shadow: 0 14px 34px rgba(16, 20, 24, 0.09);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans KR", Arial, sans-serif;
+      color: var(--ink);
+      background: #edf2f7;
+      line-height: 1.58;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 284px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 28px 22px;
+      background: #111821;
+      color: #f5f8fb;
+    }
+
+    .brand {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 24px;
+    }
+
+    .brand b { font-size: 18px; }
+    .brand span { color: #b9c4d0; font-size: 13px; }
+
+    nav a {
+      display: block;
+      padding: 9px 10px;
+      border-radius: 7px;
+      color: #e7edf4;
+      font-size: 14px;
+    }
+
+    nav a:hover {
+      background: rgba(255, 255, 255, 0.08);
+      text-decoration: none;
+    }
+
+    main {
+      min-width: 0;
+      padding: 34px;
+    }
+
+    .hero,
+    section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 8px 20px rgba(16, 20, 24, 0.04);
+      overflow: hidden;
+    }
+
+    .hero {
+      padding: 42px;
+      background: linear-gradient(135deg, #ffffff 0%, #f7fbfd 58%, #e9f7fa 100%);
+      box-shadow: var(--shadow);
+    }
+
+    section {
+      margin-top: 26px;
+      padding: 30px;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      margin-bottom: 18px;
+      border-radius: 999px;
+      background: #e7f7fb;
+      color: #00566d;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      max-width: 1050px;
+      font-size: clamp(32px, 5vw, 54px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 27px;
+      line-height: 1.22;
+    }
+
+    h3 {
+      margin: 22px 0 10px;
+      font-size: 19px;
+    }
+
+    p { margin: 10px 0; }
+    ul { margin: 10px 0 0 20px; padding: 0; }
+    li { margin: 4px 0; }
+
+    .lead {
+      max-width: 980px;
+      color: #334155;
+      font-size: 20px;
+      margin: 0;
+    }
+
+    .meta,
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .meta {
+      margin-top: 28px;
+    }
+
+    .meta div,
+    .card {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.8);
+    }
+
+    .meta strong {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .meta span {
+      display: block;
+      margin-top: 3px;
+      font-weight: 800;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--soft);
+    }
+
+    .card h3 { margin-top: 0; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #334155;
+      font-size: 13px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 9px;
+      border-radius: 999px;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .pass { background: #e9f7ef; color: var(--ok); }
+    .partial { background: #fff4df; color: var(--warn); }
+    .blocked { background: #fdecec; color: var(--bad); }
+
+    .flow {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+    }
+
+    .num {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .callout {
+      padding: 16px 18px;
+      border-left: 5px solid var(--brand);
+      border-radius: 6px;
+      background: #eef9fc;
+      margin-top: 14px;
+    }
+
+    .warning {
+      border-left-color: var(--warn);
+      background: #fff7e8;
+    }
+
+    .quote {
+      margin: 14px 0 0;
+      padding: 16px 18px;
+      border-radius: 8px;
+      background: #101820;
+      color: #eef6fb;
+      font-size: 16px;
+      line-height: 1.62;
+    }
+
+    .screens {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    figure {
+      margin: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    figure img {
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      background: #fff;
+    }
+
+    figcaption {
+      padding: 11px 13px;
+      border-top: 1px solid var(--line);
+      color: #475569;
+      font-size: 13px;
+    }
+
+    details {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      overflow: hidden;
+    }
+
+    summary {
+      cursor: pointer;
+      padding: 13px 15px;
+      background: #f7fafc;
+      color: #253243;
+      font-weight: 800;
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px;
+      overflow: auto;
+      color: #e6edf3;
+      background: #0f1720;
+      font-size: 13px;
+      line-height: 1.52;
+    }
+
+    code {
+      font-family: Consolas, "Cascadia Mono", monospace;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1000px) {
+      .shell { grid-template-columns: 1fr; }
+      aside {
+        position: static;
+        height: auto;
+        padding: 20px;
+      }
+      nav {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      main { padding: 18px; }
+      .meta, .grid-2, .grid-3, .screens { grid-template-columns: 1fr; }
+      .hero { padding: 26px; }
+    }
+
+    @media (max-width: 640px) {
+      main { padding: 12px; }
+      .hero, section { padding: 18px; }
+      h1 { font-size: 31px; }
+      h2 { font-size: 22px; }
+      h3 { font-size: 17px; }
+      .lead { font-size: 16px; }
+      .step { grid-template-columns: 1fr; }
+      table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .shell { display: block; }
+      aside { display: none; }
+      main { padding: 0; }
+      .hero, section {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">
+        <b>Cywell OpsLens</b>
+        <span>OCP Console Extension Fact Brief</span>
+      </div>
+      <nav>
+        <a href="#summary">요약</a>
+        <a href="#value">핵심 가치</a>
+        <a href="#architecture">구성 방식</a>
+        <a href="#facts">팩트 판정</a>
+        <a href="#progress">진행 요약</a>
+        <a href="#official">공식 근거</a>
+        <a href="#work">주간 작업 내용</a>
+        <a href="#timeline">개발 단계</a>
+        <a href="#lightspeed">Lightspeed 확장</a>
+        <a href="#write">쓰기 작업</a>
+        <a href="#auth">인증/토큰</a>
+        <a href="#evidence">검증 결과</a>
+        <a href="#demo">발표 흐름</a>
+        <a href="#screenshots">화면 증거</a>
+        <a href="#links">공식 링크</a>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="hero" id="summary">
+        <div class="kicker">2026-06-19 발표자료</div>
+        <h1>OCP 운영 콘솔 확장 가능성과 Cywell OpsLens 맞춤형 콘솔 모드</h1>
+        <p class="lead">
+          이번 PoC는 OpenShift Console과 OpenShift Lightspeed를 대체하는 것이 아니라,
+          공식 확장 경로 안에서 Cywell OpsLens가 어디까지 운영 기능을 확장할 수 있는지 확인한 작업입니다.
+        </p>
+        <div class="meta">
+          <div><strong>Branch</strong><span>feat/OpsLens-Dev0.1.6</span></div>
+          <div><strong>Head</strong><span>6180fb90</span></div>
+          <div><strong>Target</strong><span>OpenShift 4.21.14 / CRC</span></div>
+        </div>
+      </header>
+
+      <section id="value">
+        <h2>발표 핵심 가치</h2>
+        <div class="quote">
+          Cywell OpsLens는 OCP 웹콘솔에 기능이 추가된 운영 콘솔 확장 모드입니다.
+          기존 OpenShift Console 기능을 기능 단위로 매핑하고,
+          Software Catalog / OperatorHub / ConsolePlugin / OpenShift Lightspeed를 활용해
+          고객사 고유 운영 지식과 AI Assistant를 결합하는 맞춤형 콘솔 모드를 제공합니다.
+        </div>
+        <div class="grid-3" style="margin-top:16px">
+          <div class="card">
+            <h3>1. 콘솔 안에서 동작</h3>
+            <p>별도 포털이 아니라 OpenShift Console 안의 메뉴와 full-page 화면으로 진입합니다.</p>
+          </div>
+          <div class="card">
+            <h3>2. 설치형 제품화</h3>
+            <p>Software Catalog / OperatorHub에 등록하고 OLM으로 설치하는 제품 경로를 사용합니다.</p>
+          </div>
+          <div class="card">
+            <h3>3. Lightspeed plus alpha</h3>
+            <p>native Lightspeed는 유지하고, OpsLens RAG/MCP/runbook으로 고객사 맞춤 답변을 강화합니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="architecture">
+        <h2>목표 아키텍처</h2>
+        <div class="flow">
+          <div class="step"><div class="num">1</div><div><b>OpenShift Console</b><br />기존 콘솔은 그대로 유지하고, Cywell OpsLens 진입점을 추가합니다.</div></div>
+          <div class="step"><div class="num">2</div><div><b>Software Catalog / OperatorHub</b><br />Cywell OpsLens Operator를 등록하고 설치합니다.</div></div>
+          <div class="step"><div class="num">3</div><div><b>OpsLensInstallation</b><br />Custom Resource가 API, dashboard, ConsolePlugin 적용의 선언 역할을 합니다.</div></div>
+          <div class="step"><div class="num">4</div><div><b>ConsolePlugin</b><br />좌측 메뉴와 full-page OpsLens 운영 콘솔 화면을 추가합니다.</div></div>
+          <div class="step"><div class="num">5</div><div><b>OpsLens API</b><br />OCP 리소스 조회, RAG 검색, 승인형 작업 계획, audit를 처리합니다.</div></div>
+          <div class="step"><div class="num">6</div><div><b>OpenShift Lightspeed</b><br />REST API, BYO Knowledge, MCP server로 공식 답변과 고객사 고유 지식을 결합합니다.</div></div>
+        </div>
+      </section>
+
+      <section id="facts">
+        <h2>팩트 판정</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>주장</th>
+              <th>판정</th>
+              <th>발표에서 쓸 정확한 표현</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>OCP 웹콘솔 기능을 1:1 매치한 커스텀 모드 개발</td>
+              <td><span class="status pass">가능</span></td>
+              <td>공식 ConsolePlugin 확장으로 기존 콘솔 기능을 기능 단위로 매핑하고, OpsLens 메뉴/페이지/탭/액션을 추가하는 운영 콘솔 모드를 개발할 수 있습니다.</td>
+            </tr>
+            <tr>
+              <td>OCP 안에서 제공되는 인앱 소프트웨어 활용</td>
+              <td><span class="status pass">가능</span></td>
+              <td>OpenShift에서는 이를 Operator, Software Catalog, OperatorHub 흐름으로 표현하는 것이 정확합니다.</td>
+            </tr>
+            <tr>
+              <td>Lightspeed 답변과 고객사 RAG 결합</td>
+              <td><span class="status pass">가능</span></td>
+              <td>Lightspeed BYO Knowledge와 custom MCP server로 고객사 runbook/RAG/운영 도구를 결합할 수 있습니다.</td>
+            </tr>
+            <tr>
+              <td>챗봇이 읽기 전용을 넘어 쓰기 작업 수행</td>
+              <td><span class="status partial">가능, 승인 필요</span></td>
+              <td>MCP tool 또는 OpsLens API/Operator가 RBAC와 human approval을 통과한 뒤 OpenShift API에 변경을 수행하는 구조로 설계해야 합니다.</td>
+            </tr>
+            <tr>
+              <td>native Lightspeed drawer 완전 교체</td>
+              <td><span class="status blocked">표현 주의</span></td>
+              <td>native drawer를 갈아끼우는 것이 아니라, native Lightspeed를 그대로 쓰고 OpsLens를 BYO Knowledge/MCP/ConsolePlugin으로 강화하는 것이 안전한 공식 방향입니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="progress">
+        <h2>가능 범위 대비 진행 요약</h2>
+        <p>
+          공식적으로 가능한 범위 전체를 production 수준으로 완성한 것은 아니지만,
+          설치형 콘솔 확장, 콘솔 진입, API 연결, Lightspeed 연결, Assistant UX, 승인형 쓰기 작업 방향까지는 프로젝트 단계별로 확인했습니다.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>가능 범위</th>
+              <th>진행 상태</th>
+              <th>현재 프로젝트 근거</th>
+              <th>남은 작업</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Software Catalog / OperatorHub 등록</td>
+              <td><span class="status pass">진행 완료</span></td>
+              <td>Catalog card/detail 화면 증거, Operator package/CSV/catalog 구성</td>
+              <td>외부 배포용 인증/서명/Red Hat 제출은 별도 단계</td>
+            </tr>
+            <tr>
+              <td>Operator 기반 설치</td>
+              <td><span class="status pass">진행 완료</span></td>
+              <td>Subscription, InstallPlan, CSV, CRD, <code>OpsLensInstallation</code> 흐름 확인</td>
+              <td>production upgrade/rollback 정책 고도화</td>
+            </tr>
+            <tr>
+              <td>ConsolePlugin 기반 콘솔 진입</td>
+              <td><span class="status pass">진행 완료</span></td>
+              <td>OpenShift 좌측 메뉴 <code>Cywell OpsLens</code>, full-page dashboard, plugin route 계약</td>
+              <td>고객 cluster별 console customization 검토</td>
+            </tr>
+            <tr>
+              <td>OCP 웹콘솔 기능 1:1 매핑</td>
+              <td><span class="status partial">기반 완료</span></td>
+              <td>OpenShift 4.21.14 console parity map, menu/function registry, Resource Explorer/Action Panel</td>
+              <td>각 메뉴별 live behavior depth와 resource-specific visualization 확장</td>
+            </tr>
+            <tr>
+              <td>OCP 리소스 read-only 조회</td>
+              <td><span class="status pass">진행 완료</span></td>
+              <td>live install status, Deployment/Pod/Route/OpsLensInstallation 조회, API connected 상태</td>
+              <td>watch/poll freshness와 stale state 표시 강화</td>
+            </tr>
+            <tr>
+              <td>Lightspeed REST API 연결</td>
+              <td><span class="status pass">진행 완료</span></td>
+              <td><code>ad740a08</code> Lightspeed console proxy 연결, <code>6180fb90</code> CRC network policy 근거</td>
+              <td>고객 cluster 네트워크 정책과 인증 경계 검토</td>
+            </tr>
+            <tr>
+              <td>고객사 RAG / BYO Knowledge 결합</td>
+              <td><span class="status partial">구조 확인</span></td>
+              <td>BYO Knowledge/MCP 공식 근거, OpsLens RAG/runbook 결합 방향 정리</td>
+              <td>실제 고객 문서 ingestion, 승인, 데이터 보안 정책 필요</td>
+            </tr>
+            <tr>
+              <td>쓰기 작업 / remediation 실행</td>
+              <td><span class="status partial">방향 고정</span></td>
+              <td>Dev 0.1.6 ActionPlan, RBAC preflight, approval, audit 설계</td>
+              <td>allowlist executor, UI approval, post-action verification 구현 필요</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="official">
+        <h2>공식 근거 기반으로 확인한 가능 범위</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>공식 기능</th>
+              <th>문서상 의미</th>
+              <th>OpsLens 활용 범위</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>OpenShift Web Console</td>
+              <td>클러스터 운영, 관리, 문제 분석을 위한 공식 GUI입니다.</td>
+              <td>OpsLens는 외부 대시보드가 아니라 콘솔 내부 운영 지원 화면으로 포지셔닝합니다.</td>
+            </tr>
+            <tr>
+              <td>Dynamic ConsolePlugin</td>
+              <td>custom page, perspective, navigation item, resource tab/action 등을 런타임에 추가할 수 있습니다.</td>
+              <td>OCP 기능을 1:1 대응표로 매핑하고 Cywell 전용 운영 화면과 액션을 추가합니다.</td>
+            </tr>
+            <tr>
+              <td>ConsolePlugin service proxy</td>
+              <td>콘솔 경유로 in-cluster service에 요청하고 UserToken을 전달할 수 있습니다.</td>
+              <td>OpsLens API, OCP resource 조회, Lightspeed REST 호출 경로를 콘솔 인증 체계에 연결합니다.</td>
+            </tr>
+            <tr>
+              <td>Software Catalog / OperatorHub</td>
+              <td>Operator를 검색하고 설치하는 공식 콘솔 경로입니다.</td>
+              <td>Cywell OpsLens를 Operator로 패키징해 설치형 제품으로 제공합니다.</td>
+            </tr>
+            <tr>
+              <td>OpenShift Lightspeed REST API</td>
+              <td>Lightspeed API의 supported/stable interface입니다.</td>
+              <td>OpsLens Assistant가 공식 Lightspeed 답변을 호출하고 자체 RAG와 결합할 수 있습니다.</td>
+            </tr>
+            <tr>
+              <td>Lightspeed BYO Knowledge</td>
+              <td>Markdown 기반 RAG DB를 추가해 조직 고유 지식을 답변에 반영합니다.</td>
+              <td>고객사 runbook, 장애 매뉴얼, 운영 문서를 Lightspeed 답변에 결합합니다.</td>
+            </tr>
+            <tr>
+              <td>Lightspeed custom MCP server</td>
+              <td>외부 tool/server를 등록해 LLM이 필요한 정보를 가져오거나 작업을 요청할 수 있습니다.</td>
+              <td>OpsLens를 MCP server로 제공해 read-only 조회, 분석, 승인형 쓰기 작업을 연결합니다.</td>
+            </tr>
+            <tr>
+              <td>Lightspeed operation approvals</td>
+              <td>non-read operation은 human-in-the-loop approval로 제어할 수 있습니다.</td>
+              <td>챗봇 자동 변경이 아니라 분석 -> 변경안 -> 승인 -> 적용 흐름으로 설계합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="work">
+        <h2>기존 주간보고 기준 실제 작업 내용</h2>
+        <ul>
+          <li>OCP 내부에서 운영 콘솔 기능을 어디까지 확장할 수 있는지 확인하기 위한 PoC 진행</li>
+          <li>임의의 운영 콘솔 확장 모드로 <code>Cywell OpsLens</code> 구성</li>
+          <li>Software Catalog / OperatorHub 등록 및 설치 흐름 검증</li>
+          <li>Operator package, CSV, catalog, sample CR 구성</li>
+          <li><code>OpsLensInstallation</code> CR을 통해 API, dashboard, ConsolePlugin 리소스 적용 구조 확인</li>
+          <li>ConsolePlugin 기반 좌측 메뉴 진입과 full-page OpsLens 화면 실행 방향 정리</li>
+          <li>KOMSCO AI Assistant, 운영 대시보드, live install status, Resource Explorer, Admin 화면 개선</li>
+          <li>CRC 경량 설치 프로파일 구성: in-memory vector store, mock-local model runtime, ValidateOnly Lightspeed registration</li>
+          <li>OpenShift Lightspeed는 대체가 아니라 REST API, BYO Knowledge, MCP로 강화하는 방향으로 정리</li>
+          <li>쓰기 작업은 read-only 기본값 위에 approval-gated automation으로 확장 가능하다고 공식 근거 확인</li>
+        </ul>
+      </section>
+
+      <section id="timeline">
+        <h2>실제 프로젝트 개발 단계</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>단계</th>
+              <th>목표</th>
+              <th>확인된 결과</th>
+              <th>남은 경계</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Dev 0.1.1</td>
+              <td>CRC OperatorHub 설치 경로 증명</td>
+              <td>CatalogSource, PackageManifest, Operator, CRD, OpsLensInstallation 흐름 확인</td>
+              <td>이미지 태그, arm64, 외부 런타임 조건 정리 필요</td>
+            </tr>
+            <tr>
+              <td>Dev 0.1.2</td>
+              <td>KOMSCO UI와 운영 화면 복구</td>
+              <td>브랜딩, 한글 UI, Assistant 이름, catalog icon, 고객용 문구 개선</td>
+              <td>내부 진단 정보와 고객용 정보 분리 필요</td>
+            </tr>
+            <tr>
+              <td>Dev 0.1.3</td>
+              <td>공식 ConsolePlugin 방향 고정</td>
+              <td>iframe/DOM injection/fake toggle 대신 left-nav + route 방향 정리</td>
+              <td>라이브 콘솔 진입 증거 강화 필요</td>
+            </tr>
+            <tr>
+              <td>Dev 0.1.4</td>
+              <td>OpenShift Console에서 OpsLens 실행</td>
+              <td>좌측 메뉴 <code>Cywell OpsLens</code>, full-page 로드, <code>API 연결됨</code> 확인</td>
+              <td>Assistant UX와 사용성 개선 필요</td>
+            </tr>
+            <tr>
+              <td>Dev 0.1.5</td>
+              <td>발표 가능한 운영 콘솔 모드로 고도화</td>
+              <td>접이식 nav, 단일 active page, visual dashboard, movable KOMSCO AI Assistant, 발표자료/검증 게이트 완성</td>
+              <td>라이브 CRC 0.1.5 업그레이드, production runtime은 승인 필요</td>
+            </tr>
+            <tr>
+              <td>Dev 0.1.6</td>
+              <td>Agentic operations 확장</td>
+              <td>live console mod, Lightspeed console proxy, CRC Lightspeed network policy 근거를 추가하고 ActionPlan/RBAC/approval/audit 기반 쓰기 작업 방향을 고정</td>
+              <td>arbitrary shell execution, OLSConfig mutation, production vLLM/pgvector, 회사 OCP mutation은 제외</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="lightspeed">
+        <h2>Lightspeed를 온전히 쓰면서 OpsLens plus alpha를 붙이는 방법</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Native Lightspeed drawer 유지</h3>
+            <p>OpenShift Lightspeed 기본 drawer는 OpenShift 소유 UI로 유지합니다. OpsLens는 이를 대체하지 않고, BYO Knowledge와 MCP server로 답변 능력을 확장합니다.</p>
+          </div>
+          <div class="card">
+            <h3>OpsLens Assistant 보조 UI</h3>
+            <p>OpsLens ConsolePlugin 화면 안에서는 별도 KOMSCO AI Assistant를 띄우고, 필요 시 Lightspeed REST API와 OpsLens RAG/API를 함께 호출합니다.</p>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>연동 방식</th>
+              <th>목적</th>
+              <th>발표 표현</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Lightspeed REST API</td>
+              <td>OpsLens Assistant가 Lightspeed 공식 답변을 활용</td>
+              <td>공식 OpenShift 답변을 기반으로 OpsLens context를 결합합니다.</td>
+            </tr>
+            <tr>
+              <td>BYO Knowledge</td>
+              <td>고객사 Markdown/RAG 문서를 Lightspeed 지식으로 추가</td>
+              <td>고객사 고유 runbook과 운영 매뉴얼을 답변 근거로 사용합니다.</td>
+            </tr>
+            <tr>
+              <td>Custom MCP server</td>
+              <td>OpsLens 도구를 Lightspeed에서 호출</td>
+              <td>장애 분석, read-only 조회, 승인형 작업 계획을 도구로 제공합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="write">
+        <h2>읽기 전용을 넘어 쓰기 작업도 가능한가</h2>
+        <p>
+          가능합니다. 다만 안전한 표현은 "챗봇이 직접 클러스터를 수정한다"가 아니라
+          "챗봇이 변경안을 만들고, 승인된 MCP tool 또는 OpsLens API/Operator가 RBAC와 audit 경계 안에서 적용한다"입니다.
+        </p>
+        <div class="callout">
+          Dev 0.1.6의 최신 목표는 KOMSCO AI Assistant를 guidance chatbot에서 OpenShift-native operations agent로 승격하는 것입니다.
+          즉 진단, ActionPlan 생성, RBAC preflight, human approval, 실행, 검증, audit trail까지 하나의 운영 흐름으로 묶는 방향입니다.
+        </div>
+        <div class="flow">
+          <div class="step"><div class="num">1</div><div><b>분석</b><br />Lightspeed/OpsLens가 현재 상태와 RAG 근거를 분석합니다.</div></div>
+          <div class="step"><div class="num">2</div><div><b>변경안 생성</b><br />scale, patch, CR 변경, Job 생성 등 실행 가능한 계획을 생성합니다.</div></div>
+          <div class="step"><div class="num">3</div><div><b>Human approval</b><br />non-read operation은 승인 요청을 거치도록 설계합니다.</div></div>
+          <div class="step"><div class="num">4</div><div><b>RBAC 확인</b><br />사용자 또는 service account 권한으로 Kubernetes/OpenShift API 접근을 검증합니다.</div></div>
+          <div class="step"><div class="num">5</div><div><b>적용 및 audit</b><br />Operator/API가 적용하고 결과, rollback, 감사 로그를 남깁니다.</div></div>
+        </div>
+        <div class="callout warning">
+          발표에서는 "쓰기 가능"이라고 말하되, "자동 변경"이 아니라 "승인형 운영 자동화"라고 반드시 붙입니다.
+        </div>
+      </section>
+
+      <section id="auth">
+        <h2>연동에 필요한 인증과 토큰</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>용도</th>
+              <th>필요한 인증</th>
+              <th>주의점</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>OpsLens ConsolePlugin 실행</td>
+              <td>OpenShift web console 로그인 세션</td>
+              <td>별도 프론트엔드 token 저장을 피합니다.</td>
+            </tr>
+            <tr>
+              <td>OpsLens frontend -> OpsLens API</td>
+              <td>ConsolePlugin proxy + UserToken</td>
+              <td>로그인 사용자의 OpenShift token을 proxy로 전달할 수 있습니다.</td>
+            </tr>
+            <tr>
+              <td>OpsLens API -> OCP API</td>
+              <td>ServiceAccount token 또는 user token passthrough + RBAC</td>
+              <td>읽기/쓰기 범위는 RBAC로 제한합니다.</td>
+            </tr>
+            <tr>
+              <td>OpsLens -> Lightspeed REST API</td>
+              <td>OpenShift bearer token + <code>ols-user</code> 권한</td>
+              <td>일반적으로 별도 Lightspeed 사용자 토큰이 아니라 OpenShift token 기반입니다.</td>
+            </tr>
+            <tr>
+              <td>Lightspeed -> LLM provider</td>
+              <td>Provider API key를 담은 Secret</td>
+              <td>OpsLens가 직접 보관하지 않고 Lightspeed 설정 Secret으로 관리합니다.</td>
+            </tr>
+            <tr>
+              <td>Lightspeed -> OpsLens MCP</td>
+              <td>OLSConfig MCP server 인증 설정</td>
+              <td>secret, kubernetes, client header 방식 중 선택합니다.</td>
+            </tr>
+            <tr>
+              <td>고객사 RAG</td>
+              <td>BYO Knowledge image 또는 OpsLens DB credential</td>
+              <td>고객사 데이터 권한과 문서 반출 정책을 별도로 관리해야 합니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="evidence">
+        <h2>현재 검증 결과</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>검증</th>
+              <th>결과</th>
+              <th>의미</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>npm run verify:dev015-final-readiness</code></td>
+              <td><span class="status pass">0 fail / 14 checks</span></td>
+              <td>발표 가능한 Dev 0.1.5 readiness, approval boundary, source hygiene 확인</td>
+            </tr>
+            <tr>
+              <td><code>npm run verify:dev015-acceptance</code></td>
+              <td><span class="status pass">0 fail / 16 checks</span></td>
+              <td>ConsolePlugin, dashboard, Assistant, Pages evidence, mutation boundary 확인</td>
+            </tr>
+            <tr>
+              <td><code>npm run verify:dev015-handoff</code></td>
+              <td><span class="status pass">0 fail / 0 warn / 14 checks</span></td>
+              <td>발표 흐름, 증거 asset, 승인 경계, secret hygiene 확인</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3>최신 Dev 0.1.6 커밋 근거</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Commit</th>
+              <th>내용</th>
+              <th>발표에서 쓰는 의미</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>5745d238</code></td>
+              <td>Dev 0.1.6 live console mod 완성</td>
+              <td>OpsLens가 실제 OCP 콘솔 기능을 더 살아있는 운영 모드로 확장하는 단계에 진입</td>
+            </tr>
+            <tr>
+              <td><code>ad740a08</code></td>
+              <td>Lightspeed를 console proxy 경로로 연결</td>
+              <td>OpsLens Assistant가 Lightspeed를 공식 콘솔 경로 안에서 활용하는 구조 확인</td>
+            </tr>
+            <tr>
+              <td><code>6180fb90</code></td>
+              <td>CRC Lightspeed network policy 근거 문서화</td>
+              <td>deployed OpsLens API -> in-cluster Lightspeed service 연결에서 필요한 네트워크 경계까지 확인</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="callout">
+          이 검증은 "데모 준비 완료"와 "Dev 0.1.6 방향 고정"을 의미합니다. OLSConfig patch, production vLLM/pgvector readiness, 회사 OCP mutation은 별도 승인 단계입니다.
+        </div>
+      </section>
+
+      <section id="demo">
+        <h2>권장 발표 흐름: 10분</h2>
+        <div class="flow">
+          <div class="step"><div class="num">1</div><div><b>문제 정의, 1분</b><br />OCP 안에서 운영 콘솔을 어디까지 확장할 수 있는지 확인하는 PoC였다고 설명합니다.</div></div>
+          <div class="step"><div class="num">2</div><div><b>공식 확장 경로, 2분</b><br />ConsolePlugin, Software Catalog, OperatorHub, Lightspeed 확장 포인트를 보여줍니다.</div></div>
+          <div class="step"><div class="num">3</div><div><b>OpsLens 설치 흐름, 2분</b><br />Catalog -> Operator -> OpsLensInstallation -> ConsolePlugin -> full-page OpsLens를 설명합니다.</div></div>
+          <div class="step"><div class="num">4</div><div><b>활용 범위, 2분</b><br />OCP 기능 1:1 매핑, Operator 활용, Lightspeed + RAG/MCP 결합, 승인형 쓰기 작업을 설명합니다.</div></div>
+          <div class="step"><div class="num">5</div><div><b>개발 단계와 화면 증거, 2분</b><br />Dev 0.1.1부터 Dev 0.1.6까지 진행 단계와 화면 캡처를 보여줍니다.</div></div>
+          <div class="step"><div class="num">6</div><div><b>결론, 1분</b><br />OpenShift를 대체하는 것이 아니라 공식 경로로 확장하는 고객사 맞춤형 운영 콘솔 모드라고 정리합니다.</div></div>
+        </div>
+        <details>
+          <summary>그대로 읽을 결론 문장</summary>
+          <pre><code>이번 PoC의 핵심은 Cywell OpsLens가 OCP 콘솔 안에서 어디까지 활용될 수 있는지 확인하는 것이었습니다.
+
+확인 결과, OpenShift가 공식 제공하는 ConsolePlugin을 사용하면 기존 OCP 웹콘솔 기능을 기능 단위로 1:1 매핑하고, 그 위에 Cywell 전용 운영 대시보드, 리소스 조회, Assistant, runbook 기반 분석 기능을 추가하는 커스텀 운영 콘솔 모드를 만들 수 있습니다.
+
+또한 OCP Software Catalog / OperatorHub에 등록되는 Operator들을 활용할 수 있고, Cywell OpsLens 자체도 Operator로 패키징해 설치형 제품으로 제공할 수 있습니다.
+
+챗봇 측면에서는 OpenShift Lightspeed를 대체하는 것이 아니라, Lightspeed를 온전히 사용하면서 BYO Knowledge와 MCP server를 통해 고객사 고유 RAG 문서, 운영 runbook, 장애 분석 도구를 결합할 수 있습니다.
+
+따라서 제품 방향은 OpenShift를 바꾸는 별도 콘솔이 아니라, OpenShift Console과 Lightspeed를 공식 확장 경로로 강화하는 고객사 맞춤형 운영 콘솔 모드입니다.</code></pre>
+        </details>
+      </section>
+
+      <section id="screenshots">
+        <h2>화면 증거</h2>
+        <div class="screens">
+          <figure>
+            <img src="assets/catalog-cywell-opslens-card.png" alt="Software Catalog showing Cywell OpsLens card" />
+            <figcaption>Software Catalog / Operator 목록에서 Cywell OpsLens가 검색 결과로 표시된 화면.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/catalog-cywell-opslens-detail.png" alt="Cywell OpsLens catalog detail modal" />
+            <figcaption>Cywell OpsLens 상세 설치 화면: channel, version, source, install action 확인.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/operator-installed-cywell-row.png" alt="Installed Operator list showing Cywell OpsLens" />
+            <figcaption>Installed Operator 목록에 Cywell OpsLens가 표시되고 CSV 버전이 노출된 상태.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/openshift-console-plugin-enabled.png" alt="OpenShift console with plugin enabled" />
+            <figcaption>OpenShift ConsolePlugin 활성화 상태를 확인한 화면.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/dev015-opslens-dashboard-desktop.png" alt="Dev 0.1.5 OpsLens dashboard visualization" />
+            <figcaption>Dev 0.1.5 visual operations dashboard: 장애 대기열, 상태 점수, 심각도 분포, 조치 인사이트.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/dev015-opslens-assistant-movable.png" alt="Dev 0.1.5 movable KOMSCO AI Assistant" />
+            <figcaption>Dev 0.1.5 KOMSCO AI Assistant: context chip, 답변 bubble, 연결 상태, 이동 가능한 챗봇 UI.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="links">
+        <h2>공식 근거 링크</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>근거</th>
+              <th>링크</th>
+              <th>발표에 쓰는 의미</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>OpenShift Web Console overview</td>
+              <td><a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/web_console/web-console-overview">docs.redhat.com OpenShift Web Console</a></td>
+              <td>OpenShift Console은 공식 운영 GUI입니다.</td>
+            </tr>
+            <tr>
+              <td>OpenShift Dynamic Plugins</td>
+              <td><a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/web_console/dynamic-plugins">docs.redhat.com Dynamic Plugins</a></td>
+              <td>custom page, navigation item, tab/action, proxy 확장 근거입니다.</td>
+            </tr>
+            <tr>
+              <td>OpenShift Console customization</td>
+              <td><a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/web_console/customizing-web-console">docs.redhat.com Console Customization</a></td>
+              <td>공식 branding/customization 범위를 구분합니다.</td>
+            </tr>
+            <tr>
+              <td>OpenShift Operators</td>
+              <td><a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/operators/understanding-operators">docs.redhat.com Operators</a></td>
+              <td>인앱 소프트웨어는 Operator/OperatorHub로 표현하는 것이 정확합니다.</td>
+            </tr>
+            <tr>
+              <td>OpenShift Lightspeed product</td>
+              <td><a href="https://developers.redhat.com/products/openshift/lightspeed">developers.redhat.com OpenShift Lightspeed</a></td>
+              <td>Lightspeed는 OpenShift Console에 통합되는 AI assistant입니다.</td>
+            </tr>
+            <tr>
+              <td>Lightspeed REST API</td>
+              <td><a href="https://docs.redhat.com/en/documentation/red_hat_openshift_lightspeed/1.0/html/operate/ols-interacting-with-the-api">docs.redhat.com Lightspeed REST API</a></td>
+              <td>OpsLens Assistant가 Lightspeed 답변을 호출하는 공식 API 근거입니다.</td>
+            </tr>
+            <tr>
+              <td>Lightspeed configuration</td>
+              <td><a href="https://docs.redhat.com/en/documentation/red_hat_openshift_lightspeed/1.0/html-single/configure/index">docs.redhat.com Lightspeed Configure</a></td>
+              <td>LLM provider Secret, BYO Knowledge, MCP server, operation approval 근거입니다.</td>
+            </tr>
+            <tr>
+              <td>OpenShift Console Dynamic Plugin SDK</td>
+              <td><a href="https://github.com/openshift/console/blob/main/frontend/packages/console-dynamic-plugin-sdk/README.md">OpenShift console SDK</a></td>
+              <td>upstream SDK 레벨에서 plugin extension 모델을 확인할 수 있습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="small">
+          주의: MCP server, BYO Knowledge, operation approval은 OpenShift Lightspeed 버전과 배포 형태에 따라 Technology Preview 또는 approval-gated 범위일 수 있으므로 production 적용 전 별도 확인이 필요합니다.
+        </p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

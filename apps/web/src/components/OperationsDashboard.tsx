@@ -223,7 +223,7 @@ function numberText(value: number | undefined) {
 
 function metricText(value: number | undefined, unit: string) {
   if (typeof value !== "number") {
-    return "-";
+    return "";
   }
   if (unit === "bytes") {
     if (value > 1024 * 1024 * 1024) {
@@ -252,6 +252,42 @@ function utilizationWidth(value: number | undefined) {
     return "0%";
   }
   return `${clamp(Math.round(Math.log10(Math.max(value, 1)) * 12), 4, 100)}%`;
+}
+
+type UtilizationSeries =
+  OcpConsoleOverviewResponse["consoleDashboard"]["utilization"]["series"][number];
+
+function utilizationValues(series: UtilizationSeries) {
+  return series.samples
+    .flatMap((sample) =>
+      sample.values?.length
+        ? sample.values.map((value) => Number(value[1]))
+        : sample.value
+          ? [Number(sample.value[1])]
+          : []
+    )
+    .filter((value) => Number.isFinite(value));
+}
+
+function sparklinePoints(values: number[]) {
+  if (values.length === 0) {
+    return "";
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(max - min, 1);
+  const width = 120;
+  const height = 30;
+  const xStep = values.length > 1 ? width / (values.length - 1) : width;
+
+  return values
+    .map((value, index) => {
+      const x = values.length > 1 ? index * xStep : width;
+      const y = height - ((value - min) / range) * 24 - 3;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
 }
 
 function statusSeverityClass(
@@ -505,13 +541,40 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
 
           <article className="ops-console-sync-meters">
             <h4>{copy.utilization}</h4>
-            {(consoleDashboard?.utilization.series ?? []).slice(0, 5).map((series) => (
-              <div className="mini-series" key={series.id}>
-                <span>{series.label}</span>
-                <strong>{metricText(series.latest, series.unit)}</strong>
-                <i style={{ "--bar": utilizationWidth(series.latest) } as CSSProperties} />
-              </div>
-            ))}
+            {(consoleDashboard?.utilization.series ?? []).slice(0, 5).map((series) => {
+              const values = utilizationValues(series);
+              const points = sparklinePoints(values);
+
+              return (
+                <div
+                  className={`mini-series ${
+                    typeof series.latest === "number" && values.length > 0
+                      ? ""
+                      : "unavailable"
+                  }`}
+                  key={series.id}
+                >
+                  <span>{series.label}</span>
+                  <strong>
+                    {typeof series.latest === "number"
+                      ? metricText(series.latest, series.unit)
+                      : copy.notMeasured}
+                  </strong>
+                  {points ? (
+                    <svg
+                      aria-label={`${series.label} ${copy.utilization}`}
+                      className="mini-sparkline"
+                      focusable="false"
+                      viewBox="0 0 120 32"
+                    >
+                      <polyline points={points} />
+                    </svg>
+                  ) : (
+                    <i />
+                  )}
+                </div>
+              );
+            })}
             {!consoleDashboard?.utilization.reachable ? (
               <p className="muted-text">
                 {consoleDashboard?.utilization.error ?? copy.notMeasured}

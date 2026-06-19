@@ -65,6 +65,71 @@ function labels(component: string) {
   };
 }
 
+function apiReadOnlyRBACName(namespace: string) {
+  return `${appName}-api-readonly-${namespace}`;
+}
+
+function apiReadOnlyPolicyRules() {
+  const readOnly = ["get", "list", "watch"];
+  return [
+    {
+      apiGroups: [""],
+      resources: [
+        "configmaps",
+        "endpoints",
+        "events",
+        "limitranges",
+        "namespaces",
+        "nodes",
+        "persistentvolumeclaims",
+        "persistentvolumes",
+        "pods",
+        "pods/log",
+        "replicationcontrollers",
+        "resourcequotas",
+        "serviceaccounts",
+        "services"
+      ],
+      verbs: readOnly
+    },
+    { apiGroups: ["events.k8s.io"], resources: ["events"], verbs: readOnly },
+    {
+      apiGroups: ["apps"],
+      resources: ["daemonsets", "deployments", "replicasets", "statefulsets"],
+      verbs: readOnly
+    },
+    { apiGroups: ["apps.openshift.io"], resources: ["deploymentconfigs"], verbs: readOnly },
+    { apiGroups: ["batch"], resources: ["cronjobs", "jobs"], verbs: readOnly },
+    { apiGroups: ["autoscaling"], resources: ["horizontalpodautoscalers"], verbs: readOnly },
+    { apiGroups: ["policy"], resources: ["poddisruptionbudgets"], verbs: readOnly },
+    { apiGroups: ["route.openshift.io"], resources: ["routes"], verbs: readOnly },
+    { apiGroups: ["networking.k8s.io"], resources: ["ingresses", "networkpolicies"], verbs: readOnly },
+    { apiGroups: ["discovery.k8s.io"], resources: ["endpointslices"], verbs: readOnly },
+    { apiGroups: ["storage.k8s.io"], resources: ["storageclasses"], verbs: readOnly },
+    { apiGroups: ["snapshot.storage.k8s.io"], resources: ["volumesnapshots"], verbs: readOnly },
+    { apiGroups: ["image.openshift.io"], resources: ["imagestreams", "imagestreamtags"], verbs: readOnly },
+    { apiGroups: ["build.openshift.io"], resources: ["buildconfigs", "builds"], verbs: readOnly },
+    {
+      apiGroups: ["operators.coreos.com"],
+      resources: ["catalogsources", "clusterserviceversions", "installplans", "subscriptions"],
+      verbs: readOnly
+    },
+    { apiGroups: ["packages.operators.coreos.com"], resources: ["packagemanifests"], verbs: readOnly },
+    { apiGroups: ["console.openshift.io"], resources: ["consoleplugins"], verbs: readOnly },
+    { apiGroups: ["ols.openshift.io"], resources: ["olsconfigs"], verbs: readOnly },
+    { apiGroups: ["config.openshift.io"], resources: ["clusteroperators", "clusterversions", "dnses"], verbs: readOnly },
+    { apiGroups: ["operator.openshift.io"], resources: ["consoles", "dnses"], verbs: readOnly },
+    { apiGroups: ["apiextensions.k8s.io"], resources: ["customresourcedefinitions"], verbs: readOnly },
+    { apiGroups: ["apiregistration.k8s.io"], resources: ["apiservices"], verbs: readOnly },
+    {
+      apiGroups: ["rbac.authorization.k8s.io"],
+      resources: ["clusterrolebindings", "clusterroles", "rolebindings", "roles"],
+      verbs: readOnly
+    },
+    { apiGroups: ["monitoring.coreos.com"], resources: ["podmonitors", "prometheusrules", "servicemonitors"], verbs: readOnly }
+  ];
+}
+
 function normalizeRagSettings(installation: OpsLensInstallation) {
   const documentIntake = installation.spec.rag?.documentIntake;
   const approvalQueue = installation.spec.rag?.approvalQueue;
@@ -385,6 +450,35 @@ export function buildOpsLensResources(installation: OpsLensInstallation): Kubern
         namespace,
         labels: labels("api")
       }
+    },
+    {
+      apiVersion: "rbac.authorization.k8s.io/v1",
+      kind: "ClusterRole",
+      metadata: {
+        name: apiReadOnlyRBACName(namespace),
+        labels: labels("api-readonly-rbac")
+      },
+      rules: apiReadOnlyPolicyRules()
+    },
+    {
+      apiVersion: "rbac.authorization.k8s.io/v1",
+      kind: "ClusterRoleBinding",
+      metadata: {
+        name: apiReadOnlyRBACName(namespace),
+        labels: labels("api-readonly-rbac")
+      },
+      roleRef: {
+        apiGroup: "rbac.authorization.k8s.io",
+        kind: "ClusterRole",
+        name: apiReadOnlyRBACName(namespace)
+      },
+      subjects: [
+        {
+          kind: "ServiceAccount",
+          name: "cywell-opslens-api",
+          namespace
+        }
+      ]
     },
     {
       apiVersion: "v1",

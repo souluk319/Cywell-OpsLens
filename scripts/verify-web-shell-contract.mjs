@@ -83,6 +83,7 @@ const resourceExplorerSource = await readText(
 );
 const adminSource = await readText("apps/web/src/components/OpsLensAdminDashboard.tsx");
 const consoleExtensionsSource = await readText("apps/web/console-extensions.json");
+const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
 const backendApiSource = await readText("apps/api/src/api.ts");
 const backendLightspeedSource = await readText("apps/api/src/lightspeedClient.ts");
@@ -274,16 +275,17 @@ expectCheck(
   "console plugin proxy detection",
   appSource.includes('surface === "console-plugin"') &&
     appSource.includes('/api/proxy/plugin/cywell-opslens/') &&
-    consoleExtensionsSource.includes(
-      "/api/plugins/cywell-opslens/index.html?apiBase="
-    ) &&
-    consoleExtensionsSource.includes(
-      "%2Fapi%2Fproxy%2Fplugin%2Fcywell-opslens%2Fopslens-api"
-    ) &&
-    consoleExtensionsSource.includes("surface=console-plugin") &&
-    consoleExtensionsSource.includes('"/api/plugins/cywell-opslens/"') &&
-    !consoleExtensionsSource.includes('"type": "console.page/route"'),
-  "console navigation opens the standalone OpsLens asset route with the UserToken proxy base and does not mount a React route inside the native dashboard"
+    routeSource.includes("/api/plugins/cywell-opslens/index.html") &&
+    routeSource.includes("/api/proxy/plugin/cywell-opslens/opslens-api") &&
+    routeSource.includes("encodeURIComponent(apiProxyBase)") &&
+    routeSource.includes("surface=console-plugin") &&
+    routeSource.includes("window.location.replace") &&
+    consoleExtensionsSource.includes('"href": "/opslens"') &&
+    consoleExtensionsSource.includes('"type": "console.page/route"') &&
+    consoleExtensionsSource.includes('"path": "/opslens"') &&
+    consoleExtensionsSource.includes('"$codeRef": "OpsLensRoute"') &&
+    !consoleExtensionsSource.includes('"/api/plugins/cywell-opslens/"'),
+  "console navigation opens /opslens first, then a redirect-only route hard-navigates to the standalone OpsLens asset with the UserToken proxy base"
 );
 
 expectCheck(

@@ -3,6 +3,7 @@ export type LightspeedRegistrationMode = "ValidateOnly" | "PatchOLSConfig";
 export interface KubernetesObject {
   apiVersion: string;
   kind: string;
+  [key: string]: unknown;
   metadata: {
     name: string;
     namespace?: string;

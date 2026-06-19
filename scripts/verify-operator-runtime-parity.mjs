@@ -304,6 +304,8 @@ try {
   const expectedResources = [
     ["Namespace", "cywell-opslens"],
     ["ServiceAccount", "cywell-opslens-api"],
+    ["ClusterRole", "cywell-opslens-api-readonly-cywell-opslens"],
+    ["ClusterRoleBinding", "cywell-opslens-api-readonly-cywell-opslens"],
     ["ConfigMap", "cywell-opslens-rag-policy"],
     ["Secret", "cywell-opslens-postgres-auth"],
     ["Deployment", "cywell-opslens-api"],
@@ -331,6 +333,7 @@ try {
 
   for (const method of [
     "reconcileAPIServiceAccount",
+    "reconcileAPIReadOnlyRBAC",
     "reconcileRAGPolicy",
     "reconcileAPIDeployment",
     "reconcileAPIService",
@@ -679,6 +682,15 @@ try {
     hasRuleFor(clusterRole?.rules ?? [], "", "serviceaccounts", ["get", "create", "patch"]) &&
       hasRuleFor(csvRules, "", "serviceaccounts", ["get", "create", "patch"]),
     "config RBAC and CSV RBAC cover the service account reconciled by Go"
+  );
+
+  expectCheck(
+    "RBAC API read-only binding parity",
+    hasRuleFor(clusterRole?.rules ?? [], "rbac.authorization.k8s.io", "clusterroles", ["get", "create", "patch"]) &&
+      hasRuleFor(clusterRole?.rules ?? [], "rbac.authorization.k8s.io", "clusterrolebindings", ["get", "create", "patch"]) &&
+      hasRuleFor(csvRules, "rbac.authorization.k8s.io", "clusterroles", ["get", "create", "patch"]) &&
+      hasRuleFor(csvRules, "rbac.authorization.k8s.io", "clusterrolebindings", ["get", "create", "patch"]),
+    "config RBAC and CSV RBAC cover API read-only ClusterRole/ClusterRoleBinding reconciliation"
   );
 
   expectCheck(

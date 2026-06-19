@@ -14,6 +14,188 @@ metadata:
     app.kubernetes.io/name: cywell-opslens
     app.kubernetes.io/component: api
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cywell-opslens-api-readonly-cywell-opslens
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: api-readonly-rbac
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - events
+      - limitranges
+      - namespaces
+      - nodes
+      - persistentvolumeclaims
+      - persistentvolumes
+      - pods
+      - pods/log
+      - replicationcontrollers
+      - resourcequotas
+      - serviceaccounts
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - events.k8s.io
+    resources:
+      - events
+    verbs: &readOnlyVerbs
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - daemonsets
+      - deployments
+      - replicasets
+      - statefulsets
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - apps.openshift.io
+    resources:
+      - deploymentconfigs
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - batch
+    resources:
+      - cronjobs
+      - jobs
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - policy
+    resources:
+      - poddisruptionbudgets
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - route.openshift.io
+    resources:
+      - routes
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - snapshot.storage.k8s.io
+    resources:
+      - volumesnapshots
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - image.openshift.io
+    resources:
+      - imagestreams
+      - imagestreamtags
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - build.openshift.io
+    resources:
+      - buildconfigs
+      - builds
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - operators.coreos.com
+    resources:
+      - catalogsources
+      - clusterserviceversions
+      - installplans
+      - subscriptions
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - packages.operators.coreos.com
+    resources:
+      - packagemanifests
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - console.openshift.io
+    resources:
+      - consoleplugins
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - ols.openshift.io
+    resources:
+      - olsconfigs
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - config.openshift.io
+    resources:
+      - clusteroperators
+      - clusterversions
+      - dnses
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - operator.openshift.io
+    resources:
+      - consoles
+      - dnses
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - apiregistration.k8s.io
+    resources:
+      - apiservices
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - rbac.authorization.k8s.io
+    resources:
+      - clusterrolebindings
+      - clusterroles
+      - rolebindings
+      - roles
+    verbs: *readOnlyVerbs
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - podmonitors
+      - prometheusrules
+      - servicemonitors
+    verbs: *readOnlyVerbs
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cywell-opslens-api-readonly-cywell-opslens
+  labels:
+    app.kubernetes.io/name: cywell-opslens
+    app.kubernetes.io/component: api-readonly-rbac
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cywell-opslens-api-readonly-cywell-opslens
+subjects:
+  - kind: ServiceAccount
+    name: cywell-opslens-api
+    namespace: cywell-opslens
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:

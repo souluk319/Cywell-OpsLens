@@ -22,6 +22,7 @@ import type {
   OcpResourceSummary,
   OcpConditionSummary
 } from "@kugnus/contracts";
+import { lookup as dnsLookup } from "node:dns";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import type { RequestOptions } from "node:https";
@@ -81,6 +82,15 @@ let discoveryCache:
   | undefined;
 let activeBaseUrl: string | undefined;
 let activeToken: string | undefined;
+const routeAddressCacheTtlMs = 60_000;
+const routeAddressCache = new Map<
+  string,
+  {
+    address: string;
+    expiresAt: number;
+    family: number;
+  }
+>();
 
 const sensitiveKeyPattern =
   /(^data$|^stringData$|token|password|passwd|secret|client-key|private-key|authorization|bearer|api[_-]?key|certificate)/i;
@@ -381,6 +391,194 @@ async function requestTextFromBase(
     });
     req.end();
   });
+}
+
+function lookupAddress(hostname: string) {
+  return new Promise<{ address: string; family: number }>((resolve, reject) => {
+    dnsLookup(hostname, { family: 0 }, (error, address, family) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve({ address: String(address), family: Number(family) });
+    });
+  });
+}
+
+function routeWildcardSuffix(hostname: string) {
+  const parts = hostname.split(".");
+  return parts.length > 2 ? parts.slice(1).join(".") : undefined;
+}
+
+async function resolveRouteRouterAddress(hostname: string) {
+  const suffix = routeWildcardSuffix(hostname);
+  if (!suffix) {
+    throw new Error(`No wildcard route suffix for ${hostname}`);
+  }
+
+  const cached = routeAddressCache.get(suffix);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached;
+  }
+
+  const routerHosts = [
+    `console-openshift-console.${suffix}`,
+    `oauth-openshift.${suffix}`,
+    `default-route-openshift-image-registry.${suffix}`
+  ];
+  const errors: string[] = [];
+
+  for (const routerHost of routerHosts) {
+    try {
+      const resolved = await lookupAddress(routerHost);
+      const cachedAddress = {
+        ...resolved,
+        expiresAt: Date.now() + routeAddressCacheTtlMs
+      };
+      routeAddressCache.set(suffix, cachedAddress);
+      return cachedAddress;
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  throw new Error(errors.join(" | ") || "route router DNS lookup failed");
+}
+
+function monitoringRouteLookup(routeHost: string): RequestOptions["lookup"] {
+  return ((hostname: string, options: unknown, maybeCallback?: unknown) => {
+    const callback =
+      typeof options === "function" ? options : maybeCallback;
+    if (typeof callback !== "function") {
+      return;
+    }
+    const wantsAll =
+      typeof options === "object" &&
+      options !== null &&
+      "all" in options &&
+      Boolean((options as { all?: unknown }).all);
+
+    resolveRouteRouterAddress(routeHost)
+      .then((resolved) => {
+        if (wantsAll) {
+          callback(null, [{ address: resolved.address, family: resolved.family }]);
+          return;
+        }
+        callback(null, resolved.address, resolved.family);
+      })
+      .catch(() => {
+        dnsLookup(hostname, { family: 0 }, (error, address, family) => {
+          if (error) {
+            if (wantsAll) {
+              callback(error, []);
+              return;
+            }
+            callback(error, "127.0.0.1", 4);
+            return;
+          }
+          if (wantsAll) {
+            callback(null, [{ address: String(address), family: Number(family) }]);
+            return;
+          }
+          callback(null, String(address), Number(family));
+        });
+      });
+  }) as RequestOptions["lookup"];
+}
+
+async function requestMonitoringRouteJson<T>(
+  config: OcpConfig,
+  routeName: string,
+  path: string,
+  options?: {
+    searchParams?: URLSearchParams;
+    timeoutMs?: number;
+  }
+): Promise<T> {
+  const route = await requestJson<{
+    spec?: {
+      host?: string;
+    };
+  }>(
+    config,
+    `/apis/route.openshift.io/v1/namespaces/openshift-monitoring/routes/${encodeURIComponent(routeName)}`
+  );
+  const routeHost = route.spec?.host;
+  if (!routeHost) {
+    throw new Error(`openshift-monitoring route ${routeName} has no host`);
+  }
+
+  const url = new URL(path, `https://${routeHost}/`);
+  if (options?.searchParams) {
+    url.search = options.searchParams.toString();
+  }
+
+  const errors: string[] = [];
+
+  for (const token of candidateTokens(config)) {
+    try {
+      return await new Promise((resolve, reject) => {
+        const requestOptions: RequestOptions = {
+          method: "GET",
+          hostname: routeHost,
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          lookup: monitoringRouteLookup(routeHost),
+          path: `${url.pathname}${url.search}`,
+          port: 443,
+          rejectUnauthorized: config.tlsVerify
+        };
+        requestOptions.servername = routeHost;
+        if (config.caCert) {
+          requestOptions.ca = config.caCert;
+        }
+
+        const req = httpsRequest(requestOptions, (res) => {
+          const chunks: Buffer[] = [];
+
+          res.on("data", (chunk) => {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          });
+
+          res.on("end", () => {
+            const body = Buffer.concat(chunks).toString("utf8");
+            if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+              reject(
+                new Error(
+                  `monitoring route ${routeName} returned ${res.statusCode}: ${body.slice(0, 180)}`
+                )
+              );
+              return;
+            }
+
+            try {
+              resolve(JSON.parse(body) as T);
+            } catch (error) {
+              reject(error);
+            }
+          });
+        });
+
+        req.on("error", reject);
+        const timeoutMs = options?.timeoutMs ?? config.timeoutMs;
+        req.setTimeout(timeoutMs, () => {
+          req.destroy(
+            new Error(`monitoring route request timed out after ${timeoutMs}ms`)
+          );
+        });
+        req.end();
+      });
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  throw new Error(
+    errors.join(" | ") || `monitoring route ${routeName} request failed`
+  );
 }
 
 function splitGroupVersion(groupVersion: string) {
@@ -2992,7 +3190,7 @@ async function getConsoleDashboardUtilization(
       label: "File system",
       unit: "bytes",
       query:
-        'sum(node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_avail_bytes{mountpoint="/"})'
+        'sum(node_filesystem_size_bytes{mountpoint="/sysroot"} - node_filesystem_avail_bytes{mountpoint="/sysroot"}) or sum(node_filesystem_size_bytes{mountpoint="/"} - node_filesystem_avail_bytes{mountpoint="/"}) or sum(node_filesystem_size_bytes{fstype!="",mountpoint!=""} - node_filesystem_avail_bytes{fstype!="",mountpoint!=""})'
     },
     {
       id: "network-in",
@@ -3056,10 +3254,10 @@ async function getConsoleDashboardUtilization(
     source,
     series: results.map((result) => result.series),
     evidence: reachable
-      ? [
-          "openshift-monitoring service proxy query_range",
+      ? (results.find((result) => result.response.reachable)?.response.evidence ?? [
+          "openshift-monitoring route query_range",
           "read-only Prometheus utilization queries"
-        ]
+        ])
       : [
           "openshift-monitoring utilization unavailable",
           "no synthetic utilization values were generated"
@@ -3462,6 +3660,46 @@ export async function queryOcpPrometheus(params: {
   }
 
   const errors: string[] = [];
+
+  for (const routeName of ["thanos-querier", "prometheus-k8s"]) {
+    try {
+      const response = await requestMonitoringRouteJson<{
+        status?: string;
+        warnings?: string[];
+        data?: {
+          resultType?: string;
+          result?: Array<{
+            metric?: Record<string, string>;
+            value?: [number | string, string];
+            values?: Array<[number | string, string]>;
+          }>;
+        };
+      }>(config, routeName, `/api/v1/${kind}`, {
+        searchParams,
+        timeoutMs: params.timeoutMs ?? 2000
+      });
+
+      return {
+        status,
+        enabled: true,
+        reachable: true,
+        query: params.query,
+        range,
+        resultType: response.data?.resultType,
+        results: prometheusSamples(response.data?.result ?? []),
+        warnings: response.warnings ?? [],
+        evidence: [
+          `openshift-monitoring route ${routeName}`,
+          "Prometheus query used route Bearer token authentication",
+          range
+            ? `Prometheus query_range ${range.start}..${range.end} step=${range.stepSeconds}s`
+            : "Prometheus instant query"
+        ]
+      };
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
 
   for (const path of prometheusProxyPaths(kind)) {
     try {
