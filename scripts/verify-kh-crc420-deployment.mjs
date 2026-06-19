@@ -599,7 +599,7 @@ if (assistantProbe.ok) {
     if (
       parsed.status >= 200 &&
       parsed.status < 300 &&
-      String(parsed.model ?? "").startsWith("openshift-lightspeed/") &&
+      String(parsed.model ?? "").startsWith("openshift-lightspeed/v1/streaming_query") &&
       parsed.hasAnswer === true
     ) {
       pass("lightspeed:assistant-answer", `assistant answered through ${parsed.model}`, {

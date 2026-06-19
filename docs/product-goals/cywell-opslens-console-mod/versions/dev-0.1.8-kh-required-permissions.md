@@ -444,3 +444,61 @@ UI renders live sample counts        PASS
 ```
 
 Anything less is partial, and must be reported as partial.
+
+## 2026-06-20 KH Deployment Closure
+
+Final deployed source:
+
+```text
+branch: feat/OpsLens-Dev0.1.8
+head: 96d77bff
+image tag: v0.1.8-kh-crc420-96d77bff
+target: KH Windows CRC OpenShift 4.20.5
+```
+
+The deployment was rebuilt and pushed to the KH CRC internal registry with this tag:
+
+- cywell-opslens-operator
+- cywell-opslens-api
+- cywell-opslens-dashboard
+- cywell-opslens-operator-bundle
+- cywell-opslens-catalog
+
+The CatalogSource, OLM install, operator Deployment, API Deployment, dashboard Deployment, and OpsLensInstallation image refs all converged on `v0.1.8-kh-crc420-96d77bff`.
+
+Verified final state:
+
+```text
+catalog:source-image                 PASS
+catalog:related-image:operator       PASS
+catalog:related-image:api            PASS
+catalog:related-image:dashboard      PASS
+olm:csv-phase                        PASS
+runtime:deployment-image:operator    PASS
+runtime:deployment-image:api         PASS
+runtime:deployment-image:dashboard   PASS
+runtime:pods-ready                   PASS
+runtime:cr-phase                     PASS
+console:plugin-enabled               PASS
+console:opslens-route                PASS
+runtime:api-buildconfigs             PASS
+monitoring:utilization-samples       PASS, source=openshift-monitoring, samples=6
+lightspeed:assistant-answer          PASS, openshift-lightspeed/v1/streaming_query:ask
+```
+
+One non-product warning remains:
+
+```text
+browser:first-load: login-session browser verification is still required;
+in-app browser is blocked by the local CRC certificate authority.
+```
+
+Important correction from this run:
+
+The verifier previously accepted `openshift-lightspeed/unavailable` because it only checked the `openshift-lightspeed/` prefix. That was a false-positive completion gate. The check now only passes when the model starts with:
+
+```text
+openshift-lightspeed/v1/streaming_query
+```
+
+This prevents fallback text from being reported as a real Lightspeed answer.
