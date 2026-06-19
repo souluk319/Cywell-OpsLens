@@ -813,7 +813,6 @@ export default function App() {
     assistantAbortRef.current = controller;
     const pendingId = `pending-${Date.now()}`;
     setAssistantBusy(true);
-    setApiStatus("loading");
     setLastApiError(null);
     setDraft("");
     setAssistantTurns((current) => [
