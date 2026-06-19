@@ -4,7 +4,11 @@ import {
   Activity,
   AlertTriangle,
   Boxes,
+  Clock3,
+  Database,
   GitBranch,
+  Info,
+  ListChecks,
   Network,
   RefreshCw,
   ServerCog
@@ -69,7 +73,23 @@ const overviewCopy = {
     failed: "failed",
     warning: "warning",
     yes: "yes",
-    no: "no"
+    no: "no",
+    details: "Details",
+    apiAddress: "Cluster API address",
+    clusterId: "Cluster ID",
+    infrastructure: "Infrastructure",
+    openshiftVersion: "OpenShift version",
+    highAvailability: "Control plane",
+    lightspeedVersion: "OpenShift Lightspeed version",
+    inventory: "Cluster Inventory",
+    storageClasses: "StorageClasses",
+    pvcs: "PersistentVolumeClaims",
+    statusCards: "Status",
+    noStatusCards: "No blocking status cards",
+    activity: "Activity",
+    noActivity: "No recent activity",
+    count: "count",
+    eventSource: "source"
   },
   ko: {
     eyebrow: "콘솔형 실시간 개요",
@@ -123,7 +143,23 @@ const overviewCopy = {
     failed: "실패",
     warning: "경고",
     yes: "예",
-    no: "아니오"
+    no: "아니오",
+    details: "세부 정보",
+    apiAddress: "클러스터 API 주소",
+    clusterId: "클러스터 ID",
+    infrastructure: "인프라 이름",
+    openshiftVersion: "OpenShift 버전",
+    highAvailability: "컨트롤 플레인",
+    lightspeedVersion: "OpenShift Lightspeed 버전",
+    inventory: "클러스터 인벤토리",
+    storageClasses: "StorageClass",
+    pvcs: "PersistentVolumeClaim",
+    statusCards: "상태",
+    noStatusCards: "차단 상태 없음",
+    activity: "활동",
+    noActivity: "최근 활동 없음",
+    count: "횟수",
+    eventSource: "출처"
   }
 } as const;
 
@@ -157,6 +193,18 @@ function prometheusSampleNumber(sample: {
   const raw = sample.value?.[1] ?? sample.values?.at(-1)?.[1];
   const parsed = raw ? Number.parseFloat(raw) : Number.NaN;
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function dateTimeText(value: string | undefined) {
+  if (!value) {
+    return "-";
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function valueText(value: string | undefined) {
+  return value && value.trim() ? value : "-";
 }
 
 export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
@@ -222,6 +270,10 @@ export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
     Math.max(1, overview?.monitoring.firingAlerts ?? 0)
   );
   const utilization = overview?.consoleDashboard.utilization;
+  const details = overview?.consoleDashboard.details;
+  const inventory = overview?.consoleDashboard.inventory;
+  const statusCards = overview?.consoleDashboard.statusCards ?? [];
+  const activityItems = overview?.consoleDashboard.activity ?? [];
   const utilizationSeries = utilization?.series ?? [];
   const liveUtilizationCount = utilizationSeries.filter(
     (series) => series.samples.length > 0
@@ -268,6 +320,78 @@ export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
           <span>{error}</span>
         </div>
       ) : null}
+
+      <div className="overview-native-dashboard" data-testid="ocp-overview-native-dashboard">
+        <article className="overview-card details-card" data-testid="ocp-overview-details-card">
+          <div className="card-title-row">
+            <h3>{copy.details}</h3>
+            <Info size={18} aria-hidden="true" />
+          </div>
+          <dl className="metric-list native-details-list">
+            <div>
+              <dt>{copy.apiAddress}</dt>
+              <dd>{valueText(details?.apiUrl)}</dd>
+            </div>
+            <div>
+              <dt>{copy.clusterId}</dt>
+              <dd>{valueText(details?.clusterId)}</dd>
+            </div>
+            <div>
+              <dt>{copy.infrastructure}</dt>
+              <dd>{valueText(details?.infrastructureName)}</dd>
+            </div>
+            <div>
+              <dt>{copy.openshiftVersion}</dt>
+              <dd>{valueText(details?.openshiftVersion)}</dd>
+            </div>
+            <div>
+              <dt>{copy.channel}</dt>
+              <dd>{valueText(details?.channel)}</dd>
+            </div>
+            <div>
+              <dt>{copy.highAvailability}</dt>
+              <dd>{valueText(details?.highAvailability)}</dd>
+            </div>
+            <div>
+              <dt>{copy.lightspeedVersion}</dt>
+              <dd>{valueText(details?.lightspeedVersion)}</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article className="overview-card inventory-card" data-testid="ocp-overview-inventory-card">
+          <div className="card-title-row">
+            <h3>{copy.inventory}</h3>
+            <Database size={18} aria-hidden="true" />
+          </div>
+          <div className="inventory-link-grid">
+            <span>
+              <strong>{numberText(inventory?.nodes)}</strong>
+              {copy.nodes}
+            </span>
+            <span>
+              <strong>{numberText(inventory?.pods)}</strong>
+              {copy.pods}
+            </span>
+            <span>
+              <strong>{numberText(inventory?.storageClasses)}</strong>
+              {copy.storageClasses}
+            </span>
+            <span>
+              <strong>{numberText(inventory?.persistentVolumeClaims)}</strong>
+              {copy.pvcs}
+            </span>
+            <span>
+              <strong>{numberText(inventory?.routes)}</strong>
+              {copy.routes}
+            </span>
+            <span>
+              <strong>{numberText(inventory?.services)}</strong>
+              {copy.services}
+            </span>
+          </div>
+        </article>
+      </div>
 
       <div
         className="overview-visual-grid"
@@ -408,6 +532,58 @@ export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
           })}
         </div>
       </article>
+
+      <div className="overview-native-dashboard lower">
+        <article className="overview-card status-card-list" data-testid="ocp-overview-status-cards">
+          <div className="card-title-row">
+            <h3>{copy.statusCards}</h3>
+            <ListChecks size={18} aria-hidden="true" />
+          </div>
+          <div className="native-status-list">
+            {statusCards.length > 0 ? (
+              statusCards.slice(0, 6).map((card) => (
+                <div className={`native-status-item ${card.severity}`} key={card.id}>
+                  <span>{card.source}</span>
+                  <strong>{card.title}</strong>
+                  <p>{card.message}</p>
+                  {card.timestamp ? <em>{dateTimeText(card.timestamp)}</em> : null}
+                </div>
+              ))
+            ) : (
+              <p className="empty-state">{copy.noStatusCards}</p>
+            )}
+          </div>
+        </article>
+
+        <article className="overview-card activity-card" data-testid="ocp-overview-activity-card">
+          <div className="card-title-row">
+            <h3>{copy.activity}</h3>
+            <Clock3 size={18} aria-hidden="true" />
+          </div>
+          <div className="native-activity-list">
+            {activityItems.length > 0 ? (
+              activityItems.slice(0, 8).map((event) => (
+                <div className="native-activity-item" key={`${event.namespace ?? "cluster"}-${event.name}`}>
+                  <span className={`event-type ${event.type === "Warning" ? "warning" : "normal"}`}>
+                    {event.type ?? "Event"}
+                  </span>
+                  <div>
+                    <strong>{event.reason ?? event.regarding?.name ?? event.name}</strong>
+                    <p>{event.message ?? event.name}</p>
+                    <em>
+                      {dateTimeText(event.lastTimestamp ?? event.firstTimestamp)}
+                      {event.count ? ` · ${copy.count} ${event.count}` : ""}
+                      {event.source ? ` · ${copy.eventSource} ${event.source}` : ""}
+                    </em>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="empty-state">{copy.noActivity}</p>
+            )}
+          </div>
+        </article>
+      </div>
 
       <div className="overview-grid" data-testid="ocp-console-overview">
         <article className="overview-card">

@@ -1,14 +1,19 @@
 import type { OcpTopologyNode, OcpTopologyResponse } from "@kugnus/contracts";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   Boxes,
   GitBranch,
   Layers3,
+  ListTree,
+  Maximize2,
   RefreshCw,
   Route,
   Scale3D,
+  Search,
   ServerCog,
   ShieldCheck,
+  ZoomIn,
+  ZoomOut,
   Workflow
 } from "lucide-react";
 import type { UiLanguage } from "../i18n";
@@ -33,6 +38,20 @@ const topologyCopy = {
     rendered: "rendered",
     namespace: "Namespace",
     allNamespaces: "All namespaces",
+    findByName: "Find by name",
+    resourceFilter: "Resource filter",
+    allTypes: "All resource types",
+    graphView: "Graph",
+    listView: "List",
+    displayOptions: "Display options",
+    fitToScreen: "Fit to screen",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    health: "Health",
+    kind: "Kind",
+    name: "Name",
+    scope: "Scope",
+    relationships: "Relationships",
     load: "Load",
     evidence: "Evidence",
     readOnly: "read-only graph",
@@ -70,6 +89,20 @@ const topologyCopy = {
     rendered: "표시",
     namespace: "네임스페이스",
     allNamespaces: "모든 네임스페이스",
+    findByName: "이름으로 검색",
+    resourceFilter: "리소스 필터",
+    allTypes: "모든 리소스 유형",
+    graphView: "그래프",
+    listView: "목록",
+    displayOptions: "표시 옵션",
+    fitToScreen: "화면에 맞춤",
+    zoomIn: "확대",
+    zoomOut: "축소",
+    health: "상태",
+    kind: "종류",
+    name: "이름",
+    scope: "범위",
+    relationships: "관계",
     load: "불러오기",
     evidence: "근거",
     readOnly: "읽기 전용 그래프",
@@ -179,6 +212,12 @@ export function OcpTopologyGraph({ language }: OcpTopologyGraphProps) {
   const copy = topologyCopy[language];
   const [topology, setTopology] = useState<OcpTopologyResponse | null>(null);
   const [namespace, setNamespace] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | OcpTopologyNode["type"]>(
+    "all"
+  );
+  const [viewMode, setViewMode] = useState<"graph" | "list">("graph");
+  const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -203,14 +242,28 @@ export function OcpTopologyGraph({ language }: OcpTopologyGraphProps) {
     void refresh();
   }, []);
 
+  const filteredNodes = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return (topology?.nodes ?? []).filter((node) => {
+      const matchesType = typeFilter === "all" || node.type === typeFilter;
+      const matchesSearch =
+        normalizedSearch.length === 0 ||
+        node.label.toLowerCase().includes(normalizedSearch) ||
+        node.item.metadata.name.toLowerCase().includes(normalizedSearch) ||
+        node.item.kind.toLowerCase().includes(normalizedSearch) ||
+        (node.namespace ?? "").toLowerCase().includes(normalizedSearch);
+      return matchesType && matchesSearch;
+    });
+  }, [searchTerm, topology, typeFilter]);
+
   const visualNodes = useMemo(
     () =>
       nodeOrder.flatMap((type) =>
-        (topology?.nodes ?? [])
+        filteredNodes
           .filter((node) => node.type === type)
           .slice(0, maxRenderedNodesPerType)
       ),
-    [topology]
+    [filteredNodes]
   );
   const visualNodeIds = useMemo(
     () => new Set(visualNodes.map((node) => node.id)),
@@ -276,18 +329,93 @@ export function OcpTopologyGraph({ language }: OcpTopologyGraphProps) {
         </span>
       </div>
 
-      <div className="topology-controls">
+      <div className="topology-native-toolbar" data-testid="ocp-topology-native-toolbar">
+        <label className="topology-search-control">
+          {copy.findByName}
+          <span>
+            <Search size={15} aria-hidden="true" />
+            <input
+              data-testid="ocp-topology-search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder={copy.findByName}
+            />
+          </span>
+        </label>
         <label>
           {copy.namespace}
           <input
+            data-testid="ocp-topology-namespace"
             value={namespace}
             onChange={(event) => setNamespace(event.target.value)}
             placeholder={copy.allNamespaces}
           />
         </label>
+        <label>
+          {copy.resourceFilter}
+          <select
+            data-testid="ocp-topology-type-filter"
+            value={typeFilter}
+            onChange={(event) =>
+              setTypeFilter(event.target.value as "all" | OcpTopologyNode["type"])
+            }
+          >
+            <option value="all">{copy.allTypes}</option>
+            {nodeOrder.map((type) => (
+              <option key={type} value={type}>
+                {copy[type]}
+              </option>
+            ))}
+          </select>
+        </label>
         <button className="text-icon-button" type="button" onClick={() => void refresh()}>
           {copy.load}
         </button>
+        <div
+          className="topology-display-options"
+          data-testid="ocp-topology-display-options"
+          aria-label={copy.displayOptions}
+        >
+          <button
+            className={viewMode === "graph" ? "active" : ""}
+            type="button"
+            onClick={() => setViewMode("graph")}
+          >
+            <Workflow size={15} aria-hidden="true" />
+            {copy.graphView}
+          </button>
+          <button
+            className={viewMode === "list" ? "active" : ""}
+            type="button"
+            onClick={() => setViewMode("list")}
+          >
+            <ListTree size={15} aria-hidden="true" />
+            {copy.listView}
+          </button>
+        </div>
+        <div className="topology-zoom-controls" data-testid="ocp-topology-zoom-controls">
+          <button
+            type="button"
+            aria-label={copy.zoomOut}
+            onClick={() => setZoom((current) => Math.max(0.75, current - 0.1))}
+          >
+            <ZoomOut size={15} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label={copy.fitToScreen}
+            onClick={() => setZoom(1)}
+          >
+            <Maximize2 size={15} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label={copy.zoomIn}
+            onClick={() => setZoom((current) => Math.min(1.35, current + 0.1))}
+          >
+            <ZoomIn size={15} aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       {error ? (
@@ -296,9 +424,15 @@ export function OcpTopologyGraph({ language }: OcpTopologyGraphProps) {
         </div>
       ) : null}
 
-      <article className="topology-canvas" data-testid="ocp-topology-canvas">
-        {topology && visualNodes.length > 0 ? (
-          <svg viewBox="0 0 100 72" role="img" aria-label={copy.title}>
+      {viewMode === "graph" ? (
+        <article className="topology-canvas" data-testid="ocp-topology-canvas">
+          {topology && visualNodes.length > 0 ? (
+          <svg
+            viewBox="0 0 100 72"
+            role="img"
+            aria-label={copy.title}
+            style={{ "--topology-zoom": zoom } as CSSProperties}
+          >
             <defs>
               <marker
                 id="topology-arrow"
@@ -351,11 +485,51 @@ export function OcpTopologyGraph({ language }: OcpTopologyGraphProps) {
                 </g>
               );
             })}
-          </svg>
-        ) : (
-          <p className="topology-empty">{loading ? "loading" : copy.noData}</p>
-        )}
-      </article>
+            </svg>
+          ) : (
+            <p className="topology-empty">{loading ? "loading" : copy.noData}</p>
+          )}
+        </article>
+      ) : (
+        <article className="topology-list-view" data-testid="ocp-topology-list-view">
+          <table>
+            <thead>
+              <tr>
+                <th>{copy.name}</th>
+                <th>{copy.kind}</th>
+                <th>{copy.scope}</th>
+                <th>{copy.health}</th>
+                <th>{copy.relationships}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visualNodes.map((node) => {
+                const related = (topology?.edges ?? []).filter(
+                  (edge) => edge.from === node.id || edge.to === node.id
+                );
+                return (
+                  <tr key={node.id}>
+                    <td>
+                      <strong>{node.label}</strong>
+                    </td>
+                    <td>{node.item.kind}</td>
+                    <td>{node.namespace ?? "-"}</td>
+                    <td>
+                      <span className={`status-pill ${node.health}`}>
+                        {copy[node.health]}
+                      </span>
+                    </td>
+                    <td>{related.length}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {visualNodes.length === 0 ? (
+            <p className="topology-empty">{loading ? "loading" : copy.noData}</p>
+          ) : null}
+        </article>
+      )}
 
       <div className="topology-summary-grid">
         {nodeOrder.map((type) => {

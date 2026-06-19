@@ -225,6 +225,7 @@ const explorerCopy = {
     healthy: "healthy",
     needsAttention: "needs attention",
     failing: "failing",
+    unknown: "unknown",
     selectedObject: "Selected object",
     relationship: "Relationship",
     nextChecks: "Next checks",
@@ -284,6 +285,23 @@ const explorerCopy = {
     noNativeItems: "No objects returned for this console view.",
     openNative: "Open",
     inspect: "Inspect",
+    pageSummary: "Console page summary",
+    pageSummaryDescription:
+      "Native console baseline: list, filter, inspect, status distribution, and native mutation handoff for this resource page.",
+    objectCount: "Objects",
+    pageScope: "Scope",
+    readPath: "Read path",
+    nativeMutationPath: "Mutation path",
+    selectedObjectPreview: "Selected object preview",
+    statusDistribution: "Status distribution",
+    consoleBaseline: "Console baseline",
+    nativeListAndFilter: "List and filter",
+    nativeInspectObject: "Inspect object",
+    nativeEventsLogsRelated: "Events, logs, related",
+    nativeCreateHandoff: "Create/edit/delete handoff",
+    noSelectedObject: "No object selected yet",
+    lifecycleSignal: "Lifecycle signal",
+    relationshipSignal: "Relationship signal",
     conditionAvailable: "Available",
     conditionProgressing: "Progressing",
     conditionDegraded: "Degraded",
@@ -422,6 +440,7 @@ const explorerCopy = {
     healthy: "정상",
     needsAttention: "주의",
     failing: "장애",
+    unknown: "미확인",
     selectedObject: "선택 객체",
     relationship: "관계",
     nextChecks: "다음 확인",
@@ -481,6 +500,23 @@ const explorerCopy = {
     noNativeItems: "이 콘솔 화면에서 반환된 객체가 없습니다.",
     openNative: "열기",
     inspect: "검사",
+    pageSummary: "콘솔 페이지 요약",
+    pageSummaryDescription:
+      "원본 콘솔 기준선: 이 리소스 화면의 목록, 필터, 검사, 상태 분포, 원본 변경 경로입니다.",
+    objectCount: "객체 수",
+    pageScope: "범위",
+    readPath: "읽기 경로",
+    nativeMutationPath: "변경 경로",
+    selectedObjectPreview: "선택 객체 미리보기",
+    statusDistribution: "상태 분포",
+    consoleBaseline: "콘솔 기준선",
+    nativeListAndFilter: "목록과 필터",
+    nativeInspectObject: "객체 검사",
+    nativeEventsLogsRelated: "이벤트, 로그, 관련 리소스",
+    nativeCreateHandoff: "생성/수정/삭제 연결",
+    noSelectedObject: "아직 선택된 객체 없음",
+    lifecycleSignal: "수명주기 신호",
+    relationshipSignal: "관계 신호",
     conditionAvailable: "Available",
     conditionProgressing: "Progressing",
     conditionDegraded: "Degraded",
@@ -802,6 +838,83 @@ function workloadActionMapping(
       evidence: copy.noMutateVerbs
     }
   ];
+}
+
+type NativeHealthClass = "healthy" | "warning" | "danger" | "unknown";
+
+function nativeHealthClass(
+  item: OcpResourceSummary,
+  resource: OcpApiResource | undefined
+): NativeHealthClass {
+  if (resource && workloadKinds.has(resource.kind)) {
+    const health = workloadHealth(item, resource.kind);
+    if (health === "healthy") return "healthy";
+    if (health === "warning") return "warning";
+    return "danger";
+  }
+
+  const status = resourceStatusText(item, explorerCopy.en).toLowerCase();
+  if (
+    status.includes("failed") ||
+    status.includes("degraded") ||
+    status.includes("false /") ||
+    status.includes("not ready")
+  ) {
+    return "danger";
+  }
+  if (
+    status.includes("pending") ||
+    status.includes("progressing") ||
+    status.includes("suspended") ||
+    status.includes("unknown")
+  ) {
+    return "warning";
+  }
+  if (
+    status.includes("running") ||
+    status.includes("succeeded") ||
+    status.includes("true") ||
+    status.includes("active") ||
+    status.includes("bound") ||
+    status.includes("ready")
+  ) {
+    return "healthy";
+  }
+  return "unknown";
+}
+
+function nativeStatusDistribution(
+  items: OcpResourceSummary[],
+  resource: OcpApiResource | undefined
+) {
+  return items.reduce(
+    (counts, item) => {
+      counts[nativeHealthClass(item, resource)] += 1;
+      return counts;
+    },
+    { healthy: 0, warning: 0, danger: 0, unknown: 0 } as Record<NativeHealthClass, number>
+  );
+}
+
+function nativePrimarySignal(
+  item: OcpResourceSummary | undefined,
+  resource: OcpApiResource | undefined,
+  copy: (typeof explorerCopy)[UiLanguage]
+) {
+  if (!item) {
+    return "-";
+  }
+  if (resource && workloadKinds.has(resource.kind)) {
+    return workloadSignal(item, copy, resource.kind);
+  }
+  return resourceStatusText(item, copy);
+}
+
+function nativeSecondarySignal(item: OcpResourceSummary | undefined) {
+  if (!item) {
+    return "-";
+  }
+  return resourceTargetText(item);
 }
 
 type NativeColumnId = "name" | "namespace" | "status" | "details" | "target" | "age";
@@ -1376,6 +1489,7 @@ export function OcpResourceExplorer({
     }
 
     setQuery(navigationPreset.query);
+    setNativeFilter(navigationPreset.query);
     setNamespace(navigationPreset.namespace ?? "");
     setLabelSelector("");
     setFieldSelector("");
@@ -1792,6 +1906,15 @@ export function OcpResourceExplorer({
   const selectedDetailSelector = selectedDetailItem
     ? resourceTargetText(selectedDetailItem)
     : "-";
+  const nativeDistribution = nativeStatusDistribution(nativeItems, selectedResource);
+  const nativeDistributionTotal = Math.max(nativeItems.length, 1);
+  const nativeSelectedItem = selectedDetailItem ?? nativeItems[0];
+  const nativeSelectedPrimarySignal = nativePrimarySignal(
+    nativeSelectedItem,
+    selectedResource,
+    copy
+  );
+  const nativeSelectedSecondarySignal = nativeSecondarySignal(nativeSelectedItem);
 
   useEffect(() => {
     onFunctionOutcomeChange?.(functionOutcomeState);
@@ -1976,6 +2099,130 @@ export function OcpResourceExplorer({
           </div>
         </div>
 
+        <div
+          className="native-page-summary"
+          data-testid="ocp-native-page-summary"
+        >
+          <section className="native-page-intro">
+            <p className="eyebrow">{copy.consoleBaseline}</p>
+            <h4>{copy.pageSummary}</h4>
+            <p>{copy.pageSummaryDescription}</p>
+          </section>
+
+          <section
+            className="native-page-stat-grid"
+            data-testid="ocp-native-page-stat-grid"
+          >
+            <article>
+              <strong>{copy.objectCount}</strong>
+              <span>{nativeItems.length}</span>
+              <small>{selectedResource?.kind ?? copy.apiResources}</small>
+            </article>
+            <article>
+              <strong>{copy.pageScope}</strong>
+              <span>{selectedResource?.namespaced ? copy.namespaced : copy.cluster}</span>
+              <small>{namespace || copy.allNamespaces}</small>
+            </article>
+            <article>
+              <strong>{copy.readPath}</strong>
+              <span>{formatAccess(activeList?.access.list, copy)}</span>
+              <small>{copy.readOnlyGuard}</small>
+            </article>
+            <article>
+              <strong>{copy.nativeMutationPath}</strong>
+              <span>{copy.nativeDeepLink}</span>
+              <small>{copy.nativeCreateEditDelete}</small>
+            </article>
+          </section>
+
+          <section
+            className="native-status-distribution"
+            data-testid="ocp-native-status-distribution"
+          >
+            <div className="native-distribution-title">
+              <strong>{copy.statusDistribution}</strong>
+              <span>{selectedApiStatus}</span>
+            </div>
+            <div className="native-distribution-bar" aria-hidden="true">
+              <span
+                className="healthy"
+                style={{
+                  width: `${(nativeDistribution.healthy / nativeDistributionTotal) * 100}%`
+                }}
+              />
+              <span
+                className="warning"
+                style={{
+                  width: `${(nativeDistribution.warning / nativeDistributionTotal) * 100}%`
+                }}
+              />
+              <span
+                className="danger"
+                style={{
+                  width: `${(nativeDistribution.danger / nativeDistributionTotal) * 100}%`
+                }}
+              />
+              <span
+                className="unknown"
+                style={{
+                  width: `${(nativeDistribution.unknown / nativeDistributionTotal) * 100}%`
+                }}
+              />
+            </div>
+            <dl>
+              <div>
+                <dt>{copy.healthy}</dt>
+                <dd>{nativeDistribution.healthy}</dd>
+              </div>
+              <div>
+                <dt>{copy.needsAttention}</dt>
+                <dd>{nativeDistribution.warning}</dd>
+              </div>
+              <div>
+                <dt>{copy.failing}</dt>
+                <dd>{nativeDistribution.danger}</dd>
+              </div>
+              <div>
+                <dt>{copy.unknown}</dt>
+                <dd>{nativeDistribution.unknown}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section
+            className="native-selected-preview"
+            data-testid="ocp-native-selected-preview"
+          >
+            <strong>{copy.selectedObjectPreview}</strong>
+            <span>
+              {nativeSelectedItem
+                ? `${nativeSelectedItem.kind || selectedResource?.kind}/${nativeSelectedItem.metadata.name}`
+                : copy.noSelectedObject}
+            </span>
+            <dl>
+              <div>
+                <dt>{copy.lifecycleSignal}</dt>
+                <dd>{nativeSelectedPrimarySignal}</dd>
+              </div>
+              <div>
+                <dt>{copy.relationshipSignal}</dt>
+                <dd>{nativeSelectedSecondarySignal}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section
+            className="native-baseline-actions"
+            data-testid="ocp-native-baseline-actions"
+          >
+            <strong>{copy.nativeConsoleActions}</strong>
+            <span>{copy.nativeListAndFilter}</span>
+            <span>{copy.nativeInspectObject}</span>
+            <span>{copy.nativeEventsLogsRelated}</span>
+            <span>{copy.nativeCreateHandoff}</span>
+          </section>
+        </div>
+
         <div className="native-console-toolbar" data-testid="ocp-native-console-toolbar">
           <label className="resource-search native-filter">
             <Search size={15} aria-hidden="true" />
@@ -2067,6 +2314,7 @@ export function OcpResourceExplorer({
                   : undefined;
                 return (
                   <tr
+                    className={`native-row-health ${nativeHealthClass(item, selectedResource)}`}
                     key={`${item.metadata.namespace ?? "_cluster"}/${item.metadata.name}`}
                   >
                     {nativeColumns.map((column) => (

@@ -31,9 +31,9 @@ The debug dashboard tunnel is only a development access path. It is not the prod
 
 | Field | Value |
 | --- | --- |
-| Active branch | `feat/OpsLens-Dev0.1.6` |
-| Stamped head | `0135178d` |
-| Live reference target | MacBook CRC OpenShift 4.21.14 |
+| Active branch | `feat/OpsLens-Dev0.1.10` |
+| Stamped head | `72209dd5` |
+| Live reference target | KH CRC OpenShift 4.20.x |
 | Company OCP | Do not mutate |
 | Product entry target | OpenShift Console left-nav shortcut to the OpsLens dashboard asset, not iframe, not custom DOM injection |
 
@@ -48,6 +48,7 @@ The debug dashboard tunnel is only a development access path. It is not the prod
 | Dev 0.1.5 assistant polish | Active implementation proof | Collapsible navigation, single active page, visual operations dashboard, movable KOMSCO AI Assistant, Lightspeed-backed chat path, and local verifier coverage | Needs final polish, packaging, and live CRC upgrade only with explicit approval |
 | Dev 0.1.6 agentic operations | Draft target | Locks the next product step: RBAC-aware, human-approved, audited remediation actions instead of guidance-only chat | ActionPlan schema, RBAC preflight, approval gate, executor, verifier, and UI action cards not implemented yet |
 | Dev 0.1.7 live polish | Planned from deployed CRC screen | ConsolePlugin-served OpsLens opens in OpenShift Console; OCP API connection is visible; dashboard and assistant render | Fix Lightspeed live path, OCP resource `400`, topology graph, monitoring metrics, and mock/live source labeling |
+| Dev 0.1.10 official console parity | Active implementation | Official Red Hat web console docs are now the source for the baseline; Resource Explorer renders native page summary, status distribution, selected object preview, baseline actions, native object details, topology controls, and Home overview panels before raw API output | Remaining exposed menus still need deeper native feature parity plus OpsLens visualization |
 
 ## Acceptance Rules
 

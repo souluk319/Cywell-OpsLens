@@ -1625,11 +1625,23 @@ expectCheck(
     topologySource.includes("HPAs") &&
     topologySource.includes("PDBs") &&
     topologySource.includes('data-testid="ocp-topology-graph"') &&
+    topologySource.includes('data-testid="ocp-topology-native-toolbar"') &&
+    topologySource.includes('data-testid="ocp-topology-search"') &&
+    topologySource.includes('data-testid="ocp-topology-type-filter"') &&
+    topologySource.includes('data-testid="ocp-topology-display-options"') &&
+    topologySource.includes('data-testid="ocp-topology-zoom-controls"') &&
+    topologySource.includes('data-testid="ocp-topology-list-view"') &&
+    topologySource.includes('const [viewMode, setViewMode]') &&
+    topologySource.includes('const [typeFilter, setTypeFilter]') &&
+    topologySource.includes("filteredNodes") &&
     topologySource.includes('data-testid="ocp-topology-canvas"') &&
     topologySource.includes('data-testid="ocp-topology-evidence"') &&
+    stylesSource.includes(".topology-native-toolbar") &&
+    stylesSource.includes(".topology-display-options button.active") &&
+    stylesSource.includes(".topology-list-view") &&
     actionPanelSource.includes('"topology-graph": "Topology graph"') &&
     actionPanelSource.includes('"topology-graph": "토폴로지 그래프"'),
-  "Workloads / Topology is a real read-only graph surface backed by pods, services, routes, deploymentconfigs, deployments, statefulsets, daemonsets, replicasets, replicationcontrollers, HPAs, PDBs, jobs, and cronjobs"
+  "Workloads / Topology is a real read-only graph/list surface with native console search, filter, display options, zoom controls, and API-backed pods, services, routes, deploymentconfigs, deployments, statefulsets, daemonsets, replicasets, replicationcontrollers, HPAs, PDBs, jobs, and cronjobs"
 );
 
 expectCheck(
@@ -2079,6 +2091,11 @@ expectCheck(
   "native console detail surface contract",
   resourceExplorerSource.includes('data-testid="ocp-native-console-panel"') &&
     resourceExplorerSource.includes('data-testid="ocp-native-console-title"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-page-summary"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-page-stat-grid"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-status-distribution"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-selected-preview"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-baseline-actions"') &&
     resourceExplorerSource.includes('data-testid="ocp-native-console-toolbar"') &&
     resourceExplorerSource.includes('data-testid="ocp-native-console-summary"') &&
     resourceExplorerSource.includes('data-testid="ocp-native-console-table"') &&
@@ -2087,6 +2104,9 @@ expectCheck(
     resourceExplorerSource.includes('data-testid="ocp-native-load"') &&
     resourceExplorerSource.includes("nativeConsoleColumns(selectedResource)") &&
     resourceExplorerSource.includes("nativeColumnValue(column, item, selectedResource, copy)") &&
+    resourceExplorerSource.includes("nativeStatusDistribution(nativeItems, selectedResource)") &&
+    resourceExplorerSource.includes("const nativeSelectedPrimarySignal = nativePrimarySignal(") &&
+    resourceExplorerSource.includes("nativeSecondarySignal(nativeSelectedItem)") &&
     resourceExplorerSource.includes("resourceStatusText(item, copy)") &&
     resourceExplorerSource.includes("resourceDetailText(item)") &&
     resourceExplorerSource.includes("resourceTargetText(item)") &&
@@ -2097,10 +2117,15 @@ expectCheck(
     resourceExplorerSource.includes("setList(null)") &&
     resourceExplorerSource.includes('data-testid="ocp-technical-explorer"') &&
     stylesSource.includes(".native-console-panel") &&
+    stylesSource.includes(".native-page-summary") &&
+    stylesSource.includes(".native-status-distribution") &&
+    stylesSource.includes(".native-selected-preview") &&
+    stylesSource.includes(".native-baseline-actions") &&
+    stylesSource.includes(".native-row-health.healthy") &&
     stylesSource.includes(".native-console-toolbar") &&
     stylesSource.includes(".native-console-table") &&
     stylesSource.includes(".ocp-technical-explorer"),
-  "Resource Explorer renders a native-console-style detail page before the raw API discovery surface"
+  "Resource Explorer renders a native-console-style detail page with summary, status distribution, selected object preview, and baseline native actions before the raw API discovery surface"
 );
 
 expectCheck(
@@ -2141,6 +2166,35 @@ expectCheck(
     captureScriptSource.includes('url.searchParams.set("nav", activeNavId)') &&
     captureScriptSource.includes('if (activeNavId !== "overview")'),
   "The shell must route by URL, default / to Overview, and avoid stale localStorage menu state"
+);
+
+expectCheck(
+  "official home overview dashboard contract",
+  overviewSource.includes('data-testid="ocp-overview-native-dashboard"') &&
+    overviewSource.includes('data-testid="ocp-overview-details-card"') &&
+    overviewSource.includes('data-testid="ocp-overview-inventory-card"') &&
+    overviewSource.includes('data-testid="ocp-overview-status-cards"') &&
+    overviewSource.includes('data-testid="ocp-overview-activity-card"') &&
+    overviewSource.includes("consoleDashboard.details") &&
+    overviewSource.includes("consoleDashboard.inventory") &&
+    overviewSource.includes("consoleDashboard.statusCards") &&
+    overviewSource.includes("consoleDashboard.activity") &&
+    overviewSource.includes("consoleDashboard.utilization") &&
+    overviewSource.includes("copy.apiAddress") &&
+    overviewSource.includes("copy.clusterId") &&
+    overviewSource.includes("copy.storageClasses") &&
+    overviewSource.includes("copy.noStatusCards") &&
+    overviewSource.includes("copy.noActivity") &&
+    stylesSource.includes(".overview-native-dashboard") &&
+    stylesSource.includes(".native-details-list") &&
+    stylesSource.includes(".inventory-link-grid") &&
+    stylesSource.includes(".native-status-list") &&
+    stylesSource.includes(".native-activity-list") &&
+    e2eSource.includes("ocp-overview-details-card") &&
+    e2eSource.includes("ocp-overview-inventory-card") &&
+    e2eSource.includes("ocp-overview-status-cards") &&
+    e2eSource.includes("ocp-overview-activity-card"),
+  "Home Overview must expose official console panels for details, cluster inventory, status cards, activity, and utilization using the live consoleDashboard API contract"
 );
 
 expectCheck(

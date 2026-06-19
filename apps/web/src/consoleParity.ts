@@ -1586,7 +1586,7 @@ export function consoleParityFunctionSignal(
 ): ConsoleParityFunctionSignal {
   if (item.resourcePreset && item.actionSurface === "resource-explorer") {
     return {
-      selector: "[data-testid='ocp-smoke-function-outcome']",
+      selector: "[data-testid='console-active-action-outcome']",
       description:
         "Resource Explorer function outcome must move from preset activation to a concrete read-only list/detail state.",
       descriptionKo:

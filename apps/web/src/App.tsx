@@ -590,6 +590,9 @@ export default function App() {
   const [activeNavId, setActiveNavId] = useState<ConsoleNavId>(
     initialActiveNavId
   );
+  const [navigationFeedback, setNavigationFeedback] = useState(() =>
+    navLabel(findNavigationItem(initialActiveNavId), initialLanguageValue)
+  );
   const [expandedSections, setExpandedSections] = useState<
     ConsoleParitySection[]
   >(initialExpandedSections);
@@ -1022,6 +1025,7 @@ export default function App() {
       current.includes(item.section) ? current : [...current, item.section]
     );
     setActiveNavId(item.id);
+    setNavigationFeedback(navLabel(item, language));
     if (item.id === activeNavId) {
       applyNavigationSideEffects(item);
     }
@@ -1034,9 +1038,16 @@ export default function App() {
     window.location.assign(target);
   }
 
-  function runUtilityAction(targetSelector: string, openAssistant = false) {
+  function runUtilityAction(
+    targetSelector: string,
+    openAssistant = false,
+    feedback?: string
+  ) {
     if (openAssistant) {
       setAssistantOpen(true);
+    }
+    if (feedback) {
+      setNavigationFeedback(feedback);
     }
     scrollToNavigationTarget(targetSelector);
   }
@@ -1071,6 +1082,11 @@ export default function App() {
           ].join("\n");
     setDraft(prompt);
     setAssistantOpen(true);
+  }
+
+  function openActiveNavigationSurface() {
+    applyNavigationSideEffects(activeNavigation);
+    scrollToNavigationTarget(activeNavigation.targetSelector, true);
   }
 
   function openAssistantFromEvidence() {
@@ -1210,6 +1226,13 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <div
+        className="sr-only"
+        data-testid="console-navigation-feedback"
+        aria-live="polite"
+      >
+        {navigationFeedback}
+      </div>
       <header className="masthead" data-testid="masthead">
         <div className="masthead-left">
           <div className="brand-block">
@@ -1268,7 +1291,9 @@ export default function App() {
               aria-label={copy.appLauncher}
               onClick={() =>
                 runUtilityAction(
-                  "[data-testid='opslens-readiness-command-strip']"
+                  "[data-testid='opslens-readiness-command-strip']",
+                  false,
+                  "Application launcher focused"
                 )
               }
             >
@@ -1282,7 +1307,9 @@ export default function App() {
               aria-label={copy.notifications}
               onClick={() =>
                 runUtilityAction(
-                  "#dashboard-title"
+                  "#dashboard-title",
+                  false,
+                  "Notifications focused"
                 )
               }
             >
@@ -1298,7 +1325,8 @@ export default function App() {
               onClick={() =>
                 runUtilityAction(
                   "#opslens-admin-title",
-                  true
+                  true,
+                  "Create opened a plan-only workflow"
                 )
               }
             >
@@ -1313,7 +1341,8 @@ export default function App() {
               onClick={() =>
                 runUtilityAction(
                   "#evidence-title",
-                  true
+                  true,
+                  "Help opened the KOMSCO AI Assistant"
                 )
               }
             >
@@ -1439,6 +1468,7 @@ export default function App() {
               language={language}
               resourceFunctionOutcome={resourceFunctionOutcome}
               targetStatus={activeTargetStatus}
+              onOpenSurface={openActiveNavigationSurface}
               onAskAssistant={askAssistantForActiveNavigation}
             />
             <div

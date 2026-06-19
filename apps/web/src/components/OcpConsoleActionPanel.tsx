@@ -19,6 +19,7 @@ interface OcpConsoleActionPanelProps {
   language: UiLanguage;
   resourceFunctionOutcome: OcpResourceFunctionOutcome;
   targetStatus: "checking" | "mounted" | "missing";
+  onOpenSurface: () => void;
   onAskAssistant: () => void;
 }
 
@@ -210,6 +211,7 @@ export function OcpConsoleActionPanel({
   language,
   resourceFunctionOutcome,
   targetStatus,
+  onOpenSurface,
   onAskAssistant
 }: OcpConsoleActionPanelProps) {
   const copy = actionCopy[language];
@@ -288,6 +290,15 @@ export function OcpConsoleActionPanel({
           </h2>
         </div>
         <div className="console-action-primary-controls">
+          <button
+            className="text-icon-button"
+            data-testid="console-active-open-surface"
+            type="button"
+            onClick={onOpenSurface}
+          >
+            <ArrowRight size={15} aria-hidden="true" />
+            {copy.openSurface}
+          </button>
           <a
             className="text-icon-button"
             data-testid="console-active-native-open"
@@ -335,7 +346,10 @@ export function OcpConsoleActionPanel({
         </article>
         <article>
           <span>{copy.targetCheck}</span>
-          <strong data-testid="console-active-target-status">
+          <strong
+            data-target-status={targetStatus}
+            data-testid="console-active-target-status"
+          >
             {targetStatusLabel}
           </strong>
         </article>
@@ -356,6 +370,18 @@ export function OcpConsoleActionPanel({
           {copy.readOnly}
         </span>
       </div>
+
+      {preset ? (
+        <div
+          className="console-action-resources"
+          data-testid="console-active-preferred-resources"
+        >
+          <span>{copy.preferredResources}</span>
+          {preset.preferredResources.map((resource) => (
+            <code key={resource}>{resource}</code>
+          ))}
+        </div>
+      ) : null}
 
       <details className="console-action-disclosure" data-testid="console-active-opslens-details">
         <summary>{copy.enhancement}</summary>
@@ -423,17 +449,6 @@ export function OcpConsoleActionPanel({
             </p>
           </div>
         </div>
-        {preset ? (
-          <div
-            className="console-action-resources"
-            data-testid="console-active-preferred-resources"
-          >
-            <span>{copy.preferredResources}</span>
-            {preset.preferredResources.map((resource) => (
-              <code key={resource}>{resource}</code>
-            ))}
-          </div>
-        ) : null}
       </details>
     </section>
   );

@@ -667,8 +667,8 @@ async function expectConsoleFunctionEffect(
       }
       if (item.resourcePreset) {
         if (item.actionSurface === "resource-explorer") {
-          await page.getByTestId("ocp-resource-search").fill("manual-drift");
-          await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+          await page.getByTestId("ocp-native-filter").fill("manual-drift");
+          await expect(page.getByTestId("ocp-native-filter")).toHaveValue(
             "manual-drift"
           );
         }
@@ -683,12 +683,25 @@ async function expectConsoleFunctionEffect(
 
       if (item.resourcePreset) {
         if (item.actionSurface === "resource-explorer") {
-          await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+          await expect(page.getByTestId("ocp-native-filter")).toHaveValue(
             item.resourcePreset.query
           );
         }
       }
     }
+
+    await openConsoleNavItem(page, "topology");
+    await page.getByTestId("console-active-open-surface").click();
+    await expect(page.getByTestId("ocp-topology-native-toolbar")).toBeVisible();
+    await page.getByTestId("ocp-topology-search").fill("test");
+    await expect(page.getByTestId("ocp-topology-search")).toHaveValue("test");
+    await expect(page.getByTestId("ocp-topology-type-filter")).toBeVisible();
+    await expect(page.getByTestId("ocp-topology-display-options")).toBeVisible();
+    await expect(page.getByTestId("ocp-topology-zoom-controls")).toBeVisible();
+    await page.getByRole("button", { name: "List" }).click();
+    await expect(page.getByTestId("ocp-topology-list-view")).toBeVisible();
+    await page.getByRole("button", { name: "Graph" }).click();
+    await expect(page.getByTestId("ocp-topology-canvas")).toBeVisible();
 
     await openConsoleNavItem(page, "workloads");
     await page.getByTestId("console-active-open-surface").click();
@@ -703,7 +716,7 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("ocp-workload-related-action")).toBeVisible();
     await page.getByTestId("ocp-workload-yaml-action").click();
     await expect(page.getByTestId("ocp-detail-yaml-tab")).toHaveAttribute(
-      "aria-pressed",
+      "aria-selected",
       "true"
     );
     await page.getByTestId("ocp-workload-events-action").click();
@@ -848,7 +861,7 @@ async function expectConsoleFunctionEffect(
 
       if (item.resourcePreset) {
         if (item.actionSurface === "resource-explorer") {
-          await expect(page.getByTestId("ocp-resource-search")).toHaveValue(
+          await expect(page.getByTestId("ocp-native-filter")).toHaveValue(
             item.resourcePreset.query
           );
         }
@@ -2911,6 +2924,18 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("ocp-console-overview")).toContainText(
       "Workloads"
     );
+    await expect(page.getByTestId("ocp-overview-details-card")).toContainText(
+      "Cluster API address"
+    );
+    await expect(page.getByTestId("ocp-overview-inventory-card")).toContainText(
+      "StorageClasses"
+    );
+    await expect(page.getByTestId("ocp-overview-status-cards")).toContainText(
+      "Status"
+    );
+    await expect(page.getByTestId("ocp-overview-activity-card")).toContainText(
+      "Activity"
+    );
     await expect(page.getByTestId("ocp-overview-evidence")).toContainText(
       "ClusterVersion"
     );
@@ -2976,6 +3001,17 @@ async function expectConsoleFunctionEffect(
     );
     await expect(page.getByTestId("ocp-smoke-detail-status")).toContainText(
       firstPod?.metadata.name ?? ""
+    );
+    await expect(page.getByTestId("ocp-native-page-summary")).toBeVisible();
+    await expect(page.getByTestId("ocp-native-page-stat-grid")).toContainText(
+      /Objects|오브젝트/
+    );
+    await expect(page.getByTestId("ocp-native-status-distribution")).toBeVisible();
+    await expect(page.getByTestId("ocp-native-selected-preview")).toContainText(
+      firstPod?.metadata.name ?? ""
+    );
+    await expect(page.getByTestId("ocp-native-baseline-actions")).toContainText(
+      /List|목록/
     );
     await expect(page.getByTestId("ocp-native-object-detail")).toBeVisible();
     await expect(page.getByTestId("ocp-native-object-detail-title")).toContainText(
