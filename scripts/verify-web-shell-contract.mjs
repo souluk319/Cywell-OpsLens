@@ -2593,6 +2593,12 @@ expectCheck(
     administrationSource.includes("export type OcpAdministrationView") &&
     administrationSource.includes('data-testid={viewTestId(view)}') &&
     administrationSource.includes('data-testid="ocp-admin-toolbar"') &&
+    administrationSource.includes('data-testid="ocp-admin-native-toolbar"') &&
+    administrationSource.includes('data-testid="ocp-admin-filter-count"') &&
+    administrationSource.includes("setResourceFilter") &&
+    administrationSource.includes("setNamespaceFilter") &&
+    administrationSource.includes("setSearch") &&
+    administrationSource.includes("nativeResourceCreatePath") &&
     administrationSource.includes('data-testid="ocp-admin-cluster-settings-board"') &&
     administrationSource.includes('data-testid="ocp-admin-clusteroperators-table"') &&
     administrationSource.includes('data-testid="ocp-admin-namespaces-table"') &&
@@ -2607,6 +2613,7 @@ expectCheck(
     administrationSource.includes("fetchOcpResourceList") &&
     stylesSource.includes(".ocp-admin-console") &&
     stylesSource.includes(".ocp-admin-toolbar") &&
+    stylesSource.includes(".admin-filter-toolbar") &&
     stylesSource.includes(".admin-native-grid") &&
     stylesSource.includes(".native-admin-table") &&
     stylesSource.includes(".admin-native-boundary") &&

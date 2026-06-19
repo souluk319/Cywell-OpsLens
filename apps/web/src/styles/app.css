@@ -5148,6 +5148,17 @@ button {
   color: #151515;
 }
 
+.admin-filter-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.8fr) minmax(210px, 0.95fr) auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.admin-filter-toolbar .native-toolbar-count {
+  justify-self: end;
+}
+
 .admin-native-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(170px, 1fr));

@@ -4,13 +4,17 @@ import {
   Boxes,
   FileCode2,
   Gauge,
+  ListFilter,
+  PlusCircle,
   RefreshCw,
+  Search,
   Settings2,
   ShieldCheck
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { nativeConsoleHref, nativeResourceCreatePath } from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
@@ -52,6 +56,12 @@ const administrationCopy = {
     "custom-resource-definitions": "CustomResourceDefinitions",
     resourcequotas: "ResourceQuotas",
     limitranges: "LimitRanges",
+    allNamespaces: "All namespaces",
+    searchByName: "Search by name...",
+    filterByResource: "Filter by resource",
+    allResources: "All administration resources",
+    create: "Create",
+    showing: "Showing",
     version: "Version",
     channel: "Channel",
     available: "Available",
@@ -101,6 +111,12 @@ const administrationCopy = {
     "custom-resource-definitions": "CustomResourceDefinitions",
     resourcequotas: "ResourceQuotas",
     limitranges: "LimitRanges",
+    allNamespaces: "모든 네임스페이스",
+    searchByName: "이름으로 검색...",
+    filterByResource: "리소스 필터",
+    allResources: "모든 관리 리소스",
+    create: "생성",
+    showing: "표시",
     version: "버전",
     channel: "채널",
     available: "Available",
@@ -246,11 +262,35 @@ function boolTone(value: string) {
   return "neutral";
 }
 
+const administrationResources = [
+  { view: "cluster-settings", apiVersion: "config.openshift.io/v1", resource: "clusterversions", namespaced: false },
+  { view: "clusteroperators", apiVersion: "config.openshift.io/v1", resource: "clusteroperators", namespaced: false },
+  { view: "namespaces", apiVersion: "v1", resource: "namespaces", namespaced: false },
+  { view: "custom-resource-definitions", apiVersion: "apiextensions.k8s.io/v1", resource: "customresourcedefinitions", namespaced: false },
+  { view: "resourcequotas", apiVersion: "v1", resource: "resourcequotas", namespaced: true },
+  { view: "limitranges", apiVersion: "v1", resource: "limitranges", namespaced: true }
+] as const;
+
+function resourceConfig(view: OcpAdministrationView) {
+  return administrationResources.find((entry) => entry.view === view) ?? administrationResources[0];
+}
+
+function uniqueSorted(values: Array<string | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
 export function OcpAdministrationConsole({ language, view }: OcpAdministrationConsoleProps) {
   const copy = administrationCopy[language];
   const [state, setState] = useState<ResourceState>({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [namespaceFilter, setNamespaceFilter] = useState("all");
+  const [resourceFilter, setResourceFilter] = useState<OcpAdministrationView | "all">("all");
+  const activeView = resourceFilter === "all" ? view : resourceFilter;
+  const activeResource = resourceConfig(activeView);
 
   async function refresh(options: { silent?: boolean } = {}) {
     if (!options.silent) setLoading(true);
@@ -304,6 +344,69 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
   const resourceQuotas = state.resourceQuotas?.items ?? [];
   const limitRanges = state.limitRanges?.items ?? [];
   const consolePlugins = state.consolePlugins?.items ?? [];
+  const namespaceOptions = useMemo(
+    () => uniqueSorted([...resourceQuotas, ...limitRanges].map((item) => item.metadata.namespace)),
+    [limitRanges, resourceQuotas]
+  );
+  const filterItems = (items: OcpResourceSummary[]) => {
+    const query = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (namespaceFilter !== "all" && item.metadata.namespace && item.metadata.namespace !== namespaceFilter) return false;
+      if (!query) return true;
+      return [
+        item.kind,
+        item.metadata.name,
+        item.metadata.namespace,
+        clusterVersion(item),
+        clusterChannel(item),
+        conditionStatus(item, "Available"),
+        conditionStatus(item, "Progressing"),
+        conditionStatus(item, "Degraded"),
+        conditionMessage(item, "Degraded"),
+        stringField(item.status, "phase"),
+        crdGroup(item),
+        crdVersions(item),
+        crdEstablished(item),
+        quotaPairs(asRecord(item.status).used),
+        quotaPairs(asRecord(item.status).hard),
+        limitSummary(item)
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  };
+  const filteredClusterVersions = useMemo(() => filterItems(clusterVersions), [clusterVersions, namespaceFilter, search]);
+  const filteredClusterOperators = useMemo(() => filterItems(clusterOperators), [clusterOperators, namespaceFilter, search]);
+  const filteredNamespaces = useMemo(() => filterItems(namespaces), [namespaces, namespaceFilter, search]);
+  const filteredCrds = useMemo(() => filterItems(crds), [crds, namespaceFilter, search]);
+  const filteredResourceQuotas = useMemo(() => filterItems(resourceQuotas), [namespaceFilter, resourceQuotas, search]);
+  const filteredLimitRanges = useMemo(() => filterItems(limitRanges), [limitRanges, namespaceFilter, search]);
+  const activeItems =
+    activeView === "cluster-settings"
+      ? filteredClusterVersions
+      : activeView === "clusteroperators"
+        ? filteredClusterOperators
+        : activeView === "namespaces"
+          ? filteredNamespaces
+          : activeView === "custom-resource-definitions"
+            ? filteredCrds
+            : activeView === "resourcequotas"
+              ? filteredResourceQuotas
+              : filteredLimitRanges;
+  const activeTotal =
+    activeView === "cluster-settings"
+      ? clusterVersions.length
+      : activeView === "clusteroperators"
+        ? clusterOperators.length
+        : activeView === "namespaces"
+          ? namespaces.length
+          : activeView === "custom-resource-definitions"
+            ? crds.length
+            : activeView === "resourcequotas"
+              ? resourceQuotas.length
+              : limitRanges.length;
   const degradedOperators = clusterOperators.filter((item) => conditionStatus(item, "Degraded") === "True");
   const unavailableOperators = clusterOperators.filter((item) => conditionStatus(item, "Available") !== "True");
   const activeNamespaces = namespaces.filter((item) => stringField(item.status, "phase") === "Active");
@@ -320,41 +423,47 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
     ...errors
   ].filter(Boolean);
   const drilldown =
-    view === "cluster-settings"
+    activeView === "cluster-settings"
       ? {
           resource: { apiVersion: "config.openshift.io/v1", resource: "clusterversions" },
-          items: clusterVersions,
+          items: filteredClusterVersions,
           title: copy["cluster-settings"]
         }
-      : view === "clusteroperators"
+      : activeView === "clusteroperators"
         ? {
             resource: { apiVersion: "config.openshift.io/v1", resource: "clusteroperators" },
-            items: clusterOperators,
+            items: filteredClusterOperators,
             title: copy.clusteroperators
           }
-        : view === "namespaces"
+        : activeView === "namespaces"
           ? {
               resource: { apiVersion: "v1", resource: "namespaces" },
-              items: namespaces,
+              items: filteredNamespaces,
               title: copy.namespaces
             }
-          : view === "custom-resource-definitions"
+          : activeView === "custom-resource-definitions"
             ? {
                 resource: { apiVersion: "apiextensions.k8s.io/v1", resource: "customresourcedefinitions" },
-                items: crds,
+                items: filteredCrds,
                 title: copy["custom-resource-definitions"]
               }
-            : view === "resourcequotas"
+            : activeView === "resourcequotas"
               ? {
                   resource: { apiVersion: "v1", resource: "resourcequotas" },
-                  items: resourceQuotas,
+                  items: filteredResourceQuotas,
                   title: copy.resourcequotas
                 }
               : {
                   resource: { apiVersion: "v1", resource: "limitranges" },
-                  items: limitRanges,
+                  items: filteredLimitRanges,
                   title: copy.limitranges
                 };
+  const createHref = nativeConsoleHref(
+    nativeResourceCreatePath(
+      { apiVersion: activeResource.apiVersion, resource: activeResource.resource },
+      activeResource.namespaced ? (namespaceFilter !== "all" ? namespaceFilter : "default") : undefined
+    )
+  );
 
   return (
     <section className="ocp-admin-console" data-testid={viewTestId(view)} aria-labelledby="ocp-admin-title">
@@ -379,6 +488,49 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
         <span>{copy["custom-resource-definitions"]}: {crds.length}</span>
       </div>
 
+      <div className="native-console-toolbar admin-filter-toolbar" data-testid="ocp-admin-native-toolbar">
+        <label className="resource-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            placeholder={copy.searchByName}
+            aria-label={copy.searchByName}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          <span>{copy.namespace}</span>
+          <select value={namespaceFilter} aria-label={copy.namespace} onChange={(event) => setNamespaceFilter(event.currentTarget.value)}>
+            <option value="all">{copy.allNamespaces}</option>
+            {namespaceOptions.map((namespace) => (
+              <option key={namespace} value={namespace}>{namespace}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.filterByResource}</span>
+          <select
+            value={resourceFilter}
+            aria-label={copy.filterByResource}
+            onChange={(event) => setResourceFilter(event.currentTarget.value as OcpAdministrationView | "all")}
+          >
+            <option value="all">{copy.allResources}</option>
+            {administrationResources.map((entry) => (
+              <option key={entry.view} value={entry.view}>{copy[entry.view]}</option>
+            ))}
+          </select>
+        </label>
+        <a className="text-icon-button native-open-link" href={createHref} target="_blank" rel="noreferrer">
+          <PlusCircle size={16} aria-hidden="true" />
+          {copy.create}
+        </a>
+        <span className="native-toolbar-count" data-testid="ocp-admin-filter-count">
+          <ListFilter size={15} aria-hidden="true" />
+          {copy.showing}: {activeItems.length}/{activeTotal}
+        </span>
+      </div>
+
       {failureMessages.length > 0 ? (
         <div className="ocp-error" data-testid="ocp-admin-api-failure">
           <AlertTriangle size={17} aria-hidden="true" />
@@ -388,7 +540,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
 
       <nav className="ocp-admin-tabs" aria-label={copy.title}>
         {(["cluster-settings", "clusteroperators", "namespaces", "custom-resource-definitions", "resourcequotas", "limitranges"] as const).map((tab) => (
-          <a key={tab} href={`#${viewTestId(tab)}`} aria-current={view === tab ? "page" : undefined}>
+          <a key={tab} href={`#${viewTestId(tab)}`} aria-current={activeView === tab ? "page" : undefined}>
             {copy[tab]}
           </a>
         ))}
@@ -433,7 +585,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
         </article>
       </div>
 
-      {view === "cluster-settings" ? (
+      {activeView === "cluster-settings" ? (
         <article className="admin-native-panel">
           <div className="card-title-row">
             <h3>{copy["cluster-settings"]}</h3>
@@ -462,13 +614,13 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
         </article>
       ) : null}
 
-      {view === "clusteroperators" ? (
+      {activeView === "clusteroperators" ? (
         <article className="admin-native-panel">
           <div className="card-title-row">
             <h3>{copy.clusteroperators}</h3>
             <Gauge size={18} aria-hidden="true" />
           </div>
-          {clusterOperators.length > 0 ? (
+          {filteredClusterOperators.length > 0 ? (
             <div className="native-admin-table-wrap">
               <table className="native-admin-table" data-testid="ocp-admin-clusteroperators-table">
                 <thead>
@@ -482,7 +634,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
                   </tr>
                 </thead>
                 <tbody>
-                  {clusterOperators.map((item) => (
+                  {filteredClusterOperators.map((item) => (
                     <tr key={item.metadata.name}>
                       <td><NativeObjectLink resource={{ apiVersion: "config.openshift.io/v1", resource: "clusteroperators" }} item={item} testId="ocp-admin-clusteroperators-object-link" /></td>
                       <td>{stringField(item.status, "version") ?? "-"}</td>
@@ -501,13 +653,13 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
         </article>
       ) : null}
 
-      {view === "namespaces" ? (
+      {activeView === "namespaces" ? (
         <article className="admin-native-panel">
           <div className="card-title-row">
             <h3>{copy.namespaces}</h3>
             <Boxes size={18} aria-hidden="true" />
           </div>
-          {namespaces.length > 0 ? (
+          {filteredNamespaces.length > 0 ? (
             <div className="native-admin-table-wrap">
               <table className="native-admin-table" data-testid="ocp-admin-namespaces-table">
                 <thead>
@@ -519,7 +671,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
                   </tr>
                 </thead>
                 <tbody>
-                  {namespaces.map((item) => (
+                  {filteredNamespaces.map((item) => (
                     <tr key={item.metadata.name}>
                       <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "namespaces" }} item={item} testId="ocp-admin-namespaces-object-link" /></td>
                       <td>{stringField(item.status, "phase") ?? "-"}</td>
@@ -536,13 +688,13 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
         </article>
       ) : null}
 
-      {view === "custom-resource-definitions" ? (
+      {activeView === "custom-resource-definitions" ? (
         <article className="admin-native-panel">
           <div className="card-title-row">
             <h3>{copy["custom-resource-definitions"]}</h3>
             <FileCode2 size={18} aria-hidden="true" />
           </div>
-          {crds.length > 0 ? (
+          {filteredCrds.length > 0 ? (
             <div className="native-admin-table-wrap">
               <table className="native-admin-table" data-testid="ocp-admin-crds-table">
                 <thead>
@@ -555,7 +707,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
                   </tr>
                 </thead>
                 <tbody>
-                  {crds.map((item) => (
+                  {filteredCrds.map((item) => (
                     <tr key={item.metadata.name}>
                       <td><NativeObjectLink resource={{ apiVersion: "apiextensions.k8s.io/v1", resource: "customresourcedefinitions" }} item={item} testId="ocp-admin-crds-object-link" /></td>
                       <td>{crdGroup(item)}</td>
@@ -573,13 +725,13 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
         </article>
       ) : null}
 
-      {view === "resourcequotas" ? (
+      {activeView === "resourcequotas" ? (
         <article className="admin-native-panel">
           <div className="card-title-row">
             <h3>{copy.resourcequotas}</h3>
             <ShieldCheck size={18} aria-hidden="true" />
           </div>
-          {resourceQuotas.length > 0 ? (
+          {filteredResourceQuotas.length > 0 ? (
             <div className="native-admin-table-wrap">
               <table className="native-admin-table" data-testid="ocp-admin-resourcequotas-table">
                 <thead>
@@ -591,7 +743,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
                   </tr>
                 </thead>
                 <tbody>
-                  {resourceQuotas.map((item) => (
+                  {filteredResourceQuotas.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "resourcequotas" }} item={item} testId="ocp-admin-resourcequotas-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
@@ -608,13 +760,13 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
         </article>
       ) : null}
 
-      {view === "limitranges" ? (
+      {activeView === "limitranges" ? (
         <article className="admin-native-panel">
           <div className="card-title-row">
             <h3>{copy.limitranges}</h3>
             <ShieldCheck size={18} aria-hidden="true" />
           </div>
-          {limitRanges.length > 0 ? (
+          {filteredLimitRanges.length > 0 ? (
             <div className="native-admin-table-wrap">
               <table className="native-admin-table" data-testid="ocp-admin-limitranges-table">
                 <thead>
@@ -626,7 +778,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
                   </tr>
                 </thead>
                 <tbody>
-                  {limitRanges.map((item) => (
+                  {filteredLimitRanges.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "limitranges" }} item={item} testId="ocp-admin-limitranges-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
