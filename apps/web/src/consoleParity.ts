@@ -17,6 +17,7 @@ export type ConsoleParityActionSurface =
   | "evidence"
   | "resource-explorer"
   | "topology-graph"
+  | "ecosystem-console"
   | "workloads-console"
   | "monitoring-console"
   | "builds-console"
@@ -70,6 +71,7 @@ type ConsoleParityItemDraft = Omit<ConsoleParityItem, "coverageClass">;
 export type ConsoleParityFunctionMode =
   | "resource-preset"
   | "topology-graph"
+  | "ecosystem-console"
   | "workloads-console"
   | "monitoring-console"
   | "builds-console"
@@ -327,10 +329,10 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "소프트웨어 카탈로그",
     originalPath: "Ecosystem / Software Catalog",
     originalPathKo: "에코시스템 / 소프트웨어 카탈로그",
-    targetSelector: "[data-testid='opslens-catalog-toolchain']",
-    actionSurface: "ops-admin",
-    command: "Open software catalog readiness and installed catalog evidence before installation.",
-    commandKo: "설치 전에 소프트웨어 카탈로그 준비도와 설치된 카탈로그 근거를 엽니다.",
+    targetSelector: "[data-testid='ocp-ecosystem-software-catalog']",
+    actionSurface: "ecosystem-console",
+    command: "Open catalog packages, CatalogSources, and native install handoff evidence before installation.",
+    commandKo: "설치 전에 카탈로그 패키지, CatalogSource, 원본 설치 연결 근거를 엽니다.",
     opsLensEnhancement: "Shows CatalogSource, package manifest, image tag, architecture, and stale-catalog evidence.",
     opsLensEnhancementKo: "CatalogSource, 패키지 매니페스트, 이미지 태그, 아키텍처, stale catalog 근거를 보여줍니다.",
     acceptance: "Catalog readiness distinguishes visible package, catalog pod, and install approval state.",
@@ -344,10 +346,10 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "Operator 카탈로그",
     originalPath: "Ecosystem / Software Catalog / Operator catalog",
     originalPathKo: "에코시스템 / 소프트웨어 카탈로그 / Operator 카탈로그",
-    targetSelector: "[data-testid='opslens-operator-package']",
-    actionSurface: "ops-admin",
-    command: "Review Operator catalog visibility, current CSV, install modes, architecture labels, and icon metadata.",
-    commandKo: "Operator 카탈로그 표시, current CSV, 설치 모드, 아키텍처 라벨, 아이콘 메타데이터를 검토합니다.",
+    targetSelector: "[data-testid='ocp-ecosystem-operatorhub']",
+    actionSurface: "ecosystem-console",
+    command: "Review Operator package visibility, current CSV, channel, CatalogSource, and install handoff evidence.",
+    commandKo: "Operator 패키지 표시, current CSV, 채널, CatalogSource, 설치 연결 근거를 검토합니다.",
     opsLensEnhancement: "Adds the exact failure classes seen in CRC: stale catalog, arch mismatch, installMode, and pull scope.",
     opsLensEnhancementKo: "CRC에서 겪은 stale catalog, 아키텍처 불일치, installMode, pull 권한 문제를 분류합니다.",
     acceptance: "Operator catalog entry must be mapped to package manifest and catalog pod evidence.",
@@ -368,8 +370,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "설치된 Operator",
     originalPath: "Ecosystem / Installed Operators",
     originalPathKo: "에코시스템 / 설치된 Operator",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-ecosystem-installed-operators']",
+    actionSurface: "ecosystem-console",
     command: "Inspect CSVs, Subscriptions, InstallPlans, and operator Deployments without mutating them.",
     commandKo: "CSV, Subscription, InstallPlan, Operator Deployment를 변경 없이 조회합니다.",
     opsLensEnhancement: "Adds install progress diagnosis and image-source mismatch detection.",
@@ -394,8 +396,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "Helm",
     originalPath: "Ecosystem / Helm",
     originalPathKo: "에코시스템 / Helm",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-ecosystem-helm']",
+    actionSurface: "ecosystem-console",
     command: "Inspect Helm-related Secrets and ConfigMaps as read-only release evidence.",
     commandKo: "Helm 관련 Secret/ConfigMap을 읽기 전용 릴리스 근거로 확인합니다.",
     opsLensEnhancement: "Keeps Helm metadata redacted and asks the assistant for rollback planning only.",
@@ -1591,6 +1593,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "ecosystem-console") {
+    return {
+      mode: "ecosystem-console",
+      input: `Ecosystem surface: ${item.id}`,
+      inputKo: `에코시스템 화면: ${item.labelKo}`,
+      proof:
+        "Ecosystem target must mount a native catalog/operator/Helm surface with CatalogSource, PackageManifest, CSV, Subscription, InstallPlan, and redacted Helm metadata evidence.",
+      proofKo:
+        "에코시스템 대상은 CatalogSource, PackageManifest, CSV, Subscription, InstallPlan, 마스킹된 Helm 메타데이터 근거를 갖춘 원본 카탈로그/Operator/Helm 스타일 화면을 장착해야 합니다."
+    };
+  }
+
   if (item.actionSurface === "workloads-console") {
     return {
       mode: "workloads-console",
@@ -1778,6 +1792,16 @@ export function consoleParityFunctionSignal(
         "Topology graph must render live resource nodes and evidence-backed edges.",
       descriptionKo:
         "토폴로지 그래프는 실시간 리소스 노드와 근거 기반 연결을 렌더링해야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "ecosystem-console") {
+    return {
+      selector: item.targetSelector,
+      description:
+        "Ecosystem console surface must expose the selected native Software Catalog, Operator catalog, Installed Operators, or Helm view with live source state.",
+      descriptionKo:
+        "에코시스템 콘솔 화면은 선택한 원본 Software Catalog, Operator 카탈로그, 설치된 Operator, Helm 보기를 실시간 출처 상태와 함께 보여야 합니다."
     };
   }
 

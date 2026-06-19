@@ -88,6 +88,7 @@ const overviewSource = await readText("apps/web/src/components/OcpConsoleOvervie
 const dashboardSource = await readText("apps/web/src/components/OperationsDashboard.tsx");
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
 const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.tsx");
+const ecosystemSource = await readText("apps/web/src/components/OcpEcosystemConsole.tsx");
 const workloadsSource = await readText("apps/web/src/components/OcpWorkloadsConsole.tsx");
 const nativeObjectLinkSource = await readText("apps/web/src/components/NativeObjectLink.tsx");
 const nativeObjectDrilldownSource = await readText(
@@ -1504,6 +1505,11 @@ expectCheck(
     paritySource.includes("Home / API Explorer") &&
     paritySource.includes("apiextensions.k8s.io/v1/customresourcedefinitions") &&
     paritySource.includes("apiregistration.k8s.io/v1/apiservices") &&
+    paritySource.includes('| "ecosystem-console"') &&
+    paritySource.includes('mode: "ecosystem-console"') &&
+    paritySource.includes("[data-testid='ocp-ecosystem-software-catalog']") &&
+    paritySource.includes("[data-testid='ocp-ecosystem-installed-operators']") &&
+    paritySource.includes("[data-testid='ocp-ecosystem-helm']") &&
     paritySource.includes("Topology") &&
     paritySource.includes('"topology-graph"') &&
     paritySource.includes("#ocp-topology-title") &&
@@ -2068,8 +2074,10 @@ expectCheck(
 
 expectCheck(
   "targeted console section routing",
-    paritySource.includes("targetSelector: \"[data-testid='opslens-catalog-toolchain']\"") &&
-    paritySource.includes("targetSelector: \"[data-testid='opslens-operator-package']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-ecosystem-software-catalog']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-ecosystem-operatorhub']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-ecosystem-installed-operators']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-ecosystem-helm']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='opslens-install-readiness']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-monitoring-alerting']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-monitoring-dashboards']\"") &&
@@ -2098,8 +2106,9 @@ expectCheck(
     paritySource.includes("targetSelector: \"[data-testid='ocp-user-rolebindings']\"") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
     e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
+    appSource.includes("case \"ecosystem-console\"") &&
     appSource.includes("case \"ops-admin\""),
-  "non-resource console items route to their concrete OpsLens sections instead of a generic admin header"
+  "non-resource console items route to their concrete native OpsLens sections instead of a generic admin header"
 );
 
 expectCheck(
@@ -2368,6 +2377,37 @@ expectCheck(
     stylesSource.includes(".workloads-native-boundary") &&
     e2eSource.includes('"workloads-console": "Workloads console"'),
   "Workloads menu items must render native Pods, workload controllers, Secrets, ConfigMaps, CronJobs, Jobs, HPAs, and PDBs with status/owner/config/redaction evidence instead of routing only to the generic resource explorer"
+);
+
+expectCheck(
+  "official ecosystem console surface contract",
+  paritySource.includes('| "ecosystem-console"') &&
+    paritySource.includes('actionSurface: "ecosystem-console"') &&
+    paritySource.includes("Software Catalog") &&
+    paritySource.includes("Operator catalog") &&
+    paritySource.includes("Installed Operators") &&
+    paritySource.includes("Helm") &&
+    appSource.includes("case \"ecosystem-console\"") &&
+    appSource.includes("<OcpEcosystemConsole") &&
+    ecosystemSource.includes("export type OcpEcosystemView") &&
+    ecosystemSource.includes('"software-catalog"') &&
+    ecosystemSource.includes('"operatorhub"') &&
+    ecosystemSource.includes('"installed-operators"') &&
+    ecosystemSource.includes('"helm"') &&
+    ecosystemSource.includes("operators.coreos.com/v1alpha1") &&
+    ecosystemSource.includes("packages.operators.coreos.com/v1") &&
+    ecosystemSource.includes("catalogsources") &&
+    ecosystemSource.includes("packagemanifests") &&
+    ecosystemSource.includes("clusterserviceversions") &&
+    ecosystemSource.includes("subscriptions") &&
+    ecosystemSource.includes("installplans") &&
+    ecosystemSource.includes("owner=helm") &&
+    ecosystemSource.includes('data-testid={`ocp-ecosystem-${view}`}') &&
+    ecosystemSource.includes('data-testid="ocp-ecosystem-summary"') &&
+    ecosystemSource.includes('data-testid="ocp-ecosystem-native-handoff"') &&
+    ecosystemSource.includes("OcpNativeObjectDrilldown") &&
+    e2eSource.includes('"ecosystem-console": "Ecosystem console"'),
+  "Ecosystem menu items must render native Software Catalog, Operator catalog, Installed Operators, and Helm-style read-only evidence instead of routing to OpsLens Admin or only the generic explorer"
 );
 
 expectCheck(
@@ -2812,7 +2852,7 @@ expectCheck(
     !appSource.includes("로컬 API 경로") &&
     appSource.includes("계획 수립 흐름만 엽니다") &&
     appSource.includes("진행 중인 장애 대기열") &&
-    paritySource.includes("설치 전에 소프트웨어 카탈로그 준비도") &&
+    paritySource.includes("설치 전에 카탈로그 패키지") &&
     paritySource.includes("필수 키") &&
     appSource.includes("{copy.api} {apiStatusLabels[language][apiStatus]}") &&
     paritySource.includes("파드 목록, 상태, 이벤트, 로그") &&

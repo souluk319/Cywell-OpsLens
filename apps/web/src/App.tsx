@@ -84,6 +84,10 @@ import {
   OcpUserManagementConsole,
   type OcpUserManagementView
 } from "./components/OcpUserManagementConsole";
+import {
+  OcpEcosystemConsole,
+  type OcpEcosystemView
+} from "./components/OcpEcosystemConsole";
 import { OcpTopologyGraph } from "./components/OcpTopologyGraph";
 import {
   OcpResourceExplorer,
@@ -1210,6 +1214,13 @@ export default function App() {
         );
       case "topology-graph":
         return <OcpTopologyGraph language={language} />;
+      case "ecosystem-console":
+        return (
+          <OcpEcosystemConsole
+            language={language}
+            view={activeNavigation.id as OcpEcosystemView}
+          />
+        );
       case "monitoring-console":
         return (
           <OcpMonitoringConsole
