@@ -5315,6 +5315,17 @@ button {
   color: #151515;
 }
 
+.compute-filter-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.compute-filter-toolbar .native-toolbar-count {
+  justify-self: end;
+}
+
 .compute-native-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(170px, 1fr));
@@ -5431,6 +5442,17 @@ button {
   border-color: #d2d2d2;
   background: #fff;
   color: #151515;
+}
+
+.user-filter-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.user-filter-toolbar .native-toolbar-count {
+  justify-self: end;
 }
 
 .user-native-grid {

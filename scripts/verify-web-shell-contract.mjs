@@ -2289,11 +2289,13 @@ expectCheck(
 
 expectCheck(
   "RBAC cluster-scoped drilldown contract",
-  userManagementSource.includes("resourceForUserManagementItem") &&
+    userManagementSource.includes("resourceForUserManagementItem") &&
     userManagementSource.includes("item.kind === \"ClusterRole\"") &&
     userManagementSource.includes("item.kind === \"ClusterRoleBinding\"") &&
-    userManagementSource.includes("items: roles") &&
-    userManagementSource.includes("items: roleBindings") &&
+    userManagementSource.includes("items: filteredRoles") &&
+    userManagementSource.includes("items: filteredRoleBindings") &&
+    userManagementSource.includes("const roles = [...(state.roles?.items ?? []), ...(state.clusterRoles?.items ?? [])]") &&
+    userManagementSource.includes("const roleBindings = [...(state.roleBindings?.items ?? []), ...(state.clusterRoleBindings?.items ?? [])]") &&
     userManagementSource.includes("resourceForItem={resourceForUserManagementItem}"),
   "User Management drilldown includes ClusterRoles and ClusterRoleBindings instead of only namespaced RBAC objects"
 );
@@ -2634,6 +2636,12 @@ expectCheck(
     computeSource.includes("export type OcpComputeView") &&
     computeSource.includes('data-testid={viewTestId(view)}') &&
     computeSource.includes('data-testid="ocp-compute-toolbar"') &&
+    computeSource.includes('data-testid="ocp-compute-native-toolbar"') &&
+    computeSource.includes('data-testid="ocp-compute-filter-count"') &&
+    computeSource.includes("setResourceFilter") &&
+    computeSource.includes("setNamespaceFilter") &&
+    computeSource.includes("setSearch") &&
+    computeSource.includes("nativeResourceCreatePath") &&
     computeSource.includes('data-testid="ocp-compute-readiness-board"') &&
     computeSource.includes('data-testid="ocp-compute-nodes-table"') &&
     computeSource.includes('data-testid="ocp-compute-machines-table"') &&
@@ -2646,6 +2654,7 @@ expectCheck(
     computeSource.includes("fetchOcpResourceList") &&
     stylesSource.includes(".ocp-compute-console") &&
     stylesSource.includes(".ocp-compute-toolbar") &&
+    stylesSource.includes(".compute-filter-toolbar") &&
     stylesSource.includes(".compute-native-grid") &&
     stylesSource.includes(".native-compute-table") &&
     stylesSource.includes(".compute-native-boundary") &&
@@ -2667,6 +2676,12 @@ expectCheck(
     userManagementSource.includes("export type OcpUserManagementView") &&
     userManagementSource.includes('data-testid={viewTestId(view)}') &&
     userManagementSource.includes('data-testid="ocp-user-toolbar"') &&
+    userManagementSource.includes('data-testid="ocp-user-native-toolbar"') &&
+    userManagementSource.includes('data-testid="ocp-user-filter-count"') &&
+    userManagementSource.includes("setResourceFilter") &&
+    userManagementSource.includes("setNamespaceFilter") &&
+    userManagementSource.includes("setSearch") &&
+    userManagementSource.includes("nativeResourceCreatePath") &&
     userManagementSource.includes('data-testid="ocp-user-subjects-board"') &&
     userManagementSource.includes('data-testid="ocp-user-users-table"') &&
     userManagementSource.includes('data-testid="ocp-user-groups-table"') &&
@@ -2680,6 +2695,7 @@ expectCheck(
     userManagementSource.includes("fetchOcpResourceList") &&
     stylesSource.includes(".ocp-user-console") &&
     stylesSource.includes(".ocp-user-toolbar") &&
+    stylesSource.includes(".user-filter-toolbar") &&
     stylesSource.includes(".user-native-grid") &&
     stylesSource.includes(".native-user-table") &&
     stylesSource.includes(".user-native-boundary") &&

@@ -763,6 +763,18 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("ocp-admin-native-toolbar")).toBeVisible();
     await page.getByPlaceholder("Search by name...").fill("operator");
     await expect(page.getByTestId("ocp-admin-filter-count")).toContainText("Showing:");
+
+    await openConsoleNavItem(page, "nodes");
+    await page.getByTestId("console-active-open-surface").click();
+    await expect(page.getByTestId("ocp-compute-native-toolbar")).toBeVisible();
+    await page.getByPlaceholder("Search by name...").fill("node");
+    await expect(page.getByTestId("ocp-compute-filter-count")).toContainText("Showing:");
+
+    await openConsoleNavItem(page, "users");
+    await page.getByTestId("console-active-open-surface").click();
+    await expect(page.getByTestId("ocp-user-native-toolbar")).toBeVisible();
+    await page.getByPlaceholder("Search by name...").fill("kube");
+    await expect(page.getByTestId("ocp-user-filter-count")).toContainText("Showing:");
   });
 
   test("AC-UI-009 opens KOMSCO assistant for every version-pinned console item", async ({

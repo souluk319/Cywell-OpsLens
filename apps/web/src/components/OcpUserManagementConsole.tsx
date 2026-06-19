@@ -1,8 +1,19 @@
 import type { OcpResourceListResponse, OcpResourceSummary } from "@kugnus/contracts";
-import { AlertTriangle, KeyRound, RefreshCw, ShieldCheck, UserRound, UsersRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  AlertTriangle,
+  KeyRound,
+  ListFilter,
+  PlusCircle,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  UserRound,
+  UsersRound
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { nativeConsoleHref, nativeResourceCreatePath } from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
@@ -41,9 +52,15 @@ const userCopy = {
     serviceaccounts: "ServiceAccounts",
     roles: "Roles",
     rolebindings: "RoleBindings",
+    namespace: "Namespace",
+    allNamespaces: "All namespaces",
+    searchByName: "Search by name...",
+    filterByResource: "Filter by resource",
+    allResources: "All user resources",
+    create: "Create",
+    showing: "Showing",
     identities: "Identities",
     members: "Members",
-    namespace: "Namespace",
     secrets: "Secrets",
     imagePullSecrets: "ImagePullSecrets",
     rules: "Rules",
@@ -82,9 +99,15 @@ const userCopy = {
     serviceaccounts: "서비스 계정",
     roles: "역할",
     rolebindings: "역할 바인딩",
+    namespace: "네임스페이스",
+    allNamespaces: "모든 네임스페이스",
+    searchByName: "이름으로 검색...",
+    filterByResource: "리소스 필터",
+    allResources: "모든 사용자 관리 리소스",
+    create: "생성",
+    showing: "표시",
     identities: "Identity",
     members: "멤버",
-    namespace: "네임스페이스",
     secrets: "Secret",
     imagePullSecrets: "ImagePullSecret",
     rules: "규칙",
@@ -129,6 +152,24 @@ function arrayField(value: unknown, key: string): unknown[] {
 
 function viewTestId(view: OcpUserManagementView) {
   return `ocp-user-${view}`;
+}
+
+const userResources = [
+  { view: "users", apiVersion: "user.openshift.io/v1", resource: "users", namespaced: false },
+  { view: "groups", apiVersion: "user.openshift.io/v1", resource: "groups", namespaced: false },
+  { view: "serviceaccounts", apiVersion: "v1", resource: "serviceaccounts", namespaced: true },
+  { view: "roles", apiVersion: "rbac.authorization.k8s.io/v1", resource: "roles", namespaced: true },
+  { view: "rolebindings", apiVersion: "rbac.authorization.k8s.io/v1", resource: "rolebindings", namespaced: true }
+] as const;
+
+function resourceConfig(view: OcpUserManagementView) {
+  return userResources.find((entry) => entry.view === view) ?? userResources[0];
+}
+
+function uniqueSorted(values: Array<string | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
+    a.localeCompare(b)
+  );
 }
 
 function failureText(response: OcpResourceListResponse | undefined) {
@@ -209,6 +250,11 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
   const [state, setState] = useState<ResourceState>({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [namespaceFilter, setNamespaceFilter] = useState("all");
+  const [resourceFilter, setResourceFilter] = useState<OcpUserManagementView | "all">("all");
+  const activeView = resourceFilter === "all" ? view : resourceFilter;
+  const activeResource = resourceConfig(activeView);
 
   async function refresh(options: { silent?: boolean } = {}) {
     if (!options.silent) setLoading(true);
@@ -256,6 +302,61 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
   const serviceAccounts = state.serviceAccounts?.items ?? [];
   const roles = [...(state.roles?.items ?? []), ...(state.clusterRoles?.items ?? [])];
   const roleBindings = [...(state.roleBindings?.items ?? []), ...(state.clusterRoleBindings?.items ?? [])];
+  const namespaceOptions = useMemo(
+    () => uniqueSorted([...serviceAccounts, ...roles, ...roleBindings].map((item) => item.metadata.namespace)),
+    [roleBindings, roles, serviceAccounts]
+  );
+  const filterItems = (items: OcpResourceSummary[]) => {
+    const query = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (namespaceFilter !== "all" && item.metadata.namespace && item.metadata.namespace !== namespaceFilter) return false;
+      if (!query) return true;
+      const firstRoleRule = firstRule(item);
+      const terms = [
+        item.kind,
+        item.metadata.name,
+        item.metadata.namespace,
+        arrayField(item, "identities").join(" "),
+        arrayField(item, "groups").join(" "),
+        arrayField(item, "users").join(" "),
+        bindingRoleRef(item),
+        bindingSubjects(item),
+        firstRoleRule.apiGroups,
+        firstRoleRule.resources,
+        firstRoleRule.verbs
+      ];
+      return terms
+        .filter((term): term is string => Boolean(term))
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  };
+  const filteredUsers = useMemo(() => filterItems(users), [namespaceFilter, search, users]);
+  const filteredGroups = useMemo(() => filterItems(groups), [groups, namespaceFilter, search]);
+  const filteredServiceAccounts = useMemo(() => filterItems(serviceAccounts), [namespaceFilter, search, serviceAccounts]);
+  const filteredRoles = useMemo(() => filterItems(roles), [namespaceFilter, roles, search]);
+  const filteredRoleBindings = useMemo(() => filterItems(roleBindings), [namespaceFilter, roleBindings, search]);
+  const activeItems =
+    activeView === "users"
+      ? filteredUsers
+      : activeView === "groups"
+        ? filteredGroups
+        : activeView === "serviceaccounts"
+          ? filteredServiceAccounts
+          : activeView === "roles"
+            ? filteredRoles
+            : filteredRoleBindings;
+  const activeTotal =
+    activeView === "users"
+      ? users.length
+      : activeView === "groups"
+        ? groups.length
+        : activeView === "serviceaccounts"
+          ? serviceAccounts.length
+          : activeView === "roles"
+            ? roles.length
+            : roleBindings.length;
   const failureMessages = [
     failureText(state.users),
     failureText(state.groups),
@@ -267,35 +368,41 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
     ...errors
   ].filter(Boolean);
   const drilldown =
-    view === "users"
+    activeView === "users"
       ? {
           resource: { apiVersion: "user.openshift.io/v1", resource: "users" },
-          items: users,
+          items: filteredUsers,
           title: copy.users
         }
-      : view === "groups"
+      : activeView === "groups"
         ? {
             resource: { apiVersion: "user.openshift.io/v1", resource: "groups" },
-            items: groups,
+            items: filteredGroups,
             title: copy.groups
           }
-        : view === "serviceaccounts"
+        : activeView === "serviceaccounts"
           ? {
               resource: { apiVersion: "v1", resource: "serviceaccounts" },
-              items: serviceAccounts,
+              items: filteredServiceAccounts,
               title: copy.serviceaccounts
             }
-          : view === "roles"
+          : activeView === "roles"
             ? {
                 resource: { apiVersion: "rbac.authorization.k8s.io/v1", resource: "roles" },
-                items: roles,
+                items: filteredRoles,
                 title: copy.roles
               }
             : {
                 resource: { apiVersion: "rbac.authorization.k8s.io/v1", resource: "rolebindings" },
-                items: roleBindings,
+                items: filteredRoleBindings,
                 title: copy.rolebindings
               };
+  const createHref = nativeConsoleHref(
+    nativeResourceCreatePath(
+      { apiVersion: activeResource.apiVersion, resource: activeResource.resource },
+      activeResource.namespaced ? (namespaceFilter !== "all" ? namespaceFilter : "default") : undefined
+    )
+  );
 
   return (
     <section className="ocp-user-console" data-testid={viewTestId(view)} aria-labelledby="ocp-user-title">
@@ -321,6 +428,49 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
         <span>{copy.rolebindings}: {roleBindings.length}</span>
       </div>
 
+      <div className="native-console-toolbar user-filter-toolbar" data-testid="ocp-user-native-toolbar">
+        <label className="resource-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            placeholder={copy.searchByName}
+            aria-label={copy.searchByName}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          <span>{copy.namespace}</span>
+          <select value={namespaceFilter} aria-label={copy.namespace} onChange={(event) => setNamespaceFilter(event.currentTarget.value)}>
+            <option value="all">{copy.allNamespaces}</option>
+            {namespaceOptions.map((namespace) => (
+              <option key={namespace} value={namespace}>{namespace}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.filterByResource}</span>
+          <select
+            value={resourceFilter}
+            aria-label={copy.filterByResource}
+            onChange={(event) => setResourceFilter(event.currentTarget.value as OcpUserManagementView | "all")}
+          >
+            <option value="all">{copy.allResources}</option>
+            {userResources.map((entry) => (
+              <option key={entry.view} value={entry.view}>{copy[entry.view]}</option>
+            ))}
+          </select>
+        </label>
+        <a className="text-icon-button native-open-link" href={createHref} target="_blank" rel="noreferrer">
+          <PlusCircle size={16} aria-hidden="true" />
+          {copy.create}
+        </a>
+        <span className="native-toolbar-count" data-testid="ocp-user-filter-count">
+          <ListFilter size={15} aria-hidden="true" />
+          {copy.showing}: {activeItems.length}/{activeTotal}
+        </span>
+      </div>
+
       {failureMessages.length > 0 ? (
         <div className="ocp-error" data-testid="ocp-user-api-failure">
           <AlertTriangle size={17} aria-hidden="true" />
@@ -330,7 +480,7 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
 
       <nav className="ocp-user-tabs" aria-label={copy.title}>
         {(["users", "groups", "serviceaccounts", "roles", "rolebindings"] as const).map((tab) => (
-          <a key={tab} href={`#${viewTestId(tab)}`} aria-current={view === tab ? "page" : undefined}>
+          <a key={tab} href={`#${viewTestId(tab)}`} aria-current={activeView === tab ? "page" : undefined}>
             {copy[tab]}
           </a>
         ))}
@@ -359,70 +509,70 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
         </article>
       </div>
 
-      {view === "users" ? (
+      {activeView === "users" ? (
         <article className="user-native-panel">
           <h3>{copy.users}</h3>
-          {users.length ? (
+          {filteredUsers.length ? (
             <div className="native-user-table-wrap">
               <table className="native-user-table" data-testid="ocp-user-users-table">
                 <thead><tr><th>{copy.users}</th><th>{copy.identities}</th><th>{copy.groups}</th></tr></thead>
-                <tbody>{users.map((item) => <tr key={item.metadata.name}><td><NativeObjectLink resource={{ apiVersion: "user.openshift.io/v1", resource: "users" }} item={item} testId="ocp-user-users-object-link" /></td><td>{countArray(item, "identities")}</td><td>{countArray(item, "groups")}</td></tr>)}</tbody>
+                <tbody>{filteredUsers.map((item) => <tr key={item.metadata.name}><td><NativeObjectLink resource={{ apiVersion: "user.openshift.io/v1", resource: "users" }} item={item} testId="ocp-user-users-object-link" /></td><td>{countArray(item, "identities")}</td><td>{countArray(item, "groups")}</td></tr>)}</tbody>
               </table>
             </div>
           ) : <p className="empty-state">{copy.noUsers}</p>}
         </article>
       ) : null}
 
-      {view === "groups" ? (
+      {activeView === "groups" ? (
         <article className="user-native-panel">
           <h3>{copy.groups}</h3>
-          {groups.length ? (
+          {filteredGroups.length ? (
             <div className="native-user-table-wrap">
               <table className="native-user-table" data-testid="ocp-user-groups-table">
                 <thead><tr><th>{copy.groups}</th><th>{copy.members}</th></tr></thead>
-                <tbody>{groups.map((item) => <tr key={item.metadata.name}><td><NativeObjectLink resource={{ apiVersion: "user.openshift.io/v1", resource: "groups" }} item={item} testId="ocp-user-groups-object-link" /></td><td>{arrayField(item, "users").join(", ") || "-"}</td></tr>)}</tbody>
+                <tbody>{filteredGroups.map((item) => <tr key={item.metadata.name}><td><NativeObjectLink resource={{ apiVersion: "user.openshift.io/v1", resource: "groups" }} item={item} testId="ocp-user-groups-object-link" /></td><td>{arrayField(item, "users").join(", ") || "-"}</td></tr>)}</tbody>
               </table>
             </div>
           ) : <p className="empty-state">{copy.noGroups}</p>}
         </article>
       ) : null}
 
-      {view === "serviceaccounts" ? (
+      {activeView === "serviceaccounts" ? (
         <article className="user-native-panel">
           <h3>{copy.serviceaccounts}</h3>
-          {serviceAccounts.length ? (
+          {filteredServiceAccounts.length ? (
             <div className="native-user-table-wrap">
               <table className="native-user-table" data-testid="ocp-user-serviceaccounts-table">
                 <thead><tr><th>{copy.serviceaccounts}</th><th>{copy.namespace}</th><th>{copy.secrets}</th><th>{copy.imagePullSecrets}</th></tr></thead>
-                <tbody>{serviceAccounts.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><NativeObjectLink resource={{ apiVersion: "v1", resource: "serviceaccounts" }} item={item} testId="ocp-user-serviceaccounts-object-link" /></td><td>{item.metadata.namespace ?? "-"}</td><td>{countArray(item, "secrets")}</td><td>{countArray(item, "imagePullSecrets")}</td></tr>)}</tbody>
+                <tbody>{filteredServiceAccounts.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><NativeObjectLink resource={{ apiVersion: "v1", resource: "serviceaccounts" }} item={item} testId="ocp-user-serviceaccounts-object-link" /></td><td>{item.metadata.namespace ?? "-"}</td><td>{countArray(item, "secrets")}</td><td>{countArray(item, "imagePullSecrets")}</td></tr>)}</tbody>
               </table>
             </div>
           ) : <p className="empty-state">{copy.noServiceAccounts}</p>}
         </article>
       ) : null}
 
-      {view === "roles" ? (
+      {activeView === "roles" ? (
         <article className="user-native-panel">
           <h3>{copy.roles}</h3>
-          {roles.length ? (
+          {filteredRoles.length ? (
             <div className="native-user-table-wrap">
               <table className="native-user-table" data-testid="ocp-user-roles-table">
                 <thead><tr><th>{copy.roles}</th><th>{copy.namespace}</th><th>{copy.rules}</th><th>{copy.apiGroups}</th><th>{copy.resources}</th><th>{copy.verbs}</th></tr></thead>
-                <tbody>{roles.map((item) => { const rule = firstRule(item); return <tr key={`${item.kind}-${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}><td><NativeObjectLink resource={roleResource(item)} item={item} testId="ocp-user-roles-object-link">{item.kind}/{item.metadata.name}</NativeObjectLink></td><td>{item.metadata.namespace ?? "-"}</td><td>{countArray(item, "rules")}</td><td>{rule.apiGroups}</td><td>{rule.resources}</td><td>{rule.verbs}</td></tr>; })}</tbody>
+                <tbody>{filteredRoles.map((item) => { const rule = firstRule(item); return <tr key={`${item.kind}-${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}><td><NativeObjectLink resource={roleResource(item)} item={item} testId="ocp-user-roles-object-link">{item.kind}/{item.metadata.name}</NativeObjectLink></td><td>{item.metadata.namespace ?? "-"}</td><td>{countArray(item, "rules")}</td><td>{rule.apiGroups}</td><td>{rule.resources}</td><td>{rule.verbs}</td></tr>; })}</tbody>
               </table>
             </div>
           ) : <p className="empty-state">{copy.noRoles}</p>}
         </article>
       ) : null}
 
-      {view === "rolebindings" ? (
+      {activeView === "rolebindings" ? (
         <article className="user-native-panel">
           <h3>{copy.rolebindings}</h3>
-          {roleBindings.length ? (
+          {filteredRoleBindings.length ? (
             <div className="native-user-table-wrap">
               <table className="native-user-table" data-testid="ocp-user-rolebindings-table">
                 <thead><tr><th>{copy.rolebindings}</th><th>{copy.namespace}</th><th>{copy.roleRef}</th><th>{copy.subjects}</th></tr></thead>
-                <tbody>{roleBindings.map((item) => <tr key={`${item.kind}-${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}><td><NativeObjectLink resource={roleBindingResource(item)} item={item} testId="ocp-user-rolebindings-object-link">{item.kind}/{item.metadata.name}</NativeObjectLink></td><td>{item.metadata.namespace ?? "-"}</td><td>{bindingRoleRef(item)}</td><td>{bindingSubjects(item)}</td></tr>)}</tbody>
+                <tbody>{filteredRoleBindings.map((item) => <tr key={`${item.kind}-${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}><td><NativeObjectLink resource={roleBindingResource(item)} item={item} testId="ocp-user-rolebindings-object-link">{item.kind}/{item.metadata.name}</NativeObjectLink></td><td>{item.metadata.namespace ?? "-"}</td><td>{bindingRoleRef(item)}</td><td>{bindingSubjects(item)}</td></tr>)}</tbody>
               </table>
             </div>
           ) : <p className="empty-state">{copy.noRoleBindings}</p>}

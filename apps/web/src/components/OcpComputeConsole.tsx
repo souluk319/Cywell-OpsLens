@@ -3,15 +3,19 @@ import {
   AlertTriangle,
   Cpu,
   HardDrive,
+  ListFilter,
   MemoryStick,
   Network,
+  PlusCircle,
   RefreshCw,
+  Search,
   Server,
   ServerCog
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { nativeConsoleHref, nativeResourceCreatePath } from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
@@ -41,6 +45,13 @@ const computeCopy = {
     machines: "Machines",
     machinesets: "MachineSets",
     machineconfigpools: "MachineConfigPools",
+    namespace: "Namespace",
+    allNamespaces: "All namespaces",
+    searchByName: "Search by name...",
+    filterByResource: "Filter by resource",
+    allResources: "All compute resources",
+    create: "Create",
+    showing: "Showing",
     readyNodes: "Ready nodes",
     nodePressure: "Node pressure",
     machineApi: "Machine API",
@@ -90,6 +101,13 @@ const computeCopy = {
     machines: "Machines",
     machinesets: "MachineSets",
     machineconfigpools: "MachineConfigPools",
+    namespace: "네임스페이스",
+    allNamespaces: "모든 네임스페이스",
+    searchByName: "이름으로 검색...",
+    filterByResource: "리소스 필터",
+    allResources: "모든 컴퓨트 리소스",
+    create: "생성",
+    showing: "표시",
     readyNodes: "준비된 노드",
     nodePressure: "노드 압박",
     machineApi: "Machine API",
@@ -178,6 +196,28 @@ function viewTestId(view: OcpComputeView) {
   return `ocp-compute-${view}`;
 }
 
+const computeResources = [
+  { view: "nodes", apiVersion: "v1", resource: "nodes", namespaced: false },
+  { view: "machines", apiVersion: "machine.openshift.io/v1beta1", resource: "machines", namespaced: true },
+  { view: "machinesets", apiVersion: "machine.openshift.io/v1beta1", resource: "machinesets", namespaced: true },
+  {
+    view: "machineconfigpools",
+    apiVersion: "machineconfiguration.openshift.io/v1",
+    resource: "machineconfigpools",
+    namespaced: false
+  }
+] as const;
+
+function resourceConfig(view: OcpComputeView) {
+  return computeResources.find((entry) => entry.view === view) ?? computeResources[0];
+}
+
+function uniqueSorted(values: Array<string | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
 function nodeRoles(item: OcpResourceSummary) {
   return Object.keys(item.metadata.labels ?? {})
     .filter((label) => label.startsWith("node-role.kubernetes.io/"))
@@ -241,6 +281,11 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
   const [state, setState] = useState<ResourceState>({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [namespaceFilter, setNamespaceFilter] = useState("all");
+  const [resourceFilter, setResourceFilter] = useState<OcpComputeView | "all">("all");
+  const activeView = resourceFilter === "all" ? view : resourceFilter;
+  const activeResource = resourceConfig(activeView);
 
   async function refresh(options: { silent?: boolean } = {}) {
     if (!options.silent) setLoading(true);
@@ -281,6 +326,45 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
   const machines = state.machines?.items ?? [];
   const machineSets = state.machineSets?.items ?? [];
   const machineConfigPools = state.machineConfigPools?.items ?? [];
+  const namespaceOptions = useMemo(
+    () => uniqueSorted([...machines, ...machineSets].map((item) => item.metadata.namespace)),
+    [machineSets, machines]
+  );
+  const filterItems = (items: OcpResourceSummary[]) => {
+    const query = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (namespaceFilter !== "all" && item.metadata.namespace && item.metadata.namespace !== namespaceFilter) return false;
+      if (!query) return true;
+      const terms = [
+        item.kind,
+        item.metadata.name,
+        item.metadata.namespace,
+        nodeRoles(item),
+        conditionStatus(item, "Ready"),
+        nodeInfo(item, "kubeletVersion"),
+        nodeInfo(item, "osImage"),
+        machinePhase(item),
+        machineNode(item),
+        providerId(item),
+        mcpCondition(item, "Updated"),
+        mcpCondition(item, "Updating"),
+        mcpCondition(item, "Degraded"),
+        conditionMessage(item, "Degraded")
+      ];
+      return terms
+        .filter((term): term is string => Boolean(term))
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  };
+  const filteredNodes = useMemo(() => filterItems(nodes), [namespaceFilter, nodes, search]);
+  const filteredMachines = useMemo(() => filterItems(machines), [namespaceFilter, machines, search]);
+  const filteredMachineSets = useMemo(() => filterItems(machineSets), [machineSets, namespaceFilter, search]);
+  const filteredMachineConfigPools = useMemo(
+    () => filterItems(machineConfigPools),
+    [machineConfigPools, namespaceFilter, search]
+  );
   const readyNodes = nodes.filter((node) => conditionStatus(node, "Ready") === "True").length;
   const pressureNodes = pressureCount(nodes);
   const degradedPools = machineConfigPools.filter((pool) => mcpCondition(pool, "Degraded") === "True");
@@ -293,36 +377,52 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
     ...errors
   ].filter(Boolean);
 
-  const activeItems = useMemo(() => {
-    if (view === "nodes") return nodes;
-    if (view === "machines") return machines;
-    if (view === "machinesets") return machineSets;
-    return machineConfigPools;
-  }, [machineConfigPools, machineSets, machines, nodes, view]);
+  const activeItems =
+    activeView === "nodes"
+      ? filteredNodes
+      : activeView === "machines"
+        ? filteredMachines
+        : activeView === "machinesets"
+          ? filteredMachineSets
+          : filteredMachineConfigPools;
+  const activeTotal =
+    activeView === "nodes"
+      ? nodes.length
+      : activeView === "machines"
+        ? machines.length
+        : activeView === "machinesets"
+          ? machineSets.length
+          : machineConfigPools.length;
   const drilldown =
-    view === "nodes"
+    activeView === "nodes"
       ? {
           resource: { apiVersion: "v1", resource: "nodes" },
-          items: nodes,
+          items: filteredNodes,
           title: copy.nodes
         }
-      : view === "machines"
+      : activeView === "machines"
         ? {
             resource: { apiVersion: "machine.openshift.io/v1beta1", resource: "machines" },
-            items: machines,
+            items: filteredMachines,
             title: copy.machines
           }
-        : view === "machinesets"
+        : activeView === "machinesets"
           ? {
               resource: { apiVersion: "machine.openshift.io/v1beta1", resource: "machinesets" },
-              items: machineSets,
+              items: filteredMachineSets,
               title: copy.machinesets
             }
           : {
               resource: { apiVersion: "machineconfiguration.openshift.io/v1", resource: "machineconfigpools" },
-              items: machineConfigPools,
+              items: filteredMachineConfigPools,
               title: copy.machineconfigpools
             };
+  const createHref = nativeConsoleHref(
+    nativeResourceCreatePath(
+      { apiVersion: activeResource.apiVersion, resource: activeResource.resource },
+      activeResource.namespaced ? (namespaceFilter !== "all" ? namespaceFilter : "default") : undefined
+    )
+  );
 
   return (
     <section className="ocp-compute-console" data-testid={viewTestId(view)} aria-labelledby="ocp-compute-title">
@@ -347,6 +447,49 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
         <span>{copy.machineconfigpools}: {machineConfigPools.length}</span>
       </div>
 
+      <div className="native-console-toolbar compute-filter-toolbar" data-testid="ocp-compute-native-toolbar">
+        <label className="resource-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            placeholder={copy.searchByName}
+            aria-label={copy.searchByName}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          <span>{copy.namespace}</span>
+          <select value={namespaceFilter} aria-label={copy.namespace} onChange={(event) => setNamespaceFilter(event.currentTarget.value)}>
+            <option value="all">{copy.allNamespaces}</option>
+            {namespaceOptions.map((namespace) => (
+              <option key={namespace} value={namespace}>{namespace}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.filterByResource}</span>
+          <select
+            value={resourceFilter}
+            aria-label={copy.filterByResource}
+            onChange={(event) => setResourceFilter(event.currentTarget.value as OcpComputeView | "all")}
+          >
+            <option value="all">{copy.allResources}</option>
+            {computeResources.map((entry) => (
+              <option key={entry.view} value={entry.view}>{copy[entry.view]}</option>
+            ))}
+          </select>
+        </label>
+        <a className="text-icon-button native-open-link" href={createHref} target="_blank" rel="noreferrer">
+          <PlusCircle size={16} aria-hidden="true" />
+          {copy.create}
+        </a>
+        <span className="native-toolbar-count" data-testid="ocp-compute-filter-count">
+          <ListFilter size={15} aria-hidden="true" />
+          {copy.showing}: {activeItems.length}/{activeTotal}
+        </span>
+      </div>
+
       {failureMessages.length > 0 ? (
         <div className="ocp-error" data-testid="ocp-compute-api-failure">
           <AlertTriangle size={17} aria-hidden="true" />
@@ -356,7 +499,7 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
 
       <nav className="ocp-compute-tabs" aria-label={copy.title}>
         {(["nodes", "machines", "machinesets", "machineconfigpools"] as const).map((tab) => (
-          <a key={tab} href={`#${viewTestId(tab)}`} aria-current={view === tab ? "page" : undefined}>
+          <a key={tab} href={`#${viewTestId(tab)}`} aria-current={activeView === tab ? "page" : undefined}>
             {copy[tab]}
           </a>
         ))}
@@ -397,13 +540,13 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
         </article>
       </div>
 
-      {view === "nodes" ? (
+      {activeView === "nodes" ? (
         <article className="compute-native-panel">
           <div className="card-title-row">
             <h3>{copy.nodes}</h3>
             <Server size={18} aria-hidden="true" />
           </div>
-          {nodes.length > 0 ? (
+          {filteredNodes.length > 0 ? (
             <div className="native-compute-table-wrap">
               <table className="native-compute-table" data-testid="ocp-compute-nodes-table">
                 <thead>
@@ -419,7 +562,7 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {nodes.map((item) => (
+                  {filteredNodes.map((item) => (
                     <tr key={item.metadata.name}>
                       <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "nodes" }} item={item} testId="ocp-compute-nodes-object-link" /></td>
                       <td><span className={`phase-chip ${boolTone(conditionStatus(item, "Ready"))}`}>{conditionStatus(item, "Ready")}</span></td>
@@ -440,13 +583,13 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
         </article>
       ) : null}
 
-      {view === "machines" ? (
+      {activeView === "machines" ? (
         <article className="compute-native-panel">
           <div className="card-title-row">
             <h3>{copy.machines}</h3>
             <Network size={18} aria-hidden="true" />
           </div>
-          {machines.length > 0 ? (
+          {filteredMachines.length > 0 ? (
             <div className="native-compute-table-wrap">
               <table className="native-compute-table" data-testid="ocp-compute-machines-table">
                 <thead>
@@ -459,7 +602,7 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {machines.map((item) => (
+                  {filteredMachines.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "machine.openshift.io/v1beta1", resource: "machines" }} item={item} testId="ocp-compute-machines-object-link">{item.metadata.namespace ? `${item.metadata.namespace}/` : ""}{item.metadata.name}</NativeObjectLink></td>
                       <td>{machinePhase(item)}</td>
@@ -477,13 +620,13 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
         </article>
       ) : null}
 
-      {view === "machinesets" ? (
+      {activeView === "machinesets" ? (
         <article className="compute-native-panel">
           <div className="card-title-row">
             <h3>{copy.machinesets}</h3>
             <Cpu size={18} aria-hidden="true" />
           </div>
-          {machineSets.length > 0 ? (
+          {filteredMachineSets.length > 0 ? (
             <div className="native-compute-table-wrap">
               <table className="native-compute-table" data-testid="ocp-compute-machinesets-table">
                 <thead>
@@ -496,7 +639,7 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {machineSets.map((item) => (
+                  {filteredMachineSets.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "machine.openshift.io/v1beta1", resource: "machinesets" }} item={item} testId="ocp-compute-machinesets-object-link">{item.metadata.namespace ? `${item.metadata.namespace}/` : ""}{item.metadata.name}</NativeObjectLink></td>
                       <td>{replicaField(item, "replicas")}</td>
@@ -514,13 +657,13 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
         </article>
       ) : null}
 
-      {view === "machineconfigpools" ? (
+      {activeView === "machineconfigpools" ? (
         <article className="compute-native-panel">
           <div className="card-title-row">
             <h3>{copy.machineconfigpools}</h3>
             <MemoryStick size={18} aria-hidden="true" />
           </div>
-          {machineConfigPools.length > 0 ? (
+          {filteredMachineConfigPools.length > 0 ? (
             <div className="native-compute-table-wrap">
               <table className="native-compute-table" data-testid="ocp-compute-machineconfigpools-table">
                 <thead>
@@ -534,7 +677,7 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {machineConfigPools.map((item) => (
+                  {filteredMachineConfigPools.map((item) => (
                     <tr key={item.metadata.name}>
                       <td><NativeObjectLink resource={{ apiVersion: "machineconfiguration.openshift.io/v1", resource: "machineconfigpools" }} item={item} testId="ocp-compute-machineconfigpools-object-link" /></td>
                       <td>{mcpCondition(item, "Updated")}</td>
@@ -564,7 +707,7 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
       <aside className="compute-native-boundary" data-testid="ocp-compute-native-handoff">
         <strong>{copy.nativeHandoff}</strong>
         <p>{copy.createBoundary}</p>
-        <p>{copy[view]}: {activeItems.length}</p>
+        <p>{copy[activeView]}: {activeItems.length}</p>
       </aside>
     </section>
   );
