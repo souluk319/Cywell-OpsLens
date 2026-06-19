@@ -1826,6 +1826,27 @@ expectCheck(
 );
 
 expectCheck(
+  "dashboard plus-alpha cockpit visual contract",
+  dashboardSource.includes('data-testid="opslens-plus-alpha-cockpit"') &&
+    dashboardSource.includes('data-testid={`opslens-plus-alpha-card-${card.id}`}') &&
+    dashboardSource.includes("plusAlphaCockpitCards") &&
+    dashboardSource.includes("copy.plusAlphaCockpit") &&
+    dashboardSource.includes("copy.utilizationPressure") &&
+    dashboardSource.includes("copy.workloadDrift") &&
+    dashboardSource.includes("copy.alertCorrelation") &&
+    dashboardSource.includes("copy.decisionQueue") &&
+    dashboardSource.includes("strongestUtilization") &&
+    dashboardSource.includes("workloadExceptionCount") &&
+    dashboardSource.includes("alertExceptionCount") &&
+    dashboardSource.includes("copy.nativeSignalBasis") &&
+    dashboardSource.includes("copy.opsLensOverlay") &&
+    stylesSource.includes(".ops-plus-cockpit") &&
+    stylesSource.includes(".ops-plus-cockpit-grid") &&
+    stylesSource.includes(".ops-plus-cockpit-meter"),
+  "Operations dashboard adds a customer-facing OpsLens cockpit that merges native console metrics, workload drift, alert correlation, and decision queue signals"
+);
+
+expectCheck(
   "dashboard native console match map contract",
   dashboardSource.includes('data-testid="opslens-native-dashboard-map"') &&
     dashboardSource.includes('data-testid={`opslens-native-dashboard-panel-${panel.id}`}') &&

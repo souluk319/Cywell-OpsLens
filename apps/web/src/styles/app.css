@@ -1151,6 +1151,162 @@ button {
   font-weight: 750;
 }
 
+.ops-plus-cockpit {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #b6d7f7;
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgba(246, 251, 255, 0.98), rgba(255, 255, 255, 1)),
+    #fff;
+}
+
+.ops-plus-cockpit-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-plus-cockpit-heading h4 {
+  margin-bottom: 3px;
+}
+
+.ops-plus-cockpit-heading p {
+  margin: 0;
+}
+
+.ops-plus-cockpit-heading span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid #bde2b9;
+  border-radius: 999px;
+  background: #f3faf2;
+  color: #1f5c24;
+  font-size: 0.72rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.ops-plus-cockpit-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.ops-plus-cockpit-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #d2d2d2;
+  border-bottom: 3px solid #3e8635;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(21, 21, 21, 0.05);
+}
+
+.ops-plus-cockpit-card.warning {
+  border-bottom-color: #f0ab00;
+}
+
+.ops-plus-cockpit-card.danger {
+  border-bottom-color: #c9190b;
+}
+
+.ops-plus-cockpit-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ops-plus-cockpit-card-head span,
+.ops-plus-cockpit-card strong,
+.ops-plus-cockpit-card p,
+.ops-plus-cockpit-card-head small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ops-plus-cockpit-card-head span {
+  color: #4f5255;
+  font-size: 0.72rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.ops-plus-cockpit-card-head small {
+  max-width: 48%;
+  color: #6a6e73;
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ops-plus-cockpit-card strong {
+  display: block;
+  margin-top: 8px;
+  color: #151515;
+  font-size: 1.18rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.ops-plus-cockpit-card p {
+  margin: 4px 0 10px;
+  color: #4f5255;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.ops-plus-cockpit-meter {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ededed;
+}
+
+.ops-plus-cockpit-meter span {
+  display: block;
+  width: var(--bar);
+  min-width: 4px;
+  height: 100%;
+  border-radius: inherit;
+  background: #3e8635;
+}
+
+.ops-plus-cockpit-card.warning .ops-plus-cockpit-meter span {
+  background: #f0ab00;
+}
+
+.ops-plus-cockpit-card.danger .ops-plus-cockpit-meter span {
+  background: #c9190b;
+}
+
+.ops-plus-cockpit-trace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ops-plus-cockpit-trace span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid #d2d2d2;
+  border-radius: 999px;
+  background: #fafafa;
+  color: #3c3c3c;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .native-dashboard-map {
   display: grid;
   gap: 10px;
@@ -5041,6 +5197,10 @@ button {
 
   .ops-console-sync-grid {
     grid-template-columns: repeat(2, minmax(240px, 1fr));
+  }
+
+  .ops-plus-cockpit-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
   }
 
   .native-dashboard-map-grid {

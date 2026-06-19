@@ -128,7 +128,19 @@ const dashboardCopy = {
     activityPanel: "Activity",
     inventoryPanel: "Inventory",
     warnings: "warnings",
-    recentEvents: "recent events"
+    recentEvents: "recent events",
+    plusAlphaCockpit: "OpsLens Signal Cockpit",
+    plusAlphaCockpitSubtitle:
+      "Native console metrics, alerts, workload state, and OpsLens evidence merged into one operator view",
+    utilizationPressure: "Utilization pressure",
+    workloadDrift: "Workload drift",
+    alertCorrelation: "Alert correlation",
+    decisionQueue: "Decision queue",
+    metricSeries: "metric series",
+    riskEvidence: "risk evidence",
+    nextOperatorMove: "Next operator move",
+    nativeSignalBasis: "native signal basis",
+    opsLensOverlay: "OpsLens overlay"
   },
   ko: {
     breadcrumb: "관리자 / 관측 / Cywell OpsLens",
@@ -235,7 +247,19 @@ const dashboardCopy = {
     activityPanel: "활동",
     inventoryPanel: "인벤토리",
     warnings: "경고",
-    recentEvents: "최근 이벤트"
+    recentEvents: "최근 이벤트",
+    plusAlphaCockpit: "OpsLens 신호 콕핏",
+    plusAlphaCockpitSubtitle:
+      "원본 콘솔의 메트릭, 알림, 워크로드 상태와 OpsLens 근거를 한 화면의 운영 판단으로 결합",
+    utilizationPressure: "사용량 압력",
+    workloadDrift: "워크로드 이상",
+    alertCorrelation: "알림 상관관계",
+    decisionQueue: "판단 대기열",
+    metricSeries: "메트릭 시리즈",
+    riskEvidence: "리스크 근거",
+    nextOperatorMove: "다음 운영 판단",
+    nativeSignalBasis: "원본 신호 기준",
+    opsLensOverlay: "OpsLens 보강"
   }
 } as const;
 
@@ -709,6 +733,82 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
       )
     }
   ];
+  const utilizationLatestValues = (consoleDashboard?.utilization.series ?? [])
+    .map((series) => ({
+      id: series.id,
+      label: series.label,
+      latest: series.latest,
+      unit: series.unit,
+      values: utilizationValues(series)
+    }))
+    .filter((series) => typeof series.latest === "number" || series.values.length > 0);
+  const strongestUtilization = utilizationLatestValues.reduce<
+    (typeof utilizationLatestValues)[number] | undefined
+  >((current, series) => {
+    const latest = typeof series.latest === "number" ? series.latest : 0;
+    const currentLatest =
+      current && typeof current.latest === "number" ? current.latest : 0;
+    return latest > currentLatest ? series : current;
+  }, utilizationLatestValues[0]);
+  const workloadExceptionCount =
+    (consoleOverview?.workloads.pods.failed ?? 0) +
+    (consoleOverview?.workloads.pods.pending ?? 0) +
+    (consoleOverview?.workloads.pods.crashLooping ?? 0) +
+    (consoleOverview?.workloads.deployments.unavailable ?? 0);
+  const alertExceptionCount =
+    (consoleOverview?.monitoring.criticalAlerts ?? 0) +
+    (consoleOverview?.monitoring.warningAlerts ?? 0);
+  const plusAlphaCockpitCards = [
+    {
+      id: "utilization",
+      label: copy.utilizationPressure,
+      value: strongestUtilization
+        ? metricText(strongestUtilization.latest, strongestUtilization.unit) ||
+          copy.notMeasured
+        : copy.notMeasured,
+      detail: `${numberText(utilizationLatestValues.length)} ${copy.metricSeries} · ${prometheusSourceLabel}`,
+      percent: consoleDashboard?.utilization.reachable
+        ? ratioPercent(utilizationLatestValues.length, 5)
+        : 0,
+      tone: consoleDashboard?.utilization.reachable ? "ready" : "warning",
+      source: prometheusSourceLabel
+    },
+    {
+      id: "workloads",
+      label: copy.workloadDrift,
+      value: `${numberText(workloadExceptionCount)}`,
+      detail: `${numberText(consoleOverview?.workloads.pods.total)} pod · ${numberText(consoleOverview?.workloads.deployments.total)} deployment`,
+      percent: inversePercent(
+        workloadExceptionCount,
+        Math.max(consoleOverview?.workloads.pods.total ?? 0, 1)
+      ),
+      tone: signalTone(workloadExceptionCount > 2, workloadExceptionCount > 0),
+      source: consoleSourceLabel
+    },
+    {
+      id: "alerts",
+      label: copy.alertCorrelation,
+      value: `${numberText(alertExceptionCount)}`,
+      detail: `${numberText(consoleOverview?.monitoring.firingAlerts)} ${copy.firingAlerts} · ${numberText(totalRisks)} ${copy.riskCount}`,
+      percent: inversePercent(alertExceptionCount, Math.max(totalRisks + alertExceptionCount, 1)),
+      tone: signalTone(
+        (consoleOverview?.monitoring.criticalAlerts ?? 0) > 0,
+        alertExceptionCount > 0 || totalRisks > 0
+      ),
+      source: `${consoleSourceLabel} + ${opsLensSourceLabel}`
+    },
+    {
+      id: "decision",
+      label: copy.decisionQueue,
+      value: topRisk ? copy.needsTriage : copy.decisionReady,
+      detail: topRisk
+        ? `${topRisk.title} · ${numberText(totalEvidenceRefs)} ${copy.riskEvidence}`
+        : copy.allSourcesFresh,
+      percent: evidenceCoverageClamped,
+      tone: topRisk ? "warning" : "ready",
+      source: opsLensSourceLabel
+    }
+  ];
 
   return (
     <section className="dashboard-section" aria-labelledby="dashboard-title">
@@ -770,6 +870,48 @@ export function OperationsDashboard({ dashboard, language }: OperationsDashboard
             </span>
           ) : null}
         </div>
+        <section
+          className="ops-plus-cockpit"
+          data-testid="opslens-plus-alpha-cockpit"
+          aria-label={copy.plusAlphaCockpit}
+        >
+          <div className="ops-plus-cockpit-heading">
+            <div>
+              <h4>{copy.plusAlphaCockpit}</h4>
+              <p>{copy.plusAlphaCockpitSubtitle}</p>
+            </div>
+            <span>{copy.nextOperatorMove}: {topRisk ? copy.needsTriage : copy.decisionReady}</span>
+          </div>
+          <div className="ops-plus-cockpit-grid">
+            {plusAlphaCockpitCards.map((card) => (
+              <article
+                className={`ops-plus-cockpit-card ${card.tone}`}
+                data-source={card.source}
+                data-testid={`opslens-plus-alpha-card-${card.id}`}
+                key={card.id}
+              >
+                <div className="ops-plus-cockpit-card-head">
+                  <span>{card.label}</span>
+                  <small>{card.source}</small>
+                </div>
+                <strong>{card.value}</strong>
+                <p>{card.detail}</p>
+                <div
+                  className="ops-plus-cockpit-meter"
+                  style={barStyle(card.percent)}
+                  aria-hidden="true"
+                >
+                  <span />
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="ops-plus-cockpit-trace">
+            <span>{copy.nativeSignalBasis}: {consoleSignalCount} {copy.liveSignals}</span>
+            <span>{copy.opsLensOverlay}: {riskSignalCount} {copy.riskSignals}</span>
+            <span>{copy.suggestedQuestion}: {suggestedQuestion}</span>
+          </div>
+        </section>
         <section
           className="native-dashboard-map"
           data-testid="opslens-native-dashboard-map"
