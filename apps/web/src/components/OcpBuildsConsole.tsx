@@ -5,13 +5,17 @@ import {
   Clock3,
   GitBranch,
   ImageIcon,
+  ListFilter,
+  PlusCircle,
   PlayCircle,
   RefreshCw,
+  Search,
   ShieldCheck
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { nativeConsoleHref, nativeResourceCreatePath } from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
@@ -40,6 +44,12 @@ const buildsCopy = {
     builds: "Builds",
     buildconfigs: "BuildConfigs",
     imagestreams: "ImageStreams",
+    allNamespaces: "All namespaces",
+    searchByName: "Search by name...",
+    filterByResource: "Filter by resource",
+    allResources: "All build resources",
+    create: "Create",
+    showing: "Showing",
     phase: "Phase",
     strategy: "Strategy",
     source: "Source",
@@ -79,6 +89,12 @@ const buildsCopy = {
     builds: "Builds",
     buildconfigs: "BuildConfigs",
     imagestreams: "ImageStreams",
+    allNamespaces: "모든 네임스페이스",
+    searchByName: "이름으로 검색...",
+    filterByResource: "리소스 필터",
+    allResources: "모든 빌드 리소스",
+    create: "생성",
+    showing: "표시",
     phase: "상태",
     strategy: "전략",
     source: "소스",
@@ -230,11 +246,32 @@ function viewTestId(view: OcpBuildsView) {
   return `ocp-builds-${view}`;
 }
 
+const buildResources = [
+  { view: "builds", apiVersion: "build.openshift.io/v1", resource: "builds", namespaced: true },
+  { view: "buildconfigs", apiVersion: "build.openshift.io/v1", resource: "buildconfigs", namespaced: true },
+  { view: "imagestreams", apiVersion: "image.openshift.io/v1", resource: "imagestreams", namespaced: true }
+] as const;
+
+function resourceConfig(view: OcpBuildsView) {
+  return buildResources.find((entry) => entry.view === view) ?? buildResources[0];
+}
+
+function uniqueSorted(values: Array<string | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
 export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
   const copy = buildsCopy[language];
   const [state, setState] = useState<ResourceState>({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [namespaceFilter, setNamespaceFilter] = useState("all");
+  const [resourceFilter, setResourceFilter] = useState<OcpBuildsView | "all">("all");
+  const activeView = resourceFilter === "all" ? view : resourceFilter;
+  const activeResource = resourceConfig(activeView);
 
   async function refresh(options: { silent?: boolean } = {}) {
     if (!options.silent) setLoading(true);
@@ -303,6 +340,49 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
   const buildConfigs = state.buildConfigs?.items ?? [];
   const imageStreams = state.imageStreams?.items ?? [];
   const imageStreamTags = state.imageStreamTags?.items ?? [];
+  const namespaceOptions = useMemo(
+    () => uniqueSorted([...builds, ...buildConfigs, ...imageStreams].map((item) => item.metadata.namespace)),
+    [buildConfigs, builds, imageStreams]
+  );
+  const filterItems = (items: OcpResourceSummary[]) => {
+    const query = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (namespaceFilter !== "all" && item.metadata.namespace !== namespaceFilter) return false;
+      if (!query) return true;
+      return [
+        item.kind,
+        item.metadata.name,
+        item.metadata.namespace,
+        buildPhase(item),
+        buildStrategy(item),
+        buildSource(item),
+        buildOutput(item),
+        triggerSummary(item),
+        latestTag(item),
+        stringField(item.spec, "runPolicy"),
+        stringField(item.spec, "dockerImageRepository")
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  };
+  const filteredBuilds = useMemo(() => filterItems(builds), [builds, namespaceFilter, search]);
+  const filteredBuildConfigs = useMemo(() => filterItems(buildConfigs), [buildConfigs, namespaceFilter, search]);
+  const filteredImageStreams = useMemo(() => filterItems(imageStreams), [imageStreams, namespaceFilter, search]);
+  const activeItems =
+    activeView === "builds"
+      ? filteredBuilds
+      : activeView === "buildconfigs"
+        ? filteredBuildConfigs
+        : filteredImageStreams;
+  const activeTotal =
+    activeView === "builds"
+      ? builds.length
+      : activeView === "buildconfigs"
+        ? buildConfigs.length
+        : imageStreams.length;
   const failureMessages = [
     failureText(state.builds),
     failureText(state.buildConfigs),
@@ -311,23 +391,29 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
     ...errors
   ].filter(Boolean);
   const drilldown =
-    view === "builds"
+    activeView === "builds"
       ? {
           resource: { apiVersion: "build.openshift.io/v1", resource: "builds" },
-          items: builds,
+          items: filteredBuilds,
           title: copy.builds
         }
-      : view === "buildconfigs"
+      : activeView === "buildconfigs"
         ? {
             resource: { apiVersion: "build.openshift.io/v1", resource: "buildconfigs" },
-            items: buildConfigs,
+            items: filteredBuildConfigs,
             title: copy.buildconfigs
           }
         : {
             resource: { apiVersion: "image.openshift.io/v1", resource: "imagestreams" },
-            items: imageStreams,
+            items: filteredImageStreams,
             title: copy.imagestreams
           };
+  const createHref = nativeConsoleHref(
+    nativeResourceCreatePath(
+      { apiVersion: activeResource.apiVersion, resource: activeResource.resource },
+      activeResource.namespaced ? (namespaceFilter !== "all" ? namespaceFilter : "default") : undefined
+    )
+  );
 
   const buildPhaseCounts = useMemo(() => {
     return builds.reduce<Record<string, number>>((acc, item) => {
@@ -337,9 +423,9 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
     }, {});
   }, [builds]);
 
-  const selectedBuildConfig = buildConfigs[0];
-  const selectedBuild = builds[0];
-  const selectedImageStream = imageStreams[0];
+  const selectedBuildConfig = filteredBuildConfigs[0] ?? buildConfigs[0];
+  const selectedBuild = filteredBuilds[0] ?? builds[0];
+  const selectedImageStream = filteredImageStreams[0] ?? imageStreams[0];
 
   return (
     <section
@@ -368,6 +454,49 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
         <span>{copy.tags}: {imageStreamTags.length}</span>
       </div>
 
+      <div className="native-console-toolbar builds-filter-toolbar" data-testid="ocp-builds-native-toolbar">
+        <label className="resource-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            placeholder={copy.searchByName}
+            aria-label={copy.searchByName}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          <span>{copy.namespace}</span>
+          <select value={namespaceFilter} aria-label={copy.namespace} onChange={(event) => setNamespaceFilter(event.currentTarget.value)}>
+            <option value="all">{copy.allNamespaces}</option>
+            {namespaceOptions.map((namespace) => (
+              <option key={namespace} value={namespace}>{namespace}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.filterByResource}</span>
+          <select
+            value={resourceFilter}
+            aria-label={copy.filterByResource}
+            onChange={(event) => setResourceFilter(event.currentTarget.value as OcpBuildsView | "all")}
+          >
+            <option value="all">{copy.allResources}</option>
+            {buildResources.map((entry) => (
+              <option key={entry.view} value={entry.view}>{copy[entry.view]}</option>
+            ))}
+          </select>
+        </label>
+        <a className="text-icon-button native-open-link" href={createHref} target="_blank" rel="noreferrer">
+          <PlusCircle size={16} aria-hidden="true" />
+          {copy.create}
+        </a>
+        <span className="native-toolbar-count" data-testid="ocp-builds-filter-count">
+          <ListFilter size={15} aria-hidden="true" />
+          {copy.showing}: {activeItems.length}/{activeTotal}
+        </span>
+      </div>
+
       {failureMessages.length > 0 ? (
         <div className="ocp-error" data-testid="ocp-builds-api-failure">
           <AlertTriangle size={17} aria-hidden="true" />
@@ -380,7 +509,7 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
           <a
             key={tab}
             href={`#${viewTestId(tab)}`}
-            aria-current={view === tab ? "page" : undefined}
+            aria-current={activeView === tab ? "page" : undefined}
           >
             {copy[tab]}
           </a>
@@ -446,13 +575,13 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
         </article>
       </div>
 
-      {view === "builds" ? (
+      {activeView === "builds" ? (
         <article className="builds-native-panel">
           <div className="card-title-row">
             <h3>{copy.builds}</h3>
             <Clock3 size={18} aria-hidden="true" />
           </div>
-          {builds.length > 0 ? (
+          {filteredBuilds.length > 0 ? (
             <div className="native-builds-table-wrap">
               <table className="native-builds-table" data-testid="ocp-builds-table">
                 <thead>
@@ -467,7 +596,7 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {builds.map((item) => {
+                  {filteredBuilds.map((item) => {
                     const phase = buildPhase(item);
                     const started = stringField(item.status, "startTimestamp");
                     const completed = stringField(item.status, "completionTimestamp");
@@ -492,13 +621,13 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
         </article>
       ) : null}
 
-      {view === "buildconfigs" ? (
+      {activeView === "buildconfigs" ? (
         <article className="builds-native-panel">
           <div className="card-title-row">
             <h3>{copy.buildconfigs}</h3>
             <GitBranch size={18} aria-hidden="true" />
           </div>
-          {buildConfigs.length > 0 ? (
+          {filteredBuildConfigs.length > 0 ? (
             <div className="native-builds-table-wrap">
               <table className="native-builds-table" data-testid="ocp-buildconfigs-table">
                 <thead>
@@ -513,7 +642,7 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {buildConfigs.map((item) => (
+                  {filteredBuildConfigs.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "build.openshift.io/v1", resource: "buildconfigs" }} item={item} testId="ocp-buildconfigs-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
@@ -533,13 +662,13 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
         </article>
       ) : null}
 
-      {view === "imagestreams" ? (
+      {activeView === "imagestreams" ? (
         <article className="builds-native-panel">
           <div className="card-title-row">
             <h3>{copy.imagestreams}</h3>
             <ImageIcon size={18} aria-hidden="true" />
           </div>
-          {imageStreams.length > 0 ? (
+          {filteredImageStreams.length > 0 ? (
             <div className="native-builds-table-wrap">
               <table className="native-builds-table" data-testid="ocp-imagestreams-table">
                 <thead>
@@ -553,7 +682,7 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {imageStreams.map((item) => (
+                  {filteredImageStreams.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "image.openshift.io/v1", resource: "imagestreams" }} item={item} testId="ocp-imagestreams-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>

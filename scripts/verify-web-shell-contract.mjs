@@ -2470,6 +2470,12 @@ expectCheck(
     buildsSource.includes("export type OcpBuildsView") &&
     buildsSource.includes('data-testid={viewTestId(view)}') &&
     buildsSource.includes('data-testid="ocp-builds-toolbar"') &&
+    buildsSource.includes('data-testid="ocp-builds-native-toolbar"') &&
+    buildsSource.includes('data-testid="ocp-builds-filter-count"') &&
+    buildsSource.includes("setResourceFilter") &&
+    buildsSource.includes("setNamespaceFilter") &&
+    buildsSource.includes("setSearch") &&
+    buildsSource.includes("nativeResourceCreatePath") &&
     buildsSource.includes('data-testid="ocp-builds-pipeline-board"') &&
     buildsSource.includes('data-testid="ocp-builds-table"') &&
     buildsSource.includes('data-testid="ocp-buildconfigs-table"') &&
@@ -2481,6 +2487,7 @@ expectCheck(
     buildsSource.includes("build-pipeline-flow") &&
     stylesSource.includes(".ocp-builds-console") &&
     stylesSource.includes(".ocp-builds-toolbar") &&
+    stylesSource.includes(".builds-filter-toolbar") &&
     stylesSource.includes(".build-pipeline-flow") &&
     stylesSource.includes(".native-builds-table") &&
     stylesSource.includes(".builds-native-boundary") &&

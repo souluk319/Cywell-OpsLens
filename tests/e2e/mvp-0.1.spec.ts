@@ -740,6 +740,12 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("assistant-draft")).toHaveValue(/Pods/);
     await page.getByTestId("assistant-close").click();
 
+    await openConsoleNavItem(page, "builds");
+    await page.getByTestId("console-active-open-surface").click();
+    await expect(page.getByTestId("ocp-builds-native-toolbar")).toBeVisible();
+    await page.getByPlaceholder("Search by name...").fill("test");
+    await expect(page.getByTestId("ocp-builds-filter-count")).toContainText("Showing:");
+
     await openConsoleNavItem(page, "routes");
     await page.getByTestId("console-active-open-surface").click();
     await expect(page.getByTestId("ocp-networking-native-toolbar")).toBeVisible();
