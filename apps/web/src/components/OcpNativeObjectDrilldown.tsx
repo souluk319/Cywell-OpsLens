@@ -36,6 +36,7 @@ type NativeDetailTab = "details" | "events" | "logs" | "related" | "raw";
 interface OcpNativeObjectDrilldownProps {
   language: UiLanguage;
   resource: NativeConsoleResourceRef;
+  resourceForItem?: (item: OcpResourceSummary) => NativeConsoleResourceRef;
   items: OcpResourceSummary[];
   title: string;
   testId: string;
@@ -190,6 +191,7 @@ function itemKey(item: OcpResourceSummary) {
 export function OcpNativeObjectDrilldown({
   language,
   resource,
+  resourceForItem,
   items,
   title,
   testId
@@ -209,6 +211,10 @@ export function OcpNativeObjectDrilldown({
     if (!items.length) return undefined;
     return items.find((item) => itemKey(item) === selectedKey) ?? items[0];
   }, [items, selectedKey]);
+  const selectedResource = useMemo(
+    () => selected && resourceForItem ? resourceForItem(selected) : resource,
+    [resource, resourceForItem, selected]
+  );
   const filteredItems = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return items;
@@ -256,8 +262,8 @@ export function OcpNativeObjectDrilldown({
       try {
         const [nextDetail, nextEvents, nextRelated] = await Promise.all([
           fetchOcpResourceDetail({
-            apiVersion: resource.apiVersion,
-            resource: resource.resource,
+            apiVersion: selectedResource.apiVersion,
+            resource: selectedResource.resource,
             namespace: current.metadata.namespace,
             name: current.metadata.name,
             full: true
@@ -271,8 +277,8 @@ export function OcpNativeObjectDrilldown({
             limit: 20
           }),
           fetchOcpRelatedResources({
-            apiVersion: resource.apiVersion,
-            resource: resource.resource,
+            apiVersion: selectedResource.apiVersion,
+            resource: selectedResource.resource,
             namespace: current.metadata.namespace,
             name: current.metadata.name
           })
@@ -310,7 +316,7 @@ export function OcpNativeObjectDrilldown({
     return () => {
       active = false;
     };
-  }, [resource.apiVersion, resource.resource, selected]);
+  }, [selected, selectedResource.apiVersion, selectedResource.resource]);
 
   if (!selected) {
     return (
@@ -325,10 +331,10 @@ export function OcpNativeObjectDrilldown({
   }
 
   const selectedDetailItem = detail?.item ?? selected;
-  const nativeHref = nativeConsoleHref(nativeObjectPath(resource, selected));
-  const nativeCreateHref = selected.metadata.namespace
-    ? nativeConsoleHref(nativeResourceCreatePath(resource, selected.metadata.namespace))
-    : "";
+  const nativeHref = nativeConsoleHref(nativeObjectPath(selectedResource, selected));
+  const nativeCreateHref = nativeConsoleHref(
+    nativeResourceCreatePath(selectedResource, selected.metadata.namespace)
+  );
   const conditions = conditionRows(selectedDetailItem);
 
   return (
@@ -483,7 +489,7 @@ export function OcpNativeObjectDrilldown({
                   <div><dt>{text.kind}</dt><dd>{selected.kind}</dd></div>
                   <div><dt>{text.namespace}</dt><dd>{selected.metadata.namespace ?? text.cluster}</dd></div>
                   <div><dt>{text.apiVersion}</dt><dd>{selected.apiVersion}</dd></div>
-                  <div><dt>{text.resource}</dt><dd>{resource.resource}</dd></div>
+                  <div><dt>{text.resource}</dt><dd>{selectedResource.resource}</dd></div>
                   <div><dt>{text.created}</dt><dd>{selected.metadata.creationTimestamp ?? "-"}</dd></div>
                   <div><dt>{text.uid}</dt><dd>{selected.metadata.uid ?? "-"}</dd></div>
                 </dl>

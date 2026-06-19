@@ -2190,8 +2190,10 @@ expectCheck(
     nativeObjectDrilldownSource.includes("fetchOcpEvents") &&
     nativeObjectDrilldownSource.includes("fetchOcpPodLogs") &&
     nativeObjectDrilldownSource.includes("fetchOcpRelatedResources") &&
-    nativeObjectDrilldownSource.includes("nativeObjectPath(resource, selected)") &&
-    nativeObjectDrilldownSource.includes("nativeResourceCreatePath(resource, selected.metadata.namespace)") &&
+    nativeObjectDrilldownSource.includes("nativeObjectPath(selectedResource, selected)") &&
+    nativeObjectDrilldownSource.includes("resourceForItem?: (item: OcpResourceSummary) => NativeConsoleResourceRef") &&
+    nativeObjectDrilldownSource.includes("selectedResource.resource") &&
+    nativeObjectDrilldownSource.includes("nativeResourceCreatePath(selectedResource, selected.metadata.namespace)") &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-drilldown`}') &&
     nativeObjectDrilldownSource.includes("filteredItems") &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-object-search`}') &&
@@ -2255,6 +2257,17 @@ expectCheck(
     userManagementSource.includes('testId="ocp-user-rolebindings-object-link"') &&
     stylesSource.includes(".native-object-name-link"),
   "Dedicated native tables expose object names as OpenShift console deep links instead of static bold text"
+);
+
+expectCheck(
+  "RBAC cluster-scoped drilldown contract",
+  userManagementSource.includes("resourceForUserManagementItem") &&
+    userManagementSource.includes("item.kind === \"ClusterRole\"") &&
+    userManagementSource.includes("item.kind === \"ClusterRoleBinding\"") &&
+    userManagementSource.includes("items: roles") &&
+    userManagementSource.includes("items: roleBindings") &&
+    userManagementSource.includes("resourceForItem={resourceForUserManagementItem}"),
+  "User Management drilldown includes ClusterRoles and ClusterRoleBindings instead of only namespaced RBAC objects"
 );
 
 expectCheck(

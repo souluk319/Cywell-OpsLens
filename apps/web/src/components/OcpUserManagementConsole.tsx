@@ -188,6 +188,22 @@ function roleBindingResource(item: OcpResourceSummary) {
   };
 }
 
+function resourceForUserManagementItem(item: OcpResourceSummary) {
+  if (item.kind === "ClusterRole" || item.kind === "Role") {
+    return roleResource(item);
+  }
+  if (item.kind === "ClusterRoleBinding" || item.kind === "RoleBinding") {
+    return roleBindingResource(item);
+  }
+  if (item.kind === "ServiceAccount") {
+    return { apiVersion: "v1", resource: "serviceaccounts" };
+  }
+  if (item.kind === "Group") {
+    return { apiVersion: "user.openshift.io/v1", resource: "groups" };
+  }
+  return { apiVersion: "user.openshift.io/v1", resource: "users" };
+}
+
 export function OcpUserManagementConsole({ language, view }: OcpUserManagementConsoleProps) {
   const copy = userCopy[language];
   const [state, setState] = useState<ResourceState>({});
@@ -240,8 +256,6 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
   const serviceAccounts = state.serviceAccounts?.items ?? [];
   const roles = [...(state.roles?.items ?? []), ...(state.clusterRoles?.items ?? [])];
   const roleBindings = [...(state.roleBindings?.items ?? []), ...(state.clusterRoleBindings?.items ?? [])];
-  const namespacedRoles = state.roles?.items ?? [];
-  const namespacedRoleBindings = state.roleBindings?.items ?? [];
   const failureMessages = [
     failureText(state.users),
     failureText(state.groups),
@@ -274,12 +288,12 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
           : view === "roles"
             ? {
                 resource: { apiVersion: "rbac.authorization.k8s.io/v1", resource: "roles" },
-                items: namespacedRoles,
+                items: roles,
                 title: copy.roles
               }
             : {
                 resource: { apiVersion: "rbac.authorization.k8s.io/v1", resource: "rolebindings" },
-                items: namespacedRoleBindings,
+                items: roleBindings,
                 title: copy.rolebindings
               };
 
@@ -418,6 +432,7 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
       <OcpNativeObjectDrilldown
         language={language}
         resource={drilldown.resource}
+        resourceForItem={resourceForUserManagementItem}
         items={drilldown.items}
         title={drilldown.title}
         testId="ocp-user-object"
