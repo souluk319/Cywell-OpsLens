@@ -1635,6 +1635,9 @@ expectCheck(
     ocpClientSource.includes("resource detail returned a named failure instead of an unexplained HTTP 400") &&
     ocpClientSource.includes("pagination failure is returned as named data instead of a visible HTTP 400") &&
     ocpClientSource.includes("JSON list fallback succeeded") &&
+    e2eSource.includes("expect(secret.ok()).toBe(true)") &&
+    e2eSource.includes('expect(secretBody.failure?.code).toBe("resource-read-blocked")') &&
+    e2eSource.includes("expect(secretBody.failure?.statusCode).toBe(403)") &&
     explorerSource.includes("findPreferredResourceInOrder") &&
     explorerSource.includes("formatListFailure") &&
     explorerSource.includes("sanitizeVisibleOcpFailure") &&
@@ -1847,12 +1850,18 @@ expectCheck(
 expectCheck(
   "Dev 0.1.7 parallel review lane contract",
   dev017PlanSource.includes("## Parallel Review Setup") &&
+    dev017PlanSource.includes("## Parallel Review Results") &&
     dev017PlanSource.includes("Compatibility reviewer") &&
     dev017PlanSource.includes("Runtime reviewer") &&
     dev017PlanSource.includes("Product reviewer") &&
     dev017PlanSource.includes("PASS/WEAK/MISSING audit") &&
+    dev017PlanSource.includes("PASS for Workloads/Topology") &&
+    dev017PlanSource.includes("WEAK for the old e2e 400 contract") &&
+    dev017PlanSource.includes("MISSING before this section for persisted review evidence") &&
+    dev017PlanSource.includes("resource-read-blocked") &&
+    dev017PlanSource.includes("Windows CRC `4.20` live-readiness proof is still external and pending") &&
     dev017PlanSource.includes("feat/OpsLens-Dev0.1.7"),
-  "Dev 0.1.7 records separate compatibility, runtime, and product review lanes before deployment"
+  "Dev 0.1.7 records separate compatibility, runtime, and product review results before deployment"
 );
 
 expectCheck(

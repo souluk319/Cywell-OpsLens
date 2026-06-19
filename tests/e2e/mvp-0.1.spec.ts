@@ -2853,7 +2853,16 @@ async function expectConsoleFunctionEffect(
     const secret = await request.get(
       "/api/ocp/resources?apiVersion=v1&resource=secrets&limit=1"
     );
-    expect(secret.status()).toBe(400);
+    expect(secret.ok()).toBe(true);
+    const secretBody = (await secret.json()) as {
+      items?: unknown[];
+      failure?: { code?: string; statusCode?: number };
+      redaction?: { fullSecretFetchBlocked?: boolean };
+    };
+    expect(secretBody.items).toEqual([]);
+    expect(secretBody.failure?.code).toBe("resource-read-blocked");
+    expect(secretBody.failure?.statusCode).toBe(403);
+    expect(secretBody.redaction?.fullSecretFetchBlocked).toBe(true);
 
     await page.goto("/");
     await expect(page.getByTestId("ocp-overview-status")).toContainText(

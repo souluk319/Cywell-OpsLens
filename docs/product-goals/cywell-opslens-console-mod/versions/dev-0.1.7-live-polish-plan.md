@@ -169,9 +169,28 @@ from drifting back into "menu label exists, therefore complete" thinking.
 | Runtime reviewer | Workloads implementation, topology graph, Resource API named failure behavior, and removal of unexplained `400`. | PASS/WEAK/MISSING audit with exact file references. |
 | Product reviewer | Dashboard source labeling, decision-flow visualization, and whether the proof is customer-facing rather than developer-task noise. | PASS/WEAK/MISSING audit with exact file references. |
 
-Current execution note: three parallel explorer agents were spawned against the
-current `feat/OpsLens-Dev0.1.7` worktree for those review lanes. Their findings
-must be reconciled before 0.1.7 is called complete.
+## Parallel Review Results
+
+Three parallel explorer agents audited the current
+`feat/OpsLens-Dev0.1.7` worktree at head
+`66e139999921a0e1be484e2e3ab9cf666865e4e6`. Their findings are reconciled
+below so the review is evidence, not only a planned activity.
+
+| Reviewer | Verdict | Evidence | Remaining gap |
+| --- | --- | --- | --- |
+| Compatibility reviewer | WEAK | OCP `4.20`/`4.21+` runtime boundary exists in `apps/web/src/consoleParity.ts`; `npm run verify:ocp:420-compatibility` writes a stamped `PASS` artifact for `37` console items and `26` API versions; the visible parity matrix renders the runtime boundary. | Strict Windows CRC `4.20` live-readiness proof is still external and pending. Current source intentionally says `Windows CRC 4.20 validation pending`. |
+| Runtime reviewer | PASS for Workloads/Topology, WEAK for the old e2e 400 contract | Workloads map to live views and API presets; `GET /api/ocp/topology` reads Pods, Services, Routes, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, HPA, PDB, Jobs, and CronJobs; the UI renders `ocp-topology-graph` SVG nodes and edges. | The implementation returns named failure envelopes, but the e2e contract still expected Secret reads to return raw HTTP `400`; this is corrected in the 0.1.7 follow-up patch so the test now expects `resource-read-blocked`. |
+| Product reviewer | PASS for dashboard source labels/native match map, WEAK for plus-alpha depth, MISSING before this section for persisted review evidence | Dashboard renders `opslens-dashboard-source-label`, `opslens-console-source-label`, `opslens-native-dashboard-map`, `opslens-native-signal-board`, and `opslens-dashboard-decision-flow`; native OpenShift dashboard panels are mapped before OpsLens analysis is shown. | OpsLens risk data still has mock-backed areas, and richer customer-facing visualizations beyond the first decision-flow/signal-board slice remain a Dev `0.1.8+` product lane. |
+
+Current completion judgment:
+
+- Local 0.1.7 implementation evidence is strong for Workloads first live view,
+  real Topology graph, named Resource API failure envelopes, dashboard source
+  labels, and native dashboard signal mapping.
+- 0.1.7 is not a full native console replacement. It is the first honest parity
+  slice with explicit classes and visible gaps.
+- OCP `4.20` strict runtime proof cannot be claimed until the Windows CRC
+  `4.20` target is available and `npm run verify:ocp:420-live-readiness` passes.
 
 Remaining before calling 0.1.7 complete:
 
