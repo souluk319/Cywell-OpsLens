@@ -30,6 +30,9 @@ interface LightspeedConfig {
   timeoutMs: number;
 }
 
+const defaultInClusterLightspeedBaseUrl =
+  "https://lightspeed-app-server.openshift-lightspeed.svc.cluster.local:8443";
+
 function boolFromEnv(value: string | undefined, defaultValue: boolean) {
   if (value === undefined) {
     return defaultValue;
@@ -48,16 +51,18 @@ function secondsFromEnv(value: string | undefined, defaultValue: number) {
 function getLightspeedConfig(): LightspeedConfig {
   loadEnvFile();
 
+  const configuredBaseUrl = process.env.OPENSHIFT_LIGHTSPEED_BASE_URL;
+  const baseUrl = configuredBaseUrl || defaultInClusterLightspeedBaseUrl;
   const tlsVerify =
     process.env.OPENSHIFT_LIGHTSPEED_TLS_VERIFY !== undefined
       ? boolFromEnv(process.env.OPENSHIFT_LIGHTSPEED_TLS_VERIFY, true)
       : !boolFromEnv(
           process.env.OPENSHIFT_LIGHTSPEED_INSECURE_SKIP_TLS_VERIFY,
-          false
+          !configuredBaseUrl
         );
 
   return {
-    baseUrl: process.env.OPENSHIFT_LIGHTSPEED_BASE_URL,
+    baseUrl,
     token:
       process.env.OPENSHIFT_LIGHTSPEED_API_TOKEN ??
       process.env.OPENSHIFT_LIGHTSPEED_TOKEN,
@@ -68,6 +73,14 @@ function getLightspeedConfig(): LightspeedConfig {
       secondsFromEnv(process.env.OPENSHIFT_LIGHTSPEED_TIMEOUT_SECONDS, 12) *
       1000
   };
+}
+
+function bearerTokenFromHeader(value: string | undefined) {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.replace(/^Bearer\s+/i, "") || undefined;
 }
 
 function resolveStreamingQueryUrl(baseUrl: string) {
@@ -231,9 +244,11 @@ export async function queryOpenShiftLightspeed(params: {
   query: string;
   mode: LightspeedQueryMode;
   contextAttachment?: unknown;
+  bearerToken?: string;
 }) {
   const config = getLightspeedConfig();
-  if (!config.baseUrl || !config.token) {
+  const token = bearerTokenFromHeader(params.bearerToken) ?? config.token;
+  if (!config.baseUrl || !token) {
     throw new Error(
       "OpenShift Lightspeed base URL or bearer token is not configured"
     );
@@ -260,7 +275,7 @@ export async function queryOpenShiftLightspeed(params: {
   const response = await postText({
     url: resolveStreamingQueryUrl(config.baseUrl),
     payload,
-    token: config.token,
+    token,
     tlsVerify: config.tlsVerify,
     timeoutMs: config.timeoutMs
   });

@@ -529,7 +529,8 @@ export function syncContext(request: ContextSyncRequest): ContextSyncResponse {
 }
 
 export async function createActionPlan(
-  request: ActionPlanRequest
+  request: ActionPlanRequest,
+  options: { authorization?: string } = {}
 ): Promise<ActionPlanResponse> {
   assertContext(request.context);
 
@@ -554,6 +555,7 @@ export async function createActionPlan(
     const lightspeed = await queryOpenShiftLightspeed({
       query: prompt,
       mode,
+      bearerToken: options.authorization,
       contextAttachment: {
         source: "cywell-opslens-console-context",
         namespace: request.context.namespace,
