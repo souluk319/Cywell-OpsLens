@@ -1663,9 +1663,16 @@ expectCheck(
     topologySource.includes('const [typeFilter, setTypeFilter]') &&
     topologySource.includes("filteredNodes") &&
     topologySource.includes('data-testid="ocp-topology-canvas"') &&
+    topologySource.includes('data-testid="ocp-topology-workspace"') &&
+    topologySource.includes('data-testid="ocp-topology-selected-panel"') &&
+    topologySource.includes("setSelectedNodeId") &&
+    topologySource.includes("selectedRelatedEdges") &&
+    topologySource.includes("nativeObjectPath") &&
     topologySource.includes('data-testid="ocp-topology-evidence"') &&
     stylesSource.includes(".topology-native-toolbar") &&
     stylesSource.includes(".topology-display-options button.active") &&
+    stylesSource.includes(".topology-workspace") &&
+    stylesSource.includes(".topology-selected-panel") &&
     stylesSource.includes(".topology-list-view") &&
     actionPanelSource.includes('"topology-graph": "Topology graph"') &&
     actionPanelSource.includes('"topology-graph": "토폴로지 그래프"'),

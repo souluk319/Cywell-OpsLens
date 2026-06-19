@@ -716,6 +716,8 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("ocp-topology-type-filter")).toBeVisible();
     await expect(page.getByTestId("ocp-topology-display-options")).toBeVisible();
     await expect(page.getByTestId("ocp-topology-zoom-controls")).toBeVisible();
+    await expect(page.getByTestId("ocp-topology-workspace")).toBeVisible();
+    await expect(page.getByTestId("ocp-topology-selected-panel")).toBeVisible();
     await page.getByRole("button", { name: "List" }).click();
     await expect(page.getByTestId("ocp-topology-list-view")).toBeVisible();
     await page.getByRole("button", { name: "Graph" }).click();

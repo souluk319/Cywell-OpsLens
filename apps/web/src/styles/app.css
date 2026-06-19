@@ -2344,6 +2344,13 @@ button {
   color: #004b95;
 }
 
+.topology-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(270px, 0.34fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
 .topology-canvas {
   min-height: 430px;
   padding: 10px;
@@ -2438,6 +2445,17 @@ button {
   pointer-events: none;
 }
 
+.topology-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.topology-node.selected rect,
+.topology-node:focus rect {
+  stroke: #0066cc;
+  stroke-width: 0.62;
+}
+
 .topology-empty {
   display: grid;
   min-height: 380px;
@@ -2518,6 +2536,94 @@ button {
 
 .topology-list-view td strong {
   font-weight: 900;
+}
+
+.topology-list-view tr {
+  cursor: pointer;
+}
+
+.topology-list-view tr.selected td,
+.topology-list-view tr:focus td {
+  background: #e7f1fa;
+}
+
+.topology-selected-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #d2d2d2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.topology-selected-panel h3,
+.topology-selected-panel h4 {
+  margin: 0;
+  color: #151515;
+}
+
+.topology-selected-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.topology-selected-panel dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.topology-selected-panel dl div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.topology-selected-panel dt {
+  color: #6a6e73;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.topology-selected-panel dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #151515;
+  font-size: 0.84rem;
+}
+
+.topology-selected-panel ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.topology-selected-panel li {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #3c3f42;
+  font-size: 0.78rem;
+}
+
+.topology-selected-panel li span {
+  overflow-wrap: anywhere;
+}
+
+.topology-selected-panel details {
+  padding-top: 6px;
+  border-top: 1px solid #ededed;
 }
 
 .status-pill.unknown {
@@ -8113,6 +8219,10 @@ button {
   }
 
   .workloads-native-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topology-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
 

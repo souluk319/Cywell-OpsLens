@@ -2,6 +2,7 @@ import type { OcpTopologyNode, OcpTopologyResponse } from "@kugnus/contracts";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   Boxes,
+  ExternalLink,
   GitBranch,
   Layers3,
   ListTree,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpTopology } from "../lib/api";
+import { nativeConsoleHref, nativeObjectPath } from "../lib/nativeConsole";
 
 interface OcpTopologyGraphProps {
   language: UiLanguage;
@@ -70,6 +72,11 @@ const topologyCopy = {
     job: "Jobs",
     noData: "No topology resources were returned for this scope.",
     errors: "Partial read gaps",
+    selectedDetails: "Selected resource",
+    openNativeObject: "Open in OpenShift",
+    relatedResources: "Related resources",
+    nodeEvidence: "Object evidence",
+    noSelection: "Select a topology node to inspect details.",
     ready: "ready",
     warning: "warning",
     danger: "danger",
@@ -121,6 +128,11 @@ const topologyCopy = {
     job: "Job",
     noData: "이 범위에서 토폴로지 리소스가 반환되지 않았습니다.",
     errors: "부분 읽기 gap",
+    selectedDetails: "선택한 리소스",
+    openNativeObject: "OpenShift에서 열기",
+    relatedResources: "관련 리소스",
+    nodeEvidence: "객체 근거",
+    noSelection: "토폴로지 노드를 선택하면 세부정보를 확인할 수 있습니다.",
     ready: "정상",
     warning: "주의",
     danger: "위험",
@@ -216,6 +228,7 @@ export function OcpTopologyGraph({ language }: OcpTopologyGraphProps) {
   const [typeFilter, setTypeFilter] = useState<"all" | OcpTopologyNode["type"]>(
     "all"
   );
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"graph" | "list">("graph");
   const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -284,6 +297,29 @@ export function OcpTopologyGraph({ language }: OcpTopologyGraphProps) {
       ),
     [visualNodes, grouped]
   );
+  const selectedNode = useMemo(
+    () => visualNodes.find((node) => node.id === selectedNodeId) ?? visualNodes[0] ?? null,
+    [selectedNodeId, visualNodes]
+  );
+  const selectedRelatedEdges = useMemo(
+    () =>
+      selectedNode
+        ? (topology?.edges ?? []).filter(
+            (edge) => edge.from === selectedNode.id || edge.to === selectedNode.id
+          )
+        : [],
+    [selectedNode, topology]
+  );
+  const selectedResource = selectedNode
+    ? {
+        apiVersion: selectedNode.resource.apiVersion,
+        resource: selectedNode.resource.name,
+        kind: selectedNode.resource.kind
+      }
+    : null;
+  const selectedNativeHref = selectedNode
+    ? nativeConsoleHref(nativeObjectPath(selectedResource!, selectedNode.item))
+    : "";
 
   return (
     <section
@@ -424,112 +460,188 @@ export function OcpTopologyGraph({ language }: OcpTopologyGraphProps) {
         </div>
       ) : null}
 
-      {viewMode === "graph" ? (
-        <article className="topology-canvas" data-testid="ocp-topology-canvas">
-          {topology && visualNodes.length > 0 ? (
-          <svg
-            viewBox="0 0 100 72"
-            role="img"
-            aria-label={copy.title}
-            style={{ "--topology-zoom": zoom } as CSSProperties}
-          >
-            <defs>
-              <marker
-                id="topology-arrow"
-                markerHeight="5"
-                markerWidth="5"
-                orient="auto"
-                refX="5"
-                refY="2.5"
-              >
-                <path d="M0,0 L5,2.5 L0,5 Z" />
-              </marker>
-            </defs>
-            {visualEdges.map((edge) => {
-              const from = positions[edge.from];
-              const to = positions[edge.to];
-              if (!from || !to) {
-                return null;
-              }
-              return (
-                <g className={`topology-edge ${edge.type}`} key={edge.id}>
-                  <line
-                    x1={from.x + 3.6}
-                    x2={to.x - 3.6}
-                    y1={from.y}
-                    y2={to.y}
-                  />
-                  <title>{`${edge.label}: ${edge.evidence.join(" / ")}`}</title>
-                </g>
-              );
-            })}
-            {visualNodes.map((node) => {
-              const position = positions[node.id];
-              if (!position) {
-                return null;
-              }
-              return (
-                <g
-                  className={`topology-node ${node.type} ${node.health}`}
-                  key={node.id}
-                  transform={`translate(${position.x} ${position.y})`}
+      <div className="topology-workspace" data-testid="ocp-topology-workspace">
+        {viewMode === "graph" ? (
+          <article className="topology-canvas" data-testid="ocp-topology-canvas">
+            {topology && visualNodes.length > 0 ? (
+            <svg
+              viewBox="0 0 100 72"
+              role="img"
+              aria-label={copy.title}
+              style={{ "--topology-zoom": zoom } as CSSProperties}
+            >
+              <defs>
+                <marker
+                  id="topology-arrow"
+                  markerHeight="5"
+                  markerWidth="5"
+                  orient="auto"
+                  refX="5"
+                  refY="2.5"
                 >
-                  <rect x="-5.8" y="-4.6" width="11.6" height="9.2" rx="2" />
-                  <circle cx="-5" cy="-3.8" r="1.25" />
-                  <text x="0" y="0.8" textAnchor="middle">
-                    {truncateLabel(node.label)}
-                  </text>
-                  <title>
-                    {`${node.item.kind}/${node.namespace ?? "-"} ${node.label} (${node.health})`}
-                  </title>
-                </g>
-              );
-            })}
-            </svg>
-          ) : (
-            <p className="topology-empty">{loading ? "loading" : copy.noData}</p>
-          )}
-        </article>
-      ) : (
-        <article className="topology-list-view" data-testid="ocp-topology-list-view">
-          <table>
-            <thead>
-              <tr>
-                <th>{copy.name}</th>
-                <th>{copy.kind}</th>
-                <th>{copy.scope}</th>
-                <th>{copy.health}</th>
-                <th>{copy.relationships}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visualNodes.map((node) => {
-                const related = (topology?.edges ?? []).filter(
-                  (edge) => edge.from === node.id || edge.to === node.id
-                );
+                  <path d="M0,0 L5,2.5 L0,5 Z" />
+                </marker>
+              </defs>
+              {visualEdges.map((edge) => {
+                const from = positions[edge.from];
+                const to = positions[edge.to];
+                if (!from || !to) {
+                  return null;
+                }
                 return (
-                  <tr key={node.id}>
-                    <td>
-                      <strong>{node.label}</strong>
-                    </td>
-                    <td>{node.item.kind}</td>
-                    <td>{node.namespace ?? "-"}</td>
-                    <td>
-                      <span className={`status-pill ${node.health}`}>
-                        {copy[node.health]}
-                      </span>
-                    </td>
-                    <td>{related.length}</td>
-                  </tr>
+                  <g className={`topology-edge ${edge.type}`} key={edge.id}>
+                    <line
+                      x1={from.x + 3.6}
+                      x2={to.x - 3.6}
+                      y1={from.y}
+                      y2={to.y}
+                    />
+                    <title>{`${edge.label}: ${edge.evidence.join(" / ")}`}</title>
+                  </g>
                 );
               })}
-            </tbody>
-          </table>
-          {visualNodes.length === 0 ? (
-            <p className="topology-empty">{loading ? "loading" : copy.noData}</p>
-          ) : null}
-        </article>
-      )}
+              {visualNodes.map((node) => {
+                const position = positions[node.id];
+                if (!position) {
+                  return null;
+                }
+                return (
+                  <g
+                    className={`topology-node ${node.type} ${node.health}${selectedNode?.id === node.id ? " selected" : ""}`}
+                    key={node.id}
+                    role="button"
+                    tabIndex={0}
+                    transform={`translate(${position.x} ${position.y})`}
+                    onClick={() => setSelectedNodeId(node.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedNodeId(node.id);
+                      }
+                    }}
+                  >
+                    <rect x="-5.8" y="-4.6" width="11.6" height="9.2" rx="2" />
+                    <circle cx="-5" cy="-3.8" r="1.25" />
+                    <text x="0" y="0.8" textAnchor="middle">
+                      {truncateLabel(node.label)}
+                    </text>
+                    <title>
+                      {`${node.item.kind}/${node.namespace ?? "-"} ${node.label} (${node.health})`}
+                    </title>
+                  </g>
+                );
+              })}
+              </svg>
+            ) : (
+              <p className="topology-empty">{loading ? "loading" : copy.noData}</p>
+            )}
+          </article>
+        ) : (
+          <article className="topology-list-view" data-testid="ocp-topology-list-view">
+            <table>
+              <thead>
+                <tr>
+                  <th>{copy.name}</th>
+                  <th>{copy.kind}</th>
+                  <th>{copy.scope}</th>
+                  <th>{copy.health}</th>
+                  <th>{copy.relationships}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visualNodes.map((node) => {
+                  const related = (topology?.edges ?? []).filter(
+                    (edge) => edge.from === node.id || edge.to === node.id
+                  );
+                  return (
+                    <tr
+                      className={selectedNode?.id === node.id ? "selected" : ""}
+                      key={node.id}
+                      tabIndex={0}
+                      onClick={() => setSelectedNodeId(node.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedNodeId(node.id);
+                        }
+                      }}
+                    >
+                      <td>
+                        <strong>{node.label}</strong>
+                      </td>
+                      <td>{node.item.kind}</td>
+                      <td>{node.namespace ?? "-"}</td>
+                      <td>
+                        <span className={`status-pill ${node.health}`}>
+                          {copy[node.health]}
+                        </span>
+                      </td>
+                      <td>{related.length}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {visualNodes.length === 0 ? (
+              <p className="topology-empty">{loading ? "loading" : copy.noData}</p>
+            ) : null}
+          </article>
+        )}
+
+        <aside className="topology-selected-panel" data-testid="ocp-topology-selected-panel">
+          <h3>{copy.selectedDetails}</h3>
+          {selectedNode ? (
+            <>
+              <div className="topology-selected-head">
+                <strong>{selectedNode.label}</strong>
+                <span className={`status-pill ${selectedNode.health}`}>{copy[selectedNode.health]}</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>{copy.kind}</dt>
+                  <dd>{selectedNode.item.kind}</dd>
+                </div>
+                <div>
+                  <dt>{copy.scope}</dt>
+                  <dd>{selectedNode.namespace ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>{copy.relationships}</dt>
+                  <dd>{selectedRelatedEdges.length}</dd>
+                </div>
+              </dl>
+              <a className="text-icon-button native-open-link" href={selectedNativeHref} target="_blank" rel="noreferrer">
+                <ExternalLink size={15} aria-hidden="true" />
+                {copy.openNativeObject}
+              </a>
+              <h4>{copy.relatedResources}</h4>
+              <ul>
+                {selectedRelatedEdges.slice(0, 8).map((edge) => {
+                  const relatedId = edge.from === selectedNode.id ? edge.to : edge.from;
+                  const relatedNode = (topology?.nodes ?? []).find((node) => node.id === relatedId);
+                  return (
+                    <li key={edge.id}>
+                      <strong>{edge.label}</strong>
+                      <span>{relatedNode ? `${relatedNode.item.kind}/${relatedNode.label}` : relatedId}</span>
+                    </li>
+                  );
+                })}
+                {!selectedRelatedEdges.length ? <li>-</li> : null}
+              </ul>
+              <details>
+                <summary>{copy.nodeEvidence}</summary>
+                <ul>
+                  {selectedNode.evidence.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </details>
+            </>
+          ) : (
+            <p>{copy.noSelection}</p>
+          )}
+        </aside>
+      </div>
 
       <div className="topology-summary-grid">
         {nodeOrder.map((type) => {
