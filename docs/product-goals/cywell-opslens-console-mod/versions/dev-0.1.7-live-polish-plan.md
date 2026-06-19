@@ -147,6 +147,7 @@ visible.
 | Dashboard source labels | Dashboard now separates OpsLens risk data source, native console API source, and Prometheus source. | `opslens-dashboard-source-label` and `opslens-console-source-label` expose live/fixture/unavailable state. |
 | Dashboard decision flow | Dashboard now visualizes the product value above native parity by turning console signals into OpsLens correlation, operator decision, and assistant handoff. | Browser check rendered `opslens-dashboard-decision-flow` with `4` steps, `data-source=live`, live console signal count, risk signal count, top decision, and suggested assistant question. |
 | Compatibility boundary UI | The parity matrix now shows the OCP `4.20` minimum runtime, the `4.21.14` reference inventory, and pending Windows `4.20` validation. | Browser DOM check showed `console-compatibility-boundary` with minimum/runtime/proof text and `37` visible parity class entries. |
+| OCP 4.20 preflight | A local compatibility verifier now checks the parity registry before deployment. | `npm run verify:ocp:420-compatibility` evaluates `37` console items and `26` API versions against the OCP `4.20` API allowlist, writing `test-results/cywell-opslens-ocp420-compatibility.json`. This is a pre-deployment gate; Windows CRC `4.20` runtime proof is still required. |
 | Local verification | Current local build and web-shell contract pass. | `@kugnus/web` build passed; latest `npm run verify:web-shell` passed with `74` checks. |
 
 ## Parallel Review Setup
@@ -175,6 +176,7 @@ Remaining before calling 0.1.7 complete:
   into richer native-console metric visualization.
 - Prove the baseline on the Windows OCP `4.20` CRC test server.
 - Deploy only after the local test page proves the next behavior slice.
+- Keep `npm run verify:ocp:420-compatibility` green before creating any Windows CRC `4.20` deployment artifact.
 
 ## Work Order
 
@@ -190,6 +192,16 @@ features from optional `4.21+` convenience features.
 | RBAC Lens | SelfSubjectAccessReview / SubjectAccessReview and RBAC resource reads | Multi-group impersonation-inspired troubleshooting UX |
 | YAML Explain Editor | Read/analyze/diff/plan only | Editor preference parity where available |
 | Deep links | OpsLens internal router must survive refresh/direct URL | Align with improved console plugin routing behavior |
+
+Pre-deployment check:
+
+```text
+npm run verify:ocp:420-compatibility
+```
+
+This check does not replace a live Windows CRC `4.20` run. It catches accidental
+use of non-baseline API versions in the parity registry before an image is built
+or pushed.
 
 ### 1. Parity Registry Audit
 

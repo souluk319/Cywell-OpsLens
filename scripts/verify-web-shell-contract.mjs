@@ -124,11 +124,13 @@ const adminSource = await readText("apps/web/src/components/OpsLensAdminDashboar
 const consoleExtensionsSource = await readText("apps/web/console-extensions.json");
 const routeSource = await readText("apps/web/src/plugin/OpsLensRoute.tsx");
 const apiSource = await readText("apps/web/src/lib/api.ts");
+const packageSource = await readText("package.json");
 const contractsSource = await readText("packages/contracts/src/types.ts");
 const backendApiSource = await readText("apps/api/src/api.ts");
 const ocpClientSource = await readText("apps/api/src/ocpClient.ts");
 const backendServerSource = await readText("apps/api/src/server.ts");
 const backendLightspeedSource = await readText("apps/api/src/lightspeedClient.ts");
+const ocp420CompatibilitySource = await readText("scripts/verify-ocp-420-compatibility.mjs");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 const e2eSource = await readText("tests/e2e/mvp-0.1.spec.ts");
 const liveInstallSource = await readText(
@@ -1540,6 +1542,18 @@ expectCheck(
     paritySummary.gapCount === coverageCounts.gap,
   "Every registry item has one allowed coverage class and summary counts match the registry",
   `coverageClasses=${JSON.stringify(coverageCounts)} items=${parityItems.length}`
+);
+
+expectCheck(
+  "OCP 4.20 compatibility preflight contract",
+  packageSource.includes('"verify:ocp:420-compatibility"') &&
+    ocp420CompatibilitySource.includes("ocp420ApiAllowlist") &&
+    ocp420CompatibilitySource.includes("OpenShift Container Platform 4.20") &&
+    ocp420CompatibilitySource.includes("OpenShift Container Platform 4.21+") &&
+    ocp420CompatibilitySource.includes("Windows CRC 4.20") &&
+    ocp420CompatibilitySource.includes("API versions outside OCP 4.20 allowlist") &&
+    ocp420CompatibilitySource.includes("test-results/cywell-opslens-ocp420-compatibility.json"),
+  "pre-deployment compatibility gate checks console parity resources against the OCP 4.20 API allowlist"
 );
 
 expectCheck(

@@ -24,6 +24,7 @@
     "verify:operator:package": "node ./scripts/verify-operator-package.mjs",
     "verify:operator:dry-run": "node ./scripts/verify-operator-dry-run.mjs",
     "verify:ocp:target-profile": "node ./scripts/verify-ocp-target-profile.mjs",
+    "verify:ocp:420-compatibility": "node ./scripts/verify-ocp-420-compatibility.mjs",
     "verify:ocp:connectivity": "node ./scripts/verify-ocp-connectivity-diagnostic.mjs",
     "verify:ocp:live-reader-smoke": "node ./scripts/verify-ocp-live-reader-smoke.mjs",
     "evidence:ocp-auth-rbac-plan": "node ./scripts/verify-ocp-auth-rbac-plan.mjs",
