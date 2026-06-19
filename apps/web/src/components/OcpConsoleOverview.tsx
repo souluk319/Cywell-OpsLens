@@ -47,6 +47,14 @@ const overviewCopy = {
     failedBuilds: "Failed builds",
     imageStreams: "ImageStreams",
     monitoring: "Monitoring",
+    utilization: "Utilization",
+    metricSeries: "metric series",
+    source: "Source",
+    samples: "samples",
+    latest: "latest",
+    metricsUnavailable: "Live utilization is not connected",
+    metricsProxyDisabled:
+      "Prometheus is ready, but OpsLens API is not querying it because OCP_ENABLE_MONITORING_PROXY is disabled.",
     reachable: "Reachable",
     firingAlerts: "Firing alerts",
     critical: "Critical",
@@ -93,6 +101,14 @@ const overviewCopy = {
     failedBuilds: "실패한 빌드",
     imageStreams: "이미지 스트림",
     monitoring: "모니터링",
+    utilization: "사용량",
+    metricSeries: "메트릭 시계열",
+    source: "출처",
+    samples: "샘플",
+    latest: "최신",
+    metricsUnavailable: "실시간 사용량이 연결되지 않음",
+    metricsProxyDisabled:
+      "Prometheus는 준비되어 있지만 OpsLens API가 OCP_ENABLE_MONITORING_PROXY 비활성 상태라 조회하지 않습니다.",
     reachable: "연결 가능",
     firingAlerts: "발생 중인 경고",
     critical: "긴급",
@@ -132,6 +148,15 @@ function visualStyle(value: number) {
 
 function ringStyle(value: number) {
   return { "--score": percentLabel(value) } as CSSProperties;
+}
+
+function prometheusSampleNumber(sample: {
+  value?: [number, string];
+  values?: Array<[number, string]>;
+}) {
+  const raw = sample.value?.[1] ?? sample.values?.at(-1)?.[1];
+  const parsed = raw ? Number.parseFloat(raw) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
@@ -196,6 +221,11 @@ export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
       (overview?.monitoring.criticalAlerts ?? 0),
     Math.max(1, overview?.monitoring.firingAlerts ?? 0)
   );
+  const utilization = overview?.consoleDashboard.utilization;
+  const utilizationSeries = utilization?.series ?? [];
+  const liveUtilizationCount = utilizationSeries.filter(
+    (series) => series.samples.length > 0
+  ).length;
 
   return (
     <section className="ocp-console-overview" aria-labelledby="ocp-console-overview-title">
@@ -313,6 +343,71 @@ export function OcpConsoleOverview({ language }: OcpConsoleOverviewProps) {
           </p>
         </article>
       </div>
+
+      <article
+        className={`overview-utilization-panel ${
+          utilization?.reachable ? "ready" : "warning"
+        }`}
+        data-testid="ocp-overview-utilization"
+      >
+        <div className="card-title-row">
+          <div>
+            <h3>{copy.utilization}</h3>
+            <p>
+              {copy.source}: {utilization?.source ?? "unknown"} ·{" "}
+              {liveUtilizationCount}/{numberText(utilizationSeries.length)}{" "}
+              {copy.metricSeries}
+            </p>
+          </div>
+          <span className={`status-pill ${utilization?.reachable ? "ready" : "warning"}`}>
+            {utilization?.reachable ? copy.liveOcp : copy.metricsUnavailable}
+          </span>
+        </div>
+        {!utilization?.reachable ? (
+          <p className="muted-warning">
+            {utilization?.error ?? copy.metricsProxyDisabled}
+          </p>
+        ) : null}
+        <div className="utilization-series-grid">
+          {utilizationSeries.map((series) => {
+            const values = series.samples
+              .map((sample) => prometheusSampleNumber(sample))
+              .filter((value): value is number => value !== null);
+            const maxValue = Math.max(1, ...values);
+            const latest = series.latest ?? values.at(-1);
+
+            return (
+              <div className="utilization-series-card" key={series.id}>
+                <div>
+                  <strong>{series.label}</strong>
+                  <span>
+                    {copy.samples}: {series.samples.length}
+                  </span>
+                </div>
+                <div
+                  className="utilization-sparkline"
+                  aria-label={`${series.label} ${copy.samples}`}
+                >
+                  {values.length > 0 ? (
+                    values.slice(-18).map((value, index) => (
+                      <i
+                        key={`${series.id}-${index}`}
+                        style={visualStyle(Math.round((value / maxValue) * 100))}
+                      />
+                    ))
+                  ) : (
+                    <em>{series.error ?? utilization?.error ?? copy.metricsUnavailable}</em>
+                  )}
+                </div>
+                <p>
+                  {copy.latest}:{" "}
+                  {typeof latest === "number" ? `${latest.toLocaleString()} ${series.unit}` : "-"}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </article>
 
       <div className="overview-grid" data-testid="ocp-console-overview">
         <article className="overview-card">

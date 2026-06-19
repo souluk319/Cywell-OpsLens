@@ -13,8 +13,10 @@ import type {
   UIEvent
 } from "react";
 import {
+  Check,
   CheckCircle2,
   ChevronDown,
+  Copy,
   FileSearch,
   MessageCircle,
   Move,
@@ -132,6 +134,10 @@ const assistantCopy = {
     diagnostics: "Connection details",
     answerDetails: "Evidence and next checks",
     rawEvidenceDetails: "References and raw checks",
+    copyAnswer: "Copy this answer",
+    answerCopied: "Answer copied",
+    copyConversation: "Copy conversation",
+    conversationCopied: "Conversation copied",
     userBubble: "You",
     assistantBubble: "KOMSCO",
     readOnlyHint: "Read-only guidance, no cluster mutation",
@@ -207,6 +213,10 @@ const assistantCopy = {
     diagnostics: "연결 상세",
     answerDetails: "근거와 다음 확인",
     rawEvidenceDetails: "참조와 상태 체크 원문",
+    copyAnswer: "이 답변 복사",
+    answerCopied: "답변 복사됨",
+    copyConversation: "전체 대화 복사",
+    conversationCopied: "전체 대화 복사됨",
     userBubble: "질문",
     assistantBubble: "KOMSCO",
     readOnlyHint: "읽기 전용 가이드, 클러스터 변경 없음",
@@ -640,6 +650,46 @@ function splitAssistantJudgment(value: string) {
   };
 }
 
+function plainAssistantAnswer(language: UiLanguage, answer: AssistantAnswer) {
+  const judgment = splitAssistantJudgment(answer.judgment).primary;
+  const blocks = [
+    localizedText(language, judgment),
+    answer.candidates.length
+      ? [
+          language === "ko" ? "원인 후보" : "Cause candidates",
+          ...answer.candidates.map(
+            (candidate) =>
+              `- ${localizedText(language, candidate.label)}: ${localizedText(
+                language,
+                candidate.reason
+              )}`
+          )
+        ].join("\n")
+      : "",
+    answer.nextChecks.length
+      ? [
+          language === "ko" ? "다음 확인" : "Next checks",
+          ...answer.nextChecks.map((command) => `- ${command}`)
+        ].join("\n")
+      : "",
+    answer.risks.length
+      ? [
+          language === "ko" ? "리스크" : "Risks",
+          ...answer.risks.map((risk) => `- ${localizedText(language, risk)}`)
+        ].join("\n")
+      : "",
+    answer.missingEvidence.length
+      ? [
+          language === "ko" ? "부족한 근거" : "Missing evidence",
+          ...answer.missingEvidence.map((gap) => `- ${localizedText(language, gap)}`)
+        ].join("\n")
+      : "",
+    `${language === "ko" ? "동작 모드" : "Action mode"}: ${answer.actionMode}`
+  ];
+
+  return blocks.filter((block) => block.trim().length > 0).join("\n\n");
+}
+
 function routeModeLabel(language: UiLanguage, mode: string) {
   const modeLabels = connectionCopy[language].modes as Record<string, string>;
   return modeLabels[mode] ?? mode;
@@ -811,6 +861,8 @@ export function AssistantPopover({
   const [autoScrollLocked, setAutoScrollLocked] = useState(false);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const [promptExampleIndex, setPromptExampleIndex] = useState(0);
+  const [copiedAnswerId, setCopiedAnswerId] = useState<string | null>(null);
+  const [conversationCopied, setConversationCopied] = useState(false);
   const [floatingSize, setFloatingSize] = useState(() =>
     clampAssistantSize(assistantPanelWidth, assistantViewportHeight())
   );
@@ -949,6 +1001,52 @@ export function AssistantPopover({
     if (!isResponding && prompt.trim().length > 0) {
       onAsk(prompt);
     }
+  }
+
+  async function copyText(value: string, onCopied: () => void) {
+    const text = value.trim();
+    if (!text) return;
+
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      onCopied();
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.top = "-1000px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textarea);
+    onCopied();
+  }
+
+  function turnCopyText(turn: (typeof renderedTurns)[number]) {
+    return [
+      `${copy.userBubble}: ${turn.prompt || "-"}`,
+      `${copy.assistantBubble}:\n${plainAssistantAnswer(language, turn.answer)}`
+    ].join("\n\n");
+  }
+
+  function copyTurn(turn: (typeof renderedTurns)[number]) {
+    void copyText(turnCopyText(turn), () => {
+      setCopiedAnswerId(turn.id);
+      window.setTimeout(() => setCopiedAnswerId(null), 1800);
+    });
+  }
+
+  function copyConversation() {
+    const conversation = renderedTurns
+      .map((turn, index) => `#${index + 1}\n${turnCopyText(turn)}`)
+      .join("\n\n---\n\n");
+    void copyText(conversation, () => {
+      setConversationCopied(true);
+      window.setTimeout(() => setConversationCopied(false), 1800);
+    });
   }
 
   function isAnswerStackAtBottom(element: HTMLDivElement) {
@@ -1342,6 +1440,20 @@ export function AssistantPopover({
           <button
             className="icon-button"
             type="button"
+            data-testid="assistant-copy-conversation"
+            title={conversationCopied ? copy.conversationCopied : copy.copyConversation}
+            aria-label={conversationCopied ? copy.conversationCopied : copy.copyConversation}
+            onClick={copyConversation}
+          >
+            {conversationCopied ? (
+              <Check size={16} aria-hidden="true" />
+            ) : (
+              <Copy size={16} aria-hidden="true" />
+            )}
+          </button>
+          <button
+            className="icon-button"
+            type="button"
             data-testid="assistant-retry-api"
             title={copy.retry}
             aria-label={copy.retry}
@@ -1586,7 +1698,27 @@ export function AssistantPopover({
                     turn.streaming ? "streaming" : ""
                   }`}
                 >
-                  <span>{copy.assistantBubble}</span>
+                  <div className="chat-bubble-heading">
+                    <span>{copy.assistantBubble}</span>
+                    {!turn.pending ? (
+                      <button
+                        className="chat-copy-button"
+                        type="button"
+                        data-testid="assistant-copy-answer"
+                        title={copiedAnswerId === turn.id ? copy.answerCopied : copy.copyAnswer}
+                        aria-label={
+                          copiedAnswerId === turn.id ? copy.answerCopied : copy.copyAnswer
+                        }
+                        onClick={() => copyTurn(turn)}
+                      >
+                        {copiedAnswerId === turn.id ? (
+                          <Check size={14} aria-hidden="true" />
+                        ) : (
+                          <Copy size={14} aria-hidden="true" />
+                        )}
+                      </button>
+                    ) : null}
+                  </div>
                   {turn.pending ? (
                     <div className="assistant-typing" data-testid="assistant-typing">
                       <i />
