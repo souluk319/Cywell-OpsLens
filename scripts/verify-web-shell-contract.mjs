@@ -1571,6 +1571,25 @@ expectCheck(
 );
 
 expectCheck(
+  "workload resource lens visual contract",
+  explorerSource.includes('data-testid="ocp-workload-lens"') &&
+    explorerSource.includes('data-testid="ocp-workload-health-summary"') &&
+    explorerSource.includes('data-testid="ocp-workload-selected"') &&
+    explorerSource.includes('data-testid="ocp-workload-relationship"') &&
+    explorerSource.includes('data-testid="ocp-workload-next-checks"') &&
+    explorerSource.includes("workloadHealth(") &&
+    explorerSource.includes("fallbackKind") &&
+    explorerSource.includes("workloadSignal(") &&
+    explorerSource.includes("workloadNextChecks(") &&
+    explorerSource.includes("full: full || workloadKinds.has(resource.kind)") &&
+    explorerSource.includes("HorizontalPodAutoscaler") &&
+    explorerSource.includes("PodDisruptionBudget") &&
+    stylesSource.includes(".workload-lens-panel") &&
+    stylesSource.includes(".workload-health-meter"),
+  "Workload resource presets render a purpose-built visual lens for Pods, Deployments, Jobs, CronJobs, HPA, and PDB instead of only a generic table"
+);
+
+expectCheck(
   "human-readable OCP 4.21.14 console parity map",
   parityMapDocSource.includes("# CRC OpenShift 4.21.14 Console Parity Map") &&
     parityMapDocSource.includes("Truth source: `apps/web/src/consoleParity.ts`") &&

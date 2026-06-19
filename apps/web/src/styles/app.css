@@ -2849,6 +2849,140 @@ button {
   overflow-wrap: anywhere;
 }
 
+.workload-lens-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+  border-color: #bee1f4;
+  background:
+    linear-gradient(180deg, rgba(242, 249, 253, 0.82), #fff 52%),
+    #fff;
+}
+
+.workload-lens-panel .panel-title-row {
+  align-items: flex-start;
+}
+
+.workload-lens-panel h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 4px;
+}
+
+.workload-lens-panel p {
+  margin: 0;
+  color: #4f5255;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.workload-lens-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.1fr) repeat(3, minmax(180px, 0.9fr));
+  gap: 10px;
+}
+
+.workload-health-card,
+.workload-selected-card,
+.workload-next-checks {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #ededed;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.workload-health-meter {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border: 1px solid #d2d2d2;
+  border-radius: 999px;
+  background: #f0f0f0;
+}
+
+.workload-health-meter span {
+  min-width: 3px;
+}
+
+.workload-health-meter .healthy {
+  background: #3e8635;
+}
+
+.workload-health-meter .warning {
+  background: #f0ab00;
+}
+
+.workload-health-meter .danger {
+  background: #c9190b;
+}
+
+.workload-health-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 11px 0 0;
+}
+
+.workload-health-card div {
+  display: grid;
+  gap: 3px;
+}
+
+.workload-health-card dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #4f5255;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.workload-health-card dd {
+  margin: 0;
+  color: #151515;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.workload-selected-card,
+.workload-next-checks {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.workload-selected-card strong,
+.workload-next-checks strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #151515;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.workload-selected-card span,
+.workload-selected-card small,
+.workload-next-checks span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #4f5255;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.workload-next-checks span {
+  width: fit-content;
+  padding: 5px 7px;
+  border: 1px solid #bee1f4;
+  border-radius: 999px;
+  background: #f2f9fd;
+  color: #004b95;
+  font-weight: 800;
+}
+
 .admin-target-fallback-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4518,6 +4652,10 @@ button {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .workload-lens-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+
   .resource-inspector-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -4635,6 +4773,11 @@ button {
   }
 
   .ops-console-sync-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workload-lens-grid,
+  .workload-health-card dl {
     grid-template-columns: minmax(0, 1fr);
   }
 

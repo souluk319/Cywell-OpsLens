@@ -143,14 +143,17 @@ visible.
 | Metadata fallback | List calls can recover from metadata-list failure by retrying JSON list mode before failing. | `listOcpResource` records `JSON list fallback succeeded` when fallback is used. |
 | Preferred API order | Resource presets now honor the requested order instead of whatever discovery returns first. | `findPreferredResourceInOrder` selects BuildConfig/Build/ImageStream-style presets deterministically. |
 | Menu support classification | Every native console menu item now carries a visible support class. | `coverageClass` maps items to `Live View`, `Native Deep Link`, `Plan-only`, or `Gap`; the parity matrix and active action panel render the class. |
+| Workloads resource lens | Workload resource presets now show an OpsLens-owned status lens above the raw resource table. | Pods, Deployments, StatefulSets, DaemonSets, Jobs, CronJobs, HPA, and PDB expose health distribution, selected object signal, owner/child relation, and next-check chips in `ocp-workload-lens`. |
 | Dashboard source labels | Dashboard now separates OpsLens risk data source, native console API source, and Prometheus source. | `opslens-dashboard-source-label` and `opslens-console-source-label` expose live/fixture/unavailable state. |
 | Compatibility boundary UI | The parity matrix now shows the OCP `4.20` minimum runtime, the `4.21.14` reference inventory, and pending Windows `4.20` validation. | Browser DOM check showed `console-compatibility-boundary` with minimum/runtime/proof text and `37` visible parity class entries. |
 | Local verification | Current local build and web-shell contract pass. | `@kugnus/contracts`, `@kugnus/api`, `@kugnus/web` builds passed; latest `npm run verify:web-shell` passed with `71` checks. |
 
 Remaining before calling 0.1.7 complete:
 
-- Replace more generic Resource Explorer screens with purpose-built native parity
-  views for Pods, Deployments, CronJobs, Jobs, HPA, and PDB.
+- Continue replacing generic Resource Explorer screens with purpose-built native parity
+  views. The first Workloads lens is in place, but create/edit/delete remains
+  native deep link or approval-gated and deeper per-kind detail views are still
+  required.
 - Upgrade the main dashboard live visualizations beyond source labels and the
   first topology graph proof.
 - Prove the baseline on the Windows OCP `4.20` CRC test server.

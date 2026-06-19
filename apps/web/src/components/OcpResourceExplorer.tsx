@@ -13,13 +13,17 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  CheckCircle2,
+  CircleAlert,
   Database,
   FileCode2,
   GitBranch,
+  Layers3,
   RefreshCw,
   ScrollText,
   Search,
-  ShieldAlert
+  ShieldAlert,
+  Workflow
 } from "lucide-react";
 import {
   fetchOcpAccessMatrix,
@@ -206,6 +210,22 @@ const explorerCopy = {
     relatedStatus: "Related",
     mutationGuard: "Mutation guard",
     functionOutcome: "Function outcome",
+    workloadLens: "Workload Lens",
+    workloadLensSubtitle: "OpenShift workload status, relationship, and next-check view",
+    healthy: "healthy",
+    needsAttention: "needs attention",
+    failing: "failing",
+    selectedObject: "Selected object",
+    relationship: "Relationship",
+    nextChecks: "Next checks",
+    desiredAvailable: "desired / available",
+    schedule: "schedule",
+    lastSchedule: "last schedule",
+    completion: "completion",
+    replicas: "replicas",
+    disruptionsAllowed: "allowed disruptions",
+    protectedWorkloads: "protected workloads",
+    routeNativeCreate: "create/edit/delete stays in the native OpenShift console or approval-gated flow",
     presetMatch: "Preset match",
     matched: "matched",
     missing: "missing",
@@ -314,6 +334,22 @@ const explorerCopy = {
     relatedStatus: "관련",
     mutationGuard: "변경 차단",
     functionOutcome: "기능 결과",
+    workloadLens: "워크로드 렌즈",
+    workloadLensSubtitle: "OpenShift 워크로드 상태, 관계, 다음 확인 항목",
+    healthy: "정상",
+    needsAttention: "주의",
+    failing: "장애",
+    selectedObject: "선택 객체",
+    relationship: "관계",
+    nextChecks: "다음 확인",
+    desiredAvailable: "희망 / 가용",
+    schedule: "스케줄",
+    lastSchedule: "마지막 실행",
+    completion: "완료",
+    replicas: "레플리카",
+    disruptionsAllowed: "허용 중단",
+    protectedWorkloads: "보호 워크로드",
+    routeNativeCreate: "생성/수정/삭제는 기본 OpenShift 콘솔 또는 승인 기반 흐름 사용",
     presetMatch: "프리셋 매칭",
     matched: "매칭됨",
     missing: "누락",
@@ -377,6 +413,173 @@ function formatMatrixAccess(
 
 function countLogLines(logs: OcpPodLogsResponse | null) {
   return logs?.logs.split(/\r?\n/).filter((line) => line.trim()).length ?? 0;
+}
+
+type WorkloadHealth = "healthy" | "warning" | "danger";
+
+const workloadKinds = new Set([
+  "Pod",
+  "Deployment",
+  "StatefulSet",
+  "DaemonSet",
+  "ReplicaSet",
+  "Job",
+  "CronJob",
+  "HorizontalPodAutoscaler",
+  "PodDisruptionBudget"
+]);
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function numberField(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  return typeof value === "number" ? value : undefined;
+}
+
+function stringField(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function boolField(record: Record<string, unknown>, key: string) {
+  const value = record[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function ownerLabel(item: OcpResourceSummary | undefined) {
+  const owner = item?.metadata.ownerReferences?.find((ref) => ref.controller) ??
+    item?.metadata.ownerReferences?.[0];
+  return owner ? `${owner.kind}/${owner.name}` : "-";
+}
+
+function workloadHealth(
+  item: OcpResourceSummary,
+  fallbackKind?: string
+): WorkloadHealth {
+  const kind = item.kind || fallbackKind;
+  const status = asRecord(item.status);
+  const spec = asRecord(item.spec);
+
+  switch (kind) {
+    case "Pod": {
+      const phase = stringField(status, "phase");
+      if (phase === "Running" || phase === "Succeeded") return "healthy";
+      if (phase === "Failed" || phase === "Unknown") return "danger";
+      return "warning";
+    }
+    case "Deployment":
+    case "StatefulSet": {
+      const desired = numberField(spec, "replicas") ?? numberField(status, "replicas") ?? 0;
+      const available = numberField(status, "availableReplicas") ?? 0;
+      const unavailable = numberField(status, "unavailableReplicas") ?? 0;
+      if (desired > 0 && available >= desired && unavailable === 0) return "healthy";
+      if (unavailable > 0 || available === 0) return "danger";
+      return "warning";
+    }
+    case "DaemonSet": {
+      const desired = numberField(status, "desiredNumberScheduled") ?? 0;
+      const available = numberField(status, "numberAvailable") ?? 0;
+      const unavailable = numberField(status, "numberUnavailable") ?? 0;
+      if (desired > 0 && available >= desired && unavailable === 0) return "healthy";
+      if (unavailable > 0 || available === 0) return "danger";
+      return "warning";
+    }
+    case "Job": {
+      const failed = numberField(status, "failed") ?? 0;
+      const succeeded = numberField(status, "succeeded") ?? 0;
+      const completions = numberField(spec, "completions") ?? 1;
+      if (failed > 0) return "danger";
+      if (succeeded >= completions) return "healthy";
+      return "warning";
+    }
+    case "CronJob": {
+      if (boolField(spec, "suspend")) return "warning";
+      return "healthy";
+    }
+    case "HorizontalPodAutoscaler": {
+      const current = numberField(status, "currentReplicas") ?? 0;
+      const desired = numberField(status, "desiredReplicas") ?? 0;
+      if (desired > 0 && current >= desired) return "healthy";
+      if (desired > current) return "warning";
+      return "healthy";
+    }
+    case "PodDisruptionBudget": {
+      const allowed = numberField(status, "disruptionsAllowed") ?? 0;
+      return allowed > 0 ? "healthy" : "warning";
+    }
+    default:
+      return "warning";
+  }
+}
+
+function workloadSignal(
+  item: OcpResourceSummary,
+  copy: (typeof explorerCopy)[UiLanguage],
+  fallbackKind?: string
+) {
+  const kind = item.kind || fallbackKind;
+  const status = asRecord(item.status);
+  const spec = asRecord(item.spec);
+
+  switch (kind) {
+    case "Pod":
+      return `${stringField(status, "phase") ?? copy.status} · ${ownerLabel(item)}`;
+    case "Deployment":
+    case "StatefulSet":
+      return `${copy.desiredAvailable}: ${
+        numberField(spec, "replicas") ?? numberField(status, "replicas") ?? 0
+      } / ${numberField(status, "availableReplicas") ?? 0}`;
+    case "DaemonSet":
+      return `${copy.desiredAvailable}: ${
+        numberField(status, "desiredNumberScheduled") ?? 0
+      } / ${numberField(status, "numberAvailable") ?? 0}`;
+    case "CronJob":
+      return `${copy.schedule}: ${stringField(spec, "schedule") ?? "-"} · ${
+        copy.lastSchedule
+      }: ${stringField(status, "lastScheduleTime") ?? "-"}`;
+    case "Job":
+      return `${copy.completion}: ${numberField(status, "succeeded") ?? 0}/${
+        numberField(spec, "completions") ?? 1
+      } · failed ${numberField(status, "failed") ?? 0}`;
+    case "HorizontalPodAutoscaler":
+      return `${copy.replicas}: ${numberField(status, "currentReplicas") ?? 0}/${
+        numberField(status, "desiredReplicas") ?? 0
+      } · max ${numberField(spec, "maxReplicas") ?? "-"}`;
+    case "PodDisruptionBudget":
+      return `${copy.disruptionsAllowed}: ${
+        numberField(status, "disruptionsAllowed") ?? 0
+      } · ${copy.protectedWorkloads}: ${numberField(status, "expectedPods") ?? "-"}`;
+    default:
+      return item.status ? copy.statusAttached : copy.metadata;
+  }
+}
+
+function workloadNextChecks(
+  kind: string | undefined,
+  copy: (typeof explorerCopy)[UiLanguage]
+) {
+  switch (kind) {
+    case "Pod":
+      return [copy.eventsStatus, copy.logsStatus, copy.relatedStatus];
+    case "Deployment":
+    case "StatefulSet":
+    case "DaemonSet":
+      return [copy.relatedStatus, copy.eventsStatus, copy.podLogs];
+    case "CronJob":
+      return [copy.schedule, "Jobs", copy.routeNativeCreate];
+    case "Job":
+      return [copy.completion, copy.eventsStatus, copy.podLogs];
+    case "HorizontalPodAutoscaler":
+      return [copy.replicas, "metrics", copy.eventsStatus];
+    case "PodDisruptionBudget":
+      return [copy.disruptionsAllowed, copy.protectedWorkloads, copy.eventsStatus];
+    default:
+      return [copy.detailStatus, copy.eventsStatus, copy.relatedStatus];
+  }
 }
 
 export function OcpResourceExplorer({
@@ -552,7 +755,7 @@ export function OcpResourceExplorer({
           fieldSelector: scopedFieldSelector,
           limit: 50,
           continueToken: options.continueToken,
-          full
+          full: full || workloadKinds.has(resource.kind)
         }),
         fetchOcpAccessMatrix({
           apiVersion: resource.apiVersion,
@@ -825,9 +1028,23 @@ export function OcpResourceExplorer({
           ? copy.loading
           : functionOutcomeState === "missing"
             ? copy.missing
-            : functionOutcomeState === "waiting"
-              ? copy.waiting
-              : copy.notApplicable;
+        : functionOutcomeState === "waiting"
+          ? copy.waiting
+          : copy.notApplicable;
+  const workloadLensActive = Boolean(
+    selectedResource && workloadKinds.has(selectedResource.kind)
+  );
+  const workloadLensItems = workloadLensActive ? (list?.items ?? []) : [];
+  const workloadHealthCounts = workloadLensItems.reduce(
+    (counts, item) => {
+      counts[workloadHealth(item, selectedResource?.kind)] += 1;
+      return counts;
+    },
+    { healthy: 0, warning: 0, danger: 0 } as Record<WorkloadHealth, number>
+  );
+  const workloadTotal = Math.max(workloadLensItems.length, 1);
+  const selectedWorkload = detail?.item ?? workloadLensItems[0];
+  const workloadNextCheckItems = workloadNextChecks(selectedResource?.kind, copy);
 
   useEffect(() => {
     onFunctionOutcomeChange?.(functionOutcomeState);
@@ -977,6 +1194,109 @@ export function OcpResourceExplorer({
           <ShieldAlert size={17} aria-hidden="true" />
           <span>{error ?? status?.error}</span>
         </div>
+      ) : null}
+
+      {workloadLensActive ? (
+        <article
+          className="console-panel workload-lens-panel"
+          data-testid="ocp-workload-lens"
+        >
+          <div className="panel-title-row">
+            <div>
+              <p className="eyebrow">{selectedResource?.kind}</p>
+              <h3>
+                <Workflow size={17} aria-hidden="true" />
+                {copy.workloadLens}
+              </h3>
+              <p>{copy.workloadLensSubtitle}</p>
+            </div>
+            <span className="status-pill read-only">
+              {copy.readOnlyGuard}
+            </span>
+          </div>
+
+          <div className="workload-lens-grid">
+            <div className="workload-health-card">
+              <div className="workload-health-meter" aria-hidden="true">
+                <span
+                  className="healthy"
+                  style={{
+                    width: `${(workloadHealthCounts.healthy / workloadTotal) * 100}%`
+                  }}
+                />
+                <span
+                  className="warning"
+                  style={{
+                    width: `${(workloadHealthCounts.warning / workloadTotal) * 100}%`
+                  }}
+                />
+                <span
+                  className="danger"
+                  style={{
+                    width: `${(workloadHealthCounts.danger / workloadTotal) * 100}%`
+                  }}
+                />
+              </div>
+              <dl data-testid="ocp-workload-health-summary">
+                <div>
+                  <dt>
+                    <CheckCircle2 size={15} aria-hidden="true" />
+                    {copy.healthy}
+                  </dt>
+                  <dd>{workloadHealthCounts.healthy}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <CircleAlert size={15} aria-hidden="true" />
+                    {copy.needsAttention}
+                  </dt>
+                  <dd>{workloadHealthCounts.warning}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <ShieldAlert size={15} aria-hidden="true" />
+                    {copy.failing}
+                  </dt>
+                  <dd>{workloadHealthCounts.danger}</dd>
+                </div>
+              </dl>
+            </div>
+
+            <div className="workload-selected-card" data-testid="ocp-workload-selected">
+              <strong>{copy.selectedObject}</strong>
+              <span>
+                {selectedWorkload
+                  ? `${selectedWorkload.kind || selectedResource?.kind}/${selectedWorkload.metadata.name}`
+                  : copy.noItems}
+              </span>
+              <small>
+                {selectedWorkload
+                  ? workloadSignal(selectedWorkload, copy, selectedResource?.kind)
+                  : copy.selectObject}
+              </small>
+            </div>
+
+            <div className="workload-selected-card" data-testid="ocp-workload-relationship">
+              <strong>
+                <Layers3 size={15} aria-hidden="true" />
+                {copy.relationship}
+              </strong>
+              <span>{copy.ownerReferences}: {ownerLabel(selectedWorkload)}</span>
+              <small>
+                {related
+                  ? `${related.owners.length} ${copy.owners} / ${related.children.length} ${copy.children}`
+                  : copy.selectRelated}
+              </small>
+            </div>
+
+            <div className="workload-next-checks" data-testid="ocp-workload-next-checks">
+              <strong>{copy.nextChecks}</strong>
+              {workloadNextCheckItems.map((check) => (
+                <span key={check}>{check}</span>
+              ))}
+            </div>
+          </div>
+        </article>
       ) : null}
 
       <div className="ocp-explorer-grid">
