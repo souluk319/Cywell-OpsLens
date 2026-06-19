@@ -1574,17 +1574,38 @@ expectCheck(
   "Dev 0.1.7 workload topology graph contract",
   contractsSource.includes("export interface OcpTopologyResponse") &&
     contractsSource.includes("OcpTopologyEdge") &&
+    contractsSource.includes('"deploymentconfig"') &&
+    contractsSource.includes('"statefulset"') &&
+    contractsSource.includes('"daemonset"') &&
+    contractsSource.includes('"replicaset"') &&
+    contractsSource.includes('"replicationcontroller"') &&
+    contractsSource.includes('"hpa"') &&
+    contractsSource.includes('"pdb"') &&
     ocpClientSource.includes("export async function getOcpTopology") &&
     ocpClientSource.includes("Service selector") &&
     ocpClientSource.includes("OwnerReference") &&
+    ocpClientSource.includes("apps.openshift.io/v1") &&
+    ocpClientSource.includes("deploymentconfigs") &&
+    ocpClientSource.includes("statefulsets") &&
+    ocpClientSource.includes("daemonsets") &&
+    ocpClientSource.includes("replicasets") &&
+    ocpClientSource.includes("replicationcontrollers") &&
+    ocpClientSource.includes("horizontalpodautoscalers") &&
+    ocpClientSource.includes("poddisruptionbudgets") &&
+    ocpClientSource.includes("scaleTargetRef") &&
     backendServerSource.includes('url.pathname === "/api/ocp/topology"') &&
     apiSource.includes("fetchOcpTopology") &&
+    topologySource.includes("DeploymentConfigs") &&
+    topologySource.includes("StatefulSets") &&
+    topologySource.includes("DaemonSets") &&
+    topologySource.includes("HPAs") &&
+    topologySource.includes("PDBs") &&
     topologySource.includes('data-testid="ocp-topology-graph"') &&
     topologySource.includes('data-testid="ocp-topology-canvas"') &&
     topologySource.includes('data-testid="ocp-topology-evidence"') &&
     actionPanelSource.includes('"topology-graph": "Topology graph"') &&
     actionPanelSource.includes('"topology-graph": "토폴로지 그래프"'),
-  "Workloads / Topology is a real read-only graph surface backed by pods, deployments, services, routes, jobs, and cronjobs"
+  "Workloads / Topology is a real read-only graph surface backed by pods, services, routes, deploymentconfigs, deployments, statefulsets, daemonsets, replicasets, replicationcontrollers, HPAs, PDBs, jobs, and cronjobs"
 );
 
 expectCheck(

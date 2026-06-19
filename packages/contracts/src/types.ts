@@ -4616,7 +4616,14 @@ export interface OcpRelatedResourcesResponse {
 export type OcpTopologyNodeType =
   | "route"
   | "service"
+  | "deploymentconfig"
   | "deployment"
+  | "statefulset"
+  | "daemonset"
+  | "replicaset"
+  | "replicationcontroller"
+  | "hpa"
+  | "pdb"
   | "pod"
   | "job"
   | "cronjob";

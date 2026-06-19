@@ -3115,8 +3115,12 @@ function labelsMatch(
   return entries.every(([key, value]) => labels?.[key] === value);
 }
 
-function deploymentSelector(item: OcpResourceSummary) {
-  return stringRecord(readRecordPath(item.spec, ["selector", "matchLabels"]));
+function workloadSelector(item: OcpResourceSummary) {
+  const matchLabels = stringRecord(readRecordPath(item.spec, ["selector", "matchLabels"]));
+  if (Object.keys(matchLabels).length > 0) {
+    return matchLabels;
+  }
+  return stringRecord(readRecordPath(item.spec, ["selector"]));
 }
 
 function serviceSelector(item: OcpResourceSummary) {
@@ -3164,6 +3168,27 @@ function workloadHealth(item: OcpResourceSummary): OcpTopologyNode["health"] {
     return available > 0 ? "warning" : "danger";
   }
 
+  if (
+    item.kind === "DeploymentConfig" ||
+    item.kind === "StatefulSet" ||
+    item.kind === "DaemonSet" ||
+    item.kind === "ReplicaSet" ||
+    item.kind === "ReplicationController"
+  ) {
+    const desired =
+      Number(status.replicas ?? status.desiredNumberScheduled ?? status.desiredReplicas ?? 0);
+    const ready =
+      Number(status.readyReplicas ?? status.availableReplicas ?? status.numberReady ?? 0);
+    const unavailable = Number(status.unavailableReplicas ?? status.numberUnavailable ?? 0);
+    if (desired === 0) {
+      return "unknown";
+    }
+    if (ready >= desired && unavailable === 0) {
+      return "ready";
+    }
+    return ready > 0 ? "warning" : "danger";
+  }
+
   if (item.kind === "Job") {
     if (Number(status.succeeded ?? 0) > 0) {
       return "ready";
@@ -3176,6 +3201,25 @@ function workloadHealth(item: OcpResourceSummary): OcpTopologyNode["health"] {
 
   if (item.kind === "CronJob") {
     return status.lastScheduleTime ? "ready" : "unknown";
+  }
+
+  if (item.kind === "HorizontalPodAutoscaler") {
+    const current = Number(status.currentReplicas ?? 0);
+    const desired = Number(status.desiredReplicas ?? 0);
+    if (current > 0 && desired > 0 && current >= desired) {
+      return "ready";
+    }
+    return current > 0 ? "warning" : "unknown";
+  }
+
+  if (item.kind === "PodDisruptionBudget") {
+    const allowed = Number(status.disruptionsAllowed ?? 0);
+    const currentHealthy = Number(status.currentHealthy ?? 0);
+    const desiredHealthy = Number(status.desiredHealthy ?? 0);
+    if (allowed > 0 || currentHealthy >= desiredHealthy) {
+      return "ready";
+    }
+    return currentHealthy > 0 ? "warning" : "danger";
   }
 
   return "unknown";
@@ -3235,7 +3279,14 @@ export async function getOcpTopology(params: {
   const limit = Math.min(Math.max(params.limit ?? 200, 1), 500);
   const errors: OcpTopologyResponse["errors"] = [];
   const [
+    deploymentConfigs,
     deployments,
+    statefulsets,
+    daemonsets,
+    replicasets,
+    replicationControllers,
+    hpas,
+    pdbs,
     pods,
     services,
     routes,
@@ -3243,8 +3294,57 @@ export async function getOcpTopology(params: {
     cronjobs
   ] = await Promise.all([
     topologyListResource({
+      apiVersion: "apps.openshift.io/v1",
+      resource: "deploymentconfigs",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
       apiVersion: "apps/v1",
       resource: "deployments",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "apps/v1",
+      resource: "statefulsets",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "apps/v1",
+      resource: "daemonsets",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "apps/v1",
+      resource: "replicasets",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "v1",
+      resource: "replicationcontrollers",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "autoscaling/v2",
+      resource: "horizontalpodautoscalers",
+      namespace: params.namespace,
+      limit,
+      errors
+    }),
+    topologyListResource({
+      apiVersion: "policy/v1",
+      resource: "poddisruptionbudgets",
       namespace: params.namespace,
       limit,
       errors
@@ -3305,11 +3405,67 @@ export async function getOcpTopology(params: {
       ])
     );
   }
+  for (const item of deploymentConfigs?.items ?? []) {
+    nodes.push(
+      topologyNode("deploymentconfig", deploymentConfigs!.resource, item, [
+        "apps.openshift.io/v1/deploymentconfigs read through the OpenShift API",
+        "deploymentconfig selector is matched against pod labels"
+      ])
+    );
+  }
   for (const item of deployments?.items ?? []) {
     nodes.push(
       topologyNode("deployment", deployments!.resource, item, [
         "apps/v1/deployments read through the OpenShift API",
         "deployment selector is matched against pod labels"
+      ])
+    );
+  }
+  for (const item of statefulsets?.items ?? []) {
+    nodes.push(
+      topologyNode("statefulset", statefulsets!.resource, item, [
+        "apps/v1/statefulsets read through the OpenShift API",
+        "statefulset selector is matched against pod labels"
+      ])
+    );
+  }
+  for (const item of daemonsets?.items ?? []) {
+    nodes.push(
+      topologyNode("daemonset", daemonsets!.resource, item, [
+        "apps/v1/daemonsets read through the OpenShift API",
+        "daemonset selector is matched against pod labels"
+      ])
+    );
+  }
+  for (const item of replicasets?.items ?? []) {
+    nodes.push(
+      topologyNode("replicaset", replicasets!.resource, item, [
+        "apps/v1/replicasets read through the OpenShift API",
+        "replicaset selector is matched against pod labels and ownerReferences"
+      ])
+    );
+  }
+  for (const item of replicationControllers?.items ?? []) {
+    nodes.push(
+      topologyNode("replicationcontroller", replicationControllers!.resource, item, [
+        "v1/replicationcontrollers read through the OpenShift API",
+        "replicationcontroller selector is matched against pod labels"
+      ])
+    );
+  }
+  for (const item of hpas?.items ?? []) {
+    nodes.push(
+      topologyNode("hpa", hpas!.resource, item, [
+        "autoscaling/v2/horizontalpodautoscalers read through the OpenShift API",
+        "scaleTargetRef is matched against workload controller nodes"
+      ])
+    );
+  }
+  for (const item of pdbs?.items ?? []) {
+    nodes.push(
+      topologyNode("pdb", pdbs!.resource, item, [
+        "policy/v1/poddisruptionbudgets read through the OpenShift API",
+        "pdb selector is matched against protected pod labels"
       ])
     );
   }
@@ -3337,6 +3493,45 @@ export async function getOcpTopology(params: {
       ])
     );
   }
+
+  const workloadControllers = [
+    {
+      type: "deploymentconfig",
+      kind: "DeploymentConfig",
+      label: "DeploymentConfig selector",
+      items: deploymentConfigs?.items ?? []
+    },
+    {
+      type: "deployment",
+      kind: "Deployment",
+      label: "Deployment selector",
+      items: deployments?.items ?? []
+    },
+    {
+      type: "statefulset",
+      kind: "StatefulSet",
+      label: "StatefulSet selector",
+      items: statefulsets?.items ?? []
+    },
+    {
+      type: "daemonset",
+      kind: "DaemonSet",
+      label: "DaemonSet selector",
+      items: daemonsets?.items ?? []
+    },
+    {
+      type: "replicaset",
+      kind: "ReplicaSet",
+      label: "ReplicaSet selector",
+      items: replicasets?.items ?? []
+    },
+    {
+      type: "replicationcontroller",
+      kind: "ReplicationController",
+      label: "ReplicationController selector",
+      items: replicationControllers?.items ?? []
+    }
+  ] as const;
 
   const serviceByName = new Map(
     (services?.items ?? []).map((item) => [
@@ -3389,23 +3584,106 @@ export async function getOcpTopology(params: {
     }
   }
 
-  for (const deployment of deployments?.items ?? []) {
-    const selector = deploymentSelector(deployment);
+  for (const controllerGroup of workloadControllers) {
+    for (const controller of controllerGroup.items) {
+      const selector = workloadSelector(controller);
+      for (const pod of pods?.items ?? []) {
+        if (controller.metadata.namespace !== pod.metadata.namespace) {
+          continue;
+        }
+        if (!labelsMatch(pod.metadata.labels, selector)) {
+          continue;
+        }
+        edges.push({
+          id: `${controllerGroup.type}:${topologyId(controllerGroup.type, controller)}->pod:${topologyId("pod", pod)}`,
+          from: topologyId(controllerGroup.type, controller),
+          to: topologyId("pod", pod),
+          type: "selects",
+          label: controllerGroup.label,
+          evidence: [
+            `${controller.metadata.name} selector matched pod labels`,
+            Object.entries(selector).map(([key, value]) => `${key}=${value}`).join(", ")
+          ].filter(Boolean)
+        });
+      }
+    }
+  }
+
+  for (const childGroup of workloadControllers) {
+    for (const child of childGroup.items) {
+      for (const owner of child.metadata.ownerReferences ?? []) {
+        const parentGroup = workloadControllers.find((group) => group.kind === owner.kind);
+        const parent = parentGroup?.items.find(
+          (item) =>
+            item.metadata.namespace === child.metadata.namespace &&
+            item.metadata.name === owner.name
+        );
+        if (!parentGroup || !parent) {
+          continue;
+        }
+        edges.push({
+          id: `${parentGroup.type}:${topologyId(parentGroup.type, parent)}->${childGroup.type}:${topologyId(childGroup.type, child)}`,
+          from: topologyId(parentGroup.type, parent),
+          to: topologyId(childGroup.type, child),
+          type: "owns",
+          label: "OwnerReference",
+          evidence: [
+            `${child.metadata.name} ownerReferences includes ${owner.kind}/${owner.name}`
+          ]
+        });
+      }
+    }
+  }
+
+  for (const hpa of hpas?.items ?? []) {
+    const target = readRecordPath(hpa.spec, ["scaleTargetRef"]);
+    if (!target || typeof target !== "object") {
+      continue;
+    }
+    const targetRecord = target as Record<string, unknown>;
+    const targetKind = typeof targetRecord.kind === "string" ? targetRecord.kind : undefined;
+    const targetName = typeof targetRecord.name === "string" ? targetRecord.name : undefined;
+    if (!targetKind || !targetName) {
+      continue;
+    }
+    const targetGroup = workloadControllers.find((group) => group.kind === targetKind);
+    const targetItem = targetGroup?.items.find(
+      (item) =>
+        item.metadata.namespace === hpa.metadata.namespace &&
+        item.metadata.name === targetName
+    );
+    if (!targetGroup || !targetItem) {
+      continue;
+    }
+    edges.push({
+      id: `hpa:${topologyId("hpa", hpa)}->${targetGroup.type}:${topologyId(targetGroup.type, targetItem)}`,
+      from: topologyId("hpa", hpa),
+      to: topologyId(targetGroup.type, targetItem),
+      type: "selects",
+      label: "Scale target",
+      evidence: [
+        `${hpa.metadata.name} scaleTargetRef=${targetKind}/${targetName}`
+      ]
+    });
+  }
+
+  for (const pdb of pdbs?.items ?? []) {
+    const selector = workloadSelector(pdb);
     for (const pod of pods?.items ?? []) {
-      if (deployment.metadata.namespace !== pod.metadata.namespace) {
+      if (pdb.metadata.namespace !== pod.metadata.namespace) {
         continue;
       }
       if (!labelsMatch(pod.metadata.labels, selector)) {
         continue;
       }
       edges.push({
-        id: `deployment:${topologyId("deployment", deployment)}->pod:${topologyId("pod", pod)}`,
-        from: topologyId("deployment", deployment),
+        id: `pdb:${topologyId("pdb", pdb)}->pod:${topologyId("pod", pod)}`,
+        from: topologyId("pdb", pdb),
         to: topologyId("pod", pod),
         type: "selects",
-        label: "Deployment selector",
+        label: "PDB selector",
         evidence: [
-          `${deployment.metadata.name} selector matched pod labels`,
+          `${pdb.metadata.name} selector matched protected pod labels`,
           Object.entries(selector).map(([key, value]) => `${key}=${value}`).join(", ")
         ].filter(Boolean)
       });
@@ -3468,8 +3746,8 @@ export async function getOcpTopology(params: {
     edges,
     evidence: [
       "Topology uses only get/list/read-safe OpenShift API requests",
-      "Service and Deployment edges are selector-derived",
-      "Route and Job edges are target/ownerReference-derived",
+      "Service and workload controller edges are selector-derived",
+      "Route, HPA, PDB, controller, and Job edges are target/selector/ownerReference-derived",
       "No create/update/patch/delete verbs are used"
     ],
     errors

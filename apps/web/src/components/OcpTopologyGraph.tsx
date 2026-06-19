@@ -1,6 +1,16 @@
 import type { OcpTopologyNode, OcpTopologyResponse } from "@kugnus/contracts";
 import { useEffect, useMemo, useState } from "react";
-import { Boxes, GitBranch, RefreshCw, Route, ServerCog, Workflow } from "lucide-react";
+import {
+  Boxes,
+  GitBranch,
+  Layers3,
+  RefreshCw,
+  Route,
+  Scale3D,
+  ServerCog,
+  ShieldCheck,
+  Workflow
+} from "lucide-react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpTopology } from "../lib/api";
 
@@ -28,7 +38,14 @@ const topologyCopy = {
     readOnly: "read-only graph",
     route: "Routes",
     service: "Services",
+    deploymentconfig: "DeploymentConfigs",
     deployment: "Deployments",
+    statefulset: "StatefulSets",
+    daemonset: "DaemonSets",
+    replicaset: "ReplicaSets",
+    replicationcontroller: "ReplicationControllers",
+    hpa: "HPAs",
+    pdb: "PDBs",
     pod: "Pods",
     cronjob: "CronJobs",
     job: "Jobs",
@@ -58,7 +75,14 @@ const topologyCopy = {
     readOnly: "읽기 전용 그래프",
     route: "Route",
     service: "Service",
+    deploymentconfig: "DeploymentConfig",
     deployment: "Deployment",
+    statefulset: "StatefulSet",
+    daemonset: "DaemonSet",
+    replicaset: "ReplicaSet",
+    replicationcontroller: "ReplicationController",
+    hpa: "HPA",
+    pdb: "PDB",
     pod: "Pod",
     cronjob: "CronJob",
     job: "Job",
@@ -74,7 +98,14 @@ const topologyCopy = {
 const nodeOrder: OcpTopologyNode["type"][] = [
   "route",
   "service",
+  "deploymentconfig",
   "deployment",
+  "statefulset",
+  "daemonset",
+  "replicaset",
+  "replicationcontroller",
+  "hpa",
+  "pdb",
   "cronjob",
   "job",
   "pod"
@@ -83,19 +114,33 @@ const nodeOrder: OcpTopologyNode["type"][] = [
 const nodeIcons = {
   route: Route,
   service: ServerCog,
+  deploymentconfig: Boxes,
   deployment: Boxes,
+  statefulset: Layers3,
+  daemonset: Layers3,
+  replicaset: Layers3,
+  replicationcontroller: Layers3,
+  hpa: Scale3D,
+  pdb: ShieldCheck,
   pod: Workflow,
   cronjob: GitBranch,
   job: GitBranch
 } as const;
 
 const nodeX: Record<OcpTopologyNode["type"], number> = {
-  route: 9,
-  service: 27,
-  deployment: 48,
-  cronjob: 48,
-  job: 67,
-  pod: 88
+  route: 4,
+  service: 12,
+  deploymentconfig: 20,
+  deployment: 28,
+  statefulset: 36,
+  daemonset: 44,
+  replicaset: 52,
+  replicationcontroller: 60,
+  hpa: 68,
+  pdb: 76,
+  cronjob: 84,
+  job: 90,
+  pod: 96
 };
 
 const maxRenderedNodesPerType = 26;

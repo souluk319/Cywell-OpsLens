@@ -81,7 +81,9 @@ Sources:
 
 2. Build Workloads parity first.
    - Topology must be a real visual graph, not a generic list.
-   - Pods, Deployments, Jobs, CronJobs, HPA, and PDB must expose useful list/detail state.
+   - Pods, Deployments, DeploymentConfigs, StatefulSets, DaemonSets, ReplicaSets,
+     ReplicationControllers, Jobs, CronJobs, HPA, and PDB must expose useful
+     list/detail state.
    - CronJob create/edit/delete remain native deep links unless approval-gated mutation exists.
 
 3. Stabilize live API behavior.
@@ -118,8 +120,8 @@ Sources:
 | ID | Pass / Fail Rule | Evidence |
 | --- | --- | --- |
 | AC-017-001 | Every native OCP menu item has one honest class: live view, native deep link, plan-only assistant, or explicit gap. | Parity registry audit and visible UI labels |
-| AC-017-002 | Workloads / Topology renders graph nodes and edges from live Deployments, Pods, Services, Routes, Jobs, and CronJobs when available. | Browser DOM check and screenshot |
-| AC-017-003 | Pods, Deployments, Jobs, CronJobs, HPA, and PDB expose list/detail/evidence state, not only a generic card. | Resource API smoke and browser check |
+| AC-017-002 | Workloads / Topology renders graph nodes and edges from live Pods, Services, Routes, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, HPA, PDB, Jobs, and CronJobs when available. | Browser DOM check and screenshot |
+| AC-017-003 | Pods, Deployments, DeploymentConfigs, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB expose list/detail/evidence state, not only a generic card. | Resource API smoke and browser check |
 | AC-017-004 | Native create/edit/delete flows use OpenShift native deep links or approval-gated actions; no fake create UI. | Click-path check |
 | AC-017-005 | Core resource API calls return data, empty state, or named failure; no unexplained visible `400`. | API smoke |
 | AC-017-006 | Dashboard live graphs render from Prometheus when enabled; disabled mode shows setup state. | Local test page DOM + API response |
@@ -137,19 +139,19 @@ visible.
 
 | Area | Current result | Evidence |
 | --- | --- | --- |
-| Workloads / Topology | Implemented as a real read-only graph surface instead of a generic resource card. | `GET /api/ocp/topology` reads Deployments, Pods, Services, Routes, Jobs, and CronJobs and renders selector, ownerReference, and route target edges. |
+| Workloads / Topology | Implemented as a real read-only graph surface instead of a generic resource card. | `GET /api/ocp/topology` reads Pods, Services, Routes, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, HPA, PDB, Jobs, and CronJobs and renders selector, ownerReference, scaleTargetRef, disruption-budget, job-owner, and route target edges. |
 | Topology browser proof | Local test page opens the Workloads / Topology screen and renders live graph nodes and edges. | Browser check on `127.0.0.1:5173` rendered `123` visible graph nodes and `58` visible edges after the graph cap was applied. |
 | Resource API failure handling | Generic visible `400` failures were replaced with named failure categories and normal list response envelopes. | Backend returns empty/named-failure list data for unsupported, RBAC-denied, blocked, or upstream-failed list paths; browser check on Builds showed no visible error and no `failed with 400`. Current local API smoke returned HTTP `200` for `v1/pods`, `v1/namespaces`, and `build.openshift.io/v1/buildconfigs`; `buildconfigs` returned an empty list rather than a `400`. |
 | Metadata fallback | List calls can recover from metadata-list failure by retrying JSON list mode before failing. | `listOcpResource` records `JSON list fallback succeeded` when fallback is used. |
 | Preferred API order | Resource presets now honor the requested order instead of whatever discovery returns first. | `findPreferredResourceInOrder` selects BuildConfig/Build/ImageStream-style presets deterministically. |
 | Menu support classification | Every native console menu item now carries a visible support class. | `coverageClass` maps items to `Live View`, `Native Deep Link`, `Plan-only`, or `Gap`; the parity matrix and active action panel render the class. |
-| Workloads resource lens | Workload resource presets now show an OpsLens-owned status lens above the raw resource table. | Pods, Deployments, StatefulSets, DaemonSets, Jobs, CronJobs, HPA, and PDB expose health distribution, selected object signal, owner/child relation, and next-check chips in `ocp-workload-lens`. |
+| Workloads resource lens | Workload resource presets now show an OpsLens-owned status lens above the raw resource table. | Pods, Deployments, DeploymentConfigs, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB expose health distribution, selected object signal, owner/child relation, and next-check chips in `ocp-workload-lens`. |
 | Dashboard source labels | Dashboard now separates OpsLens risk data source, native console API source, and Prometheus source. | `opslens-dashboard-source-label` and `opslens-console-source-label` expose live/fixture/unavailable state. |
 | Dashboard decision flow | Dashboard now visualizes the product value above native parity by turning console signals into OpsLens correlation, operator decision, and assistant handoff. | Browser check rendered `opslens-dashboard-decision-flow` with `4` steps, `data-source=live`, live console signal count, risk signal count, top decision, and suggested assistant question. |
 | Compatibility boundary UI | The parity matrix now shows the OCP `4.20` minimum runtime, the `4.21.14` reference inventory, and pending Windows `4.20` validation. | Browser DOM check showed `console-compatibility-boundary` with minimum/runtime/proof text and `37` visible parity class entries. |
 | OCP 4.20 preflight | A local compatibility verifier now checks the parity registry before deployment. | `npm run verify:ocp:420-compatibility` evaluates `37` console items and `26` API versions against the OCP `4.20` API allowlist, writing `test-results/cywell-opslens-ocp420-compatibility.json`. This is a pre-deployment gate; Windows CRC `4.20` runtime proof is still required. |
 | OCP 4.20 live-readiness gate | A non-mutating strict verifier now defines the exact Windows CRC `4.20` proof command. | `npm run verify:ocp:420-live-readiness` requires an `oc` context, `clusterversion` minor `4.20`, healthy console operator, ConsolePlugin CRD, and discovery for every parity API version. `npm run verify:ocp:420-live-readiness:preview` can be used on the current reference cluster without claiming completion. |
-| Local verification | Current local build and web-shell contract pass. | `@kugnus/web` build passed; latest `npm run verify:web-shell` passed with `74` checks. |
+| Local verification | Current local build and web-shell contract pass. | `@kugnus/contracts`, `@kugnus/api`, and `@kugnus/web` builds pass; latest `npm run verify:web-shell` pass records the active check count. |
 
 ## Parallel Review Setup
 
