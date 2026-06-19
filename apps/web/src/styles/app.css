@@ -3238,6 +3238,18 @@ button {
   gap: 6px;
 }
 
+.coverage-gap-code {
+  display: block;
+  width: fit-content;
+  margin-top: 4px;
+  color: #6a6e73;
+  font-size: 0.73rem;
+  background: #f5f5f5;
+  border: 1px solid #d2d2d2;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
 .coverage-diagnostic {
   margin-top: 12px;
 }
@@ -4351,6 +4363,138 @@ button {
 
 .link-button:hover {
   text-decoration: underline;
+}
+
+.native-object-detail-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.native-object-detail-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.native-object-detail-header h3 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.native-object-detail-header p {
+  max-width: 900px;
+  margin: 5px 0 0;
+  color: #4f5255;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.native-detail-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  border-bottom: 1px solid #d2d2d2;
+}
+
+.native-detail-tabs button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: #4f5255;
+  background: transparent;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.native-detail-tabs button:hover,
+.native-detail-tabs button:focus-visible {
+  color: #151515;
+  background: #f0f0f0;
+}
+
+.native-detail-tabs button.active {
+  color: #004b95;
+  border-bottom-color: #0066cc;
+}
+
+.native-object-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.native-object-summary-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.native-object-summary-card.conditions {
+  grid-column: 1 / -1;
+}
+
+.native-object-summary-card > strong {
+  color: #151515;
+  font-size: 0.88rem;
+}
+
+.native-object-summary-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.native-object-summary-card dl > div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.32fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.native-object-summary-card dt {
+  color: #6a6e73;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.native-object-summary-card dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #151515;
+  font-size: 0.84rem;
+}
+
+.native-condition-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.native-condition-table th,
+.native-condition-table td {
+  padding: 8px;
+  border-bottom: 1px solid #ededed;
+  text-align: left;
+  vertical-align: top;
+}
+
+.native-condition-table th {
+  color: #4f5255;
+  background: #f0f0f0;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.native-condition-table td {
+  color: #151515;
+  font-size: 0.82rem;
 }
 
 .resource-inspector-grid {
@@ -5827,6 +5971,23 @@ button {
 
   .native-console-table {
     min-width: 720px;
+  }
+
+  .native-object-detail-header {
+    flex-direction: column;
+  }
+
+  .native-object-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .native-object-summary-card.conditions {
+    grid-column: auto;
+    overflow-x: auto;
+  }
+
+  .native-condition-table {
+    min-width: 640px;
   }
 
   .parity-summary-grid {

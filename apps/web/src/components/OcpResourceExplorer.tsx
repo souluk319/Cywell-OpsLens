@@ -286,7 +286,31 @@ const explorerCopy = {
     inspect: "Inspect",
     conditionAvailable: "Available",
     conditionProgressing: "Progressing",
-    conditionDegraded: "Degraded"
+    conditionDegraded: "Degraded",
+    objectNativeDetails: "Object details",
+    objectNativeDescription:
+      "Native console-style object summary before raw JSON/YAML: identity, health, metadata, selectors, owners, conditions, events, logs, and related resources.",
+    detailsTab: "Details",
+    jsonTab: "JSON",
+    yamlTab: "YAML",
+    eventsTab: "Events",
+    logsTab: "Logs",
+    relatedTab: "Related",
+    identity: "Identity",
+    health: "Health",
+    metadataPanel: "Metadata",
+    labels: "Labels",
+    annotations: "Annotations",
+    uid: "UID",
+    resourceVersion: "ResourceVersion",
+    generation: "Generation",
+    owner: "Owner",
+    selector: "Selector",
+    conditions: "Conditions",
+    noConditions: "No conditions returned.",
+    message: "Message",
+    reason: "Reason",
+    rawView: "Raw object"
   },
   ko: {
     eyebrow: "실시간 OpenShift API",
@@ -459,7 +483,31 @@ const explorerCopy = {
     inspect: "검사",
     conditionAvailable: "Available",
     conditionProgressing: "Progressing",
-    conditionDegraded: "Degraded"
+    conditionDegraded: "Degraded",
+    objectNativeDetails: "객체 상세",
+    objectNativeDescription:
+      "원본 콘솔처럼 원시 JSON/YAML보다 먼저 객체 식별, 상태, 메타데이터, 선택자, 소유자, 조건, 이벤트, 로그, 관련 리소스를 요약합니다.",
+    detailsTab: "상세",
+    jsonTab: "JSON",
+    yamlTab: "YAML",
+    eventsTab: "이벤트",
+    logsTab: "로그",
+    relatedTab: "관련",
+    identity: "식별",
+    health: "상태",
+    metadataPanel: "메타데이터",
+    labels: "레이블",
+    annotations: "주석",
+    uid: "UID",
+    resourceVersion: "ResourceVersion",
+    generation: "Generation",
+    owner: "소유자",
+    selector: "선택자",
+    conditions: "조건",
+    noConditions: "반환된 조건이 없습니다.",
+    message: "메시지",
+    reason: "사유",
+    rawView: "원시 객체"
   }
 } as const;
 
@@ -757,6 +805,7 @@ function workloadActionMapping(
 }
 
 type NativeColumnId = "name" | "namespace" | "status" | "details" | "target" | "age";
+type NativeDetailTab = "details" | "json" | "yaml" | "events" | "logs" | "related";
 
 function arrayField(record: Record<string, unknown>, key: string) {
   const value = record[key];
@@ -793,6 +842,33 @@ function labelPreview(item: OcpResourceSummary) {
     .join(", ");
 }
 
+function recordEntriesPreview(record: Record<string, string> | undefined, max = 6) {
+  const entries = Object.entries(record ?? {});
+  if (!entries.length) {
+    return "-";
+  }
+  const visible = entries
+    .slice(0, max)
+    .map(([key, value]) => `${key}=${value}`)
+    .join(", ");
+  const remaining = entries.length > max ? ` +${entries.length - max}` : "";
+  return `${visible}${remaining}`;
+}
+
+function rawMetadata(raw: unknown) {
+  return asRecord(asRecord(raw).metadata);
+}
+
+function rawGeneration(raw: unknown) {
+  const generation = rawMetadata(raw).generation;
+  return typeof generation === "number" ? String(generation) : "-";
+}
+
+function rawResourceVersion(raw: unknown) {
+  const version = rawMetadata(raw).resourceVersion;
+  return typeof version === "string" ? version : "-";
+}
+
 function conditionText(
   item: OcpResourceSummary,
   type: string,
@@ -805,6 +881,20 @@ function conditionText(
   return condition
     ? `${condition.status ?? "-"}${condition.reason ? ` / ${condition.reason}` : ""}`
     : fallback;
+}
+
+function conditionRows(item: OcpResourceSummary | undefined) {
+  if (!item) {
+    return [];
+  }
+  return arrayField(asRecord(item.status), "conditions")
+    .map((value) => asRecord(value))
+    .map((condition) => ({
+      type: String(condition.type ?? "-"),
+      status: String(condition.status ?? "-"),
+      reason: typeof condition.reason === "string" ? condition.reason : "-",
+      message: typeof condition.message === "string" ? condition.message : ""
+    }));
 }
 
 function compactTimestamp(value: string | undefined) {
@@ -1183,6 +1273,8 @@ export function OcpResourceExplorer({
   const [nativeFilter, setNativeFilter] = useState("");
   const [full, setFull] = useState(false);
   const [detailView, setDetailView] = useState<"json" | "yaml">("json");
+  const [nativeDetailTab, setNativeDetailTab] =
+    useState<NativeDetailTab>("details");
   const [list, setList] = useState<OcpResourceListResponse | null>(null);
   const [accessMatrix, setAccessMatrix] =
     useState<OcpResourceAccessMatrixResponse | null>(null);
@@ -1367,6 +1459,7 @@ export function OcpResourceExplorer({
       setRelated(null);
       setEvents(null);
       setLogs(null);
+      setNativeDetailTab("details");
       if (response.items[0]) {
         await loadItemDetails(response.items[0], response.resource);
       }
@@ -1432,6 +1525,7 @@ export function OcpResourceExplorer({
 
     setDetailLoading(true);
     setError(null);
+    setNativeDetailTab("details");
     try {
       const [detailResponse, eventsResponse, relatedResponse] = await Promise.all([
         fetchOcpResourceDetail({
@@ -1689,6 +1783,15 @@ export function OcpResourceExplorer({
   const nativeListHref = selectedResource
     ? nativeConsoleHref(nativeResourceListPath(selectedResource, namespace))
     : undefined;
+  const selectedDetailItem = detail?.item;
+  const selectedDetailNativeHref =
+    selectedResource && selectedDetailItem
+      ? nativeConsoleHref(nativeObjectPath(selectedResource, selectedDetailItem))
+      : undefined;
+  const selectedDetailConditions = conditionRows(selectedDetailItem);
+  const selectedDetailSelector = selectedDetailItem
+    ? resourceTargetText(selectedDetailItem)
+    : "-";
 
   useEffect(() => {
     onFunctionOutcomeChange?.(functionOutcomeState);
@@ -2178,7 +2281,13 @@ export function OcpResourceExplorer({
                 data-testid="ocp-workload-yaml-action"
                 disabled={!selectedWorkload}
                 type="button"
-                onClick={() => setDetailView("yaml")}
+                onClick={() => {
+                  setDetailView("yaml");
+                  setNativeDetailTab("yaml");
+                  document
+                    .querySelector<HTMLElement>("[data-testid='ocp-native-object-detail']")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
               >
                 <FileCode2 size={15} aria-hidden="true" />
                 <span>{copy.viewYaml}</span>
@@ -2189,8 +2298,9 @@ export function OcpResourceExplorer({
                 disabled={!selectedWorkload}
                 type="button"
                 onClick={() => {
+                  setNativeDetailTab("events");
                   document
-                    .querySelector<HTMLElement>("[data-testid='ocp-resource-events']")
+                    .querySelector<HTMLElement>("[data-testid='ocp-native-object-detail']")
                     ?.scrollIntoView({ behavior: "smooth", block: "center" });
                 }}
               >
@@ -2203,8 +2313,9 @@ export function OcpResourceExplorer({
                 disabled={!workloadLogsAvailable}
                 type="button"
                 onClick={() => {
+                  setNativeDetailTab("logs");
                   document
-                    .querySelector<HTMLElement>("[data-testid='ocp-pod-logs']")
+                    .querySelector<HTMLElement>("[data-testid='ocp-native-object-detail']")
                     ?.scrollIntoView({ behavior: "smooth", block: "center" });
                 }}
               >
@@ -2217,8 +2328,9 @@ export function OcpResourceExplorer({
                 disabled={!selectedWorkload}
                 type="button"
                 onClick={() => {
+                  setNativeDetailTab("related");
                   document
-                    .querySelector<HTMLElement>("[data-testid='ocp-related-resources']")
+                    .querySelector<HTMLElement>("[data-testid='ocp-native-object-detail']")
                     ?.scrollIntoView({ behavior: "smooth", block: "center" });
                 }}
               >
@@ -2481,6 +2593,304 @@ export function OcpResourceExplorer({
         </div>
       </details>
 
+      <article
+        className="console-panel native-object-detail-panel"
+        data-testid="ocp-native-object-detail"
+      >
+        <div className="native-object-detail-header">
+          <div>
+            <p className="eyebrow">
+              {selectedDetailItem
+                ? `${selectedDetailItem.apiVersion} / ${selectedDetailItem.kind}`
+                : selectedApiStatus}
+            </p>
+            <h3 data-testid="ocp-native-object-detail-title">
+              {selectedDetailItem
+                ? selectedDetailItem.metadata.name
+                : copy.objectNativeDetails}
+            </h3>
+            <p>{copy.objectNativeDescription}</p>
+          </div>
+          <div className="native-console-actions">
+            {selectedDetailNativeHref ? (
+              <a
+                className="text-icon-button"
+                data-testid="ocp-native-object-link"
+                href={selectedDetailNativeHref}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <ExternalLink size={15} aria-hidden="true" />
+                {copy.openNativeObject}
+              </a>
+            ) : null}
+            <span className="status-pill read-only">
+              {formatAccess(detail?.access.get, copy)}
+            </span>
+          </div>
+        </div>
+
+        <div
+          className="native-detail-tabs"
+          data-testid="ocp-native-detail-tabs"
+          role="tablist"
+        >
+          <button
+            aria-selected={nativeDetailTab === "details"}
+            className={nativeDetailTab === "details" ? "active" : ""}
+            data-testid="ocp-native-details-tab"
+            role="tab"
+            type="button"
+            onClick={() => setNativeDetailTab("details")}
+          >
+            {copy.detailsTab}
+          </button>
+          <button
+            aria-selected={nativeDetailTab === "json"}
+            className={nativeDetailTab === "json" ? "active" : ""}
+            data-testid="ocp-detail-json-tab"
+            role="tab"
+            type="button"
+            onClick={() => {
+              setDetailView("json");
+              setNativeDetailTab("json");
+            }}
+          >
+            {copy.jsonTab}
+          </button>
+          <button
+            aria-selected={nativeDetailTab === "yaml"}
+            className={nativeDetailTab === "yaml" ? "active" : ""}
+            data-testid="ocp-detail-yaml-tab"
+            role="tab"
+            type="button"
+            onClick={() => {
+              setDetailView("yaml");
+              setNativeDetailTab("yaml");
+            }}
+          >
+            {copy.yamlTab}
+          </button>
+          <button
+            aria-selected={nativeDetailTab === "events"}
+            className={nativeDetailTab === "events" ? "active" : ""}
+            data-testid="ocp-native-events-tab"
+            role="tab"
+            type="button"
+            onClick={() => setNativeDetailTab("events")}
+          >
+            {copy.eventsTab}
+          </button>
+          <button
+            aria-selected={nativeDetailTab === "logs"}
+            className={nativeDetailTab === "logs" ? "active" : ""}
+            data-testid="ocp-native-logs-tab"
+            role="tab"
+            type="button"
+            onClick={() => setNativeDetailTab("logs")}
+          >
+            {copy.logsTab}
+          </button>
+          <button
+            aria-selected={nativeDetailTab === "related"}
+            className={nativeDetailTab === "related" ? "active" : ""}
+            data-testid="ocp-native-related-tab"
+            role="tab"
+            type="button"
+            onClick={() => setNativeDetailTab("related")}
+          >
+            {copy.relatedTab}
+          </button>
+        </div>
+
+        {nativeDetailTab === "details" ? (
+          <div
+            className="native-object-detail-grid"
+            data-testid="ocp-native-object-details"
+          >
+            <section className="native-object-summary-card">
+              <strong>{copy.identity}</strong>
+              <dl>
+                <div>
+                  <dt>{copy.kind}</dt>
+                  <dd>{selectedDetailItem?.kind ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>{copy.namespace}</dt>
+                  <dd>{selectedDetailItem?.metadata.namespace ?? copy.cluster}</dd>
+                </div>
+                <div>
+                  <dt>{copy.created}</dt>
+                  <dd>{selectedDetailItem?.metadata.creationTimestamp ?? "-"}</dd>
+                </div>
+                <div>
+                  <dt>{copy.uid}</dt>
+                  <dd>{selectedDetailItem?.metadata.uid ?? "-"}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="native-object-summary-card">
+              <strong>{copy.health}</strong>
+              <dl>
+                <div>
+                  <dt>{copy.status}</dt>
+                  <dd>
+                    {selectedDetailItem
+                      ? resourceStatusText(selectedDetailItem, copy)
+                      : copy.selectObject}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{copy.columnDetails}</dt>
+                  <dd>
+                    {selectedDetailItem ? resourceDetailText(selectedDetailItem) : "-"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{copy.owner}</dt>
+                  <dd>{ownerLabel(selectedDetailItem)}</dd>
+                </div>
+                <div>
+                  <dt>{copy.selector}</dt>
+                  <dd>{selectedDetailSelector}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="native-object-summary-card">
+              <strong>{copy.metadataPanel}</strong>
+              <dl>
+                <div>
+                  <dt>{copy.resourceVersion}</dt>
+                  <dd>{detail ? rawResourceVersion(detail.raw) : "-"}</dd>
+                </div>
+                <div>
+                  <dt>{copy.generation}</dt>
+                  <dd>{detail ? rawGeneration(detail.raw) : "-"}</dd>
+                </div>
+                <div>
+                  <dt>{copy.labels}</dt>
+                  <dd>{recordEntriesPreview(selectedDetailItem?.metadata.labels)}</dd>
+                </div>
+                <div>
+                  <dt>{copy.annotations}</dt>
+                  <dd>{recordEntriesPreview(selectedDetailItem?.metadata.annotations)}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="native-object-summary-card conditions">
+              <strong>{copy.conditions}</strong>
+              {selectedDetailConditions.length ? (
+                <table className="native-condition-table">
+                  <thead>
+                    <tr>
+                      <th>{copy.kind}</th>
+                      <th>{copy.status}</th>
+                      <th>{copy.reason}</th>
+                      <th>{copy.message}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedDetailConditions.map((condition) => (
+                      <tr key={`${condition.type}/${condition.reason}`}>
+                        <td>{condition.type}</td>
+                        <td>{condition.status}</td>
+                        <td>{condition.reason}</td>
+                        <td>{condition.message || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p>{detailLoading ? copy.loadingObject : copy.noConditions}</p>
+              )}
+            </section>
+          </div>
+        ) : null}
+
+        {nativeDetailTab === "json" || nativeDetailTab === "yaml" ? (
+          <pre className="object-json compact" data-testid="ocp-native-object-raw">
+            {detailLoading ? copy.loadingObject : detailText}
+          </pre>
+        ) : null}
+
+        {nativeDetailTab === "events" ? (
+          <div className="event-list" data-testid="ocp-native-object-events">
+            {detailLoading ? <p>{copy.loadingEvents}</p> : null}
+            {!detailLoading && events?.items.length ? (
+              events.items.map((event) => (
+                <div className="event-row" key={`${event.namespace}/${event.name}`}>
+                  <strong>{event.reason ?? event.type ?? copy.eventFallback}</strong>
+                  <span>{event.lastTimestamp ?? event.firstTimestamp ?? "-"}</span>
+                  <p>{event.message ?? copy.noMessage}</p>
+                </div>
+              ))
+            ) : null}
+            {!detailLoading && events && events.items.length === 0 ? (
+              <p>{copy.noEvents}</p>
+            ) : null}
+            {!detailLoading && !events ? <p>{copy.selectEvents}</p> : null}
+          </div>
+        ) : null}
+
+        {nativeDetailTab === "logs" ? (
+          <pre className="log-viewport compact" data-testid="ocp-native-object-logs">
+            {detailLoading
+              ? copy.loadingPodLogs
+              : logs
+                ? logs.logs || copy.noLogLines
+                : copy.selectPodLogs}
+          </pre>
+        ) : null}
+
+        {nativeDetailTab === "related" ? (
+          <div className="related-resources" data-testid="ocp-native-object-related">
+            {detailLoading ? <p>{copy.loadingRelated}</p> : null}
+            {!detailLoading && related ? (
+              <>
+                <div>
+                  <strong>{copy.ownerReferences}</strong>
+                  {related.owners.length ? (
+                    related.owners.map((owner) => (
+                      <p key={`${owner.uid ?? owner.kind}/${owner.name}`}>
+                        {owner.kind}/{owner.name}
+                        {owner.controller ? ` ${copy.controller}` : ""}
+                      </p>
+                    ))
+                  ) : (
+                    <p>{copy.noOwners}</p>
+                  )}
+                </div>
+                <div>
+                  <strong>{copy.ownedChildren}</strong>
+                  {related.children.length ? (
+                    related.children.map((child) => (
+                      <button
+                        className="link-button related-link"
+                        key={`${child.resource.apiVersion}/${child.resource.name}/${child.item.metadata.namespace ?? "_cluster"}/${child.item.metadata.name}`}
+                        type="button"
+                        onClick={() =>
+                          void loadItemDetails(child.item, child.resource)
+                        }
+                      >
+                        {child.item.kind}/{child.item.metadata.name}
+                      </button>
+                    ))
+                  ) : (
+                    <p>{copy.noChildren}</p>
+                  )}
+                </div>
+              </>
+            ) : null}
+            {!detailLoading && !related ? (
+              <p>{copy.selectRelated}</p>
+            ) : null}
+          </div>
+        ) : null}
+      </article>
+
       <div className="resource-inspector-grid">
         <article className="console-panel">
           <div className="panel-title-row">
@@ -2492,7 +2902,7 @@ export function OcpResourceExplorer({
               <button
                 aria-label={copy.objectJson}
                 aria-pressed={detailView === "json"}
-                data-testid="ocp-detail-json-tab"
+                data-testid="ocp-raw-detail-json-tab"
                 type="button"
                 onClick={() => setDetailView("json")}
               >
@@ -2501,7 +2911,7 @@ export function OcpResourceExplorer({
               <button
                 aria-label={copy.objectYaml}
                 aria-pressed={detailView === "yaml"}
-                data-testid="ocp-detail-yaml-tab"
+                data-testid="ocp-raw-detail-yaml-tab"
                 type="button"
                 onClick={() => setDetailView("yaml")}
               >

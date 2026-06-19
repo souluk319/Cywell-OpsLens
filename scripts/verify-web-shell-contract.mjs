@@ -134,6 +134,7 @@ const ocp420CompatibilitySource = await readText("scripts/verify-ocp-420-compati
 const ocp420LiveReadinessSource = await readText("scripts/verify-ocp-420-live-readiness.mjs");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 const e2eSource = await readText("tests/e2e/mvp-0.1.spec.ts");
+const captureScriptSource = await readText("scripts/capture-dev015-demo-evidence.mjs");
 const liveInstallSource = await readText(
   "apps/web/src/components/OpsLensLiveInstallStatus.tsx"
 );
@@ -2100,6 +2101,59 @@ expectCheck(
     stylesSource.includes(".native-console-table") &&
     stylesSource.includes(".ocp-technical-explorer"),
   "Resource Explorer renders a native-console-style detail page before the raw API discovery surface"
+);
+
+expectCheck(
+  "native object detail surface contract",
+  resourceExplorerSource.includes('data-testid="ocp-native-object-detail"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-object-detail-title"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-detail-tabs"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-details-tab"') &&
+    resourceExplorerSource.includes('data-testid="ocp-detail-json-tab"') &&
+    resourceExplorerSource.includes('data-testid="ocp-detail-yaml-tab"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-events-tab"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-logs-tab"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-related-tab"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-object-details"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-object-raw"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-object-events"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-object-logs"') &&
+    resourceExplorerSource.includes('data-testid="ocp-native-object-related"') &&
+    resourceExplorerSource.includes("conditionRows(selectedDetailItem)") &&
+    resourceExplorerSource.includes("recordEntriesPreview(selectedDetailItem?.metadata.labels)") &&
+    resourceExplorerSource.includes("rawResourceVersion(detail.raw)") &&
+    resourceExplorerSource.includes("rawGeneration(detail.raw)") &&
+    stylesSource.includes(".native-object-detail-panel") &&
+    stylesSource.includes(".native-detail-tabs") &&
+    stylesSource.includes(".native-object-detail-grid") &&
+    stylesSource.includes(".native-condition-table"),
+  "Resource Explorer shows a native OpenShift-style object details tab with identity, metadata, conditions, raw, events, logs, and related resources"
+);
+
+expectCheck(
+  "URL-driven navigation contract",
+  appSource.includes('const defaultActiveNavId: ConsoleNavId = "overview"') &&
+    appSource.includes('const activeNavQueryParam = "nav"') &&
+    appSource.includes("params.get(activeNavQueryParam)") &&
+    appSource.includes("function writeActiveNavRoute") &&
+    appSource.includes("url.searchParams.set(activeNavQueryParam, activeNavId)") &&
+    !appSource.includes("cywell-opslens-active-nav-id") &&
+    captureScriptSource.includes('url.searchParams.set("nav", activeNavId)') &&
+    captureScriptSource.includes('if (activeNavId !== "overview")'),
+  "The shell must route by URL, default / to Overview, and avoid stale localStorage menu state"
+);
+
+expectCheck(
+  "overview coverage matrix render contract",
+  appSource.includes("<OcpCoverageMatrix language={language} />") &&
+    coverageSource.includes('data-testid="ocp-coverage-status"') &&
+    coverageSource.includes('data-testid="ocp-coverage-matrix"') &&
+    coverageSource.includes('data-testid="ocp-coverage-diagnostic"') &&
+    coverageSource.includes('className="coverage-gap-code"') &&
+    stylesSource.includes(".coverage-gap-code") &&
+    e2eSource.includes("ocp-coverage-status") &&
+    e2eSource.includes("ocp-coverage-diagnostic"),
+  "Overview must render coverage readiness, matrix, diagnostic evidence, and raw gap codes"
 );
 
 expectCheck(

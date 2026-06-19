@@ -2948,9 +2948,12 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("ocp-coverage-diagnostic")).toContainText(
       "Coverage Gap"
     );
+    await page.getByTestId("console-nav-search").click();
+    await expect(page.getByTestId("active-page-search")).toBeVisible();
     await expect(page.getByTestId("ocp-status")).toContainText("OCP reachable", {
       timeout: 15_000
     });
+    await page.getByTestId("ocp-technical-explorer").locator("summary").click();
     await page.getByLabel("Search API resources").fill("pods");
     await expect(page.getByTestId("ocp-resource-table")).toContainText("Pod");
     if (firstPod?.metadata.namespace) {
@@ -2973,6 +2976,19 @@ async function expectConsoleFunctionEffect(
     );
     await expect(page.getByTestId("ocp-smoke-detail-status")).toContainText(
       firstPod?.metadata.name ?? ""
+    );
+    await expect(page.getByTestId("ocp-native-object-detail")).toBeVisible();
+    await expect(page.getByTestId("ocp-native-object-detail-title")).toContainText(
+      firstPod?.metadata.name ?? ""
+    );
+    await expect(page.getByTestId("ocp-native-detail-tabs")).toContainText(
+      "Details"
+    );
+    await expect(page.getByTestId("ocp-native-object-details")).toContainText(
+      "Identity"
+    );
+    await expect(page.getByTestId("ocp-native-object-details")).toContainText(
+      "Health"
     );
     await expect(page.getByTestId("ocp-smoke-events-status")).toContainText(
       /events|RBAC/
@@ -3029,7 +3045,7 @@ async function expectConsoleFunctionEffect(
     );
     await page.getByTestId("ocp-detail-json-tab").click();
     await expect(page.getByTestId("ocp-resource-events")).toContainText(
-      /events|Event|No events/
+      /events|Event|No events|Started|Pulled|Scheduled/
     );
     await expect(page.getByTestId("ocp-pod-logs")).not.toBeEmpty();
     await expect(page.getByTestId("ocp-next-page")).toBeEnabled();

@@ -93,3 +93,39 @@ Mutation boundary:
 The existing dashboard-style UI can remain as a separate future dashboard asset, but it is no longer the baseline for the main console-mod experience.
 
 Dev 0.1.9 starts from a strict rule: if a native OpenShift function exists, OpsLens must preserve it first.
+
+## 2026-06-20 Implementation Pass
+
+This pass tightened the "copy native console first" contract in code and tests.
+
+### Locked Behavior
+
+- `/` starts at Home / Overview. It no longer reopens a stale menu from browser localStorage.
+- Non-default menu navigation is URL-driven with `?nav=<console-item-id>` so a selected screen can be reproduced directly.
+- Home / Overview renders:
+  - live OpenShift cluster overview,
+  - live utilization and inventory evidence,
+  - OCP coverage matrix,
+  - read-only diagnostic evidence and raw gap codes such as `policy-blocked`.
+- Home / Search opens the Resource Explorer as its own screen, matching the selected-menu-only product rule.
+- Resource Explorer now has a native-console-style object detail surface before raw API output:
+  - Details,
+  - JSON,
+  - YAML,
+  - Events,
+  - Logs,
+  - Related.
+- Workload object actions switch the matching detail tab instead of jumping to disconnected raw panels.
+- Technical API discovery remains available, but it is collapsed by default so the primary UI is not a developer/debug dump.
+
+### Verified Evidence
+
+| Check | Result |
+| --- | --- |
+| `npm run -w @kugnus/web build` | Pass |
+| `npm run verify:web-shell` | Pass, 84 checks |
+| `npx playwright test tests/e2e/mvp-0.1.spec.ts -g "AC-OCP-001"` | Pass |
+
+### Remaining Gap
+
+This pass proves the baseline shell, Overview, Coverage, Search, Resource Explorer detail, Events, Logs, and Related-resource read paths. It does not yet mean every native OpenShift menu page has a full visual clone. Dev 0.1.9 must continue menu-by-menu until every native screen either has a first-class OpsLens implementation or an honest native deep link with read-only evidence.

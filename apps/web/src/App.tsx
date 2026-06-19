@@ -167,9 +167,9 @@ const sectionIcons: Record<ConsoleParitySection, LucideIcon> = {
 const consoleNavigation: ConsoleNavigationItem[] = ocpConsoleParityItems;
 
 const navigationSections = consoleParitySections;
-const defaultActiveNavId: ConsoleNavId = "alerting";
+const defaultActiveNavId: ConsoleNavId = "overview";
 const defaultExpandedSections: ConsoleParitySection[] = [];
-const activeNavStorageKey = "cywell-opslens-active-nav-id";
+const activeNavQueryParam = "nav";
 const expandedSectionsStorageKey = "cywell-opslens-expanded-nav-sections-dev015-chat";
 
 const shellCopy = {
@@ -459,15 +459,34 @@ function readInitialActiveNavId(): ConsoleNavId {
   }
 
   try {
-    const stored = window.localStorage.getItem(activeNavStorageKey);
-    if (isKnownNavigationId(stored)) {
-      return stored;
+    const params = new URL(window.location.href).searchParams;
+    const routed = params.get(activeNavQueryParam) ?? params.get("view");
+    if (isKnownNavigationId(routed)) {
+      return routed;
     }
   } catch {
-    // Ignore storage failures; the default page still gives a stable route.
+    // Ignore URL parsing failures; the default page still gives a stable route.
   }
 
   return defaultActiveNavId;
+}
+
+function writeActiveNavRoute(activeNavId: ConsoleNavId) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const url = new URL(window.location.href);
+    if (activeNavId === defaultActiveNavId) {
+      url.searchParams.delete(activeNavQueryParam);
+    } else {
+      url.searchParams.set(activeNavQueryParam, activeNavId);
+    }
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    // Keep in-memory navigation if browser history is unavailable.
+  }
 }
 
 function readInitialExpandedSections(
@@ -733,11 +752,7 @@ export default function App() {
   }, [language]);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(activeNavStorageKey, activeNavId);
-    } catch {
-      // Ignore storage failures; active route state is still preserved in memory.
-    }
+    writeActiveNavRoute(activeNavId);
   }, [activeNavId]);
 
   useEffect(() => {
@@ -1131,7 +1146,12 @@ export default function App() {
   function renderActiveSurface() {
     switch (activeNavigation.actionSurface) {
       case "overview":
-        return <OcpConsoleOverview language={language} />;
+        return (
+          <>
+            <OcpConsoleOverview language={language} />
+            <OcpCoverageMatrix language={language} />
+          </>
+        );
       case "resource-explorer":
         return (
           <OcpResourceExplorer

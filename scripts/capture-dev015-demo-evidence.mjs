@@ -92,15 +92,18 @@ async function serveDist() {
 }
 
 async function preparePage(page, baseUrl, activeNavId = "dashboards") {
-  await page.addInitScript((navId) => {
+  await page.addInitScript(() => {
     window.localStorage.setItem("cywell-opslens-language", "ko");
-    window.localStorage.setItem("cywell-opslens-active-nav-id", navId);
     window.localStorage.setItem(
       "cywell-opslens-expanded-nav-sections",
       JSON.stringify(["Monitoring", "Cywell"])
     );
-  }, activeNavId);
-  await page.goto(baseUrl, { waitUntil: "networkidle" });
+  });
+  const url = new URL(baseUrl);
+  if (activeNavId !== "overview") {
+    url.searchParams.set("nav", activeNavId);
+  }
+  await page.goto(url.toString(), { waitUntil: "networkidle" });
   await page.getByTestId(`active-page-${activeNavId}`).waitFor({ state: "visible" });
   await page.getByTestId("main-stage").waitFor({ state: "visible" });
 }

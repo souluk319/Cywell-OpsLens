@@ -485,6 +485,7 @@ export function OcpCoverageMatrix({ language }: OcpCoverageMatrixProps) {
                   >
                     {gapTypeLabels[language][entry.gap.type]}
                   </span>
+                  <code className="coverage-gap-code">{entry.gap.type}</code>
                 </td>
                 <td>{entry.list.sampleItemCount}</td>
                 <td>{detailStatusLabels[language][entry.detail.status]}</td>
