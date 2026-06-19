@@ -1,6 +1,6 @@
 # CRC OpenShift 4.21.14 Console Parity Map
 
-Status: active acceptance contract for Cywell OpsLens Dev 0.1.3
+Status: active acceptance contract for Cywell OpsLens Dev 0.1.7
 Target: CRC OpenShift / OpenShift Local `4.21.14`, OCP web console docs `4.21`
 Truth source: `apps/web/src/consoleParity.ts`
 Verification: `AC-UI-003`, `AC-UI-006`, `AC-UI-008`, `AC-UI-009`, `AC-UI-010`, `npm run verify:web-shell`
@@ -37,7 +37,7 @@ The implementation must stay inside supported OpenShift customization paths: Con
 | 6 | Operator catalog | Ecosystem / Software Catalog / Operator catalog | Ecosystem / Software Catalog / Operator catalog | Review package visibility, CSV, install modes, architecture labels, and icon metadata. | OpsLens Admin operator package section |
 | 7 | Installed Operators | Ecosystem / Installed Operators | Ecosystem / Installed Operators | Inspect CSVs, Subscriptions, InstallPlans, and operator Deployments. | Resource Explorer preset for OLM resources |
 | 8 | Helm | Ecosystem / Helm | Ecosystem / Helm | Inspect Helm-related Secrets and ConfigMaps as redacted read-only release evidence. | Resource Explorer preset for Helm metadata |
-| 9 | Topology | Workloads / Topology | Workloads / Topology | Inspect workload topology through pods, deployments, services, and routes. | Resource Explorer preset for topology evidence |
+| 9 | Topology | Workloads / Topology | Workloads / Topology | Inspect workload topology through pods, services, routes, workload controllers, autoscalers, disruption budgets, jobs, and cronjobs. | Live graph for selector, ownerReference, scaleTargetRef, PDB, job, and route evidence |
 | 10 | Pods | Workloads / Pods | Workloads / Pods | List pods and inspect status, events, logs, owner refs, and sanitized YAML. | Resource Explorer preset for pods |
 | 11 | Deployments | Workloads / Deployments | Workloads / Deployments | Inspect deployments, unavailable replicas, events, owner pods, and sanitized YAML. | Resource Explorer preset for apps/v1 deployments |
 | 12 | Deployment Configs | Workloads / Deployment Configs | Workloads / Deployment Configs | Inspect OpenShift DeploymentConfigs and rollout evidence. | Resource Explorer preset for apps.openshift.io/v1 deploymentconfigs |

@@ -1650,6 +1650,7 @@ expectCheck(
 expectCheck(
   "human-readable OCP 4.21.14 console parity map",
   parityMapDocSource.includes("# CRC OpenShift 4.21.14 Console Parity Map") &&
+    parityMapDocSource.includes("Cywell OpsLens Dev 0.1.7") &&
     parityMapDocSource.includes("Truth source: `apps/web/src/consoleParity.ts`") &&
     parityMapDocSource.includes("AC-UI-003") &&
     parityMapDocSource.includes("AC-UI-006") &&
@@ -1659,6 +1660,8 @@ expectCheck(
     parityMapDocSource.includes("Resource smoke state") &&
     parityMapDocSource.includes("preferred API match") &&
     parityMapDocSource.includes("Every item opens KOMSCO assistant") &&
+    parityMapDocSource.includes("workload controllers, autoscalers, disruption budgets") &&
+    parityMapDocSource.includes("scaleTargetRef") &&
     parityMapDocSource.includes("| 37 | KOMSCO AI Assistant |") &&
     parityMapDocSource.includes("supported OpenShift customization paths") &&
     parityMapDocSource.includes("in-console OpsLens mode"),

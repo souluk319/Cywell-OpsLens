@@ -231,7 +231,7 @@ Start with the highest-value OpenShift area:
 
 | Native area | 0.1.7 target |
 | --- | --- |
-| Topology | Graph layout with Deployment, Pod, Service, Route, Job, and CronJob nodes |
+| Topology | Graph layout with Pod, Service, Route, DeploymentConfig, Deployment, StatefulSet, DaemonSet, ReplicaSet, ReplicationController, HPA, PDB, Job, and CronJob nodes |
 | Pods | Status, restart count, node, owner, logs/events/YAML links |
 | Deployments | Rollout status, desired/available replicas, ReplicaSet/Pod chain |
 | CronJobs | Schedule, suspend state, last schedule, owned Jobs, native create deep link |
@@ -297,7 +297,7 @@ customer cluster are:
 | Troubleshooting Timeline | Connects Deployment, Pod, Service, Route, and Event chronology. | Read-only incident reconstruction. |
 | Stable Deep Link Routing | Makes OpsLens feel like a real console app, not a fragile panel. | Refresh/direct URL/share-link safe routing. |
 
-## Current Known State From 0.1.6
+## Current Known State In 0.1.7
 
 What is already done:
 

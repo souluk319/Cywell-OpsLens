@@ -318,12 +318,18 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     originalPathKo: "워크로드 / 토폴로지",
     targetSelector: "#ocp-topology-title",
     actionSurface: "topology-graph",
-    command: "Open workload topology evidence with pods, deployments, services, and routes.",
-    commandKo: "파드, Deployment, 서비스, 라우트 기반 워크로드 토폴로지 근거를 엽니다.",
-    opsLensEnhancement: "Renders a live selector/owner/route graph instead of a flat resource table.",
-    opsLensEnhancementKo: "평면 리소스 표 대신 실시간 selector/owner/route 그래프를 렌더링합니다.",
-    acceptance: "Topology entry renders graph nodes and edges from read-only pods, deployments, services, routes, jobs, and cronjobs.",
-    acceptanceKo: "토폴로지 항목은 읽기 전용 Pod, Deployment, Service, Route, Job, CronJob에서 그래프 노드와 연결을 렌더링해야 합니다.",
+    command:
+      "Open workload topology evidence with pods, services, routes, workload controllers, autoscalers, disruption budgets, jobs, and cronjobs.",
+    commandKo:
+      "Pod, Service, Route, 워크로드 컨트롤러, 오토스케일러, 중단 예산, Job, CronJob 기반 토폴로지 근거를 엽니다.",
+    opsLensEnhancement:
+      "Renders a live selector, ownerReference, scaleTargetRef, PDB, job, and route graph instead of a flat resource table.",
+    opsLensEnhancementKo:
+      "평면 리소스 표 대신 실시간 selector, ownerReference, scaleTargetRef, PDB, Job, Route 그래프를 렌더링합니다.",
+    acceptance:
+      "Topology entry renders graph nodes and edges from read-only pods, services, routes, deploymentconfigs, deployments, statefulsets, daemonsets, replicasets, replicationcontrollers, HPAs, PDBs, jobs, and cronjobs.",
+    acceptanceKo:
+      "토폴로지 항목은 읽기 전용 Pod, Service, Route, DeploymentConfig, Deployment, StatefulSet, DaemonSet, ReplicaSet, ReplicationController, HPA, PDB, Job, CronJob에서 그래프 노드와 연결을 렌더링해야 합니다.",
     status: "ops-enhanced"
   },
   {
