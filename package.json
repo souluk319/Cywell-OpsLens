@@ -27,6 +27,7 @@
     "verify:ocp:420-compatibility": "node ./scripts/verify-ocp-420-compatibility.mjs",
     "verify:ocp:420-live-readiness": "node ./scripts/verify-ocp-420-live-readiness.mjs --require-cluster --expected-minor=4.20",
     "verify:ocp:420-live-readiness:preview": "node ./scripts/verify-ocp-420-live-readiness.mjs --expected-minor=4.20",
+    "verify:kh:crc420-connection": "node ./scripts/verify-kh-crc420-connection.mjs",
     "verify:ocp:connectivity": "node ./scripts/verify-ocp-connectivity-diagnostic.mjs",
     "verify:ocp:live-reader-smoke": "node ./scripts/verify-ocp-live-reader-smoke.mjs",
     "evidence:ocp-auth-rbac-plan": "node ./scripts/verify-ocp-auth-rbac-plan.mjs",
