@@ -162,6 +162,19 @@ function relatedImages(packageManifest) {
   return packageManifest?.status?.channels?.[0]?.currentCSVDesc?.relatedImages ?? [];
 }
 
+function runApiPodNodeProbe(probeCode, timeoutMs = 20000) {
+  return runRemotePowerShell(
+    [
+      "$ErrorActionPreference = 'Stop'",
+      "$code = @'",
+      probeCode,
+      "'@",
+      `oc exec deploy/cywell-opslens-api -n ${namespace} -- node -e $code`
+    ].join("\n"),
+    timeoutMs
+  );
+}
+
 function runApiPodKubernetesProbe() {
   const probeCode = [
     "const https=require('https'),fs=require('fs');",
@@ -172,16 +185,44 @@ function runApiPodKubernetesProbe() {
     "req.on('error',e=>{console.error(e.message);process.exit(1);});"
   ].join("");
 
-  return runRemotePowerShell(
-    [
-      "$ErrorActionPreference = 'Stop'",
-      "$code = @'",
-      probeCode,
-      "'@",
-      `oc exec deploy/cywell-opslens-api -n ${namespace} -- node -e $code`
-    ].join("\n"),
-    20000
-  );
+  return runApiPodNodeProbe(probeCode, 20000);
+}
+
+function runApiPodLightspeedReadinessProbe() {
+  const probeCode = [
+    "const https=require('https');",
+    "const req=https.get('https://lightspeed-app-server.openshift-lightspeed.svc.cluster.local:8443/readiness',{rejectUnauthorized:false,timeout:7000},r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>{try{const j=JSON.parse(b);console.log(JSON.stringify({status:r.statusCode,ready:j.ready===true,reason:j.reason||''}));}catch(e){console.log(JSON.stringify({status:r.statusCode,body:b.slice(0,160)}));process.exit(2);}})});",
+    "req.on('timeout',()=>req.destroy(new Error('timeout')));",
+    "req.on('error',e=>{console.error(e.message);process.exit(1);});"
+  ].join("");
+
+  return runApiPodNodeProbe(probeCode, 20000);
+}
+
+function runApiPodBuildConfigProbe() {
+  const probeCode = [
+    "const https=require('https');",
+    "const path='/api/ocp/resources?apiVersion=build.openshift.io%2Fv1&resource=buildconfigs&limit=50';",
+    "const req=https.get('https://127.0.0.1:9443'+path,{rejectUnauthorized:false,timeout:10000},r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>{try{const j=JSON.parse(b);console.log(JSON.stringify({status:r.statusCode,kind:j.resource?.kind||j.kind||'',group:j.resource?.group||'',items:Array.isArray(j.items)?j.items.length:null,error:j.error||''}));}catch(e){console.log(JSON.stringify({status:r.statusCode,body:b.slice(0,180),parseError:e.message}));process.exit(2);}})});",
+    "req.on('timeout',()=>req.destroy(new Error('timeout')));",
+    "req.on('error',e=>{console.error(e.message);process.exit(1);});"
+  ].join("");
+
+  return runApiPodNodeProbe(probeCode, 20000);
+}
+
+function runApiPodAssistantProbe() {
+  const probeCode = [
+    "const https=require('https');",
+    "const payload=JSON.stringify({mode:'ask',prompt:'ClusterVersion 상태를 한 문장으로 요약해줘.',scenario:'KH CRC 4.20 deployment verifier',context:{clusterId:'kh-crc-420',user:'kubeadmin',route:'/dashboards',perspective:'Administrator',namespace:'default',resource:{apiVersion:'config.openshift.io/v1',kind:'ClusterVersion',name:'version',uid:'verification'},selectedTab:'overview',filters:{source:'verification'},visibleRows:[],attachedEvidence:['verification-smoke','read-only'],rbac:{role:'cluster-admin',deniedNamespaces:[]}}});",
+    "const req=https.request('https://127.0.0.1:9443/api/actions/plan',{method:'POST',rejectUnauthorized:false,timeout:20000,headers:{'content-type':'application/json','content-length':Buffer.byteLength(payload)}},r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>{try{const j=JSON.parse(b);const model=j.audit?.model||j.model||'';const text=String(j.answer?.judgment||j.answer?.candidates?.[0]?.content||j.answer?.summary||j.message||'');console.log(JSON.stringify({status:r.statusCode,model,hasAnswer:text.length>0,answerPreview:text.slice(0,160)}));}catch(e){console.log(JSON.stringify({status:r.statusCode,body:b.slice(0,180),parseError:e.message}));process.exit(2);}})});",
+    "req.on('timeout',()=>req.destroy(new Error('timeout')));",
+    "req.on('error',e=>{console.error(e.message);process.exit(1);});",
+    "req.write(payload);",
+    "req.end();"
+  ].join("");
+
+  return runApiPodNodeProbe(probeCode, 30000);
 }
 
 const checkedAt = new Date().toISOString();
@@ -398,13 +439,19 @@ if (consolePlugins.includes("cywell-opslens")) {
 }
 
 const consolePlugin = getJson("console:plugin-cr", ["get", "consoleplugin", "cywell-opslens"]);
+const opslensApiProxy = consolePlugin?.spec?.proxy?.find((entry) => entry.alias === "opslens-api");
 if (
   consolePlugin?.spec?.backend?.service?.name === "cywell-opslens-dashboard" &&
-  consolePlugin?.spec?.proxy?.some((entry) => entry.alias === "opslens-api")
+  opslensApiProxy
 ) {
   pass("console:plugin-contract", "dashboard backend and opslens-api proxy are configured");
 } else {
   fail("console:plugin-contract", "ConsolePlugin backend/proxy contract is incomplete");
+}
+if (opslensApiProxy?.authorization === "UserToken") {
+  pass("console:plugin-proxy-usertoken", "opslens-api proxy forwards the logged-in OpenShift user token");
+} else {
+  fail("console:plugin-proxy-usertoken", `expected UserToken, got ${opslensApiProxy?.authorization ?? "missing"}`);
 }
 
 const consoleCo = getJson("console:clusteroperator", ["get", "co", "console"]);
@@ -469,6 +516,61 @@ if (lightspeedDeployments) {
   } else {
     warn("lightspeed:app-server", "lightspeed-app-server deployment missing");
   }
+}
+
+const lightspeedReadiness = runApiPodLightspeedReadinessProbe();
+if (lightspeedReadiness.ok) {
+  try {
+    const parsed = JSON.parse(lightspeedReadiness.stdout);
+    if (parsed.status === 200 && parsed.ready === true) {
+      pass("lightspeed:api-pod-readiness", parsed.reason || "api pod can reach lightspeed-app-server readiness");
+    } else {
+      fail("lightspeed:api-pod-readiness", `unexpected readiness response ${lightspeedReadiness.stdout}`);
+    }
+  } catch (error) {
+    fail("lightspeed:api-pod-readiness", `could not parse readiness response: ${error.message}`);
+  }
+} else {
+  fail("lightspeed:api-pod-readiness", lightspeedReadiness.stderr || lightspeedReadiness.stdout || "lightspeed readiness probe failed");
+}
+
+const buildConfigProbe = runApiPodBuildConfigProbe();
+if (buildConfigProbe.ok) {
+  try {
+    const parsed = JSON.parse(buildConfigProbe.stdout);
+    if (parsed.status === 200 && parsed.kind === "BuildConfig") {
+      pass("runtime:api-buildconfigs", `BuildConfig list path returned HTTP 200 (${parsed.items ?? 0} items)`);
+    } else {
+      fail("runtime:api-buildconfigs", `unexpected BuildConfig response ${buildConfigProbe.stdout}`);
+    }
+  } catch (error) {
+    fail("runtime:api-buildconfigs", `could not parse BuildConfig response: ${error.message}`);
+  }
+} else {
+  fail("runtime:api-buildconfigs", buildConfigProbe.stderr || buildConfigProbe.stdout || "BuildConfig API probe failed");
+}
+
+const assistantProbe = runApiPodAssistantProbe();
+if (assistantProbe.ok) {
+  try {
+    const parsed = JSON.parse(assistantProbe.stdout);
+    if (
+      parsed.status >= 200 &&
+      parsed.status < 300 &&
+      String(parsed.model ?? "").startsWith("openshift-lightspeed/") &&
+      parsed.hasAnswer === true
+    ) {
+      pass("lightspeed:assistant-answer", `assistant answered through ${parsed.model}`, {
+        answerPreview: redact(parsed.answerPreview)
+      });
+    } else {
+      fail("lightspeed:assistant-answer", `unexpected assistant response ${assistantProbe.stdout}`);
+    }
+  } catch (error) {
+    fail("lightspeed:assistant-answer", `could not parse assistant response: ${error.message}`);
+  }
+} else {
+  fail("lightspeed:assistant-answer", assistantProbe.stderr || assistantProbe.stdout || "assistant probe failed");
 }
 
 warn(
