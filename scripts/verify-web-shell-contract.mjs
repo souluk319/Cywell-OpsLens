@@ -2501,6 +2501,12 @@ expectCheck(
     networkingSource.includes("export type OcpNetworkingView") &&
     networkingSource.includes('data-testid={viewTestId(view)}') &&
     networkingSource.includes('data-testid="ocp-networking-toolbar"') &&
+    networkingSource.includes('data-testid="ocp-networking-native-toolbar"') &&
+    networkingSource.includes('data-testid="ocp-networking-filter-count"') &&
+    networkingSource.includes("setResourceFilter") &&
+    networkingSource.includes("setNamespaceFilter") &&
+    networkingSource.includes("setSearch") &&
+    networkingSource.includes("nativeResourceCreatePath") &&
     networkingSource.includes('data-testid="ocp-networking-route-flow"') &&
     networkingSource.includes('data-testid="ocp-networking-routes-table"') &&
     networkingSource.includes('data-testid="ocp-networking-services-table"') &&
@@ -2515,6 +2521,7 @@ expectCheck(
     ocpClientSource.includes('kind === "EndpointSlice"') &&
     stylesSource.includes(".ocp-networking-console") &&
     stylesSource.includes(".ocp-networking-toolbar") &&
+    stylesSource.includes(".networking-filter-toolbar") &&
     stylesSource.includes(".network-route-flow") &&
     stylesSource.includes(".native-networking-table") &&
     stylesSource.includes(".networking-native-boundary") &&

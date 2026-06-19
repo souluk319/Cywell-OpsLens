@@ -4796,6 +4796,17 @@ button {
   font-weight: 800;
 }
 
+.networking-filter-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.networking-filter-toolbar .native-toolbar-count {
+  justify-self: end;
+}
+
 .ocp-networking-tabs {
   display: flex;
   flex-wrap: wrap;

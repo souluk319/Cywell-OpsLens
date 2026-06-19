@@ -3,14 +3,18 @@ import {
   AlertTriangle,
   Filter,
   Globe2,
+  ListFilter,
   Network,
+  PlusCircle,
   RefreshCw,
   Route,
+  Search,
   ShieldCheck
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { nativeConsoleHref, nativeResourceCreatePath } from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
@@ -44,6 +48,12 @@ const networkingCopy = {
     ingresses: "Ingresses",
     "network-policies": "NetworkPolicies",
     namespace: "Namespace",
+    allNamespaces: "All namespaces",
+    searchByName: "Search by name...",
+    filterByResource: "Filter by resource",
+    allResources: "All network resources",
+    create: "Create",
+    showing: "Showing",
     host: "Host",
     service: "Service",
     targetPort: "Target port",
@@ -88,6 +98,12 @@ const networkingCopy = {
     ingresses: "인그레스",
     "network-policies": "네트워크 정책",
     namespace: "네임스페이스",
+    allNamespaces: "모든 네임스페이스",
+    searchByName: "이름으로 검색...",
+    filterByResource: "리소스 필터",
+    allResources: "모든 네트워크 리소스",
+    create: "생성",
+    showing: "표시",
     host: "호스트",
     service: "서비스",
     targetPort: "대상 포트",
@@ -267,11 +283,33 @@ function viewTestId(view: OcpNetworkingView) {
   return `ocp-networking-${view}`;
 }
 
+const networkingResources = [
+  { view: "routes", apiVersion: "route.openshift.io/v1", resource: "routes" },
+  { view: "services", apiVersion: "v1", resource: "services" },
+  { view: "ingresses", apiVersion: "networking.k8s.io/v1", resource: "ingresses" },
+  { view: "network-policies", apiVersion: "networking.k8s.io/v1", resource: "networkpolicies" }
+] as const;
+
+function resourceConfig(view: OcpNetworkingView) {
+  return networkingResources.find((entry) => entry.view === view) ?? networkingResources[0];
+}
+
+function uniqueSorted(values: Array<string | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
+    a.localeCompare(b)
+  );
+}
+
 export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsoleProps) {
   const copy = networkingCopy[language];
   const [state, setState] = useState<ResourceState>({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [namespaceFilter, setNamespaceFilter] = useState("all");
+  const [resourceFilter, setResourceFilter] = useState<OcpNetworkingView | "all">("all");
+  const activeView = resourceFilter === "all" ? view : resourceFilter;
+  const activeResource = resourceConfig(activeView);
 
   async function refresh(options: { silent?: boolean } = {}) {
     if (!options.silent) setLoading(true);
@@ -320,6 +358,51 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
   const endpointSlices = state.endpointSlices?.items ?? [];
   const ingresses = state.ingresses?.items ?? [];
   const networkPolicies = state.networkPolicies?.items ?? [];
+  const namespaceOptions = useMemo(
+    () => uniqueSorted([...routes, ...services, ...ingresses, ...networkPolicies].map((item) => item.metadata.namespace)),
+    [ingresses, networkPolicies, routes, services]
+  );
+  const filterItems = (items: OcpResourceSummary[]) => {
+    const query = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (namespaceFilter !== "all" && item.metadata.namespace !== namespaceFilter) return false;
+      if (!query) return true;
+      return [
+        item.kind,
+        item.metadata.name,
+        item.metadata.namespace,
+        routeHost(item),
+        routeService(item),
+        serviceSelector(item),
+        ingressHosts(item),
+        policySelector(item)
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  };
+  const filteredRoutes = useMemo(() => filterItems(routes), [namespaceFilter, routes, search]);
+  const filteredServices = useMemo(() => filterItems(services), [namespaceFilter, services, search]);
+  const filteredIngresses = useMemo(() => filterItems(ingresses), [ingresses, namespaceFilter, search]);
+  const filteredNetworkPolicies = useMemo(() => filterItems(networkPolicies), [namespaceFilter, networkPolicies, search]);
+  const activeItems =
+    activeView === "routes"
+      ? filteredRoutes
+      : activeView === "services"
+        ? filteredServices
+        : activeView === "ingresses"
+          ? filteredIngresses
+          : filteredNetworkPolicies;
+  const activeTotal =
+    activeView === "routes"
+      ? routes.length
+      : activeView === "services"
+        ? services.length
+        : activeView === "ingresses"
+          ? ingresses.length
+          : networkPolicies.length;
   const failureMessages = [
     failureText(state.routes),
     failureText(state.services),
@@ -331,29 +414,35 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
     ...errors
   ].filter(Boolean);
   const drilldown =
-    view === "routes"
+    activeView === "routes"
       ? {
           resource: { apiVersion: "route.openshift.io/v1", resource: "routes" },
-          items: routes,
+          items: filteredRoutes,
           title: copy.routes
         }
-      : view === "services"
+      : activeView === "services"
         ? {
             resource: { apiVersion: "v1", resource: "services" },
-            items: services,
+            items: filteredServices,
             title: copy.services
           }
-        : view === "ingresses"
+        : activeView === "ingresses"
           ? {
               resource: { apiVersion: "networking.k8s.io/v1", resource: "ingresses" },
-              items: ingresses,
+              items: filteredIngresses,
               title: copy.ingresses
             }
           : {
               resource: { apiVersion: "networking.k8s.io/v1", resource: "networkpolicies" },
-              items: networkPolicies,
+              items: filteredNetworkPolicies,
               title: copy["network-policies"]
             };
+  const createHref = nativeConsoleHref(
+    nativeResourceCreatePath(
+      { apiVersion: activeResource.apiVersion, resource: activeResource.resource },
+      namespaceFilter !== "all" ? namespaceFilter : "default"
+    )
+  );
 
   const routeBackends = useMemo(() => {
     return new Set(routes.map(routeService).filter((service) => service !== "-"));
@@ -389,6 +478,49 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
         <span>{copy["network-policies"]}: {networkPolicies.length}</span>
       </div>
 
+      <div className="native-console-toolbar networking-filter-toolbar" data-testid="ocp-networking-native-toolbar">
+        <label className="resource-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            placeholder={copy.searchByName}
+            aria-label={copy.searchByName}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          <span>{copy.namespace}</span>
+          <select value={namespaceFilter} aria-label={copy.namespace} onChange={(event) => setNamespaceFilter(event.currentTarget.value)}>
+            <option value="all">{copy.allNamespaces}</option>
+            {namespaceOptions.map((namespace) => (
+              <option key={namespace} value={namespace}>{namespace}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.filterByResource}</span>
+          <select
+            value={resourceFilter}
+            aria-label={copy.filterByResource}
+            onChange={(event) => setResourceFilter(event.currentTarget.value as OcpNetworkingView | "all")}
+          >
+            <option value="all">{copy.allResources}</option>
+            {networkingResources.map((entry) => (
+              <option key={entry.view} value={entry.view}>{copy[entry.view]}</option>
+            ))}
+          </select>
+        </label>
+        <a className="text-icon-button native-open-link" href={createHref} target="_blank" rel="noreferrer">
+          <PlusCircle size={16} aria-hidden="true" />
+          {copy.create}
+        </a>
+        <span className="native-toolbar-count" data-testid="ocp-networking-filter-count">
+          <ListFilter size={15} aria-hidden="true" />
+          {copy.showing}: {activeItems.length}/{activeTotal}
+        </span>
+      </div>
+
       {failureMessages.length > 0 ? (
         <div className="ocp-error" data-testid="ocp-networking-api-failure">
           <AlertTriangle size={17} aria-hidden="true" />
@@ -401,7 +533,7 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
           <a
             key={tab}
             href={`#${viewTestId(tab)}`}
-            aria-current={view === tab ? "page" : undefined}
+            aria-current={activeView === tab ? "page" : undefined}
           >
             {copy[tab]}
           </a>
@@ -460,13 +592,13 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
         </article>
       </div>
 
-      {view === "routes" ? (
+      {activeView === "routes" ? (
         <article className="networking-native-panel">
           <div className="card-title-row">
             <h3>{copy.routes}</h3>
             <Route size={18} aria-hidden="true" />
           </div>
-          {routes.length > 0 ? (
+          {filteredRoutes.length > 0 ? (
             <div className="native-networking-table-wrap">
               <table className="native-networking-table" data-testid="ocp-networking-routes-table">
                 <thead>
@@ -480,7 +612,7 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
                   </tr>
                 </thead>
                 <tbody>
-                  {routes.map((item) => (
+                  {filteredRoutes.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "route.openshift.io/v1", resource: "routes" }} item={item} testId="ocp-networking-routes-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
@@ -499,13 +631,13 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
         </article>
       ) : null}
 
-      {view === "services" ? (
+      {activeView === "services" ? (
         <article className="networking-native-panel">
           <div className="card-title-row">
             <h3>{copy.services}</h3>
             <Network size={18} aria-hidden="true" />
           </div>
-          {services.length > 0 ? (
+          {filteredServices.length > 0 ? (
             <div className="native-networking-table-wrap">
               <table className="native-networking-table" data-testid="ocp-networking-services-table">
                 <thead>
@@ -520,7 +652,7 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
                   </tr>
                 </thead>
                 <tbody>
-                  {services.map((item) => (
+                  {filteredServices.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "services" }} item={item} testId="ocp-networking-services-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
@@ -540,13 +672,13 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
         </article>
       ) : null}
 
-      {view === "ingresses" ? (
+      {activeView === "ingresses" ? (
         <article className="networking-native-panel">
           <div className="card-title-row">
             <h3>{copy.ingresses}</h3>
             <Globe2 size={18} aria-hidden="true" />
           </div>
-          {ingresses.length > 0 ? (
+          {filteredIngresses.length > 0 ? (
             <div className="native-networking-table-wrap">
               <table className="native-networking-table" data-testid="ocp-networking-ingresses-table">
                 <thead>
@@ -560,7 +692,7 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
                   </tr>
                 </thead>
                 <tbody>
-                  {ingresses.map((item) => (
+                  {filteredIngresses.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "networking.k8s.io/v1", resource: "ingresses" }} item={item} testId="ocp-networking-ingresses-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
@@ -579,13 +711,13 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
         </article>
       ) : null}
 
-      {view === "network-policies" ? (
+      {activeView === "network-policies" ? (
         <article className="networking-native-panel">
           <div className="card-title-row">
             <h3>{copy["network-policies"]}</h3>
             <Filter size={18} aria-hidden="true" />
           </div>
-          {networkPolicies.length > 0 ? (
+          {filteredNetworkPolicies.length > 0 ? (
             <div className="native-networking-table-wrap">
               <table className="native-networking-table" data-testid="ocp-networking-policies-table">
                 <thead>
@@ -599,7 +731,7 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
                   </tr>
                 </thead>
                 <tbody>
-                  {networkPolicies.map((item) => (
+                  {filteredNetworkPolicies.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
                       <td><NativeObjectLink resource={{ apiVersion: "networking.k8s.io/v1", resource: "networkpolicies" }} item={item} testId="ocp-networking-policies-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
