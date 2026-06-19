@@ -89,6 +89,9 @@ const dashboardSource = await readText("apps/web/src/components/OperationsDashbo
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
 const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.tsx");
 const workloadsSource = await readText("apps/web/src/components/OcpWorkloadsConsole.tsx");
+const nativeObjectDrilldownSource = await readText(
+  "apps/web/src/components/OcpNativeObjectDrilldown.tsx"
+);
 const monitoringSource = await readText("apps/web/src/components/OcpMonitoringConsole.tsx");
 const buildsSource = await readText("apps/web/src/components/OcpBuildsConsole.tsx");
 const networkingSource = await readText("apps/web/src/components/OcpNetworkingConsole.tsx");
@@ -2178,6 +2181,41 @@ expectCheck(
     stylesSource.includes(".native-object-detail-grid") &&
     stylesSource.includes(".native-condition-table"),
   "Resource Explorer shows a native OpenShift-style object details tab with identity, metadata, conditions, raw, events, logs, and related resources"
+);
+
+expectCheck(
+  "dedicated console native object drilldown contract",
+  nativeObjectDrilldownSource.includes("fetchOcpResourceDetail") &&
+    nativeObjectDrilldownSource.includes("fetchOcpEvents") &&
+    nativeObjectDrilldownSource.includes("fetchOcpPodLogs") &&
+    nativeObjectDrilldownSource.includes("fetchOcpRelatedResources") &&
+    nativeObjectDrilldownSource.includes("nativeObjectPath(resource, selected)") &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-drilldown`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-detail-tabs`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-details`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-events`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-logs`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-related`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-raw`}') &&
+    workloadsSource.includes("OcpNativeObjectDrilldown") &&
+    workloadsSource.includes('testId="ocp-workloads-object"') &&
+    networkingSource.includes("OcpNativeObjectDrilldown") &&
+    networkingSource.includes('testId="ocp-networking-object"') &&
+    storageSource.includes("OcpNativeObjectDrilldown") &&
+    storageSource.includes('testId="ocp-storage-object"') &&
+    buildsSource.includes("OcpNativeObjectDrilldown") &&
+    buildsSource.includes('testId="ocp-builds-object"') &&
+    computeSource.includes("OcpNativeObjectDrilldown") &&
+    computeSource.includes('testId="ocp-compute-object"') &&
+    administrationSource.includes("OcpNativeObjectDrilldown") &&
+    administrationSource.includes('testId="ocp-admin-object"') &&
+    userManagementSource.includes("OcpNativeObjectDrilldown") &&
+    userManagementSource.includes('testId="ocp-user-object"') &&
+    stylesSource.includes(".native-drilldown-panel") &&
+    stylesSource.includes(".native-drilldown-layout") &&
+    stylesSource.includes(".native-drilldown-list") &&
+    stylesSource.includes(".native-drilldown-detail"),
+  "Dedicated Workloads, Networking, Storage, Builds, Compute, User Management, and Administration surfaces expose OpenShift-style object Details, Events, Logs, Related, and YAML drilldowns"
 );
 
 expectCheck(

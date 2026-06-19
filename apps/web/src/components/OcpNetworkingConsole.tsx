@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpNetworkingView = "routes" | "services" | "ingresses" | "network-policies";
 
@@ -328,6 +329,30 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
     failureText(state.dnses),
     ...errors
   ].filter(Boolean);
+  const drilldown =
+    view === "routes"
+      ? {
+          resource: { apiVersion: "route.openshift.io/v1", resource: "routes" },
+          items: routes,
+          title: copy.routes
+        }
+      : view === "services"
+        ? {
+            resource: { apiVersion: "v1", resource: "services" },
+            items: services,
+            title: copy.services
+          }
+        : view === "ingresses"
+          ? {
+              resource: { apiVersion: "networking.k8s.io/v1", resource: "ingresses" },
+              items: ingresses,
+              title: copy.ingresses
+            }
+          : {
+              resource: { apiVersion: "networking.k8s.io/v1", resource: "networkpolicies" },
+              items: networkPolicies,
+              title: copy["network-policies"]
+            };
 
   const routeBackends = useMemo(() => {
     return new Set(routes.map(routeService).filter((service) => service !== "-"));
@@ -591,6 +616,14 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
           )}
         </article>
       ) : null}
+
+      <OcpNativeObjectDrilldown
+        language={language}
+        resource={drilldown.resource}
+        items={drilldown.items}
+        title={drilldown.title}
+        testId="ocp-networking-object"
+      />
 
       <aside className="networking-native-boundary" data-testid="ocp-networking-native-handoff">
         <strong>{copy.nativeHandoff}</strong>

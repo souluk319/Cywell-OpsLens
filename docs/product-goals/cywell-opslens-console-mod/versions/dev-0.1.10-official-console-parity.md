@@ -96,6 +96,7 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 | Administration native surface | Implemented | `OcpAdministrationConsole` now gives Cluster Settings, ClusterOperators, Namespaces, CRDs, ResourceQuotas, and LimitRanges their own native-style surfaces with ClusterVersion, operator conditions, API surface, tenant guardrails, and native handoff evidence instead of routing only to OpsLens Admin or the generic resource explorer. |
 | Compute native surface | Implemented | `OcpComputeConsole` now gives Nodes, Machines, MachineSets, and MachineConfigPools their own native-style surfaces with readiness, capacity, pressure, Machine API provider state, replica state, rollout state, and native handoff evidence instead of routing only to the generic resource explorer. |
 | User Management native surface | Implemented | `OcpUserManagementConsole` now gives Users, Groups, ServiceAccounts, Roles, and RoleBindings their own native-style surfaces with RBAC subjects, workload identity, rules, binding relationships, credential redaction, and native handoff evidence instead of routing only to the generic resource explorer. |
+| Dedicated object detail drilldown | Implemented | `OcpNativeObjectDrilldown` is now shared by Workloads, Networking, Storage, Builds, Compute, Administration, and User Management to expose selected-object Details, Events, Logs, Related resources, YAML/raw, and native OpenShift deep links. |
 | Endpoint summary preservation | Implemented | `ocpClient` now preserves top-level `Endpoints.subsets` and `EndpointSlice.endpoints` in the resource summary contract so Services can show endpoint evidence. |
 | Storage top-level summary preservation | Implemented | `ocpClient` now preserves top-level `StorageClass` and `VolumeSnapshotClass` fields in the resource summary contract so provisioning and snapshot-class evidence can render. |
 | Internal surface open action | Implemented | `console-active-open-surface` opens the OpsLens internal mapped surface separately from the native OpenShift deep link. |
@@ -117,6 +118,7 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 | Administration menus do not collapse into OpsLens Admin or the generic explorer | Static verifier and navigation E2E check Cluster Settings, ClusterOperators, Namespaces, CRDs, ResourceQuotas, and LimitRanges mount a native Administration-style target | `ocp-admin-cluster-settings`, `ocp-admin-clusteroperators`, `ocp-admin-namespaces`, `ocp-admin-custom-resource-definitions`, `ocp-admin-resourcequotas`, `ocp-admin-limitranges` | Pass: 2026-06-20 local run, `AC-UI-003` and `AC-OCP-001` |
 | Compute menus do not collapse into the generic explorer | Static verifier and navigation E2E check Nodes, Machines, MachineSets, and MachineConfigPools mount a native Compute-style target | `ocp-compute-nodes`, `ocp-compute-machines`, `ocp-compute-machinesets`, `ocp-compute-machineconfigpools` | Pass: 2026-06-20 local run, `AC-UI-003` and `AC-OCP-001` |
 | User Management menus do not collapse into the generic explorer | Static verifier and navigation E2E check Users, Groups, ServiceAccounts, Roles, and RoleBindings mount a native RBAC-style target | `ocp-user-users`, `ocp-user-groups`, `ocp-user-serviceaccounts`, `ocp-user-roles`, `ocp-user-rolebindings` | Pass: 2026-06-20 local run, `AC-UI-003` and `AC-OCP-001` |
+| Dedicated native object drilldown exists on resource surfaces | Static verifier checks every dedicated resource console imports the shared drilldown and tab contract; E2E checks Workloads renders the panel even when the current cluster has no Pods | `ocp-workloads-object-drilldown`, `ocp-workloads-object-detail-tabs`, `ocp-networking-object-drilldown`, `ocp-storage-object-drilldown`, `ocp-builds-object-drilldown`, `ocp-compute-object-drilldown`, `ocp-admin-object-drilldown`, `ocp-user-object-drilldown` | Implemented in this pass; verification pending |
 | Contract prevents regression | Static verifier checks data-testid and helper function contracts | `npm run verify:web-shell` | Pass: 2026-06-20 local run, 93 checks / 0 fail |
 | Responsive shell does not break | CSS collapses native summary/action grids below 900px | `npm run -w @kugnus/web build` and `git diff --check` | Pass: 2026-06-20 local run |
 | Official docs remain the ceiling source | Product ledger keeps official links and required baseline behavior | this document | Pass for this lane |
@@ -126,11 +128,11 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 
 The shared native shell and Home overview are not enough by themselves. The next pass must fill each remaining menu with the native console's expected detail:
 
-1. Workloads follow-up -> add selected object detail drill-down, native create/edit/delete/scale/rollout/log deep links, and graph overlays where the cluster exposes those console routes.
-2. User Management follow-up -> add selected User/Group/ServiceAccount/Role/RoleBinding detail drill-down and native create/edit/delete deep links where the cluster exposes those console routes.
-3. Storage follow-up -> add selected PVC/PV/StorageClass/Snapshot detail drill-down and native create/expand/restore deep links where the cluster exposes those console routes.
-4. Networking follow-up -> add native create/edit/delete deep links and selected route/service/policy detail drill-down where the cluster exposes those console routes.
-5. Build follow-up -> add native create/start/cancel/log deep links and selected Build detail drill-down where the cluster exposes those console routes.
+1. Workloads follow-up -> add native create/edit/delete/scale/rollout/log deep links and graph overlays where the cluster exposes those console routes.
+2. User Management follow-up -> add native create/edit/delete deep links and split ClusterRole/ClusterRoleBinding detail where the cluster exposes those console routes.
+3. Storage follow-up -> add native create/expand/restore deep links where the cluster exposes those console routes.
+4. Networking follow-up -> add native create/edit/delete deep links where the cluster exposes those console routes.
+5. Build follow-up -> add native create/start/cancel/log deep links where the cluster exposes those console routes.
 6. Monitoring follow-up -> add deeper drill-down from Alerting/Dashboards/Metrics/Logs into exact native console URLs and selected object details where the cluster exposes the API.
 
 Each item must be one of:

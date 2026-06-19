@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpComputeView = "nodes" | "machines" | "machinesets" | "machineconfigpools";
 
@@ -297,6 +298,30 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
     if (view === "machinesets") return machineSets;
     return machineConfigPools;
   }, [machineConfigPools, machineSets, machines, nodes, view]);
+  const drilldown =
+    view === "nodes"
+      ? {
+          resource: { apiVersion: "v1", resource: "nodes" },
+          items: nodes,
+          title: copy.nodes
+        }
+      : view === "machines"
+        ? {
+            resource: { apiVersion: "machine.openshift.io/v1beta1", resource: "machines" },
+            items: machines,
+            title: copy.machines
+          }
+        : view === "machinesets"
+          ? {
+              resource: { apiVersion: "machine.openshift.io/v1beta1", resource: "machinesets" },
+              items: machineSets,
+              title: copy.machinesets
+            }
+          : {
+              resource: { apiVersion: "machineconfiguration.openshift.io/v1", resource: "machineconfigpools" },
+              items: machineConfigPools,
+              title: copy.machineconfigpools
+            };
 
   return (
     <section className="ocp-compute-console" data-testid={viewTestId(view)} aria-labelledby="ocp-compute-title">
@@ -526,6 +551,14 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
           )}
         </article>
       ) : null}
+
+      <OcpNativeObjectDrilldown
+        language={language}
+        resource={drilldown.resource}
+        items={drilldown.items}
+        title={drilldown.title}
+        testId="ocp-compute-object"
+      />
 
       <aside className="compute-native-boundary" data-testid="ocp-compute-native-handoff">
         <strong>{copy.nativeHandoff}</strong>

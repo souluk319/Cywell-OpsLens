@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpAdministrationView =
   | "cluster-settings"
@@ -317,6 +318,42 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
     failureText(state.consolePlugins),
     ...errors
   ].filter(Boolean);
+  const drilldown =
+    view === "cluster-settings"
+      ? {
+          resource: { apiVersion: "config.openshift.io/v1", resource: "clusterversions" },
+          items: clusterVersions,
+          title: copy["cluster-settings"]
+        }
+      : view === "clusteroperators"
+        ? {
+            resource: { apiVersion: "config.openshift.io/v1", resource: "clusteroperators" },
+            items: clusterOperators,
+            title: copy.clusteroperators
+          }
+        : view === "namespaces"
+          ? {
+              resource: { apiVersion: "v1", resource: "namespaces" },
+              items: namespaces,
+              title: copy.namespaces
+            }
+          : view === "custom-resource-definitions"
+            ? {
+                resource: { apiVersion: "apiextensions.k8s.io/v1", resource: "customresourcedefinitions" },
+                items: crds,
+                title: copy["custom-resource-definitions"]
+              }
+            : view === "resourcequotas"
+              ? {
+                  resource: { apiVersion: "v1", resource: "resourcequotas" },
+                  items: resourceQuotas,
+                  title: copy.resourcequotas
+                }
+              : {
+                  resource: { apiVersion: "v1", resource: "limitranges" },
+                  items: limitRanges,
+                  title: copy.limitranges
+                };
 
   return (
     <section className="ocp-admin-console" data-testid={viewTestId(view)} aria-labelledby="ocp-admin-title">
@@ -604,6 +641,14 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
           )}
         </article>
       ) : null}
+
+      <OcpNativeObjectDrilldown
+        language={language}
+        resource={drilldown.resource}
+        items={drilldown.items}
+        title={drilldown.title}
+        testId="ocp-admin-object"
+      />
 
       <aside className="admin-native-boundary" data-testid="ocp-admin-native-handoff">
         <strong>{copy.nativeHandoff}</strong>

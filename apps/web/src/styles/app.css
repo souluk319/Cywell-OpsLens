@@ -6174,6 +6174,90 @@ button {
   line-height: 1.45;
 }
 
+.native-drilldown-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #d2d2d2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.native-drilldown-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.native-drilldown-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.native-drilldown-layout {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.28fr) minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+}
+
+.native-drilldown-list {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  max-height: 500px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.native-drilldown-list button {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+  color: #151515;
+  text-align: left;
+}
+
+.native-drilldown-list button:hover,
+.native-drilldown-list button:focus-visible,
+.native-drilldown-list button.selected {
+  border-color: #0066cc;
+  background: #e7f1fa;
+}
+
+.native-drilldown-list strong,
+.native-drilldown-list span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.native-drilldown-list span {
+  color: #6a6e73;
+  font-size: 0.76rem;
+}
+
+.native-drilldown-detail {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.native-drilldown-redaction {
+  margin: 0;
+  color: #4f5255;
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
 .native-detail-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -7843,6 +7927,20 @@ button {
   .ocp-workloads-tabs a {
     border: 1px solid #d2d2d2;
     border-radius: 5px;
+  }
+
+  .native-drilldown-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .native-drilldown-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .native-drilldown-list {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    max-height: none;
   }
 
   .ocp-networking-toolbar,

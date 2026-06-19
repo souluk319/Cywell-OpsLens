@@ -724,6 +724,7 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByTestId("ocp-workloads-toolbar")).toBeVisible();
     await expect(page.getByTestId("ocp-workloads-health-board")).toBeVisible();
     await expect(page.getByTestId("ocp-workloads-pods-table")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-object-drilldown")).toBeVisible();
     await expect(page.getByTestId("ocp-workloads-native-handoff")).toBeVisible();
     await page.getByTestId("console-active-ask-assistant").click();
     await expect(page.getByTestId("assistant-popover")).toBeVisible();

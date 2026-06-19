@@ -3,6 +3,7 @@ import { AlertTriangle, Boxes, Clock3, FileKey2, GitBranch, RefreshCw, ShieldAle
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpWorkloadsView =
   | "workloads"
@@ -420,6 +421,17 @@ export function OcpWorkloadsConsole({ language, view }: OcpWorkloadsConsoleProps
         </div>
         {!rows.length ? <p className="empty-state">{copy.empty}</p> : null}
       </article>
+
+      <OcpNativeObjectDrilldown
+        language={language}
+        resource={{
+          apiVersion: activeConfig.apiVersion,
+          resource: activeConfig.resource
+        }}
+        items={rows}
+        title={workloadKindLabel(activeConfig, language)}
+        testId="ocp-workloads-object"
+      />
 
       <aside className="workloads-native-boundary" data-testid="ocp-workloads-native-handoff">
         <strong>{copy.nativeHandoff}</strong>

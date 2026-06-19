@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpStorageView =
   | "persistentvolumeclaims"
@@ -305,6 +306,36 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
     failureText(state.snapshotClasses),
     ...errors
   ].filter(Boolean);
+  const drilldown =
+    view === "persistentvolumeclaims"
+      ? {
+          resource: { apiVersion: "v1", resource: "persistentvolumeclaims" },
+          items: pvcs,
+          title: copy.persistentvolumeclaims
+        }
+      : view === "persistentvolumes"
+        ? {
+            resource: { apiVersion: "v1", resource: "persistentvolumes" },
+            items: pvs,
+            title: copy.persistentvolumes
+          }
+        : view === "storageclasses"
+          ? {
+              resource: { apiVersion: "storage.k8s.io/v1", resource: "storageclasses" },
+              items: storageClasses,
+              title: copy.storageclasses
+            }
+          : view === "volumesnapshots"
+            ? {
+                resource: { apiVersion: "snapshot.storage.k8s.io/v1", resource: "volumesnapshots" },
+                items: snapshots,
+                title: copy.volumesnapshots
+              }
+            : {
+                resource: { apiVersion: "snapshot.storage.k8s.io/v1", resource: "volumesnapshotclasses" },
+                items: snapshotClasses,
+                title: copy.volumesnapshotclasses
+              };
 
   const pvcPhaseCounts = useMemo(() => {
     return pvcs.reduce<Record<string, number>>((acc, item) => {
@@ -596,6 +627,14 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
           )}
         </article>
       ) : null}
+
+      <OcpNativeObjectDrilldown
+        language={language}
+        resource={drilldown.resource}
+        items={drilldown.items}
+        title={drilldown.title}
+        testId="ocp-storage-object"
+      />
 
       <aside className="storage-native-boundary" data-testid="ocp-storage-native-handoff">
         <strong>{copy.nativeHandoff}</strong>

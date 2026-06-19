@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpBuildsView = "builds" | "buildconfigs" | "imagestreams";
 
@@ -308,6 +309,24 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
     failureText(state.imageStreamTags),
     ...errors
   ].filter(Boolean);
+  const drilldown =
+    view === "builds"
+      ? {
+          resource: { apiVersion: "build.openshift.io/v1", resource: "builds" },
+          items: builds,
+          title: copy.builds
+        }
+      : view === "buildconfigs"
+        ? {
+            resource: { apiVersion: "build.openshift.io/v1", resource: "buildconfigs" },
+            items: buildConfigs,
+            title: copy.buildconfigs
+          }
+        : {
+            resource: { apiVersion: "image.openshift.io/v1", resource: "imagestreams" },
+            items: imageStreams,
+            title: copy.imagestreams
+          };
 
   const buildPhaseCounts = useMemo(() => {
     return builds.reduce<Record<string, number>>((acc, item) => {
@@ -551,6 +570,14 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
           )}
         </article>
       ) : null}
+
+      <OcpNativeObjectDrilldown
+        language={language}
+        resource={drilldown.resource}
+        items={drilldown.items}
+        title={drilldown.title}
+        testId="ocp-builds-object"
+      />
 
       <aside className="builds-native-boundary" data-testid="ocp-builds-native-handoff">
         <strong>{copy.nativeHandoff}</strong>

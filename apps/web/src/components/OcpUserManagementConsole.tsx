@@ -3,6 +3,7 @@ import { AlertTriangle, KeyRound, RefreshCw, ShieldCheck, UserRound, UsersRound 
 import { useEffect, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpUserManagementView =
   | "users"
@@ -224,6 +225,8 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
   const serviceAccounts = state.serviceAccounts?.items ?? [];
   const roles = [...(state.roles?.items ?? []), ...(state.clusterRoles?.items ?? [])];
   const roleBindings = [...(state.roleBindings?.items ?? []), ...(state.clusterRoleBindings?.items ?? [])];
+  const namespacedRoles = state.roles?.items ?? [];
+  const namespacedRoleBindings = state.roleBindings?.items ?? [];
   const failureMessages = [
     failureText(state.users),
     failureText(state.groups),
@@ -234,6 +237,36 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
     failureText(state.clusterRoleBindings),
     ...errors
   ].filter(Boolean);
+  const drilldown =
+    view === "users"
+      ? {
+          resource: { apiVersion: "user.openshift.io/v1", resource: "users" },
+          items: users,
+          title: copy.users
+        }
+      : view === "groups"
+        ? {
+            resource: { apiVersion: "user.openshift.io/v1", resource: "groups" },
+            items: groups,
+            title: copy.groups
+          }
+        : view === "serviceaccounts"
+          ? {
+              resource: { apiVersion: "v1", resource: "serviceaccounts" },
+              items: serviceAccounts,
+              title: copy.serviceaccounts
+            }
+          : view === "roles"
+            ? {
+                resource: { apiVersion: "rbac.authorization.k8s.io/v1", resource: "roles" },
+                items: namespacedRoles,
+                title: copy.roles
+              }
+            : {
+                resource: { apiVersion: "rbac.authorization.k8s.io/v1", resource: "rolebindings" },
+                items: namespacedRoleBindings,
+                title: copy.rolebindings
+              };
 
   return (
     <section className="ocp-user-console" data-testid={viewTestId(view)} aria-labelledby="ocp-user-title">
@@ -366,6 +399,14 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
           ) : <p className="empty-state">{copy.noRoleBindings}</p>}
         </article>
       ) : null}
+
+      <OcpNativeObjectDrilldown
+        language={language}
+        resource={drilldown.resource}
+        items={drilldown.items}
+        title={drilldown.title}
+        testId="ocp-user-object"
+      />
 
       <aside className="user-native-boundary" data-testid="ocp-user-native-handoff">
         <strong>{copy.nativeHandoff}</strong>
