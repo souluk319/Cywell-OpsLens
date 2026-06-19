@@ -4466,6 +4466,208 @@ button {
   -webkit-line-clamp: 2;
 }
 
+.ocp-builds-console {
+  display: grid;
+  gap: 12px;
+}
+
+.ocp-builds-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ocp-builds-toolbar > span {
+  color: #4f5255;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.ocp-builds-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid #d2d2d2;
+}
+
+.ocp-builds-tabs a {
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+  color: #4f5255;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.ocp-builds-tabs a[aria-current="page"] {
+  border-color: #d2d2d2;
+  background: #fff;
+  color: #151515;
+}
+
+.builds-native-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) repeat(3, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.builds-native-card,
+.builds-native-panel,
+.builds-native-boundary {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1px 1px rgba(3, 3, 3, 0.04);
+}
+
+.builds-native-card p,
+.builds-native-boundary p {
+  margin: 8px 0 0;
+  color: #4f5255;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.build-pipeline-flow {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr) auto minmax(120px, 1fr);
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.build-pipeline-flow > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 5px;
+  background: #fbfbfb;
+}
+
+.build-pipeline-flow span {
+  color: #6a6e73;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.build-pipeline-flow strong {
+  overflow: hidden;
+  color: #151515;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.build-pipeline-flow i {
+  width: 22px;
+  height: 1px;
+  background: #8a8d90;
+}
+
+.build-pipeline-flow i::after {
+  content: "";
+  display: block;
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  margin-left: 15px;
+  border-top: 1px solid #8a8d90;
+  border-right: 1px solid #8a8d90;
+  transform: rotate(45deg);
+}
+
+.build-phase-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.phase-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f0f0f0;
+  color: #4f5255;
+  font-size: 0.72rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.phase-chip.ready {
+  background: #eef7ea;
+  color: #1e4f18;
+}
+
+.phase-chip.warning {
+  background: #fff4e5;
+  color: #8f4700;
+}
+
+.phase-chip.danger {
+  background: #faeae8;
+  color: #a30000;
+}
+
+.phase-chip.neutral {
+  background: #f0f0f0;
+  color: #4f5255;
+}
+
+.native-builds-table-wrap {
+  margin-top: 12px;
+  overflow: auto;
+}
+
+.native-builds-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+}
+
+.native-builds-table th,
+.native-builds-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #ededed;
+  color: #151515;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.78rem;
+}
+
+.native-builds-table th {
+  color: #4f5255;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.builds-native-boundary {
+  border-left: 4px solid #0066cc;
+}
+
+.builds-native-boundary strong {
+  color: #151515;
+  font-size: 0.86rem;
+  font-weight: 850;
+}
+
 .muted-warning {
   margin: 10px 0 0;
   max-height: 72px;
@@ -6644,6 +6846,26 @@ button {
     grid-column: 2 / -1;
   }
 
+  .builds-native-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+
+  .build-pipeline-flow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .build-pipeline-flow i {
+    width: 1px;
+    height: 16px;
+    justify-self: center;
+  }
+
+  .build-pipeline-flow i::after {
+    margin-top: 10px;
+    margin-left: -3px;
+    transform: rotate(135deg);
+  }
+
   .ops-signal-card.flow {
     grid-column: span 2;
   }
@@ -6738,6 +6960,21 @@ button {
 
   .native-signal-grid {
     grid-template-columns: repeat(2, minmax(150px, 1fr));
+  }
+
+  .builds-native-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ocp-builds-toolbar,
+  .ocp-builds-tabs {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ocp-builds-tabs a {
+    border: 1px solid #d2d2d2;
+    border-radius: 5px;
   }
 
   .topology-native-toolbar {

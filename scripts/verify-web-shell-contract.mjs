@@ -89,6 +89,7 @@ const dashboardSource = await readText("apps/web/src/components/OperationsDashbo
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
 const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.tsx");
 const monitoringSource = await readText("apps/web/src/components/OcpMonitoringConsole.tsx");
+const buildsSource = await readText("apps/web/src/components/OcpBuildsConsole.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const paritySource = await readText("apps/web/src/consoleParity.ts");
 const parityModule = await loadTypescriptModule(paritySource, "console parity");
@@ -2226,6 +2227,36 @@ expectCheck(
     stylesSource.includes(".monitoring-query-layout") &&
     stylesSource.includes(".monitoring-log-stream"),
   "Monitoring menu items must render native Observe-style Alerting, Dashboards, Metrics, and Logs surfaces from live consoleDashboard/monitoring evidence instead of routing to generic evidence or OpsLens dashboard panels"
+);
+
+expectCheck(
+  "official builds console surface contract",
+  paritySource.includes('| "builds-console"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-builds-builds\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-builds-buildconfigs\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-builds-imagestreams\']"') &&
+    paritySource.includes('mode: "builds-console"') &&
+    appSource.includes("case \"builds-console\"") &&
+    appSource.includes("<OcpBuildsConsole") &&
+    buildsSource.includes("export type OcpBuildsView") &&
+    buildsSource.includes('data-testid={viewTestId(view)}') &&
+    buildsSource.includes('data-testid="ocp-builds-toolbar"') &&
+    buildsSource.includes('data-testid="ocp-builds-pipeline-board"') &&
+    buildsSource.includes('data-testid="ocp-builds-table"') &&
+    buildsSource.includes('data-testid="ocp-buildconfigs-table"') &&
+    buildsSource.includes('data-testid="ocp-imagestreams-table"') &&
+    buildsSource.includes('data-testid="ocp-builds-native-handoff"') &&
+    buildsSource.includes("fetchOcpResourceList") &&
+    buildsSource.includes("build.openshift.io/v1") &&
+    buildsSource.includes("image.openshift.io/v1") &&
+    buildsSource.includes("build-pipeline-flow") &&
+    stylesSource.includes(".ocp-builds-console") &&
+    stylesSource.includes(".ocp-builds-toolbar") &&
+    stylesSource.includes(".build-pipeline-flow") &&
+    stylesSource.includes(".native-builds-table") &&
+    stylesSource.includes(".builds-native-boundary") &&
+    e2eSource.includes('"builds-console": "Builds console"'),
+  "Builds menu items must render native Builds, BuildConfigs, and ImageStreams surfaces with source/strategy/output/trigger/run-policy evidence instead of routing only to the generic resource explorer"
 );
 
 expectCheck(

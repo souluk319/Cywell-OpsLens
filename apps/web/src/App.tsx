@@ -56,6 +56,10 @@ import {
   OcpMonitoringConsole,
   type OcpMonitoringView
 } from "./components/OcpMonitoringConsole";
+import {
+  OcpBuildsConsole,
+  type OcpBuildsView
+} from "./components/OcpBuildsConsole";
 import { OcpTopologyGraph } from "./components/OcpTopologyGraph";
 import {
   OcpResourceExplorer,
@@ -1187,6 +1191,13 @@ export default function App() {
           <OcpMonitoringConsole
             language={language}
             view={activeNavigation.id as OcpMonitoringView}
+          />
+        );
+      case "builds-console":
+        return (
+          <OcpBuildsConsole
+            language={language}
+            view={activeNavigation.id as OcpBuildsView}
           />
         );
       case "evidence":

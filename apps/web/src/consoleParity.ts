@@ -18,6 +18,7 @@ export type ConsoleParityActionSurface =
   | "resource-explorer"
   | "topology-graph"
   | "monitoring-console"
+  | "builds-console"
   | "ops-dashboard"
   | "ops-admin"
   | "opsbrain"
@@ -64,6 +65,7 @@ export type ConsoleParityFunctionMode =
   | "resource-preset"
   | "topology-graph"
   | "monitoring-console"
+  | "builds-console"
   | "evidence-view"
   | "overview"
   | "ops-dashboard"
@@ -833,14 +835,14 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "Builds",
     originalPath: "Builds / Builds",
     originalPathKo: "빌드 / Builds",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
-    command: "List Builds, phase, output image, source, and pod logs.",
-    commandKo: "Build, 상태, 출력 이미지, 소스, Pod 로그를 조회합니다.",
-    opsLensEnhancement: "Adds image provenance and failed-build evidence.",
-    opsLensEnhancementKo: "이미지 출처와 실패 빌드 근거를 추가합니다.",
-    acceptance: "Builds entry must map directly to build.openshift.io/v1 Builds.",
-    acceptanceKo: "Build 항목은 build.openshift.io/v1 Build에 직접 매핑되어야 합니다.",
+    targetSelector: "[data-testid='ocp-builds-builds']",
+    actionSurface: "builds-console",
+    command: "Show Builds with phase, strategy, output image, timestamps, and native start/cancel/log handoff.",
+    commandKo: "Build 상태, 전략, 출력 이미지, 시간, 원본 시작/취소/로그 연결을 표시합니다.",
+    opsLensEnhancement: "Adds failed-build clustering, image provenance, and release readiness evidence.",
+    opsLensEnhancementKo: "실패 빌드 묶음, 이미지 출처, 릴리스 준비도 근거를 추가합니다.",
+    acceptance: "Builds entry must render a native-style Builds screen backed by build.openshift.io/v1 Builds.",
+    acceptanceKo: "Build 항목은 build.openshift.io/v1 Build 기반의 원본 콘솔형 Builds 화면을 렌더링해야 합니다.",
     status: "covered",
     resourcePreset: {
       query: "builds",
@@ -854,14 +856,14 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "BuildConfigs",
     originalPath: "Builds / BuildConfigs",
     originalPathKo: "빌드 / BuildConfigs",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
-    command: "List BuildConfigs, triggers, strategy, source, and output image references.",
-    commandKo: "BuildConfig, 트리거, 전략, 소스, 출력 이미지 참조를 조회합니다.",
+    targetSelector: "[data-testid='ocp-builds-buildconfigs']",
+    actionSurface: "builds-console",
+    command: "Show BuildConfigs with triggers, strategy, source, output image, and run policy.",
+    commandKo: "BuildConfig의 트리거, 전략, 소스, 출력 이미지, 실행 정책을 표시합니다.",
     opsLensEnhancement: "Adds build trigger and registry mismatch diagnosis.",
     opsLensEnhancementKo: "빌드 트리거와 레지스트리 불일치 진단을 추가합니다.",
-    acceptance: "BuildConfig entry must map directly to build.openshift.io/v1 BuildConfigs.",
-    acceptanceKo: "BuildConfig 항목은 build.openshift.io/v1 BuildConfig에 직접 매핑되어야 합니다.",
+    acceptance: "BuildConfig entry must render a native-style BuildConfigs screen backed by build.openshift.io/v1 BuildConfigs.",
+    acceptanceKo: "BuildConfig 항목은 build.openshift.io/v1 BuildConfig 기반의 원본 콘솔형 BuildConfigs 화면을 렌더링해야 합니다.",
     status: "covered",
     resourcePreset: {
       query: "buildconfigs",
@@ -875,14 +877,14 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "ImageStreams",
     originalPath: "Builds / ImageStreams",
     originalPathKo: "빌드 / ImageStreams",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
-    command: "List ImageStreams and ImageStreamTags with digest and import state.",
-    commandKo: "ImageStream과 ImageStreamTag의 digest 및 import 상태를 조회합니다.",
+    targetSelector: "[data-testid='ocp-builds-imagestreams']",
+    actionSurface: "builds-console",
+    command: "Show ImageStreams and ImageStreamTags with tags, latest tag, repository, digest, and import state.",
+    commandKo: "ImageStream과 ImageStreamTag의 태그, 최신 태그, 저장소, digest, import 상태를 표시합니다.",
     opsLensEnhancement: "Adds image tag, digest, architecture, and stale-tag evidence.",
     opsLensEnhancementKo: "이미지 태그, digest, 아키텍처, stale tag 근거를 추가합니다.",
-    acceptance: "ImageStream entry must map directly to image.openshift.io/v1 ImageStreams and ImageStreamTags.",
-    acceptanceKo: "ImageStream 항목은 image.openshift.io/v1 ImageStream 및 ImageStreamTag에 직접 매핑되어야 합니다.",
+    acceptance: "ImageStream entry must render a native-style ImageStreams screen backed by image.openshift.io/v1 resources.",
+    acceptanceKo: "ImageStream 항목은 image.openshift.io/v1 리소스 기반의 원본 콘솔형 ImageStreams 화면을 렌더링해야 합니다.",
     status: "ops-enhanced",
     resourcePreset: {
       query: "imagestreams imagestreamtags",
@@ -1522,6 +1524,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "builds-console") {
+    return {
+      mode: "builds-console",
+      input: `Build surface: ${item.id}`,
+      inputKo: `빌드 화면: ${item.labelKo}`,
+      proof:
+        "Build target must mount a native Builds-style surface with Build, BuildConfig, ImageStream, input, strategy, output, trigger, and run-policy evidence.",
+      proofKo:
+        "빌드 대상은 Build, BuildConfig, ImageStream, 입력, 전략, 출력, 트리거, 실행 정책 근거를 갖춘 원본 Builds 스타일 화면을 장착해야 합니다."
+    };
+  }
+
   if (item.evidenceView) {
     return {
       mode: "evidence-view",
@@ -1623,6 +1637,16 @@ export function consoleParityFunctionSignal(
         "Monitoring console surface must expose the selected native Observe view with live source state.",
       descriptionKo:
         "모니터링 콘솔 화면은 선택한 원본 Observe 보기를 실시간 출처 상태와 함께 보여야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "builds-console") {
+    return {
+      selector: item.targetSelector,
+      description:
+        "Builds console surface must expose the selected native Builds, BuildConfigs, or ImageStreams view with live source state.",
+      descriptionKo:
+        "빌드 콘솔 화면은 선택한 원본 Builds, BuildConfigs, ImageStreams 보기를 실시간 출처 상태와 함께 보여야 합니다."
     };
   }
 
