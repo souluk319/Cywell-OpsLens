@@ -810,6 +810,7 @@ function validateApps(apps) {
     ["ServiceAccount", "cywell-opslens-api"],
     ["ClusterRole", "cywell-opslens-api-readonly-cywell-opslens"],
     ["ClusterRoleBinding", "cywell-opslens-api-readonly-cywell-opslens"],
+    ["ClusterRoleBinding", "cywell-opslens-api-lightspeed-query-cywell-opslens"],
     ["ConfigMap", "cywell-opslens-rag-policy"],
     ["Deployment", "cywell-opslens-api"],
     ["Service", "cywell-opslens-api"],
@@ -836,6 +837,7 @@ function validateApps(apps) {
   const api = findDoc(apps, "Deployment", "cywell-opslens-api");
   const apiReadOnlyRole = findDoc(apps, "ClusterRole", "cywell-opslens-api-readonly-cywell-opslens");
   const apiReadOnlyBinding = findDoc(apps, "ClusterRoleBinding", "cywell-opslens-api-readonly-cywell-opslens");
+  const apiLightspeedBinding = findDoc(apps, "ClusterRoleBinding", "cywell-opslens-api-lightspeed-query-cywell-opslens");
   const env = api?.spec?.template?.spec?.containers?.[0]?.env ?? [];
   const actionMode = env.find((entry) => entry.name === "CYWELL_OPSLENS_ACTION_MODE")?.value;
   if (actionMode === "plan-only") {
@@ -869,6 +871,22 @@ function validateApps(apps) {
     pass("API read-only console RBAC binding", "binds read-only role to cywell-opslens-api");
   } else {
     fail("API read-only console RBAC binding", "ClusterRoleBinding must bind the API service account");
+  }
+
+  if (
+    apiLightspeedBinding?.roleRef?.apiGroup === "rbac.authorization.k8s.io" &&
+    apiLightspeedBinding?.roleRef?.kind === "ClusterRole" &&
+    apiLightspeedBinding?.roleRef?.name === "lightspeed-operator-query-access" &&
+    (apiLightspeedBinding?.subjects ?? []).some(
+      (subject) =>
+        subject.kind === "ServiceAccount" &&
+        subject.name === "cywell-opslens-api" &&
+        subject.namespace === "cywell-opslens"
+    )
+  ) {
+    pass("API Lightspeed query RBAC binding", "binds cywell-opslens-api to lightspeed-operator-query-access");
+  } else {
+    fail("API Lightspeed query RBAC binding", "API service account must receive the official Lightspeed query ClusterRole");
   }
 
   const envValue = (name) => env.find((entry) => entry.name === name)?.value;
@@ -1250,6 +1268,8 @@ async function validateControllerRuntimeSkeleton() {
     controller.includes("networkingv1.NetworkPolicy") &&
     controller.includes("rbacv1.ClusterRole") &&
     controller.includes("reconcileAPIReadOnlyRBAC") &&
+    controller.includes("reconcileAPILightspeedQueryRBAC") &&
+    controller.includes("lightspeed-operator-query-access") &&
     controller.includes("apiReadOnlyPolicyRules") &&
     controller.includes("openshift-console") &&
     controller.includes("openshift-lightspeed") &&
@@ -1265,7 +1285,7 @@ async function validateControllerRuntimeSkeleton() {
     controller.includes("reconcileConsolePluginEnablement") &&
     controller.includes("Status().Update")
   ) {
-    pass("Go reconcile skeleton", "controller-runtime reconcile path preserves ConsolePlugin enablement, Lightspeed, Route status, NetworkPolicy, and RAG safety contracts");
+    pass("Go reconcile skeleton", "controller-runtime reconcile path preserves ConsolePlugin enablement, Lightspeed query RBAC, Route status, NetworkPolicy, and RAG safety contracts");
   } else {
     fail("Go reconcile skeleton", "controller-runtime reconcile skeleton is missing safety-critical contract text");
   }

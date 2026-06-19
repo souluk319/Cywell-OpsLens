@@ -1,6 +1,6 @@
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
-import { loadEnvFile } from "./env";
+import { getOcpConfig, loadEnvFile } from "./env";
 
 export type LightspeedQueryMode = "ask" | "troubleshooting";
 
@@ -231,8 +231,9 @@ async function postText(params: {
 
 export function describeLightspeedTarget() {
   const config = getLightspeedConfig();
+  const ocpConfig = getOcpConfig();
   return {
-    configured: Boolean(config.baseUrl && config.token),
+    configured: Boolean(config.baseUrl && (config.token || ocpConfig.token)),
     providerConfigured: Boolean(config.provider),
     modelConfigured: Boolean(config.model),
     tlsVerify: config.tlsVerify,
@@ -247,7 +248,10 @@ export async function queryOpenShiftLightspeed(params: {
   bearerToken?: string;
 }) {
   const config = getLightspeedConfig();
-  const token = bearerTokenFromHeader(params.bearerToken) ?? config.token;
+  const token =
+    bearerTokenFromHeader(params.bearerToken) ??
+    config.token ??
+    getOcpConfig().token;
   if (!config.baseUrl || !token) {
     throw new Error(
       "OpenShift Lightspeed base URL or bearer token is not configured"

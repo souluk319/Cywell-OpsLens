@@ -62,6 +62,10 @@ func (r *OpsLensInstallationReconciler) Reconcile(ctx context.Context, req ctrl.
 		return ctrl.Result{}, err
 	}
 
+	if err := r.reconcileAPILightspeedQueryRBAC(ctx, namespace); err != nil {
+		return ctrl.Result{}, err
+	}
+
 	if err := r.reconcileRAGPolicy(ctx, &installation, namespace); err != nil {
 		return ctrl.Result{}, err
 	}
@@ -233,6 +237,31 @@ func (r *OpsLensInstallationReconciler) reconcileAPIReadOnlyRBAC(ctx context.Con
 			APIGroup: rbacv1.GroupName,
 			Kind:     "ClusterRole",
 			Name:     roleName,
+		}
+		binding.Subjects = []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      apiServiceAccount,
+				Namespace: namespace,
+			},
+		}
+		return nil
+	})
+	return err
+}
+
+func (r *OpsLensInstallationReconciler) reconcileAPILightspeedQueryRBAC(ctx context.Context, namespace string) error {
+	bindingName := fmt.Sprintf("%s-lightspeed-query-%s", apiServiceAccount, namespace)
+	binding := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: bindingName},
+	}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, binding, func() error {
+		binding.Labels = labels("api-lightspeed-rbac")
+		binding.RoleRef = rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     "lightspeed-operator-query-access",
 		}
 		binding.Subjects = []rbacv1.Subject{
 			{
