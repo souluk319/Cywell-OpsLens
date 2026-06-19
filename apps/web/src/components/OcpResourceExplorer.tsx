@@ -165,6 +165,14 @@ const explorerCopy = {
     objectYaml: "Object YAML",
     objectPrefix: "Object",
     fallback: "fallback",
+    listFailure: "named failure",
+    "resource-not-found": "API not discovered",
+    "rbac-denied": "RBAC denied",
+    "ocp-upstream-read-failed": "upstream read failed",
+    "resource-read-blocked": "read blocked",
+    "bad-request": "read failed",
+    retryable: "retryable",
+    notRetryable: "not retryable",
     requested: "requested",
     transitionTo: "to",
     served: "served",
@@ -289,6 +297,14 @@ const explorerCopy = {
     objectYaml: "객체 YAML",
     objectPrefix: "객체",
     fallback: "대체 응답",
+    listFailure: "명명된 실패",
+    "resource-not-found": "API 미발견",
+    "rbac-denied": "RBAC 거부",
+    "ocp-upstream-read-failed": "상위 API 읽기 실패",
+    "resource-read-blocked": "읽기 차단",
+    "bad-request": "읽기 실패",
+    retryable: "재시도 가능",
+    notRetryable: "재시도 불필요",
     requested: "요청",
     transitionTo: "->",
     served: "제공",
@@ -409,6 +425,18 @@ function formatMatrixAccess(
     return `${verb} ${copy.rbacUnknown}`;
   }
   return `${verb} ${copy.rbacDenied}`;
+}
+
+function formatListFailure(
+  failure: OcpResourceListResponse["failure"] | undefined,
+  copy: (typeof explorerCopy)[UiLanguage]
+) {
+  if (!failure) {
+    return "";
+  }
+
+  const retryLabel = failure.retryable ? copy.retryable : copy.notRetryable;
+  return `${copy[failure.code]}: ${failure.message} (${retryLabel})`;
 }
 
 function countLogLines(logs: OcpPodLogsResponse | null) {
@@ -944,9 +972,18 @@ export function OcpResourceExplorer({
       : presetMatchState === "missing"
         ? copy.missing
         : copy.notApplicable;
-  const listSmokeState = listLoading ? "loading" : list ? "ready" : "pending";
+  const listFailure = list?.failure;
+  const listSmokeState = listLoading
+    ? "loading"
+    : listFailure
+      ? "missing"
+      : list
+        ? "ready"
+        : "pending";
   const listSmokeStatus = listLoading
     ? copy.loadingItems
+    : listFailure
+      ? formatListFailure(listFailure, copy)
     : list
       ? `${list.items.length} ${copy.itemsReturned} (${formatAccess(list.access.list, copy)})`
       : copy.pending;
@@ -1010,6 +1047,8 @@ export function OcpResourceExplorer({
     ? "not-active"
     : presetMatchState === "missing"
       ? "missing"
+      : listFailure
+        ? "missing"
       : listSmokeState === "loading" || detailSmokeState === "loading"
         ? "loading"
         : !list
@@ -1022,6 +1061,8 @@ export function OcpResourceExplorer({
   const functionOutcomeStatus =
     functionOutcomeState === "operating"
       ? `${copy.operating}: ${list?.items.length ?? 0} ${copy.itemsReturned}`
+      : listFailure
+        ? formatListFailure(listFailure, copy)
       : functionOutcomeState === "empty"
         ? `${copy.emptyResult}: ${list?.items.length ?? 0} ${copy.itemsReturned}`
         : functionOutcomeState === "loading"
@@ -1442,6 +1483,16 @@ export function OcpResourceExplorer({
                 <small data-testid="ocp-resource-access">
                   {formatAccess(list?.access.list, copy)}
                 </small>
+                {list?.failure ? (
+                  <div
+                    className="resource-fallback"
+                    data-testid="ocp-resource-list-failure"
+                  >
+                    <span className="status-pill warning">{copy.listFailure}</span>
+                    <small>{formatListFailure(list.failure, copy)}</small>
+                    <small>{list.failure.evidence.join(" | ")}</small>
+                  </div>
+                ) : null}
                 {list?.fallback ? (
                   <div
                     className="resource-fallback"

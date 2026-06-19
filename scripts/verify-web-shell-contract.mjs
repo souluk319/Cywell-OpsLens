@@ -1560,14 +1560,20 @@ expectCheck(
   "named OCP resource API failure contract",
   apiSource.includes("payload.error") &&
     apiSource.includes("failed with ${response.status}:") &&
+    contractsSource.includes("OcpResourceListFailureCode") &&
+    contractsSource.includes("failure?: OcpResourceListFailure") &&
     backendServerSource.includes("resource-not-found") &&
     backendServerSource.includes("rbac-denied") &&
     backendServerSource.includes("ocp-upstream-read-failed") &&
+    ocpClientSource.includes("failedListResponse") &&
+    ocpClientSource.includes("resource list returned a named failure instead of an unexplained HTTP 400") &&
     ocpClientSource.includes("JSON list fallback succeeded") &&
     explorerSource.includes("findPreferredResourceInOrder") &&
+    explorerSource.includes("formatListFailure") &&
+    explorerSource.includes('data-testid="ocp-resource-list-failure"') &&
     explorerSource.includes("fetchOcpAccessMatrix({") &&
     explorerSource.includes(".catch(() => null)"),
-  "Resource Explorer exposes named failures and uses preferred API order plus metadata-to-JSON read fallback instead of a generic 400"
+  "Resource Explorer exposes named list failures as data, uses preferred API order, and keeps metadata-to-JSON fallback instead of surfacing unexplained visible 400s"
 );
 
 expectCheck(

@@ -841,6 +841,148 @@ function compactError(error: unknown) {
   return (error instanceof Error ? error.message : String(error)).slice(0, 240);
 }
 
+function titleCaseResourceName(name: string) {
+  return name
+    .replace(/[-_]/g, " ")
+    .replace(/s$/i, "")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .replace(/\s+/g, "");
+}
+
+function requestedResourceStub(params: {
+  apiVersion?: string;
+  kind?: string;
+  resource?: string;
+  namespace?: string;
+}): OcpApiResource {
+  const apiVersion = params.apiVersion ?? "v1";
+  const { group, version } = splitGroupVersion(apiVersion);
+  const name = params.resource?.trim() || params.kind?.toLowerCase() || "resources";
+
+  return {
+    group,
+    version,
+    apiVersion,
+    name,
+    kind: params.kind?.trim() || titleCaseResourceName(name),
+    namespaced: Boolean(params.namespace),
+    verbs: [],
+    shortNames: [],
+    categories: [],
+    preferred: false,
+    safeToList: false
+  };
+}
+
+function classifyListFailure(
+  message: string,
+  evidence: string[]
+): OcpResourceListResponse["failure"] {
+  const normalized = message.toLowerCase();
+
+  if (
+    normalized.includes("not discovered") ||
+    normalized.includes("not listable") ||
+    normalized.includes("not found")
+  ) {
+    return {
+      code: "resource-not-found",
+      statusCode: 404,
+      message,
+      retryable: false,
+      evidence
+    };
+  }
+
+  if (
+    normalized.includes("rbac denied") ||
+    normalized.includes("forbidden") ||
+    normalized.includes("not allowed")
+  ) {
+    return {
+      code: "rbac-denied",
+      statusCode: 403,
+      message,
+      retryable: true,
+      evidence
+    };
+  }
+
+  if (
+    normalized.includes("secret raw fetch is blocked") ||
+    normalized.includes("security review")
+  ) {
+    return {
+      code: "resource-read-blocked",
+      statusCode: 403,
+      message,
+      retryable: false,
+      evidence
+    };
+  }
+
+  if (
+    normalized.includes("ocp api is not reachable") ||
+    normalized.includes("timed out") ||
+    normalized.includes("socket") ||
+    normalized.includes("upstream") ||
+    normalized.includes("fallback")
+  ) {
+    return {
+      code: "ocp-upstream-read-failed",
+      statusCode: 502,
+      message,
+      retryable: true,
+      evidence
+    };
+  }
+
+  return {
+    code: "bad-request",
+    statusCode: 400,
+    message,
+    retryable: true,
+    evidence
+  };
+}
+
+function failedListResponse(params: {
+  status: OcpConnectionStatus;
+  requested: {
+    apiVersion?: string;
+    kind?: string;
+    resource?: string;
+    namespace?: string;
+    labelSelector?: string;
+    fieldSelector?: string;
+  };
+  resource?: OcpApiResource;
+  access?: OcpResourceAccessReview;
+  message: string;
+  evidence: string[];
+}): OcpResourceListResponse {
+  const resource = params.resource ?? requestedResourceStub(params.requested);
+
+  return {
+    status: params.status,
+    resource,
+    namespace: resource.namespaced ? params.requested.namespace : undefined,
+    failure: classifyListFailure(params.message, params.evidence),
+    selectors: {
+      labelSelector: params.requested.labelSelector?.trim() || undefined,
+      fieldSelector: params.requested.fieldSelector?.trim() || undefined
+    },
+    items: [],
+    access: {
+      list: params.access
+    },
+    redaction: {
+      secretDataRedacted: true,
+      fullSecretFetchBlocked: true
+    }
+  };
+}
+
 async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
@@ -2493,19 +2635,49 @@ export async function listOcpResource(params: {
   const config = getOcpConfig();
   const discovery = await discoverOcpResources();
   if (!discovery.status.configured || !discovery.status.reachable) {
-    throw new Error(discovery.status.error ?? "OCP API is not reachable");
+    const message = discovery.status.error ?? "OCP API is not reachable";
+    return failedListResponse({
+      status: discovery.status,
+      requested: params,
+      message,
+      evidence: [
+        message,
+        "resource list returned a named failure instead of an unexplained HTTP 400",
+        "no cluster mutation was attempted"
+      ]
+    });
   }
 
   const match = findDiscoveredResource(discovery, params, "list");
 
   if (!match) {
-    throw new Error("requested OCP resource was not discovered or is not listable");
+    const requested = `${params.apiVersion ?? "unknown"}/${params.resource ?? params.kind ?? "unknown"}`;
+    return failedListResponse({
+      status: discovery.status,
+      requested: params,
+      message: "requested OCP resource was not discovered or is not listable",
+      evidence: [
+        `${requested} was not found in the discovered listable API resources`,
+        "the UI can continue with an empty named-failure state",
+        "no cluster mutation was attempted"
+      ]
+    });
   }
 
   if (isSecretResource(match) && !config.allowSecretFetch) {
-    throw new Error(
-      "Secret raw fetch is blocked. Set OCP_ALLOW_SECRET_FETCH=true only after a security review."
-    );
+    const message =
+      "Secret raw fetch is blocked. Set OCP_ALLOW_SECRET_FETCH=true only after a security review.";
+    return failedListResponse({
+      status: discovery.status,
+      requested: params,
+      resource: match,
+      message,
+      evidence: [
+        message,
+        `${match.apiVersion}/${match.name} remains blocked by the read-only secret boundary`,
+        "no cluster mutation was attempted"
+      ]
+    });
   }
 
   const access = await reviewResourceAccess(config, match, {
@@ -2513,9 +2685,19 @@ export async function listOcpResource(params: {
     namespace: params.namespace
   });
   if (accessDenied(access)) {
-    throw new Error(
-      `RBAC denied list for ${match.apiVersion}/${match.name}: ${access.reason ?? "not allowed"}`
-    );
+    const message = `RBAC denied list for ${match.apiVersion}/${match.name}: ${access.reason ?? "not allowed"}`;
+    return failedListResponse({
+      status: discovery.status,
+      requested: params,
+      resource: match,
+      access,
+      message,
+      evidence: [
+        message,
+        "SelfSubjectAccessReview did not allow this read path",
+        "no cluster mutation was attempted"
+      ]
+    });
   }
 
   const searchParams = new URLSearchParams();
@@ -2631,7 +2813,20 @@ export async function listOcpResource(params: {
     }
 
     if (!list) {
-      throw error;
+      const message = compactError(error);
+      return failedListResponse({
+        status: discovery.status,
+        requested: params,
+        resource: match,
+        access,
+        message,
+        evidence: [
+          `${match.apiVersion}/${match.name} list failed`,
+          message,
+          "metadata fallback and served-version alternates did not produce a readable list",
+          "no cluster mutation was attempted"
+        ]
+      });
     }
   }
 

@@ -4663,11 +4663,27 @@ export interface OcpResourceVersionFallback {
   evidence: string[];
 }
 
+export type OcpResourceListFailureCode =
+  | "resource-not-found"
+  | "rbac-denied"
+  | "ocp-upstream-read-failed"
+  | "resource-read-blocked"
+  | "bad-request";
+
+export interface OcpResourceListFailure {
+  code: OcpResourceListFailureCode;
+  statusCode: number;
+  message: string;
+  retryable: boolean;
+  evidence: string[];
+}
+
 export interface OcpResourceListResponse {
   status: OcpConnectionStatus;
   resource: OcpApiResource;
   namespace?: string;
   fallback?: OcpResourceVersionFallback;
+  failure?: OcpResourceListFailure;
   selectors?: {
     labelSelector?: string;
     fieldSelector?: string;
