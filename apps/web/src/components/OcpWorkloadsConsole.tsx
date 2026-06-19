@@ -1,5 +1,16 @@
 import type { OcpResourceListResponse, OcpResourceSummary } from "@kugnus/contracts";
-import { AlertTriangle, Boxes, Clock3, FileKey2, GitBranch, RefreshCw, ShieldAlert } from "lucide-react";
+import {
+  AlertTriangle,
+  Boxes,
+  FileKey2,
+  Filter,
+  GitBranch,
+  ListFilter,
+  PlusCircle,
+  RefreshCw,
+  Search,
+  ShieldAlert
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
@@ -69,6 +80,17 @@ const workloadCopy = {
     live: "live OCP",
     unavailable: "unavailable",
     namespace: "Namespace",
+    application: "Application",
+    allApplications: "All applications",
+    allNamespaces: "All namespaces",
+    allResources: "All resources",
+    allStatuses: "All statuses",
+    options: "Options",
+    filterByResource: "Filter by resource",
+    filterByStatus: "Status",
+    searchByName: "Search by name...",
+    create: "Create",
+    showing: "Showing",
     status: "Status",
     ready: "Ready",
     replicas: "Replicas",
@@ -128,6 +150,17 @@ const workloadCopy = {
     live: "실제 OCP 연결",
     unavailable: "사용 불가",
     namespace: "네임스페이스",
+    application: "애플리케이션",
+    allApplications: "모든 애플리케이션",
+    allNamespaces: "모든 네임스페이스",
+    allResources: "모든 리소스",
+    allStatuses: "모든 상태",
+    options: "옵션 보기",
+    filterByResource: "리소스별 필터링",
+    filterByStatus: "상태",
+    searchByName: "이름으로 검색...",
+    create: "생성",
+    showing: "표시 중",
     status: "상태",
     ready: "준비",
     replicas: "Replica",
@@ -257,6 +290,30 @@ function workloadStatus(item: OcpResourceSummary) {
   const succeeded = numberField(status, "succeeded");
   if (active || failed || succeeded) return `active ${active ?? 0} / succeeded ${succeeded ?? 0} / failed ${failed ?? 0}`;
   return "-";
+}
+
+function normalizedStatus(item: OcpResourceSummary) {
+  const value = workloadStatus(item).toLowerCase();
+  if (/(running|complete|completed|succeeded|available|bound|active)/.test(value)) return "healthy";
+  if (/(pending|new|progressing|unknown|active)/.test(value)) return "progressing";
+  if (/(fail|error|crash|false|lost|cancel)/.test(value)) return "warning";
+  return "unknown";
+}
+
+function itemApplication(item: OcpResourceSummary) {
+  const labels = item.metadata.labels ?? {};
+  return (
+    labels["app.kubernetes.io/part-of"] ??
+    labels["app.kubernetes.io/name"] ??
+    labels.app ??
+    "-"
+  );
+}
+
+function uniqueSorted(values: string[]) {
+  return [...new Set(values.filter((value) => value && value !== "-"))].sort((a, b) =>
+    a.localeCompare(b)
+  );
 }
 
 function workloadKindLabel(config: WorkloadResourceConfig, language: UiLanguage) {
@@ -430,6 +487,12 @@ export function OcpWorkloadsConsole({ language, view }: OcpWorkloadsConsoleProps
   const [state, setState] = useState<WorkloadState>({});
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [namespaceFilter, setNamespaceFilter] = useState("all");
+  const [resourceFilter, setResourceFilter] = useState<OcpWorkloadsView | "all">("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [applicationFilter, setApplicationFilter] = useState("all");
+  const displayedConfig = resourceFilter === "all" ? activeConfig : resourceConfig(resourceFilter);
 
   async function refresh(options: { silent?: boolean } = {}) {
     if (!options.silent) setLoading(true);
@@ -464,7 +527,37 @@ export function OcpWorkloadsConsole({ language, view }: OcpWorkloadsConsoleProps
     return () => window.clearInterval(refreshId);
   }, []);
 
-  const rows = mapRows(state, activeConfig);
+  const unfilteredRows = mapRows(state, displayedConfig);
+  const allWorkloadRows = workloadResources.flatMap((entry) => mapRows(state, entry));
+  const namespaceOptions = useMemo(
+    () => uniqueSorted(allWorkloadRows.map((item) => item.metadata.namespace ?? "")),
+    [allWorkloadRows]
+  );
+  const applicationOptions = useMemo(
+    () => uniqueSorted(allWorkloadRows.map(itemApplication)),
+    [allWorkloadRows]
+  );
+  const rows = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return unfilteredRows.filter((item) => {
+      if (namespaceFilter !== "all" && (item.metadata.namespace ?? "") !== namespaceFilter) return false;
+      if (applicationFilter !== "all" && itemApplication(item) !== applicationFilter) return false;
+      if (statusFilter !== "all" && normalizedStatus(item) !== statusFilter) return false;
+      if (!normalizedSearch) return true;
+      const haystack = [
+        item.metadata.name,
+        item.metadata.namespace,
+        item.kind,
+        ownerText(item),
+        workloadStatus(item),
+        itemApplication(item)
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedSearch);
+    });
+  }, [applicationFilter, namespaceFilter, search, statusFilter, unfilteredRows]);
   const failureMessages = [...workloadResources.map((entry) => failureText(state[entry.view])), ...errors].filter(Boolean);
   const totalControllers = useMemo(
     () =>
@@ -476,6 +569,12 @@ export function OcpWorkloadsConsole({ language, view }: OcpWorkloadsConsoleProps
   const totalConfig = (state.secrets?.items.length ?? 0) + (state.configmaps?.items.length ?? 0);
   const totalBatch = (state.jobs?.items.length ?? 0) + (state.cronjobs?.items.length ?? 0);
   const totalAvailability = (state.horizontalpodautoscalers?.items.length ?? 0) + (state.poddisruptionbudgets?.items.length ?? 0);
+  const createHref = nativeConsoleHref(
+    nativeResourceCreatePath(
+      { apiVersion: displayedConfig.apiVersion, resource: displayedConfig.resource },
+      namespaceFilter !== "all" ? namespaceFilter : "default"
+    )
+  );
 
   return (
     <section className="ocp-workloads-console" data-testid={activeConfig.testId} aria-labelledby="ocp-workloads-title">
@@ -499,6 +598,80 @@ export function OcpWorkloadsConsole({ language, view }: OcpWorkloadsConsoleProps
         <span>Config: {totalConfig}</span>
         <span>Batch: {totalBatch}</span>
         <span>Scale/PDB: {totalAvailability}</span>
+      </div>
+
+      <div className="native-console-toolbar workloads-filter-toolbar" data-testid="ocp-workloads-native-toolbar">
+        <label className="resource-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="search"
+            value={search}
+            placeholder={copy.searchByName}
+            aria-label={copy.searchByName}
+            onChange={(event) => setSearch(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          <span>{copy.namespace}</span>
+          <select
+            value={namespaceFilter}
+            aria-label={copy.namespace}
+            onChange={(event) => setNamespaceFilter(event.currentTarget.value)}
+          >
+            <option value="all">{copy.allNamespaces}</option>
+            {namespaceOptions.map((namespace) => (
+              <option key={namespace} value={namespace}>{namespace}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.application}</span>
+          <select
+            value={applicationFilter}
+            aria-label={copy.application}
+            onChange={(event) => setApplicationFilter(event.currentTarget.value)}
+          >
+            <option value="all">{copy.allApplications}</option>
+            {applicationOptions.map((application) => (
+              <option key={application} value={application}>{application}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.filterByResource}</span>
+          <select
+            value={resourceFilter}
+            aria-label={copy.filterByResource}
+            onChange={(event) => setResourceFilter(event.currentTarget.value as OcpWorkloadsView | "all")}
+          >
+            <option value="all">{copy.allResources}</option>
+            {workloadResources.map((entry) => (
+              <option key={entry.view} value={entry.view}>{workloadKindLabel(entry, language)}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>{copy.filterByStatus}</span>
+          <select
+            value={statusFilter}
+            aria-label={copy.filterByStatus}
+            onChange={(event) => setStatusFilter(event.currentTarget.value)}
+          >
+            <option value="all">{copy.allStatuses}</option>
+            <option value="healthy">Healthy</option>
+            <option value="progressing">Progressing</option>
+            <option value="warning">Warning</option>
+            <option value="unknown">Unknown</option>
+          </select>
+        </label>
+        <a className="text-icon-button native-open-link" href={createHref} target="_blank" rel="noreferrer">
+          <PlusCircle size={16} aria-hidden="true" />
+          {copy.create}
+        </a>
+        <span className="native-toolbar-count" data-testid="ocp-workloads-filter-count">
+          <ListFilter size={15} aria-hidden="true" />
+          {copy.showing}: {rows.length}/{unfilteredRows.length}
+        </span>
       </div>
 
       {failureMessages.length > 0 ? (
@@ -541,11 +714,11 @@ export function OcpWorkloadsConsole({ language, view }: OcpWorkloadsConsoleProps
 
       <article className="workloads-native-panel">
         <div className="card-title-row">
-          <h3>{workloadKindLabel(activeConfig, language)}</h3>
-          <Clock3 size={18} aria-hidden="true" />
+          <h3>{workloadKindLabel(displayedConfig, language)}</h3>
+          <Filter size={18} aria-hidden="true" />
         </div>
         <div className="native-workloads-table-wrap">
-          {renderRows(activeConfig, rows, language)}
+          {renderRows(displayedConfig, rows, language)}
         </div>
         {!rows.length ? <p className="empty-state">{copy.empty}</p> : null}
       </article>
@@ -553,12 +726,12 @@ export function OcpWorkloadsConsole({ language, view }: OcpWorkloadsConsoleProps
       <OcpNativeObjectDrilldown
         language={language}
         resource={{
-          apiVersion: activeConfig.apiVersion,
-          resource: activeConfig.resource
+          apiVersion: displayedConfig.apiVersion,
+          resource: displayedConfig.resource
         }}
         lifecycleActionsForItem={(item, resource) => workloadLifecycleActions(item, resource, language)}
         items={rows}
-        title={workloadKindLabel(activeConfig, language)}
+        title={workloadKindLabel(displayedConfig, language)}
         testId="ocp-workloads-object"
       />
 

@@ -2355,6 +2355,16 @@ expectCheck(
     workloadsSource.includes("export type OcpWorkloadsView") &&
     workloadsSource.includes('data-testid={activeConfig.testId}') &&
     workloadsSource.includes('data-testid="ocp-workloads-toolbar"') &&
+    workloadsSource.includes('data-testid="ocp-workloads-native-toolbar"') &&
+    workloadsSource.includes('data-testid="ocp-workloads-filter-count"') &&
+    workloadsSource.includes("setNamespaceFilter") &&
+    workloadsSource.includes("setApplicationFilter") &&
+    workloadsSource.includes("setResourceFilter") &&
+    workloadsSource.includes("setStatusFilter") &&
+    workloadsSource.includes("setSearch") &&
+    workloadsSource.includes("const displayedConfig = resourceFilter === \"all\" ? activeConfig : resourceConfig(resourceFilter)") &&
+    workloadsSource.includes("renderRows(displayedConfig, rows, language)") &&
+    workloadsSource.includes("nativeResourceCreatePath") &&
     workloadsSource.includes('data-testid="ocp-workloads-health-board"') &&
     workloadsSource.includes('tableTestId: "ocp-workloads-pods-table"') &&
     workloadsSource.includes('tableTestId: "ocp-workloads-deployments-table"') &&
@@ -2372,6 +2382,8 @@ expectCheck(
     workloadsSource.includes("fetchOcpResourceList") &&
     stylesSource.includes(".ocp-workloads-console") &&
     stylesSource.includes(".ocp-workloads-toolbar") &&
+    stylesSource.includes(".workloads-filter-toolbar") &&
+    stylesSource.includes(".native-toolbar-count") &&
     stylesSource.includes(".workloads-native-grid") &&
     stylesSource.includes(".native-workloads-table") &&
     stylesSource.includes(".workloads-native-boundary") &&

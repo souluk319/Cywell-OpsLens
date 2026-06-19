@@ -724,6 +724,11 @@ async function expectConsoleFunctionEffect(
     await openConsoleNavItem(page, "workloads");
     await page.getByTestId("console-active-open-surface").click();
     await expect(page.getByTestId("ocp-workloads-toolbar")).toBeVisible();
+    await expect(page.getByTestId("ocp-workloads-native-toolbar")).toBeVisible();
+    await page.getByPlaceholder("Search by name...").fill("test");
+    await expect(page.getByPlaceholder("Search by name...")).toHaveValue("test");
+    await page.getByLabel("Filter by resource").selectOption("workloads");
+    await expect(page.getByTestId("ocp-workloads-filter-count")).toContainText("Showing:");
     await expect(page.getByTestId("ocp-workloads-health-board")).toBeVisible();
     await expect(page.getByTestId("ocp-workloads-pods-table")).toBeVisible();
     await expect(page.getByTestId("ocp-workloads-object-drilldown")).toBeVisible();
