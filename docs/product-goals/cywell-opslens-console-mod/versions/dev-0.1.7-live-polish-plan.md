@@ -184,17 +184,34 @@ below so the review is evidence, not only a planned activity.
 | Runtime reviewer | PASS for Workloads/Topology, WEAK for the old e2e 400 contract | Workloads map to live views and API presets; `GET /api/ocp/topology` reads Pods, Services, Routes, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, HPA, PDB, Jobs, and CronJobs; the UI renders `ocp-topology-graph` SVG nodes and edges. | The implementation returns named failure envelopes, but the e2e contract still expected Secret reads to return raw HTTP `400`; this is corrected in the 0.1.7 follow-up patch so the test now expects `resource-read-blocked`. |
 | Product reviewer | PASS for dashboard source labels/native match map, IMPROVED for plus-alpha depth, MISSING before this section for persisted review evidence | Dashboard renders `opslens-dashboard-source-label`, `opslens-console-source-label`, `opslens-native-dashboard-map`, `opslens-native-signal-board`, `opslens-dashboard-decision-flow`, and `opslens-plus-alpha-cockpit`; native OpenShift dashboard panels are mapped before OpsLens analysis is shown. | OpsLens risk data still has mock-backed areas, and richer customer-facing visualizations beyond the first cockpit slice remain a Dev `0.1.8+` product lane. |
 
+## 0.1.7 Requirement Audit
+
+This audit separates the user-requested 0.1.7 local implementation items from
+the later Windows CRC `4.20` deployment proof. It prevents the work from drifting
+into another premature image push.
+
+| Requested item | Local 0.1.7 status | Evidence | Not claimed yet |
+| --- | --- | --- | --- |
+| OCP `4.20`/`4.21` compatibility criteria table | PASS | The Compatibility Strategy and Work Order sections define OCP `4.20` as the minimum runtime, OCP `4.21+` as the forward UX target, and preserve the no-`4.21`-only baseline rule. `npm run verify:ocp:420-compatibility` checks the registry against the `4.20` API allowlist. | Windows CRC `4.20` runtime proof is still a deployment gate, not a local implementation claim. |
+| Native console menu classification | PASS | `apps/web/src/consoleParity.ts` classifies every version-pinned console item as `Live View`, `Native Deep Link`, `Plan-only`, or `Gap`; the parity matrix and action panel render those classes. | Classification does not mean every native screen is fully reimplemented. |
+| Workloads first implementation | PASS for first slice | Workload presets expose `ocp-workload-lens` and `ocp-workload-action-map` for Pods, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB. | Create/edit/delete remain native or approval-gated; deeper per-kind editors are later work. |
+| Real Topology graph | PASS | `GET /api/ocp/topology` builds graph nodes and edges from live/read-only resource relationships; `OcpTopologyGraph` renders SVG nodes, edges, error evidence, and namespace/filter controls. | Graph quality can still be improved beyond the first usable layout. |
+| Core Resource API generic `400` removal | PASS | Resource list/detail paths return data, empty state, or named failure envelopes such as unsupported resource, upstream read failure, RBAC denial, or redaction block; customer-facing UI no longer relies on unexplained visible `400`. | Actual API server/RBAC failures may still occur, but must surface as named diagnostics. |
+| Dashboard live/source labels | PASS | Dashboard panels label OpsLens risk, native console overview, Prometheus utilization, live/fixture/unavailable state, and native-to-OpsLens analysis trace. | More advanced drill-down visualizations are a next product lane. |
+| Parallel review lanes | PASS | Compatibility, Runtime, and Product reviewer results are persisted above with PASS/WEAK/MISSING-style findings and reconciled gaps. | The external Windows CRC `4.20` reviewer proof is pending until that cluster exists. |
+
 Current completion judgment:
 
-- Local 0.1.7 implementation evidence is strong for Workloads first live view,
-  real Topology graph, named Resource API failure envelopes, dashboard source
-  labels, and native dashboard signal mapping.
+- Local 0.1.7 implementation evidence now satisfies the explicit local
+  requirements: compatibility criteria, native menu classification, Workloads
+  first slice, real Topology graph, named Resource API failure envelopes,
+  dashboard source labels, and persisted parallel review.
 - 0.1.7 is not a full native console replacement. It is the first honest parity
-  slice with explicit classes and visible gaps.
+  slice with explicit classes, first Workloads implementation, and visible gaps.
 - OCP `4.20` strict runtime proof cannot be claimed until the Windows CRC
   `4.20` target is available and `npm run verify:ocp:420-live-readiness` passes.
 
-Remaining before calling 0.1.7 complete:
+Remaining before deployment or 4.20 runtime-complete claim:
 
 - Continue replacing generic Resource Explorer screens with purpose-built native parity
   views. The first Workloads lens is in place, but create/edit/delete remains

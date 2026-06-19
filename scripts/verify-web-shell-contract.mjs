@@ -1895,6 +1895,22 @@ expectCheck(
 );
 
 expectCheck(
+  "Dev 0.1.7 requirement audit contract",
+  dev017PlanSource.includes("## 0.1.7 Requirement Audit") &&
+    dev017PlanSource.includes("later Windows CRC `4.20` deployment proof") &&
+    dev017PlanSource.includes("OCP `4.20`/`4.21` compatibility criteria table") &&
+    dev017PlanSource.includes("Native console menu classification") &&
+    dev017PlanSource.includes("Workloads first implementation") &&
+    dev017PlanSource.includes("Real Topology graph") &&
+    dev017PlanSource.includes("Core Resource API generic `400` removal") &&
+    dev017PlanSource.includes("Dashboard live/source labels") &&
+    dev017PlanSource.includes("Parallel review lanes") &&
+    dev017PlanSource.includes("Remaining before deployment or 4.20 runtime-complete claim") &&
+    !dev017PlanSource.includes("Remaining before calling 0.1.7 complete"),
+  "Dev 0.1.7 separates local implementation completion evidence from Windows CRC 4.20 deployment/runtime proof"
+);
+
+expectCheck(
   "registry-driven console function proof e2e",
   e2eSource.includes("AC-UI-008 renders function proof for every version-pinned console item") &&
     e2eSource.includes("ocpConsoleParityItems") &&
