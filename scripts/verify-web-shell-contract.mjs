@@ -2192,6 +2192,7 @@ expectCheck(
     nativeObjectDrilldownSource.includes("fetchOcpRelatedResources") &&
     nativeObjectDrilldownSource.includes("nativeObjectPath(selectedResource, selected)") &&
     nativeObjectDrilldownSource.includes("resourceForItem?: (item: OcpResourceSummary) => NativeConsoleResourceRef") &&
+    nativeObjectDrilldownSource.includes("lifecycleActionsForItem?:") &&
     nativeObjectDrilldownSource.includes("selectedResource.resource") &&
     nativeObjectDrilldownSource.includes("nativeResourceCreatePath(selectedResource, selected.metadata.namespace)") &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-drilldown`}') &&
@@ -2205,6 +2206,7 @@ expectCheck(
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-events-action`}') &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-logs-action`}') &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-related-action`}') &&
+    nativeObjectDrilldownSource.includes('data-testid={`${testId}-lifecycle-actions`}') &&
     nativeObjectDrilldownSource.includes("mutationBoundary") &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-detail-tabs`}') &&
     nativeObjectDrilldownSource.includes('data-testid={`${testId}-details`}') &&
@@ -2344,6 +2346,10 @@ expectCheck(
     workloadsSource.includes("apps.openshift.io/v1") &&
     workloadsSource.includes("autoscaling/v2") &&
     workloadsSource.includes("policy/v1") &&
+    workloadsSource.includes("workloadLifecycleActions") &&
+    workloadsSource.includes("lifecycleActionsForItem={(item, resource) => workloadLifecycleActions(item, resource, language)}") &&
+    workloadsSource.includes("item.kind === \"CronJob\"") &&
+    workloadsSource.includes("item.kind === \"HorizontalPodAutoscaler\"") &&
     workloadsSource.includes("fetchOcpResourceList") &&
     stylesSource.includes(".ocp-workloads-console") &&
     stylesSource.includes(".ocp-workloads-toolbar") &&

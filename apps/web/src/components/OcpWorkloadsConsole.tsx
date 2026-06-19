@@ -3,8 +3,14 @@ import { AlertTriangle, Boxes, Clock3, FileKey2, GitBranch, RefreshCw, ShieldAle
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import {
+  nativeConsoleHref,
+  nativeObjectPath,
+  nativeResourceCreatePath,
+  type NativeConsoleResourceRef
+} from "../lib/nativeConsole";
 import { NativeObjectLink } from "./NativeObjectLink";
-import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
+import { OcpNativeObjectDrilldown, type NativeObjectLifecycleAction } from "./OcpNativeObjectDrilldown";
 
 export type OcpWorkloadsView =
   | "workloads"
@@ -89,7 +95,30 @@ const workloadCopy = {
       "Create, edit, delete, scale, rollout, secret editing, and YAML apply remain native OpenShift actions. OpsLens renders read-only state and prepares approval-gated plans.",
     configBoundaryBody: "Secrets show metadata and type only. Raw data values stay redacted.",
     controllerShapeBody: "Controllers, pods, jobs, and schedules stay visible as first-class workload pages.",
-    autoscaleBody: "HPA and PDB state is kept beside workload controllers for scale and availability decisions."
+    autoscaleBody: "HPA and PDB state is kept beside workload controllers for scale and availability decisions.",
+    actions: {
+      open: "Open object",
+      create: "Create another",
+      logs: "Logs",
+      scale: "Scale",
+      rollout: "Rollout",
+      startJob: "Start from CronJob",
+      suspend: "Suspend or resume",
+      editConfig: "Edit configuration",
+      redactedSecret: "Inspect metadata only",
+      hpaPolicy: "Edit scaling policy",
+      pdbPolicy: "Edit disruption policy",
+      native: "Opens the native OpenShift object page.",
+      nativeCreate: "Opens the native OpenShift create flow.",
+      podLogs: "Use the native Pod log and terminal surface.",
+      scaleController: "Use the native scale form and rollout controls.",
+      rolloutController: "Use native rollout restart, pause, resume, and history actions.",
+      jobFromCron: "Use native CronJob actions to create or inspect scheduled Jobs.",
+      configEdit: "Use native edit/YAML with RBAC and audit trail.",
+      secretSafe: "OpsLens keeps values redacted; use native console with RBAC for edits.",
+      hpaEdit: "Use native HPA form/YAML for min, max, and metric targets.",
+      pdbEdit: "Use native PDB form/YAML for availability policy changes."
+    }
   },
   ko: {
     eyebrow: "워크로드",
@@ -125,7 +154,30 @@ const workloadCopy = {
       "생성, 수정, 삭제, 스케일, 롤아웃, Secret 편집, YAML 적용은 OpenShift 원본 기능으로 남깁니다. OpsLens는 읽기 전용 상태를 렌더링하고 승인 기반 계획을 준비합니다.",
     configBoundaryBody: "Secret은 메타데이터와 유형만 보여줍니다. 원본 데이터 값은 계속 마스킹합니다.",
     controllerShapeBody: "컨트롤러, Pod, Job, 스케줄을 각각 원본 워크로드 페이지처럼 노출합니다.",
-    autoscaleBody: "HPA와 PDB 상태를 워크로드 컨트롤러 옆에 배치해 스케일과 가용성 판단에 연결합니다."
+    autoscaleBody: "HPA와 PDB 상태를 워크로드 컨트롤러 옆에 배치해 스케일과 가용성 판단에 연결합니다.",
+    actions: {
+      open: "객체 열기",
+      create: "같은 리소스 생성",
+      logs: "로그",
+      scale: "스케일",
+      rollout: "롤아웃",
+      startJob: "CronJob에서 Job 실행",
+      suspend: "일시 중지/재개",
+      editConfig: "설정 편집",
+      redactedSecret: "메타데이터만 확인",
+      hpaPolicy: "스케일 정책 편집",
+      pdbPolicy: "중단 예산 편집",
+      native: "OpenShift 원본 객체 화면으로 이동합니다.",
+      nativeCreate: "OpenShift 원본 생성 흐름으로 이동합니다.",
+      podLogs: "원본 Pod 로그와 터미널 화면을 사용합니다.",
+      scaleController: "원본 스케일 폼과 롤아웃 제어를 사용합니다.",
+      rolloutController: "원본 롤아웃 재시작, 일시 중지, 재개, 이력 기능을 사용합니다.",
+      jobFromCron: "원본 CronJob 작업으로 예약 Job을 생성하거나 확인합니다.",
+      configEdit: "RBAC와 감사 추적이 있는 원본 편집/YAML을 사용합니다.",
+      secretSafe: "OpsLens는 값을 마스킹하고, 편집은 RBAC가 적용되는 원본 콘솔에서 수행합니다.",
+      hpaEdit: "원본 HPA 폼/YAML로 최소/최대 replica와 metric target을 편집합니다.",
+      pdbEdit: "원본 PDB 폼/YAML로 가용성 정책을 편집합니다."
+    }
   }
 } as const;
 
@@ -298,6 +350,80 @@ function renderRows(config: WorkloadResourceConfig, rows: OcpResourceSummary[], 
   );
 }
 
+function workloadLifecycleActions(
+  item: OcpResourceSummary,
+  resource: NativeConsoleResourceRef,
+  language: UiLanguage
+): NativeObjectLifecycleAction[] {
+  const actionCopy = workloadCopy[language].actions;
+  const objectHref = nativeConsoleHref(nativeObjectPath(resource, item));
+  const createHref = nativeConsoleHref(nativeResourceCreatePath(resource, item.metadata.namespace));
+  const baseActions: NativeObjectLifecycleAction[] = [
+    { id: "open", label: actionCopy.open, description: actionCopy.native, href: objectHref },
+    { id: "create", label: actionCopy.create, description: actionCopy.nativeCreate, href: createHref }
+  ];
+
+  if (item.kind === "Pod") {
+    return [
+      ...baseActions,
+      { id: "logs", label: actionCopy.logs, description: actionCopy.podLogs, href: objectHref }
+    ];
+  }
+
+  if (["Deployment", "DeploymentConfig", "StatefulSet", "DaemonSet", "ReplicaSet", "ReplicationController"].includes(item.kind)) {
+    return [
+      ...baseActions,
+      { id: "scale", label: actionCopy.scale, description: actionCopy.scaleController, href: objectHref },
+      { id: "rollout", label: actionCopy.rollout, description: actionCopy.rolloutController, href: objectHref }
+    ];
+  }
+
+  if (item.kind === "CronJob") {
+    return [
+      ...baseActions,
+      { id: "start-job", label: actionCopy.startJob, description: actionCopy.jobFromCron, href: objectHref },
+      { id: "suspend", label: actionCopy.suspend, description: actionCopy.configEdit, href: objectHref }
+    ];
+  }
+
+  if (item.kind === "Job") {
+    return [
+      ...baseActions,
+      { id: "logs", label: actionCopy.logs, description: actionCopy.podLogs, href: objectHref }
+    ];
+  }
+
+  if (item.kind === "Secret") {
+    return [
+      ...baseActions,
+      { id: "redacted-secret", label: actionCopy.redactedSecret, description: actionCopy.secretSafe, href: objectHref }
+    ];
+  }
+
+  if (item.kind === "ConfigMap") {
+    return [
+      ...baseActions,
+      { id: "edit-config", label: actionCopy.editConfig, description: actionCopy.configEdit, href: objectHref }
+    ];
+  }
+
+  if (item.kind === "HorizontalPodAutoscaler") {
+    return [
+      ...baseActions,
+      { id: "hpa-policy", label: actionCopy.hpaPolicy, description: actionCopy.hpaEdit, href: objectHref }
+    ];
+  }
+
+  if (item.kind === "PodDisruptionBudget") {
+    return [
+      ...baseActions,
+      { id: "pdb-policy", label: actionCopy.pdbPolicy, description: actionCopy.pdbEdit, href: objectHref }
+    ];
+  }
+
+  return baseActions;
+}
+
 export function OcpWorkloadsConsole({ language, view }: OcpWorkloadsConsoleProps) {
   const copy = workloadCopy[language];
   const activeConfig = resourceConfig(view);
@@ -430,6 +556,7 @@ export function OcpWorkloadsConsole({ language, view }: OcpWorkloadsConsoleProps
           apiVersion: activeConfig.apiVersion,
           resource: activeConfig.resource
         }}
+        lifecycleActionsForItem={(item, resource) => workloadLifecycleActions(item, resource, language)}
         items={rows}
         title={workloadKindLabel(activeConfig, language)}
         testId="ocp-workloads-object"

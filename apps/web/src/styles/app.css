@@ -6357,6 +6357,51 @@ button {
   cursor: not-allowed;
 }
 
+.native-lifecycle-actions {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.native-lifecycle-actions > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+
+.native-lifecycle-action {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid #d2d2d2;
+  border-radius: 4px;
+  background: #fff;
+  color: #151515;
+  text-decoration: none;
+}
+
+.native-lifecycle-action span {
+  color: #151515;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.native-lifecycle-action small {
+  color: #6a6e73;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.native-lifecycle-action:hover,
+.native-lifecycle-action:focus-visible {
+  border-color: #0066cc;
+  background: #f3f9ff;
+  color: #004b95;
+}
+
 .native-object-name-link {
   display: inline-flex;
   max-width: 100%;

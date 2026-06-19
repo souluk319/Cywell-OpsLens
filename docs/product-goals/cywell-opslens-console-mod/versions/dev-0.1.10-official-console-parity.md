@@ -101,6 +101,7 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 | Dedicated object find-by-name | Implemented | The shared drilldown now includes a native-console-style object search box and visible object count so every resource-backed surface can narrow the selected object before inspecting details. |
 | Native object name links | Implemented | Dedicated Workloads, Networking, Storage, Builds, Compute, Administration, and User Management tables now render object names as OpenShift Console deep links instead of static bold text. |
 | RBAC cluster-scoped drilldown | Implemented | User Management role and binding drilldowns now include both namespaced and cluster-scoped RBAC objects, with kind-aware API mapping for Role, ClusterRole, RoleBinding, and ClusterRoleBinding. |
+| Workload lifecycle handoff | Implemented | Workloads object drilldowns now expose resource-specific native handoff actions for Pod logs, controller scale/rollout, CronJob job creation/suspend review, ConfigMap/Secret edit boundaries, HPA policy, and PDB policy. |
 | Endpoint summary preservation | Implemented | `ocpClient` now preserves top-level `Endpoints.subsets` and `EndpointSlice.endpoints` in the resource summary contract so Services can show endpoint evidence. |
 | Storage top-level summary preservation | Implemented | `ocpClient` now preserves top-level `StorageClass` and `VolumeSnapshotClass` fields in the resource summary contract so provisioning and snapshot-class evidence can render. |
 | Internal surface open action | Implemented | `console-active-open-surface` opens the OpsLens internal mapped surface separately from the native OpenShift deep link. |
@@ -127,6 +128,7 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 | Native object search preserves list behavior | Static verifier checks shared object filtering, search input, and count contract | `ocp-*-object-object-search`, `ocp-*-object-object-count` | Pass: 2026-06-20 local run, `verify:web-shell` 95 checks / 0 fail |
 | Native table object names remain actionable | Static verifier checks the shared `NativeObjectLink` component and its use across dedicated resource tables | `ocp-workloads-*-object-link`, `ocp-networking-*-object-link`, `ocp-storage-*-object-link`, `ocp-builds-object-link`, `ocp-compute-*-object-link`, `ocp-admin-*-object-link`, `ocp-user-*-object-link` | Pass: 2026-06-20 local run, `verify:web-shell` 95 checks / 0 fail |
 | RBAC cluster-scoped objects stay visible | Static verifier checks User Management role and binding drilldowns use combined Role/ClusterRole and RoleBinding/ClusterRoleBinding item sets with kind-aware resources | `resourceForUserManagementItem`, `items: roles`, `items: roleBindings` | Pass: 2026-06-20 local run, `verify:web-shell` 96 checks / 0 fail |
+| Workloads lifecycle actions remain native | Static verifier checks Workloads passes resource-specific lifecycle handoff actions into the shared object drilldown | `workloadLifecycleActions`, `ocp-workloads-object-lifecycle-actions` | Pass: 2026-06-20 local run, `verify:web-shell` 96 checks / 0 fail |
 | Contract prevents regression | Static verifier checks data-testid and helper function contracts | `npm run verify:web-shell` | Pass: 2026-06-20 local run, 96 checks / 0 fail |
 | Responsive shell does not break | CSS collapses native summary/action grids below 900px | `npm run -w @kugnus/web build` and `git diff --check` | Pass: 2026-06-20 local run |
 | Official docs remain the ceiling source | Product ledger keeps official links and required baseline behavior | this document | Pass for this lane |
@@ -136,7 +138,7 @@ This pass starts with the highest-leverage shared surface: the resource-backed n
 
 The shared native shell and Home overview are not enough by themselves. The next pass must fill each remaining menu with the native console's expected detail:
 
-1. Workloads follow-up -> add scale, rollout, restart, and log-stream parity for Deployments, DeploymentConfigs, StatefulSets, DaemonSets, Jobs, CronJobs, HPAs, and Pods where the cluster exposes those console routes.
+1. Workloads follow-up -> add direct API-backed action previews for scale, rollout, restart, log-stream, CronJob start, HPA, and PDB flows after native handoff parity.
 2. User Management follow-up -> add create/edit native handoff and approval-gated permission change plans after Role/ClusterRole and RoleBinding/ClusterRoleBinding read parity.
 3. Storage follow-up -> add PVC expand, PV reclaim, snapshot restore readiness, and StorageClass default/provisioner parity where the cluster exposes those console routes.
 4. Networking follow-up -> add Route/Service/Ingress/NetworkPolicy create/edit/delete native handoff and endpoint topology overlays.

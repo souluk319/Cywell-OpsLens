@@ -37,9 +37,20 @@ interface OcpNativeObjectDrilldownProps {
   language: UiLanguage;
   resource: NativeConsoleResourceRef;
   resourceForItem?: (item: OcpResourceSummary) => NativeConsoleResourceRef;
+  lifecycleActionsForItem?: (
+    item: OcpResourceSummary,
+    resource: NativeConsoleResourceRef
+  ) => NativeObjectLifecycleAction[];
   items: OcpResourceSummary[];
   title: string;
   testId: string;
+}
+
+export interface NativeObjectLifecycleAction {
+  id: string;
+  label: string;
+  description: string;
+  href: string;
 }
 
 const copy = {
@@ -83,6 +94,7 @@ const copy = {
     mutationBoundary: "Create, edit, delete, scale, rollout, and other mutations stay in the native OpenShift console or an approval-gated OpsLens workflow.",
     podLogsOnly: "Logs are enabled for Pod objects.",
     nativeInspection: "Inspection stays in OpsLens; mutation handoff stays native.",
+    lifecycleActions: "Resource lifecycle handoff",
     error: "Detail read failed"
   },
   ko: {
@@ -125,6 +137,7 @@ const copy = {
     mutationBoundary: "생성, 수정, 삭제, 스케일, 롤아웃 같은 변경 작업은 원본 OpenShift 콘솔 또는 승인 기반 OpsLens 워크플로에서 수행합니다.",
     podLogsOnly: "로그는 Pod 객체에서 활성화됩니다.",
     nativeInspection: "조회는 OpsLens에서 유지하고, 변경 작업은 원본 콘솔로 위임합니다.",
+    lifecycleActions: "리소스 생명주기 연결",
     error: "상세 조회 실패"
   }
 } as const;
@@ -192,6 +205,7 @@ export function OcpNativeObjectDrilldown({
   language,
   resource,
   resourceForItem,
+  lifecycleActionsForItem,
   items,
   title,
   testId
@@ -335,6 +349,7 @@ export function OcpNativeObjectDrilldown({
   const nativeCreateHref = nativeConsoleHref(
     nativeResourceCreatePath(selectedResource, selected.metadata.namespace)
   );
+  const lifecycleActions = lifecycleActionsForItem?.(selected, selectedResource) ?? [];
   const conditions = conditionRows(selectedDetailItem);
 
   return (
@@ -448,6 +463,26 @@ export function OcpNativeObjectDrilldown({
               </button>
             </div>
             <p>{text.mutationBoundary}</p>
+            {lifecycleActions.length ? (
+              <div className="native-lifecycle-actions" data-testid={`${testId}-lifecycle-actions`}>
+                <strong>{text.lifecycleActions}</strong>
+                <div>
+                  {lifecycleActions.map((action) => (
+                    <a
+                      key={action.id}
+                      className="native-lifecycle-action"
+                      href={action.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      data-testid={`${testId}-lifecycle-${action.id}`}
+                    >
+                      <span>{action.label}</span>
+                      <small>{action.description}</small>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="native-detail-tabs" data-testid={`${testId}-detail-tabs`}>
