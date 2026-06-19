@@ -148,6 +148,7 @@ visible.
 | Dashboard decision flow | Dashboard now visualizes the product value above native parity by turning console signals into OpsLens correlation, operator decision, and assistant handoff. | Browser check rendered `opslens-dashboard-decision-flow` with `4` steps, `data-source=live`, live console signal count, risk signal count, top decision, and suggested assistant question. |
 | Compatibility boundary UI | The parity matrix now shows the OCP `4.20` minimum runtime, the `4.21.14` reference inventory, and pending Windows `4.20` validation. | Browser DOM check showed `console-compatibility-boundary` with minimum/runtime/proof text and `37` visible parity class entries. |
 | OCP 4.20 preflight | A local compatibility verifier now checks the parity registry before deployment. | `npm run verify:ocp:420-compatibility` evaluates `37` console items and `26` API versions against the OCP `4.20` API allowlist, writing `test-results/cywell-opslens-ocp420-compatibility.json`. This is a pre-deployment gate; Windows CRC `4.20` runtime proof is still required. |
+| OCP 4.20 live-readiness gate | A non-mutating strict verifier now defines the exact Windows CRC `4.20` proof command. | `npm run verify:ocp:420-live-readiness` requires an `oc` context, `clusterversion` minor `4.20`, healthy console operator, ConsolePlugin CRD, and discovery for every parity API version. `npm run verify:ocp:420-live-readiness:preview` can be used on the current reference cluster without claiming completion. |
 | Local verification | Current local build and web-shell contract pass. | `@kugnus/web` build passed; latest `npm run verify:web-shell` passed with `74` checks. |
 
 ## Parallel Review Setup
@@ -177,6 +178,7 @@ Remaining before calling 0.1.7 complete:
 - Prove the baseline on the Windows OCP `4.20` CRC test server.
 - Deploy only after the local test page proves the next behavior slice.
 - Keep `npm run verify:ocp:420-compatibility` green before creating any Windows CRC `4.20` deployment artifact.
+- Run `npm run verify:ocp:420-live-readiness` against the Windows CRC `4.20` cluster before calling the compatibility item complete.
 
 ## Work Order
 
@@ -197,11 +199,15 @@ Pre-deployment check:
 
 ```text
 npm run verify:ocp:420-compatibility
+npm run verify:ocp:420-live-readiness:preview
+npm run verify:ocp:420-live-readiness
 ```
 
-This check does not replace a live Windows CRC `4.20` run. It catches accidental
-use of non-baseline API versions in the parity registry before an image is built
-or pushed.
+The compatibility command does not replace a live Windows CRC `4.20` run. It
+catches accidental use of non-baseline API versions in the parity registry before
+an image is built or pushed. The `preview` live-readiness command is for the
+current reference cluster; the strict live-readiness command is the actual
+Windows CRC `4.20` proof gate.
 
 ### 1. Parity Registry Audit
 

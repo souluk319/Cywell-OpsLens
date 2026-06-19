@@ -131,6 +131,7 @@ const ocpClientSource = await readText("apps/api/src/ocpClient.ts");
 const backendServerSource = await readText("apps/api/src/server.ts");
 const backendLightspeedSource = await readText("apps/api/src/lightspeedClient.ts");
 const ocp420CompatibilitySource = await readText("scripts/verify-ocp-420-compatibility.mjs");
+const ocp420LiveReadinessSource = await readText("scripts/verify-ocp-420-live-readiness.mjs");
 const stylesSource = await readText("apps/web/src/styles/app.css");
 const e2eSource = await readText("tests/e2e/mvp-0.1.spec.ts");
 const liveInstallSource = await readText(
@@ -1554,6 +1555,19 @@ expectCheck(
     ocp420CompatibilitySource.includes("API versions outside OCP 4.20 allowlist") &&
     ocp420CompatibilitySource.includes("test-results/cywell-opslens-ocp420-compatibility.json"),
   "pre-deployment compatibility gate checks console parity resources against the OCP 4.20 API allowlist"
+);
+
+expectCheck(
+  "OCP 4.20 live readiness contract",
+  packageSource.includes('"verify:ocp:420-live-readiness"') &&
+    packageSource.includes("--require-cluster --expected-minor=4.20") &&
+    packageSource.includes('"verify:ocp:420-live-readiness:preview"') &&
+    ocp420LiveReadinessSource.includes("clusterversion") &&
+    ocp420LiveReadinessSource.includes("consoleplugins.console.openshift.io") &&
+    ocp420LiveReadinessSource.includes("required API discovery") &&
+    ocp420LiveReadinessSource.includes("strict") &&
+    ocp420LiveReadinessSource.includes("test-results/cywell-opslens-ocp420-live-readiness.json"),
+  "Windows CRC 4.20 runtime proof has a non-mutating strict readiness command and a preview command"
 );
 
 expectCheck(

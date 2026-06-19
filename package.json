@@ -25,6 +25,8 @@
     "verify:operator:dry-run": "node ./scripts/verify-operator-dry-run.mjs",
     "verify:ocp:target-profile": "node ./scripts/verify-ocp-target-profile.mjs",
     "verify:ocp:420-compatibility": "node ./scripts/verify-ocp-420-compatibility.mjs",
+    "verify:ocp:420-live-readiness": "node ./scripts/verify-ocp-420-live-readiness.mjs --require-cluster --expected-minor=4.20",
+    "verify:ocp:420-live-readiness:preview": "node ./scripts/verify-ocp-420-live-readiness.mjs --expected-minor=4.20",
     "verify:ocp:connectivity": "node ./scripts/verify-ocp-connectivity-diagnostic.mjs",
     "verify:ocp:live-reader-smoke": "node ./scripts/verify-ocp-live-reader-smoke.mjs",
     "evidence:ocp-auth-rbac-plan": "node ./scripts/verify-ocp-auth-rbac-plan.mjs",
