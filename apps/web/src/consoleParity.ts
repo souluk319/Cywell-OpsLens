@@ -23,6 +23,7 @@ export type ConsoleParityActionSurface =
   | "storage-console"
   | "administration-console"
   | "compute-console"
+  | "user-management-console"
   | "ops-dashboard"
   | "ops-admin"
   | "opsbrain"
@@ -74,6 +75,7 @@ export type ConsoleParityFunctionMode =
   | "storage-console"
   | "administration-console"
   | "compute-console"
+  | "user-management-console"
   | "evidence-view"
   | "overview"
   | "ops-dashboard"
@@ -1061,8 +1063,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "사용자",
     originalPath: "User Management / Users",
     originalPathKo: "사용자 관리 / 사용자",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-user-users']",
+    actionSurface: "user-management-console",
     command: "List OpenShift Users and identities without exposing credentials.",
     commandKo: "자격증명을 노출하지 않고 OpenShift User와 identity를 조회합니다.",
     opsLensEnhancement: "Adds RBAC impact context and blocks credential exposure.",
@@ -1082,8 +1084,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "그룹",
     originalPath: "User Management / Groups",
     originalPathKo: "사용자 관리 / 그룹",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-user-groups']",
+    actionSurface: "user-management-console",
     command: "List OpenShift Groups and membership references.",
     commandKo: "OpenShift Group과 멤버십 참조를 조회합니다.",
     opsLensEnhancement: "Adds group-to-rolebinding impact context.",
@@ -1103,8 +1105,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "서비스 계정",
     originalPath: "User Management / ServiceAccounts",
     originalPathKo: "사용자 관리 / 서비스 계정",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-user-serviceaccounts']",
+    actionSurface: "user-management-console",
     command: "List ServiceAccounts and image pull secret references without displaying token data.",
     commandKo: "토큰 데이터를 표시하지 않고 ServiceAccount와 imagePullSecret 참조를 조회합니다.",
     opsLensEnhancement: "Adds workload identity and pull-secret diagnosis.",
@@ -1124,8 +1126,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "역할",
     originalPath: "User Management / Roles",
     originalPathKo: "사용자 관리 / 역할",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-user-roles']",
+    actionSurface: "user-management-console",
     command: "List namespaced Roles and ClusterRoles for RBAC review.",
     commandKo: "RBAC 검토를 위해 Role과 ClusterRole을 조회합니다.",
     opsLensEnhancement: "Adds permission summarization and approval-boundary labels.",
@@ -1148,8 +1150,8 @@ const ocpConsoleParityItemDrafts: ConsoleParityItemDraft[] = [
     labelKo: "역할 바인딩",
     originalPath: "User Management / RoleBindings",
     originalPathKo: "사용자 관리 / 역할 바인딩",
-    targetSelector: "#ocp-explorer-title",
-    actionSurface: "resource-explorer",
+    targetSelector: "[data-testid='ocp-user-rolebindings']",
+    actionSurface: "user-management-console",
     command: "List RoleBindings and ClusterRoleBindings for RBAC relationship review.",
     commandKo: "RBAC 관계 검토를 위해 RoleBinding과 ClusterRoleBinding을 조회합니다.",
     opsLensEnhancement: "Adds subject-to-permission impact context.",
@@ -1592,6 +1594,18 @@ export function consoleParityFunctionProof(
     };
   }
 
+  if (item.actionSurface === "user-management-console") {
+    return {
+      mode: "user-management-console",
+      input: `User Management surface: ${item.id}`,
+      inputKo: `사용자 관리 화면: ${item.labelKo}`,
+      proof:
+        "User Management target must mount a native RBAC-style surface with User, Group, ServiceAccount, Role, ClusterRole, RoleBinding, ClusterRoleBinding, subject, rule, and credential-redaction evidence.",
+      proofKo:
+        "사용자 관리 대상은 User, Group, ServiceAccount, Role, ClusterRole, RoleBinding, ClusterRoleBinding, 주체, 규칙, 자격증명 비노출 근거를 갖춘 원본 RBAC 스타일 화면을 장착해야 합니다."
+    };
+  }
+
   if (item.evidenceView) {
     return {
       mode: "evidence-view",
@@ -1743,6 +1757,16 @@ export function consoleParityFunctionSignal(
         "Compute console surface must expose the selected native Nodes, Machines, MachineSets, or MachineConfigPools view with live source state.",
       descriptionKo:
         "컴퓨트 콘솔 화면은 선택한 원본 Nodes, Machines, MachineSets, MachineConfigPools 보기를 실시간 출처 상태와 함께 보여야 합니다."
+    };
+  }
+
+  if (item.actionSurface === "user-management-console") {
+    return {
+      selector: item.targetSelector,
+      description:
+        "User Management console surface must expose the selected native Users, Groups, ServiceAccounts, Roles, or RoleBindings view with live source state and credential-safe RBAC context.",
+      descriptionKo:
+        "사용자 관리 콘솔 화면은 선택한 원본 User, Group, ServiceAccount, Role, RoleBinding 보기를 실시간 출처 상태와 자격증명 안전 RBAC 컨텍스트로 보여야 합니다."
     };
   }
 

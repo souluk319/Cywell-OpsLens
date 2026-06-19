@@ -94,6 +94,7 @@ const networkingSource = await readText("apps/web/src/components/OcpNetworkingCo
 const storageSource = await readText("apps/web/src/components/OcpStorageConsole.tsx");
 const administrationSource = await readText("apps/web/src/components/OcpAdministrationConsole.tsx");
 const computeSource = await readText("apps/web/src/components/OcpComputeConsole.tsx");
+const userManagementSource = await readText("apps/web/src/components/OcpUserManagementConsole.tsx");
 const coverageSource = await readText("apps/web/src/components/OcpCoverageMatrix.tsx");
 const paritySource = await readText("apps/web/src/consoleParity.ts");
 const parityModule = await loadTypescriptModule(paritySource, "console parity");
@@ -2073,6 +2074,11 @@ expectCheck(
     paritySource.includes("targetSelector: \"[data-testid='ocp-compute-machines']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-compute-machinesets']\"") &&
     paritySource.includes("targetSelector: \"[data-testid='ocp-compute-machineconfigpools']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-user-users']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-user-groups']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-user-serviceaccounts']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-user-roles']\"") &&
+    paritySource.includes("targetSelector: \"[data-testid='ocp-user-rolebindings']\"") &&
     e2eSource.includes("page.locator(item.targetSelector)") &&
     e2eSource.includes("expectConsoleFunctionEffect(page, item)") &&
     appSource.includes("case \"ops-admin\""),
@@ -2407,6 +2413,40 @@ expectCheck(
     stylesSource.includes(".compute-native-boundary") &&
     e2eSource.includes('"compute-console": "Compute console"'),
   "Compute menu items must render native Nodes, Machines, MachineSets, and MachineConfigPools surfaces with readiness/capacity/Machine API/rollout evidence instead of routing only to the generic resource explorer"
+);
+
+expectCheck(
+  "official user management console surface contract",
+  paritySource.includes('| "user-management-console"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-user-users\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-user-groups\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-user-serviceaccounts\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-user-roles\']"') &&
+    paritySource.includes('targetSelector: "[data-testid=\'ocp-user-rolebindings\']"') &&
+    paritySource.includes('mode: "user-management-console"') &&
+    appSource.includes("case \"user-management-console\"") &&
+    appSource.includes("<OcpUserManagementConsole") &&
+    userManagementSource.includes("export type OcpUserManagementView") &&
+    userManagementSource.includes('data-testid={viewTestId(view)}') &&
+    userManagementSource.includes('data-testid="ocp-user-toolbar"') &&
+    userManagementSource.includes('data-testid="ocp-user-subjects-board"') &&
+    userManagementSource.includes('data-testid="ocp-user-users-table"') &&
+    userManagementSource.includes('data-testid="ocp-user-groups-table"') &&
+    userManagementSource.includes('data-testid="ocp-user-serviceaccounts-table"') &&
+    userManagementSource.includes('data-testid="ocp-user-roles-table"') &&
+    userManagementSource.includes('data-testid="ocp-user-rolebindings-table"') &&
+    userManagementSource.includes('data-testid="ocp-user-native-handoff"') &&
+    userManagementSource.includes("user.openshift.io/v1") &&
+    userManagementSource.includes("rbac.authorization.k8s.io/v1") &&
+    userManagementSource.includes('apiVersion: "v1", resource: "serviceaccounts"') &&
+    userManagementSource.includes("fetchOcpResourceList") &&
+    stylesSource.includes(".ocp-user-console") &&
+    stylesSource.includes(".ocp-user-toolbar") &&
+    stylesSource.includes(".user-native-grid") &&
+    stylesSource.includes(".native-user-table") &&
+    stylesSource.includes(".user-native-boundary") &&
+    e2eSource.includes('"user-management-console": "User management console"'),
+  "User Management menu items must render native Users, Groups, ServiceAccounts, Roles, and RoleBindings surfaces with RBAC subject/rule/binding evidence instead of routing only to the generic resource explorer"
 );
 
 expectCheck(

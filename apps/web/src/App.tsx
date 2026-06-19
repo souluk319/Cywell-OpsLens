@@ -76,6 +76,10 @@ import {
   OcpComputeConsole,
   type OcpComputeView
 } from "./components/OcpComputeConsole";
+import {
+  OcpUserManagementConsole,
+  type OcpUserManagementView
+} from "./components/OcpUserManagementConsole";
 import { OcpTopologyGraph } from "./components/OcpTopologyGraph";
 import {
   OcpResourceExplorer,
@@ -1242,6 +1246,13 @@ export default function App() {
           <OcpComputeConsole
             language={language}
             view={activeNavigation.id as OcpComputeView}
+          />
+        );
+      case "user-management-console":
+        return (
+          <OcpUserManagementConsole
+            language={language}
+            view={activeNavigation.id as OcpUserManagementView}
           />
         );
       case "evidence":
