@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpBuildsView = "builds" | "buildconfigs" | "imagestreams";
@@ -472,7 +473,7 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
                     const completed = stringField(item.status, "completionTimestamp");
                     return (
                       <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                        <td><strong>{item.metadata.name}</strong></td>
+                        <td><NativeObjectLink resource={{ apiVersion: "build.openshift.io/v1", resource: "builds" }} item={item} testId="ocp-builds-object-link" /></td>
                         <td>{item.metadata.namespace ?? "-"}</td>
                         <td><span className={`phase-chip ${phaseTone(phase)}`}>{phase}</span></td>
                         <td>{buildStrategy(item)}</td>
@@ -514,7 +515,7 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
                 <tbody>
                   {buildConfigs.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "build.openshift.io/v1", resource: "buildconfigs" }} item={item} testId="ocp-buildconfigs-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
                       <td>{buildStrategy(item)}</td>
                       <td>{buildSource(item)}</td>
@@ -554,7 +555,7 @@ export function OcpBuildsConsole({ language, view }: OcpBuildsConsoleProps) {
                 <tbody>
                   {imageStreams.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "image.openshift.io/v1", resource: "imagestreams" }} item={item} testId="ocp-imagestreams-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
                       <td>{tagSummary(item)}</td>
                       <td>{latestTag(item)}</td>

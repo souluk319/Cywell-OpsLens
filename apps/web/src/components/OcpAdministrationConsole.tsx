@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpAdministrationView =
@@ -483,7 +484,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
                 <tbody>
                   {clusterOperators.map((item) => (
                     <tr key={item.metadata.name}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "config.openshift.io/v1", resource: "clusteroperators" }} item={item} testId="ocp-admin-clusteroperators-object-link" /></td>
                       <td>{stringField(item.status, "version") ?? "-"}</td>
                       <td><span className={`phase-chip ${boolTone(conditionStatus(item, "Available"))}`}>{conditionStatus(item, "Available")}</span></td>
                       <td>{conditionStatus(item, "Progressing")}</td>
@@ -520,7 +521,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
                 <tbody>
                   {namespaces.map((item) => (
                     <tr key={item.metadata.name}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "namespaces" }} item={item} testId="ocp-admin-namespaces-object-link" /></td>
                       <td>{stringField(item.status, "phase") ?? "-"}</td>
                       <td>{labelCount(item)}</td>
                       <td>{ageText(item.metadata.creationTimestamp)}</td>
@@ -556,7 +557,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
                 <tbody>
                   {crds.map((item) => (
                     <tr key={item.metadata.name}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "apiextensions.k8s.io/v1", resource: "customresourcedefinitions" }} item={item} testId="ocp-admin-crds-object-link" /></td>
                       <td>{crdGroup(item)}</td>
                       <td>{stringField(item.spec, "scope") ?? "-"}</td>
                       <td>{crdVersions(item)}</td>
@@ -592,7 +593,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
                 <tbody>
                   {resourceQuotas.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "resourcequotas" }} item={item} testId="ocp-admin-resourcequotas-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
                       <td>{quotaPairs(asRecord(item.status).used)}</td>
                       <td>{quotaPairs(asRecord(item.status).hard)}</td>
@@ -627,7 +628,7 @@ export function OcpAdministrationConsole({ language, view }: OcpAdministrationCo
                 <tbody>
                   {limitRanges.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "limitranges" }} item={item} testId="ocp-admin-limitranges-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
                       <td>{limitSummary(item)}</td>
                       <td>{arrayField(item.spec, "limits").length}</td>

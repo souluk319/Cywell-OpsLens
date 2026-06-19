@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpStorageView =
@@ -458,7 +459,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
                     const phase = pvcPhase(item);
                     return (
                       <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                        <td><strong>{item.metadata.name}</strong></td>
+                        <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "persistentvolumeclaims" }} item={item} testId="ocp-storage-pvcs-object-link" /></td>
                         <td>{item.metadata.namespace ?? "-"}</td>
                         <td><span className={`phase-chip ${phaseTone(phase)}`}>{phase}</span></td>
                         <td>{requestedCapacity(item)}</td>
@@ -502,7 +503,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
                     const phase = pvPhase(item);
                     return (
                       <tr key={item.metadata.name}>
-                        <td><strong>{item.metadata.name}</strong></td>
+                        <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "persistentvolumes" }} item={item} testId="ocp-storage-pvs-object-link" /></td>
                         <td><span className={`phase-chip ${phaseTone(phase)}`}>{phase}</span></td>
                         <td>{capacity(item)}</td>
                         <td>{storageClass(item)}</td>
@@ -542,7 +543,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
                 <tbody>
                   {storageClasses.map((item) => (
                     <tr key={item.metadata.name}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "storage.k8s.io/v1", resource: "storageclasses" }} item={item} testId="ocp-storage-classes-object-link" /></td>
                       <td>{classProvisioner(item)}</td>
                       <td>{classReclaimPolicy(item)}</td>
                       <td>{classBindingMode(item)}</td>
@@ -579,7 +580,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
                 <tbody>
                   {snapshots.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "snapshot.storage.k8s.io/v1", resource: "volumesnapshots" }} item={item} testId="ocp-storage-snapshots-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
                       <td><span className={`phase-chip ${phaseTone(snapshotReady(item))}`}>{snapshotReady(item)}</span></td>
                       <td>{snapshotSource(item)}</td>
@@ -614,7 +615,7 @@ export function OcpStorageConsole({ language, view }: OcpStorageConsoleProps) {
                 <tbody>
                   {snapshotClasses.map((item) => (
                     <tr key={item.metadata.name}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "snapshot.storage.k8s.io/v1", resource: "volumesnapshotclasses" }} item={item} testId="ocp-storage-snapshotclasses-object-link" /></td>
                       <td>{stringField(item.spec, "driver") ?? "-"}</td>
                       <td>{stringField(item.spec, "deletionPolicy") ?? "-"}</td>
                     </tr>

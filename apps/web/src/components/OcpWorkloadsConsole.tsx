@@ -3,6 +3,7 @@ import { AlertTriangle, Boxes, Clock3, FileKey2, GitBranch, RefreshCw, ShieldAle
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpWorkloadsView =
@@ -236,11 +237,12 @@ function secretKeys(item: OcpResourceSummary) {
 
 function renderRows(config: WorkloadResourceConfig, rows: OcpResourceSummary[], language: UiLanguage) {
   const copy = workloadCopy[language];
+  const resource = { apiVersion: config.apiVersion, resource: config.resource };
   if (config.view === "horizontalpodautoscalers") {
     return (
       <table className="native-workloads-table" data-testid={config.tableTestId}>
         <thead><tr><th>{config.label}</th><th>{copy.namespace}</th><th>{copy.target}</th><th>{copy.current}</th><th>{copy.desired}</th><th>{copy.age}</th></tr></thead>
-        <tbody>{rows.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><strong>{item.metadata.name}</strong></td><td>{item.metadata.namespace ?? "-"}</td><td>{hpaScaleTarget(item)}</td><td>{hpaMetric(item)}</td><td>{asRecord(item.spec).minReplicas as string ?? "-"}/{asRecord(item.spec).maxReplicas as string ?? "-"}</td><td>{objectAge(item)}</td></tr>)}</tbody>
+        <tbody>{rows.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><NativeObjectLink resource={resource} item={item} testId={`${config.tableTestId}-object-link`} /></td><td>{item.metadata.namespace ?? "-"}</td><td>{hpaScaleTarget(item)}</td><td>{hpaMetric(item)}</td><td>{asRecord(item.spec).minReplicas as string ?? "-"}/{asRecord(item.spec).maxReplicas as string ?? "-"}</td><td>{objectAge(item)}</td></tr>)}</tbody>
       </table>
     );
   }
@@ -248,7 +250,7 @@ function renderRows(config: WorkloadResourceConfig, rows: OcpResourceSummary[], 
     return (
       <table className="native-workloads-table" data-testid={config.tableTestId}>
         <thead><tr><th>{config.label}</th><th>{copy.namespace}</th><th>{copy.minAvailable}</th><th>{copy.maxUnavailable}</th><th>{copy.status}</th><th>{copy.age}</th></tr></thead>
-        <tbody>{rows.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><strong>{item.metadata.name}</strong></td><td>{item.metadata.namespace ?? "-"}</td><td>{pdbValue(item, "minAvailable")}</td><td>{pdbValue(item, "maxUnavailable")}</td><td>{workloadStatus(item)}</td><td>{objectAge(item)}</td></tr>)}</tbody>
+        <tbody>{rows.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><NativeObjectLink resource={resource} item={item} testId={`${config.tableTestId}-object-link`} /></td><td>{item.metadata.namespace ?? "-"}</td><td>{pdbValue(item, "minAvailable")}</td><td>{pdbValue(item, "maxUnavailable")}</td><td>{workloadStatus(item)}</td><td>{objectAge(item)}</td></tr>)}</tbody>
       </table>
     );
   }
@@ -256,7 +258,7 @@ function renderRows(config: WorkloadResourceConfig, rows: OcpResourceSummary[], 
     return (
       <table className="native-workloads-table" data-testid={config.tableTestId}>
         <thead><tr><th>{config.label}</th><th>{copy.namespace}</th><th>{copy.schedule}</th><th>{copy.lastSchedule}</th><th>{copy.status}</th><th>{copy.age}</th></tr></thead>
-        <tbody>{rows.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><strong>{item.metadata.name}</strong></td><td>{item.metadata.namespace ?? "-"}</td><td>{stringField(item.spec, "schedule") ?? "-"}</td><td>{stringField(item.status, "lastScheduleTime") ?? "-"}</td><td>{workloadStatus(item)}</td><td>{objectAge(item)}</td></tr>)}</tbody>
+        <tbody>{rows.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><NativeObjectLink resource={resource} item={item} testId={`${config.tableTestId}-object-link`} /></td><td>{item.metadata.namespace ?? "-"}</td><td>{stringField(item.spec, "schedule") ?? "-"}</td><td>{stringField(item.status, "lastScheduleTime") ?? "-"}</td><td>{workloadStatus(item)}</td><td>{objectAge(item)}</td></tr>)}</tbody>
       </table>
     );
   }
@@ -264,7 +266,7 @@ function renderRows(config: WorkloadResourceConfig, rows: OcpResourceSummary[], 
     return (
       <table className="native-workloads-table" data-testid={config.tableTestId}>
         <thead><tr><th>{config.label}</th><th>{copy.namespace}</th><th>{copy.completions}</th><th>{copy.status}</th><th>{copy.owner}</th><th>{copy.age}</th></tr></thead>
-        <tbody>{rows.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><strong>{item.metadata.name}</strong></td><td>{item.metadata.namespace ?? "-"}</td><td>{numberField(item.status, "succeeded") ?? 0}/{numberField(item.spec, "completions") ?? 1}</td><td>{workloadStatus(item)}</td><td>{ownerText(item)}</td><td>{objectAge(item)}</td></tr>)}</tbody>
+        <tbody>{rows.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><NativeObjectLink resource={resource} item={item} testId={`${config.tableTestId}-object-link`} /></td><td>{item.metadata.namespace ?? "-"}</td><td>{numberField(item.status, "succeeded") ?? 0}/{numberField(item.spec, "completions") ?? 1}</td><td>{workloadStatus(item)}</td><td>{ownerText(item)}</td><td>{objectAge(item)}</td></tr>)}</tbody>
       </table>
     );
   }
@@ -272,7 +274,7 @@ function renderRows(config: WorkloadResourceConfig, rows: OcpResourceSummary[], 
     return (
       <table className="native-workloads-table" data-testid={config.tableTestId}>
         <thead><tr><th>{config.label}</th><th>{copy.namespace}</th><th>{copy.type}</th><th>{copy.keys}</th><th>{copy.age}</th></tr></thead>
-        <tbody>{rows.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><strong>{item.metadata.name}</strong></td><td>{item.metadata.namespace ?? "-"}</td><td>{stringField(item, "type") ?? item.kind}</td><td>{secretKeys(item)}</td><td>{objectAge(item)}</td></tr>)}</tbody>
+        <tbody>{rows.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><NativeObjectLink resource={resource} item={item} testId={`${config.tableTestId}-object-link`} /></td><td>{item.metadata.namespace ?? "-"}</td><td>{stringField(item, "type") ?? item.kind}</td><td>{secretKeys(item)}</td><td>{objectAge(item)}</td></tr>)}</tbody>
       </table>
     );
   }
@@ -282,7 +284,7 @@ function renderRows(config: WorkloadResourceConfig, rows: OcpResourceSummary[], 
       <tbody>
         {rows.map((item) => (
           <tr key={`${item.kind}-${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-            <td><strong>{item.metadata.name}</strong></td>
+            <td><NativeObjectLink resource={resource} item={item} testId={`${config.tableTestId}-object-link`} /></td>
             <td>{item.metadata.namespace ?? "-"}</td>
             <td>{config.view === "workloads" ? podReady(item) : replicaText(item)}</td>
             <td>{replicaText(item)}</td>

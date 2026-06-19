@@ -89,6 +89,7 @@ const dashboardSource = await readText("apps/web/src/components/OperationsDashbo
 const explorerSource = await readText("apps/web/src/components/OcpResourceExplorer.tsx");
 const topologySource = await readText("apps/web/src/components/OcpTopologyGraph.tsx");
 const workloadsSource = await readText("apps/web/src/components/OcpWorkloadsConsole.tsx");
+const nativeObjectLinkSource = await readText("apps/web/src/components/NativeObjectLink.tsx");
 const nativeObjectDrilldownSource = await readText(
   "apps/web/src/components/OcpNativeObjectDrilldown.tsx"
 );
@@ -2232,6 +2233,28 @@ expectCheck(
     stylesSource.includes(".native-drilldown-list") &&
     stylesSource.includes(".native-drilldown-detail"),
   "Dedicated Workloads, Networking, Storage, Builds, Compute, User Management, and Administration surfaces expose OpenShift-style object Details, Events, Logs, Related, YAML, native object, and native create handoff actions"
+);
+
+expectCheck(
+  "dedicated console native object name link contract",
+  nativeObjectLinkSource.includes("nativeObjectPath(resource, item)") &&
+    nativeObjectLinkSource.includes('className="native-object-name-link"') &&
+    workloadsSource.includes("NativeObjectLink") &&
+    workloadsSource.includes('testId={`${config.tableTestId}-object-link`}') &&
+    networkingSource.includes("NativeObjectLink") &&
+    networkingSource.includes('testId="ocp-networking-routes-object-link"') &&
+    storageSource.includes("NativeObjectLink") &&
+    storageSource.includes('testId="ocp-storage-pvcs-object-link"') &&
+    buildsSource.includes("NativeObjectLink") &&
+    buildsSource.includes('testId="ocp-builds-object-link"') &&
+    computeSource.includes("NativeObjectLink") &&
+    computeSource.includes('testId="ocp-compute-nodes-object-link"') &&
+    administrationSource.includes("NativeObjectLink") &&
+    administrationSource.includes('testId="ocp-admin-clusteroperators-object-link"') &&
+    userManagementSource.includes("NativeObjectLink") &&
+    userManagementSource.includes('testId="ocp-user-rolebindings-object-link"') &&
+    stylesSource.includes(".native-object-name-link"),
+  "Dedicated native tables expose object names as OpenShift console deep links instead of static bold text"
 );
 
 expectCheck(

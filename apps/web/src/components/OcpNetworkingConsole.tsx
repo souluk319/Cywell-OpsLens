@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpNetworkingView = "routes" | "services" | "ingresses" | "network-policies";
@@ -481,7 +482,7 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
                 <tbody>
                   {routes.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "route.openshift.io/v1", resource: "routes" }} item={item} testId="ocp-networking-routes-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
                       <td>{routeHost(item)}</td>
                       <td>{routeService(item)}</td>
@@ -521,7 +522,7 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
                 <tbody>
                   {services.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "services" }} item={item} testId="ocp-networking-services-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
                       <td>{serviceType(item)}</td>
                       <td>{stringField(item.spec, "clusterIP") ?? "-"}</td>
@@ -561,7 +562,7 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
                 <tbody>
                   {ingresses.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "networking.k8s.io/v1", resource: "ingresses" }} item={item} testId="ocp-networking-ingresses-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
                       <td>{ingressHosts(item)}</td>
                       <td>{ingressBackend(item)}</td>
@@ -600,7 +601,7 @@ export function OcpNetworkingConsole({ language, view }: OcpNetworkingConsolePro
                 <tbody>
                   {networkPolicies.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "networking.k8s.io/v1", resource: "networkpolicies" }} item={item} testId="ocp-networking-policies-object-link" /></td>
                       <td>{item.metadata.namespace ?? "-"}</td>
                       <td>{policyTypes(item)}</td>
                       <td>{policySelector(item)}</td>

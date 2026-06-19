@@ -12,6 +12,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpComputeView = "nodes" | "machines" | "machinesets" | "machineconfigpools";
@@ -420,7 +421,7 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
                 <tbody>
                   {nodes.map((item) => (
                     <tr key={item.metadata.name}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "v1", resource: "nodes" }} item={item} testId="ocp-compute-nodes-object-link" /></td>
                       <td><span className={`phase-chip ${boolTone(conditionStatus(item, "Ready"))}`}>{conditionStatus(item, "Ready")}</span></td>
                       <td>{nodeRoles(item)}</td>
                       <td>{nodeInfo(item, "kubeletVersion")}</td>
@@ -460,7 +461,7 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
                 <tbody>
                   {machines.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.namespace ? `${item.metadata.namespace}/` : ""}{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "machine.openshift.io/v1beta1", resource: "machines" }} item={item} testId="ocp-compute-machines-object-link">{item.metadata.namespace ? `${item.metadata.namespace}/` : ""}{item.metadata.name}</NativeObjectLink></td>
                       <td>{machinePhase(item)}</td>
                       <td>{machineNode(item)}</td>
                       <td>{providerId(item)}</td>
@@ -497,7 +498,7 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
                 <tbody>
                   {machineSets.map((item) => (
                     <tr key={`${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}>
-                      <td><strong>{item.metadata.namespace ? `${item.metadata.namespace}/` : ""}{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "machine.openshift.io/v1beta1", resource: "machinesets" }} item={item} testId="ocp-compute-machinesets-object-link">{item.metadata.namespace ? `${item.metadata.namespace}/` : ""}{item.metadata.name}</NativeObjectLink></td>
                       <td>{replicaField(item, "replicas")}</td>
                       <td>{replicaField(item, "replicas")}</td>
                       <td>{replicaField(item, "availableReplicas")}</td>
@@ -535,7 +536,7 @@ export function OcpComputeConsole({ language, view }: OcpComputeConsoleProps) {
                 <tbody>
                   {machineConfigPools.map((item) => (
                     <tr key={item.metadata.name}>
-                      <td><strong>{item.metadata.name}</strong></td>
+                      <td><NativeObjectLink resource={{ apiVersion: "machineconfiguration.openshift.io/v1", resource: "machineconfigpools" }} item={item} testId="ocp-compute-machineconfigpools-object-link" /></td>
                       <td>{mcpCondition(item, "Updated")}</td>
                       <td>{mcpCondition(item, "Updating")}</td>
                       <td>{mcpCondition(item, "Degraded")}</td>

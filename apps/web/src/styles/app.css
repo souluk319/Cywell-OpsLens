@@ -6357,6 +6357,33 @@ button {
   cursor: not-allowed;
 }
 
+.native-object-name-link {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.native-object-name-link strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.native-object-name-link svg {
+  flex: 0 0 auto;
+  opacity: 0.72;
+}
+
+.native-object-name-link:hover,
+.native-object-name-link:focus-visible {
+  color: #004b95;
+  text-decoration: underline;
+}
+
 .native-drilldown-redaction {
   margin: 0;
   color: #4f5255;

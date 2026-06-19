@@ -3,6 +3,7 @@ import { AlertTriangle, KeyRound, RefreshCw, ShieldCheck, UserRound, UsersRound 
 import { useEffect, useState } from "react";
 import type { UiLanguage } from "../i18n";
 import { fetchOcpResourceList } from "../lib/api";
+import { NativeObjectLink } from "./NativeObjectLink";
 import { OcpNativeObjectDrilldown } from "./OcpNativeObjectDrilldown";
 
 export type OcpUserManagementView =
@@ -173,6 +174,20 @@ function bindingSubjects(item: OcpResourceSummary) {
     .join(", ") || "-";
 }
 
+function roleResource(item: OcpResourceSummary) {
+  return {
+    apiVersion: "rbac.authorization.k8s.io/v1",
+    resource: item.kind === "ClusterRole" ? "clusterroles" : "roles"
+  };
+}
+
+function roleBindingResource(item: OcpResourceSummary) {
+  return {
+    apiVersion: "rbac.authorization.k8s.io/v1",
+    resource: item.kind === "ClusterRoleBinding" ? "clusterrolebindings" : "rolebindings"
+  };
+}
+
 export function OcpUserManagementConsole({ language, view }: OcpUserManagementConsoleProps) {
   const copy = userCopy[language];
   const [state, setState] = useState<ResourceState>({});
@@ -337,7 +352,7 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
             <div className="native-user-table-wrap">
               <table className="native-user-table" data-testid="ocp-user-users-table">
                 <thead><tr><th>{copy.users}</th><th>{copy.identities}</th><th>{copy.groups}</th></tr></thead>
-                <tbody>{users.map((item) => <tr key={item.metadata.name}><td><strong>{item.metadata.name}</strong></td><td>{countArray(item, "identities")}</td><td>{countArray(item, "groups")}</td></tr>)}</tbody>
+                <tbody>{users.map((item) => <tr key={item.metadata.name}><td><NativeObjectLink resource={{ apiVersion: "user.openshift.io/v1", resource: "users" }} item={item} testId="ocp-user-users-object-link" /></td><td>{countArray(item, "identities")}</td><td>{countArray(item, "groups")}</td></tr>)}</tbody>
               </table>
             </div>
           ) : <p className="empty-state">{copy.noUsers}</p>}
@@ -351,7 +366,7 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
             <div className="native-user-table-wrap">
               <table className="native-user-table" data-testid="ocp-user-groups-table">
                 <thead><tr><th>{copy.groups}</th><th>{copy.members}</th></tr></thead>
-                <tbody>{groups.map((item) => <tr key={item.metadata.name}><td><strong>{item.metadata.name}</strong></td><td>{arrayField(item, "users").join(", ") || "-"}</td></tr>)}</tbody>
+                <tbody>{groups.map((item) => <tr key={item.metadata.name}><td><NativeObjectLink resource={{ apiVersion: "user.openshift.io/v1", resource: "groups" }} item={item} testId="ocp-user-groups-object-link" /></td><td>{arrayField(item, "users").join(", ") || "-"}</td></tr>)}</tbody>
               </table>
             </div>
           ) : <p className="empty-state">{copy.noGroups}</p>}
@@ -365,7 +380,7 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
             <div className="native-user-table-wrap">
               <table className="native-user-table" data-testid="ocp-user-serviceaccounts-table">
                 <thead><tr><th>{copy.serviceaccounts}</th><th>{copy.namespace}</th><th>{copy.secrets}</th><th>{copy.imagePullSecrets}</th></tr></thead>
-                <tbody>{serviceAccounts.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><strong>{item.metadata.name}</strong></td><td>{item.metadata.namespace ?? "-"}</td><td>{countArray(item, "secrets")}</td><td>{countArray(item, "imagePullSecrets")}</td></tr>)}</tbody>
+                <tbody>{serviceAccounts.map((item) => <tr key={`${item.metadata.namespace}-${item.metadata.name}`}><td><NativeObjectLink resource={{ apiVersion: "v1", resource: "serviceaccounts" }} item={item} testId="ocp-user-serviceaccounts-object-link" /></td><td>{item.metadata.namespace ?? "-"}</td><td>{countArray(item, "secrets")}</td><td>{countArray(item, "imagePullSecrets")}</td></tr>)}</tbody>
               </table>
             </div>
           ) : <p className="empty-state">{copy.noServiceAccounts}</p>}
@@ -379,7 +394,7 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
             <div className="native-user-table-wrap">
               <table className="native-user-table" data-testid="ocp-user-roles-table">
                 <thead><tr><th>{copy.roles}</th><th>{copy.namespace}</th><th>{copy.rules}</th><th>{copy.apiGroups}</th><th>{copy.resources}</th><th>{copy.verbs}</th></tr></thead>
-                <tbody>{roles.map((item) => { const rule = firstRule(item); return <tr key={`${item.kind}-${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}><td><strong>{item.kind}/{item.metadata.name}</strong></td><td>{item.metadata.namespace ?? "-"}</td><td>{countArray(item, "rules")}</td><td>{rule.apiGroups}</td><td>{rule.resources}</td><td>{rule.verbs}</td></tr>; })}</tbody>
+                <tbody>{roles.map((item) => { const rule = firstRule(item); return <tr key={`${item.kind}-${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}><td><NativeObjectLink resource={roleResource(item)} item={item} testId="ocp-user-roles-object-link">{item.kind}/{item.metadata.name}</NativeObjectLink></td><td>{item.metadata.namespace ?? "-"}</td><td>{countArray(item, "rules")}</td><td>{rule.apiGroups}</td><td>{rule.resources}</td><td>{rule.verbs}</td></tr>; })}</tbody>
               </table>
             </div>
           ) : <p className="empty-state">{copy.noRoles}</p>}
@@ -393,7 +408,7 @@ export function OcpUserManagementConsole({ language, view }: OcpUserManagementCo
             <div className="native-user-table-wrap">
               <table className="native-user-table" data-testid="ocp-user-rolebindings-table">
                 <thead><tr><th>{copy.rolebindings}</th><th>{copy.namespace}</th><th>{copy.roleRef}</th><th>{copy.subjects}</th></tr></thead>
-                <tbody>{roleBindings.map((item) => <tr key={`${item.kind}-${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}><td><strong>{item.kind}/{item.metadata.name}</strong></td><td>{item.metadata.namespace ?? "-"}</td><td>{bindingRoleRef(item)}</td><td>{bindingSubjects(item)}</td></tr>)}</tbody>
+                <tbody>{roleBindings.map((item) => <tr key={`${item.kind}-${item.metadata.namespace ?? "cluster"}-${item.metadata.name}`}><td><NativeObjectLink resource={roleBindingResource(item)} item={item} testId="ocp-user-rolebindings-object-link">{item.kind}/{item.metadata.name}</NativeObjectLink></td><td>{item.metadata.namespace ?? "-"}</td><td>{bindingRoleRef(item)}</td><td>{bindingSubjects(item)}</td></tr>)}</tbody>
               </table>
             </div>
           ) : <p className="empty-state">{copy.noRoleBindings}</p>}
