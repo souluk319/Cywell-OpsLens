@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Database,
+  ExternalLink,
   FileCode2,
   GitBranch,
   Layers3,
@@ -244,6 +245,14 @@ const explorerCopy = {
     nativeMutationHandoff: "create, edit, delete stay in the native console",
     assistantPlanDetail: "KOMSCO assistant can draft checks and approval plans",
     mutationGapDetail: "OpsLens mutation waits for RBAC, allowlist, approval, and audit",
+    nativeObjectActions: "Native object actions",
+    openNativeObject: "Open in OpenShift",
+    viewYaml: "View YAML",
+    viewEvents: "Events",
+    viewLogs: "Logs",
+    inspectRelated: "Related",
+    nativeMutation: "Native create/edit/delete",
+    selectWorkloadFirst: "Select a workload object first",
     selectedKindLabel: "Selected kind",
     presetMatch: "Preset match",
     matched: "matched",
@@ -387,6 +396,14 @@ const explorerCopy = {
     nativeMutationHandoff: "생성, 수정, 삭제는 기본 콘솔에서 처리",
     assistantPlanDetail: "KOMSCO 어시스턴트는 확인 순서와 승인 계획을 작성",
     mutationGapDetail: "OpsLens 변경 작업은 RBAC, 허용목록, 승인, 감사 계약 이후 수행",
+    nativeObjectActions: "원본 객체 동작",
+    openNativeObject: "OpenShift에서 열기",
+    viewYaml: "YAML 보기",
+    viewEvents: "이벤트",
+    viewLogs: "로그",
+    inspectRelated: "관련 리소스",
+    nativeMutation: "원본 생성/수정/삭제",
+    selectWorkloadFirst: "먼저 워크로드 객체를 선택하세요",
     selectedKindLabel: "선택 종류",
     presetMatch: "프리셋 매칭",
     matched: "매칭됨",
@@ -693,6 +710,36 @@ function workloadActionMapping(
       evidence: copy.noMutateVerbs
     }
   ];
+}
+
+function consoleApiPath(resource: OcpApiResource) {
+  const apiPath =
+    resource.apiVersion === "v1"
+      ? `core~v1~${resource.kind}`
+      : `${resource.apiVersion.replace("/", "~")}~${resource.kind}`;
+  return encodeURIComponent(apiPath);
+}
+
+function nativeConsoleHref(path: string) {
+  if (typeof window !== "undefined") {
+    const origin = window.location.origin;
+    if (window.location.hostname.includes("console-openshift-console")) {
+      return `${origin}${path}`;
+    }
+  }
+  return `https://console-openshift-console.apps-crc.testing${path}`;
+}
+
+function nativeObjectPath(resource: OcpApiResource, item: OcpResourceSummary) {
+  const name = encodeURIComponent(item.metadata.name);
+  const apiPath = consoleApiPath(resource);
+  const namespace = item.metadata.namespace;
+
+  if (resource.namespaced && namespace) {
+    return `/k8s/ns/${encodeURIComponent(namespace)}/${apiPath}/${name}`;
+  }
+
+  return `/k8s/cluster/${apiPath}/${name}`;
 }
 
 export function OcpResourceExplorer({
@@ -1177,6 +1224,12 @@ export function OcpResourceExplorer({
   const selectedWorkload = detail?.item ?? workloadLensItems[0];
   const workloadNextCheckItems = workloadNextChecks(selectedResource?.kind, copy);
   const workloadActionMappingItems = workloadActionMapping(selectedResource?.kind, copy);
+  const selectedWorkloadNativeHref =
+    selectedResource && selectedWorkload
+      ? nativeConsoleHref(nativeObjectPath(selectedResource, selectedWorkload))
+      : undefined;
+  const workloadLogsAvailable =
+    selectedResource?.kind === "Pod" && Boolean(selectedWorkload);
 
   useEffect(() => {
     onFunctionOutcomeChange?.(functionOutcomeState);
@@ -1450,6 +1503,90 @@ export function OcpResourceExplorer({
                   <small>{item.evidence}</small>
                 </article>
               ))}
+            </div>
+          </div>
+
+          <div
+            className="workload-native-actions"
+            data-testid="ocp-workload-native-actions"
+          >
+            <div className="workload-native-actions-heading">
+              <strong>{copy.nativeObjectActions}</strong>
+              <span>{copy.nativeMutation}: {copy.nativeDeepLink}</span>
+            </div>
+            <div className="workload-native-action-grid">
+              {selectedWorkloadNativeHref ? (
+                <a
+                  className="workload-native-action primary"
+                  data-testid="ocp-workload-native-object-link"
+                  href={selectedWorkloadNativeHref}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <ExternalLink size={15} aria-hidden="true" />
+                  <span>{copy.openNativeObject}</span>
+                </a>
+              ) : (
+                <span
+                  className="workload-native-action disabled"
+                  data-testid="ocp-workload-native-object-link"
+                >
+                  <ExternalLink size={15} aria-hidden="true" />
+                  <span>{copy.selectWorkloadFirst}</span>
+                </span>
+              )}
+              <button
+                className="workload-native-action"
+                data-testid="ocp-workload-yaml-action"
+                disabled={!selectedWorkload}
+                type="button"
+                onClick={() => setDetailView("yaml")}
+              >
+                <FileCode2 size={15} aria-hidden="true" />
+                <span>{copy.viewYaml}</span>
+              </button>
+              <button
+                className="workload-native-action"
+                data-testid="ocp-workload-events-action"
+                disabled={!selectedWorkload}
+                type="button"
+                onClick={() => {
+                  document
+                    .querySelector<HTMLElement>("[data-testid='ocp-resource-events']")
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }}
+              >
+                <Database size={15} aria-hidden="true" />
+                <span>{copy.viewEvents}</span>
+              </button>
+              <button
+                className="workload-native-action"
+                data-testid="ocp-workload-logs-action"
+                disabled={!workloadLogsAvailable}
+                type="button"
+                onClick={() => {
+                  document
+                    .querySelector<HTMLElement>("[data-testid='ocp-pod-logs']")
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }}
+              >
+                <ScrollText size={15} aria-hidden="true" />
+                <span>{copy.viewLogs}</span>
+              </button>
+              <button
+                className="workload-native-action"
+                data-testid="ocp-workload-related-action"
+                disabled={!selectedWorkload}
+                type="button"
+                onClick={() => {
+                  document
+                    .querySelector<HTMLElement>("[data-testid='ocp-related-resources']")
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }}
+              >
+                <GitBranch size={15} aria-hidden="true" />
+                <span>{copy.inspectRelated}</span>
+              </button>
             </div>
           </div>
         </article>

@@ -3593,6 +3593,80 @@ button {
   line-height: 1.3;
 }
 
+.workload-native-actions {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid #bee1f4;
+  border-radius: 6px;
+  background: #f8fbfd;
+}
+
+.workload-native-actions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.workload-native-actions-heading strong {
+  color: #151515;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.workload-native-actions-heading span {
+  color: #4f5255;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.workload-native-action-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) repeat(4, minmax(110px, 0.8fr));
+  gap: 8px;
+}
+
+.workload-native-action {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid #d2d2d2;
+  border-radius: 6px;
+  background: #fff;
+  color: #151515;
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.workload-native-action:hover:not(:disabled, .disabled) {
+  border-color: #73bcf7;
+  color: #0066cc;
+}
+
+.workload-native-action.primary {
+  border-color: #73bcf7;
+  color: #004b95;
+}
+
+.workload-native-action.disabled,
+.workload-native-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.workload-native-action span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .admin-target-fallback-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5270,6 +5344,10 @@ button {
     grid-template-columns: repeat(2, minmax(180px, 1fr));
   }
 
+  .workload-native-action-grid {
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+  }
+
   .resource-inspector-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -5430,6 +5508,7 @@ button {
 
   .workload-lens-grid,
   .workload-action-map-grid,
+  .workload-native-action-grid,
   .workload-health-card dl {
     grid-template-columns: minmax(0, 1fr);
   }

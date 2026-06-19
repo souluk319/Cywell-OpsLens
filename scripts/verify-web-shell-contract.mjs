@@ -1657,8 +1657,16 @@ expectCheck(
     explorerSource.includes('data-testid="ocp-workload-relationship"') &&
     explorerSource.includes('data-testid="ocp-workload-next-checks"') &&
     explorerSource.includes('data-testid="ocp-workload-action-map"') &&
+    explorerSource.includes('data-testid="ocp-workload-native-actions"') &&
+    explorerSource.includes('data-testid="ocp-workload-native-object-link"') &&
+    explorerSource.includes('data-testid="ocp-workload-yaml-action"') &&
+    explorerSource.includes('data-testid="ocp-workload-events-action"') &&
+    explorerSource.includes('data-testid="ocp-workload-logs-action"') &&
+    explorerSource.includes('data-testid="ocp-workload-related-action"') &&
     explorerSource.includes('data-testid={`ocp-workload-action-${item.className}`}') &&
     explorerSource.includes("workloadActionMapping(") &&
+    explorerSource.includes("nativeObjectPath(") &&
+    explorerSource.includes("nativeConsoleHref(") &&
     explorerSource.includes("copy.liveView") &&
     explorerSource.includes("copy.nativeDeepLink") &&
     explorerSource.includes("copy.planOnlyAssistant") &&
@@ -1675,8 +1683,10 @@ expectCheck(
     stylesSource.includes(".workload-lens-panel") &&
     stylesSource.includes(".workload-health-meter") &&
     stylesSource.includes(".workload-action-map") &&
+    stylesSource.includes(".workload-native-actions") &&
+    stylesSource.includes(".workload-native-action-grid") &&
     stylesSource.includes(".workload-action-card.native-deep-link"),
-  "Workload resource presets render a purpose-built visual lens and action mapping for Pods, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB instead of only a generic table"
+  "Workload resource presets render a purpose-built visual lens, native object action rail, and action mapping for Pods, DeploymentConfigs, Deployments, StatefulSets, DaemonSets, ReplicaSets, ReplicationControllers, Jobs, CronJobs, HPA, and PDB instead of only a generic table"
 );
 
 expectCheck(
