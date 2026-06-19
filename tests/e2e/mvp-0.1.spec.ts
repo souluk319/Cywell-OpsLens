@@ -755,6 +755,16 @@ async function expectConsoleFunctionEffect(
     await expect(page.getByLabel("Filter by catalog")).toBeVisible();
     await expect(page.getByTestId("ocp-ecosystem-filter-count")).toContainText("Showing:");
 
+    await openConsoleNavItem(page, "alerting");
+    await page.getByTestId("console-active-open-surface").click();
+    await expect(page.getByTestId("ocp-monitoring-toolbar")).toBeVisible();
+    await page.getByPlaceholder("Filter alerts, metrics, or events...").fill("cluster");
+    await expect(page.getByTestId("ocp-monitoring-query-input")).toHaveValue("cluster");
+    await expect(page.getByLabel("Time range")).toBeVisible();
+    await expect(page.getByLabel("Severity")).toBeVisible();
+    await expect(page.getByLabel("Source")).toBeVisible();
+    await expect(page.getByTestId("ocp-monitoring-filter-count")).toContainText("Results:");
+
     await openConsoleNavItem(page, "routes");
     await page.getByTestId("console-active-open-surface").click();
     await expect(page.getByTestId("ocp-networking-native-toolbar")).toBeVisible();

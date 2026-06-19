@@ -2452,16 +2452,25 @@ expectCheck(
     monitoringSource.includes("export type OcpMonitoringView") &&
     monitoringSource.includes('data-testid={viewTestId(view)}') &&
     monitoringSource.includes('data-testid="ocp-monitoring-toolbar"') &&
+    monitoringSource.includes('data-testid="ocp-monitoring-filter-count"') &&
     monitoringSource.includes('data-testid="ocp-monitoring-alert-table"') &&
     monitoringSource.includes('data-testid="ocp-monitoring-dashboard-grid"') &&
     monitoringSource.includes('data-testid="ocp-monitoring-query-browser"') &&
     monitoringSource.includes('data-testid="ocp-monitoring-log-stream"') &&
+    monitoringSource.includes("setFilterText") &&
+    monitoringSource.includes("setSeverityFilter") &&
+    monitoringSource.includes("setSourceFilter") &&
+    monitoringSource.includes("setTimeRangeMinutes") &&
+    monitoringSource.includes("filteredAlerts") &&
+    monitoringSource.includes("filteredSeries") &&
+    monitoringSource.includes("filteredActivity") &&
     monitoringSource.includes("fetchOcpConsoleOverview") &&
     monitoringSource.includes("consoleDashboard.utilization") &&
     monitoringSource.includes("consoleDashboard.activity") &&
     monitoringSource.includes("monitoring.sample") &&
     stylesSource.includes(".ocp-monitoring-console") &&
     stylesSource.includes(".ocp-monitoring-toolbar") &&
+    stylesSource.includes(".ocp-monitoring-toolbar select") &&
     stylesSource.includes(".monitoring-dashboard-grid") &&
     stylesSource.includes(".monitoring-query-layout") &&
     stylesSource.includes(".monitoring-log-stream"),

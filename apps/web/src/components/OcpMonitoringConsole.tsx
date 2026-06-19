@@ -5,6 +5,7 @@ import {
   BarChart3,
   Clock3,
   FileText,
+  ListFilter,
   RefreshCw,
   Search
 } from "lucide-react";
@@ -38,6 +39,11 @@ const monitoringCopy = {
     alertName: "Alert name",
     message: "Message",
     timeRange: "1 hour",
+    timeRangeLabel: "Time range",
+    searchPlaceholder: "Filter alerts, metrics, or events...",
+    allSeverities: "All severities",
+    allSources: "All sources",
+    results: "Results",
     dashboard: "Dashboard",
     platformDashboard: "Cluster utilization",
     queryBrowser: "Query browser",
@@ -75,6 +81,11 @@ const monitoringCopy = {
     alertName: "경고 이름",
     message: "메시지",
     timeRange: "1시간",
+    timeRangeLabel: "시간 범위",
+    searchPlaceholder: "경고, 메트릭, 이벤트 필터...",
+    allSeverities: "모든 심각도",
+    allSources: "모든 소스",
+    results: "결과",
     dashboard: "대시보드",
     platformDashboard: "클러스터 사용량",
     queryBrowser: "쿼리 브라우저",
@@ -98,6 +109,12 @@ const monitoringCopy = {
 
 function numberText(value: number | undefined) {
   return typeof value === "number" ? value.toLocaleString() : "-";
+}
+
+function uniqueSorted(values: Array<string | undefined>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort((a, b) =>
+    a.localeCompare(b)
+  );
 }
 
 function dateTimeText(value: string | undefined) {
@@ -129,6 +146,10 @@ export function OcpMonitoringConsole({ language, view }: OcpMonitoringConsolePro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [queryIndex, setQueryIndex] = useState(0);
+  const [filterText, setFilterText] = useState("");
+  const [severityFilter, setSeverityFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [timeRangeMinutes, setTimeRangeMinutes] = useState(60);
 
   async function refresh(options: { silent?: boolean } = {}) {
     if (!options.silent) setLoading(true);
@@ -152,7 +173,6 @@ export function OcpMonitoringConsole({ language, view }: OcpMonitoringConsolePro
 
   const utilization = overview?.consoleDashboard.utilization;
   const series = utilization?.series ?? [];
-  const selectedSeries = series[Math.min(queryIndex, Math.max(series.length - 1, 0))];
   const statusCards = overview?.consoleDashboard.statusCards ?? [];
   const alertRows = useMemo(() => {
     const sampleRows = (overview?.monitoring.sample ?? []).map((alert, index) => ({
@@ -179,6 +199,63 @@ export function OcpMonitoringConsole({ language, view }: OcpMonitoringConsolePro
   }, [overview?.monitoring.sample, statusCards]);
 
   const activity = overview?.consoleDashboard.activity ?? [];
+  const query = filterText.trim().toLowerCase();
+  const severityOptions = useMemo(
+    () => uniqueSorted([...alertRows.map((alert) => alert.severity), ...activity.map((event) => event.type)]),
+    [activity, alertRows]
+  );
+  const sourceOptions = useMemo(
+    () => uniqueSorted([...alertRows.map((alert) => alert.source), utilization?.source]),
+    [alertRows, utilization?.source]
+  );
+  const filteredAlerts = useMemo(
+    () =>
+      alertRows.filter((alert) => {
+        if (severityFilter !== "all" && alert.severity !== severityFilter) return false;
+        if (sourceFilter !== "all" && alert.source !== sourceFilter) return false;
+        if (!query) return true;
+        return [alert.name, alert.severity, alert.namespace, alert.state, alert.source, alert.message]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      }),
+    [alertRows, query, severityFilter, sourceFilter]
+  );
+  const filteredSeries = useMemo(
+    () =>
+      series.filter((item) => {
+        if (sourceFilter !== "all" && utilization?.source !== sourceFilter) return false;
+        if (!query) return true;
+        return [item.label, item.query, item.unit, item.error]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      }),
+    [query, series, sourceFilter, utilization?.source]
+  );
+  const filteredActivity = useMemo(() => {
+    const now = Date.now();
+    const oldest = now - timeRangeMinutes * 60_000;
+    return activity.filter((event) => {
+      const timestamp = new Date(event.lastTimestamp ?? event.firstTimestamp ?? 0).getTime();
+      if (Number.isFinite(timestamp) && timestamp > 0 && timestamp < oldest) return false;
+      if (severityFilter !== "all" && event.type !== severityFilter) return false;
+      if (!query) return true;
+      return [event.type, event.reason, event.message, event.namespace, event.name, event.regarding?.kind, event.regarding?.name]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [activity, query, severityFilter, timeRangeMinutes]);
+  const selectedSeries = filteredSeries[Math.min(queryIndex, Math.max(filteredSeries.length - 1, 0))];
+  const resultCount =
+    view === "alerting"
+      ? filteredAlerts.length
+      : view === "logs"
+        ? filteredActivity.length
+        : filteredSeries.length;
 
   return (
     <section
@@ -202,16 +279,57 @@ export function OcpMonitoringConsole({ language, view }: OcpMonitoringConsolePro
           {loading ? copy.loading : overview?.status.reachable ? copy.live : copy.unavailable}
         </span>
         <span>{copy.source}: {utilization?.source ?? "unknown"}</span>
-        <span>{copy.timeRange}</span>
         <label>
           <Search size={14} aria-hidden="true" />
           <input
-            aria-label={copy.expression}
+            aria-label={copy.searchPlaceholder}
             data-testid="ocp-monitoring-query-input"
-            readOnly
-            value={selectedSeries?.query ?? ""}
+            value={filterText}
+            placeholder={copy.searchPlaceholder}
+            onChange={(event) => {
+              setFilterText(event.currentTarget.value);
+              setQueryIndex(0);
+            }}
           />
         </label>
+        <select
+          aria-label={copy.timeRangeLabel}
+          value={timeRangeMinutes}
+          onChange={(event) => setTimeRangeMinutes(Number(event.currentTarget.value))}
+        >
+          <option value={15}>15m</option>
+          <option value={60}>{copy.timeRange}</option>
+          <option value={360}>6h</option>
+          <option value={1440}>24h</option>
+        </select>
+        <select
+          aria-label={copy.severity}
+          value={severityFilter}
+          onChange={(event) => setSeverityFilter(event.currentTarget.value)}
+        >
+          <option value="all">{copy.allSeverities}</option>
+          {severityOptions.map((severity) => (
+            <option key={severity} value={severity}>
+              {severity}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={copy.source}
+          value={sourceFilter}
+          onChange={(event) => setSourceFilter(event.currentTarget.value)}
+        >
+          <option value="all">{copy.allSources}</option>
+          {sourceOptions.map((source) => (
+            <option key={source} value={source}>
+              {source}
+            </option>
+          ))}
+        </select>
+        <span className="native-toolbar-count" data-testid="ocp-monitoring-filter-count">
+          <ListFilter size={14} aria-hidden="true" />
+          {copy.results}: {resultCount}
+        </span>
       </div>
 
       {error ? (
@@ -240,7 +358,7 @@ export function OcpMonitoringConsole({ language, view }: OcpMonitoringConsolePro
             <AlertTriangle size={18} aria-hidden="true" />
           </div>
           <div className="native-monitoring-table-wrap">
-            {alertRows.length > 0 ? (
+            {filteredAlerts.length > 0 ? (
               <table className="native-monitoring-table" data-testid="ocp-monitoring-alert-table">
                 <thead>
                   <tr>
@@ -253,7 +371,7 @@ export function OcpMonitoringConsole({ language, view }: OcpMonitoringConsolePro
                   </tr>
                 </thead>
                 <tbody>
-                  {alertRows.map((alert) => (
+                  {filteredAlerts.map((alert) => (
                     <tr key={alert.id}>
                       <td><strong>{alert.name}</strong></td>
                       <td><span className={`severity-chip ${alert.severity}`}>{alert.severity}</span></td>
@@ -285,7 +403,7 @@ export function OcpMonitoringConsole({ language, view }: OcpMonitoringConsolePro
             <p className="muted-warning">{utilization?.error ?? copy.monitoringUnavailable}</p>
           ) : null}
           <div className="monitoring-dashboard-grid" data-testid="ocp-monitoring-dashboard-grid">
-            {series.map((item) => {
+            {filteredSeries.map((item) => {
               const values = item.samples
                 .map((sample) => prometheusSampleNumber(sample))
                 .filter((value): value is number => value !== null);
@@ -295,7 +413,7 @@ export function OcpMonitoringConsole({ language, view }: OcpMonitoringConsolePro
                   type="button"
                   className="monitoring-dashboard-card"
                   key={item.id}
-                  onClick={() => setQueryIndex(series.indexOf(item))}
+                  onClick={() => setQueryIndex(filteredSeries.indexOf(item))}
                 >
                   <strong>{item.label}</strong>
                   <span>{copy.latest}: {typeof item.latest === "number" ? `${item.latest.toLocaleString()} ${item.unit}` : "-"}</span>
@@ -326,7 +444,7 @@ export function OcpMonitoringConsole({ language, view }: OcpMonitoringConsolePro
           </div>
           <div className="monitoring-query-layout" data-testid="ocp-monitoring-query-browser">
             <div className="monitoring-query-list">
-              {series.map((item, index) => (
+              {filteredSeries.map((item, index) => (
                 <button
                   type="button"
                   key={item.id}
@@ -367,8 +485,8 @@ export function OcpMonitoringConsole({ language, view }: OcpMonitoringConsolePro
             <FileText size={18} aria-hidden="true" />
           </div>
           <div className="monitoring-log-stream" data-testid="ocp-monitoring-log-stream">
-            {activity.length > 0 ? (
-              activity.slice(0, 16).map((event) => (
+            {filteredActivity.length > 0 ? (
+              filteredActivity.slice(0, 16).map((event) => (
                 <div className="monitoring-log-line" key={`${event.namespace ?? "cluster"}-${event.name}`}>
                   <Clock3 size={14} aria-hidden="true" />
                   <span>{dateTimeText(event.lastTimestamp ?? event.firstTimestamp)}</span>

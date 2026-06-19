@@ -4312,6 +4312,25 @@ button {
   background: #fbfbfb;
 }
 
+.ocp-monitoring-toolbar select {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid #8a8d90;
+  border-radius: 5px;
+  background: #fff;
+  color: #151515;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.ocp-monitoring-toolbar .native-toolbar-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #151515;
+}
+
 .ocp-monitoring-toolbar input {
   width: 100%;
   min-width: 0;
